@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { useAppContext } from "@/lib/app-context";
 import { authClient } from "@/lib/auth-client";
+import { track } from "@/lib/track";
 
 type AuthMode = "signin" | "signup";
 
@@ -133,7 +134,7 @@ export default function LoginPage() {
   }, [isLoggedIn, router]);
 
   async function handleEmailSignIn() {
-
+    track('login_form_submitted');
     if (!email || !password) {
       toast.error("Email and password are required.");
       return;
@@ -155,7 +156,7 @@ export default function LoginPage() {
   }
 
   async function handleEmailSignUp() {
-
+    track('login_form_submitted');
     if (!email || !password || !name) {
       toast.error("Name, email, and password are required.");
       return;
@@ -188,6 +189,7 @@ export default function LoginPage() {
   }
 
   async function loadDemo() {
+    track('demo_button_clicked');
     setLoading(true);
     ctx.setIsDemo(true);
 
