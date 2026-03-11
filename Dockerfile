@@ -1,0 +1,28 @@
+FROM oven/bun
+WORKDIR /app
+
+# Install deps for web and scrapers
+COPY web/package.json web/bun.lock ./web/
+COPY scrapers/package.json ./scrapers/
+RUN cd web && bun install --frozen-lockfile
+RUN cd scrapers && bun install
+
+# Copy source
+COPY web/ ./web/
+COPY scrapers/ ./scrapers/
+COPY shared/ ./shared/
+
+# Stub shared/gmail (uses googleapis which has massive types that OOM the TS checker)
+RUN echo 'export function get2FaCodeFromEmail(...args: any[]): any { throw new Error("not available in web"); }' > shared/gmail/gmail.ts && \
+    echo 'export {}' > shared/gmail/util.ts
+
+# Build (NEXT_PUBLIC_* must be set at build time for Next.js inlining)
+ENV NEXT_PUBLIC_BASE_URL=https://mychart.fanpierlabs.com
+RUN cd web && bun --bun next build
+
+ENV NODE_ENV=production
+ENV PORT=8080
+EXPOSE 8080
+
+WORKDIR /app/web
+CMD ["bun", "--bun", "next", "start", "-p", "8080"]

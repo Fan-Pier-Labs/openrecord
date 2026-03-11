@@ -1,0 +1,106 @@
+Fan Pier Labs Source-Available License
+Copyright (c) 2024-2026 Fan Pier Labs. All rights reserved.
+
+1. DEFINITIONS
+
+"Software" means the source code, object code, documentation, and all
+associated files in this repository.
+
+"Fan Pier Labs" means the copyright holder and its authorized representatives.
+
+"You" means the individual or entity exercising the permissions granted by
+this License.
+
+2. GRANT OF LICENSE
+
+Subject to the terms and conditions of this License, Fan Pier Labs grants You
+a limited, non-exclusive, non-transferable, revocable license to:
+
+  (a) View and read the source code of the Software;
+  (b) Use the Software for personal, non-commercial, and educational purposes
+      only.
+
+3. RESTRICTIONS
+
+You may NOT, without prior written permission from Fan Pier Labs:
+
+  (a) COMMERCIAL USE: Use the Software, in whole or in part, for any
+      commercial purpose, including but not limited to selling, licensing,
+      or incorporating it into a commercial product or service.
+
+  (b) HOSTED/SAAS OFFERINGS: Offer the Software, or any derivative work
+      based on the Software, as a hosted service, software-as-a-service
+      (SaaS), platform-as-a-service (PaaS), or any other remotely accessible
+      service.
+
+  (c) REDISTRIBUTION: Redistribute, sublicense, share, publish, or otherwise
+      make available the Software or any modified version of the Software to
+      any third party.
+
+  (d) COMPETING PRODUCTS: Use the Software, or any portion thereof, to build,
+      develop, or contribute to any product or service that competes with
+      Fan Pier Labs' products or services.
+
+  (e) SUBLICENSING: Grant sublicenses or derivative licenses to any third
+      party.
+
+4. MANDATORY CONTRIBUTION-BACK
+
+If You modify the Software, You must submit all such modifications back to the
+original repository maintained by Fan Pier Labs via pull request within a
+reasonable timeframe (not to exceed 30 days from the date of modification).
+Fan Pier Labs retains the right to accept, reject, or modify any such
+contributions at its sole discretion. By submitting modifications, You grant
+Fan Pier Labs a perpetual, irrevocable, worldwide, royalty-free license to use,
+modify, distribute, and sublicense Your contributions.
+
+5. ATTRIBUTION
+
+You must retain all copyright notices, license notices, and attribution
+statements in all copies or substantial portions of the Software. You must not
+remove, alter, or obscure any proprietary notices contained in or on the
+Software.
+
+6. TERMINATION
+
+  (a) This License automatically terminates upon any violation of its terms
+      by You.
+
+  (b) Fan Pier Labs may revoke this License at any time with or without notice.
+
+  (c) Upon termination, You must immediately cease all use of the Software
+      and destroy all copies in Your possession or control.
+
+1. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. FAN PIER LABS MAKES
+NO REPRESENTATIONS OR WARRANTIES REGARDING THE ACCURACY, COMPLETENESS, OR
+SUITABILITY OF THE SOFTWARE FOR ANY PURPOSE.
+
+8. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL FAN PIER LABS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. THIS INCLUDES, WITHOUT LIMITATION, ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
+
+9. GOVERNING LAW
+
+This License shall be governed by and construed in accordance with the laws of
+the Commonwealth of Massachusetts, United States of America, without regard to
+its conflict of law provisions. Any disputes arising under this License shall
+be subject to the exclusive jurisdiction of the courts located in the
+Commonwealth of Massachusetts.
+
+10. ENTIRE AGREEMENT
+
+This License constitutes the entire agreement between You and Fan Pier Labs
+regarding the Software and supersedes all prior agreements and understandings.
+Fan Pier Labs reserves the right to modify this License at any time. Continued
+use of the Software after any such modification constitutes acceptance of the
+modified terms.
+
+For licensing inquiries or commercial use permissions, contact Fan Pier Labs.

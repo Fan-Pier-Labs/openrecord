@@ -1,0 +1,26 @@
+{
+  "name": "openclaw-plugin-mychart",
+  "version": "2.0.0",
+  "description": "Access your MyChart health records locally — no server needed",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "openclaw": {
+    "extensions": ["./dist/index.js"]
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "fetch-cookie": "^3.1.0",
+    "cheerio": "^1.0.0",
+    "totp-generator": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "sqlite3": "^5.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5"
+  }
+}

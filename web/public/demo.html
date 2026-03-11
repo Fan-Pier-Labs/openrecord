@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyChart Scraper - Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwindcss.config = {
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(214.3 31.8% 91.4%)",
+        muted: { DEFAULT: "hsl(210 40% 96.1%)", foreground: "hsl(215.4 16.3% 46.9%)" },
+        destructive: { DEFAULT: "hsl(0 84.2% 60.2%)", foreground: "hsl(210 40% 98%)" },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .card { background: white; border-radius: 0.5rem; border: 1px solid hsl(214.3, 31.8%, 91.4%); }
+  .card-header { padding: 1.5rem 1.5rem 0; }
+  .card-content { padding: 1.5rem; }
+  .card-title { font-size: 1.125rem; font-weight: 600; line-height: 1; letter-spacing: -0.025em; }
+  .badge {
+    display: inline-flex; align-items: center; border-radius: 9999px;
+    padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600;
+    line-height: 1; white-space: nowrap;
+  }
+  .badge-destructive { background: hsl(0, 84.2%, 60.2%); color: white; }
+  .badge-default { background: hsl(222.2, 47.4%, 11.2%); color: white; }
+  .badge-secondary { background: hsl(210, 40%, 96.1%); color: hsl(222.2, 47.4%, 11.2%); }
+  .muted-item { background: hsl(210, 40%, 96.1%); border-radius: 0.375rem; padding: 0.75rem; font-size: 0.875rem; }
+  .muted-fg { color: hsl(215.4, 16.3%, 46.9%); }
+</style>
+</head>
+<body class="min-h-screen bg-gray-50 py-8 px-4">
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-3xl font-bold text-center mb-8">MyChart Scraper</h1>
+
+  <div class="space-y-6">
+
+    <!-- Profile -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Profile</h2></div>
+      <div class="card-content">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <span class="muted-fg font-medium">Name</span><span>Sarah Chen</span>
+          <span class="muted-fg font-medium">Date of Birth</span><span>03/15/1988</span>
+          <span class="muted-fg font-medium">MRN</span><span>MRN-4829105</span>
+          <span class="muted-fg font-medium">PCP</span><span>Dr. Michael Torres, MD</span>
+          <span class="muted-fg font-medium">Email</span><span>sarah.chen88@email.com</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Summary -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Health Summary</h2></div>
+      <div class="card-content">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <span class="muted-fg font-medium">Age</span><span>37</span>
+          <span class="muted-fg font-medium">Height</span><span>5' 6" (01/10/2026)</span>
+          <span class="muted-fg font-medium">Weight</span><span>138 lbs (01/10/2026)</span>
+          <span class="muted-fg font-medium">Blood Type</span><span>A+</span>
+          <span class="muted-fg font-medium">Last Visit</span><span>01/10/2026 - Office Visit</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medications -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Medications (3)</h2></div>
+      <div class="card-content space-y-3">
+        <div class="muted-item">
+          <div class="font-medium">Levothyroxine 50 MCG Tablet (Synthroid)</div>
+          <div class="text-xs muted-fg mt-1 space-y-0.5">
+            <div>Instructions: Take 1 tablet by mouth every morning on an empty stomach</div>
+            <div>Prescribed: 09/15/2024</div>
+            <div>Provider: Dr. Michael Torres</div>
+            <div>Pharmacy: CVS Pharmacy #4521</div>
+            <div>Day Supply: 90</div>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Loratadine 10 MG Tablet (Claritin)</div>
+          <div class="text-xs muted-fg mt-1 space-y-0.5">
+            <div>Instructions: Take 1 tablet by mouth once daily as needed for allergies</div>
+            <div>Prescribed: 04/02/2025</div>
+            <div>Provider: Dr. Michael Torres</div>
+            <div>Pharmacy: CVS Pharmacy #4521</div>
+            <div>Day Supply: 30</div>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Vitamin D3 2000 IU Capsule</div>
+          <div class="text-xs muted-fg mt-1 space-y-0.5">
+            <div>Instructions: Take 1 capsule by mouth once daily with food</div>
+            <div>Prescribed: 01/10/2026</div>
+            <div>Provider: Dr. Michael Torres</div>
+            <div>Pharmacy: CVS Pharmacy #4521</div>
+            <div>Day Supply: 90</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Allergies -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Allergies (2)</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">Penicillin</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Type: Medication</span>
+            <span>Reaction: Hives, Rash</span>
+            <span>Severity: Moderate</span>
+            <span>Noted: 06/20/2003</span>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Shellfish</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Type: Food</span>
+            <span>Reaction: Swelling, Difficulty Breathing</span>
+            <span>Severity: Severe</span>
+            <span>Noted: 11/05/2010</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Issues -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Health Issues (3)</h2></div>
+      <div class="card-content space-y-1">
+        <div class="text-sm py-1">
+          <span class="font-medium">Hypothyroidism</span>
+          <span class="text-xs muted-fg ml-2">(noted 09/15/2024)</span>
+        </div>
+        <div class="text-sm py-1">
+          <span class="font-medium">Seasonal Allergic Rhinitis</span>
+          <span class="text-xs muted-fg ml-2">(noted 04/02/2025)</span>
+        </div>
+        <div class="text-sm py-1">
+          <span class="font-medium">Vitamin D Deficiency</span>
+          <span class="text-xs muted-fg ml-2">(noted 12/18/2025)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Care Team -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Care Team (3)</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">Dr. Michael Torres, MD</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Role: Primary Care Physician</span>
+            <span>Specialty: Internal Medicine</span>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Dr. Priya Sharma, MD</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Role: Specialist</span>
+            <span>Specialty: Endocrinology</span>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Jessica Park, NP</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Role: Nurse Practitioner</span>
+            <span>Specialty: Family Medicine</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Billing</h2></div>
+      <div class="card-content space-y-4">
+        <div>
+          <h3 class="font-semibold">Guarantor #8301742 (Sarah Chen)</h3>
+          <p class="text-sm muted-fg">Amount Due: $45.00</p>
+          <div class="mt-2 space-y-2">
+            <p class="text-xs muted-fg">3 billing items</p>
+            <div class="muted-item">
+              <div class="font-medium">01/10/2026 - Office Visit - Established Patient</div>
+              <div class="grid grid-cols-2 gap-1 mt-1 text-xs muted-fg">
+                <span>Provider: Dr. Michael Torres</span>
+                <span>Charge: $285.00</span>
+                <span>You Owe: $25.00</span>
+                <span>Insurance: Blue Cross Blue Shield MA</span>
+              </div>
+              <div class="text-xs muted-fg mt-1">- Office Visit Level 3: $285.00 (you owe: $25.00)</div>
+            </div>
+            <div class="muted-item">
+              <div class="font-medium">12/18/2025 - Laboratory Services</div>
+              <div class="grid grid-cols-2 gap-1 mt-1 text-xs muted-fg">
+                <span>Provider: Dr. Michael Torres</span>
+                <span>Charge: $320.00</span>
+                <span>You Owe: $0.00</span>
+                <span>Insurance: Blue Cross Blue Shield MA</span>
+              </div>
+              <div class="text-xs muted-fg mt-1">- Comprehensive Metabolic Panel: $180.00 (you owe: $0.00)</div>
+              <div class="text-xs muted-fg mt-1">- CBC with Differential: $140.00 (you owe: $0.00)</div>
+            </div>
+            <div class="muted-item">
+              <div class="font-medium">09/15/2024 - Specialist Visit - Endocrinology</div>
+              <div class="grid grid-cols-2 gap-1 mt-1 text-xs muted-fg">
+                <span>Provider: Dr. Priya Sharma</span>
+                <span>Charge: $350.00</span>
+                <span>You Owe: $20.00</span>
+                <span>Insurance: Blue Cross Blue Shield MA</span>
+              </div>
+              <div class="text-xs muted-fg mt-1">- New Patient Consultation: $350.00 (you owe: $20.00)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insurance -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Insurance</h2></div>
+      <div class="card-content space-y-3">
+        <div class="muted-item">
+          <div class="font-medium">Blue Cross Blue Shield MA - HMO Blue</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Subscriber: Sarah Chen</span>
+            <span>Member ID: XYK829105477</span>
+            <span>Group: GRP-00284</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upcoming Visits -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Upcoming Visits</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">03/20/2026 10:30 AM - Follow-up Visit</div>
+          <div class="text-xs muted-fg mt-1">
+            <span>Provider: Dr. Priya Sharma</span>
+            <span class="ml-3">Location: Beacon Endocrinology Associates</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Past Visits -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Past Visits</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">01/10/2026 9:00 AM - Office Visit</div>
+          <div class="text-xs muted-fg mt-1">
+            <span>Provider: Dr. Michael Torres</span>
+            <span class="ml-3">Location: Lakeside Internal Medicine</span>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">09/15/2024 2:15 PM - New Patient Visit</div>
+          <div class="text-xs muted-fg mt-1">
+            <span>Provider: Dr. Priya Sharma</span>
+            <span class="ml-3">Location: Beacon Endocrinology Associates</span>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">06/03/2024 11:00 AM - Annual Physical</div>
+          <div class="text-xs muted-fg mt-1">
+            <span>Provider: Dr. Michael Torres</span>
+            <span class="ml-3">Location: Lakeside Internal Medicine</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lab Results -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Lab Results (2)</h2></div>
+      <div class="card-content space-y-3">
+        <!-- CBC -->
+        <div class="muted-item">
+          <h4 class="font-semibold text-sm">Complete Blood Count (CBC) with Differential</h4>
+          <div class="mt-2">
+            <p class="text-xs muted-fg">12/18/2025 2:34 PM | Ordered by: Dr. Michael Torres</p>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">WBC</span>
+              <span>6.2 x10^3/uL</span>
+              <span class="muted-fg">(ref: 4.5-11.0)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">RBC</span>
+              <span>4.5 x10^6/uL</span>
+              <span class="muted-fg">(ref: 4.0-5.5)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Hemoglobin</span>
+              <span>13.8 g/dL</span>
+              <span class="muted-fg">(ref: 12.0-16.0)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Hematocrit</span>
+              <span>41.2 %</span>
+              <span class="muted-fg">(ref: 36.0-46.0)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Platelets</span>
+              <span>245 x10^3/uL</span>
+              <span class="muted-fg">(ref: 150-400)</span>
+            </div>
+          </div>
+        </div>
+        <!-- Metabolic Panel -->
+        <div class="muted-item">
+          <h4 class="font-semibold text-sm">Comprehensive Metabolic Panel</h4>
+          <div class="mt-2">
+            <p class="text-xs muted-fg">12/18/2025 2:34 PM | Ordered by: Dr. Michael Torres</p>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Glucose</span>
+              <span>92 mg/dL</span>
+              <span class="muted-fg">(ref: 70-100)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">BUN</span>
+              <span>14 mg/dL</span>
+              <span class="muted-fg">(ref: 7-20)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Creatinine</span>
+              <span>0.9 mg/dL</span>
+              <span class="muted-fg">(ref: 0.6-1.2)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">TSH</span>
+              <span>5.8 mIU/L</span>
+              <span class="muted-fg">(ref: 0.4-4.0)</span>
+              <span class="badge badge-destructive text-[10px] px-1.5 py-0">ABNORMAL</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Calcium</span>
+              <span>9.4 mg/dL</span>
+              <span class="muted-fg">(ref: 8.5-10.5)</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mt-1">
+              <span class="font-medium min-w-[120px]">Vitamin D, 25-OH</span>
+              <span>18 ng/mL</span>
+              <span class="muted-fg">(ref: 30-100)</span>
+              <span class="badge badge-destructive text-[10px] px-1.5 py-0">ABNORMAL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Immunizations -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Immunizations (4)</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">Influenza (Flu) Vaccine</div>
+          <div class="text-xs muted-fg mt-1">
+            <div>Dates: 10/05/2025, 09/28/2024, 10/12/2023</div>
+            <div>Organization: Lakeside Internal Medicine</div>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">COVID-19 Vaccine (Pfizer-BioNTech)</div>
+          <div class="text-xs muted-fg mt-1">
+            <div>Dates: 09/15/2025, 10/20/2023, 04/10/2022, 11/05/2021, 05/01/2021, 04/10/2021</div>
+            <div>Organization: Lakeside Internal Medicine</div>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Tdap (Tetanus, Diphtheria, Pertussis)</div>
+          <div class="text-xs muted-fg mt-1">
+            <div>Dates: 06/03/2024</div>
+            <div>Organization: Lakeside Internal Medicine</div>
+          </div>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Hepatitis B Vaccine</div>
+          <div class="text-xs muted-fg mt-1">
+            <div>Dates: 03/15/1988, 04/15/1988, 09/15/1988</div>
+            <div>Organization: Boston Children's Hospital</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preventive Care -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Preventive Care (3)</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item flex items-start gap-3">
+          <span class="badge badge-destructive mt-0.5 shrink-0">Overdue</span>
+          <div>
+            <div class="font-medium">Cervical Cancer Screening (Pap Smear)</div>
+            <div class="text-xs muted-fg mt-1">
+              <span>Overdue since: 06/03/2025</span>
+              <div>Previously: 06/03/2022, 05/18/2019</div>
+            </div>
+          </div>
+        </div>
+        <div class="muted-item flex items-start gap-3">
+          <span class="badge badge-default mt-0.5 shrink-0">Completed</span>
+          <div>
+            <div class="font-medium">Annual Wellness Visit</div>
+            <div class="text-xs muted-fg mt-1">
+              <span>Completed: 01/10/2026</span>
+              <div>Previously: 06/03/2024, 05/22/2023</div>
+            </div>
+          </div>
+        </div>
+        <div class="muted-item flex items-start gap-3">
+          <span class="badge badge-secondary mt-0.5 shrink-0">Not Due</span>
+          <div>
+            <div class="font-medium">Colonoscopy</div>
+            <div class="text-xs muted-fg mt-1">
+              <span>Not due until: 03/15/2033</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Referrals -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Referrals (1)</h2></div>
+      <div class="card-content space-y-3">
+        <div class="muted-item">
+          <div class="font-medium">Referral #REF-20240915 to Beacon Endocrinology Associates</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>Status: Authorized</span>
+            <span>Referred by: Dr. Michael Torres</span>
+            <span>Created: 09/10/2024</span>
+            <span>Valid: 09/10/2024 - 09/10/2025</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medical & Family History -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Medical & Family History</h2></div>
+      <div class="card-content space-y-4">
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Medical History</h3>
+          <div class="text-sm py-0.5">Hypothyroidism (2024)</div>
+          <div class="text-sm py-0.5">Seasonal Allergic Rhinitis (2025)</div>
+          <div class="text-sm py-0.5">Vitamin D Deficiency (2025)</div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Surgical History</h3>
+          <div class="text-sm py-0.5">Wisdom Teeth Extraction (06/2010)</div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Family History</h3>
+          <div class="text-sm py-0.5">
+            <span class="font-medium">Mother</span>
+            <span class="muted-fg"> (Living)</span>
+            : Hypothyroidism, Hypertension
+          </div>
+          <div class="text-sm py-0.5">
+            <span class="font-medium">Father</span>
+            <span class="muted-fg"> (Living)</span>
+            : Type 2 Diabetes, High Cholesterol
+          </div>
+          <div class="text-sm py-0.5">
+            <span class="font-medium">Maternal Grandmother</span>
+            <span class="muted-fg"> (Deceased)</span>
+            : Breast Cancer, Osteoporosis
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Letters -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Letters (2)</h2></div>
+      <div class="card-content space-y-1">
+        <div class="text-sm py-1">
+          <span class="font-medium">2026-01-10</span>
+          <span class="muted-fg"> - Annual Physical Summary (from Dr. Michael Torres)</span>
+        </div>
+        <div class="text-sm py-1">
+          <span class="font-medium">2024-09-15</span>
+          <span class="muted-fg"> - Endocrinology Consultation Note (from Dr. Priya Sharma)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Messages (2)</h2></div>
+      <div class="card-content space-y-2">
+        <div class="muted-item">
+          <div class="font-medium">Lab Results - Vitamin D Follow-up</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>From: Dr. Michael Torres</span>
+            <span>01/12/2026</span>
+          </div>
+          <p class="text-xs muted-fg mt-1 truncate">Hi Sarah, your recent lab work shows your Vitamin D level is still low at 18 ng/mL. I'd like to increase your supplement to 4000 IU daily and recheck in 3 months...</p>
+        </div>
+        <div class="muted-item">
+          <div class="font-medium">Thyroid Medication Adjustment</div>
+          <div class="text-xs muted-fg mt-1 flex flex-wrap gap-x-4">
+            <span>From: Dr. Priya Sharma</span>
+            <span>10/02/2025</span>
+          </div>
+          <p class="text-xs muted-fg mt-1 truncate">Hello Sarah, based on your latest TSH results, your current dose of Levothyroxine appears to be working well. Let's continue with the same dose and recheck in 6 months...</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end space-y-6 -->
+</div>
+</body>
+</html>

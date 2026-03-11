@@ -1,0 +1,17 @@
+name: CI
+on: push
+jobs:
+  build:
+    name: All status checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: cd web && bun install
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+      - run: docker build .
+        timeout-minutes: 20

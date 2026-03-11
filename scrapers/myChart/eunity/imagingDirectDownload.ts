@@ -1,0 +1,1203 @@
+/**
+ * Direct HTTP image downloader for eUnity DICOM viewer.
+ *
+ * Downloads images from eUnity WITHOUT Playwright by:
+ * 1. Following the SAML chain (built-in fetch) to get JSESSIONID on eunitypg
+ * 2. Calling AmfServicesServlet to initialize the session for a study
+ * 3. Calling CustomImageServlet to download pixel data
+ *
+ * The eUnity server uses a proprietary AMF protocol:
+ * - Request/response type: com.clientoutlook.web.metaservices.AmfServicesMessage
+ * - messageType = "call" for requests, "response" for responses
+ * - body = AmfServicesRequest for requests, AmfServicesResponse for responses
+ *
+ * Protocol reverse-engineered from eUnity's Dart/WASM viewer network traffic.
+ */
+import * as tough from 'tough-cookie';
+import * as fs from 'fs';
+import * as path from 'path';
+import { MyChartRequest } from '../myChartRequest';
+import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
+
+/**
+ * Fetch wrapper using Node's built-in fetch with tough-cookie jar.
+ * Uses undici under the hood, which passes TLS fingerprinting checks
+ * that node-fetch fails at the SAML selfauth endpoint.
+ */
+async function fetchWithCookies(
+  jar: tough.CookieJar,
+  url: string,
+  opts: RequestInit & { headers?: Record<string, string> } = {}
+): Promise<Response> {
+  const cookies = await jar.getCookies(url);
+  const cookieHeader = cookies.map(c => `${c.key}=${c.value}`).join('; ');
+  const headers: Record<string, string> = { ...(opts.headers as Record<string, string> ?? {}) };
+  if (cookieHeader) headers['Cookie'] = cookieHeader;
+  const response = await globalThis.fetch(url, { ...opts, headers });
+  const setCookies = response.headers.getSetCookie?.() ?? [];
+  for (const sc of setCookies) {
+    try { await jar.setCookie(sc, url); } catch { /* ignore */ }
+  }
+  return response;
+}
+
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// ─── AMF3 Writer ───
+
+/**
+ * AMF3 binary writer for constructing eUnity API requests.
+ *
+ * Supports the full AMF3 subset used by eUnity's WASM viewer:
+ * - Typed objects (sealed, dynamic, externalizable)
+ * - Arrays, strings, integers, booleans, null
+ * - String reference table for deduplication
+ * - Externalizable objects (ArrayCollection, StudyListRequest)
+ *
+ * Protocol reverse-engineered from captured browser AMF traffic via
+ * Playwright CDP Fetch domain interception.
+ */
+class AMF3Writer {
+  private buf: number[] = [];
+  private stringTable: string[] = [];
+
+  writeU29(value: number) {
+    if (value < 0x80) {
+      this.buf.push(value);
+    } else if (value < 0x4000) {
+      this.buf.push(((value >> 7) & 0x7F) | 0x80);
+      this.buf.push(value & 0x7F);
+    } else if (value < 0x200000) {
+      this.buf.push(((value >> 14) & 0x7F) | 0x80);
+      this.buf.push(((value >> 7) & 0x7F) | 0x80);
+      this.buf.push(value & 0x7F);
+    } else {
+      this.buf.push(((value >> 22) & 0x7F) | 0x80);
+      this.buf.push(((value >> 15) & 0x7F) | 0x80);
+      this.buf.push(((value >> 8) & 0x7F) | 0x80);
+      this.buf.push(value & 0xFF);
+    }
+  }
+
+  writeNull() { this.buf.push(0x01); }
+  writeTrue() { this.buf.push(0x03); }
+  writeFalse() { this.buf.push(0x02); }
+  writeInteger(value: number) { this.buf.push(0x04); this.writeU29(value); }
+
+  writeString(str: string) { this.buf.push(0x06); this.writeStringValue(str); }
+
+  /** Write a string value (without the 0x06 marker). Handles string reference table. */
+  writeStringValue(str: string) {
+    if (str === '') {
+      // Empty string is always inline (U29 = 0x01 = length 0, inline bit set)
+      this.writeU29(1);
+      return;
+    }
+    // Check if string is already in the reference table
+    const refIdx = this.stringTable.indexOf(str);
+    if (refIdx >= 0) {
+      this.writeU29(refIdx << 1); // reference: index << 1, inline bit = 0
+      return;
+    }
+    // Inline string: add to table, then write
+    this.stringTable.push(str);
+    const bytes = Buffer.from(str, 'utf-8');
+    this.writeU29((bytes.length << 1) | 1);
+    this.buf.push(...bytes);
+  }
+
+  /** Write a 32-bit big-endian integer directly (for Externalizable headers). */
+  writeBE32(value: number) {
+    this.buf.push((value >> 24) & 0xFF);
+    this.buf.push((value >> 16) & 0xFF);
+    this.buf.push((value >> 8) & 0xFF);
+    this.buf.push(value & 0xFF);
+  }
+
+  /**
+   * Write a typed AMF3 object with sealed members (non-dynamic, non-externalizable).
+   * Traits bits: 0x03 | (memberCount << 4)
+   */
+  writeTypedObject(
+    className: string,
+    sealedMembers: string[],
+    values: ((w: AMF3Writer) => void)[],
+  ) {
+    this.buf.push(0x0a);
+    const traits = 0x03 | (sealedMembers.length << 4);
+    this.writeU29(traits);
+    this.writeStringValue(className);
+    for (const name of sealedMembers) this.writeStringValue(name);
+    for (const valueFn of values) valueFn(this);
+  }
+
+  /**
+   * Write a dynamic AMF3 object (sealed members + dynamic key-value pairs).
+   * Traits bits: 0x0B | (sealedMemberCount << 4) (dynamic bit = 0x04 set, inline bits = 0x03)
+   */
+  writeDynamicObject(
+    className: string,
+    sealedMembers: string[],
+    sealedValues: ((w: AMF3Writer) => void)[],
+    dynamicPairs: [string, (w: AMF3Writer) => void][],
+  ) {
+    this.buf.push(0x0a);
+    const traits = 0x0B | (sealedMembers.length << 4); // 0x03 | 0x08 (dynamic bit)
+    this.writeU29(traits);
+    this.writeStringValue(className);
+    for (const name of sealedMembers) this.writeStringValue(name);
+    for (const valueFn of sealedValues) valueFn(this);
+    // Dynamic key-value pairs, terminated by empty string
+    for (const [key, valueFn] of dynamicPairs) {
+      this.writeStringValue(key);
+      valueFn(this);
+    }
+    this.writeStringValue(''); // empty string terminates dynamic section
+  }
+
+  /**
+   * Write an Externalizable AMF3 object.
+   * Traits bits: 0x07 (inline + externalizable bits).
+   * The bodyFn writes the custom serialized data.
+   */
+  writeExternalizableObject(
+    className: string,
+    bodyFn: (w: AMF3Writer) => void,
+  ) {
+    this.buf.push(0x0a);
+    this.writeU29(0x07); // externalizable: inline=1, ext=1, dynamic=1 → bits 0,1,2 all set
+    this.writeStringValue(className);
+    bodyFn(this);
+  }
+
+  writeArray(items: ((w: AMF3Writer) => void)[]) {
+    this.buf.push(0x09);
+    this.writeU29((items.length << 1) | 1);
+    this.writeStringValue(''); // empty associative
+    for (const item of items) item(this);
+  }
+
+  toBuffer(): Buffer { return Buffer.from(this.buf); }
+}
+
+// ─── AMF3 Request Construction ───
+
+/**
+ * Build an AMF3 call to AmfServicesServlet.
+ *
+ * Protocol (reverse-engineered from captured browser traffic):
+ * - Outer object: com.clientoutlook.web.metaservices.AmfServicesMessage
+ *   - messageID: incrementing string ID (e.g. "HTTPSimpleLoader_1")
+ *   - messageType: "call"
+ *   - body: com.clientoutlook.web.metaservices.AmfServicesRequest
+ *     - service: service class name (e.g. "StudyService")
+ *     - method: method name (e.g. "getStudyListMeta")
+ *     - parameters: array of method arguments (NOT "args")
+ *
+ * Member order matters for AMF3 sealed objects: messageID comes BEFORE messageType.
+ */
+function buildAmfCall(
+  messageID: string,
+  service: string,
+  method: string,
+  parameters: ((w: AMF3Writer) => void)[],
+): Buffer {
+  const w = new AMF3Writer();
+  w.writeTypedObject(
+    'com.clientoutlook.web.metaservices.AmfServicesMessage',
+    ['messageID', 'messageType', 'body'],
+    [
+      (w) => w.writeString(messageID),
+      (w) => w.writeString('call'),
+      (w) => w.writeTypedObject(
+        'com.clientoutlook.web.metaservices.AmfServicesRequest',
+        ['service', 'method', 'parameters'],
+        [
+          (w2) => w2.writeString(service),
+          (w2) => w2.writeString(method),
+          (w2) => w2.writeArray(parameters),
+        ],
+      ),
+    ],
+  );
+  return w.toBuffer();
+}
+
+/**
+ * Build the getStudyListMeta AMF request.
+ *
+ * This is the first call the WASM viewer makes after getting a JSESSIONID.
+ * It initializes the server-side session for a specific study, which is
+ * required before CustomImageServlet will serve image data (otherwise 403).
+ *
+ * The single parameter is a StudyListRequest — an Externalizable AMF3 object
+ * with a custom binary format containing:
+ *   - 4-byte BE header (value 2)
+ *   - String "getStudyList" (method qualifier)
+ *   - String "1.2.0" (version)
+ *   - Anonymous dynamic object with:
+ *     - notUsed: true
+ *     - requestedPHI: ArrayCollection wrapping RequestedPHI objects
+ *     - environment: Environment object
+ *
+ * Reverse-engineered from captured browser AMF traffic (748 bytes).
+ */
+function buildGetStudyListMetaRequest(
+  accession: string,
+  serviceInstance: string,
+  patientId: string,
+): Buffer {
+  return buildAmfCall('HTTPSimpleLoader_1', 'StudyService', 'getStudyListMeta', [
+    (w) => {
+      // StudyListRequest is Externalizable — custom binary format
+      w.writeExternalizableObject(
+        'com.clientoutlook.web.metaservices.StudyListRequest',
+        (w) => {
+          // 4-byte big-endian header (observed value: 2)
+          w.writeBE32(2);
+          // Method qualifier string
+          w.writeString('getStudyList');
+          // Version string
+          w.writeString('1.2.0');
+          // Anonymous sealed object with 3 members and empty class name.
+          // NOT dynamic — the browser uses plain sealed traits (0x33 = 3 members, no dynamic flag).
+          w.writeTypedObject(
+            '', // empty class name = anonymous object
+            ['notUsed', 'requestedPHI', 'environment'],
+            [
+              // notUsed: true
+              (w) => w.writeTrue(),
+              // requestedPHI: ArrayCollection wrapping RequestedPHI objects
+              (w) => {
+                // ArrayCollection is Externalizable — wraps a standard AMF3 array
+                w.writeExternalizableObject(
+                  'flex.messaging.io.ArrayCollection',
+                  (w) => {
+                    w.writeArray([
+                      (w) => {
+                        // RequestedPHI sealed object (8 members)
+                        w.writeTypedObject(
+                          'com.clientoutlook.data.RequestedPHI',
+                          [
+                            'patientId',
+                            'studyUID',
+                            'accessionNumber',
+                            'serviceInstanceParameter',
+                            'serviceInstanceProperties',
+                            'serviceInstance',
+                            'originalServiceInstanceParameter',
+                            'originalServiceInstance',
+                          ],
+                          [
+                            (w) => w.writeString(patientId),        // e.g. "<MRN>$$$<site>"
+                            (w) => w.writeNull(),                    // studyUID: null
+                            (w) => w.writeString(accession),         // e.g. "E48330984"
+                            (w) => w.writeString(''),                // serviceInstanceParameter: empty
+                            (w) => w.writeNull(),                    // serviceInstanceProperties: null
+                            (w) => w.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
+                            (w) => w.writeString(''),                // originalServiceInstanceParameter: empty
+                            (w) => w.writeString(serviceInstance),   // originalServiceInstance: same
+                          ],
+                        );
+                      },
+                    ]);
+                  },
+                );
+              },
+              // environment: Environment sealed object (6 members)
+              (w) => {
+                w.writeTypedObject(
+                  'com.clientoutlook.data.hangingprotocol.Environment',
+                  ['levelValue', 'level', 'user', 'roles', 'device', 'numberOfScreens'],
+                  [
+                    (w) => w.writeNull(),           // levelValue: null
+                    (w) => w.writeInteger(0),        // level: 0
+                    (w) => w.writeNull(),           // user: null
+                    (w) => w.writeNull(),           // roles: null
+                    (w) => w.writeString('WEB'),    // device: "WEB"
+                    (w) => w.writeString('1'),      // numberOfScreens: "1"
+                  ],
+                );
+              },
+            ],
+          );
+        },
+      );
+    },
+  ]);
+}
+
+// ─── AMF3 Response Parsing ───
+
+interface AmfResponse {
+  code: number;
+  response: string | null;
+}
+
+/**
+ * Parse the outer AmfServicesMessage response to extract code and response text.
+ * Returns null if the response can't be parsed.
+ */
+function parseAmfResponse(buf: Buffer): AmfResponse | null {
+  // Look for the response pattern: AmfServicesResponse followed by code (integer) and response (string or null)
+  const text = buf.toString('latin1');
+  const codeIdx = text.indexOf('code');
+  if (codeIdx < 0) return null;
+
+  // After "code" member name, look for integer marker (0x04) followed by U29 value
+  // The response member follows
+  let pos = buf.indexOf(Buffer.from('code'), 0);
+  if (pos < 0) return null;
+  pos += 4; // skip "code"
+
+  // Skip the second member name (either inline or reference)
+  // Look for the AMF3 integer marker after both member names
+  // Find position of the integer marker for code value
+  while (pos < buf.length && buf[pos] !== 0x04 && buf[pos] !== 0x01) pos++;
+  if (pos >= buf.length) return null;
+
+  let code = -1;
+  let response: string | null = null;
+
+  if (buf[pos] === 0x04) { // Integer
+    pos++;
+    code = buf[pos] & 0x7F;
+    pos++;
+  }
+
+  // Next value is the response (string or null)
+  if (pos < buf.length) {
+    if (buf[pos] === 0x01) { // null
+      response = null;
+    } else if (buf[pos] === 0x06) { // string
+      pos++;
+      // Read U29 string length
+      let len = 0;
+      if (buf[pos] < 0x80) {
+        len = buf[pos] >> 1;
+        pos++;
+      } else {
+        len = ((buf[pos] & 0x7F) << 7) | buf[pos + 1];
+        len >>= 1;
+        pos += 2;
+      }
+      if (len > 0 && pos + len <= buf.length) {
+        response = buf.toString('utf-8', pos, pos + len);
+      }
+    }
+  }
+
+  return { code, response };
+}
+
+/**
+ * Parse AMF response for DICOM UIDs (series and instance UIDs).
+ * Scans the binary buffer heuristically for UID-like patterns.
+ */
+function parseAmfForUIDs(amfBuffer: Buffer, studyUID: string): string[] {
+  const text = amfBuffer.toString('latin1');
+  const uidPattern = /1\.\d+\.\d+\.\d+(?:\.\d+){2,}/g;
+  return [...new Set(Array.from(text.matchAll(uidPattern), m => m[0]))]
+    .filter(uid => uid !== studyUID);
+}
+
+// ─── Study Params Extraction ───
+
+export interface EunityStudyParams {
+  accession: string;
+  serviceInstance: string;
+  patientId: string;
+}
+
+/**
+ * Extract study parameters from the eUnity viewer URL and/or page HTML body.
+ *
+ * The viewer URL may contain study params as query parameters, or the `arg`
+ * parameter may be an encrypted blob (Example Health System). In the encrypted case, the
+ * params are embedded in the viewer HTML as a JSON config object:
+ *   "accessionNumber":"E48330984"
+ *   "serviceInstance":"EXAMPLEstudystrategy"
+ *   "patientId":"<MRN>$$$<site>"
+ *
+ * Known URL formats:
+ * - Encrypted arg: <eunity-host>/e/viewer?CLOAccessKeyID=...&arg=<encrypted>
+ * - Plain arg: <eunity-host>/e/viewer?CLOAccessKeyID=...&arg=accession%3D...
+ * - Direct params: <eunity-host>/eUnity/viewer/?accession=...
+ */
+function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): EunityStudyParams | null {
+  let accession = '';
+  let serviceInstance = '';
+  let patientId = '';
+
+  // Strategy 1: Try URL query parameters
+  try {
+    const url = new URL(viewerUrl);
+    const p = url.searchParams;
+
+    accession = p.get('accession') || p.get('accessionNumber') || '';
+    serviceInstance = p.get('serviceInstance') || '';
+    patientId = p.get('patientId') || p.get('PatID') || '';
+
+    // Try parsing the 'arg' parameter as a query string
+    const arg = p.get('arg');
+    if (arg && !accession) {
+      try {
+        const argParams = new URLSearchParams(arg);
+        if (!accession) accession = argParams.get('accession') || argParams.get('accessionNumber') || '';
+        if (!serviceInstance) serviceInstance = argParams.get('serviceInstance') || '';
+        if (!patientId) patientId = argParams.get('patientId') || argParams.get('PatID') || '';
+      } catch { /* encrypted arg, not a query string */ }
+
+      // Try pipe-delimited
+      if (!accession && arg.includes('|')) {
+        const parts = arg.split('|');
+        if (parts.length >= 3) {
+          accession = parts[0];
+          serviceInstance = parts[1];
+          patientId = parts[2];
+        }
+      }
+    }
+  } catch { /* invalid URL */ }
+
+  // Strategy 2: Parse the viewer HTML body for the JSON config
+  // The eUnity viewer embeds study params in a large JS config object
+  if ((!accession || !serviceInstance || !patientId) && viewerBody) {
+    // Extract accessionNumber from JSON: "accessionNumber":"E48330984"
+    if (!accession) {
+      const accMatch = viewerBody.match(/"accessionNumber"\s*:\s*"([^"]+)"/);
+      if (accMatch) accession = accMatch[1];
+    }
+
+    // Extract serviceInstance from JSON: "serviceInstance":"EXAMPLEstudystrategy"
+    if (!serviceInstance) {
+      const siMatch = viewerBody.match(/"serviceInstance"\s*:\s*"([^"]+)"/);
+      if (siMatch) serviceInstance = siMatch[1];
+    }
+
+    // Extract patientId from JSON: "patientId":"<MRN>$$$<site>"
+    if (!patientId) {
+      const pidMatch = viewerBody.match(/"patientId"\s*:\s*"([^"]+)"/);
+      if (pidMatch) patientId = pidMatch[1];
+    }
+  }
+
+  if (accession && serviceInstance && patientId) {
+    return { accession, serviceInstance, patientId };
+  }
+
+  console.log(`      [PARAMS] Could not extract study params`);
+  console.log(`      [PARAMS] accession=${accession}, serviceInstance=${serviceInstance}, patientId=${patientId}`);
+  return null;
+}
+
+// ─── AMF Response Series Parsing ───
+
+interface ParsedStudyInfo {
+  studyUID: string;
+  series: Array<{
+    seriesUID: string;
+    instanceUID: string;
+    seriesDescription: string;
+  }>;
+}
+
+/**
+ * Parse the AMF getStudyListMeta response to extract study UID and series info.
+ *
+ * Strategy:
+ * 1. Find all DICOM UIDs in the binary (pattern: 1.X.X.X.X...)
+ * 2. Filter out DICOM standard SOP Class UIDs (1.2.840.10008.*)
+ * 3. Identify the study UID (Epic OID root: 1.2.840.114350.*)
+ * 4. Group remaining UIDs into (seriesUID, instanceUID) pairs by order of appearance
+ * 5. Try to find series descriptions near each UID pair
+ *
+ * This is a heuristic parser — a full AMF3 response parser would be more robust
+ * but isn't necessary since the UID pattern matching works reliably.
+ */
+function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
+  const text = amfBuf.toString('latin1');
+
+  // Find all DICOM UIDs (pattern: 1.X.X.X.X...)
+  const uidPattern = /1\.\d+\.\d+\.\d+(?:\.\d+){2,}/g;
+  const allUIDs: string[] = [];
+  const uidPositions: Map<string, number> = new Map();
+  let match;
+  while ((match = uidPattern.exec(text)) !== null) {
+    if (!uidPositions.has(match[0])) {
+      allUIDs.push(match[0]);
+      uidPositions.set(match[0], match.index);
+    }
+  }
+
+  if (allUIDs.length === 0) return null;
+
+  // Filter out DICOM standard SOP Class UIDs (1.2.840.10008.*).
+  // These are standard identifiers (e.g. 1.2.840.10008.5.1.4.1.1.1.2 = Digital X-Ray SOP Class),
+  // not study-specific UIDs. They appear in the AMF response as metadata but should not be
+  // confused with Study/Series/Instance UIDs.
+  const filteredUIDs = allUIDs.filter(uid => !uid.startsWith('1.2.840.10008.'));
+
+  if (filteredUIDs.length === 0) {
+    console.log(`      [AMF-PARSE] No UIDs remaining after filtering (${allUIDs.length} total, all were SOP Class UIDs)`);
+    return null;
+  }
+
+  // Log filtered UIDs for debugging
+  const removedUIDs = allUIDs.filter(uid => uid.startsWith('1.2.840.10008.'));
+  if (removedUIDs.length > 0) {
+    console.log(`      [AMF-PARSE] Filtered out ${removedUIDs.length} SOP Class UIDs: ${removedUIDs.slice(0, 3).join(', ')}${removedUIDs.length > 3 ? '...' : ''}`);
+  }
+  console.log(`      [AMF-PARSE] ${filteredUIDs.length} study-related UIDs: ${filteredUIDs.slice(0, 5).map(u => u.substring(0, 40)).join(', ')}${filteredUIDs.length > 5 ? '...' : ''}`);
+
+  // Study UID: prefer Epic OID root (1.2.840.114350.*), then any 1.2.840.*, then first UID
+  const studyUID = filteredUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
+    || filteredUIDs.find(uid => uid.startsWith('1.2.840.'))
+    || filteredUIDs[0];
+  const otherUIDs = filteredUIDs.filter(uid => uid !== studyUID);
+
+  if (otherUIDs.length === 0) return { studyUID, series: [] };
+
+  // Try to extract series descriptions from the binary.
+  // Descriptions are AMF3 strings near the UIDs.
+  // Look for readable ASCII strings (3-100 chars) that aren't UIDs.
+  const descriptionPattern = /[\x20-\x7e]{3,100}/g;
+  const readableStrings: Array<{ text: string; pos: number }> = [];
+  let strMatch;
+  while ((strMatch = descriptionPattern.exec(text)) !== null) {
+    const s = strMatch[0].trim();
+    // Skip UIDs, URLs, class names, and common AMF strings
+    if (/^\d+\.\d+\.\d+/.test(s)) continue;
+    if (s.includes('com.clientoutlook')) continue;
+    if (s.includes('flex.messaging')) continue;
+    if (s.includes('AmfServices')) continue;
+    if (s.includes('HTTPSimpleLoader')) continue;
+    if (s.includes('getStudyList')) continue;
+    if (s.includes('StudyService')) continue;
+    if (/^[\d.]+$/.test(s)) continue;
+    readableStrings.push({ text: s, pos: strMatch.index });
+  }
+
+  // Group UIDs into series (seriesUID, instanceUID) pairs
+  const series: ParsedStudyInfo['series'] = [];
+  for (let i = 0; i + 1 < otherUIDs.length; i += 2) {
+    const seriesUID = otherUIDs[i];
+    const instanceUID = otherUIDs[i + 1];
+    const seriesPos = uidPositions.get(seriesUID) ?? 0;
+
+    // Find the nearest description string before or after the series UID
+    let bestDesc = `Series ${Math.floor(i / 2) + 1}`;
+    let bestDist = Infinity;
+    for (const rs of readableStrings) {
+      const dist = Math.abs(rs.pos - seriesPos);
+      if (dist < bestDist && dist < 500) {
+        // Prefer strings that look like descriptions (uppercase, multiple words)
+        if (rs.text.length >= 3 && rs.text.length <= 80) {
+          bestDist = dist;
+          bestDesc = rs.text;
+        }
+      }
+    }
+
+    series.push({ seriesUID, instanceUID, seriesDescription: bestDesc });
+  }
+
+  // Handle odd number of UIDs (last one is unpaired)
+  if (otherUIDs.length % 2 === 1) {
+    const lastUID = otherUIDs[otherUIDs.length - 1];
+    series.push({
+      seriesUID: lastUID,
+      instanceUID: lastUID, // use same UID as both series and instance
+      seriesDescription: `Series ${series.length + 1}`,
+    });
+  }
+
+  return { studyUID, series };
+}
+
+// ─── Session Initialization ───
+
+/**
+ * Initialize an eUnity session by calling AmfServicesServlet with getStudyListMeta.
+ * This is required before CustomImageServlet will serve images (otherwise 403).
+ *
+ * Returns the AMF response buffer on success, null on failure.
+ */
+async function initializeAmfSession(
+  cookieJar: tough.CookieJar,
+  baseUrl: string,
+  accession: string,
+  serviceInstance: string,
+  patientId: string,
+): Promise<Buffer | null> {
+  const amfReq = buildGetStudyListMetaRequest(accession, serviceInstance, patientId);
+
+  const res = await fetchWithCookies(cookieJar, `${baseUrl}/e/AmfServicesServlet`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'User-Agent': UA,
+    },
+    body: amfReq,
+  });
+
+  if (!res.ok) {
+    console.log(`      [AMF] Request failed: ${res.status}`);
+    return null;
+  }
+
+  const amfBuf = Buffer.from(await res.arrayBuffer());
+  const parsed = parseAmfResponse(amfBuf);
+
+  if (parsed && parsed.code !== 0) {
+    console.log(`      [AMF] Error code=${parsed.code}: ${parsed.response ?? '(null)'}`);
+    // Even on error, the session may still be partially initialized
+  }
+
+  if (parsed && parsed.code === 0) {
+    console.log(`      [AMF] Session initialized successfully (${amfBuf.length} bytes)`);
+  }
+
+  return amfBuf;
+}
+
+// ─── Image Download ───
+
+export interface DirectDownloadResult {
+  studyName: string;
+  images: DirectDownloadedImage[];
+  errors: string[];
+}
+
+export interface DirectDownloadedImage {
+  filePath: string;
+  sizeBytes: number;
+  seriesUID: string;
+  instanceUID: string;
+  seriesDescription: string;
+  accessionNumber: string;
+  format: string;
+  pixelData?: Buffer;
+  wrapperData?: Buffer;
+}
+
+export interface DirectDownloadOptions {
+  skipFileWrite?: boolean;
+}
+
+/**
+ * Progressive refinement levels for CLOPIXEL requests.
+ *
+ * The eUnity viewer uses Haar wavelet progressive loading:
+ * - Level 1 (0,3,1): Approximation coefficients — lowest resolution base layer
+ * - Level 2 (2,3,2): Additional wavelet detail — medium resolution
+ * - Level 3 (2,4,3): Final wavelet detail — full resolution
+ *
+ * Each level response adds detail that's composited on the client side.
+ * All three levels together represent the full image quality.
+ * Observed from browser WASM viewer network traffic.
+ */
+const PROGRESSIVE_LEVELS = ['0,3,1', '2,3,2', '2,4,3'];
+
+/**
+ * Download an image from CustomImageServlet.
+ * NOTE: image/CLJPEG format is NOT supported by the Example Health System eUnity server (returns CLOERROR).
+ * Use CLOWRAPPER format to get metadata + low-res preview.
+ */
+async function downloadImage(
+  cookieJar: tough.CookieJar,
+  baseUrl: string,
+  params: {
+    studyUID: string;
+    seriesUID: string;
+    objectUID: string;
+    frameNumber?: number;
+    serviceInstance: string;
+    format?: 'CLOPIXEL' | 'CLOWRAPPER';
+    level?: string;
+  }
+): Promise<{ data: Buffer; contentType: string }> {
+  const format = params.format ?? 'CLOWRAPPER';
+  const level = params.level ?? '0';
+
+  let requestType: string;
+  let contentType: string;
+  let haveImageData: string;
+
+  switch (format) {
+    case 'CLOPIXEL':
+      requestType = 'CLOPIXEL';
+      contentType = 'image/CLHAAR';
+      haveImageData = 'partialps';
+      break;
+    case 'CLOWRAPPER':
+      requestType = 'CLOWRAPPER';
+      contentType = 'image/CLWAVE;image/CLHAAR';
+      haveImageData = 'partialnops';
+      break;
+  }
+
+  const body = new URLSearchParams({
+    requestType,
+    contentType,
+    studyUID: params.studyUID,
+    seriesUID: params.seriesUID,
+    objectUID: params.objectUID,
+    frameNumber: String(params.frameNumber ?? 1),
+    locale: 'en_US',
+    haveImageData,
+    serializeType: 'zlib',
+    compressionVersion: '3',
+    serviceInstance: params.serviceInstance,
+    level,
+  }).toString();
+
+  const res = await fetchWithCookies(cookieJar, `${baseUrl}/e/CustomImageServlet`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'User-Agent': UA,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    throw new Error(`CustomImageServlet failed: ${res.status} ${res.statusText}`);
+  }
+
+  const responseType = res.headers.get('content-type') || '';
+  const data = Buffer.from(await res.arrayBuffer());
+  return { data, contentType: responseType };
+}
+
+/**
+ * Download all progressive CLOPIXEL levels for maximum quality.
+ *
+ * The eUnity viewer uses Haar wavelet progressive refinement — each level
+ * adds more detail to the image. All 3 levels are needed for full quality.
+ * Returns an array of {level, data} for each successfully downloaded level.
+ */
+async function downloadProgressiveClopixel(
+  cookieJar: tough.CookieJar,
+  baseUrl: string,
+  params: {
+    studyUID: string;
+    seriesUID: string;
+    objectUID: string;
+    serviceInstance: string;
+    frameNumber?: number;
+  },
+): Promise<Array<{ level: string; data: Buffer }>> {
+  const results: Array<{ level: string; data: Buffer }> = [];
+
+  for (const level of PROGRESSIVE_LEVELS) {
+    try {
+      const { data } = await downloadImage(cookieJar, baseUrl, {
+        ...params,
+        format: 'CLOPIXEL',
+        level,
+      });
+
+      // Check for CLOERROR in response
+      if (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR') {
+        console.log(`        [PIXEL] Level ${level}: server returned CLOERROR, stopping`);
+        break;
+      }
+
+      results.push({ level, data });
+      console.log(`        [PIXEL] Level ${level}: ${(data.length / 1024).toFixed(0)} KB`);
+    } catch (err) {
+      console.log(`        [PIXEL] Level ${level} failed: ${(err as Error).message}`);
+      break;
+    }
+  }
+
+  return results;
+}
+
+// ─── DICOMweb Probing ───
+
+/**
+ * Probe the eUnity server for DICOMweb/WADO endpoints.
+ *
+ * Standard DICOM web service paths to try — if any respond with DICOM data,
+ * we can download original DICOM files instead of proprietary CLO format.
+ * Returns the first working endpoint path, or null if none found.
+ *
+ * NOTE: Not available on all eUnity instances — some return 403 or 404.
+ * However, other MyChart instances may expose DICOMweb.
+ */
+export async function probeDicomWeb(
+  cookieJar: tough.CookieJar,
+  baseUrl: string,
+  studyUID: string,
+): Promise<{ endpoint: string; contentType: string } | null> {
+  const paths = [
+    `/e/dicomweb/studies/${studyUID}`,
+    `/dicomweb/studies/${studyUID}`,
+    `/wado-rs/studies/${studyUID}`,
+    `/e/wado-rs/studies/${studyUID}`,
+    `/e/dicomweb/studies/${studyUID}/metadata`,
+    `/dicomweb/studies/${studyUID}/metadata`,
+    `/e/wado?requestType=WADO&studyUID=${studyUID}&contentType=application/dicom`,
+    `/wado?requestType=WADO&studyUID=${studyUID}&contentType=application/dicom`,
+  ];
+
+  for (const urlPath of paths) {
+    try {
+      const res = await fetchWithCookies(cookieJar, `${baseUrl}${urlPath}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': UA,
+          'Accept': 'multipart/related; type="application/dicom", application/dicom+json, application/json',
+        },
+      });
+
+      const ct = res.headers.get('content-type') || '';
+
+      if (res.ok && (ct.includes('dicom') || ct.includes('multipart') || ct.includes('json'))) {
+        console.log(`      [DICOMweb] Found endpoint: ${urlPath} (${ct})`);
+        return { endpoint: urlPath, contentType: ct };
+      }
+
+      // Consume response body to prevent connection leak
+      await res.arrayBuffer();
+    } catch {
+      // Connection errors are expected for non-existent endpoints
+    }
+  }
+
+  return null;
+}
+
+function isCloFormat(buf: Buffer): boolean {
+  return buf.length > 3 && buf.toString('ascii', 0, 3) === 'CLO';
+}
+
+// ─── Main Entry Point ───
+
+/**
+ * Download all images from an eUnity session using direct HTTP requests.
+ *
+ * Flow:
+ * 1. Follow SAML chain to get authenticated eUnity session
+ * 2. Call AmfServicesServlet getStudyListMeta to initialize the session
+ * 3. Download each image via CustomImageServlet
+ *
+ * The AMF initialization step is critical — without it, CustomImageServlet returns 403.
+ */
+export async function downloadImagingDirect(
+  mychartRequest: MyChartRequest,
+  samlUrl: string,
+  studyName: string,
+  outputDir: string,
+  studyParams: {
+    studyUID: string;
+    accession: string;
+    serviceInstance: string;
+    patientId: string;
+  },
+  seriesInfo: Array<{
+    seriesUID: string;
+    instanceUID: string;
+    seriesDescription: string;
+  }>,
+): Promise<DirectDownloadResult> {
+  const result: DirectDownloadResult = {
+    studyName,
+    images: [],
+    errors: [],
+  };
+
+  try {
+    // Step 1: Follow SAML chain
+    console.log('      Following SAML chain...');
+    const session = await followSamlChain(mychartRequest, samlUrl);
+    if (!session) {
+      result.errors.push('Failed to follow SAML chain to eUnity');
+      return result;
+    }
+    console.log(`      Got eUnity session (JSESSIONID: ${session.jsessionId?.substring(0, 12)}...)`);
+
+    const baseUrl = new URL(session.viewerUrl).origin;
+    await fs.promises.mkdir(outputDir, { recursive: true });
+
+    // Step 2: Initialize AMF session
+    console.log('      Initializing AMF session...');
+    const amfResponse = await initializeAmfSession(
+      session.cookieJar,
+      baseUrl,
+      studyParams.accession,
+      studyParams.serviceInstance,
+      studyParams.patientId,
+    );
+
+    if (!amfResponse) {
+      result.errors.push('AMF session initialization failed');
+      return result;
+    }
+
+    // Parse UIDs from AMF response if available
+    const uids = parseAmfForUIDs(amfResponse, studyParams.studyUID);
+    if (uids.length > 0) {
+      console.log(`      AMF returned ${uids.length} UIDs`);
+    }
+
+    // Step 3: Download images (wrapper + progressive pixel levels)
+    for (const series of seriesInfo) {
+      console.log(`      Downloading ${series.seriesDescription}...`);
+      const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
+      const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      try {
+        // CLOWRAPPER: metadata + base image data
+        const { data } = await downloadImage(session.cookieJar, baseUrl, {
+          studyUID: studyParams.studyUID,
+          seriesUID: series.seriesUID,
+          objectUID: series.instanceUID,
+          serviceInstance: studyParams.serviceInstance,
+          format: 'CLOWRAPPER',
+        });
+
+        // Skip empty/error responses
+        if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
+          console.log(`      Skipping ${series.seriesDescription}: empty or error response (${data.length} bytes)`);
+          continue;
+        }
+
+        const ext = isCloFormat(data) ? '.clo' : '.bin';
+        const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
+        const filePath = path.join(outputDir, fileName);
+        await fs.promises.writeFile(filePath, data);
+
+        result.images.push({
+          filePath,
+          sizeBytes: data.length,
+          seriesUID: series.seriesUID,
+          instanceUID: series.instanceUID,
+          seriesDescription: series.seriesDescription,
+          accessionNumber: studyParams.accession,
+          format: isCloFormat(data) ? 'CLHAAR' : 'UNKNOWN',
+        });
+
+        console.log(`      Saved: ${fileName} (${data.length} bytes)`);
+
+        // Progressive CLOPIXEL levels for full resolution
+        const pixelLevels = await downloadProgressiveClopixel(session.cookieJar, baseUrl, {
+          studyUID: studyParams.studyUID,
+          seriesUID: series.seriesUID,
+          objectUID: series.instanceUID,
+          serviceInstance: studyParams.serviceInstance,
+        });
+
+        for (const pl of pixelLevels) {
+          const levelTag = pl.level.replace(/,/g, '-');
+          const pixelFileName = `${safeName}_${safeDesc}_pixel_L${levelTag}${isCloFormat(pl.data) ? '.clo' : '.bin'}`;
+          const pixelFilePath = path.join(outputDir, pixelFileName);
+          await fs.promises.writeFile(pixelFilePath, pl.data);
+
+          result.images.push({
+            filePath: pixelFilePath,
+            sizeBytes: pl.data.length,
+            seriesUID: series.seriesUID,
+            instanceUID: series.instanceUID,
+            seriesDescription: `${series.seriesDescription} (pixel L${levelTag})`,
+            accessionNumber: studyParams.accession,
+            format: isCloFormat(pl.data) ? `CLHAAR_PIXEL_L${levelTag}` : 'UNKNOWN',
+          });
+        }
+      } catch (err) {
+        result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
+      }
+    }
+  } catch (err) {
+    result.errors.push(`Fatal: ${(err as Error).message}`);
+  }
+
+  return result;
+}
+
+// ─── Self-Contained Download Entry Point ───
+
+/**
+ * Download all images from an imaging study using direct HTTP requests.
+ *
+ * This is the main entry point for the CLI `--action get-imaging` flow.
+ * It handles the entire pipeline automatically:
+ * 1. Gets a fresh SAML URL from FdiData
+ * 2. Follows the SAML chain to get an authenticated eUnity session
+ * 3. Extracts study parameters (accession, serviceInstance, patientId) from the viewer URL
+ * 4. Calls AmfServicesServlet getStudyListMeta to initialize the session and get series info
+ * 5. Downloads CLO image data for each series via CustomImageServlet
+ *
+ * Returns the download results including file paths, sizes, and any errors.
+ */
+export async function downloadImagingStudyDirect(
+  mychartRequest: MyChartRequest,
+  fdiContext: FdiContext,
+  studyName: string,
+  outputDir: string,
+  options?: DirectDownloadOptions,
+): Promise<DirectDownloadResult> {
+  const result: DirectDownloadResult = {
+    studyName,
+    images: [],
+    errors: [],
+  };
+
+  try {
+    // Step 1: Get SAML URL from FdiData
+    console.log('      Getting SAML URL for direct download...');
+    const viewerSession = await getImageViewerSamlUrl(mychartRequest, fdiContext);
+    if (!viewerSession?.samlUrl) {
+      result.errors.push('Could not get SAML URL from FdiData');
+      return result;
+    }
+
+    // Step 2: Follow SAML chain to eUnity
+    console.log('      Following SAML chain...');
+    const session = await followSamlChain(mychartRequest, viewerSession.samlUrl);
+    if (!session) {
+      result.errors.push('Failed to follow SAML chain to eUnity');
+      return result;
+    }
+    console.log(`      Got eUnity session (JSESSIONID: ${session.jsessionId?.substring(0, 12)}...)`);
+
+    // Step 3: Extract study params from viewer URL
+    const studyParams = parseEunityStudyParams(session.viewerUrl, session.viewerBody);
+    if (!studyParams) {
+      result.errors.push(`Could not extract study params from viewer URL: ${session.viewerUrl}`);
+      return result;
+    }
+    console.log(`      Study params: accession=${studyParams.accession}, serviceInstance=${studyParams.serviceInstance}`);
+
+    const baseUrl = new URL(session.viewerUrl).origin;
+    const skipFileWrite = options?.skipFileWrite ?? false;
+    if (!skipFileWrite) {
+      await fs.promises.mkdir(outputDir, { recursive: true });
+    }
+
+    // Step 4: Initialize AMF session (required before CustomImageServlet will serve images)
+    console.log('      Initializing AMF session...');
+    const amfResponse = await initializeAmfSession(
+      session.cookieJar,
+      baseUrl,
+      studyParams.accession,
+      studyParams.serviceInstance,
+      studyParams.patientId,
+    );
+
+    if (!amfResponse) {
+      result.errors.push('AMF session initialization failed');
+      return result;
+    }
+
+    // Step 5: Parse series info from AMF response
+    const studyInfo = parseStudySeriesFromAmf(amfResponse);
+    if (!studyInfo || studyInfo.series.length === 0) {
+      result.errors.push('Could not parse series info from AMF response');
+      return result;
+    }
+    console.log(`      Found ${studyInfo.series.length} series, studyUID: ${studyInfo.studyUID.substring(0, 30)}...`);
+
+    // Step 6: Download images for each series
+    for (const series of studyInfo.series) {
+      console.log(`      Downloading ${series.seriesDescription}...`);
+      const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
+      const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      try {
+        // Download CLOWRAPPER (metadata + low-res image data)
+        const { data } = await downloadImage(session.cookieJar, baseUrl, {
+          studyUID: studyInfo.studyUID,
+          seriesUID: series.seriesUID,
+          objectUID: series.instanceUID,
+          serviceInstance: studyParams.serviceInstance,
+          format: 'CLOWRAPPER',
+        });
+
+        // Skip empty/error responses (< 256 bytes is too small for real image data)
+        if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
+          console.log(`      Skipping ${series.seriesDescription}: empty or error response (${data.length} bytes)`);
+          continue;
+        }
+
+        const ext = isCloFormat(data) ? '.clo' : '.bin';
+        const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
+        const filePath = path.join(outputDir, fileName);
+
+        if (skipFileWrite) {
+          // Buffer mode: CLOWRAPPER contains [CLOHEADERZ01 metadata][CLOCLHAAR pixel data].
+          // Split into wrapper metadata and embedded pixel data for in-memory conversion.
+          const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
+          const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
+          if (haarIdx > 0) {
+            const wrapperMetadata = data.subarray(0, haarIdx);
+            const embeddedPixelData = data.subarray(haarIdx);
+            result.images.push({
+              filePath: '',
+              sizeBytes: embeddedPixelData.length,
+              seriesUID: series.seriesUID,
+              instanceUID: series.instanceUID,
+              seriesDescription: series.seriesDescription,
+              accessionNumber: studyParams.accession,
+              format: 'CLHAAR',
+              pixelData: Buffer.from(embeddedPixelData),
+              wrapperData: Buffer.from(wrapperMetadata),
+            });
+          }
+        } else {
+          await fs.promises.writeFile(filePath, data);
+          console.log(`      Saved: ${fileName} (${(data.length / 1024).toFixed(0)} KB)`);
+
+          // Download all progressive CLOPIXEL levels for full quality
+          console.log(`      Downloading progressive pixel levels...`);
+          const pixelLevels = await downloadProgressiveClopixel(session.cookieJar, baseUrl, {
+            studyUID: studyInfo.studyUID,
+            seriesUID: series.seriesUID,
+            objectUID: series.instanceUID,
+            serviceInstance: studyParams.serviceInstance,
+          });
+          // File mode: write wrapper + all pixel levels to disk
+          result.images.push({
+            filePath,
+            sizeBytes: data.length,
+            seriesUID: series.seriesUID,
+            instanceUID: series.instanceUID,
+            seriesDescription: series.seriesDescription,
+            accessionNumber: studyParams.accession,
+            format: isCloFormat(data) ? 'CLHAAR' : 'UNKNOWN',
+          });
+
+          for (const pl of pixelLevels) {
+            const levelTag = pl.level.replace(/,/g, '-');
+            const pixelFileName = `${safeName}_${safeDesc}_pixel_L${levelTag}${isCloFormat(pl.data) ? '.clo' : '.bin'}`;
+            const pixelFilePath = path.join(outputDir, pixelFileName);
+            await fs.promises.writeFile(pixelFilePath, pl.data);
+
+            result.images.push({
+              filePath: pixelFilePath,
+              sizeBytes: pl.data.length,
+              seriesUID: series.seriesUID,
+              instanceUID: series.instanceUID,
+              seriesDescription: `${series.seriesDescription} (pixel L${levelTag})`,
+              accessionNumber: studyParams.accession,
+              format: isCloFormat(pl.data) ? `CLHAAR_PIXEL_L${levelTag}` : 'UNKNOWN',
+            });
+          }
+
+          if (pixelLevels.length > 0) {
+            const totalPixelKB = pixelLevels.reduce((sum, pl) => sum + pl.data.length, 0) / 1024;
+            console.log(`      Total pixel data: ${pixelLevels.length} levels, ${totalPixelKB.toFixed(0)} KB`);
+          }
+        }
+      } catch (err) {
+        result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
+      }
+    }
+  } catch (err) {
+    result.errors.push(`Fatal: ${(err as Error).message}`);
+  }
+
+  return result;
+}

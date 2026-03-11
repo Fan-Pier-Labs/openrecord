@@ -1,0 +1,18 @@
+platform: "fargate"
+app_name: "mychart"
+dockerfile: "Dockerfile"
+aws:
+  profile: "fanpierlabs"
+  region: "us-east-2"
+public:
+  domain: "mychart.fanpierlabs.com"
+
+task:
+  cpu: 1024
+  memory: 2048
+  spot: true
+  replicas: 1
+  ephemeral_storage: 21
+  port: 8080
+
+allow_create: true

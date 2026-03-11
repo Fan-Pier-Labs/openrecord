@@ -1,0 +1,11 @@
+node_modules
+.git
+.claude
+.cookie-cache
+electron-app
+cli
+read-local-passwords
+clo-to-jpg-converter
+web/node_modules
+web/.next
+*.dmg
