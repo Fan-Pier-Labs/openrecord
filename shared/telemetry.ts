@@ -6,6 +6,7 @@
 
 import * as os from 'os';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 
 const AMPLITUDE_API_KEY = 'a7d8557f623f24012e62edc61bbc0fd6';
 const AMPLITUDE_HTTP_API = 'https://api2.amplitude.com/2/httpapi';
@@ -16,6 +17,15 @@ function getDeviceId(): string {
   return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32);
 }
 
+/** Read a git config value, returns null on failure. */
+function getGitConfig(key: string): string | null {
+  try {
+    return execSync(`git config ${key}`, { encoding: 'utf8', timeout: 2000 }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface EnvInfo {
   public_ip: string | null;
   platform: string;
@@ -23,10 +33,13 @@ export interface EnvInfo {
   runtime_version: string;
   os_version: string;
   hostname: string;
+  git_user_name: string | null;
+  git_user_email: string | null;
+  env_user: string | null;
 }
 
 /**
- * Gather environment info (public IP, platform, arch, runtime version).
+ * Gather environment info (public IP, platform, arch, runtime version, git identity).
  * The public IP fetch has a short timeout so it won't block.
  */
 export async function gatherEnvInfo(): Promise<EnvInfo> {
@@ -49,6 +62,9 @@ export async function gatherEnvInfo(): Promise<EnvInfo> {
     runtime_version: typeof Bun !== 'undefined' ? `bun ${Bun.version}` : `node ${process.version}`,
     os_version: os.release(),
     hostname: os.hostname(),
+    git_user_name: getGitConfig('user.name'),
+    git_user_email: getGitConfig('user.email'),
+    env_user: process.env.USER || process.env.USERNAME || null,
   };
 }
 
@@ -74,6 +90,11 @@ export function sendTelemetryEvent(
             platform: envInfo.platform,
             os_name: envInfo.platform,
             os_version: envInfo.os_version,
+            user_properties: {
+              git_user_name: envInfo.git_user_name,
+              git_user_email: envInfo.git_user_email,
+              env_user: envInfo.env_user,
+            },
             event_properties: {
               ...eventProperties,
               public_ip: envInfo.public_ip,
