@@ -17,6 +17,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **CLO-to-JPG converter** (`clo-to-jpg-converter/`): eUnity CLO image format converter
 - **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
 - **OpenClaw plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin that bundles all MyChart scrapers locally. No server dependency.
+- **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (or set `FAKE_MYCHART_ACCEPT_ANY=true`). All state lives in RAM. Supports the full login flow including 2FA (code `123456`).
 
 ## Key Commands
 
@@ -26,6 +27,8 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `bun run test:integration` — Run integration tests (requires credentials)
 - `bun run cli` — Run the CLI scraper (defaults to MyChart)
 - `bun run cli mychart [flags]` — MyChart scraper
+- `cd fake-mychart && bun run dev` — Run fake MyChart server on port 4000
+- `cd fake-mychart && bun run build` — Build fake MyChart for production
 - `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
 
 ## Reference Docs
@@ -38,12 +41,26 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 
 ## Deployment
 
+The web app supports two deployment modes, auto-detected via the `DATABASE_URL` env var:
+
+- **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
+- **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
+
+### AWS Fargate (primary)
+
 - **AWS account**: fanpierlabs (`aws --profile fanpierlabs`)
 - **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy_scraper_demo`
   - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
   - Config: `web/deploy.yaml`
   - Domain: `mychart.fanpierlabs.com` (CloudFront + ALB + Route53)
   - Region: `us-east-2`
+
+### Railway / Self-Hosted
+
+- Config: `railway.toml` (Dockerfile-based build)
+- Required env vars: `DATABASE_URL` (auto from Postgres plugin), `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`, `NEXT_PUBLIC_BASE_URL`
+- Optional env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google OAuth disabled without them)
+- SSL is disabled for Railway Postgres connections (not needed); AWS RDS uses `{ rejectUnauthorized: false }`
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
@@ -155,7 +172,7 @@ When reverse engineering health portal APIs (MyChart, etc.), the request headers
 
 - Always create a PR for new features — never push directly to `main`
 - CI must pass (lint, tests, build) before merging
-- Do not enable auto merge. Wait for the user to explicitly tell you to do so.
+- **NEVER merge pull requests or enable auto merge without the user's explicit permission.** Wait for the user to explicitly tell you to do so.
 - Make sure to write tests as well. Unit, and integration when appropriate. 
 
 ### Creating / Updating PRs
