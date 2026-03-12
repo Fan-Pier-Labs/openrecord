@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { getMyChartInstances } from '@/lib/db';
 import { getSession as getMyChartSession } from '@/lib/sessions';
+import { hasGoogleOAuth } from '@/lib/mcp/config';
 import { sendTelemetryEvent } from '../../../../../shared/telemetry';
 
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const session = await auth.api.getSession({ headers: req.headers });
 
     if (!session?.user) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
+      return NextResponse.json({ authenticated: false, googleOAuthEnabled: hasGoogleOAuth() }, { status: 401 });
     }
 
     // Get user's MyChart instances with connection status
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       authenticated: true,
+      googleOAuthEnabled: hasGoogleOAuth(),
       user: {
         id: session.user.id,
         name: session.user.name,
