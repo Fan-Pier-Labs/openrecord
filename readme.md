@@ -114,7 +114,7 @@ One URL works for all your MyChart accounts. If you have multiple accounts conne
 
 Deploy your own instance with one click:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/PLACEHOLDER)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/5F69Mf?referralCode=xrxOUg)
 
 **Required env vars:**
 
