@@ -1,7 +1,14 @@
+import { startKeepalive } from '@/lib/mcp/keepalive';
+import { runMigrations } from '@/lib/migrate';
+
 export async function register() {
   // Only run on the server (not edge runtime)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { startKeepalive } = await import('@/lib/mcp/keepalive');
+    try {
+      await runMigrations();
+    } catch (err) {
+      console.error('[instrumentation] Migration error:', err);
+    }
 
     try {
       startKeepalive();
