@@ -4,7 +4,7 @@ import { setSession } from '@/lib/sessions';
 import { sessionStore } from '../../../../scrapers/myChart/sessionStore';
 
 export type AutoConnectResult = {
-  state: 'logged_in' | 'need_2fa' | 'error';
+  state: 'logged_in' | 'need_2fa' | 'need_terms_acceptance' | 'error';
   twoFaDelivery?: TwoFaDeliveryInfo;
 };
 
@@ -54,6 +54,15 @@ export async function autoConnectInstance(
     return { state: 'error' };
   }
 
+  if (loginResult.state === 'need_terms_acceptance') {
+    console.log(`[auto-connect] ${instance.hostname}: need_terms_acceptance, storing partial session`);
+    sessionStore.set(sessionKey, loginResult.mychartRequest, {
+      hostname: instance.hostname,
+      status: 'need_terms_acceptance',
+    });
+    return { state: 'need_terms_acceptance' };
+  }
+
   if (loginResult.state === 'need_2fa') {
     if (instance.totpSecret) {
       console.log(`[auto-connect] ${instance.hostname}: need_2fa, auto-completing with TOTP`);
@@ -71,6 +80,15 @@ export async function autoConnectInstance(
         if (twofaResult.state === 'logged_in') {
           setSession(sessionKey, twofaResult.mychartRequest, { hostname: instance.hostname });
           return { state: 'logged_in' };
+        }
+
+        if (twofaResult.state === 'need_terms_acceptance') {
+          console.log(`[auto-connect] ${instance.hostname}: need_terms_acceptance after TOTP 2FA`);
+          sessionStore.set(sessionKey, twofaResult.mychartRequest, {
+            hostname: instance.hostname,
+            status: 'need_terms_acceptance',
+          });
+          return { state: 'need_terms_acceptance' };
         }
 
         console.log(`[auto-connect] ${instance.hostname}: TOTP auto-2FA failed with state=${twofaResult.state}`);
