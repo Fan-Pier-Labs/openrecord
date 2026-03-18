@@ -803,9 +803,6 @@ export default function LoginPage() {
                             <li>This software is provided as-is with no warranty</li>
                             <li>This is beta software and may not work or may break at any time</li>
                             <li>We are not associated with, endorsed by, or affiliated with Epic Systems or MyChart</li>
-                            <li>By using this service, you agree to MyChart&apos;s Terms of Use — we will accept these on your behalf when connecting</li>
-                            <li>AI is not perfect — when used to edit or update medical records (e.g. sending messages, requesting refills), it can make mistakes. Always review AI-generated actions before they are sent.</li>
-                            <li>This tool is not a substitute for professional medical advice</li>
                             <li>Use at your own risk</li>
                           </ul>
                         </div>
