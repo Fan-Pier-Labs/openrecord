@@ -18,6 +18,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
 - **OpenClaw plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin that bundles all MyChart scrapers locally. No server dependency.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (or set `FAKE_MYCHART_ACCEPT_ANY=true`). All state lives in RAM. Supports the full login flow including 2FA (code `123456`).
+- **Marketing** (`marketing/`): Separate private git repo (`Fan-Pier-Labs/mychart-connector-marketing`) nested inside the main repo and listed in `.gitignore`. Contains outreach docs, campaign status, and prospect lists. Commit and push changes to the marketing repo independently from the main repo.
 
 ## Key Commands
 
