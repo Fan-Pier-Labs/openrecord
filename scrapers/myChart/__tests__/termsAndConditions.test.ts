@@ -195,9 +195,9 @@ describe('acceptTermsAndConditions', () => {
       let callCount = 0
       const calledUrls: string[] = []
 
-      req.fetchWithCookieJar = mock(async () => {
+      req.fetchWithCookieJar = mock(async (requestUrl: string) => {
         callCount++
-        calledUrls.push(url)
+        calledUrls.push(requestUrl)
         if (callCount === 1) {
           // GET T&C page
           return new Response(buildTermsPage(), { status: 200 })
