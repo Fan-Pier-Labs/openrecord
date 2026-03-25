@@ -221,20 +221,7 @@ describe('parseFirstPathPartFromHtml', () => {
 })
 
 describe('cross-domain redirect handling in login', () => {
-  it('ignores cross-domain redirect and probes /MyChart as fallback', async () => {
-    // Simulates mychart.uchealth.org which redirects to uchealth.org (marketing site)
-    // but has MyChart at /MyChart
-    const calledUrls: string[] = []
-
-    const result = await myChartUserPassLogin({
-      hostname: 'mychart.uchealth.org',
-      user: 'testuser',
-      pass: 'testpass',
-      protocol: 'https',
-    }).catch(() => null)
-
-    // We can't fully mock myChartUserPassLogin since it creates its own MyChartRequest,
-    // but we can test the exported helpers that it uses
+  it('ignores cross-domain redirect and probes /MyChart as fallback', () => {
     // The cross-domain detection logic is: if redirect hostname !== request hostname, skip it
     const redirectUrl = new URL('https://uchealth.org/access-my-health-connection/', 'https://mychart.uchealth.org')
     expect(redirectUrl.hostname).not.toBe('mychart.uchealth.org')
