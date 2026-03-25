@@ -85,11 +85,12 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
   let firstPathPart;
 
   if (locationResponseHeader) {
-    // Only use the Location header if it stays on the same hostname.
+    // Only use the Location header if it stays on the same host.
     // Cross-domain redirects (e.g. to a marketing page) need special handling.
+    // Use redirectUrl.host (includes port) since mychartRequest.hostname may include a port.
     const redirectUrl = new URL(locationResponseHeader, mychartRequest.protocol + '://' + mychartRequest.hostname);
-    if (redirectUrl.hostname !== mychartRequest.hostname) {
-      console.log('Cross-domain redirect detected:', mychartRequest.hostname, '->', redirectUrl.hostname);
+    if (redirectUrl.host !== mychartRequest.hostname) {
+      console.log('Cross-domain redirect detected:', mychartRequest.hostname, '->', redirectUrl.host);
       // Follow the redirect and scrape the marketing page for MyChart URLs
       // that point back to the original hostname (e.g. script tags, data attributes, links).
       firstPathPart = await extractFirstPathPartFromMarketingPage(mychartRequest, redirectUrl.href);

@@ -222,16 +222,21 @@ describe('parseFirstPathPartFromHtml', () => {
 
 describe('cross-domain redirect handling', () => {
   it('detects cross-domain redirect correctly', () => {
+    // Use url.host (not url.hostname) to include port in comparison,
+    // since mychartRequest.hostname may include a port (e.g. localhost:4001)
     const cases = [
       { location: 'https://uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
       { location: 'https://www.uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
       { location: 'https://mychart.uchealth.org/MyChart/', hostname: 'mychart.uchealth.org', isCrossDomain: false },
       { location: '/MyChart/', hostname: 'mychart.example.com', isCrossDomain: false },
+      // localhost with port — must NOT be detected as cross-domain
+      { location: 'http://localhost:4001/MyChart/', hostname: 'localhost:4001', isCrossDomain: false },
+      { location: 'http://localhost:4000/MyChart/', hostname: 'localhost:4000', isCrossDomain: false },
     ]
 
     for (const { location, hostname, isCrossDomain } of cases) {
       const url = new URL(location, `https://${hostname}`)
-      expect(url.hostname !== hostname).toBe(isCrossDomain)
+      expect(url.host !== hostname).toBe(isCrossDomain)
     }
   })
 })
