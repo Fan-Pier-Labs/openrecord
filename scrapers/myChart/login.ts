@@ -43,8 +43,17 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
   let firstPathPart;
 
   if (locationResponseHeader) {
-    firstPathPart = parseFirstPathPartFromLocation(locationResponseHeader, mychartRequest.hostname, mychartRequest.protocol);
-    console.log('first path part', firstPathPart)
+    // Only use the Location header if it stays on the same hostname.
+    // Cross-domain redirects (e.g. mychart.uchealth.org → uchealth.org/access-my-health-connection/)
+    // point to marketing pages, not the actual MyChart portal.
+    const redirectUrl = new URL(locationResponseHeader, mychartRequest.protocol + '://' + mychartRequest.hostname);
+    if (redirectUrl.hostname !== mychartRequest.hostname) {
+      console.log('Ignoring cross-domain redirect for firstPathPart:', mychartRequest.hostname, '->', redirectUrl.hostname);
+      // Fall through to try extracting from the response body or fetching the login page directly
+    } else {
+      firstPathPart = parseFirstPathPartFromLocation(locationResponseHeader, mychartRequest.hostname, mychartRequest.protocol);
+      console.log('first path part', firstPathPart)
+    }
   }
   else {
     console.log('Looking for first path part: no location response header')
@@ -62,8 +71,29 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
   }
 
   if (!firstPathPart) {
+    // Last resort: probe common MyChart path names (e.g. /MyChart/Authentication/Login)
+    // Some sites (like mychart.uchealth.org) redirect the root to a marketing page
+    // but still serve MyChart at /MyChart.
+    const commonPaths = ['MyChart'];
+    for (const candidate of commonPaths) {
+      try {
+        const probeResp = await mychartRequest.makeRequest({
+          url: mychartRequest.protocol + '://' + mychartRequest.hostname + '/' + candidate + '/Authentication/Login',
+          followRedirects: false,
+        });
+        if (probeResp.status === 200 || probeResp.status === 302) {
+          console.log('Probed and found firstPathPart:', candidate);
+          firstPathPart = candidate;
+          break;
+        }
+      } catch {
+        // ignore probe failures
+      }
+    }
+  }
+
+  if (!firstPathPart) {
     console.log('Could not find first path part');
-    console.log('TODO: handle this error better')
     return mychartRequest;
   }
 

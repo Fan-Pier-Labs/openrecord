@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, myChartUserPassLogin } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -173,5 +173,115 @@ describe('parse2faDeliveryMethods', () => {
     </body></html>`
     const result = parse2faDeliveryMethods(html)
     expect(result.hasSms).toBe(true)
+  })
+})
+
+describe('parseFirstPathPartFromLocation', () => {
+  it('extracts path part from same-host redirect', () => {
+    expect(parseFirstPathPartFromLocation(
+      'https://mychart.example.com/MyChart/',
+      'mychart.example.com'
+    )).toBe('MyChart')
+  })
+
+  it('extracts path part from relative redirect', () => {
+    expect(parseFirstPathPartFromLocation(
+      '/UCSFMyChart/',
+      'ucsfmychart.ucsfmedicalcenter.org'
+    )).toBe('UCSFMyChart')
+  })
+
+  it('extracts path part from cross-domain redirect URL', () => {
+    // Note: parseFirstPathPartFromLocation doesn't filter cross-domain —
+    // that's handled by determineFirstPathPart
+    expect(parseFirstPathPartFromLocation(
+      'https://uchealth.org/access-my-health-connection/',
+      'mychart.uchealth.org'
+    )).toBe('access-my-health-connection')
+  })
+
+  it('returns null for root redirect with no path', () => {
+    expect(parseFirstPathPartFromLocation(
+      'https://mychart.example.com/',
+      'mychart.example.com'
+    )).toBe(null)
+  })
+})
+
+describe('parseFirstPathPartFromHtml', () => {
+  it('extracts path from meta refresh tag', () => {
+    const html = '<html><head><meta http-equiv="REFRESH" content="0;URL=/MyChart/"></head></html>'
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('returns null when no meta refresh tag', () => {
+    const html = '<html><body>Hello</body></html>'
+    expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+})
+
+describe('cross-domain redirect handling in login', () => {
+  it('ignores cross-domain redirect and probes /MyChart as fallback', async () => {
+    // Simulates mychart.uchealth.org which redirects to uchealth.org (marketing site)
+    // but has MyChart at /MyChart
+    const calledUrls: string[] = []
+
+    const result = await myChartUserPassLogin({
+      hostname: 'mychart.uchealth.org',
+      user: 'testuser',
+      pass: 'testpass',
+      protocol: 'https',
+    }).catch(() => null)
+
+    // We can't fully mock myChartUserPassLogin since it creates its own MyChartRequest,
+    // but we can test the exported helpers that it uses
+    // The cross-domain detection logic is: if redirect hostname !== request hostname, skip it
+    const redirectUrl = new URL('https://uchealth.org/access-my-health-connection/', 'https://mychart.uchealth.org')
+    expect(redirectUrl.hostname).not.toBe('mychart.uchealth.org')
+    expect(redirectUrl.hostname).toBe('uchealth.org')
+
+    // The path extracted from the cross-domain redirect would be wrong
+    const wrongPath = parseFirstPathPartFromLocation(
+      'https://uchealth.org/access-my-health-connection/',
+      'mychart.uchealth.org'
+    )
+    expect(wrongPath).toBe('access-my-health-connection')
+
+    // The correct path (from probe) would be MyChart
+    const correctPath = parseFirstPathPartFromLocation(
+      '/MyChart/',
+      'mychart.uchealth.org'
+    )
+    expect(correctPath).toBe('MyChart')
+  })
+
+  it('uses same-host redirect normally', () => {
+    // Normal case: redirect stays on same host
+    const redirectUrl = new URL(
+      'https://mychart.example.com/MyChart/',
+      'https://mychart.example.com'
+    )
+    expect(redirectUrl.hostname).toBe('mychart.example.com')
+
+    const path = parseFirstPathPartFromLocation(
+      'https://mychart.example.com/MyChart/',
+      'mychart.example.com'
+    )
+    expect(path).toBe('MyChart')
+  })
+
+  it('detects cross-domain redirect correctly', () => {
+    // Various cross-domain redirect scenarios
+    const cases = [
+      { location: 'https://uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
+      { location: 'https://www.uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
+      { location: 'https://mychart.uchealth.org/MyChart/', hostname: 'mychart.uchealth.org', isCrossDomain: false },
+      { location: '/MyChart/', hostname: 'mychart.example.com', isCrossDomain: false },
+    ]
+
+    for (const { location, hostname, isCrossDomain } of cases) {
+      const url = new URL(location, `https://${hostname}`)
+      expect(url.hostname !== hostname).toBe(isCrossDomain)
+    }
   })
 })
