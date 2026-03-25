@@ -118,3 +118,73 @@ jobs:
           done
       - name: Run T&C integration tests
         run: FAKE_MYCHART_TERMS_HOST=localhost:4001 bun run test:fake-mychart-terms
+
+  integration-tests:
+    name: Integration tests (Docker Compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install root dependencies
+        run: bun install
+
+      - name: Build Docker Compose services
+        run: docker compose build
+        timeout-minutes: 20
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for postgres
+        run: |
+          for i in $(seq 1 60); do
+            docker compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1 && echo "Postgres ready" && break
+            [ $i -eq 60 ] && docker compose logs postgres && exit 1
+            sleep 1
+          done
+
+      - name: Wait for fake-mychart
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null -w '%{http_code}' http://localhost:4000/ 2>/dev/null | grep -q '302' && echo "fake-mychart ready" && break
+            [ $i -eq 60 ] && docker compose logs fake-mychart && exit 1
+            echo "Waiting for fake-mychart... ($i)"; sleep 1
+          done
+
+      - name: Wait for web service
+        run: |
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:3000/api/health 2>/dev/null | grep -q 'ok' && echo "Web service ready" && break
+            [ $i -eq 90 ] && docker compose logs web && exit 1
+            echo "Waiting for web service... ($i)"; sleep 1
+          done
+
+      - name: Run unit tests
+        run: bun run test:unit
+
+      - name: Run fake-mychart integration tests (containerized)
+        run: FAKE_MYCHART_HOST=localhost:4000 bun run test:fake-mychart
+
+      - name: Run fake-mychart T&C tests (containerized)
+        run: FAKE_MYCHART_TERMS_HOST=localhost:4001 bun run test:fake-mychart-terms
+
+      - name: Install web dependencies
+        run: cd web && bun install
+
+      - name: Run web integration tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/mychart_test
+          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+          BETTER_AUTH_SECRET: "ci-test-secret-32chars-minimum-length"
+          FAKE_MYCHART_HOST: localhost:4000
+        run: bun run test:web-integration
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down services
+        if: always()
+        run: docker compose down -v

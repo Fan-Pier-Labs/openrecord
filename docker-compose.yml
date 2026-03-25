@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mychart_test
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  fake-mychart:
+    build:
+      context: ./fake-mychart
+    image: fake-mychart:ci
+    environment:
+      PORT: "4000"
+      FAKE_MYCHART_ACCEPT_ANY: "true"
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -sf -o /dev/null -w '%{http_code}' http://localhost:4000/ | grep -q '302'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  fake-mychart-terms:
+    image: fake-mychart:ci
+    environment:
+      PORT: "4001"
+      FAKE_MYCHART_REQUIRE_TERMS: "true"
+      FAKE_MYCHART_ACCEPT_ANY: "true"
+    ports:
+      - "4001:4001"
+    depends_on:
+      fake-mychart:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -sf -o /dev/null -w '%{http_code}' http://localhost:4001/ | grep -q '302'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/mychart_test"
+      BETTER_AUTH_SECRET: "ci-test-secret-32chars-minimum-length"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+    ports:
+      - "3000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -sf http://localhost:8080/api/health | grep -q 'ok'"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
