@@ -43,6 +43,7 @@
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "@types/three": "^0.183.1",
+        "deploy": "https://github.com/fan-Pier-Labs/deploy",
         "eslint": "^9",
         "eslint-config-next": "16.1.6",
         "shadcn": "^3.8.5",
@@ -1030,6 +1031,8 @@
     "denque": ["denque@2.1.0", "", {}, "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw=="],
 
     "depd": ["depd@2.0.0", "", {}, "sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw=="],
+
+    "deploy": ["deploy@github:fan-Pier-Labs/deploy#965a920", {}, "Fan-Pier-Labs-deploy-965a920", "sha512-Ft/vQuUVDADMFz2iKDD4qj+8B+mT+YtYWUkVAddbONMcIb39kmQeNSmZuasW5h4GPTJwYSxXUmHWr8f9x0Ij3g=="],
 
     "destr": ["destr@2.0.5", "", {}, "sha512-ugFTXCtDZunbzasqBxrK93Ik/DRYsO6S/fedkWEMKqt04xZ4csmnmwGDBAb07QWNaGMAmnTIemsYZCksjATwsA=="],
 
