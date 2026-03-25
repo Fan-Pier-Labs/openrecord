@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, myChartUserPassLogin } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
