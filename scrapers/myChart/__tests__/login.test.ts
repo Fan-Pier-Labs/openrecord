@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, extractFirstPathPartFromMarketingPage } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -220,45 +220,8 @@ describe('parseFirstPathPartFromHtml', () => {
   })
 })
 
-describe('cross-domain redirect handling in login', () => {
-  it('ignores cross-domain redirect and probes /MyChart as fallback', () => {
-    // The cross-domain detection logic is: if redirect hostname !== request hostname, skip it
-    const redirectUrl = new URL('https://uchealth.org/access-my-health-connection/', 'https://mychart.uchealth.org')
-    expect(redirectUrl.hostname).not.toBe('mychart.uchealth.org')
-    expect(redirectUrl.hostname).toBe('uchealth.org')
-
-    // The path extracted from the cross-domain redirect would be wrong
-    const wrongPath = parseFirstPathPartFromLocation(
-      'https://uchealth.org/access-my-health-connection/',
-      'mychart.uchealth.org'
-    )
-    expect(wrongPath).toBe('access-my-health-connection')
-
-    // The correct path (from probe) would be MyChart
-    const correctPath = parseFirstPathPartFromLocation(
-      '/MyChart/',
-      'mychart.uchealth.org'
-    )
-    expect(correctPath).toBe('MyChart')
-  })
-
-  it('uses same-host redirect normally', () => {
-    // Normal case: redirect stays on same host
-    const redirectUrl = new URL(
-      'https://mychart.example.com/MyChart/',
-      'https://mychart.example.com'
-    )
-    expect(redirectUrl.hostname).toBe('mychart.example.com')
-
-    const path = parseFirstPathPartFromLocation(
-      'https://mychart.example.com/MyChart/',
-      'mychart.example.com'
-    )
-    expect(path).toBe('MyChart')
-  })
-
+describe('cross-domain redirect handling', () => {
   it('detects cross-domain redirect correctly', () => {
-    // Various cross-domain redirect scenarios
     const cases = [
       { location: 'https://uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
       { location: 'https://www.uchealth.org/path/', hostname: 'mychart.uchealth.org', isCrossDomain: true },
@@ -270,5 +233,92 @@ describe('cross-domain redirect handling in login', () => {
       const url = new URL(location, `https://${hostname}`)
       expect(url.hostname !== hostname).toBe(isCrossDomain)
     }
+  })
+})
+
+describe('extractFirstPathPartFromMarketingPage', () => {
+  it('extracts firstPathPart from script src pointing to original hostname', async () => {
+    const req = new MyChartRequest('mychart.hospital.org')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <script src="https://mychart.hospital.org/MyChart/Scripts/lib/Widget/widget_sdk.js"></script>
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://hospital.org/patient-portal/')
+    expect(result).toBe('MyChart')
+  })
+
+  it('extracts firstPathPart from data attribute pointing to original hostname', async () => {
+    const req = new MyChartRequest('mychart.hospital.org')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <div data-mhc-url="https://mychart.hospital.org/MyChart-PRD" class="login-widget"></div>
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://hospital.org/portal/')
+    expect(result).toBe('MyChart-PRD')
+  })
+
+  it('picks the most frequently referenced path when multiple candidates exist', async () => {
+    const req = new MyChartRequest('mychart.hospital.org')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <script src="https://mychart.hospital.org/MyChart/Scripts/widget.js"></script>
+        <script src="https://mychart.hospital.org/MyChart/Scripts/login.js"></script>
+        <script src="https://mychart.hospital.org/MyChart/Scripts/util.js"></script>
+        <a href="https://mychart.hospital.org/OtherPath/signup">Sign up</a>
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://hospital.org/portal/')
+    expect(result).toBe('MyChart')
+  })
+
+  it('returns null when marketing page has no URLs for the original hostname', async () => {
+    const req = new MyChartRequest('mychart.hospital.org')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <p>Welcome to our hospital. Visit our patient portal.</p>
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://hospital.org/portal/')
+    expect(result).toBe(null)
+  })
+
+  it('returns null when fetch fails', async () => {
+    const req = new MyChartRequest('mychart.hospital.org')
+    req.fetchWithCookieJar = mock(async () => {
+      throw new Error('Network error')
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://hospital.org/portal/')
+    expect(result).toBe(null)
+  })
+
+  it('handles non-standard path parts like UCSFMyChart', async () => {
+    const req = new MyChartRequest('ucsfmychart.ucsfmedicalcenter.org')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <script src="https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/Scripts/lib/Widget/widget_sdk.js"></script>
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://ucsfmedicalcenter.org/mychart/')
+    expect(result).toBe('UCSFMyChart')
+  })
+
+  it('handles paths with hyphens and numbers', async () => {
+    const req = new MyChartRequest('mychart.example.com')
+    req.fetchWithCookieJar = mock(async () => {
+      return new Response(`<html><body>
+        <div data-url="https://mychart.example.com/MyChart-PRD2" />
+      </body></html>`, { status: 200 })
+    }) as typeof req.fetchWithCookieJar
+
+    const result = await extractFirstPathPartFromMarketingPage(req, 'https://example.com/portal/')
+    expect(result).toBe('MyChart-PRD2')
   })
 })
