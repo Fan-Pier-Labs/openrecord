@@ -1,5 +1,5 @@
 platform: "fargate"
-app_name: "openrecord"
+app_name: "mychart"
 dockerfile: "Dockerfile"
 aws:
   profile: "fanpierlabs"
