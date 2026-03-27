@@ -1,15 +1,7 @@
-import { Pool } from 'pg';
-import { getPoolOptions } from './mcp/config';
+import { eq, and, isNotNull, sql, desc } from 'drizzle-orm';
+import { getDb } from './drizzle';
+import { mychartInstances, user } from './schema';
 import { encrypt, decrypt } from './mcp/encryption';
-
-let pool: Pool | null = null;
-
-async function getPool(): Promise<Pool> {
-  if (pool) return pool;
-  const opts = await getPoolOptions();
-  pool = new Pool(opts);
-  return pool;
-}
 
 export interface MyChartInstance {
   id: string;
@@ -40,106 +32,97 @@ export interface UpdateMyChartInstanceInput {
   mychartEmail?: string | null;
 }
 
-async function rowToInstance(row: Record<string, unknown>): Promise<MyChartInstance> {
+async function rowToInstance(row: typeof mychartInstances.$inferSelect): Promise<MyChartInstance> {
   return {
-    id: row.id as string,
-    userId: row.user_id as string,
-    hostname: row.hostname as string,
-    username: row.username as string,
-    password: await decrypt(row.encrypted_password as string),
-    totpSecret: row.encrypted_totp_secret ? await decrypt(row.encrypted_totp_secret as string) : null,
-    mychartEmail: row.mychart_email as string | null,
-    createdAt: row.created_at as Date,
-    updatedAt: row.updated_at as Date,
-    notificationsLastCheckedAt: row.notifications_last_checked_at as Date | null,
+    id: row.id,
+    userId: row.userId,
+    hostname: row.hostname,
+    username: row.username,
+    password: await decrypt(row.encryptedPassword),
+    totpSecret: row.encryptedTotpSecret ? await decrypt(row.encryptedTotpSecret) : null,
+    mychartEmail: row.mychartEmail,
+    createdAt: row.createdAt!,
+    updatedAt: row.updatedAt!,
+    notificationsLastCheckedAt: row.notificationsLastCheckedAt,
   };
 }
 
 export async function createMyChartInstance(userId: string, input: CreateMyChartInstanceInput): Promise<MyChartInstance> {
-  const db = await getPool();
+  const db = await getDb();
   const encryptedPassword = await encrypt(input.password);
   const encryptedTotp = input.totpSecret ? await encrypt(input.totpSecret) : null;
 
-  const result = await db.query(
-    `INSERT INTO mychart_instances (user_id, hostname, username, encrypted_password, encrypted_totp_secret, mychart_email)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [userId, input.hostname, input.username, encryptedPassword, encryptedTotp, input.mychartEmail ?? null]
-  );
+  const [row] = await db.insert(mychartInstances).values({
+    userId,
+    hostname: input.hostname,
+    username: input.username,
+    encryptedPassword,
+    encryptedTotpSecret: encryptedTotp,
+    mychartEmail: input.mychartEmail ?? null,
+  }).returning();
 
-  return rowToInstance(result.rows[0]);
+  return rowToInstance(row);
 }
 
 export async function getMyChartInstances(userId: string): Promise<MyChartInstance[]> {
-  const db = await getPool();
-  const result = await db.query(
-    'SELECT * FROM mychart_instances WHERE user_id = $1 ORDER BY created_at DESC',
-    [userId]
-  );
-  return Promise.all(result.rows.map(rowToInstance));
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(mychartInstances)
+    .where(eq(mychartInstances.userId, userId))
+    .orderBy(desc(mychartInstances.createdAt));
+
+  return Promise.all(rows.map(rowToInstance));
 }
 
 export async function getMyChartInstance(id: string, userId: string): Promise<MyChartInstance | null> {
-  const db = await getPool();
-  const result = await db.query(
-    'SELECT * FROM mychart_instances WHERE id = $1 AND user_id = $2',
-    [id, userId]
-  );
-  if (result.rows.length === 0) return null;
-  return rowToInstance(result.rows[0]);
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(mychartInstances)
+    .where(and(eq(mychartInstances.id, id), eq(mychartInstances.userId, userId)));
+
+  if (!row) return null;
+  return rowToInstance(row);
 }
 
 export async function updateMyChartInstance(id: string, userId: string, updates: UpdateMyChartInstanceInput): Promise<MyChartInstance | null> {
-  const db = await getPool();
+  const db = await getDb();
 
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const setValues: Partial<typeof mychartInstances.$inferInsert> = {};
 
-  if (updates.hostname !== undefined) {
-    setClauses.push(`hostname = $${paramIndex++}`);
-    values.push(updates.hostname);
-  }
-  if (updates.username !== undefined) {
-    setClauses.push(`username = $${paramIndex++}`);
-    values.push(updates.username);
-  }
-  if (updates.password !== undefined) {
-    setClauses.push(`encrypted_password = $${paramIndex++}`);
-    values.push(await encrypt(updates.password));
-  }
+  if (updates.hostname !== undefined) setValues.hostname = updates.hostname;
+  if (updates.username !== undefined) setValues.username = updates.username;
+  if (updates.password !== undefined) setValues.encryptedPassword = await encrypt(updates.password);
   if (updates.totpSecret !== undefined) {
-    setClauses.push(`encrypted_totp_secret = $${paramIndex++}`);
-    values.push(updates.totpSecret ? await encrypt(updates.totpSecret) : null);
+    setValues.encryptedTotpSecret = updates.totpSecret ? await encrypt(updates.totpSecret) : null;
   }
-  if (updates.mychartEmail !== undefined) {
-    setClauses.push(`mychart_email = $${paramIndex++}`);
-    values.push(updates.mychartEmail);
-  }
+  if (updates.mychartEmail !== undefined) setValues.mychartEmail = updates.mychartEmail;
 
-  if (setClauses.length === 0) {
+  if (Object.keys(setValues).length === 0) {
     return getMyChartInstance(id, userId);
   }
 
-  setClauses.push(`updated_at = NOW()`);
-  values.push(id, userId);
+  setValues.updatedAt = new Date();
 
-  const result = await db.query(
-    `UPDATE mychart_instances SET ${setClauses.join(', ')} WHERE id = $${paramIndex++} AND user_id = $${paramIndex} RETURNING *`,
-    values
-  );
+  const [row] = await db
+    .update(mychartInstances)
+    .set(setValues)
+    .where(and(eq(mychartInstances.id, id), eq(mychartInstances.userId, userId)))
+    .returning();
 
-  if (result.rows.length === 0) return null;
-  return rowToInstance(result.rows[0]);
+  if (!row) return null;
+  return rowToInstance(row);
 }
 
 export async function deleteMyChartInstance(id: string, userId: string): Promise<boolean> {
-  const db = await getPool();
-  const result = await db.query(
-    'DELETE FROM mychart_instances WHERE id = $1 AND user_id = $2',
-    [id, userId]
-  );
-  return (result.rowCount ?? 0) > 0;
+  const db = await getDb();
+  const result = await db
+    .delete(mychartInstances)
+    .where(and(eq(mychartInstances.id, id), eq(mychartInstances.userId, userId)))
+    .returning({ id: mychartInstances.id });
+
+  return result.length > 0;
 }
 
 // ── Notification helpers ──
@@ -150,32 +133,38 @@ export interface NotificationEnabledInstance extends MyChartInstance {
 }
 
 export async function getNotificationEnabledInstances(): Promise<NotificationEnabledInstance[]> {
-  const db = await getPool();
-  const result = await db.query(
-    `SELECT mi.*, u.email AS user_email, u.notifications_include_content
-     FROM mychart_instances mi
-     JOIN "user" u ON mi.user_id = u.id
-     WHERE u.notifications_enabled = TRUE
-       AND mi.encrypted_totp_secret IS NOT NULL
-     ORDER BY mi.created_at ASC`
-  );
-  const instances = await Promise.all(result.rows.map(async (row) => {
-    const instance = await rowToInstance(row);
+  const db = await getDb();
+  const rows = await db
+    .select({
+      instance: mychartInstances,
+      userEmail: user.email,
+      notificationsIncludeContent: user.notificationsIncludeContent,
+    })
+    .from(mychartInstances)
+    .innerJoin(user, eq(mychartInstances.userId, user.id))
+    .where(and(
+      eq(user.notificationsEnabled, true),
+      isNotNull(mychartInstances.encryptedTotpSecret),
+    ))
+    .orderBy(mychartInstances.createdAt);
+
+  const instances = await Promise.all(rows.map(async (row) => {
+    const instance = await rowToInstance(row.instance);
     return {
       ...instance,
-      userEmail: row.user_email as string,
-      includeContent: row.notifications_include_content as boolean,
+      userEmail: row.userEmail,
+      includeContent: row.notificationsIncludeContent ?? false,
     };
   }));
   return instances;
 }
 
 export async function updateNotificationLastChecked(instanceId: string, userId: string): Promise<void> {
-  const db = await getPool();
-  await db.query(
-    `UPDATE mychart_instances SET notifications_last_checked_at = NOW() WHERE id = $1 AND user_id = $2`,
-    [instanceId, userId]
-  );
+  const db = await getDb();
+  await db
+    .update(mychartInstances)
+    .set({ notificationsLastCheckedAt: sql`NOW()` })
+    .where(and(eq(mychartInstances.id, instanceId), eq(mychartInstances.userId, userId)));
 }
 
 export interface NotificationPreferences {
@@ -184,18 +173,21 @@ export interface NotificationPreferences {
 }
 
 export async function getUserNotificationPreferences(userId: string): Promise<NotificationPreferences> {
-  const db = await getPool();
-  const result = await db.query(
-    `SELECT notifications_enabled, notifications_include_content FROM "user" WHERE id = $1`,
-    [userId]
-  );
-  if (result.rows.length === 0) {
+  const db = await getDb();
+  const [row] = await db
+    .select({
+      notificationsEnabled: user.notificationsEnabled,
+      notificationsIncludeContent: user.notificationsIncludeContent,
+    })
+    .from(user)
+    .where(eq(user.id, userId));
+
+  if (!row) {
     return { enabled: false, includeContent: false };
   }
-  const row = result.rows[0];
   return {
-    enabled: row.notifications_enabled ?? false,
-    includeContent: row.notifications_include_content ?? false,
+    enabled: row.notificationsEnabled ?? false,
+    includeContent: row.notificationsIncludeContent ?? false,
   };
 }
 
@@ -203,9 +195,12 @@ export async function setUserNotificationPreferences(
   userId: string,
   prefs: NotificationPreferences
 ): Promise<void> {
-  const db = await getPool();
-  await db.query(
-    `UPDATE "user" SET notifications_enabled = $1, notifications_include_content = $2 WHERE id = $3`,
-    [prefs.enabled, prefs.includeContent, userId]
-  );
+  const db = await getDb();
+  await db
+    .update(user)
+    .set({
+      notificationsEnabled: prefs.enabled,
+      notificationsIncludeContent: prefs.includeContent,
+    })
+    .where(eq(user.id, userId));
 }

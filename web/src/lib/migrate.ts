@@ -4,11 +4,10 @@
  */
 
 import { getAuth } from './auth';
-import { Pool } from 'pg';
-import { getPoolOptions } from './mcp/config';
+import { getPool } from './drizzle';
 
 export async function runMigrations(): Promise<void> {
-  // 1. Run BetterAuth migrations
+  // 1. Run BetterAuth migrations (creates user, session, account, verification, twoFactor, passkey tables)
   const auth = await getAuth();
   const ctx = await auth.$context;
   if (ctx.runMigrations) {
@@ -16,9 +15,10 @@ export async function runMigrations(): Promise<void> {
     console.log('[migrate] BetterAuth migrations complete.');
   }
 
-  // 2. Create custom mychart_instances table
-  const opts = await getPoolOptions();
-  const pool = new Pool(opts);
+  // 2. Create custom mychart_instances table and add custom columns.
+  //    We use raw SQL with IF NOT EXISTS for idempotent migrations,
+  //    since these extend BetterAuth's managed schema.
+  const pool = await getPool();
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS mychart_instances (
@@ -53,6 +53,5 @@ export async function runMigrations(): Promise<void> {
     ALTER TABLE mychart_instances ADD COLUMN IF NOT EXISTS notifications_last_checked_at TIMESTAMPTZ;
   `);
 
-  await pool.end();
   console.log('[migrate] Database migrations complete.');
 }

@@ -15,7 +15,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **Shared types** (`shared/`): Common types and enums shared across packages
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
 - **CLO-to-JPG converter** (`scrapers/myChart/clo-to-jpg-converter/`): eUnity CLO image format converter
-- **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
+- **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth), Drizzle ORM for database access, and PostgreSQL for storing encrypted MyChart credentials.
 - **OpenClaw plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin that bundles all MyChart scrapers locally. No server dependency.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (or set `FAKE_MYCHART_ACCEPT_ANY=true`). All state lives in RAM. Supports the full login flow including 2FA (code `123456`).
 
@@ -91,8 +91,11 @@ BetterAuth handles email+password and Google OAuth sign-in. Two additional auth 
 - **TOTP 2FA (Authenticator App)**: Users can enable TOTP-based two-factor authentication from the Security card. When enabled, sign-in with email+password requires a 6-digit code from an authenticator app. Backup codes are provided during setup.
 
 Key files:
-- `web/src/lib/auth.ts` — Server config with `twoFactor()` and `passkey()` plugins
+- `web/src/lib/auth.ts` — Server config with `twoFactor()` and `passkey()` plugins, uses Drizzle adapter
 - `web/src/lib/auth-client.ts` — Client config with `twoFactorClient()` and `passkeyClient()` plugins
+- `web/src/lib/schema.ts` — Drizzle ORM schema (BetterAuth tables + custom tables)
+- `web/src/lib/drizzle.ts` — Drizzle DB instance (async, cached singleton)
+- `web/src/lib/db.ts` — MyChart instance CRUD + notification helpers (uses Drizzle queries)
 - `web/src/app/login/page.tsx` — Passkey sign-in button + TOTP verification step
 - `web/src/app/home/page.tsx` — Security settings card (enable/disable TOTP, manage passkeys)
 
