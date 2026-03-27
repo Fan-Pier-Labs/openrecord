@@ -1,11 +1,11 @@
 platform: "fargate"
-app_name: "mychart"
+app_name: "openrecord"
 dockerfile: "Dockerfile"
 aws:
   profile: "fanpierlabs"
   region: "us-east-2"
 public:
-  domain: "mychart.fanpierlabs.com"
+  domain: "openrecord.fanpierlabs.com"
 
 task:
   cpu: 1024
