@@ -32,7 +32,7 @@ export default function HomePage() {
 
   // Add instance form
   const [showAddForm, setShowAddForm] = useState(false);
-  const [connectMode, setConnectMode] = useState<"scraper" | "fhir">("scraper");
+  const [connectMode, setConnectMode] = useState<"choose" | "scraper" | "fhir">("choose");
   const [newHostname, setNewHostname] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -856,32 +856,48 @@ export default function HomePage() {
               {/* Add form */}
               {showAddForm && (
                 <div className="border border-slate-200 rounded-lg p-4 space-y-3 bg-slate-50">
-                  {/* Mode tabs */}
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                        connectMode === "scraper"
-                          ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                      onClick={() => setConnectMode("scraper")}
-                    >
-                      Patient Portal
-                    </button>
-                    <button
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                        connectMode === "fhir"
-                          ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                      onClick={() => setConnectMode("fhir")}
-                    >
-                      Official APIs (FHIR)
-                    </button>
-                  </div>
-
-                  {connectMode === "scraper" ? (
+                  {/* Step 1: Choose connection method */}
+                  {connectMode === "choose" ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">How would you like to connect?</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          className="text-left border border-slate-200 rounded-lg p-3 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                          onClick={() => setConnectMode("fhir")}
+                        >
+                          <p className="font-medium text-sm">Official APIs</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">Officially supported by Epic</p>
+                          <ul className="text-[11px] text-muted-foreground mt-2 space-y-0.5">
+                            <li className="text-green-600">+ No credentials stored</li>
+                            <li className="text-green-600">+ OAuth consent flow</li>
+                            <li className="text-green-600">+ Works with any Epic MyChart</li>
+                            <li className="text-amber-600">- Fewer data categories</li>
+                            <li className="text-amber-600">- No messaging or billing</li>
+                          </ul>
+                        </button>
+                        <button
+                          className="text-left border border-slate-200 rounded-lg p-3 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                          onClick={() => setConnectMode("scraper")}
+                        >
+                          <p className="font-medium text-sm">Patient Portal</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">Scrapes the MyChart web portal</p>
+                          <ul className="text-[11px] text-muted-foreground mt-2 space-y-0.5">
+                            <li className="text-green-600">+ All 30+ data categories</li>
+                            <li className="text-green-600">+ Messaging, billing, imaging</li>
+                            <li className="text-green-600">+ Send messages and refills</li>
+                            <li className="text-amber-600">- Requires stored credentials</li>
+                            <li className="text-amber-600">- May need 2FA setup</li>
+                          </ul>
+                        </button>
+                      </div>
+                    </div>
+                  ) : connectMode === "scraper" ? (
                     <>
+                      {/* Step 2: Scraper inputs */}
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium">Patient Portal Connection</p>
+                        <button className="text-xs text-muted-foreground hover:text-slate-700" onClick={() => setConnectMode("choose")}>Change method</button>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label htmlFor="new-hostname" className="text-xs">MyChart Hostname</Label>
@@ -922,9 +938,11 @@ export default function HomePage() {
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-muted-foreground">
-                        Connect via Epic&apos;s official FHIR APIs. No credentials stored — you&apos;ll authorize directly with your health system. Supports a subset of features.
-                      </p>
+                      {/* Step 2: FHIR search */}
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium">Official API Connection</p>
+                        <button className="text-xs text-muted-foreground hover:text-slate-700" onClick={() => setConnectMode("choose")}>Change method</button>
+                      </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="fhir-search" className="text-xs">Search for your hospital or health system</Label>
                         <Input
