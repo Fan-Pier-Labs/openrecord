@@ -46,6 +46,7 @@ interface MyChartInstance {
   url: string;
   logoUrl: string;
   logoS3Key: string;
+  logoS3Url: string;
 }
 
 async function fetchDirectory(): Promise<MyChartCustomer[]> {
@@ -87,12 +88,16 @@ function customerToInstance(customer: MyChartCustomer): MyChartInstance {
     ? path.basename(new URL(fullImageUrl).pathname)
     : "";
   const s3Key = imageFilename ? `${S3_LOGO_PREFIX}${imageFilename}` : "";
+  const s3Url = s3Key
+    ? `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${s3Key}`
+    : "";
 
   return {
     name: customer.Name,
     url: customer.LoginUrl,
     logoUrl: fullImageUrl,
     logoS3Key: s3Key,
+    logoS3Url: s3Url,
   };
 }
 
