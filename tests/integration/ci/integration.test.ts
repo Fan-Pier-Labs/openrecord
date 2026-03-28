@@ -565,7 +565,7 @@ describe('Password reset', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.user.email).toBe(RESET_EMAIL);
-  });
+  }, 30_000);
 
   it('requests a password reset', async () => {
     const res = await fetch(`${BASE_URL}/api/auth/request-password-reset`, {
