@@ -38,15 +38,15 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 
 End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, fake-mychart, and the web app.
 
-**Test files** (run sequentially via numeric prefixes):
-1. `01-health.test.ts` — Health check canary
-2. `02-auth.test.ts` — Sign up, sign in, sign out
-3. `03-mychart-instances.test.ts` — Add MyChart instance, connect, login flow
-4. `04-scrape.test.ts` — Full 30-category data scrape with Homer Simpson spot-checks
-5. `05-mcp-key.test.ts` — MCP API key generate/revoke lifecycle
-6. `06-notifications.test.ts` — Notification preference CRUD
-7. `07-totp-2fa.test.ts` — App-level TOTP 2FA enable/verify/sign-in/disable
-8. `08-cleanup.test.ts` — Delete MyChart instance, verify cleanup
+**Single test file** (`tests/integration/ci/integration.test.ts`) runs all scenarios sequentially to maintain shared state (session cookies, instance IDs). Covers:
+1. Health check canary
+2. Sign up, sign in, sign out
+3. MyChart instance CRUD, connect, login flow
+4. Full 30-category data scrape with Homer Simpson spot-checks
+5. MCP API key generate/revoke lifecycle
+6. Notification preference CRUD
+7. App-level TOTP 2FA enable/verify/sign-in/disable
+8. MyChart instance deletion and cleanup
 
 **Environment**: Set `MYCHART_FORCE_HTTP=true` on the web container to use HTTP for Docker-internal fake-mychart connections.
 
