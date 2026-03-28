@@ -2,8 +2,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MyChartRequest } from '../mychart/myChartRequest';
 import { sessionStore } from '../../../../scrapers/myChart/sessionStore';
 import { sendTelemetryEvent } from '../../../../shared/telemetry';
-import { getMyChartInstances, type MyChartInstance } from '../db';
+import { getMyChartInstances, getFhirConnections, type MyChartInstance, type FhirConnection } from '../db';
 import { autoConnectInstance } from './auto-connect';
+import { FhirClient } from '../fhir/client';
+import {
+  mapPatientToProfile,
+  mapMedicationRequests,
+  mapAllergyIntolerances,
+  mapConditions,
+  mapObservationsToLabResults,
+  mapObservationsToVitals,
+  mapImmunizations,
+  mapEncountersToVisits,
+  mapCareTeams,
+  mapDocumentReferences,
+  mapDiagnosticReportsToImaging,
+} from '../fhir/mappers';
 import { getMyChartProfile, getEmail } from '../mychart/profile';
 import { getHealthSummary } from '../mychart/healthSummary';
 import { getMedications } from '../mychart/medications';
@@ -129,25 +143,118 @@ async function resolveRequest(
   return { error: `Multiple MyChart accounts connected. Specify the 'instance' parameter with one of: ${hostnames}` };
 }
 
+// ── Unified connection resolution (scraper + FHIR) ──
+
+type ResolvedConnection =
+  | { type: 'scraper'; mychartRequest: MyChartRequest; instance: MyChartInstance }
+  | { type: 'fhir'; client: FhirClient; connection: FhirConnection }
+  | { error: string };
+
+const FHIR_ONLY_ERROR = (toolName = 'This feature') =>
+  `${toolName} is only available with Patient Portal connections. This account is connected via Official APIs (FHIR) which doesn't support this feature.`;
+
+async function resolveConnection(userId: string, instanceFilter?: string): Promise<ResolvedConnection> {
+  const scraperResult = await resolveRequest(userId, instanceFilter);
+  if (!('error' in scraperResult)) {
+    return { type: 'scraper', ...scraperResult };
+  }
+
+  const fhirConnections = await getFhirConnections(userId);
+  if (fhirConnections.length === 0) {
+    return scraperResult;
+  }
+
+  let candidates = fhirConnections;
+  if (instanceFilter) {
+    candidates = fhirConnections.filter(c =>
+      c.organizationName.toLowerCase().includes(instanceFilter.toLowerCase()) ||
+      c.fhirServerUrl.includes(instanceFilter)
+    );
+    if (candidates.length === 0) {
+      const available = fhirConnections.map(c => c.organizationName).join(', ');
+      return { error: `No FHIR connection matching '${instanceFilter}'. Available: ${available}` };
+    }
+  }
+
+  if (candidates.length === 1) {
+    const conn = candidates[0];
+    const client = new FhirClient(
+      conn.fhirServerUrl, conn.fhirPatientId, conn.id, conn.userId,
+      { accessToken: conn.accessToken, refreshToken: conn.refreshToken, tokenExpiresAt: conn.tokenExpiresAt }
+    );
+    return { type: 'fhir', client, connection: conn };
+  }
+
+  const instances = await getMyChartInstances(userId);
+  const allNames = [...instances.map(i => i.hostname), ...candidates.map(c => c.organizationName)].join(', ');
+  return { error: `Multiple accounts available. Specify the 'instance' parameter with one of: ${allNames}` };
+}
+
 type ScraperFn = (req: MyChartRequest) => Promise<unknown>;
+type FhirFn = (client: FhirClient) => Promise<unknown>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function registerScraperTool(server: McpServer, userId: string, reg: (name: string, handler: (...args: any[]) => Promise<CallToolResult>) => void, name: string, scraperFn: ScraperFn) {
+type RegFn = (name: string, handler: (...args: any[]) => Promise<CallToolResult>) => void;
+
+/**
+ * Register a scraper-only tool. FHIR connections get a clear error message.
+ */
+function registerScraperTool(server: McpServer, userId: string, reg: RegFn, name: string, scraperFn: ScraperFn) {
   reg(name,
     async (args: { instance?: string }): Promise<CallToolResult> => {
       sendTelemetryEvent('mcp_tool_called', { tool_name: name });
       console.log(`[mcp] Tool call: ${name} (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) {
-          console.log(`[mcp] Tool ${name}: resolve error - ${result.error}`);
-          return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) {
+          console.log(`[mcp] Tool ${name}: resolve error - ${resolved.error}`);
+          return errorResult(resolved.error);
+        }
+        if (resolved.type === 'fhir') {
+          return errorResult(FHIR_ONLY_ERROR(name));
         }
 
-        const infoBefore = result.mychartRequest.getCookieInfo();
-        console.log(`[mcp] Tool ${name}: starting with ${infoBefore.count} cookies (${result.instance.hostname})`);
+        const infoBefore = resolved.mychartRequest.getCookieInfo();
+        console.log(`[mcp] Tool ${name}: starting with ${infoBefore.count} cookies (${resolved.instance.hostname})`);
 
-        const data = await scraperFn(result.mychartRequest);
+        const data = await scraperFn(resolved.mychartRequest);
+        const resultStr = JSON.stringify(data);
+        const isEmpty = resultStr === '{}' || resultStr === '[]' || resultStr === 'null';
+        console.log(`[mcp] Tool ${name}: success (${resultStr.length} chars${isEmpty ? ', WARNING: empty' : ''})`);
+        return jsonResult(data);
+      } catch (err) {
+        const error = err as Error;
+        console.error(`[mcp] Tool ${name}: error -`, error.message, error.stack);
+        return errorResult(`Error fetching ${name}: ${error.message}`);
+      }
+    }
+  );
+}
+
+/**
+ * Register a tool that works with both scraper and FHIR connections.
+ */
+function registerDualTool(server: McpServer, userId: string, reg: RegFn, name: string, scraperFn: ScraperFn, fhirFn: FhirFn) {
+  reg(name,
+    async (args: { instance?: string }): Promise<CallToolResult> => {
+      sendTelemetryEvent('mcp_tool_called', { tool_name: name });
+      console.log(`[mcp] Tool call: ${name} (user=${userId}, instance=${args.instance || 'auto'})`);
+      try {
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) {
+          console.log(`[mcp] Tool ${name}: resolve error - ${resolved.error}`);
+          return errorResult(resolved.error);
+        }
+
+        if (resolved.type === 'fhir') {
+          console.log(`[mcp] Tool ${name}: using FHIR client (${resolved.connection.organizationName})`);
+          const data = await fhirFn(resolved.client);
+          return jsonResult(data);
+        }
+
+        const infoBefore = resolved.mychartRequest.getCookieInfo();
+        console.log(`[mcp] Tool ${name}: starting with ${infoBefore.count} cookies (${resolved.instance.hostname})`);
+        const data = await scraperFn(resolved.mychartRequest);
         const resultStr = JSON.stringify(data);
         const isEmpty = resultStr === '{}' || resultStr === '[]' || resultStr === 'null';
         console.log(`[mcp] Tool ${name}: success (${resultStr.length} chars${isEmpty ? ', WARNING: empty' : ''})`);
@@ -184,19 +291,33 @@ export function createMcpServer(userId: string): McpServer {
     async (): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: list_accounts (user=${userId})`);
       try {
-        const instances = await getMyChartInstances(userId);
-        console.log(`[mcp] list_accounts: found ${instances.length} instance(s)`);
-        const accounts = instances.map(inst => {
+        const [instances, fhirConns] = await Promise.all([
+          getMyChartInstances(userId),
+          getFhirConnections(userId),
+        ]);
+        console.log(`[mcp] list_accounts: found ${instances.length} scraper instance(s), ${fhirConns.length} FHIR connection(s)`);
+
+        const scraperAccounts = instances.map(inst => {
           const sessionKey = `${userId}:${inst.id}`;
           const entry = sessionStore.getEntry(sessionKey);
           return {
+            connectionType: 'scraper' as const,
             hostname: inst.hostname,
             username: inst.username,
             connected: !!entry && entry.status === 'logged_in',
             hasTotpSecret: !!inst.totpSecret,
           };
         });
-        return jsonResult(accounts);
+
+        const fhirAccounts = fhirConns.map(conn => ({
+          connectionType: 'fhir' as const,
+          organizationName: conn.organizationName,
+          fhirServerUrl: conn.fhirServerUrl,
+          connected: conn.tokenExpiresAt > new Date() || !!conn.refreshToken,
+          tokenExpiresAt: conn.tokenExpiresAt.toISOString(),
+        }));
+
+        return jsonResult([...scraperAccounts, ...fhirAccounts]);
       } catch (err) {
         const error = err as Error;
         console.error(`[mcp] list_accounts: error -`, error.message, error.stack);
@@ -315,28 +436,50 @@ export function createMcpServer(userId: string): McpServer {
     }
   );
 
-  // Scraper tools
-  registerScraperTool(server, userId, reg,'get_profile', async (req) => {
+  // Scraper tools (dual-mode where FHIR supports it)
+  registerDualTool(server, userId, reg,'get_profile', async (req) => {
     const profile = await getMyChartProfile(req);
     const email = await getEmail(req);
     return { ...profile, email };
+  }, async (client) => {
+    const patient = await client.getPatient();
+    return mapPatientToProfile(patient);
   });
 
   registerScraperTool(server, userId, reg,'get_health_summary', getHealthSummary);
-  registerScraperTool(server, userId, reg,'get_medications', getMedications);
-  registerScraperTool(server, userId, reg,'get_allergies', getAllergies);
-  registerScraperTool(server, userId, reg,'get_health_issues', getHealthIssues);
-  registerScraperTool(server, userId, reg,'get_upcoming_visits', upcomingVisits);
+
+  registerDualTool(server, userId, reg,'get_medications', getMedications, async (client) => {
+    const resources = await client.getMedicationRequests();
+    const patient = await client.getPatient();
+    const name = mapPatientToProfile(patient).name;
+    return mapMedicationRequests(resources, name);
+  });
+
+  registerDualTool(server, userId, reg,'get_allergies', getAllergies, async (client) => {
+    return mapAllergyIntolerances(await client.getAllergyIntolerances());
+  });
+
+  registerDualTool(server, userId, reg,'get_health_issues', getHealthIssues, async (client) => {
+    return mapConditions(await client.getConditions());
+  });
+
+  registerDualTool(server, userId, reg,'get_upcoming_visits', upcomingVisits, async (client) => {
+    return mapEncountersToVisits(await client.getEncounters('planned'));
+  });
 
   reg('get_past_visits',
     async (args: { years_back?: number; instance?: string }): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: get_past_visits (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') {
+          const resources = await resolved.client.getEncounters('finished');
+          return jsonResult(mapEncountersToVisits(resources));
+        }
         const oldest = new Date();
         oldest.setFullYear(oldest.getFullYear() - (args.years_back ?? 2));
-        const data = await pastVisits(result.mychartRequest, oldest);
+        const data = await pastVisits(resolved.mychartRequest, oldest);
         return jsonResult(data);
       } catch (err) {
         const error = err as Error;
@@ -351,9 +494,15 @@ export function createMcpServer(userId: string): McpServer {
     async (args: { instance?: string; limit?: number; offset?: number }): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: get_lab_results (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
-        const raw = await listLabResults(result.mychartRequest) as LabTestResultWithHistory[];
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') {
+          const resources = await resolved.client.getObservations('laboratory');
+          const mapped = mapObservationsToLabResults(resources);
+          const page = paginate(mapped, args.limit ?? 10, args.offset);
+          return jsonResult({ total: mapped.length, offset: args.offset ?? 0, count: page.length, results: page });
+        }
+        const raw = await listLabResults(resolved.mychartRequest) as LabTestResultWithHistory[];
         const trimmed = trimLabResults(raw);
         const page = paginate(trimmed, args.limit ?? 10, args.offset);
         return jsonResult({ total: trimmed.length, offset: args.offset ?? 0, count: page.length, results: page });
@@ -370,8 +519,10 @@ export function createMcpServer(userId: string): McpServer {
     async (args: { instance?: string; limit?: number; offset?: number }): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: get_messages (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const raw = await listConversations(result.mychartRequest) as ConversationListResponse | null;
         const trimmed = trimMessages(raw);
         const page = paginate(trimmed, args.limit ?? 10, args.offset);
@@ -390,8 +541,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'get_message_recipients' });
       console.log(`[mcp] Tool call: get_message_recipients (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const token = await getVerificationToken(result.mychartRequest);
         if (!token) return errorResult('Could not get verification token');
         const [recipients, topics] = await Promise.all([
@@ -413,8 +566,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'send_message' });
       console.log(`[mcp] Tool call: send_message (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const token = await getVerificationToken(result.mychartRequest);
         if (!token) return errorResult('Could not get verification token');
 
@@ -472,8 +627,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'send_reply' });
       console.log(`[mcp] Tool call: send_reply (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const replyResult = await sendReply(result.mychartRequest, {
           conversationId: args.conversation_id,
           messageBody: args.message_body,
@@ -493,8 +650,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'request_refill' });
       console.log(`[mcp] Tool call: request_refill (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
 
         // Get medications to find the matching one
         const medsResult = await getMedications(result.mychartRequest);
@@ -536,8 +695,10 @@ export function createMcpServer(userId: string): McpServer {
     async (args: { instance?: string; limit?: number; offset?: number }): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: get_billing (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const raw = await getBillingHistory(result.mychartRequest) as BillingAccount[];
         const trimmed = trimBilling(raw);
         // Paginate visits within each account
@@ -554,14 +715,20 @@ export function createMcpServer(userId: string): McpServer {
       }
     }
   );
-  registerScraperTool(server, userId, reg,'get_care_team', getCareTeam);
+  registerDualTool(server, userId, reg,'get_care_team', getCareTeam, async (client) => {
+    return mapCareTeams(await client.getCareTeams());
+  });
   registerScraperTool(server, userId, reg,'get_insurance', getInsurance);
-  registerScraperTool(server, userId, reg,'get_immunizations', getImmunizations);
+  registerDualTool(server, userId, reg,'get_immunizations', getImmunizations, async (client) => {
+    return mapImmunizations(await client.getImmunizations());
+  });
   registerScraperTool(server, userId, reg,'get_preventive_care', getPreventiveCare);
   registerScraperTool(server, userId, reg,'get_referrals', getReferrals);
   registerScraperTool(server, userId, reg,'get_medical_history', getMedicalHistory);
   registerScraperTool(server, userId, reg,'get_letters', getLetters);
-  registerScraperTool(server, userId, reg,'get_vitals', getVitals);
+  registerDualTool(server, userId, reg,'get_vitals', getVitals, async (client) => {
+    return mapObservationsToVitals(await client.getObservations('vital-signs'));
+  });
   registerScraperTool(server, userId, reg,'get_emergency_contacts', getEmergencyContacts);
 
   reg('add_emergency_contact',
@@ -569,8 +736,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'add_emergency_contact' });
       console.log(`[mcp] Tool call: add_emergency_contact (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const data = await addEmergencyContact(result.mychartRequest, {
           name: args.name,
           relationshipType: args.relationship_type,
@@ -590,8 +759,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'update_emergency_contact' });
       console.log(`[mcp] Tool call: update_emergency_contact (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const data = await updateEmergencyContact(result.mychartRequest, {
           id: args.id,
           name: args.name,
@@ -612,8 +783,10 @@ export function createMcpServer(userId: string): McpServer {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'remove_emergency_contact' });
       console.log(`[mcp] Tool call: remove_emergency_contact (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') return errorResult(FHIR_ONLY_ERROR());
+        const result = resolved;
         const data = await removeEmergencyContact(result.mychartRequest, args.id);
         return jsonResult(data);
       } catch (err) {
@@ -624,7 +797,9 @@ export function createMcpServer(userId: string): McpServer {
     }
   );
 
-  registerScraperTool(server, userId, reg,'get_documents', getDocuments);
+  registerDualTool(server, userId, reg,'get_documents', getDocuments, async (client) => {
+    return mapDocumentReferences(await client.getDocumentReferences());
+  });
   registerScraperTool(server, userId, reg,'get_goals', getGoals);
   registerScraperTool(server, userId, reg,'get_upcoming_orders', getUpcomingOrders);
   registerScraperTool(server, userId, reg,'get_questionnaires', getQuestionnaires);
@@ -637,9 +812,15 @@ export function createMcpServer(userId: string): McpServer {
     async (args: { instance?: string; limit?: number; offset?: number }): Promise<CallToolResult> => {
       console.log(`[mcp] Tool call: get_imaging_results (user=${userId}, instance=${args.instance || 'auto'})`);
       try {
-        const result = await resolveRequest(userId, args.instance);
-        if ('error' in result) return errorResult(result.error);
-        const raw = await getImagingResults(result.mychartRequest) as ImagingResult[];
+        const resolved = await resolveConnection(userId, args.instance);
+        if ('error' in resolved) return errorResult(resolved.error);
+        if (resolved.type === 'fhir') {
+          const resources = await resolved.client.getDiagnosticReports('imaging');
+          const mapped = mapDiagnosticReportsToImaging(resources);
+          const page = paginate(mapped, args.limit ?? 10, args.offset);
+          return jsonResult({ total: mapped.length, offset: args.offset ?? 0, count: page.length, results: page });
+        }
+        const raw = await getImagingResults(resolved.mychartRequest) as ImagingResult[];
         const trimmed = trimImagingResults(raw);
         const page = paginate(trimmed, args.limit ?? 10, args.offset);
         return jsonResult({ total: trimmed.length, offset: args.offset ?? 0, count: page.length, results: page });
