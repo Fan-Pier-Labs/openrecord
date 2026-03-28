@@ -3,6 +3,9 @@
  *
  * Uses Playwright to verify the toggle switch works in a real browser.
  * Runs against Docker Compose services (same as integration.test.ts).
+ *
+ * Sign-up and instance creation happen via API (faster, more reliable),
+ * then we load the home page and test the toggle UI.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
@@ -17,106 +20,170 @@ const TEST_NAME = 'Toggle UI Test';
 
 let browser: Browser;
 let page: Page;
+let authCookies = '';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function parseCookieString(c: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!c) return map;
+  for (const part of c.split(';')) {
+    const eqIdx = part.indexOf('=');
+    if (eqIdx > 0) {
+      map[part.slice(0, eqIdx).trim()] = part.slice(eqIdx + 1).trim();
+    }
+  }
+  return map;
+}
+
+function extractCookies(res: Response): string {
+  const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
+  const existing = parseCookieString(authCookies);
+  for (const header of setCookieHeaders) {
+    const nameValue = header.split(';')[0];
+    const eqIdx = nameValue.indexOf('=');
+    if (eqIdx > 0) {
+      existing[nameValue.slice(0, eqIdx).trim()] = nameValue.slice(eqIdx + 1).trim();
+    }
+  }
+  return Object.entries(existing).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+async function apiSignUp() {
+  const res = await fetch(`${BASE_URL}/api/auth/sign-up/email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: BASE_URL },
+    body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME }),
+    redirect: 'manual',
+  });
+  authCookies = extractCookies(res);
+  return res;
+}
+
+async function apiAddInstance() {
+  const res = await fetch(`${BASE_URL}/api/mychart-instances`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: authCookies, Origin: BASE_URL },
+    body: JSON.stringify({
+      hostname: FAKE_MYCHART_HOSTNAME,
+      username: 'homer',
+      password: 'donuts123',
+    }),
+    redirect: 'manual',
+  });
+  authCookies = extractCookies(res);
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
 
 beforeAll(async () => {
+  // 1. Sign up via API
+  const signUpRes = await apiSignUp();
+  if (signUpRes.status !== 200) {
+    throw new Error(`Sign-up failed: ${signUpRes.status}`);
+  }
+
+  // 2. Add a MyChart instance via API
+  const addRes = await apiAddInstance();
+  if (addRes.status !== 201) {
+    throw new Error(`Add instance failed: ${addRes.status}`);
+  }
+
+  // 3. Launch browser and set cookies
   browser = await chromium.launch({ headless: true });
-  page = await browser.newPage();
+  const context = await browser.newContext();
+
+  // Set auth cookies in the browser context
+  const cookieMap = parseCookieString(authCookies);
+  const url = new URL(BASE_URL);
+  const cookieObjects = Object.entries(cookieMap).map(([name, value]) => ({
+    name,
+    value,
+    domain: url.hostname,
+    path: '/',
+  }));
+  await context.addCookies(cookieObjects);
+
+  page = await context.newPage();
 }, 30_000);
 
 afterAll(async () => {
   await browser?.close();
 });
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe('Toggle UI', () => {
-  it('signs up via the UI', async () => {
-    await page.goto(`${BASE_URL}/login`);
+  it('loads the home page with the instance visible', async () => {
+    await page.goto(`${BASE_URL}/home`);
     await page.waitForLoadState('networkidle');
 
-    // Click "Create account" or "Sign up" link
-    const signUpLink = page.getByText(/create.*account|sign.*up/i);
-    if (await signUpLink.isVisible()) {
-      await signUpLink.click();
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Fill in sign-up form
-    await page.getByLabel(/name/i).fill(TEST_NAME);
-    await page.getByLabel(/email/i).fill(TEST_EMAIL);
-    await page.getByLabel(/password/i).fill(TEST_PASSWORD);
-
-    // Submit
-    await page.getByRole('button', { name: /sign.*up|create.*account|register/i }).click();
-    await page.waitForURL('**/home**', { timeout: 15_000 });
-  }, 30_000);
-
-  it('adds a MyChart instance', async () => {
-    // Fill in the add-instance form
-    await page.getByPlaceholder(/hostname/i).fill(FAKE_MYCHART_HOSTNAME);
-    await page.getByPlaceholder(/username/i).fill('homer');
-    await page.getByPlaceholder(/password/i).fill('donuts123');
-
-    // Submit add form
-    await page.getByRole('button', { name: /add|connect|save/i }).first().click();
-
-    // Wait for the instance to appear in the list
-    await page.waitForSelector(`text=${FAKE_MYCHART_HOSTNAME}`, { timeout: 10_000 });
+    // The instance hostname should be visible
+    await expect(page.getByText(FAKE_MYCHART_HOSTNAME)).toBeVisible({ timeout: 10_000 });
   }, 30_000);
 
   it('toggle switch is visible and enabled by default', async () => {
-    // Find the toggle switch (role="switch")
     const toggle = page.locator('button[role="switch"]').first();
     await expect(toggle).toBeVisible();
 
-    // Should be checked (enabled) by default
     const checked = await toggle.getAttribute('aria-checked');
     expect(checked).toBe('true');
   });
 
-  it('can disable an instance via toggle click', async () => {
+  it('clicking toggle disables the instance', async () => {
     const toggle = page.locator('button[role="switch"]').first();
-
-    // Click to disable
     await toggle.click();
 
-    // Wait for the API call to complete and UI to update
-    await page.waitForTimeout(1000);
+    // Wait for API call to complete and UI to re-render
+    await page.waitForResponse(resp => resp.url().includes('/api/mychart-instances/') && resp.request().method() === 'PATCH');
 
-    // Verify toggle is now unchecked
+    // Toggle should now be unchecked
     const checked = await toggle.getAttribute('aria-checked');
     expect(checked).toBe('false');
+  });
 
-    // Verify the "Disabled" label appears
+  it('disabled instance shows "Disabled" label', async () => {
     await expect(page.getByText('Disabled')).toBeVisible();
   });
 
-  it('disabled instance shows dimmed styling', async () => {
-    // The instance card should have opacity-60 class when disabled
-    const instanceCard = page.locator(`text=${FAKE_MYCHART_HOSTNAME}`).locator('..');
-    const cardParent = instanceCard.locator('..');
-    const classes = await cardParent.getAttribute('class');
-    expect(classes).toContain('opacity-60');
+  it('disabled instance card has dimmed styling', async () => {
+    // The instance card should have opacity-60 when disabled
+    const card = page.locator('.opacity-60').first();
+    await expect(card).toBeVisible();
   });
 
-  it('connect button is hidden when disabled', async () => {
-    // When disabled, the Connect button should not be visible
-    const connectButton = page.getByRole('button', { name: /^connect$/i });
+  it('Connect button is not visible when disabled', async () => {
+    // When disabled, Connect/Select buttons shouldn't appear
+    const connectButton = page.getByRole('button', { name: 'Connect' });
     await expect(connectButton).not.toBeVisible();
   });
 
-  it('can re-enable via toggle click', async () => {
+  it('clicking toggle re-enables the instance', async () => {
     const toggle = page.locator('button[role="switch"]').first();
-
-    // Click to re-enable
     await toggle.click();
 
-    // Wait for update
-    await page.waitForTimeout(1000);
+    // Wait for API call
+    await page.waitForResponse(resp => resp.url().includes('/api/mychart-instances/') && resp.request().method() === 'PATCH');
 
-    // Verify toggle is checked again
+    // Toggle should be checked again
     const checked = await toggle.getAttribute('aria-checked');
     expect(checked).toBe('true');
+  });
 
-    // Verify "Disabled" label is gone
+  it('"Disabled" label disappears after re-enabling', async () => {
     await expect(page.getByText('Disabled')).not.toBeVisible();
+  });
+
+  it('dimmed styling is removed after re-enabling', async () => {
+    // The card should no longer have opacity-60
+    const dimmedCards = await page.locator('.opacity-60').count();
+    expect(dimmedCards).toBe(0);
   });
 });
