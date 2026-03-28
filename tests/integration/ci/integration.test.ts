@@ -506,7 +506,119 @@ describe('App-level TOTP 2FA', () => {
 });
 
 // ===================================================================
-// 8. Cleanup
+// 8. Instance Enabled/Disabled Toggle
+// ===================================================================
+
+describe('Instance enabled/disabled toggle', () => {
+  it('instance is enabled by default', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${instanceId}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.enabled).toBe(true);
+  });
+
+  it('can disable an instance via PATCH', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${instanceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.enabled).toBe(false);
+  });
+
+  it('disabled instance appears in list but not connected', async () => {
+    const res = await authedFetch('/api/mychart-instances');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const inst = body.find((i: { id: string }) => i.id === instanceId);
+    expect(inst).toBeDefined();
+    expect(inst.enabled).toBe(false);
+    // Disabled instances should not be auto-connected even if they were connected before
+    expect(inst.connected).toBe(false);
+  });
+
+  it('disabled instance is not auto-connected on page load', async () => {
+    // Listing instances triggers auto-connect for TOTP-enabled instances.
+    // Our disabled instance should NOT be auto-connected.
+    const res = await authedFetch('/api/mychart-instances');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const inst = body.find((i: { id: string }) => i.id === instanceId);
+    expect(inst.enabled).toBe(false);
+    expect(inst.connected).toBe(false);
+  });
+
+  it('MCP returns error when all instances are disabled', async () => {
+    // Generate an MCP API key first
+    const keyRes = await authedFetch('/api/mcp-key', { method: 'POST' });
+    expect(keyRes.status).toBe(200);
+    const { key } = await keyRes.json();
+    expect(key).toBeDefined();
+
+    // Try to use the MCP endpoint — should get an error since the only instance is disabled
+    const mcpRes = await fetch(`${BASE_URL}/api/mcp?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'get_profile', arguments: {} },
+      }),
+    });
+    expect(mcpRes.status).toBe(200);
+    const mcpBody = await mcpRes.json();
+    // The MCP response should contain an error about disabled accounts
+    const resultText = JSON.stringify(mcpBody);
+    expect(resultText).toContain('disabled');
+
+    // Clean up API key
+    await authedFetch('/api/mcp-key', { method: 'DELETE' });
+  });
+
+  it('can re-enable an instance via PATCH', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${instanceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: true }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.enabled).toBe(true);
+  });
+
+  it('re-enabled instance can connect again', async () => {
+    // Re-login since sessions may have been cleared
+    const res = await authedFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ myChartInstanceId: instanceId }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    if (body.state === 'need_2fa') {
+      const twofaRes = await authedFetch('/api/twofa', {
+        method: 'POST',
+        body: JSON.stringify({ sessionKey: body.sessionKey, code: '123456' }),
+      });
+      expect(twofaRes.status).toBe(200);
+      sessionKey = (await twofaRes.json()).sessionKey;
+    } else {
+      expect(body.state).toBe('logged_in');
+      sessionKey = body.sessionKey;
+    }
+
+    // Verify instance shows as connected
+    const listRes = await authedFetch('/api/mychart-instances');
+    const list = await listRes.json();
+    const inst = list.find((i: { id: string }) => i.id === instanceId);
+    expect(inst.enabled).toBe(true);
+    expect(inst.connected).toBe(true);
+  }, 30_000);
+});
+
+// ===================================================================
+// 9. Cleanup
 // ===================================================================
 
 describe('Cleanup', () => {
