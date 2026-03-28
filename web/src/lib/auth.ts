@@ -1,9 +1,11 @@
 import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
-import { getPoolOptions, getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth } from './mcp/config';
+import { getPoolOptions, getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth, getResendApiKey } from './mcp/config';
 import { nextCookies } from 'better-auth/next-js';
 import { twoFactor } from 'better-auth/plugins/two-factor';
+import { magicLink } from 'better-auth/plugins/magic-link';
 import { passkey } from '@better-auth/passkey';
+import { Resend } from 'resend';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let authInstance: any = null;
@@ -72,6 +74,28 @@ export async function getAuth(): Promise<any> {
       nextCookies(),
       twoFactor({
         issuer: 'MyChart MCP',
+      }),
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          const apiKey = await getResendApiKey();
+          const resend = new Resend(apiKey);
+          const { error } = await resend.emails.send({
+            from: 'MyChart MCP <notifications@fanpierlabs.com>',
+            to: email,
+            subject: 'Sign in to MyChart Connector',
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+                <h2 style="font-size: 24px; font-weight: 600; color: #1a1a24; margin-bottom: 8px;">Sign in to MyChart Connector</h2>
+                <p style="color: #5a5a6a; font-size: 16px; line-height: 1.5; margin-bottom: 32px;">Click the button below to sign in. This link expires in 10 minutes.</p>
+                <a href="${url}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 9999px; font-weight: 500; font-size: 16px;">Sign in</a>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 32px;">If you didn't request this email, you can safely ignore it.</p>
+              </div>
+            `,
+          });
+          if (error) {
+            throw new Error(`Failed to send magic link email: ${error.message}`);
+          }
+        },
       }),
       passkey({
         rpID: new URL(baseURL).hostname,
