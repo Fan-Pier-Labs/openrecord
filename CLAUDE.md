@@ -30,6 +30,25 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `cd fake-mychart && bun run dev` — Run fake MyChart server on port 4000
 - `cd fake-mychart && bun run build` — Build fake MyChart for production
 - `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
+- `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose services running)
+- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, fake-mychart, web app)
+- `docker compose -f docker-compose.ci.yaml down -v` — Tear down CI services
+
+## CI Integration Tests
+
+End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, fake-mychart, and the web app.
+
+**Test files** (run sequentially via numeric prefixes):
+1. `01-health.test.ts` — Health check canary
+2. `02-auth.test.ts` — Sign up, sign in, sign out
+3. `03-mychart-instances.test.ts` — Add MyChart instance, connect, login flow
+4. `04-scrape.test.ts` — Full 30-category data scrape with Homer Simpson spot-checks
+5. `05-mcp-key.test.ts` — MCP API key generate/revoke lifecycle
+6. `06-notifications.test.ts` — Notification preference CRUD
+7. `07-totp-2fa.test.ts` — App-level TOTP 2FA enable/verify/sign-in/disable
+8. `08-cleanup.test.ts` — Delete MyChart instance, verify cleanup
+
+**Environment**: Set `MYCHART_FORCE_HTTP=true` on the web container to use HTTP for Docker-internal fake-mychart connections.
 
 ## Reference Docs
 

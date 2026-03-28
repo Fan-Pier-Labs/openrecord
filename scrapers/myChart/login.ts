@@ -219,7 +219,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   }
 
 
-  const effectiveProtocol = protocol ?? (hostname.startsWith('localhost') ? 'http' : 'https');
+  const effectiveProtocol = protocol ?? (process.env.MYCHART_FORCE_HTTP === 'true' || hostname.startsWith('localhost') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, effectiveProtocol);
 
   const foundMyChartFirstPathPart = await determineFirstPathPart(mychartRequest)
