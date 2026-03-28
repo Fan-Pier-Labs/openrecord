@@ -64,7 +64,7 @@ async function apiSignUp() {
   });
   // Retry once if rate-limited (429) — multiple test files sign up users
   if (res.status === 429) {
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 10_000));
     res = await fetch(`${BASE_URL}/api/auth/sign-up/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: BASE_URL },
