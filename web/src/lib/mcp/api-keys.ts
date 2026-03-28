@@ -1,15 +1,7 @@
 import { randomBytes, createHash } from 'crypto';
-import { Pool } from 'pg';
-import { getPoolOptions } from './config';
-
-let pool: Pool | null = null;
-
-async function getPool(): Promise<Pool> {
-  if (pool) return pool;
-  const opts = await getPoolOptions();
-  pool = new Pool(opts);
-  return pool;
-}
+import { eq } from 'drizzle-orm';
+import { getDb } from '../drizzle';
+import { user } from '../schema';
 
 function hashKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
@@ -22,8 +14,8 @@ function hashKey(key: string): string {
 export async function generateApiKey(userId: string): Promise<string> {
   const key = randomBytes(32).toString('hex');
   const hash = hashKey(key);
-  const db = await getPool();
-  await db.query('UPDATE "user" SET mcp_api_key_hash = $1 WHERE id = $2', [hash, userId]);
+  const db = await getDb();
+  await db.update(user).set({ mcpApiKeyHash: hash }).where(eq(user.id, userId));
   return key;
 }
 
@@ -32,25 +24,33 @@ export async function generateApiKey(userId: string): Promise<string> {
  */
 export async function validateApiKey(key: string): Promise<{ userId: string } | null> {
   const hash = hashKey(key);
-  const db = await getPool();
-  const result = await db.query('SELECT id FROM "user" WHERE mcp_api_key_hash = $1', [hash]);
-  if (result.rows.length === 0) return null;
-  return { userId: result.rows[0].id };
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.mcpApiKeyHash, hash));
+
+  if (!row) return null;
+  return { userId: row.id };
 }
 
 /**
  * Revoke a user's API key by setting the hash to NULL.
  */
 export async function revokeApiKey(userId: string): Promise<void> {
-  const db = await getPool();
-  await db.query('UPDATE "user" SET mcp_api_key_hash = NULL WHERE id = $1', [userId]);
+  const db = await getDb();
+  await db.update(user).set({ mcpApiKeyHash: null }).where(eq(user.id, userId));
 }
 
 /**
  * Check if a user has an API key set.
  */
 export async function hasApiKey(userId: string): Promise<boolean> {
-  const db = await getPool();
-  const result = await db.query('SELECT mcp_api_key_hash FROM "user" WHERE id = $1', [userId]);
-  return result.rows.length > 0 && result.rows[0].mcp_api_key_hash !== null;
+  const db = await getDb();
+  const [row] = await db
+    .select({ mcpApiKeyHash: user.mcpApiKeyHash })
+    .from(user)
+    .where(eq(user.id, userId));
+
+  return !!row && row.mcpApiKeyHash !== null;
 }

@@ -1,26 +1,20 @@
 import { betterAuth } from 'better-auth';
-import { Pool } from 'pg';
-import { getPoolOptions, getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth } from './mcp/config';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth } from './mcp/config';
+import { getDb } from './drizzle';
 import { nextCookies } from 'better-auth/next-js';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { passkey } from '@better-auth/passkey';
+import * as schema from './schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let authInstance: any = null;
-let poolInstance: Pool | null = null;
-
-async function getPool(): Promise<Pool> {
-  if (poolInstance) return poolInstance;
-  const opts = await getPoolOptions();
-  poolInstance = new Pool(opts);
-  return poolInstance;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getAuth(): Promise<any> {
   if (authInstance) return authInstance;
 
-  const pool = await getPool();
+  const db = await getDb();
   console.log('[Auth] Loading secrets...');
 
   const useGoogle = hasGoogleOAuth();
@@ -51,7 +45,10 @@ export async function getAuth(): Promise<any> {
   }
 
   authInstance = betterAuth({
-    database: pool,
+    database: drizzleAdapter(db, {
+      provider: 'pg',
+      schema,
+    }),
     baseURL,
     trustedOrigins,
     secret,
