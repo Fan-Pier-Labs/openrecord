@@ -1,6 +1,6 @@
 {
   "name": "openclaw-mychart",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Access your MyChart health records locally — no server needed",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Fan Pier Labs",
@@ -18,7 +18,6 @@
     "dist/",
     "skills/",
     "openclaw.plugin.json",
-    "LICENSE",
     "README.md"
   ],
   "openclaw": {
