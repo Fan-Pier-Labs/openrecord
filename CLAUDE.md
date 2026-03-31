@@ -101,7 +101,8 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **BETTER_AUTH_URL**: Base URL for BetterAuth (defaults to `NEXT_PUBLIC_BASE_URL` or `http://localhost:3000`)
 - **GOOGLE_CLIENT_ID** / **GOOGLE_CLIENT_SECRET**: Google OAuth credentials (optional, Google sign-in disabled without them)
 - **SENTRY_AUTH_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:mychart-connector-sentry-auth-token-UputCa`
-  - Sentry auth token for error monitoring and source map uploads
+  - Sentry auth token for error monitoring and source map uploads (AWS deployment only)
+  - Self-hosters configure via `SENTRY_DSN` / `SENTRY_AUTH_TOKEN` env vars; Sentry is fully disabled when `SENTRY_DSN` is not set
 
 ## MyChart Login
 

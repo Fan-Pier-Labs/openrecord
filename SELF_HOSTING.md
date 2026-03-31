@@ -88,6 +88,12 @@ BETTER_AUTH_URL=https://your-subdomain.ngrok-free.dev
 # Optional: Google OAuth (sign-in with Google disabled without these)
 # GOOGLE_CLIENT_ID=your-client-id
 # GOOGLE_CLIENT_SECRET=your-client-secret
+
+# Optional: Sentry error monitoring (disabled by default — leave unset to skip entirely)
+# SENTRY_DSN=https://...@....ingest.sentry.io/...
+# SENTRY_AUTH_TOKEN=your-sentry-auth-token   # only needed to upload source maps at build time
+# SENTRY_ORG=your-org-slug                   # defaults to fan-pier-labs if unset
+# SENTRY_PROJECT=your-project-slug           # defaults to openrecord if unset
 ```
 
 > **Generating secrets:**
@@ -176,4 +182,8 @@ If you restart ngrok and get a new URL, update `BETTER_AUTH_URL` in `web/.env.lo
 | `TRUSTED_ORIGINS` | No | Comma-separated additional trusted origins for auth (e.g. `https://other.example.com`). |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth client ID. Google sign-in disabled without this. |
 | `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret. |
+| `SENTRY_DSN` | No | Sentry DSN. Sentry is fully disabled when this is not set. |
+| `SENTRY_AUTH_TOKEN` | No | Sentry auth token for source map uploads at build time. |
+| `SENTRY_ORG` | No | Sentry org slug (build-time). Defaults to `fan-pier-labs`. |
+| `SENTRY_PROJECT` | No | Sentry project slug (build-time). Defaults to `openrecord`. |
 | `PORT` | No | Server port (default: 3000). |
