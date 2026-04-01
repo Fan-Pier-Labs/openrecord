@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       fdiContext,
       '',
       '',
-      { skipFileWrite: true },
+      { skipFileWrite: true, maxImages: 10 },
     );
 
     if (downloadResult.errors.length > 0 && downloadResult.images.length === 0) {

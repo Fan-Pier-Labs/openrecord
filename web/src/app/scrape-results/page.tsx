@@ -58,6 +58,16 @@ const SafeVisitsCard = withRenderErrorBoundary(VisitsCard, "VisitsCard", (p) => 
 const SafeVisitItem = withRenderErrorBoundary(VisitItem, "VisitItem", (p) => p.visit);
 const SafeLabItem = withRenderErrorBoundary(LabItem, "LabItem", (p) => p.lab);
 
+function isAdvancedImaging(orderName: string, totalStudies: number): boolean {
+  const name = orderName.toLowerCase();
+  return totalStudies > 10
+    || name.includes('ct ') || name.includes('ct,') || name.startsWith('ct ')
+    || name.includes('mri') || name.includes('ultrasound')
+    || name.includes('mammogram') || name.includes('fluoroscop')
+    || name.includes('arthrogram') || name.includes('pet ')
+    || name.includes('nuclear') || name.includes('angiography');
+}
+
 export default function ScrapeResultsPage() {
   const router = useRouter();
   const { results, isDemo, resetAll, token } = useAppContext();
@@ -105,7 +115,8 @@ export default function ScrapeResultsPage() {
       const url = URL.createObjectURL(blob);
       setXrayImages(prev => ({ ...prev, [index]: url }));
     } catch (err) {
-      setXrayErrors(prev => ({ ...prev, [index]: (err as Error).message }));
+      const msg = (err as Error).message;
+      setXrayErrors(prev => ({ ...prev, [index]: msg.length > 200 ? msg.slice(0, 200) + '…' : msg }));
     } finally {
       setXrayLoading(prev => ({ ...prev, [index]: false }));
     }
@@ -817,28 +828,36 @@ export default function ScrapeResultsPage() {
             )}
             {img.fdiContext && !isDemo && (
               <div className="mt-2">
-                {!xrayImages[i] && !xrayLoading[i] && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => fetchXray(i, img.fdiContext!)}
-                  >
-                    View X-ray
+                {isAdvancedImaging(img.orderName, img.imageStudyCount + img.scanCount) ? (
+                  <Button variant="outline" size="sm" className="text-xs h-7" disabled>
+                    View Image (coming soon)
                   </Button>
-                )}
-                {xrayLoading[i] && (
-                  <p className="text-xs text-muted-foreground">Loading X-ray image...</p>
-                )}
-                {xrayErrors[i] && (
-                  <p className="text-xs text-red-500">Failed to load X-ray: {xrayErrors[i]}</p>
-                )}
-                {xrayImages[i] && (
-                  <img
-                    src={xrayImages[i]!}
-                    alt={img.orderName}
-                    className="mt-2 max-w-full rounded border bg-black"
-                  />
+                ) : (
+                  <>
+                    {!xrayImages[i] && !xrayLoading[i] && !xrayErrors[i] && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => fetchXray(i, img.fdiContext!)}
+                      >
+                        View X-ray
+                      </Button>
+                    )}
+                    {xrayLoading[i] && (
+                      <p className="text-xs text-muted-foreground">Loading X-ray image...</p>
+                    )}
+                    {xrayErrors[i] && (
+                      <p className="text-xs text-red-500">Failed to load X-ray: {xrayErrors[i]}</p>
+                    )}
+                    {xrayImages[i] && (
+                      <img
+                        src={xrayImages[i]!}
+                        alt={img.orderName}
+                        className="mt-2 max-w-full rounded border bg-black"
+                      />
+                    )}
+                  </>
                 )}
               </div>
             )}
