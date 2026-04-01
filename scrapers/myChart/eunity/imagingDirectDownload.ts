@@ -618,10 +618,36 @@ function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
 // ─── Session Initialization ───
 
 /**
+ * Extract the real serviceInstance from an AMF response buffer.
+ * The server may return a different serviceInstance than the one we sent
+ * (e.g., "MyChart" → "UCSFVNAEDGEBundle" for CT scans). The browser uses
+ * this real value for a second AMF init call and all CustomImageServlet requests.
+ */
+function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceInstance: string): string | null {
+  const text = amfBuf.toString('latin1');
+  // Look for serviceInstance values that differ from what we sent
+  // Common patterns in AMF: the value appears as an AMF3 string near "serviceInstance" or "ServiceInstance"
+  const siPattern = /([A-Z][A-Za-z0-9]+(?:Bundle|Strategy|strategy|Instance))/g;
+  let match;
+  while ((match = siPattern.exec(text)) !== null) {
+    const val = match[1];
+    if (val !== originalServiceInstance && val !== 'ServiceInstance' && val !== 'ServiceInstanceParameter') {
+      return val;
+    }
+  }
+  return null;
+}
+
+/**
  * Initialize an eUnity session by calling AmfServicesServlet with getStudyListMeta.
  * This is required before CustomImageServlet will serve images (otherwise 403).
  *
- * Returns the AMF response buffer on success, null on failure.
+ * Some studies (e.g., CT scans) use a different serviceInstance than the one in the
+ * viewer URL. The browser handles this by making two AMF calls:
+ * 1. First with the viewer's serviceInstance (e.g., "MyChart")
+ * 2. Second with the real serviceInstance from the response (e.g., "UCSFVNAEDGEBundle")
+ *
+ * Returns { amfBuf, effectiveServiceInstance } on success.
  */
 async function initializeAmfSession(
   cookieJar: tough.CookieJar,
@@ -629,7 +655,7 @@ async function initializeAmfSession(
   accession: string,
   serviceInstance: string,
   patientId: string,
-): Promise<Buffer | null> {
+): Promise<{ amfBuf: Buffer; effectiveServiceInstance: string } | null> {
   const amfReq = buildGetStudyListMetaRequest(accession, serviceInstance, patientId);
 
   const res = await fetchWithCookies(cookieJar, `${baseUrl}/e/AmfServicesServlet`, {
@@ -651,14 +677,44 @@ async function initializeAmfSession(
 
   if (parsed && parsed.code !== 0) {
     console.log(`      [AMF] Error code=${parsed.code}: ${parsed.response ?? '(null)'}`);
-    // Even on error, the session may still be partially initialized
   }
 
   if (parsed && parsed.code === 0) {
     console.log(`      [AMF] Session initialized successfully (${amfBuf.length} bytes)`);
   }
 
-  return amfBuf;
+  // Check if the response contains a different serviceInstance
+  const realSI = extractServiceInstanceFromAmf(amfBuf, serviceInstance);
+  let effectiveServiceInstance = serviceInstance;
+
+  if (realSI && realSI !== serviceInstance) {
+    console.log(`      [AMF] Server returned different serviceInstance: ${realSI} (was ${serviceInstance})`);
+    console.log(`      [AMF] Making second AMF call with real serviceInstance...`);
+
+    // Make a second AMF call with the real serviceInstance (like the browser does)
+    const amfReq2 = buildGetStudyListMetaRequest(accession, realSI, patientId);
+    const res2 = await fetchWithCookies(cookieJar, `${baseUrl}/e/AmfServicesServlet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'User-Agent': UA,
+      },
+      body: amfReq2,
+    });
+
+    if (res2.ok) {
+      const amfBuf2 = Buffer.from(await res2.arrayBuffer());
+      const parsed2 = parseAmfResponse(amfBuf2);
+      if (parsed2?.code === 0) {
+        console.log(`      [AMF] Second session initialized successfully (${amfBuf2.length} bytes)`);
+        return { amfBuf: amfBuf2, effectiveServiceInstance: realSI };
+      }
+    }
+    // Even if second call fails, use the real serviceInstance
+    effectiveServiceInstance = realSI;
+  }
+
+  return { amfBuf, effectiveServiceInstance };
 }
 
 // ─── Image Download ───
@@ -734,7 +790,7 @@ async function downloadImage(
       break;
     case 'CLOWRAPPER':
       requestType = 'CLOWRAPPER';
-      contentType = 'image/CLWAVE;image/CLHAAR';
+      contentType = 'image/CLWAVE;image/CLHAAR;image/CLJPEG';
       haveImageData = 'partialnops';
       break;
   }
@@ -926,7 +982,7 @@ export async function downloadImagingDirect(
 
     // Step 2: Initialize AMF session
     console.log('      Initializing AMF session...');
-    const amfResponse = await initializeAmfSession(
+    const amfResult = await initializeAmfSession(
       session.cookieJar,
       baseUrl,
       studyParams.accession,
@@ -934,9 +990,14 @@ export async function downloadImagingDirect(
       studyParams.patientId,
     );
 
-    if (!amfResponse) {
+    if (!amfResult) {
       result.errors.push('AMF session initialization failed');
       return result;
+    }
+
+    const { amfBuf: amfResponse, effectiveServiceInstance } = amfResult;
+    if (effectiveServiceInstance !== studyParams.serviceInstance) {
+      studyParams.serviceInstance = effectiveServiceInstance;
     }
 
     // Parse UIDs from AMF response if available
@@ -1081,7 +1142,7 @@ export async function downloadImagingStudyDirect(
 
     // Step 4: Initialize AMF session (required before CustomImageServlet will serve images)
     console.log('      Initializing AMF session...');
-    const amfResponse = await initializeAmfSession(
+    const amfResult = await initializeAmfSession(
       session.cookieJar,
       baseUrl,
       studyParams.accession,
@@ -1089,9 +1150,15 @@ export async function downloadImagingStudyDirect(
       studyParams.patientId,
     );
 
-    if (!amfResponse) {
+    if (!amfResult) {
       result.errors.push('AMF session initialization failed');
       return result;
+    }
+
+    const { amfBuf: amfResponse, effectiveServiceInstance } = amfResult;
+    if (effectiveServiceInstance !== studyParams.serviceInstance) {
+      console.log(`      Using effective serviceInstance: ${effectiveServiceInstance}`);
+      studyParams.serviceInstance = effectiveServiceInstance;
     }
 
     // Step 5: Parse series info from AMF response
