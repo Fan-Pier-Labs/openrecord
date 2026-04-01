@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
-import { downloadImagingStudyDirect } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
+
+// Dynamic imports — clo-to-jpg-converter has native deps (sharp) that may
+// not be available at build time in Docker. These are loaded at request time.
+async function loadImagingPipeline() {
+  const { downloadImagingStudyDirect } = await import('../../../../../scrapers/myChart/eunity/imagingDirectDownload');
+  const { convertCloToJpg } = await import('../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg');
+  return { downloadImagingStudyDirect, convertCloToJpg };
+}
 
 /**
  * Convert and serve X-ray images on-the-fly.
@@ -38,6 +44,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const { downloadImagingStudyDirect, convertCloToJpg } = await loadImagingPipeline();
     const downloadResult = await downloadImagingStudyDirect(
       mychartRequest,
       fdiContext,
