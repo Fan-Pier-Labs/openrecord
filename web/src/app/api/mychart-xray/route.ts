@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
+import { downloadImagingStudyDirect } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
+import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
 
 /**
  * Convert and serve X-ray images on-the-fly.
@@ -33,16 +35,6 @@ export async function GET(req: NextRequest) {
     }
   } catch {
     return NextResponse.json({ error: 'Invalid fdi parameter' }, { status: 400 });
-  }
-
-  // Dynamic imports — these modules may not be available in all environments
-  let downloadImagingStudyDirect: typeof import('../../../../../scrapers/myChart/eunity/imagingDirectDownload').downloadImagingStudyDirect;
-  let convertCloToJpg: typeof import('../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg').convertCloToJpg;
-  try {
-    ({ downloadImagingStudyDirect } = await import('../../../../../scrapers/myChart/eunity/imagingDirectDownload'));
-    ({ convertCloToJpg } = await import('../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg'));
-  } catch {
-    return NextResponse.json({ error: 'Imaging pipeline unavailable' }, { status: 503 });
   }
 
   try {
