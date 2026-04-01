@@ -15,6 +15,7 @@ import { useAppContext } from "@/lib/app-context";
 import { DataRow, DataSection, ArraySection, BillingVisits, VisitsCard, VisitItem, LabItem, safeText } from "@/components/data-display";
 import { CorrelatedTimeline } from "@/components/correlated-timeline";
 import { SafeHtml } from "@/components/SafeHtml";
+import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import type {
   MedicationType,
   AllergyType,
@@ -267,6 +268,7 @@ export default function ScrapeResultsPage() {
           <h1 className="text-3xl font-bold">MyChart MCP</h1>
           <div className="w-[68px]" /> {/* Spacer to center the title */}
         </div>
+    <SectionErrorBoundary section="Scrape Results">
     <div className="space-y-6">
       {isDemo && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm text-center">
@@ -729,35 +731,50 @@ export default function ScrapeResultsPage() {
       )}
 
       {/* Upcoming Visits */}
-      <VisitsCard
-        title="Upcoming Visits"
-        data={results.upcomingVisits}
-        getVisits={(d) => {
-          const visits = d as NonNullable<typeof results.upcomingVisits>;
-          return [
-            ...(visits?.LaterVisitsList || []),
-            ...(visits?.NextNDaysVisits || []),
-            ...(visits?.InProgressVisits || []),
-          ];
-        }}
-      />
+      <SectionErrorBoundary section="Upcoming Visits">
+        <VisitsCard
+          title="Upcoming Visits"
+          data={results.upcomingVisits}
+          getVisits={(d) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const visits = d as any;
+            if (Array.isArray(visits)) return visits;
+            const toArr = (v: unknown) => Array.isArray(v) ? v : [];
+            return [
+              ...toArr(visits?.LaterVisitsList),
+              ...toArr(visits?.NextNDaysVisits),
+              ...toArr(visits?.InProgressVisits),
+            ];
+          }}
+        />
+      </SectionErrorBoundary>
 
       {/* Past Visits */}
-      {results.pastVisits && !results.pastVisits?.error && results.pastVisits?.List && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Past Visits</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {Object.values(results.pastVisits.List)
-              .flatMap((org: PastVisitOrganization) => org.List || [])
-              .slice(0, 20)
-              .map((v, i: number) => (
-                <VisitItem key={i} visit={v} />
-              ))}
-          </CardContent>
-        </Card>
-      )}
+      <SectionErrorBoundary section="Past Visits">
+        {results.pastVisits && !results.pastVisits?.error && results.pastVisits?.List && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Past Visits</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(Array.isArray(results.pastVisits.List)
+                ? results.pastVisits.List
+                : Object.values(results.pastVisits.List)
+                  .flatMap((org: PastVisitOrganization) => {
+                    if (Array.isArray(org?.List)) return org.List;
+                    if (Array.isArray(org)) return org;
+                    if (org && typeof org === 'object' && ('Date' in org || 'Patient' in org)) return [org];
+                    return [];
+                  })
+              )
+                .slice(0, 20)
+                .map((v, i: number) => (
+                  <VisitItem key={i} visit={v} />
+                ))}
+            </CardContent>
+          </Card>
+        )}
+      </SectionErrorBoundary>
 
       {/* Lab Results */}
       {results.labResults && Array.isArray(results.labResults) && results.labResults.length > 0 && (
@@ -1166,6 +1183,7 @@ export default function ScrapeResultsPage() {
         </Button>
       </div>
     </div>
+    </SectionErrorBoundary>
       </div>
     </div>
   );
