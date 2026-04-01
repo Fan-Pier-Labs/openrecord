@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { StatementItem } from "../../../../../../scrapers/myChart/bills/types";
 
 export function useBilling(token: string) {
   const [loadingStatements, setLoadingStatements] = useState<Record<string, boolean>>({});
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fetchStatementPdf = useCallback(async (encBillingId: string, statement: any, action: 'view' | 'download') => {
+  const fetchStatementPdf = useCallback(async (encBillingId: string, statement: StatementItem, action: 'view' | 'download') => {
     const key = `${statement.RecordID}-${statement.DateDisplay}`;
     setLoadingStatements(prev => ({ ...prev, [key]: true }));
     try {

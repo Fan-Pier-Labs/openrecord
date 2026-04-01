@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { BillingVisits } from "@/components/data-display";
 import { ErrorBoundary, withRenderErrorBoundary } from "@/components/with-render-error-boundary";
 import type { BillingAccount } from "../../../../../../scrapers/myChart/bills/bills";
+import type { StatementItem } from "../../../../../../scrapers/myChart/bills/types";
 import { useBilling } from "./use-billing";
 
 const SafeBillingVisits = withRenderErrorBoundary(BillingVisits, "BillingVisits", (p) => p.visits);
@@ -55,8 +56,7 @@ export function BillingSection({ billing, isDemo, token }: BillingSectionProps) 
                 <div className="mt-3">
                   <h4 className="text-sm font-semibold mb-2">Statements & Bills ({allStatements.length})</h4>
                   <div className="space-y-2">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {allStatements.map((stmt: any, j: number) => {
+                    {allStatements.map((stmt: StatementItem, j: number) => {
                       const stmtKey = `${stmt.RecordID}-${stmt.DateDisplay}`;
                       const stmtLoading = loadingStatements[stmtKey];
                       return (

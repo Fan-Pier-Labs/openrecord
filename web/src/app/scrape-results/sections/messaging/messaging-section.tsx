@@ -12,11 +12,11 @@ import { SafeHtml } from "@/components/SafeHtml";
 import { ErrorBoundary } from "@/components/with-render-error-boundary";
 import { safeText } from "@/components/data-display";
 import type { ConversationType, ConversationMessageType } from "@/types/scrape-results";
+import type { ScrapeResults } from "@/types/scrape-results";
 import { useMessaging } from "./use-messaging";
 
 interface MessagingSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  messages: any;
+  messages: ScrapeResults['messages'];
   isDemo: boolean;
   token: string;
 }

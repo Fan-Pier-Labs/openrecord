@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataRow, DataSection, ArraySection, VisitsCard, VisitItem, LabItem, safeText } from "@/components/data-display";
 import { ErrorBoundary, withRenderErrorBoundary } from "@/components/with-render-error-boundary";
 import type {
+  ScrapeResults,
   MedicationType,
   AllergyType,
   ImmunizationType,
@@ -43,8 +44,7 @@ const SafeVisitsCard = withRenderErrorBoundary(VisitsCard, "VisitsCard", (p) => 
 const SafeVisitItem = withRenderErrorBoundary(VisitItem, "VisitItem", (p) => p.visit);
 const SafeLabItem = withRenderErrorBoundary(LabItem, "LabItem", (p) => p.lab);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ProfileSection({ results }: { results: any }) {
+export function ProfileSection({ results }: { results: ScrapeResults }) {
   if (!results.profile || results.profile.error) return null;
   return (
     <ErrorBoundary name="Profile" data={results.profile}>
@@ -66,8 +66,7 @@ export function ProfileSection({ results }: { results: any }) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function HealthSummarySection({ healthSummary }: { healthSummary: any }) {
+export function HealthSummarySection({ healthSummary }: { healthSummary: ScrapeResults['healthSummary'] }) {
   return (
     <SafeDataSection title="Health Summary" data={healthSummary}>
       {healthSummary && (
@@ -89,10 +88,10 @@ export function HealthSummarySection({ healthSummary }: { healthSummary: any }) 
   );
 }
 
-export function MedicationsSection({ medications }: { medications: MedicationType[] | undefined; parent?: { medications?: MedicationType[] } }) {
+export function MedicationsSection({ medications }: { medications: ScrapeResults['medications'] }) {
   return (
-    <SafeDataSection title="Medications" data={medications} count={(medications as unknown as { medications?: MedicationType[] })?.medications?.length}>
-      {(medications as unknown as { medications?: MedicationType[] })?.medications?.map((med: MedicationType, i: number) => (
+    <SafeDataSection title="Medications" data={medications} count={medications?.medications?.length}>
+      {medications?.medications?.map((med: MedicationType, i: number) => (
         <div key={i} className="bg-muted rounded-md p-3 text-sm">
           <div className="flex items-center gap-2">
             <span className="font-medium">{med.name}</span>
@@ -110,8 +109,7 @@ export function MedicationsSection({ medications }: { medications: MedicationTyp
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function AllergiesSection({ allergies }: { allergies: any }) {
+export function AllergiesSection({ allergies }: { allergies: ScrapeResults['allergies'] }) {
   return (
     <SafeDataSection title="Allergies" data={allergies} count={allergies?.allergies?.length}>
       {allergies?.allergies?.map((a: AllergyType, i: number) => (
@@ -150,8 +148,7 @@ export function ImmunizationsSection({ immunizations }: { immunizations: Immuniz
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function InsuranceSection({ insurance }: { insurance: any }) {
+export function InsuranceSection({ insurance }: { insurance: ScrapeResults['insurance'] }) {
   return (
     <SafeDataSection title="Insurance" data={insurance} count={insurance?.coverages?.length}>
       {insurance?.coverages?.map((cov: InsuranceCoverageType, i: number) => (
@@ -256,8 +253,7 @@ export function EmergencyContactsSection({ emergencyContacts }: { emergencyConta
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function MedicalHistorySection({ medicalHistory }: { medicalHistory: any }) {
+export function MedicalHistorySection({ medicalHistory }: { medicalHistory: ScrapeResults['medicalHistory'] }) {
   return (
     <SafeDataSection title="Medical History" data={medicalHistory}>
       {medicalHistory && (
@@ -328,8 +324,7 @@ export function PreventiveCareSection({ preventiveCare }: { preventiveCare: Prev
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function GoalsSection({ goals }: { goals: any }) {
+export function GoalsSection({ goals }: { goals: ScrapeResults['goals'] }) {
   return (
     <SafeDataSection title="Goals" data={goals}>
       {goals && (
@@ -401,8 +396,7 @@ export function ActivityFeedSection({ activityFeed }: { activityFeed: ActivityFe
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function UpcomingVisitsSection({ upcomingVisits }: { upcomingVisits: any }) {
+export function UpcomingVisitsSection({ upcomingVisits }: { upcomingVisits: ScrapeResults['upcomingVisits'] }) {
   return (
     <SafeVisitsCard
       title="Upcoming Visits"
@@ -419,8 +413,7 @@ export function UpcomingVisitsSection({ upcomingVisits }: { upcomingVisits: any 
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function PastVisitsSection({ pastVisits }: { pastVisits: any }) {
+export function PastVisitsSection({ pastVisits }: { pastVisits: ScrapeResults['pastVisits'] }) {
   if (!pastVisits || pastVisits?.error || !pastVisits?.List) return null;
   return (
     <ErrorBoundary name="PastVisits" data={pastVisits}>

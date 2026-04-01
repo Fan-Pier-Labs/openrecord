@@ -1,21 +1,18 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import type { MessageRecipient, MessageTopic } from "../../../../../../scrapers/myChart/messages/sendMessage";
 
 export function useMessaging(token: string) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [showComposeNew, setShowComposeNew] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [composeRecipients, setComposeRecipients] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [composeTopics, setComposeTopics] = useState<any[]>([]);
+  const [composeRecipients, setComposeRecipients] = useState<MessageRecipient[]>([]);
+  const [composeTopics, setComposeTopics] = useState<MessageTopic[]>([]);
   const [composeLoading, setComposeLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedTopic, setSelectedTopic] = useState<any>(null);
+  const [selectedRecipient, setSelectedRecipient] = useState<MessageRecipient | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<MessageTopic | null>(null);
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [sendingNew, setSendingNew] = useState(false);
