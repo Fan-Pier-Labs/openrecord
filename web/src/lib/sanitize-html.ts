@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from 'dompurify';
 
 const ALLOWED_TAGS = [
   'b', 'i', 'em', 'strong', 'u', 'br', 'p', 'div', 'span',
