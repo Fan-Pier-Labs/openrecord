@@ -531,7 +531,10 @@ function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
   let match;
   while ((match = uidPattern.exec(text)) !== null) {
     const uid = match[0];
-    if (uid.startsWith('1.2.840.10008.')) continue; // Skip SOP Class UIDs
+    // 1.2.840.10008.* = DICOM standard SOP Class UIDs (universal spec, not institution-specific)
+    // These are type identifiers like "CT Image Storage" that appear as metadata,
+    // not study/series/instance UIDs. Defined in the DICOM standard PS3.4.
+    if (uid.startsWith('1.2.840.10008.')) continue;
     uidOccurrences.push({ uid, pos: match.index });
     uidFrequency.set(uid, (uidFrequency.get(uid) || 0) + 1);
     if (!firstPosition.has(uid)) firstPosition.set(uid, match.index);
@@ -542,10 +545,8 @@ function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
   const uniqueUIDs = [...new Set(uidOccurrences.map(o => o.uid))];
   console.log(`      [AMF-PARSE] ${uniqueUIDs.length} unique study-related UIDs from ${uidOccurrences.length} occurrences`);
 
-  // Study UID: the one that appears most frequently or matches known patterns
-  const studyUID = uniqueUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
-    || uniqueUIDs.find(uid => uid.startsWith('1.2.276.0.'))
-    || uniqueUIDs[0];
+  // Study UID: the first UID in the response (AMF always starts with study-level data)
+  const studyUID = uniqueUIDs[0];
 
   // Detect series vs instance UIDs using positional structure analysis.
   //
@@ -707,9 +708,8 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
 
   if (allUIDs.length === 0) return null;
 
-  const studyUID = allUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
-    || allUIDs.find(uid => uid.startsWith('1.2.840.'))
-    || allUIDs[0];
+  // Study UID: the first UID in the response (AMF always starts with study-level data)
+  const studyUID = allUIDs[0];
   const otherUIDs = allUIDs.filter(uid => uid !== studyUID);
 
   if (otherUIDs.length === 0) return { studyUID, series: [] };
