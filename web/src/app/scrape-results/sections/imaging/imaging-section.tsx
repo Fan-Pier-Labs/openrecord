@@ -41,7 +41,19 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
               <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{img.narrative}</p>
             </details>
           )}
-          {img.fdiContext && !isDemo && (
+          {img.series && img.series.length > 0 && (
+            <div className="mt-2">
+              <span className="text-xs font-medium">Series:</span>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {img.series.map((s, j) => (
+                  <Button key={j} variant="outline" size="sm" className="text-xs h-7" disabled>
+                    {s.studyDescription || s.modality} ({s.numberOfImages} images) — coming soon
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          {img.fdiContext && !isDemo && !img.series?.length && (
             <div className="mt-2">
               {isAdvancedImaging(img.orderName, img.imageStudyCount + img.scanCount) ? (
                 <Button variant="outline" size="sm" className="text-xs h-7" disabled>
