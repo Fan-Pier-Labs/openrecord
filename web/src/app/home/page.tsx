@@ -69,6 +69,13 @@ export default function HomePage() {
   const [passkeys, setPasskeys] = useState<Array<{ id: string; name?: string | null; createdAt: string }>>([]);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
 
+  // Change password state
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordCurrent, setChangePasswordCurrent] = useState("");
+  const [changePasswordNew, setChangePasswordNew] = useState("");
+  const [changePasswordConfirm, setChangePasswordConfirm] = useState("");
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+
   useEffect(() => {
     if (!ctx.sessionLoading && !ctx.user) {
       router.push("/login");
@@ -538,6 +545,43 @@ export default function HomePage() {
       toast.error("Failed: " + (err as Error).message);
     } finally {
       setPasskeyLoading(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!changePasswordCurrent || !changePasswordNew || !changePasswordConfirm) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+    if (changePasswordNew.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    if (changePasswordNew !== changePasswordConfirm) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    setChangePasswordLoading(true);
+    try {
+      const result = await authClient.changePassword({
+        currentPassword: changePasswordCurrent,
+        newPassword: changePasswordNew,
+        revokeOtherSessions: true,
+      });
+      if (result?.error) {
+        toast.error(result.error.message || "Failed to change password.");
+        setChangePasswordLoading(false);
+        return;
+      }
+      toast.success("Password changed successfully.");
+      setShowChangePassword(false);
+      setChangePasswordCurrent("");
+      setChangePasswordNew("");
+      setChangePasswordConfirm("");
+    } catch (err) {
+      toast.error("Failed: " + (err as Error).message);
+    } finally {
+      setChangePasswordLoading(false);
     }
   }
 
@@ -1096,7 +1140,7 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>Security</CardTitle>
               <CardDescription>
-                Manage two-factor authentication and passkeys for your account.
+                Manage your password, two-factor authentication, and passkeys.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1325,6 +1369,83 @@ export default function HomePage() {
                     </Button>
                   </div>
                 ))}
+              </div>
+
+              <div className="border-t border-slate-200" />
+
+              {/* Change Password Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Password</p>
+                    <p className="text-xs text-muted-foreground">
+                      Change your account password.
+                    </p>
+                  </div>
+                  {!showChangePassword && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowChangePassword(true)}
+                    >
+                      Change Password
+                    </Button>
+                  )}
+                </div>
+
+                {showChangePassword && (
+                  <div className="border border-slate-200 rounded-lg p-4 space-y-3 bg-slate-50">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Current Password</Label>
+                      <Input
+                        type="password"
+                        placeholder="Current password"
+                        value={changePasswordCurrent}
+                        onChange={(e) => setChangePasswordCurrent(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">New Password</Label>
+                      <Input
+                        type="password"
+                        placeholder="New password (min 8 characters)"
+                        value={changePasswordNew}
+                        onChange={(e) => setChangePasswordNew(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Confirm New Password</Label>
+                      <Input
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={changePasswordConfirm}
+                        onChange={(e) => setChangePasswordConfirm(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleChangePassword()}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleChangePassword}
+                        disabled={changePasswordLoading}
+                      >
+                        {changePasswordLoading ? "Changing..." : "Update Password"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowChangePassword(false);
+                          setChangePasswordCurrent("");
+                          setChangePasswordNew("");
+                          setChangePasswordConfirm("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
