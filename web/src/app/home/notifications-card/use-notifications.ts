@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAppContext } from "@/lib/app-context";
+import { fetchNotifPrefs, updateNotifPrefs as updateNotifPrefsApi } from "./api";
 
 export function useNotifications() {
   const ctx = useAppContext();
@@ -12,11 +13,12 @@ export function useNotifications() {
 
   useEffect(() => {
     if (ctx.user) {
-      fetch("/api/notifications/preferences")
-        .then(r => r.json())
-        .then(data => {
-          if (typeof data.enabled === "boolean") setNotifEnabled(data.enabled);
-          if (typeof data.includeContent === "boolean") setNotifIncludeContent(data.includeContent);
+      fetchNotifPrefs()
+        .then(prefs => {
+          if (prefs) {
+            setNotifEnabled(prefs.enabled);
+            setNotifIncludeContent(prefs.includeContent);
+          }
         })
         .catch(() => {});
     }
@@ -25,18 +27,13 @@ export function useNotifications() {
   async function updateNotifPrefs(enabled: boolean, includeContent: boolean) {
     setNotifLoading(true);
     try {
-      const res = await fetch("/api/notifications/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, includeContent }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setNotifEnabled(data.enabled);
-        setNotifIncludeContent(data.includeContent);
+      const result = await updateNotifPrefsApi(enabled, includeContent);
+      if (result.ok) {
+        setNotifEnabled(result.prefs.enabled);
+        setNotifIncludeContent(result.prefs.includeContent);
         toast.success("Notification preferences updated.");
       } else {
-        toast.error(data.error || "Failed to update preferences.");
+        toast.error(result.error);
       }
     } catch (err) {
       toast.error("Network error: " + (err as Error).message);
