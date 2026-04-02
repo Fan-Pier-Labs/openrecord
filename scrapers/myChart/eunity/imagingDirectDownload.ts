@@ -620,11 +620,13 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
     }
   }
 
-  // Clean up: series with 0 instances might be singleton entries (like Dose Report)
-  // Keep them — they can still be downloaded
+  // Check if the positional analysis produced useful results.
+  // For small studies (X-rays) where all UIDs have unique parents,
+  // every UID becomes a "series" with 0 instances — fall back to legacy parser.
+  const totalInstances = [...seriesInstances.values()].reduce((sum, s) => sum + s.size, 0);
 
-  if (candidateSeriesUIDs.length === 0) {
-    console.log('      [AMF-PARSE] No series boundaries detected, falling back to pair-based parsing');
+  if (candidateSeriesUIDs.length === 0 || totalInstances === 0) {
+    console.log(`      [AMF-PARSE] Positional analysis found ${candidateSeriesUIDs.length} series with ${totalInstances} instances, falling back to pair-based parsing`);
     return parseStudySeriesFromAmfLegacy(amfBuf);
   }
 
