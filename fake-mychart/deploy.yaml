@@ -12,6 +12,7 @@ task:
   memory: 1024
   spot: true
   replicas: 1
+  ephemeral_storage: 21
   port: 8080
 
 env:
