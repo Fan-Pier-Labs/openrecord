@@ -242,7 +242,7 @@ function buildAmfCall(
  *
  * Reverse-engineered from captured browser AMF traffic (748 bytes).
  */
-function buildGetStudyListMetaRequest(
+export function buildGetStudyListMetaRequest(
   accession: string,
   serviceInstance: string,
   patientId: string,
@@ -338,7 +338,7 @@ interface AmfResponse {
  * Parse the outer AmfServicesMessage response to extract code and response text.
  * Returns null if the response can't be parsed.
  */
-function parseAmfResponse(buf: Buffer): AmfResponse | null {
+export function parseAmfResponse(buf: Buffer): AmfResponse | null {
   // Look for the response pattern: AmfServicesResponse followed by code (integer) and response (string or null)
   const text = buf.toString('latin1');
   const codeIdx = text.indexOf('code');
@@ -502,29 +502,204 @@ interface ParsedStudyInfo {
   }>;
 }
 
+
 /**
  * Parse the AMF getStudyListMeta response to extract study UID and series info.
+ *
+ * The AMF response contains a structured list where series UIDs appear as boundaries,
+ * followed by their instance UIDs. For multi-slice studies (CT scans), each series
+ * has many instance UIDs (one per slice).
  *
  * Strategy:
  * 1. Find all DICOM UIDs in the binary (pattern: 1.X.X.X.X...)
  * 2. Filter out DICOM standard SOP Class UIDs (1.2.840.10008.*)
- * 3. Identify the study UID (Epic OID root: 1.2.840.114350.*)
- * 4. Group remaining UIDs into (seriesUID, instanceUID) pairs by order of appearance
- * 5. Try to find series descriptions near each UID pair
- *
- * This is a heuristic parser — a full AMF3 response parser would be more robust
- * but isn't necessary since the UID pattern matching works reliably.
+ * 3. Identify the study UID
+ * 4. Detect series UIDs: UIDs that appear multiple times in the binary are typically
+ *    series UIDs (they appear in headers and as references). UIDs appearing exactly
+ *    once are typically instance UIDs.
+ * 5. Walk UIDs in position order, using series UIDs as group boundaries
+ * 6. Each series entry includes ALL its instance UIDs for complete multi-slice support
  */
 function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
   const text = amfBuf.toString('latin1');
 
-  // Find all DICOM UIDs (pattern: 1.X.X.X.X...)
+  // Find all DICOM UIDs with positions (including duplicates for frequency analysis)
+  const uidPattern = /1\.\d+\.\d+\.\d+(?:\.\d+){2,}/g;
+  const uidOccurrences: Array<{ uid: string; pos: number }> = [];
+  const uidFrequency = new Map<string, number>();
+  const firstPosition = new Map<string, number>();
+  let match;
+  while ((match = uidPattern.exec(text)) !== null) {
+    const uid = match[0];
+    if (uid.startsWith('1.2.840.10008.')) continue; // Skip SOP Class UIDs
+    uidOccurrences.push({ uid, pos: match.index });
+    uidFrequency.set(uid, (uidFrequency.get(uid) || 0) + 1);
+    if (!firstPosition.has(uid)) firstPosition.set(uid, match.index);
+  }
+
+  if (uidOccurrences.length === 0) return null;
+
+  const uniqueUIDs = [...new Set(uidOccurrences.map(o => o.uid))];
+  console.log(`      [AMF-PARSE] ${uniqueUIDs.length} unique study-related UIDs from ${uidOccurrences.length} occurrences`);
+
+  // Study UID: the one that appears most frequently or matches known patterns
+  const studyUID = uniqueUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
+    || uniqueUIDs.find(uid => uid.startsWith('1.2.276.0.'))
+    || uniqueUIDs[0];
+
+  // Detect series vs instance UIDs using positional structure analysis.
+  //
+  // The AMF binary lists UIDs in order: series UID, then its instance UIDs.
+  // Within the UID stream, we can detect series boundaries by grouping
+  // consecutive UIDs by their "parent" (all segments except the last).
+  // Single-UID sub-groups are series UIDs; multi-UID runs are instances.
+  //
+  // For UIDs with very different roots (e.g., COR/SAG vs NONCONTRAST),
+  // we first split by major root boundary, then analyze within each root.
+
+  const orderedUIDs = [...firstPosition.entries()]
+    .filter(([uid]) => uid !== studyUID)
+    .sort((a, b) => a[1] - b[1])
+    .map(([uid]) => uid);
+
+  // Sub-group by "parent" (drop last segment)
+  const getParent = (uid: string) => uid.split('.').slice(0, -1).join('.');
+  const subGroups: Array<{ parent: string; uids: string[] }> = [];
+  let currentParent = '';
+  let currentGroup: string[] = [];
+
+  for (const uid of orderedUIDs) {
+    const parent = getParent(uid);
+    if (parent !== currentParent) {
+      if (currentGroup.length > 0) {
+        subGroups.push({ parent: currentParent, uids: currentGroup });
+      }
+      currentParent = parent;
+      currentGroup = [uid];
+    } else {
+      currentGroup.push(uid);
+    }
+  }
+  if (currentGroup.length > 0) {
+    subGroups.push({ parent: currentParent, uids: currentGroup });
+  }
+
+  // Walk sub-groups to identify series and instance relationships.
+  // Single-UID sub-groups are series UIDs; multi-UID sub-groups are their instances.
+  const candidateSeriesUIDs: string[] = [];
+  const seriesInstances = new Map<string, Set<string>>();
+  let currentSeriesUID = '';
+
+  for (const sg of subGroups) {
+    if (sg.uids.length === 1) {
+      // Single UID — likely a series UID (or a standalone instance like Scout)
+      const uid = sg.uids[0];
+      // If the previous "series" had no instances, it was actually an instance itself
+      // Add it to the current series
+      if (currentSeriesUID && seriesInstances.get(currentSeriesUID)!.size === 0) {
+        // Previous single was actually an instance, not a series
+        // Retroactively add it as an instance of the series before it
+        const prevSeries = candidateSeriesUIDs[candidateSeriesUIDs.length - 2];
+        if (prevSeries) {
+          const oldSeries = candidateSeriesUIDs.pop()!;
+          seriesInstances.get(prevSeries)!.add(oldSeries);
+          seriesInstances.delete(oldSeries);
+        }
+      }
+      currentSeriesUID = uid;
+      candidateSeriesUIDs.push(uid);
+      seriesInstances.set(uid, new Set());
+    } else {
+      // Multi-UID sub-group — these are instances of the current series
+      if (currentSeriesUID) {
+        for (const uid of sg.uids) {
+          seriesInstances.get(currentSeriesUID)!.add(uid);
+        }
+      }
+    }
+  }
+
+  // Clean up: series with 0 instances might be singleton entries (like Dose Report)
+  // Keep them — they can still be downloaded
+
+  if (candidateSeriesUIDs.length === 0) {
+    console.log('      [AMF-PARSE] No series boundaries detected, falling back to pair-based parsing');
+    return parseStudySeriesFromAmfLegacy(amfBuf);
+  }
+
+  console.log(`      [AMF-PARSE] Detected ${candidateSeriesUIDs.length} series via positional analysis`);
+
+  // Extract series descriptions from nearby readable strings
+  const descriptionPattern = /[\x20-\x7e]{3,100}/g;
+  const readableStrings: Array<{ text: string; pos: number }> = [];
+  let strMatch;
+  while ((strMatch = descriptionPattern.exec(text)) !== null) {
+    const s = strMatch[0].trim();
+    if (/^\d+\.\d+\.\d+/.test(s)) continue;
+    if (s.includes('com.clientoutlook') || s.includes('flex.messaging')) continue;
+    if (s.includes('AmfServices') || s.includes('HTTPSimpleLoader')) continue;
+    if (s.includes('getStudyList') || s.includes('StudyService')) continue;
+    if (/^[\d.]+$/.test(s)) continue;
+    readableStrings.push({ text: s, pos: strMatch.index });
+  }
+
+  // Build the result — flatten each series' instances into individual entries
+  // for backward compatibility with the download loop
+  const series: ParsedStudyInfo['series'] = [];
+  let seriesIdx = 0;
+  for (const seriesUID of candidateSeriesUIDs) {
+    const instances = seriesInstances.get(seriesUID)!;
+    const seriesPos = firstPosition.get(seriesUID) ?? 0;
+
+    // Find series description
+    let bestDesc = `Series ${++seriesIdx}`;
+    let bestDist = Infinity;
+    for (const rs of readableStrings) {
+      const dist = Math.abs(rs.pos - seriesPos);
+      if (dist < bestDist && dist < 500 && rs.text.length >= 3 && rs.text.length <= 80) {
+        bestDist = dist;
+        bestDesc = rs.text;
+      }
+    }
+
+    if (instances.size === 0) {
+      // Series with no detected instances — add a self-referencing entry
+      series.push({ seriesUID, instanceUID: seriesUID, seriesDescription: bestDesc });
+    } else {
+      // Add an entry for EACH instance UID — the download loop iterates these
+      const sortedInstances = [...instances].sort((a, b) => {
+        const aNum = parseInt(a.split('.').pop()!) || 0;
+        const bNum = parseInt(b.split('.').pop()!) || 0;
+        return aNum - bNum;
+      });
+
+      for (const instanceUID of sortedInstances) {
+        series.push({ seriesUID, instanceUID, seriesDescription: bestDesc });
+      }
+    }
+
+    console.log(`      [AMF-PARSE] ${bestDesc}: ${instances.size} instances`);
+  }
+
+  console.log(`      [AMF-PARSE] Total: ${series.length} (seriesUID, instanceUID) entries across ${candidateSeriesUIDs.length} series`);
+
+  return { studyUID, series };
+}
+
+/**
+ * Legacy pair-based parser for simple studies (X-rays with few series).
+ * Used as fallback when the frequency-based series detection doesn't find
+ * enough high-frequency UIDs.
+ */
+function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
+  const text = amfBuf.toString('latin1');
+
   const uidPattern = /1\.\d+\.\d+\.\d+(?:\.\d+){2,}/g;
   const allUIDs: string[] = [];
   const uidPositions: Map<string, number> = new Map();
   let match;
   while ((match = uidPattern.exec(text)) !== null) {
-    if (!uidPositions.has(match[0])) {
+    if (!uidPositions.has(match[0]) && !match[0].startsWith('1.2.840.10008.')) {
       allUIDs.push(match[0]);
       uidPositions.set(match[0], match.index);
     }
@@ -532,84 +707,43 @@ function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null {
 
   if (allUIDs.length === 0) return null;
 
-  // Filter out DICOM standard SOP Class UIDs (1.2.840.10008.*).
-  // These are standard identifiers (e.g. 1.2.840.10008.5.1.4.1.1.1.2 = Digital X-Ray SOP Class),
-  // not study-specific UIDs. They appear in the AMF response as metadata but should not be
-  // confused with Study/Series/Instance UIDs.
-  const filteredUIDs = allUIDs.filter(uid => !uid.startsWith('1.2.840.10008.'));
-
-  if (filteredUIDs.length === 0) {
-    console.log(`      [AMF-PARSE] No UIDs remaining after filtering (${allUIDs.length} total, all were SOP Class UIDs)`);
-    return null;
-  }
-
-  // Log filtered UIDs for debugging
-  const removedUIDs = allUIDs.filter(uid => uid.startsWith('1.2.840.10008.'));
-  if (removedUIDs.length > 0) {
-    console.log(`      [AMF-PARSE] Filtered out ${removedUIDs.length} SOP Class UIDs: ${removedUIDs.slice(0, 3).join(', ')}${removedUIDs.length > 3 ? '...' : ''}`);
-  }
-  console.log(`      [AMF-PARSE] ${filteredUIDs.length} study-related UIDs: ${filteredUIDs.slice(0, 5).map(u => u.substring(0, 40)).join(', ')}${filteredUIDs.length > 5 ? '...' : ''}`);
-
-  // Study UID: prefer Epic OID root (1.2.840.114350.*), then any 1.2.840.*, then first UID
-  const studyUID = filteredUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
-    || filteredUIDs.find(uid => uid.startsWith('1.2.840.'))
-    || filteredUIDs[0];
-  const otherUIDs = filteredUIDs.filter(uid => uid !== studyUID);
+  const studyUID = allUIDs.find(uid => uid.startsWith('1.2.840.114350.'))
+    || allUIDs.find(uid => uid.startsWith('1.2.840.'))
+    || allUIDs[0];
+  const otherUIDs = allUIDs.filter(uid => uid !== studyUID);
 
   if (otherUIDs.length === 0) return { studyUID, series: [] };
 
-  // Try to extract series descriptions from the binary.
-  // Descriptions are AMF3 strings near the UIDs.
-  // Look for readable ASCII strings (3-100 chars) that aren't UIDs.
   const descriptionPattern = /[\x20-\x7e]{3,100}/g;
   const readableStrings: Array<{ text: string; pos: number }> = [];
   let strMatch;
   while ((strMatch = descriptionPattern.exec(text)) !== null) {
     const s = strMatch[0].trim();
-    // Skip UIDs, URLs, class names, and common AMF strings
     if (/^\d+\.\d+\.\d+/.test(s)) continue;
-    if (s.includes('com.clientoutlook')) continue;
-    if (s.includes('flex.messaging')) continue;
-    if (s.includes('AmfServices')) continue;
-    if (s.includes('HTTPSimpleLoader')) continue;
-    if (s.includes('getStudyList')) continue;
-    if (s.includes('StudyService')) continue;
+    if (s.includes('com.clientoutlook') || s.includes('flex.messaging')) continue;
+    if (s.includes('AmfServices') || s.includes('HTTPSimpleLoader')) continue;
+    if (s.includes('getStudyList') || s.includes('StudyService')) continue;
     if (/^[\d.]+$/.test(s)) continue;
     readableStrings.push({ text: s, pos: strMatch.index });
   }
 
-  // Group UIDs into series (seriesUID, instanceUID) pairs
   const series: ParsedStudyInfo['series'] = [];
   for (let i = 0; i + 1 < otherUIDs.length; i += 2) {
     const seriesUID = otherUIDs[i];
     const instanceUID = otherUIDs[i + 1];
     const seriesPos = uidPositions.get(seriesUID) ?? 0;
 
-    // Find the nearest description string before or after the series UID
     let bestDesc = `Series ${Math.floor(i / 2) + 1}`;
     let bestDist = Infinity;
     for (const rs of readableStrings) {
       const dist = Math.abs(rs.pos - seriesPos);
-      if (dist < bestDist && dist < 500) {
-        // Prefer strings that look like descriptions (uppercase, multiple words)
-        if (rs.text.length >= 3 && rs.text.length <= 80) {
-          bestDist = dist;
-          bestDesc = rs.text;
-        }
+      if (dist < bestDist && dist < 500 && rs.text.length >= 3 && rs.text.length <= 80) {
+        bestDist = dist;
+        bestDesc = rs.text;
       }
     }
 
     series.push({ seriesUID, instanceUID, seriesDescription: bestDesc });
-  }
-
-  // Handle odd number of UIDs (last one is unpaired)
-  if (otherUIDs.length % 2 === 1) {
-    const lastUID = otherUIDs[otherUIDs.length - 1];
-    series.push({
-      seriesUID: lastUID,
-      instanceUID: lastUID, // use same UID as both series and instance
-      seriesDescription: `Series ${series.length + 1}`,
-    });
   }
 
   return { studyUID, series };
