@@ -883,10 +883,18 @@ async function initializeAmfSession(
 
 // ─── Image Download ───
 
+export interface SeriesInfo {
+  seriesUID: string;
+  description: string;
+  instanceCount: number;
+}
+
 export interface DirectDownloadResult {
   studyName: string;
   images: DirectDownloadedImage[];
   errors: string[];
+  /** Parsed series info from AMF response (available even with maxImages: 0) */
+  seriesList?: SeriesInfo[];
 }
 
 export interface DirectDownloadedImage {
@@ -1332,6 +1340,22 @@ export async function downloadImagingStudyDirect(
       return result;
     }
     console.log(`      Found ${studyInfo.series.length} series, studyUID: ${studyInfo.studyUID.substring(0, 30)}...`);
+
+    // Build series list summary (available even with maxImages: 0)
+    const seriesMap = new Map<string, { description: string; count: number }>();
+    for (const s of studyInfo.series) {
+      const existing = seriesMap.get(s.seriesUID);
+      if (existing) {
+        existing.count++;
+      } else {
+        seriesMap.set(s.seriesUID, { description: s.seriesDescription, count: 1 });
+      }
+    }
+    result.seriesList = [...seriesMap.entries()].map(([seriesUID, { description, count }]) => ({
+      seriesUID,
+      description,
+      instanceCount: count,
+    }));
 
     // Step 6: Download images for each series
     const maxImages = options?.maxImages ?? Infinity;
