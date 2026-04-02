@@ -16,6 +16,7 @@ import {
 import { useAppContext, type MyChartInstanceInfo } from "@/lib/app-context";
 import { authClient } from "@/lib/auth-client";
 import { track } from "@/lib/track";
+import { validateChangePassword } from "@/lib/change-password";
 import { QRCodeSVG } from "qrcode.react";
 
 export default function HomePage() {
@@ -549,16 +550,9 @@ export default function HomePage() {
   }
 
   async function handleChangePassword() {
-    if (!changePasswordCurrent || !changePasswordNew || !changePasswordConfirm) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
-    if (changePasswordNew.length < 8) {
-      toast.error("New password must be at least 8 characters.");
-      return;
-    }
-    if (changePasswordNew !== changePasswordConfirm) {
-      toast.error("New passwords do not match.");
+    const validationError = validateChangePassword(changePasswordCurrent, changePasswordNew, changePasswordConfirm);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     setChangePasswordLoading(true);
