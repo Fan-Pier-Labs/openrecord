@@ -843,7 +843,8 @@ async function initializeAmfSession(
       const parsed2 = parseAmfResponse(amfBuf2);
       if (parsed2?.code === 0) {
         console.log(`      [AMF] Second session initialized successfully (${amfBuf2.length} bytes)`);
-        return { amfBuf: amfBuf2, effectiveServiceInstance: realSI };
+        // Return the FIRST AMF response (has full study/series data) but with the real serviceInstance
+        return { amfBuf, effectiveServiceInstance: realSI };
       }
     }
     // Even if second call fails, use the real serviceInstance
