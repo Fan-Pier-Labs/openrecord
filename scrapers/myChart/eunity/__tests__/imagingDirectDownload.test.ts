@@ -308,8 +308,8 @@ describe('extractServiceInstanceFromAmf', () => {
   it('finds various serviceInstance naming patterns', () => {
     const patterns = [
       { input: 'SomeHospitalBundle', expected: 'SomeHospitalBundle' },
-      { input: 'SPRINGFIELDstudystrategy', expected: 'SPRINGFIELDstudystrategy' },
-      { input: 'StandardBundle', expected: 'StandardBundle' },
+      { input: 'SPRINGFIELDStudyStrategy', expected: 'SPRINGFIELDStudyStrategy' },
+      { input: 'UCLAVNAEDGEBundle', expected: 'UCLAVNAEDGEBundle' },
     ];
 
     for (const { input, expected } of patterns) {

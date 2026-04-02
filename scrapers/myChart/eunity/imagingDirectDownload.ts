@@ -761,16 +761,43 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
  */
 export function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceInstance: string): string | null {
   const text = amfBuf.toString('latin1');
-  // Look for serviceInstance values that differ from what we sent
-  // Common patterns in AMF: the value appears as an AMF3 string near "serviceInstance" or "ServiceInstance"
-  const siPattern = /([A-Z][A-Za-z0-9]+(?:Bundle|Strategy|strategy|Instance))/g;
+
+  // Strategy 1: Look for a serviceInstance value near the "serviceInstance" or
+  // "ServiceInstance" field name in the binary. The value typically follows
+  // within 50 bytes of the field name.
+  const fieldPositions: number[] = [];
+  let idx = 0;
+  while ((idx = text.indexOf('erviceInstance', idx)) !== -1) {
+    fieldPositions.push(idx);
+    idx++;
+  }
+
+  for (const pos of fieldPositions) {
+    // Look at readable strings within 50 bytes after the field name
+    const region = text.substring(pos, pos + 100);
+    // Match capitalized identifiers that look like serviceInstance values
+    // (not field names like "ServiceInstance", "ServiceInstanceParameter")
+    const valuePattern = /([A-Z][A-Za-z0-9]{5,}(?:Bundle|Strategy|strategy))/g;
+    let match;
+    while ((match = valuePattern.exec(region)) !== null) {
+      const val = match[1];
+      if (val !== originalServiceInstance && !val.startsWith('ServiceInstance')) {
+        return val;
+      }
+    }
+  }
+
+  // Strategy 2: Look for known serviceInstance patterns anywhere in the binary.
+  // These are institution-specific identifiers that end in "Bundle" or contain "strategy".
+  const globalPattern = /([A-Z][A-Za-z0-9]{4,}Bundle|[A-Z][A-Za-z0-9]{4,}[Ss]trategy)/g;
   let match;
-  while ((match = siPattern.exec(text)) !== null) {
+  while ((match = globalPattern.exec(text)) !== null) {
     const val = match[1];
-    if (val !== originalServiceInstance && val !== 'ServiceInstance' && val !== 'ServiceInstanceParameter') {
+    if (val !== originalServiceInstance) {
       return val;
     }
   }
+
   return null;
 }
 
