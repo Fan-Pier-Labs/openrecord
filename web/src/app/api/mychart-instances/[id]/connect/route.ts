@@ -25,7 +25,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ state: 'logged_in', sessionKey });
     }
     if (existing) {
-      console.log(`[connect] Existing session for ${instance.hostname} has status=${existing.status}, will re-login`);
+      console.log(`[connect] Existing session for ${instance.hostname} has status=${existing.status}, clearing for fresh login`);
+      sessionStore.delete(sessionKey);
     }
 
     console.log(`[connect] Attempting auto-connect for ${instance.hostname} (user=${user.id}, hasTOTP=${!!instance.totpSecret})`);
