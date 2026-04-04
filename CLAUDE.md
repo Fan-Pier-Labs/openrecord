@@ -47,7 +47,8 @@ End-to-end tests in `tests/integration/ci/` that exercise the full user journey 
 6. Notification preference CRUD
 7. App-level TOTP 2FA enable/verify/sign-in/disable
 8. Password reset request, token validation, password change, old password rejection
-9. MyChart instance deletion and cleanup
+9. Passkey setup on MyChart instance and passkey auto-login
+10. MyChart instance deletion and cleanup
 
 **Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
 
@@ -111,6 +112,9 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - Fetch passwords from the browser keystore
 - Do not ask the user for 2FA codes — retrieve them automatically via the Resend API (see [CLI docs](docs/cli.md#automatic-2fa-via-resend))
 - Session expiration: a 302 redirect to the Login page means cookies are dead
+- **Passkey auto-login**: The web app stores passkey credentials (encrypted) per MyChart instance. Auto-connect prefers passkey login (bypasses 2FA entirely), falling back to username/password/TOTP. Users set up passkeys via a "Setup Passkey" button on the instance card. If a passkey fails (e.g. revoked on the portal), it is auto-cleared from the DB.
+  - Key files: `web/src/lib/mcp/auto-connect.ts`, `web/src/app/api/mychart-instances/[id]/setup-passkey/route.ts`
+  - Scraper layer: `scrapers/myChart/setupPasskey.ts` (registration), `scrapers/myChart/login.ts` (`myChartPasskeyLogin`), `scrapers/myChart/softwareAuthenticator.ts` (software WebAuthn)
 
 ## App Authentication & 2FA
 
