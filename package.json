@@ -42,7 +42,6 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "eslint": "^9.39.4",
-    "fetch-cookie": "^3.2.0",
     "framer-motion": "^12.38.0",
     "fzstd": "^0.1.1",
     "googleapis": "^171.4.0",
