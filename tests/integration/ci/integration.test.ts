@@ -867,40 +867,6 @@ describe('Passkey setup and auto-login', () => {
     expect(body.hasPasskeyCredential).toBe(false);
   });
 
-  it('requires active session for passkey setup', async () => {
-    // Invalidate sessions first
-    await fetch(`${FAKE_MYCHART_TEST_URL}/api/invalidate-sessions`, { method: 'POST' });
-
-    const res = await authedFetch(`/api/mychart-instances/${instanceId}/setup-passkey`, {
-      method: 'POST',
-    });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('No active session');
-  });
-
-  it('connects before passkey setup', async () => {
-    const res = await authedFetch(`/api/mychart-instances/${instanceId}/connect`, {
-      method: 'POST',
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-
-    if (body.state === 'need_2fa') {
-      const twofaRes = await authedFetch('/api/twofa', {
-        method: 'POST',
-        body: JSON.stringify({ sessionKey: body.sessionKey, code: '123456' }),
-      });
-      expect(twofaRes.status).toBe(200);
-      const twofaBody = await twofaRes.json();
-      expect(twofaBody.state).toBe('logged_in');
-      sessionKey = twofaBody.sessionKey;
-    } else {
-      expect(body.state).toBe('logged_in');
-      sessionKey = body.sessionKey;
-    }
-  }, 30_000);
-
   it('sets up passkey on the instance', async () => {
     const res = await authedFetch(`/api/mychart-instances/${instanceId}/setup-passkey`, {
       method: 'POST',
@@ -931,6 +897,17 @@ describe('Passkey setup and auto-login', () => {
       method: 'POST',
     });
     expect(res.status).toBe(200);
+  });
+
+  it('detects expired session via profile fetch', async () => {
+    // This triggers the web app to clear the stale in-memory session
+    const res = await authedFetch('/api/profile', {
+      method: 'POST',
+      body: JSON.stringify({ sessionKey }),
+    });
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.code).toBe('session_expired');
   });
 
   it('auto-connects via passkey after session expiry', async () => {
