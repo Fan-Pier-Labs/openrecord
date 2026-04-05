@@ -4,19 +4,109 @@ import { downloadImagingStudyDirect } from '../../../../../scrapers/myChart/euni
 import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
 
 /**
- * Convert and serve X-ray images on-the-fly.
+ * Serve a single X-ray image as lossless JPEG (quality 100).
  *
- * MyChart X-ray images are stored in a proprietary CLO format accessible
- * via the eUnity DICOM viewer. This endpoint:
- * 1. Downloads CLO image data using the authenticated MyChart session
- * 2. Converts CLO → JPEG using the clo-to-jpg-converter
- * 3. Returns the JPEG
+ * Query params:
+ *   - token: session token
+ *   - fdi: base64-encoded FdiContext
+ *   - series: (optional) seriesUID to filter by
+ *   - index: (optional) 0-based index within the series (default: 0)
  *
- * No caching — fetches and converts fresh each time.
+ * Images are cached server-side after first download. Responses use
+ * Cache-Control: private, max-age=600 so the browser caches them too —
+ * prev/next navigation is instant after first load.
  */
+
+// Server-side cache: key → JPEG buffers. Entries expire after 10 min.
+const imageCache = new Map<string, { jpegs: Buffer[]; ts: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const pendingDownloads = new Map<string, Promise<Buffer[]>>();
+
+function evictStale() {
+  const now = Date.now();
+  for (const [key, entry] of imageCache) {
+    if (now - entry.ts > CACHE_TTL_MS) imageCache.delete(key);
+  }
+}
+
+async function getOrDownloadImages(
+  token: string,
+  fdiParam: string,
+  seriesFilter: string | null,
+): Promise<Buffer[]> {
+  const cacheKey = `${token}:${fdiParam}:${seriesFilter ?? ''}`;
+
+  const cached = imageCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.jpegs;
+  }
+
+  const pending = pendingDownloads.get(cacheKey);
+  if (pending) return pending;
+
+  const downloadPromise = (async () => {
+    try {
+      const mychartRequest = getSession(token);
+      if (!mychartRequest) throw new Error('Invalid or expired session');
+
+      const fdiContext = JSON.parse(Buffer.from(fdiParam, 'base64').toString('utf-8'));
+
+      const downloadResult = await downloadImagingStudyDirect(
+        mychartRequest,
+        fdiContext,
+        '',
+        '',
+        { skipFileWrite: true, maxImages: 50 },
+      );
+
+      if (downloadResult.errors.length > 0 && downloadResult.images.length === 0) {
+        throw new Error(downloadResult.errors.join('; '));
+      }
+
+      let candidates = downloadResult.images.filter(img => img.pixelData);
+      if (seriesFilter) {
+        const filtered = candidates.filter(img => img.seriesUID === seriesFilter);
+        if (filtered.length > 0) candidates = filtered;
+      }
+
+      const realImages = candidates.filter(img => img.pixelData!.length > 10000);
+      if (realImages.length > 0) candidates = realImages;
+
+      // Convert all to lossless JPEG (quality 100)
+      const jpegs: Buffer[] = [];
+      for (const image of candidates) {
+        try {
+          const jpegBuffer = await convertCloToJpg(
+            image.pixelData,
+            null,
+            image.wrapperData,
+            100,
+          );
+          if (Buffer.isBuffer(jpegBuffer)) {
+            jpegs.push(jpegBuffer);
+          }
+        } catch {
+          // Skip images that fail to convert
+        }
+      }
+
+      imageCache.set(cacheKey, { jpegs, ts: Date.now() });
+      evictStale();
+      return jpegs;
+    } finally {
+      pendingDownloads.delete(cacheKey);
+    }
+  })();
+
+  pendingDownloads.set(cacheKey, downloadPromise);
+  return downloadPromise;
+}
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
   const fdiParam = req.nextUrl.searchParams.get('fdi');
+  const seriesFilter = req.nextUrl.searchParams.get('series');
+  const imageIndex = parseInt(req.nextUrl.searchParams.get('index') ?? '0', 10);
 
   if (!token || !fdiParam) {
     return NextResponse.json({ error: 'Missing token or fdi' }, { status: 400 });
@@ -27,56 +117,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
   }
 
-  let fdiContext: { fdi: string; ord: string };
   try {
-    fdiContext = JSON.parse(Buffer.from(fdiParam, 'base64').toString('utf-8'));
+    const fdiContext = JSON.parse(Buffer.from(fdiParam, 'base64').toString('utf-8'));
     if (!fdiContext.fdi || !fdiContext.ord) {
-      throw new Error('Missing fdi or ord');
+      return NextResponse.json({ error: 'Invalid fdi parameter' }, { status: 400 });
     }
   } catch {
     return NextResponse.json({ error: 'Invalid fdi parameter' }, { status: 400 });
   }
 
   try {
-    const downloadResult = await downloadImagingStudyDirect(
-      mychartRequest,
-      fdiContext,
-      '',
-      '',
-      { skipFileWrite: true, maxImages: 50 },
-    );
+    const jpegs = await getOrDownloadImages(token, fdiParam, seriesFilter);
 
-    if (downloadResult.errors.length > 0 && downloadResult.images.length === 0) {
-      return NextResponse.json({ error: downloadResult.errors.join('; ') }, { status: 502 });
-    }
-
-    // Find the largest image with pixel data, preferring real images over tiny scouts
-    const imagesWithData = downloadResult.images.filter(img => img.pixelData && img.pixelData.length > 10000);
-    // Fall back to any image if no large ones found
-    const candidates = imagesWithData.length > 0
-      ? imagesWithData
-      : downloadResult.images.filter(img => img.pixelData);
-    if (candidates.length === 0) {
+    if (jpegs.length === 0) {
       return NextResponse.json({ error: 'No image data available' }, { status: 404 });
     }
-    const image = candidates.reduce((best, img) =>
-      (img.pixelData!.length > (best.pixelData?.length ?? 0)) ? img : best
-    );
 
-    const jpegBuffer = await convertCloToJpg(
-      image.pixelData,
-      null,
-      image.wrapperData,
-    );
-
-    if (!Buffer.isBuffer(jpegBuffer)) {
-      return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
-    }
-
-    return new NextResponse(jpegBuffer, {
+    const idx = Math.max(0, Math.min(imageIndex, jpegs.length - 1));
+    return new NextResponse(jpegs[idx], {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'no-store',
+        'Cache-Control': 'private, max-age=600',
       },
     });
   } catch (err) {

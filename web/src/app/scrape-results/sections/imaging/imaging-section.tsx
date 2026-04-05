@@ -16,10 +16,120 @@ interface ImagingSectionProps {
   token: string;
 }
 
+function ImageViewer({ baseUrl, description, total }: {
+  baseUrl: string;
+  description: string;
+  total: number;
+}) {
+  const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  // Each unique URL is a separate browser cache entry.
+  // Cache-Control: private, max-age=600 means the browser keeps them — prev/next is instant.
+  const imgUrl = `${baseUrl}&index=${index}`;
+
+  const downloadZip = async () => {
+    setDownloading(true);
+    try {
+      // Replace /api/mychart-xray with /api/mychart-xray-zip (drop &index param)
+      const zipUrl = baseUrl.replace('/api/mychart-xray?', '/api/mychart-xray-zip?');
+      const resp = await fetch(zipUrl);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(err.error || `HTTP ${resp.status}`);
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Extract filename from Content-Disposition or use fallback
+      const cd = resp.headers.get('Content-Disposition');
+      const filenameMatch = cd?.match(/filename="?([^"]+)"?/);
+      a.download = filenameMatch?.[1] ?? `${description}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Download failed: ${(err as Error).message}`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-center gap-2 mb-1">
+        <p className="text-xs font-medium">{description}</p>
+        {total > 1 && (
+          <span className="text-xs text-muted-foreground">
+            {index + 1} / {total}
+          </span>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs h-6 ml-auto"
+          disabled={downloading}
+          onClick={downloadZip}
+        >
+          {downloading ? 'Downloading...' : `Download All (${total})`}
+        </Button>
+      </div>
+      <div className="relative inline-block">
+        {loading && (
+          <div className="flex items-center justify-center bg-black/80 rounded-md border min-h-[200px] min-w-[200px] p-8">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              <span className="text-xs text-muted-foreground">Loading image...</span>
+            </div>
+          </div>
+        )}
+        {/* key={imgUrl} forces React to mount a new <img> when URL changes, resetting onLoad */}
+        <img
+          key={imgUrl}
+          src={imgUrl}
+          alt={`${description} (${index + 1}/${total})`}
+          className={`rounded-md border bg-black ${loading ? 'hidden' : ''}`}
+          style={{ maxHeight: 512 }}
+          onLoad={() => { setLoading(false); setError(null); }}
+          onError={() => { setLoading(false); setError('Failed to load image'); }}
+        />
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {total > 1 && !loading && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs opacity-90"
+              disabled={index === 0}
+              onClick={() => { setIndex(i => i - 1); setLoading(true); }}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs opacity-90"
+              disabled={index === total - 1}
+              onClick={() => { setIndex(i => i + 1); setLoading(true); }}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ImagingSection({ imagingResults, isDemo, token }: ImagingSectionProps) {
   const [seriesData, setSeriesData] = useState<Record<number, SeriesInfo[]>>({});
   const [seriesLoading, setSeriesLoading] = useState<Record<number, boolean>>({});
   const [seriesErrors, setSeriesErrors] = useState<Record<number, string | null>>({});
+  const [openViewers, setOpenViewers] = useState<Record<string, boolean>>({});
 
   const fetchSeries = useCallback(async (index: number, fdiContext: { fdi: string; ord: string }) => {
     setSeriesLoading(prev => ({ ...prev, [index]: true }));
@@ -35,10 +145,15 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
       setSeriesData(prev => ({ ...prev, [index]: data.series }));
     } catch (err) {
       const msg = (err as Error).message;
-      setSeriesErrors(prev => ({ ...prev, [index]: msg.length > 200 ? msg.slice(0, 200) + '…' : msg }));
+      setSeriesErrors(prev => ({ ...prev, [index]: msg.length > 200 ? msg.slice(0, 200) + '...' : msg }));
     } finally {
       setSeriesLoading(prev => ({ ...prev, [index]: false }));
     }
+  }, [token]);
+
+  const buildImageUrl = useCallback((fdiContext: { fdi: string; ord: string }, seriesUID: string) => {
+    const fdiParam = btoa(JSON.stringify(fdiContext));
+    return `/api/mychart-xray?token=${encodeURIComponent(token)}&fdi=${encodeURIComponent(fdiParam)}&series=${encodeURIComponent(seriesUID)}`;
   }, [token]);
 
   return (
@@ -83,15 +198,37 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
                 <p className="text-xs text-red-500">Failed to load series: {seriesErrors[i]}</p>
               )}
               {seriesData[i] && (
-                <div className="space-y-1">
+                <div className="space-y-3">
                   <span className="text-xs font-medium">Series:</span>
                   <div className="flex flex-wrap gap-2">
-                    {seriesData[i].map((s, j) => (
-                      <Button key={j} variant="outline" size="sm" className="text-xs h-7" disabled>
-                        {s.description} ({s.instanceCount} images) — coming soon
-                      </Button>
-                    ))}
+                    {seriesData[i].map((s, j) => {
+                      const key = `${i}-${j}`;
+                      const isOpen = !!openViewers[key];
+                      return (
+                        <Button
+                          key={j}
+                          variant={isOpen ? "secondary" : "outline"}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setOpenViewers(prev => ({ ...prev, [key]: !prev[key] }))}
+                        >
+                          {s.description} ({s.instanceCount} images)
+                        </Button>
+                      );
+                    })}
                   </div>
+                  {seriesData[i].map((s, j) => {
+                    const key = `${i}-${j}`;
+                    if (!openViewers[key]) return null;
+                    return (
+                      <ImageViewer
+                        key={`viewer-${key}`}
+                        baseUrl={buildImageUrl(img.fdiContext!, s.seriesUID)}
+                        description={s.description}
+                        total={s.instanceCount}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -1405,18 +1405,33 @@ export async function downloadImagingStudyDirect(
           const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
           if (haarIdx > 0) {
-            const wrapperMetadata = data.subarray(0, haarIdx);
-            const embeddedPixelData = data.subarray(haarIdx);
+            const wrapperMetadata = Buffer.from(data.subarray(0, haarIdx));
+
+            // Download progressive CLOPIXEL levels for per-instance image data.
+            // The CLOWRAPPER often returns the same base preview for all instances
+            // in a series; the CLOPIXEL levels contain the actual per-instance data.
+            let bestPixelData: Buffer = Buffer.from(data.subarray(haarIdx));
+            const pixelLevels = await downloadProgressiveClopixel(session.cookieJar, baseUrl, {
+              studyUID: studyInfo.studyUID,
+              seriesUID: series.seriesUID,
+              objectUID: series.instanceUID,
+              serviceInstance: studyParams.serviceInstance,
+            });
+            if (pixelLevels.length > 0) {
+              // Use the last (highest quality) pixel level
+              bestPixelData = Buffer.from(pixelLevels[pixelLevels.length - 1].data);
+            }
+
             result.images.push({
               filePath: '',
-              sizeBytes: embeddedPixelData.length,
+              sizeBytes: bestPixelData.length,
               seriesUID: series.seriesUID,
               instanceUID: series.instanceUID,
               seriesDescription: series.seriesDescription,
               accessionNumber: studyParams.accession,
               format: 'CLHAAR',
-              pixelData: Buffer.from(embeddedPixelData),
-              wrapperData: Buffer.from(wrapperMetadata),
+              pixelData: bestPixelData,
+              wrapperData: wrapperMetadata,
             });
           }
         } else {
