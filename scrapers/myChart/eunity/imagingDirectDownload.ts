@@ -1371,37 +1371,21 @@ export async function downloadImagingStudyDirect(
       instanceCount: count,
     }));
 
-    // Step 6: Download images for each series.
-    // Group by seriesUID — the eUnity server serves one CLOWRAPPER per series,
-    // then additional frames via frameNumber increments on the same objectUID.
+    // Step 6: Download images — each (seriesUID, instanceUID) pair is a separate image.
+    // The eUnity viewer requests each with its own seriesUID + objectUID, frameNumber=1.
     const maxImages = options?.maxImages ?? Infinity;
-    const seriesByUID = new Map<string, typeof studyInfo.series>();
-    for (const s of studyInfo.series) {
-      const existing = seriesByUID.get(s.seriesUID) ?? [];
-      existing.push(s);
-      seriesByUID.set(s.seriesUID, existing);
-    }
-
-    for (const [, seriesEntries] of seriesByUID) {
+    for (const series of studyInfo.series) {
       if (result.images.length >= maxImages) break;
-      const series = seriesEntries[0]; // Use first instance for initial download
-      const totalFrames = seriesEntries.length;
-      console.log(`      Downloading ${series.seriesDescription} (${totalFrames} frames)...`);
+      console.log(`      Downloading ${series.seriesDescription} (${series.seriesUID.substring(series.seriesUID.length - 12)})...`);
       const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
       const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-      for (let frame = 1; frame <= totalFrames; frame++) {
-        if (result.images.length >= maxImages) break;
-        // Use the instanceUID from the corresponding entry if available
-        const entryForFrame = seriesEntries[frame - 1] ?? series;
 
       try {
         // Download CLOWRAPPER (metadata + image data)
         const { data } = await downloadImage(session.cookieJar, baseUrl, {
           studyUID: studyInfo.studyUID,
           seriesUID: series.seriesUID,
-          objectUID: entryForFrame.instanceUID,
-          frameNumber: frame,
+          objectUID: series.instanceUID,
           serviceInstance: studyParams.serviceInstance,
           format: 'CLOWRAPPER',
         });
@@ -1485,10 +1469,9 @@ export async function downloadImagingStudyDirect(
           }
         }
       } catch (err) {
-        result.errors.push(`${series.seriesDescription} frame ${frame}: ${(err as Error).message}`);
+        result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
       }
-      } // end frame loop
-    } // end series loop
+    }
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);
   }
