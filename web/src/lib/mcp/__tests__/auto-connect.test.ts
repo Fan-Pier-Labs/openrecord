@@ -14,8 +14,23 @@ mock.module('../../../../../scrapers/myChart/sessionStore', () => ({
 
 // Mock sessions module
 const mockSetSession = mock(() => {});
+const mockGetSession = mock(() => undefined);
+const mockDeleteSession = mock(() => {});
+const mockGetSessionMetadata = mock(() => undefined);
+const mockRandomToken = mock(() => 'mock-token');
 mock.module('../../sessions', () => ({
+  getSession: mockGetSession,
   setSession: mockSetSession,
+  deleteSession: mockDeleteSession,
+  getSessionMetadata: mockGetSessionMetadata,
+  randomToken: mockRandomToken,
+  sessionStore: {
+    getEntry: mockGetEntry,
+    set: mock(() => {}),
+    delete: mockDelete,
+  },
+  SESSION_COOKIE_NAME: 'session_token',
+  SESSION_COOKIE_MAX_AGE: 86400,
 }));
 
 // Import real implementations to re-export alongside mocks, so other test
@@ -40,7 +55,15 @@ mock.module('../../mychart/login', () => ({
 // Mock db module for passkey credential updates
 const mockUpdateMyChartInstance = mock(() => Promise.resolve(null));
 mock.module('../../db', () => ({
+  createMyChartInstance: mock(() => Promise.resolve({})),
+  getMyChartInstances: mock(() => Promise.resolve([])),
+  getMyChartInstance: mock(() => Promise.resolve(null)),
   updateMyChartInstance: mockUpdateMyChartInstance,
+  deleteMyChartInstance: mock(() => Promise.resolve(false)),
+  getNotificationEnabledInstances: mock(() => Promise.resolve([])),
+  updateNotificationLastChecked: mock(() => Promise.resolve()),
+  getUserNotificationPreferences: mock(() => Promise.resolve({ enabled: false, includeContent: false })),
+  setUserNotificationPreferences: mock(() => Promise.resolve()),
 }));
 
 // Mock TOTP
