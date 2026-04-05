@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
-import { downloadImagingStudyDirect } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
+import { getOrDownloadStudy } from '@/lib/imaging-cache';
 
 /**
- * Fetch the series list for an imaging study.
+ * Fetch series metadata for an imaging study.
  *
- * Follows FdiData → SAML → AMF to get series info from eUnity (~5 seconds).
- * Returns series names and slice counts without downloading actual images.
+ * Downloads all images (cached for 10 min), converts them, and returns
+ * the series list with actual downloadable image counts per series.
+ * Subsequent calls and image requests are served from cache.
  */
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -32,23 +33,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // maxImages: 0 — only do SAML + AMF init to get series list, skip image downloads
-    const downloadResult = await downloadImagingStudyDirect(
-      mychartRequest,
-      fdiContext,
-      '',
-      '',
-      { skipFileWrite: true, maxImages: 0 },
-    );
+    const study = await getOrDownloadStudy(token, fdiParam);
 
-    if (!downloadResult.seriesList || downloadResult.seriesList.length === 0) {
-      if (downloadResult.errors.length > 0) {
-        return NextResponse.json({ error: downloadResult.errors.join('; ') }, { status: 502 });
-      }
+    if (study.series.length === 0) {
       return NextResponse.json({ error: 'No series found' }, { status: 404 });
     }
 
-    return NextResponse.json({ series: downloadResult.seriesList });
+    return NextResponse.json({ series: study.series });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

@@ -8,7 +8,7 @@ import type { ImagingResultType } from "@/types/scrape-results";
 
 const SafeArraySection = withRenderErrorBoundary(ArraySection, "ArraySection", (p) => p.data);
 
-type SeriesInfo = { seriesUID: string; description: string; instanceCount: number };
+type SeriesInfo = { seriesUID: string; description: string; imageCount: number };
 
 interface ImagingSectionProps {
   imagingResults: ImagingResultType[] | undefined;
@@ -16,66 +16,40 @@ interface ImagingSectionProps {
   token: string;
 }
 
-function ImageViewer({ baseUrl, description, expectedTotal }: {
+function ImageViewer({ baseUrl, description, total }: {
   baseUrl: string;
   description: string;
-  expectedTotal: number;
+  total: number;
 }) {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
-  // Actual count from server (may differ from expectedTotal)
-  const [actualTotal, setActualTotal] = useState<number | null>(null);
-
-  const total = actualTotal ?? expectedTotal;
-
-  // Fetch the first image via fetch() to read the X-Image-Count header,
-  // then display via object URL. Subsequent images use <img src> directly
-  // since the browser cache will serve them instantly.
   const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
 
   const loadImage = useCallback(async (idx: number) => {
     setLoading(true);
     setError(null);
-    const url = `${baseUrl}&index=${idx}`;
     try {
-      const resp = await fetch(url);
+      const resp = await fetch(`${baseUrl}&index=${idx}`);
       if (!resp.ok) {
-        if (resp.status === 404) {
-          // Server says this index doesn't exist — clamp total
-          setActualTotal(prev => prev !== null ? Math.min(prev, idx) : idx);
-          // Go back to last valid index if possible
-          if (idx > 0) setIndex(idx - 1);
-          setLoading(false);
-          return;
-        }
         const body = await resp.json().catch(() => ({ error: 'Failed to load' }));
         throw new Error(body.error || `HTTP ${resp.status}`);
       }
-
-      // Read actual image count from header
-      const countHeader = resp.headers.get('X-Image-Count');
-      if (countHeader) {
-        const count = parseInt(countHeader, 10);
-        if (!isNaN(count) && count > 0) setActualTotal(count);
-      }
-
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
       setBlobUrls(prev => ({ ...prev, [idx]: blobUrl }));
-      setLoading(false);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
       setLoading(false);
     }
   }, [baseUrl]);
 
-  // Load image when index changes
   useEffect(() => {
     if (blobUrls[index]) {
-      // Already loaded — show immediately
       setLoading(false);
+      setError(null);
       return;
     }
     loadImage(index);
@@ -119,15 +93,17 @@ function ImageViewer({ baseUrl, description, expectedTotal }: {
             {index + 1} / {total}
           </span>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs h-6 ml-auto"
-          disabled={downloading}
-          onClick={downloadZip}
-        >
-          {downloading ? 'Downloading...' : `Download All (${total})`}
-        </Button>
+        {total > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-6 ml-auto"
+            disabled={downloading}
+            onClick={downloadZip}
+          >
+            {downloading ? 'Downloading...' : `Download All (${total})`}
+          </Button>
+        )}
       </div>
       <div className="relative inline-block">
         {loading && (
@@ -261,22 +237,23 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
                           variant={isOpen ? "secondary" : "outline"}
                           size="sm"
                           className="text-xs h-7"
-                          onClick={() => setOpenViewers(prev => ({ ...prev, [key]: !prev[key] }))}
+                          disabled={s.imageCount === 0}
+                          onClick={() => s.imageCount > 0 && setOpenViewers(prev => ({ ...prev, [key]: !prev[key] }))}
                         >
-                          {s.description} ({s.instanceCount} images)
+                          {s.description} ({s.imageCount} images)
                         </Button>
                       );
                     })}
                   </div>
                   {seriesData[i].map((s, j) => {
                     const key = `${i}-${j}`;
-                    if (!openViewers[key]) return null;
+                    if (!openViewers[key] || s.imageCount === 0) return null;
                     return (
                       <ImageViewer
                         key={`viewer-${key}`}
                         baseUrl={buildImageUrl(img.fdiContext!, s.seriesUID)}
                         description={s.description}
-                        expectedTotal={s.instanceCount}
+                        total={s.imageCount}
                       />
                     );
                   })}
