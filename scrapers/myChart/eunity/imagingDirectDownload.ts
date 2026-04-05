@@ -1392,9 +1392,10 @@ export async function downloadImagingStudyDirect(
 
         // Skip empty/error responses (< 256 bytes is too small for real image data)
         if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
-          console.log(`      Skipping ${series.seriesDescription} frame ${frame}: ${data.length} bytes`);
+          console.log(`      Skipping ${series.seriesDescription}: ${data.length} bytes`);
           continue;
         }
+        console.log(`      Got ${series.seriesDescription} (${(data.length / 1024).toFixed(0)} KB)`);
 
         const ext = isCloFormat(data) ? '.clo' : '.bin';
         const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
