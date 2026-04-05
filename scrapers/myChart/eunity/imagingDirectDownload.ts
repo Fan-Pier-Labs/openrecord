@@ -623,10 +623,28 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   // Check if the positional analysis produced useful results.
   // For small studies (X-rays) where all UIDs have unique parents,
   // every UID becomes a "series" with 0 instances — fall back to legacy parser.
+  //
+  // Also fall back when: the remaining UIDs (excluding study UID) form clean pairs
+  // but the positional analysis collapsed them into too few series. This happens when
+  // UIDs share a common parent prefix (e.g., 1.3.51.0.7.X) but are actually
+  // alternating series/instance pairs.
   const totalInstances = [...seriesInstances.values()].reduce((sum, s) => sum + s.size, 0);
+  const expectedPairCount = Math.floor(orderedUIDs.length / 2);
+  const actualSeriesWithImages = [...seriesInstances.values()].filter(s => s.size > 0).length;
 
   if (candidateSeriesUIDs.length === 0 || totalInstances === 0) {
     console.log(`      [AMF-PARSE] Positional analysis found ${candidateSeriesUIDs.length} series with ${totalInstances} instances, falling back to pair-based parsing`);
+    return parseStudySeriesFromAmfLegacy(amfBuf);
+  }
+
+  // If positional analysis collapsed many UIDs into one series with few instances,
+  // and pair-based parsing would produce more series, fall back to pairs.
+  // This catches X-ray studies (2-6 views) where UIDs share a parent prefix
+  // but are actually separate series+instance pairs.
+  // Don't fall back for CT/MRI with many instances per series (>10).
+  const maxInstancesPerSeries = Math.max(...[...seriesInstances.values()].map(s => s.size));
+  if (expectedPairCount >= 2 && actualSeriesWithImages <= 1 && maxInstancesPerSeries <= 10 && expectedPairCount > actualSeriesWithImages) {
+    console.log(`      [AMF-PARSE] Positional analysis found ${actualSeriesWithImages} series with images but ${expectedPairCount} pairs expected, falling back to pair-based parsing`);
     return parseStudySeriesFromAmfLegacy(amfBuf);
   }
 
