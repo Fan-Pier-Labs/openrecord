@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArraySection } from "@/components/data-display";
 import { withRenderErrorBoundary } from "@/components/with-render-error-boundary";
@@ -16,24 +16,74 @@ interface ImagingSectionProps {
   token: string;
 }
 
-function ImageViewer({ baseUrl, description, total }: {
+function ImageViewer({ baseUrl, description, expectedTotal }: {
   baseUrl: string;
   description: string;
-  total: number;
+  expectedTotal: number;
 }) {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  // Actual count from server (may differ from expectedTotal)
+  const [actualTotal, setActualTotal] = useState<number | null>(null);
 
-  // Each unique URL is a separate browser cache entry.
-  // Cache-Control: private, max-age=600 means the browser keeps them — prev/next is instant.
-  const imgUrl = `${baseUrl}&index=${index}`;
+  const total = actualTotal ?? expectedTotal;
+
+  // Fetch the first image via fetch() to read the X-Image-Count header,
+  // then display via object URL. Subsequent images use <img src> directly
+  // since the browser cache will serve them instantly.
+  const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
+
+  const loadImage = useCallback(async (idx: number) => {
+    setLoading(true);
+    setError(null);
+    const url = `${baseUrl}&index=${idx}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        if (resp.status === 404) {
+          // Server says this index doesn't exist — clamp total
+          setActualTotal(prev => prev !== null ? Math.min(prev, idx) : idx);
+          // Go back to last valid index if possible
+          if (idx > 0) setIndex(idx - 1);
+          setLoading(false);
+          return;
+        }
+        const body = await resp.json().catch(() => ({ error: 'Failed to load' }));
+        throw new Error(body.error || `HTTP ${resp.status}`);
+      }
+
+      // Read actual image count from header
+      const countHeader = resp.headers.get('X-Image-Count');
+      if (countHeader) {
+        const count = parseInt(countHeader, 10);
+        if (!isNaN(count) && count > 0) setActualTotal(count);
+      }
+
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setBlobUrls(prev => ({ ...prev, [idx]: blobUrl }));
+      setLoading(false);
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
+  }, [baseUrl]);
+
+  // Load image when index changes
+  useEffect(() => {
+    if (blobUrls[index]) {
+      // Already loaded — show immediately
+      setLoading(false);
+      return;
+    }
+    loadImage(index);
+  }, [index, blobUrls, loadImage]);
 
   const downloadZip = async () => {
     setDownloading(true);
     try {
-      // Replace /api/mychart-xray with /api/mychart-xray-zip (drop &index param)
       const zipUrl = baseUrl.replace('/api/mychart-xray?', '/api/mychart-xray-zip?');
       const resp = await fetch(zipUrl);
       if (!resp.ok) {
@@ -44,7 +94,6 @@ function ImageViewer({ baseUrl, description, total }: {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Extract filename from Content-Disposition or use fallback
       const cd = resp.headers.get('Content-Disposition');
       const filenameMatch = cd?.match(/filename="?([^"]+)"?/);
       a.download = filenameMatch?.[1] ?? `${description}.zip`;
@@ -58,6 +107,8 @@ function ImageViewer({ baseUrl, description, total }: {
       setDownloading(false);
     }
   };
+
+  const currentUrl = blobUrls[index];
 
   return (
     <div className="mt-2">
@@ -87,25 +138,25 @@ function ImageViewer({ baseUrl, description, total }: {
             </div>
           </div>
         )}
-        {/* key={imgUrl} forces React to mount a new <img> when URL changes, resetting onLoad */}
-        <img
-          key={imgUrl}
-          src={imgUrl}
-          alt={`${description} (${index + 1}/${total})`}
-          className={`rounded-md border bg-black ${loading ? 'hidden' : ''}`}
-          style={{ maxHeight: 512 }}
-          onLoad={() => { setLoading(false); setError(null); }}
-          onError={() => { setLoading(false); setError('Failed to load image'); }}
-        />
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        {total > 1 && !loading && (
+        {!loading && error && (
+          <p className="text-xs text-red-500 mt-1">{error}</p>
+        )}
+        {!loading && currentUrl && (
+          <img
+            src={currentUrl}
+            alt={`${description} (${index + 1}/${total})`}
+            className="rounded-md border bg-black"
+            style={{ maxHeight: 512 }}
+          />
+        )}
+        {total > 1 && !loading && currentUrl && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
             <Button
               variant="secondary"
               size="sm"
               className="h-7 px-2 text-xs opacity-90"
               disabled={index === 0}
-              onClick={() => { setIndex(i => i - 1); setLoading(true); }}
+              onClick={() => setIndex(i => i - 1)}
             >
               Prev
             </Button>
@@ -113,8 +164,8 @@ function ImageViewer({ baseUrl, description, total }: {
               variant="secondary"
               size="sm"
               className="h-7 px-2 text-xs opacity-90"
-              disabled={index === total - 1}
-              onClick={() => { setIndex(i => i + 1); setLoading(true); }}
+              disabled={index >= total - 1}
+              onClick={() => setIndex(i => i + 1)}
             >
               Next
             </Button>
@@ -225,7 +276,7 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
                         key={`viewer-${key}`}
                         baseUrl={buildImageUrl(img.fdiContext!, s.seriesUID)}
                         description={s.description}
-                        total={s.instanceCount}
+                        expectedTotal={s.instanceCount}
                       />
                     );
                   })}

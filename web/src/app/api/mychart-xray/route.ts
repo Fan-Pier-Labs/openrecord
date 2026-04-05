@@ -133,11 +133,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No image data available' }, { status: 404 });
     }
 
-    const idx = Math.max(0, Math.min(imageIndex, jpegs.length - 1));
-    return new NextResponse(jpegs[idx], {
+    if (imageIndex < 0 || imageIndex >= jpegs.length) {
+      return NextResponse.json({ error: 'Image index out of range' }, { status: 404 });
+    }
+
+    return new NextResponse(jpegs[imageIndex], {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'private, max-age=600',
+        'X-Image-Count': String(jpegs.length),
       },
     });
   } catch (err) {
