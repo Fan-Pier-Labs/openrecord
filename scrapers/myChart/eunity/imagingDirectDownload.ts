@@ -913,6 +913,85 @@ async function initializeAmfSession(
   return { amfBuf, effectiveServiceInstance };
 }
 
+// ─── eUnity Session ───
+
+export interface EunitySession {
+  cookieJar: tough.CookieJar;
+  baseUrl: string;
+  studyUID: string;
+  serviceInstance: string;
+  series: Array<{ seriesUID: string; instanceUID: string; seriesDescription: string }>;
+}
+
+/**
+ * Initialize an eUnity session: SAML chain + AMF init + parse series.
+ * Returns the authenticated session with cookies and parsed series list.
+ * The cookies can be reused for individual image downloads via downloadSingleImage().
+ */
+export async function initEunitySession(
+  mychartRequest: MyChartRequest,
+  fdiContext: FdiContext,
+): Promise<EunitySession | null> {
+  const viewerSession = await getImageViewerSamlUrl(mychartRequest, fdiContext);
+  if (!viewerSession?.samlUrl) return null;
+
+  const session = await followSamlChain(mychartRequest, viewerSession.samlUrl);
+  if (!session) return null;
+
+  const studyParams = parseEunityStudyParams(session.viewerUrl, session.viewerBody);
+  if (!studyParams) return null;
+
+  const baseUrl = new URL(session.viewerUrl).origin;
+  const amfResult = await initializeAmfSession(
+    session.cookieJar, baseUrl,
+    studyParams.accession, studyParams.serviceInstance, studyParams.patientId,
+  );
+  if (!amfResult) return null;
+
+  const { amfBuf, effectiveServiceInstance } = amfResult;
+  const studyInfo = parseStudySeriesFromAmf(amfBuf);
+  if (!studyInfo || studyInfo.series.length === 0) return null;
+
+  return {
+    cookieJar: session.cookieJar,
+    baseUrl,
+    studyUID: studyInfo.studyUID,
+    serviceInstance: effectiveServiceInstance,
+    series: studyInfo.series,
+  };
+}
+
+/**
+ * Download a single image from an initialized eUnity session.
+ * Returns the raw CLO pixel + wrapper data for conversion.
+ */
+export async function downloadSingleImage(
+  eunitySession: EunitySession,
+  seriesUID: string,
+  objectUID: string,
+): Promise<{ pixelData: Buffer; wrapperData?: Buffer } | null> {
+  const { data } = await downloadImage(eunitySession.cookieJar, eunitySession.baseUrl, {
+    studyUID: eunitySession.studyUID,
+    seriesUID,
+    objectUID,
+    serviceInstance: eunitySession.serviceInstance,
+    format: 'CLOWRAPPER',
+  });
+
+  if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
+    return null;
+  }
+
+  const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
+  const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
+  if (haarIdx < 0) return null;
+
+  return {
+    pixelData: Buffer.from(data.subarray(haarIdx)),
+    wrapperData: haarIdx > 0 ? Buffer.from(data.subarray(0, haarIdx)) : undefined,
+  };
+}
+
 // ─── Image Download ───
 
 export interface SeriesInfo {

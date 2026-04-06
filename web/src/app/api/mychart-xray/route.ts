@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
-import { getOrDownloadStudy } from '@/lib/imaging-cache';
+import { getOrInitSession } from '@/lib/imaging-cache';
+import { downloadSingleImage } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
+import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
 
 /**
  * Serve a single X-ray image as lossless JPEG (quality 100).
@@ -8,20 +10,20 @@ import { getOrDownloadStudy } from '@/lib/imaging-cache';
  * Query params:
  *   - token: session token
  *   - fdi: base64-encoded FdiContext
- *   - series: seriesUID
- *   - index: 0-based index within the series (default: 0)
+ *   - seriesUID: DICOM series UID
+ *   - objectUID: DICOM instance UID
  *
- * Images are pre-downloaded and cached by the /api/mychart-series endpoint.
- * This endpoint just serves from that cache, so it's fast.
+ * Uses cached eUnity session cookies to download the image on the fly.
+ * No image caching — each request makes one CustomImageServlet call.
  */
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
   const fdiParam = req.nextUrl.searchParams.get('fdi');
-  const seriesUID = req.nextUrl.searchParams.get('series');
-  const imageIndex = parseInt(req.nextUrl.searchParams.get('index') ?? '0', 10);
+  const seriesUID = req.nextUrl.searchParams.get('seriesUID');
+  const objectUID = req.nextUrl.searchParams.get('objectUID');
 
-  if (!token || !fdiParam || !seriesUID) {
-    return NextResponse.json({ error: 'Missing token, fdi, or series' }, { status: 400 });
+  if (!token || !fdiParam || !seriesUID || !objectUID) {
+    return NextResponse.json({ error: 'Missing token, fdi, seriesUID, or objectUID' }, { status: 400 });
   }
 
   if (!getSession(token)) {
@@ -29,14 +31,25 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const study = await getOrDownloadStudy(token, fdiParam);
-    const jpeg = study.images.get(`${seriesUID}:${imageIndex}`);
+    const eunitySession = await getOrInitSession(token, fdiParam);
 
-    if (!jpeg) {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    const cloData = await downloadSingleImage(eunitySession, seriesUID, objectUID);
+    if (!cloData) {
+      return NextResponse.json({ error: 'Image not available' }, { status: 404 });
     }
 
-    return new NextResponse(jpeg, {
+    const jpegBuffer = await convertCloToJpg(
+      cloData.pixelData,
+      null,
+      cloData.wrapperData,
+      100,
+    );
+
+    if (!Buffer.isBuffer(jpegBuffer)) {
+      return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
+    }
+
+    return new NextResponse(jpegBuffer, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'private, max-age=600',

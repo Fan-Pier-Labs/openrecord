@@ -8,7 +8,8 @@ import type { ImagingResultType } from "@/types/scrape-results";
 
 const SafeArraySection = withRenderErrorBoundary(ArraySection, "ArraySection", (p) => p.data);
 
-type SeriesInfo = { seriesUID: string; description: string; imageCount: number };
+type ImageRef = { seriesUID: string; objectUID: string };
+type SeriesInfo = { seriesUID: string; description: string; imageCount: number; images: ImageRef[] };
 
 interface ImagingSectionProps {
   imagingResults: ImagingResultType[] | undefined;
@@ -16,10 +17,11 @@ interface ImagingSectionProps {
   token: string;
 }
 
-function ImageViewer({ baseUrl, description, total }: {
-  baseUrl: string;
+function ImageViewer({ token, fdiParam, images, description }: {
+  token: string;
+  fdiParam: string;
+  images: ImageRef[];
   description: string;
-  total: number;
 }) {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -27,11 +29,15 @@ function ImageViewer({ baseUrl, description, total }: {
   const [downloading, setDownloading] = useState(false);
   const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
 
+  const total = images.length;
+
   const loadImage = useCallback(async (idx: number) => {
     setLoading(true);
     setError(null);
+    const img = images[idx];
+    const url = `/api/mychart-xray?token=${encodeURIComponent(token)}&fdi=${encodeURIComponent(fdiParam)}&seriesUID=${encodeURIComponent(img.seriesUID)}&objectUID=${encodeURIComponent(img.objectUID)}`;
     try {
-      const resp = await fetch(`${baseUrl}&index=${idx}`);
+      const resp = await fetch(url);
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({ error: 'Failed to load' }));
         throw new Error(body.error || `HTTP ${resp.status}`);
@@ -44,7 +50,7 @@ function ImageViewer({ baseUrl, description, total }: {
     } finally {
       setLoading(false);
     }
-  }, [baseUrl]);
+  }, [token, fdiParam, images]);
 
   useEffect(() => {
     if (blobUrls[index]) {
@@ -58,8 +64,11 @@ function ImageViewer({ baseUrl, description, total }: {
   const downloadZip = async () => {
     setDownloading(true);
     try {
-      const zipUrl = baseUrl.replace('/api/mychart-xray?', '/api/mychart-xray-zip?');
-      const resp = await fetch(zipUrl);
+      const imagesJson = encodeURIComponent(JSON.stringify(images));
+      const desc = encodeURIComponent(description);
+      const resp = await fetch(
+        `/api/mychart-xray-zip?token=${encodeURIComponent(token)}&fdi=${encodeURIComponent(fdiParam)}&images=${imagesJson}&description=${desc}`
+      );
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: 'Download failed' }));
         throw new Error(err.error || `HTTP ${resp.status}`);
@@ -157,12 +166,14 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
   const [seriesLoading, setSeriesLoading] = useState<Record<number, boolean>>({});
   const [seriesErrors, setSeriesErrors] = useState<Record<number, string | null>>({});
   const [openViewers, setOpenViewers] = useState<Record<string, boolean>>({});
+  const [fdiParams, setFdiParams] = useState<Record<number, string>>({});
 
   const fetchSeries = useCallback(async (index: number, fdiContext: { fdi: string; ord: string }) => {
     setSeriesLoading(prev => ({ ...prev, [index]: true }));
     setSeriesErrors(prev => ({ ...prev, [index]: null }));
     try {
       const fdiParam = btoa(JSON.stringify(fdiContext));
+      setFdiParams(prev => ({ ...prev, [index]: fdiParam }));
       const resp = await fetch(`/api/mychart-series?token=${encodeURIComponent(token)}&fdi=${encodeURIComponent(fdiParam)}`);
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: 'Failed to load series' }));
@@ -176,11 +187,6 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
     } finally {
       setSeriesLoading(prev => ({ ...prev, [index]: false }));
     }
-  }, [token]);
-
-  const buildImageUrl = useCallback((fdiContext: { fdi: string; ord: string }, seriesUID: string) => {
-    const fdiParam = btoa(JSON.stringify(fdiContext));
-    return `/api/mychart-xray?token=${encodeURIComponent(token)}&fdi=${encodeURIComponent(fdiParam)}&series=${encodeURIComponent(seriesUID)}`;
   }, [token]);
 
   return (
@@ -251,9 +257,10 @@ export function ImagingSection({ imagingResults, isDemo, token }: ImagingSection
                     return (
                       <ImageViewer
                         key={`viewer-${key}`}
-                        baseUrl={buildImageUrl(img.fdiContext!, s.seriesUID)}
+                        token={token}
+                        fdiParam={fdiParams[i]}
+                        images={s.images}
                         description={s.description}
-                        total={s.imageCount}
                       />
                     );
                   })}

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
-import { getOrDownloadStudy } from '@/lib/imaging-cache';
+import { getOrInitSession } from '@/lib/imaging-cache';
 
 /**
- * Fetch series metadata for an imaging study.
+ * Initialize an eUnity session and return series metadata.
  *
- * Downloads all images (cached for 10 min), converts them, and returns
- * the series list with actual downloadable image counts per series.
- * Subsequent calls and image requests are served from cache.
+ * Does SAML chain + AMF init (~5s), caches the session cookies.
+ * Returns series list with UIDs so the client can request individual images.
  */
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -17,29 +16,41 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing token or fdi' }, { status: 400 });
   }
 
-  const mychartRequest = getSession(token);
-  if (!mychartRequest) {
+  if (!getSession(token)) {
     return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
   }
 
-  let fdiContext: { fdi: string; ord: string };
   try {
-    fdiContext = JSON.parse(Buffer.from(fdiParam, 'base64').toString('utf-8'));
-    if (!fdiContext.fdi || !fdiContext.ord) {
-      throw new Error('Missing fdi or ord');
+    const eunitySession = await getOrInitSession(token, fdiParam);
+
+    // Group series entries by seriesUID for the client
+    const seriesMap = new Map<string, {
+      seriesUID: string;
+      description: string;
+      images: Array<{ seriesUID: string; objectUID: string }>;
+    }>();
+
+    for (const s of eunitySession.series) {
+      const existing = seriesMap.get(s.seriesUID);
+      if (existing) {
+        existing.images.push({ seriesUID: s.seriesUID, objectUID: s.instanceUID });
+      } else {
+        seriesMap.set(s.seriesUID, {
+          seriesUID: s.seriesUID,
+          description: s.seriesDescription,
+          images: [{ seriesUID: s.seriesUID, objectUID: s.instanceUID }],
+        });
+      }
     }
-  } catch {
-    return NextResponse.json({ error: 'Invalid fdi parameter' }, { status: 400 });
-  }
 
-  try {
-    const study = await getOrDownloadStudy(token, fdiParam);
+    const series = [...seriesMap.values()].map(s => ({
+      seriesUID: s.seriesUID,
+      description: s.description,
+      imageCount: s.images.length,
+      images: s.images,
+    }));
 
-    if (study.series.length === 0) {
-      return NextResponse.json({ error: 'No series found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ series: study.series });
+    return NextResponse.json({ series });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
