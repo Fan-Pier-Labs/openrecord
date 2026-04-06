@@ -55,3 +55,14 @@ By default (no `--action` flag), the CLI scrapes all 30+ data categories in para
 - `--action get-imaging` — Download imaging results (X-ray, MRI, CT, etc.) with report text, FDI context, and SAML viewer URLs
 - `--action get-thread --conversation-id <id>` — Get full message thread details
 - `--action keep-alive-test` — Ping /Home every 5 minutes to keep session alive; runs forever, prints status each ping
+
+## Passkey & TOTP Management
+
+- `--set-up-passkey` — Register a new passkey (WebAuthn) on the MyChart account using a software authenticator. Saves credential to `.passkey-credentials/<hostname>.json`
+- `--use-passkey` — Login using a saved passkey credential instead of username/password
+- `--list-passkeys` — List all passkeys registered on the MyChart account
+- `--delete-passkey` — Delete all passkeys registered on the MyChart account
+- `--set-up-totp` — Enable TOTP authenticator app on the MyChart account. Saves secret to `.totp-secrets/<hostname>.txt`
+- `--use-saved-totp` — Use saved TOTP secret for login (no email 2FA needed)
+- `--disable-totp` — Disable TOTP authenticator app (requires saved TOTP secret + password)
+- `--local` — Use HTTP instead of HTTPS (for local development with fake-mychart)
