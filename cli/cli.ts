@@ -1277,9 +1277,6 @@ async function main() {
     if (savedPasskey) {
       console.log(`\n  Found saved passkey for ${cliArgs.host}. Logging in with passkey...`);
       cliArgs.usePasskey = true;
-      // Set dummy creds to enter non-interactive mode; passkey login runs first
-      cliArgs.user = 'passkey';
-      cliArgs.pass = 'passkey';
     } else {
       const resolved = await resolveCredsFromBrowsers(cliArgs.host);
       if (resolved) {
@@ -1293,17 +1290,17 @@ async function main() {
       }
     }
   }
-  nonInteractive = !!(cliArgs.host && cliArgs.user && cliArgs.pass);
+  nonInteractive = !!(cliArgs.host && (cliArgs.usePasskey || (cliArgs.user && cliArgs.pass)));
 
   let credentialsList: { hostname: string; username: string; password: string }[];
 
   if (nonInteractive) {
-    // Non-interactive mode: credentials from CLI args or Keychain
+    // Non-interactive mode: credentials from CLI args, Keychain, or passkey
     console.log(`\n  Non-interactive mode: --host ${cliArgs.host}`);
     credentialsList = [{
       hostname: cliArgs.host!,
-      username: cliArgs.user!,
-      password: cliArgs.pass!,
+      username: cliArgs.user ?? '',
+      password: cliArgs.pass ?? '',
     }];
   } else {
     console.log('\n  This tool logs into your MyChart account(s) and scrapes');
