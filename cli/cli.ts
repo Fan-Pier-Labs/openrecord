@@ -39,7 +39,7 @@ import { getLinkedMyChartAccounts } from '../scrapers/myChart/other_mycharts/oth
 import { getConversationMessages } from '../scrapers/myChart/messages/messageThreads';
 import { getImagingResults } from '../scrapers/myChart/labs_and_procedure_results/labResults';
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
+import { convertCloToJpg } from '../scrapers/myChart/clo-image-parser/clo_to_jpg';
 import { deleteMessage } from '../scrapers/myChart/messages/deleteMessage';
 import { requestMedicationRefill } from '../scrapers/myChart/medicationRefill';
 import { sessionStore } from '../scrapers/myChart/sessionStore';
@@ -1524,7 +1524,7 @@ async function main() {
                   const safeDesc = img.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
                   const jpgPath = path.join(studyDir, `${safeDesc}.jpg`);
                   try {
-                    await convertCloToJpg(img.pixelData, jpgPath, img.wrapperData);
+                    await convertCloToJpg({ pixelData: img.pixelData, outputPath: jpgPath, wrapperData: img.wrapperData });
                     const stat = await fs.promises.stat(jpgPath);
                     console.log(`          Saved: ${safeDesc}.jpg (${(stat.size / 1024).toFixed(0)} KB) - ${img.seriesDescription}`);
                     imgCount++;

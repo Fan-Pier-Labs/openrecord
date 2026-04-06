@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
 import { getOrInitSession } from '@/lib/imaging-cache';
 import { downloadSingleImage } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
+import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-image-parser/clo_to_jpg';
 import { zipSync } from 'fflate';
 
 /**
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
         const cloData = await downloadSingleImage(eunitySession, seriesUID, objectUID);
         if (!cloData) continue;
 
-        const jpegBuffer = await convertCloToJpg(cloData.pixelData, null, cloData.wrapperData, 100);
+        const jpegBuffer = await convertCloToJpg({ pixelData: cloData.pixelData, wrapperData: cloData.wrapperData });
         if (Buffer.isBuffer(jpegBuffer)) {
           files[`${safeName}_${i + 1}.jpg`] = [new Uint8Array(jpegBuffer), { level: 0 }];
         }

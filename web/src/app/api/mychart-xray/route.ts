@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/sessions';
 import { getOrInitSession } from '@/lib/imaging-cache';
 import { downloadSingleImage } from '../../../../../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-to-jpg-converter/clo_to_jpg';
+import { convertCloToJpg } from '../../../../../scrapers/myChart/clo-image-parser/clo_to_jpg';
 
 /**
- * Serve a single X-ray image as lossless JPEG (quality 100).
+ * Serve a single X-ray image as lossless JPEG.
  *
  * Query params:
  *   - token: session token
@@ -38,12 +38,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Image not available' }, { status: 404 });
     }
 
-    const jpegBuffer = await convertCloToJpg(
-      cloData.pixelData,
-      null,
-      cloData.wrapperData,
-      100,
-    );
+    const jpegBuffer = await convertCloToJpg({
+      pixelData: cloData.pixelData,
+      wrapperData: cloData.wrapperData,
+    });
 
     if (!Buffer.isBuffer(jpegBuffer)) {
       return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
