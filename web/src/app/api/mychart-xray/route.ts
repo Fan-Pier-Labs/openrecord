@@ -63,11 +63,10 @@ export async function GET(req: NextRequest) {
       (img.pixelData!.length > (best.pixelData?.length ?? 0)) ? img : best
     );
 
-    const jpegBuffer = await convertCloToJpg(
-      image.pixelData,
-      null,
-      image.wrapperData,
-    );
+    const jpegBuffer = await convertCloToJpg({
+      pixelData: image.pixelData,
+      wrapperData: image.wrapperData,
+    });
 
     if (!Buffer.isBuffer(jpegBuffer)) {
       return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });

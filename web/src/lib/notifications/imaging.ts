@@ -39,11 +39,10 @@ export async function getImagingAttachments(
         if (!image.pixelData) continue;
 
         try {
-          const jpegBuffer = await convertCloToJpg(
-            image.pixelData,
-            null,
-            image.wrapperData
-          );
+          const jpegBuffer = await convertCloToJpg({
+            pixelData: image.pixelData,
+            wrapperData: image.wrapperData,
+          });
 
           if (Buffer.isBuffer(jpegBuffer)) {
             const safeName = (image.seriesDescription || imaging.orderName)
