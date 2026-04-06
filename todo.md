@@ -62,7 +62,7 @@ could also do
 
   What It Would Look Like
 
-  openclaw-mychart/
+  openrecord/
   ├── openclaw.plugin.json     # manifest with configSchema for credentials
   ├── package.json             # npm package with openclaw.extensions
   ├── src/

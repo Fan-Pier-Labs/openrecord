@@ -1,7 +1,7 @@
 /**
  * Interactive setup CLI for MyChart plugin.
  *
- * Registered as `openclaw mychart setup`, `openclaw mychart status`, and `openclaw mychart reset`.
+ * Registered as `openclaw openrecord setup`, `openclaw openrecord status`, and `openclaw openrecord reset`.
  */
 
 import * as readline from 'readline';
@@ -319,7 +319,7 @@ async function setupCommand(): Promise<void> {
       console.log('TOTP is configured — login will be fully automatic.');
     } else {
       console.log('Warning: Without TOTP or passkey, sessions expire after a few hours and require email 2FA to reconnect.');
-      console.log('Tip: Run `openclaw mychart setup` again later to enable automatic sign-in.');
+      console.log('Tip: Run `openclaw openrecord setup` again later to enable automatic sign-in.');
     }
   } finally {
     rl.close();
@@ -330,7 +330,7 @@ async function statusCommand(api: OpenClawApi): Promise<void> {
   const creds = getCredentials(api);
   if (!creds) {
     console.log('\nMyChart plugin is not configured.');
-    console.log('Run `openclaw mychart setup` to get started.\n');
+    console.log('Run `openclaw openrecord setup` to get started.\n');
     return;
   }
 
@@ -348,25 +348,25 @@ async function resetCommand(): Promise<void> {
   clearSession();
   savePluginConfig({});
   console.log('\nMyChart plugin configuration has been reset.');
-  console.log('Run `openclaw mychart setup` to reconfigure.\n');
+  console.log('Run `openclaw openrecord setup` to reconfigure.\n');
 }
 
 export function registerCliCommands(api: OpenClawApi) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.registerCli((ctx: { program: any; config: any; logger: any }) => {
-    const mychart = ctx.program.command('mychart')
-      .description('MyChart health data plugin');
+    const openrecord = ctx.program.command('openrecord')
+      .description('OpenRecord health data plugin');
 
-    mychart.command('setup')
+    openrecord.command('setup')
       .description('Set up MyChart credentials and TOTP for automatic login')
       .action(() => setupCommand());
 
-    mychart.command('status')
+    openrecord.command('status')
       .description('Show current MyChart plugin configuration status')
       .action(() => statusCommand(api));
 
-    mychart.command('reset')
+    openrecord.command('reset')
       .description('Clear saved MyChart credentials and reset the plugin')
       .action(() => resetCommand());
-  }, { commands: ['mychart'] });
+  }, { commands: ['openrecord'] });
 }
