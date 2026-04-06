@@ -8,8 +8,11 @@
 
 import { registerCliCommands } from './setup';
 import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
-import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
+import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from '../../scrapers/myChart/login';
+import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
+import { deserializeCredential, serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
+import { updatePluginConfig } from './config';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import pluginPkg from '../package.json';
@@ -74,6 +77,7 @@ interface Credentials {
   username: string;
   password: string;
   totpSecret?: string;
+  passkey?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,11 +89,33 @@ function getCredentials(api: any): Credentials | null {
     username: cfg.username,
     password: cfg.password,
     totpSecret: cfg.totpSecret || undefined,
+    passkey: cfg.passkey || undefined,
   };
 }
 
 async function login(creds: Credentials): Promise<MyChartRequest> {
   sendTelemetryEvent('openclaw_login');
+
+  // 1. Try passkey login first (bypasses 2FA entirely)
+  if (creds.passkey) {
+    try {
+      const credential = deserializeCredential(creds.passkey);
+      const result = await myChartPasskeyLogin({ hostname: creds.hostname, credential });
+      if (result.state === 'logged_in') {
+        // Persist updated signCount
+        updatePluginConfig({ passkey: serializeCredential(credential) });
+        return result.mychartRequest;
+      }
+      // Passkey rejected (e.g. revoked on portal) — clear and fall through
+      console.error('[mychart] Passkey login failed, falling back to password login.');
+      updatePluginConfig({ passkey: undefined });
+    } catch (err) {
+      console.error(`[mychart] Passkey login error: ${(err as Error).message}. Falling back to password.`);
+      updatePluginConfig({ passkey: undefined });
+    }
+  }
+
+  // 2. Password + optional TOTP login
   const result = await myChartUserPassLogin({
     hostname: creds.hostname,
     user: creds.username,
@@ -97,7 +123,11 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
     skipSendCode: !!creds.totpSecret,
   });
 
-  if (result.state === 'logged_in') return result.mychartRequest;
+  if (result.state === 'logged_in') {
+    // Auto-register passkey after successful password login (non-blocking)
+    void trySetupPasskey(result.mychartRequest);
+    return result.mychartRequest;
+  }
 
   if (result.state === 'invalid_login') {
     throw new Error('Login failed: username or password is incorrect.');
@@ -109,12 +139,29 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
     }
     const code = await generateTotpCode(creds.totpSecret);
     const twoFa = await complete2faFlow({ mychartRequest: result.mychartRequest, code, isTOTP: true });
-    if (twoFa.state === 'logged_in') return twoFa.mychartRequest;
+    if (twoFa.state === 'logged_in') {
+      // Auto-register passkey after successful 2FA (non-blocking)
+      void trySetupPasskey(twoFa.mychartRequest);
+      return twoFa.mychartRequest;
+    }
     if (twoFa.state === 'invalid_2fa') throw new Error('TOTP code was rejected. Check your totpSecret.');
     throw new Error(`2FA failed: ${twoFa.state}`);
   }
 
   throw new Error(`Login failed: ${result.state}${result.error ? ` — ${result.error}` : ''}`);
+}
+
+/** Try to register a passkey after successful login. Non-fatal on failure. */
+async function trySetupPasskey(mychartRequest: MyChartRequest): Promise<void> {
+  try {
+    const credential = await setupPasskey(mychartRequest);
+    if (credential) {
+      updatePluginConfig({ passkey: serializeCredential(credential) });
+      console.error('[mychart] Passkey registered for future logins.');
+    }
+  } catch (err) {
+    console.error(`[mychart] Passkey auto-setup failed: ${(err as Error).message}`);
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
