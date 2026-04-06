@@ -267,7 +267,7 @@ async function getManualCredentials(): Promise<{ hostname: string; username: str
 
 // ─── Step 2: Login ───
 
-async function login(creds: { hostname: string; username: string; password: string }): Promise<MyChartRequest | null> {
+async function login(creds: { hostname: string; username?: string; password?: string; passkey?: boolean }): Promise<MyChartRequest | null> {
   if (isBlockedInstance(creds.hostname)) {
     console.log(`\n  ✗ ${creds.hostname} is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.`);
     return null;
@@ -309,6 +309,12 @@ async function login(creds: { hostname: string; username: string; password: stri
 
         console.log(`  Passkey login failed (${passkeyResult.state}). Falling back to password login.`);
       }
+    }
+
+    // Passkey-only mode with no password fallback
+    if (!creds.username || !creds.password) {
+      console.log('  No username/password available for fallback login.');
+      return null;
     }
 
     // Check if we should use TOTP for 2FA
@@ -397,7 +403,7 @@ async function login(creds: { hostname: string; username: string; password: stri
           const setupChoice = await ask('  Set up automatic sign-in? (y/n): ');
           if (setupChoice.trim().toLowerCase() === 'y') {
             console.log('  Setting up TOTP authenticator...');
-            const result = await setupTotp(mychartRequest, creds.password);
+            const result = await setupTotp(mychartRequest, creds.password ?? '');
             if (result.secret) {
               await saveTotpSecret(creds.hostname, result.secret);
               console.log('  TOTP configured! Future logins will use --use-saved-totp automatically.');
@@ -1277,9 +1283,6 @@ async function main() {
     if (savedPasskey) {
       console.log(`\n  Found saved passkey for ${cliArgs.host}. Logging in with passkey...`);
       cliArgs.usePasskey = true;
-      // Set dummy creds to enter non-interactive mode; passkey login runs first
-      cliArgs.user = 'passkey';
-      cliArgs.pass = 'passkey';
     } else {
       const resolved = await resolveCredsFromBrowsers(cliArgs.host);
       if (resolved) {
@@ -1293,18 +1296,20 @@ async function main() {
       }
     }
   }
-  nonInteractive = !!(cliArgs.host && cliArgs.user && cliArgs.pass);
+  nonInteractive = !!(cliArgs.host && (cliArgs.usePasskey || (cliArgs.user && cliArgs.pass)));
 
-  let credentialsList: { hostname: string; username: string; password: string }[];
+  type LoginCredentials =
+    | { hostname: string; username: string; password: string; passkey?: false }
+    | { hostname: string; passkey: true; username?: undefined; password?: undefined };
+
+  let credentialsList: LoginCredentials[];
 
   if (nonInteractive) {
-    // Non-interactive mode: credentials from CLI args or Keychain
+    // Non-interactive mode: credentials from CLI args, Keychain, or passkey
     console.log(`\n  Non-interactive mode: --host ${cliArgs.host}`);
-    credentialsList = [{
-      hostname: cliArgs.host!,
-      username: cliArgs.user!,
-      password: cliArgs.pass!,
-    }];
+    credentialsList = cliArgs.usePasskey
+      ? [{ hostname: cliArgs.host!, passkey: true }]
+      : [{ hostname: cliArgs.host!, username: cliArgs.user!, password: cliArgs.pass! }];
   } else {
     console.log('\n  This tool logs into your MyChart account(s) and scrapes');
     console.log('  your medical data (profile, bills, visits, labs, messages).');
@@ -1346,6 +1351,10 @@ async function main() {
         console.log('  Could not find credentials for this session.');
         continue;
       }
+      if (!creds.password) {
+        console.log('  Password required for TOTP setup (not available in passkey-only mode).');
+        continue;
+      }
       const result = await setupTotp(session.request, creds.password);
       if (result.secret) {
         await saveTotpSecret(session.hostname, result.secret);
@@ -1370,6 +1379,10 @@ async function main() {
       const totpSecret = await loadTotpSecret(session.hostname);
       if (!totpSecret) {
         console.log(`  No saved TOTP secret found for ${session.hostname}. Cannot disable without a code.`);
+        continue;
+      }
+      if (!creds.password) {
+        console.log('  Password required to disable TOTP (not available in passkey-only mode).');
         continue;
       }
       const success = await disableTotp(session.request, creds.password, totpSecret);
