@@ -103,28 +103,13 @@ export class AMF3Writer {
   }
 }
 
-// ==================== Encoding Helpers ====================
+// ==================== Zigzag Encode ====================
 
-/** @deprecated Use toUnsignedTwosComplement instead */
 export function zigzagEncode(signed: Int32Array): Int32Array {
   const result = new Int32Array(signed.length);
   for (let i = 0; i < signed.length; i++) {
     const n = signed[i];
     result[i] = n >= 0 ? n * 2 : (-n) * 2 - 1;
-  }
-  return result;
-}
-
-/**
- * Convert signed integers to unsigned two's complement representation.
- * Inverse of twosComplement() in clo_to_bitmap.ts.
- */
-export function toUnsignedTwosComplement(signed: Int32Array, bits: number): Int32Array {
-  const result = new Int32Array(signed.length);
-  const full = 1 << bits;
-  for (let i = 0; i < signed.length; i++) {
-    const n = signed[i];
-    result[i] = n < 0 ? n + full : n;
   }
   return result;
 }

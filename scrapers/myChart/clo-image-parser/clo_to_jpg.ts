@@ -30,7 +30,6 @@ export {
   parseTileKey,
   computeWaveletLevels,
   zigzagDecode,
-  twosComplement,
   to8bit,
   to16bit,
   applyVoiLut,

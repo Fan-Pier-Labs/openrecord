@@ -9,7 +9,6 @@ import {
   parseTileKey,
   computeWaveletLevels,
   zigzagDecode,
-  twosComplement,
   to8bit,
   applyVoiLut,
   convertCloToBitmap,
@@ -225,32 +224,6 @@ describe("zigzagDecode", () => {
 
   it("handles empty input", () => {
     expect(zigzagDecode(new Int32Array(0)).length).toBe(0);
-  });
-});
-
-// ==================== twosComplement ====================
-
-describe("twosComplement", () => {
-  it("decodes 16-bit two's complement", () => {
-    const input = new Int32Array([0, 1, 32767, 32768, 65535]);
-    const result = twosComplement(input, 16);
-    expect(Array.from(result)).toEqual([0, 1, 32767, -32768, -1]);
-  });
-
-  it("decodes 17-bit two's complement (with overflow)", () => {
-    const input = new Int32Array([0, 65535, 65536, 131071]);
-    const result = twosComplement(input, 17);
-    expect(Array.from(result)).toEqual([0, 65535, -65536, -1]);
-  });
-
-  it("decodes 18-bit two's complement (HH subband range)", () => {
-    const input = new Int32Array([0, 131071, 131072, 262143]);
-    const result = twosComplement(input, 18);
-    expect(Array.from(result)).toEqual([0, 131071, -131072, -1]);
-  });
-
-  it("handles empty input", () => {
-    expect(twosComplement(new Int32Array(0), 16).length).toBe(0);
   });
 });
 
