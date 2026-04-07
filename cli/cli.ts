@@ -91,7 +91,7 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action send-message  (send a new message)
 //   npx tsx src/cli.ts --host <hostname> --action send-reply --conversation-id <id> --message <msg>
 
-function parseArgs(): { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean } {
+function parseArgs(): { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean; saveClo?: boolean } {
   const args = process.argv.slice(2);
   const parsed: Record<string, string | boolean> = {};
   for (let i = 0; i < args.length; i++) {
@@ -113,8 +113,9 @@ function parseArgs(): { host?: string; user?: string; pass?: string; twofa?: str
     else if (args[i] === '--list-passkeys') parsed.listPasskeys = true;
     else if (args[i] === '--delete-passkey') parsed.deletePasskey = true;
     else if (args[i] === '--local') parsed.local = true;
+    else if (args[i] === '--save-clo') parsed.saveClo = true;
   }
-  return parsed as { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean };
+  return parsed as { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean; saveClo?: boolean };
 }
 
 const cliArgs = parseArgs();
@@ -1554,13 +1555,7 @@ async function main() {
           }
 
           // Download images and convert to JPG if FDI context is available
-          // MRI uses a different viewer protocol we don't support yet
-          const nameLower = result.orderName.toLowerCase();
-          const isUnsupportedModality = nameLower.includes('mri');
-          if (isUnsupportedModality && result.fdiContext) {
-            console.log(`        Image viewer: available (skipping download — MRI not yet supported)`);
-          }
-          if (result.fdiContext && !isUnsupportedModality) {
+          if (result.fdiContext) {
             console.log(`        Image viewer: available (has FDI context)`);
             const studyDir = path.join(hostDir, safeName);
             await fs.promises.mkdir(studyDir, { recursive: true });
@@ -1600,6 +1595,20 @@ async function main() {
                     : `${safeDesc}.jpg`;
                   const jpgPath = path.join(seriesDir, fileName);
                   try {
+                    // Save raw CLO files if --save-clo flag is set
+                    if (cliArgs.saveClo && img.pixelData) {
+                      const cloBase = multiSlice
+                        ? `${String(i + 1).padStart(4, '0')}`
+                        : safeDesc;
+                      const pixelPath = path.join(seriesDir, `${cloBase}_pixel.clo`);
+                      await fs.promises.writeFile(pixelPath, img.pixelData);
+                      console.log(`          Saved CLO: ${multiSlice ? `${safeDesc}/${cloBase}_pixel.clo` : `${cloBase}_pixel.clo`}`);
+                      if (img.wrapperData) {
+                        const wrapperPath = path.join(seriesDir, `${cloBase}_wrapper.clo`);
+                        await fs.promises.writeFile(wrapperPath, img.wrapperData);
+                        console.log(`          Saved CLO: ${multiSlice ? `${safeDesc}/${cloBase}_wrapper.clo` : `${cloBase}_wrapper.clo`}`);
+                      }
+                    }
                     await convertCloToJpg({ pixelData: img.pixelData!, outputPath: jpgPath, wrapperData: img.wrapperData });
                     const stat = await fs.promises.stat(jpgPath);
                     if (!multiSlice || i === 0 || i === seriesImages.length - 1) {

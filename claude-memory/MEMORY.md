@@ -82,6 +82,17 @@ The scraper must use each entry's own seriesUID + instanceUID as-is from the AMF
 
 WebAuthn spec requires the `challenge` field in `clientDataJSON` to be **base64url** encoded, not standard base64. The MyChart server sends the challenge as standard base64. Must convert: `Buffer.from(challenge, 'base64').toString('base64url')` before building clientDataJSON.
 
+## CLO Sign Encoding — Still Unsolved (2026-04-06)
+
+Attempted two's complement decoding based on eUnity's GPU shader code (`unpackedValueFromSignedShort`), but it produced WORSE results (visible checkerboard/tile artifacts). The shader's two's complement is for the final pixel display stage, NOT wavelet coefficient decoding. Zigzag remains the best approach for now.
+
+Key eUnity WASM findings (for future reference):
+- `inverseHaar16FromByteArrays` is the main 16-bit inverse Haar function
+- `isSignedData` flag determined by `jq(transformType, subType)` — true for CLHAAR subtypes 0,1,3
+- `bitEncoding=1` (EVEN_ODD) used with ZSTD compression (transform type 10, the common/modern format)
+- Block mapping: block00=LL, block01=LH, block10=HL, block11=HH, overflow=block4
+- The sign reconstruction likely happens INSIDE the WASM inverse Haar functions, not in the shader
+
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`

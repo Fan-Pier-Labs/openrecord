@@ -27,6 +27,7 @@ export {
   parseTileKey,
   computeWaveletLevels,
   zigzagDecode,
+  twosComplement,
   to8bit,
   applyVoiLut,
   convertCloToBitmap,

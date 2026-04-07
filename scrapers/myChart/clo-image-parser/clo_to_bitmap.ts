@@ -576,11 +576,28 @@ function getSubbandBytes(
   return result;
 }
 
+/** @deprecated Use twosComplement instead — zigzag was incorrect for CLO format */
 export function zigzagDecode(unsigned: Int32Array): Int32Array {
   const signed = new Int32Array(unsigned.length);
   for (let i = 0; i < unsigned.length; i++) {
     const n = unsigned[i];
     signed[i] = n & 1 ? -((n + 1) >> 1) : n >> 1;
+  }
+  return signed;
+}
+
+/**
+ * Interpret unsigned values as two's complement signed integers.
+ * This matches the eUnity GPU shader's `unpackedValueFromSignedShort`:
+ * if the high bit is set, the value is negative (value - 2^bits).
+ */
+export function twosComplement(unsigned: Int32Array, bits: number): Int32Array {
+  const signed = new Int32Array(unsigned.length);
+  const half = 1 << (bits - 1);
+  const full = 1 << bits;
+  for (let i = 0; i < unsigned.length; i++) {
+    const n = unsigned[i];
+    signed[i] = n >= half ? n - full : n;
   }
   return signed;
 }
