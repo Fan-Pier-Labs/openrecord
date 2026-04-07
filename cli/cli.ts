@@ -1622,8 +1622,8 @@ async function main() {
                       for (let i = 0; i < sorted.length; i++) seriesImages[i] = sorted[i];
                       console.log(`          Sorted ${seriesImages.length} slices by ${sortKey}-position (range: ${Math.max(rx, ry, rz).toFixed(1)}mm)`);
                     }
-                  } catch {
-                    // Non-fatal: keep original order if sorting fails
+                  } catch (err) {
+                    console.log(`          Slice sorting failed, using download order: ${(err as Error).message}`);
                   }
                 }
 
