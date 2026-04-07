@@ -14,9 +14,7 @@ import {
   applyVoiLut,
   convertCloToBitmap,
 } from "./clo_to_bitmap";
-import { convertBitmapToJpg } from "./bitmap_to_jpg";
-import { convertBitmapToWebp } from "./bitmap_to_webp";
-import { convertCloToJpg } from "./clo_to_jpg";
+import { convertBitmapToJpg, convertBitmapToWebp, convertCloToJpg } from "./clo_to_jpg";
 import { encodePixelFile, encodeWrapperFile } from "./generate_clo";
 import type { Bitmap } from "./clo_to_bitmap";
 
