@@ -1603,7 +1603,7 @@ async function main() {
                         const decompressed = inflateSync(wrapBuf.subarray(16));
                         const reader = new AMF3Reader(decompressed);
                         const meta = reader.readValue();
-                        const pos = meta?.spatialRegistration?.positionPatient;
+                        const pos = meta?.calibration?.orientation?.positionPatient;
                         if (pos) {
                           positions.push({ idx: i, x: pos.position_x ?? 0, y: pos.position_y ?? 0, z: pos.position_z ?? 0 });
                         } else {
