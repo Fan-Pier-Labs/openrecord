@@ -16,7 +16,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
 - **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
-- **OpenClaw plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin that bundles all MyChart scrapers locally. No server dependency.
+- **OpenRecord plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin (package name: `openrecord`) that bundles all MyChart scrapers locally. No server dependency.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (or set `FAKE_MYCHART_ACCEPT_ANY=true`). All state lives in RAM. Supports the full login flow including 2FA (code `123456`).
 
 ## Key Commands
@@ -59,7 +59,7 @@ End-to-end tests in `tests/integration/ci/` that exercise the full user journey 
 - **[CLI reference](docs/cli.md)** — Cookie caching, credential resolution, 2FA, CLI actions
 - **[Imaging scraper](docs/imaging.md)** — eUnity protocol, AMF3, instance-specific notes
 - **[Scraping guide](docs/scraping.md)** — MyChart login, scraping tips, and tooling
-- **[OpenClaw plugin](docs/openclaw.md)** — Build, install, setup, and tool registration
+- **[OpenRecord plugin](docs/openclaw.md)** — Build, install, setup, and tool registration
 - **[Deployment details](docs/deployment.md)** — Additional infrastructure notes
 - **[MyChart features](MYCHART_FEATURES.md)** — Full inventory of MyChart features and scraper coverage
 - **[MyChart TOTP](docs/mychart-totp.md)** — TOTP authenticator app 2FA setup, API endpoints, CLI flags
