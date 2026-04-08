@@ -142,10 +142,17 @@ async function setupCommand(): Promise<void> {
 
     // Manual entry if we don't have credentials yet
     if (!hostname) {
-      hostname = (await ask(rl, 'MyChart hostname (e.g. mychart.example.org): ')).trim();
-      if (!hostname) {
+      let hostnameInput = (await ask(rl, 'MyChart hostname or URL (e.g. mychart.example.org): ')).trim();
+      if (!hostnameInput) {
         console.log('Hostname is required. Aborting setup.');
         return;
+      }
+      // Extract hostname from URL if a full URL was pasted
+      try {
+        const parsed = new URL(hostnameInput.includes('://') ? hostnameInput : `https://${hostnameInput}`);
+        hostname = parsed.hostname;
+      } catch {
+        hostname = hostnameInput;
       }
       if (isBlockedInstance(hostname)) {
         console.log('This MyChart instance is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.');
