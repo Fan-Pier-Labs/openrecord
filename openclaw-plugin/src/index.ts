@@ -12,7 +12,7 @@ import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from '../.
 import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
 import { deserializeCredential, serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
-import { updatePluginConfig, readPasskey, savePasskey, clearPasskey } from './config';
+import { readPasskey, savePasskey, clearPasskey } from './config';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import pluginPkg from '../package.json';
