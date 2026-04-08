@@ -1,5 +1,9 @@
 /**
  * Shared config helpers for reading/writing the OpenClaw plugin config.
+ *
+ * Passkey credentials are stored in a SEPARATE file (~/.openclaw/openrecord-passkey.json)
+ * to avoid the OpenClaw runtime overwriting the signCount when it syncs its
+ * in-memory config snapshot back to disk.
  */
 
 import * as fs from 'fs';
@@ -7,6 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+const PASSKEY_PATH = path.join(os.homedir(), '.openclaw', 'openrecord-passkey.json');
 
 /** Read the current plugin config object (or empty object if none). */
 export function readPluginConfig(): Record<string, string> {
@@ -39,4 +44,29 @@ export function updatePluginConfig(updates: Record<string, string | undefined>) 
     }
   }
   savePluginConfig(current);
+}
+
+// ── Passkey file (separate from OpenClaw config to avoid stale signCount) ───
+
+/** Read the passkey credential JSON string from the dedicated file. */
+export function readPasskey(): string | undefined {
+  try {
+    const data = JSON.parse(fs.readFileSync(PASSKEY_PATH, 'utf-8'));
+    return data?.passkey || undefined;
+  } catch {
+    // Fall back to OpenClaw config for migration
+    const cfg = readPluginConfig();
+    return cfg.passkey || undefined;
+  }
+}
+
+/** Write the passkey credential JSON string to the dedicated file. */
+export function savePasskey(serialized: string): void {
+  fs.mkdirSync(path.dirname(PASSKEY_PATH), { recursive: true });
+  fs.writeFileSync(PASSKEY_PATH, JSON.stringify({ passkey: serialized }, null, 2));
+}
+
+/** Delete the passkey credential file. */
+export function clearPasskey(): void {
+  try { fs.unlinkSync(PASSKEY_PATH); } catch { /* ignore */ }
 }

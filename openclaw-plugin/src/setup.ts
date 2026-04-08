@@ -13,7 +13,7 @@ import { serializeCredential } from '../../scrapers/myChart/softwareAuthenticato
 import { browserPasswordDbExists, importMyChartAccounts } from './password-import';
 import { clearSession, ensureSession } from './index';
 import { isBlockedInstance } from '../../shared/blockedInstances';
-import { savePluginConfig } from './config';
+import { savePluginConfig, savePasskey, readPasskey } from './config';
 import { getMyChartProfile } from '../../scrapers/myChart/profile';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,7 +307,7 @@ async function setupCommand(): Promise<void> {
       config.totpSecret = totpSecret;
     }
     if (passkeyJson) {
-      config.passkey = passkeyJson;
+      savePasskey(passkeyJson);
     }
 
     savePluginConfig(config);
@@ -340,8 +340,7 @@ async function statusCommand(api: OpenClawApi): Promise<void> {
   console.log(`  Username:     ${creds.username}`);
   console.log(`  Password:     ${'*'.repeat(Math.min(creds.password.length, 12))}`);
   console.log(`  TOTP:         ${creds.totpSecret ? 'Configured' : 'Not configured'}`);
-  const cfg = api.pluginConfig;
-  console.log(`  Passkey:      ${cfg?.passkey ? 'Configured' : 'Not configured'}`);
+  console.log(`  Passkey:      ${readPasskey() ? 'Configured' : 'Not configured'}`);
   console.log();
 }
 

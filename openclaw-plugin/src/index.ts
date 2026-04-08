@@ -12,7 +12,7 @@ import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from '../.
 import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
 import { deserializeCredential, serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
-import { readPluginConfig, updatePluginConfig } from './config';
+import { updatePluginConfig, readPasskey, savePasskey, clearPasskey } from './config';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import pluginPkg from '../package.json';
@@ -84,16 +84,15 @@ interface Credentials {
 function getCredentials(api: any): Credentials | null {
   const cfg = api.pluginConfig;
   if (!cfg?.hostname || !cfg?.username || !cfg?.password) return null;
-  // Read passkey from disk to get the latest signCount — api.pluginConfig is
-  // an in-memory snapshot from gateway startup and goes stale when another
-  // process (e.g. `openclaw openrecord ping`) increments the counter.
-  const diskConfig = readPluginConfig();
   return {
     hostname: cfg.hostname,
     username: cfg.username,
     password: cfg.password,
     totpSecret: cfg.totpSecret || undefined,
-    passkey: diskConfig.passkey || cfg.passkey || undefined,
+    // Read passkey from dedicated file — never from api.pluginConfig which is
+    // an in-memory snapshot that OpenClaw can sync back to disk, overwriting
+    // the signCount we saved after a successful login.
+    passkey: readPasskey(),
   };
 }
 
@@ -106,16 +105,16 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
       const credential = deserializeCredential(creds.passkey);
       const result = await myChartPasskeyLogin({ hostname: creds.hostname, credential });
       if (result.state === 'logged_in') {
-        // Persist updated signCount
-        updatePluginConfig({ passkey: serializeCredential(credential) });
+        // Persist updated signCount to dedicated file
+        savePasskey(serializeCredential(credential));
         return result.mychartRequest;
       }
       // Passkey rejected (e.g. revoked on portal) — clear and fall through
       console.error('[mychart] Passkey login failed, falling back to password login.');
-      updatePluginConfig({ passkey: undefined });
+      clearPasskey();
     } catch (err) {
       console.error(`[mychart] Passkey login error: ${(err as Error).message}. Falling back to password.`);
-      updatePluginConfig({ passkey: undefined });
+      clearPasskey();
     }
   }
 
@@ -128,8 +127,8 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
   });
 
   if (result.state === 'logged_in') {
-    // Auto-register passkey after successful password login (non-blocking)
-    void trySetupPasskey(result.mychartRequest);
+    // Only auto-register passkey if one isn't already configured
+    if (!creds.passkey) void trySetupPasskey(result.mychartRequest);
     return result.mychartRequest;
   }
 
@@ -144,8 +143,8 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
     const code = await generateTotpCode(creds.totpSecret);
     const twoFa = await complete2faFlow({ mychartRequest: result.mychartRequest, code, isTOTP: true });
     if (twoFa.state === 'logged_in') {
-      // Auto-register passkey after successful 2FA (non-blocking)
-      void trySetupPasskey(twoFa.mychartRequest);
+      // Only auto-register passkey if one isn't already configured
+      if (!creds.passkey) void trySetupPasskey(twoFa.mychartRequest);
       return twoFa.mychartRequest;
     }
     if (twoFa.state === 'invalid_2fa') throw new Error('TOTP code was rejected. Check your totpSecret.');
@@ -160,7 +159,7 @@ async function trySetupPasskey(mychartRequest: MyChartRequest): Promise<void> {
   try {
     const credential = await setupPasskey(mychartRequest);
     if (credential) {
-      updatePluginConfig({ passkey: serializeCredential(credential) });
+      savePasskey(serializeCredential(credential));
       console.error('[mychart] Passkey registered for future logins.');
     }
   } catch (err) {
