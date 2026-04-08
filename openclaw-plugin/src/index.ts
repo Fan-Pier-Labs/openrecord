@@ -213,7 +213,7 @@ export async function ensureSession(api: any): Promise<MyChartRequest> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }], details: {} };
+  return { content: [{ type: 'text' as const, text: data !== undefined ? JSON.stringify(data, null, 2) : 'null' }], details: {} };
 }
 
 function errorResult(msg: string) {
@@ -288,11 +288,13 @@ export default function register(api: any) {
     }, { type: 'object', properties: { conversation_id: { type: 'string', description: 'Conversation ID' } }, required: ['conversation_id'] }),
     makeTool(api, 'mychart_get_message_recipients', 'Message Recipients', 'Get providers who can receive messages', async (req) => {
       const token = await getVerificationToken(req);
-      return getMessageRecipients(req, token!);
+      if (!token) throw new Error('Could not get verification token for message recipients');
+      return getMessageRecipients(req, token);
     }),
     makeTool(api, 'mychart_get_message_topics', 'Message Topics', 'Get available message topics/categories', async (req) => {
       const token = await getVerificationToken(req);
-      return getMessageTopics(req, token!);
+      if (!token) throw new Error('Could not get verification token for message topics');
+      return getMessageTopics(req, token);
     }),
     makeTool(api, 'mychart_send_message', 'Send Message', 'Send a new message to a provider', async (req, params) => {
       return sendNewMessage(req, {
