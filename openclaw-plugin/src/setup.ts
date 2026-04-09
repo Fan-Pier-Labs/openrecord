@@ -1,19 +1,20 @@
 /**
  * Interactive setup CLI for MyChart plugin.
  *
- * Registered as `openclaw mychart setup`, `openclaw mychart status`, and `openclaw mychart reset`.
+ * Registered as `openclaw openrecord setup`, `openclaw openrecord status`, `openclaw openrecord reset`, and `openclaw openrecord ping`.
  */
 
 import * as readline from 'readline';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
 import { setupTotp } from '../../scrapers/myChart/setupTotp';
+import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
+import { serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
 import { browserPasswordDbExists, importMyChartAccounts } from './password-import';
-import { clearSession } from './index';
+import { clearSession, ensureSession } from './index';
 import { isBlockedInstance } from '../../shared/blockedInstances';
+import { savePluginConfig, savePasskey, readPasskey } from './config';
+import { getMyChartProfile } from '../../scrapers/myChart/profile';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OpenClawApi = any;
@@ -36,15 +37,6 @@ function getCredentials(api: OpenClawApi): Credentials | null {
   };
 }
 
-function savePluginConfig(config: Record<string, string>) {
-  const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-  const fullConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  fullConfig.plugins ??= {};
-  fullConfig.plugins.entries ??= {};
-  fullConfig.plugins.entries['openrecord'] ??= {};
-  fullConfig.plugins.entries['openrecord'].config = config;
-  fs.writeFileSync(configPath, JSON.stringify(fullConfig, null, 2));
-}
 
 /** Extract hostname from a URL or return the input as-is if it's already a hostname. */
 export function parseHostname(input: string): string {
@@ -203,6 +195,7 @@ async function setupCommand(): Promise<void> {
     }
 
     let totpSecret: string | undefined;
+    let authenticatedSession: import('../../scrapers/myChart/myChartRequest').MyChartRequest | null = null;
 
     if (loginResult.state === 'need_2fa') {
       // For initial setup, complete 2FA with email code
@@ -291,8 +284,28 @@ async function setupCommand(): Promise<void> {
           }
         }
       }
+      // Capture authenticated session for passkey setup
+      authenticatedSession = twoFaResult.mychartRequest;
     } else {
       console.log('Login successful! (no 2FA required)\n');
+      authenticatedSession = loginResult.mychartRequest;
+    }
+
+    // Set up passkey for future logins (bypasses 2FA entirely)
+    let passkeyJson: string | undefined;
+    if (authenticatedSession) {
+      console.log('Registering passkey for future logins...');
+      try {
+        const credential = await setupPasskey(authenticatedSession);
+        if (credential) {
+          passkeyJson = serializeCredential(credential);
+          console.log('Passkey registered — future logins will use passkey (no 2FA needed).\n');
+        } else {
+          console.log('Passkey registration was not available. Continuing without passkey.\n');
+        }
+      } catch (err) {
+        console.log(`Passkey setup failed: ${(err as Error).message}. Continuing without passkey.\n`);
+      }
     }
 
     // Save config
@@ -304,16 +317,21 @@ async function setupCommand(): Promise<void> {
     if (totpSecret) {
       config.totpSecret = totpSecret;
     }
+    if (passkeyJson) {
+      savePasskey(passkeyJson);
+    }
 
     savePluginConfig(config);
 
     console.log('Setup complete! Your MyChart credentials have been saved.');
     console.log('The plugin will now automatically log in when you use health data tools.\n');
-    if (totpSecret) {
+    if (passkeyJson) {
+      console.log('Passkey is configured — login will be fully automatic (no 2FA needed).');
+    } else if (totpSecret) {
       console.log('TOTP is configured — login will be fully automatic.');
     } else {
-      console.log('Warning: Without TOTP, sessions expire after a few hours and require email 2FA to reconnect.');
-      console.log('Tip: Run `openclaw mychart setup` again later to enable automatic sign-in.');
+      console.log('Warning: Without TOTP or passkey, sessions expire after a few hours and require email 2FA to reconnect.');
+      console.log('Tip: Run `openclaw openrecord setup` again later to enable automatic sign-in.');
     }
   } finally {
     rl.close();
@@ -324,7 +342,7 @@ async function statusCommand(api: OpenClawApi): Promise<void> {
   const creds = getCredentials(api);
   if (!creds) {
     console.log('\nMyChart plugin is not configured.');
-    console.log('Run `openclaw mychart setup` to get started.\n');
+    console.log('Run `openclaw openrecord setup` to get started.\n');
     return;
   }
 
@@ -333,6 +351,7 @@ async function statusCommand(api: OpenClawApi): Promise<void> {
   console.log(`  Username:     ${creds.username}`);
   console.log(`  Password:     ${'*'.repeat(Math.min(creds.password.length, 12))}`);
   console.log(`  TOTP:         ${creds.totpSecret ? 'Configured' : 'Not configured'}`);
+  console.log(`  Passkey:      ${readPasskey() ? 'Configured' : 'Not configured'}`);
   console.log();
 }
 
@@ -340,25 +359,43 @@ async function resetCommand(): Promise<void> {
   clearSession();
   savePluginConfig({});
   console.log('\nMyChart plugin configuration has been reset.');
-  console.log('Run `openclaw mychart setup` to reconfigure.\n');
+  console.log('Run `openclaw openrecord setup` to reconfigure.\n');
+}
+
+async function pingCommand(api: OpenClawApi): Promise<void> {
+  try {
+    const session = await ensureSession(api);
+    const profile = await getMyChartProfile(session);
+    const name = profile?.name || 'Unknown';
+    console.log(`\n  ✓ Login successful — ${name}`);
+    console.log('  status: true\n');
+  } catch (err) {
+    console.error(`\n  ✗ ${(err as Error).message}`);
+    console.log('  status: false\n');
+    process.exitCode = 1;
+  }
 }
 
 export function registerCliCommands(api: OpenClawApi) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.registerCli((ctx: { program: any; config: any; logger: any }) => {
-    const mychart = ctx.program.command('mychart')
-      .description('MyChart health data plugin');
+    const openrecord = ctx.program.command('openrecord')
+      .description('OpenRecord health data plugin');
 
-    mychart.command('setup')
+    openrecord.command('setup')
       .description('Set up MyChart credentials and TOTP for automatic login')
       .action(() => setupCommand());
 
-    mychart.command('status')
+    openrecord.command('status')
       .description('Show current MyChart plugin configuration status')
       .action(() => statusCommand(api));
 
-    mychart.command('reset')
+    openrecord.command('reset')
       .description('Clear saved MyChart credentials and reset the plugin')
       .action(() => resetCommand());
-  }, { commands: ['mychart'] });
+
+    openrecord.command('ping')
+      .description('Login with saved credentials/passkey and verify by fetching profile')
+      .action(() => pingCommand(api));
+  }, { commands: ['openrecord'] });
 }

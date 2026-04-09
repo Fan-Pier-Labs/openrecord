@@ -8,8 +8,11 @@
 
 import { registerCliCommands } from './setup';
 import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
-import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
+import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from '../../scrapers/myChart/login';
+import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
+import { deserializeCredential, serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
+import { readPasskey, savePasskey, clearPasskey } from './config';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import pluginPkg from '../package.json';
@@ -74,6 +77,7 @@ interface Credentials {
   username: string;
   password: string;
   totpSecret?: string;
+  passkey?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,11 +89,36 @@ function getCredentials(api: any): Credentials | null {
     username: cfg.username,
     password: cfg.password,
     totpSecret: cfg.totpSecret || undefined,
+    // Read passkey from dedicated file — never from api.pluginConfig which is
+    // an in-memory snapshot that OpenClaw can sync back to disk, overwriting
+    // the signCount we saved after a successful login.
+    passkey: readPasskey(),
   };
 }
 
 async function login(creds: Credentials): Promise<MyChartRequest> {
   sendTelemetryEvent('openclaw_login');
+
+  // 1. Try passkey login first (bypasses 2FA entirely)
+  if (creds.passkey) {
+    try {
+      const credential = deserializeCredential(creds.passkey);
+      const result = await myChartPasskeyLogin({ hostname: creds.hostname, credential });
+      if (result.state === 'logged_in') {
+        // Persist updated signCount to dedicated file
+        savePasskey(serializeCredential(credential));
+        return result.mychartRequest;
+      }
+      // Passkey rejected (e.g. revoked on portal) — clear and fall through
+      console.error('[mychart] Passkey login failed, falling back to password login.');
+      clearPasskey();
+    } catch (err) {
+      console.error(`[mychart] Passkey login error: ${(err as Error).message}. Falling back to password.`);
+      clearPasskey();
+    }
+  }
+
+  // 2. Password + optional TOTP login
   const result = await myChartUserPassLogin({
     hostname: creds.hostname,
     user: creds.username,
@@ -97,7 +126,11 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
     skipSendCode: !!creds.totpSecret,
   });
 
-  if (result.state === 'logged_in') return result.mychartRequest;
+  if (result.state === 'logged_in') {
+    // Only auto-register passkey if one isn't already configured
+    if (!creds.passkey) void trySetupPasskey(result.mychartRequest);
+    return result.mychartRequest;
+  }
 
   if (result.state === 'invalid_login') {
     throw new Error('Login failed: username or password is incorrect.');
@@ -109,7 +142,11 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
     }
     const code = await generateTotpCode(creds.totpSecret);
     const twoFa = await complete2faFlow({ mychartRequest: result.mychartRequest, code, isTOTP: true });
-    if (twoFa.state === 'logged_in') return twoFa.mychartRequest;
+    if (twoFa.state === 'logged_in') {
+      // Only auto-register passkey if one isn't already configured
+      if (!creds.passkey) void trySetupPasskey(twoFa.mychartRequest);
+      return twoFa.mychartRequest;
+    }
     if (twoFa.state === 'invalid_2fa') throw new Error('TOTP code was rejected. Check your totpSecret.');
     throw new Error(`2FA failed: ${twoFa.state}`);
   }
@@ -117,8 +154,21 @@ async function login(creds: Credentials): Promise<MyChartRequest> {
   throw new Error(`Login failed: ${result.state}${result.error ? ` — ${result.error}` : ''}`);
 }
 
+/** Try to register a passkey after successful login. Non-fatal on failure. */
+async function trySetupPasskey(mychartRequest: MyChartRequest): Promise<void> {
+  try {
+    const credential = await setupPasskey(mychartRequest);
+    if (credential) {
+      savePasskey(serializeCredential(credential));
+      console.error('[mychart] Passkey registered for future logins.');
+    }
+  } catch (err) {
+    console.error(`[mychart] Passkey auto-setup failed: ${(err as Error).message}`);
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function ensureSession(api: any): Promise<MyChartRequest> {
+export async function ensureSession(api: any): Promise<MyChartRequest> {
   if (currentSession && !sessionExpired) return currentSession;
 
   const creds = getCredentials(api);
@@ -163,7 +213,7 @@ async function ensureSession(api: any): Promise<MyChartRequest> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }], details: {} };
+  return { content: [{ type: 'text' as const, text: data !== undefined ? JSON.stringify(data, null, 2) : 'null' }], details: {} };
 }
 
 function errorResult(msg: string) {
@@ -238,11 +288,13 @@ export default function register(api: any) {
     }, { type: 'object', properties: { conversation_id: { type: 'string', description: 'Conversation ID' } }, required: ['conversation_id'] }),
     makeTool(api, 'mychart_get_message_recipients', 'Message Recipients', 'Get providers who can receive messages', async (req) => {
       const token = await getVerificationToken(req);
-      return getMessageRecipients(req, token!);
+      if (!token) throw new Error('Could not get verification token for message recipients');
+      return getMessageRecipients(req, token);
     }),
     makeTool(api, 'mychart_get_message_topics', 'Message Topics', 'Get available message topics/categories', async (req) => {
       const token = await getVerificationToken(req);
-      return getMessageTopics(req, token!);
+      if (!token) throw new Error('Could not get verification token for message topics');
+      return getMessageTopics(req, token);
     }),
     makeTool(api, 'mychart_send_message', 'Send Message', 'Send a new message to a provider', async (req, params) => {
       return sendNewMessage(req, {
