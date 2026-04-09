@@ -38,6 +38,16 @@ function getCredentials(api: OpenClawApi): Credentials | null {
 }
 
 
+/** Extract hostname from a URL or return the input as-is if it's already a hostname. */
+export function parseHostname(input: string): string {
+  try {
+    const parsed = new URL(input.includes('://') ? input : `https://${input}`);
+    return parsed.hostname;
+  } catch {
+    return input;
+  }
+}
+
 function createReadline(): readline.Interface {
   return readline.createInterface({
     input: process.stdin,
@@ -134,11 +144,12 @@ async function setupCommand(): Promise<void> {
 
     // Manual entry if we don't have credentials yet
     if (!hostname) {
-      hostname = (await ask(rl, 'MyChart hostname (e.g. mychart.example.org): ')).trim();
-      if (!hostname) {
+      const hostnameInput = (await ask(rl, 'MyChart hostname or URL (e.g. mychart.example.org): ')).trim();
+      if (!hostnameInput) {
         console.log('Hostname is required. Aborting setup.');
         return;
       }
+      hostname = parseHostname(hostnameInput);
       if (isBlockedInstance(hostname)) {
         console.log('This MyChart instance is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.');
         return;
