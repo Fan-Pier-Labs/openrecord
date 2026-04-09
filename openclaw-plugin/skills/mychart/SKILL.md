@@ -50,6 +50,9 @@ You have access to tools that retrieve health data from the user's Epic MyChart 
 - `mychart_get_upcoming_orders` — Upcoming lab, imaging, and procedure orders
 - `mychart_get_questionnaires` — Health assessments and questionnaires
 
+### Account Management
+- `mychart_list_accounts` — List all configured MyChart accounts and connection status
+
 ### Administrative
 - `mychart_get_insurance` — Insurance coverage details
 - `mychart_get_billing` — Billing history and account details
@@ -65,8 +68,9 @@ You have access to tools that retrieve health data from the user's Epic MyChart 
 
 ## Guidelines
 
-- **Session management is automatic.** The plugin logs in automatically using saved credentials and TOTP. You do not need to manage sessions.
-- If a tool returns an error about credentials, tell the user to run `openclaw mychart setup`.
+- **Session management is automatic.** The plugin logs in automatically using saved credentials and passkeys. You do not need to manage sessions.
+- **Multiple accounts**: All tools accept an optional `account` parameter (MyChart hostname). If only one account is configured, it's selected automatically. If multiple accounts exist and a tool returns an error about ambiguity, use `mychart_list_accounts` to see available accounts, then pass the `account` parameter.
+- If a tool returns an error about credentials, tell the user to run `openclaw openrecord setup`.
 - When presenting **lab results**, include reference ranges and flag abnormal values clearly.
 - Present **medications** with dosage, frequency, and prescribing provider when available.
 - For **billing data**, summarize totals and highlight outstanding balances.
