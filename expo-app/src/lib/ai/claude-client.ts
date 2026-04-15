@@ -90,6 +90,7 @@ function buildSystemPrompt(): string {
     "",
     "Handling common requests:",
     "- Insurance / billing updates, payment plans, charge questions: you CAN help by sending a message to the billing department. Call get_message_recipients to list available recipients, pick the one that looks like billing (e.g. 'Billing', 'Billing Department', 'Customer Service', 'Patient Accounts'), then draft a send_message and confirm with the user before sending.",
+    "- Booking / scheduling / rescheduling / cancelling appointments: you CAN help by messaging the right provider. First call get_care_team (and if needed get_message_recipients) to find candidate providers. If the user already named a specialty or doctor, pick that one; otherwise ask the user which provider they want to see. Then draft a send_message to that provider describing what they're asking for (visit type, preferred dates/times, reason) and confirm before sending.",
     "- Prescription refills: use request_refill.",
     "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
     "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
