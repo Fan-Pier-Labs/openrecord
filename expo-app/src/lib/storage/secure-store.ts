@@ -107,3 +107,31 @@ export async function getSelectedModel(): Promise<string> {
 export async function setSelectedModel(model: string): Promise<void> {
   return setSecureValue("selected_model", model);
 }
+
+export type AiProvider = "free" | "openai" | "anthropic" | "gemini";
+
+export async function getAiProvider(): Promise<AiProvider> {
+  const v = await getSecureValue("ai_provider");
+  if (v === "openai" || v === "anthropic" || v === "gemini" || v === "free") return v;
+  return "free";
+}
+
+export async function setAiProvider(p: AiProvider): Promise<void> {
+  return setSecureValue("ai_provider", p);
+}
+
+export async function getOpenAiApiKey(): Promise<string | null> {
+  return getSecureValue("openai_api_key");
+}
+
+export async function setOpenAiApiKey(key: string): Promise<void> {
+  return setSecureValue("openai_api_key", key);
+}
+
+export async function getGeminiApiKey(): Promise<string | null> {
+  return getSecureValue("gemini_api_key");
+}
+
+export async function setGeminiApiKey(key: string): Promise<void> {
+  return setSecureValue("gemini_api_key", key);
+}

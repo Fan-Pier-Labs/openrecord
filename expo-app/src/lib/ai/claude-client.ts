@@ -18,7 +18,12 @@
  *     parse), we surface it to the user and stop.
  */
 
-import { getClaudeApiKey, getSelectedModel } from "@/lib/storage/secure-store";
+import {
+  getClaudeApiKey,
+  getOpenAiApiKey,
+  getGeminiApiKey,
+  getAiProvider,
+} from "@/lib/storage/secure-store";
 import { getBackendSession } from "@/lib/backend/session";
 import { backendUrl } from "@/lib/backend/client";
 
@@ -140,6 +145,55 @@ function backendCompleter(token: string): CompleteFn {
   };
 }
 
+function openaiCompleter(apiKey: string): CompleteFn {
+  return async (messages, system, model) => {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "system", content: system }, ...messages],
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`OpenAI error ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    return (data.choices?.[0]?.message?.content as string) ?? "";
+  };
+}
+
+function geminiCompleter(apiKey: string): CompleteFn {
+  return async (messages, system, model) => {
+    const contents = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { role: "system", parts: [{ text: system }] },
+          contents,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Gemini error ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    return parts.map((p: { text?: string }) => p.text ?? "").join("");
+  };
+}
+
 function anthropicCompleter(apiKey: string): CompleteFn {
   return async (messages, system, model) => {
     // BYO-key fallback still uses the same JSON-schema protocol so the
@@ -173,21 +227,47 @@ export async function sendMessage(
   callbacks: StreamCallbacks,
   executeLocalTool: ToolExecutor,
 ): Promise<void> {
-  const session = await getBackendSession();
-  const byoKey = session ? null : await getClaudeApiKey();
-  if (!session && !byoKey) {
-    callbacks.onError(
-      new Error("Not signed in. Sign in with Google to use the included AI credit."),
-    );
-    return;
-  }
-
-  const selectedModel = await getSelectedModel();
-  const model = byoKey && selectedModel.startsWith("gemini") ? "claude-sonnet-4-6" : selectedModel;
+  const provider = await getAiProvider();
   const system = buildSystemPrompt();
-  const complete: CompleteFn = session
-    ? backendCompleter(session.token)
-    : anthropicCompleter(byoKey!);
+
+  let complete: CompleteFn;
+  let model: string;
+
+  if (provider === "openai") {
+    const key = await getOpenAiApiKey();
+    if (!key) {
+      callbacks.onError(new Error("OpenAI API key not set. Add it in Settings → AI Provider."));
+      return;
+    }
+    complete = openaiCompleter(key);
+    model = "gpt-4o";
+  } else if (provider === "anthropic") {
+    const key = await getClaudeApiKey();
+    if (!key) {
+      callbacks.onError(new Error("Anthropic API key not set. Add it in Settings → AI Provider."));
+      return;
+    }
+    complete = anthropicCompleter(key);
+    model = "claude-sonnet-4-6";
+  } else if (provider === "gemini") {
+    const key = await getGeminiApiKey();
+    if (!key) {
+      callbacks.onError(new Error("Gemini API key not set. Add it in Settings → AI Provider."));
+      return;
+    }
+    complete = geminiCompleter(key);
+    model = "gemini-2.5-flash";
+  } else {
+    const session = await getBackendSession();
+    if (!session) {
+      callbacks.onError(
+        new Error("Not signed in. Sign in with Google to use the free tier, or add your own API key in Settings → AI Provider."),
+      );
+      return;
+    }
+    complete = backendCompleter(session.token);
+    model = "gemini-2.5-flash";
+  }
 
   const conversation: ChatMessage[] = [...messages];
   const toolCalls: ToolCall[] = [];

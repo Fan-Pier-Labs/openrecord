@@ -9,15 +9,13 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   getMyChartAccounts,
   removeMyChartAccount,
-  getClaudeApiKey,
-  setClaudeApiKey,
-  getSelectedModel,
-  setSelectedModel,
+  getAiProvider,
   type StoredMyChartAccount,
+  type AiProvider,
 } from "@/lib/storage/secure-store";
 import {
   getBackendSession,
@@ -28,11 +26,9 @@ import { signInWithGoogle, signOutFromGoogle } from "@/lib/backend/google-signin
 import { backendFetch } from "@/lib/backend/client";
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [accounts, setAccounts] = useState<StoredMyChartAccount[]>([]);
-  const [apiKey, setApiKey] = useState("");
-  const [apiKeyVisible, setApiKeyVisible] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [model, setModel] = useState("gemini-2.5-flash");
+  const [aiProvider, setAiProviderState] = useState<AiProvider>("free");
   const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
   const [spend, setSpend] = useState<{ spentCents: number; limitCents: number } | null>(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -50,11 +46,7 @@ export default function SettingsScreen() {
     const accts = await getMyChartAccounts();
     setAccounts(accts);
 
-    const key = await getClaudeApiKey();
-    setApiKey(key || "");
-
-    const m = await getSelectedModel();
-    setModel(m);
+    setAiProviderState(await getAiProvider());
 
     const session = await getBackendSession();
     setBackendUser(session?.user ?? null);
@@ -86,11 +78,6 @@ export default function SettingsScreen() {
     await signOutFromGoogle();
     await clearBackendSession();
     await loadSettings();
-  }
-
-  async function handleSaveApiKey() {
-    await setClaudeApiKey(apiKey);
-    Alert.alert("Saved", "API key updated.");
   }
 
   async function handleDeleteAccount(account: StoredMyChartAccount) {
@@ -134,10 +121,12 @@ export default function SettingsScreen() {
     Alert.alert("Account Added", "Connect to this account from the chat screen to set up passkey authentication.");
   }
 
-  async function handleModelChange(newModel: string) {
-    setModel(newModel);
-    await setSelectedModel(newModel);
-  }
+  const providerLabel: Record<AiProvider, string> = {
+    free: "Free tier",
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    gemini: "Gemini",
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -259,56 +248,14 @@ export default function SettingsScreen() {
 
         {/* AI Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>AI Settings</Text>
-
-          {showApiKey ? (
-            <>
-              <Text style={styles.label}>Anthropic API Key (advanced)</Text>
-              <Text style={[styles.securityNote, { marginBottom: 8 }]}>
-                Optional. Overrides the included credit and sends AI calls
-                directly to Anthropic using your own key.
-              </Text>
-              <View style={styles.apiKeyRow}>
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="sk-ant-..."
-                  placeholderTextColor="#999"
-                  value={apiKey}
-                  onChangeText={setApiKey}
-                  secureTextEntry={!apiKeyVisible}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <Pressable
-                  style={styles.eyeButton}
-                  onPress={() => setApiKeyVisible(!apiKeyVisible)}
-                >
-                  <Text>{apiKeyVisible ? "Hide" : "Show"}</Text>
-                </Pressable>
-              </View>
-              <Pressable style={styles.saveButton} onPress={handleSaveApiKey}>
-                <Text style={styles.saveButtonText}>Save API Key</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Pressable onPress={() => setShowApiKey(true)}>
-              <Text style={styles.addButtonText}>Use my own Anthropic API key</Text>
-            </Pressable>
-          )}
-
-          <Text style={[styles.label, { marginTop: 16 }]}>Model</Text>
-          {["gemini-2.5-flash", "gemini-2.5-pro"].map((m) => (
-            <Pressable
-              key={m}
-              style={[styles.modelRow, model === m && styles.modelRowSelected]}
-              onPress={() => handleModelChange(m)}
-            >
-              <Text style={[styles.modelText, model === m && styles.modelTextSelected]}>
-                {m}
-              </Text>
-              {model === m && <Text style={styles.checkmark}>✓</Text>}
-            </Pressable>
-          ))}
+          <Text style={styles.sectionTitle}>AI</Text>
+          <Pressable style={styles.navRow} onPress={() => router.push("/settings/ai")}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navTitle}>AI Provider</Text>
+              <Text style={styles.navSubtitle}>{providerLabel[aiProvider]}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </View>
 
         {/* Security */}
@@ -316,9 +263,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Security</Text>
           <Text style={styles.securityNote}>
             All MyChart credentials and health data are stored locally in the
-            iOS Keychain. When signed in with Google, AI prompts (but not your
-            MyChart data) pass through our server so credit can be tracked.
-            With your own Anthropic API key, calls go directly to Anthropic.
+            iOS Keychain. When signed in with Google, AI prompts pass through
+            our server so credit can be tracked. With your own API key, calls
+            go directly to the provider.
           </Text>
         </View>
 
@@ -411,4 +358,8 @@ const styles = StyleSheet.create({
   modelTextSelected: { fontWeight: "600" },
   checkmark: { fontSize: 16, color: "#007AFF" },
   securityNote: { fontSize: 14, color: "#666", lineHeight: 20 },
+  navRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
+  navTitle: { fontSize: 15, fontWeight: "500", color: "#1a1a1a" },
+  navSubtitle: { fontSize: 13, color: "#666", marginTop: 2 },
+  chevron: { fontSize: 22, color: "#999" },
 });
