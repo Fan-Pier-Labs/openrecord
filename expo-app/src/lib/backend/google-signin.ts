@@ -46,7 +46,10 @@ export async function signInWithGoogle(): Promise<BackendUser> {
 
   const response = await fetch(backendUrl("/api/auth/sign-in/social"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "openrecord://",
+    },
     body: JSON.stringify({
       provider: "google",
       idToken: { token: idToken },

@@ -16,6 +16,9 @@ export async function backendFetch(path: string, init: RequestInit = {}): Promis
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
+  if (!headers.has("Origin")) {
+    headers.set("Origin", "openrecord://");
+  }
   return fetch(`${getBackendUrl()}${path}`, { ...init, headers });
 }
 
