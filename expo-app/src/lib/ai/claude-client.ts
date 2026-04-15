@@ -88,11 +88,19 @@ function buildSystemPrompt(): string {
     "Tools:",
     toolList,
     "",
+    "Handling common requests:",
+    "- Insurance / billing updates, payment plans, charge questions: you CAN help by sending a message to the billing department. Call get_message_recipients to list available recipients, pick the one that looks like billing (e.g. 'Billing', 'Billing Department', 'Customer Service', 'Patient Accounts'), then draft a send_message and confirm with the user before sending.",
+    "- Prescription refills: use request_refill.",
+    "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
+    "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
+    "- For any write action (send_message, send_reply, request_refill), always show the user the exact payload and get explicit confirmation before calling the tool.",
+    "",
     "Rules:",
     "- Output ONLY the JSON object, nothing else — no prefix, no suffix, no code fences.",
     "- If the user's question needs data, call the appropriate tool first.",
     '- Omit "instance" unless the user specifies a particular hostname.',
     "- After receiving a tool result, decide whether to call another tool or return the final answer.",
+    "- Don't refuse a request just because you don't immediately know how — check the tools above first.",
   ].join("\n");
 }
 
