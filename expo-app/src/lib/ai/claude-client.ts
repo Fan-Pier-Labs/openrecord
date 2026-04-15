@@ -1,8 +1,26 @@
+/**
+ * Model-agnostic chat client.
+ *
+ * Sends user messages to the backend's /api/ai endpoint (currently
+ * Gemini, swappable server-side). Tool use is expressed by prompting
+ * the model to emit JSON — either a tool call or a final answer —
+ * instead of using any provider-native tool schema. That lets us point
+ * this client at any reasonable chat model without code changes.
+ *
+ * Protocol:
+ *   • System prompt lists the available tools and tells the model to
+ *     respond with ONE of these JSON shapes, nothing else:
+ *       {"tool": "<name>", "args": {...}}
+ *       {"answer": "<text for the user>"}
+ *   • If the model emits a tool call, we execute it locally and append
+ *     its result as a new user message, then loop.
+ *   • If the model emits an answer (or free-form text that doesn't
+ *     parse), we surface it to the user and stop.
+ */
+
 import { getClaudeApiKey, getSelectedModel } from "@/lib/storage/secure-store";
 import { getBackendSession } from "@/lib/backend/session";
 import { backendUrl } from "@/lib/backend/client";
-
-const ANTHROPIC_API_BASE = "https://api.anthropic.com";
 
 export type ToolCall = {
   id: string;
@@ -10,53 +28,62 @@ export type ToolCall = {
   input: Record<string, unknown>;
 };
 
-export type ContentBlock =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
-
 export type ChatMessage = {
   role: "user" | "assistant";
-  content: string | ContentBlock[];
+  content: string;
 };
 
-const SYSTEM_PROMPT = `You are a health assistant with access to the user's MyChart medical records. You can retrieve their health data using the available tools. Be helpful, accurate, and respectful of medical privacy.
-
-When the user asks about their health data, use the appropriate tool to fetch it. Present the data clearly and offer to explain medical terminology.
-
-Important:
-- Never make medical diagnoses or treatment recommendations
-- Suggest consulting a healthcare provider for medical decisions
-- Be concise but thorough when presenting health data`;
-
-// Tool definitions matching the MCP server tool-definitions.ts
-const TOOLS = [
-  { name: "get_profile", description: "Get the user's MyChart profile information", input_schema: { type: "object" as const, properties: { instance: { type: "string", description: "MyChart hostname (optional if only one account)" } } } },
-  { name: "get_health_summary", description: "Get a summary of the user's health information", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_medications", description: "Get current and past medications", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_allergies", description: "Get allergy information", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_health_issues", description: "Get health issues / problem list", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_upcoming_visits", description: "Get upcoming appointments", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_past_visits", description: "Get past visit history", input_schema: { type: "object" as const, properties: { instance: { type: "string" }, years_back: { type: "number" } } } },
-  { name: "get_lab_results", description: "Get lab test results", input_schema: { type: "object" as const, properties: { instance: { type: "string" }, limit: { type: "number" }, offset: { type: "number" } } } },
-  { name: "get_messages", description: "Get MyChart messages/conversations with providers", input_schema: { type: "object" as const, properties: { instance: { type: "string" }, limit: { type: "number" }, offset: { type: "number" } } } },
-  { name: "get_billing", description: "Get billing history", input_schema: { type: "object" as const, properties: { instance: { type: "string" }, limit: { type: "number" }, offset: { type: "number" } } } },
-  { name: "get_care_team", description: "Get care team members", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_insurance", description: "Get insurance information", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_immunizations", description: "Get immunization records", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_preventive_care", description: "Get preventive care recommendations", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_vitals", description: "Get vital signs history", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_documents", description: "Get medical documents", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_imaging_results", description: "Get imaging/radiology results", input_schema: { type: "object" as const, properties: { instance: { type: "string" }, limit: { type: "number" }, offset: { type: "number" } } } },
-  { name: "get_letters", description: "Get letters from providers", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_referrals", description: "Get referral information", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_medical_history", description: "Get medical history", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_emergency_contacts", description: "Get emergency contacts", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_activity_feed", description: "Get recent activity feed", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_care_journeys", description: "Get care journey information", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_goals", description: "Get health goals", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
-  { name: "get_education_materials", description: "Get patient education materials", input_schema: { type: "object" as const, properties: { instance: { type: "string" } } } },
+const TOOLS: { name: string; description: string; args: Record<string, string> }[] = [
+  { name: "get_profile", description: "Get the user's MyChart profile information", args: { instance: "MyChart hostname (optional if only one account)" } },
+  { name: "get_health_summary", description: "Get a summary of the user's health information", args: { instance: "optional" } },
+  { name: "get_medications", description: "Get current and past medications", args: { instance: "optional" } },
+  { name: "get_allergies", description: "Get allergy information", args: { instance: "optional" } },
+  { name: "get_health_issues", description: "Get health issues / problem list", args: { instance: "optional" } },
+  { name: "get_upcoming_visits", description: "Get upcoming appointments", args: { instance: "optional" } },
+  { name: "get_past_visits", description: "Get past visit history", args: { instance: "optional", years_back: "number, optional" } },
+  { name: "get_lab_results", description: "Get lab test results", args: { instance: "optional", limit: "number", offset: "number" } },
+  { name: "get_messages", description: "Get MyChart messages/conversations with providers", args: { instance: "optional", limit: "number", offset: "number" } },
+  { name: "get_billing", description: "Get billing history", args: { instance: "optional", limit: "number", offset: "number" } },
+  { name: "get_care_team", description: "Get care team members", args: { instance: "optional" } },
+  { name: "get_insurance", description: "Get insurance information", args: { instance: "optional" } },
+  { name: "get_immunizations", description: "Get immunization records", args: { instance: "optional" } },
+  { name: "get_preventive_care", description: "Get preventive care recommendations", args: { instance: "optional" } },
+  { name: "get_vitals", description: "Get vital signs history", args: { instance: "optional" } },
+  { name: "get_documents", description: "Get medical documents", args: { instance: "optional" } },
+  { name: "get_imaging_results", description: "Get imaging/radiology results", args: { instance: "optional", limit: "number", offset: "number" } },
+  { name: "get_letters", description: "Get letters from providers", args: { instance: "optional" } },
+  { name: "get_referrals", description: "Get referral information", args: { instance: "optional" } },
+  { name: "get_medical_history", description: "Get medical history", args: { instance: "optional" } },
+  { name: "get_emergency_contacts", description: "Get emergency contacts", args: { instance: "optional" } },
+  { name: "get_activity_feed", description: "Get recent activity feed", args: { instance: "optional" } },
+  { name: "get_care_journeys", description: "Get care journey information", args: { instance: "optional" } },
+  { name: "get_goals", description: "Get health goals", args: { instance: "optional" } },
+  { name: "get_education_materials", description: "Get patient education materials", args: { instance: "optional" } },
 ];
+
+function buildSystemPrompt(): string {
+  const toolList = TOOLS.map(
+    (t) => `- ${t.name}(${Object.keys(t.args).join(", ")}) — ${t.description}`,
+  ).join("\n");
+  return [
+    "You are a health assistant with access to the user's MyChart medical records.",
+    "Never make medical diagnoses or treatment recommendations. Suggest consulting a healthcare provider for medical decisions.",
+    "",
+    "You have these tools available. Call them by responding with EXACTLY one JSON object, no prose, no markdown fences:",
+    '  { "tool": "<tool_name>", "args": { ... } }',
+    "When you have enough information to answer the user, respond with EXACTLY:",
+    '  { "answer": "<your reply>" }',
+    "",
+    "Tools:",
+    toolList,
+    "",
+    "Rules:",
+    "- Output ONLY the JSON object, nothing else — no prefix, no suffix, no code fences.",
+    "- If the user's question needs data, call the appropriate tool first.",
+    '- Omit "instance" unless the user specifies a particular hostname.',
+    "- After receiving a tool result, decide whether to call another tool or return the final answer.",
+  ].join("\n");
+}
 
 export type StreamCallbacks = {
   onText: (text: string) => void;
@@ -67,123 +94,139 @@ export type StreamCallbacks = {
 
 export type ToolExecutor = (toolName: string, input: Record<string, unknown>) => Promise<string>;
 
-/**
- * Send a message to Claude, handling the tool use loop.
- * Uses non-streaming API since React Native's fetch doesn't support
- * ReadableStream. Text appears all at once per turn.
- *
- * When Claude requests tools, executes them locally via the toolExecutor,
- * then sends results back for the final response.
- */
+const MAX_ITERATIONS = 8;
+
+function tryExtractJson(raw: string): Record<string, unknown> | null {
+  const trimmed = raw.trim();
+  // Strip markdown fences if present
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+  // Find the first {...} block
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(candidate.slice(start, end + 1));
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+type CompleteFn = (messages: ChatMessage[], system: string, model: string) => Promise<string>;
+
+function backendCompleter(token: string): CompleteFn {
+  return async (messages, system, model) => {
+    const res = await fetch(backendUrl("/api/ai"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ messages, system, model }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Backend AI error ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    return data.content as string;
+  };
+}
+
+function anthropicCompleter(apiKey: string): CompleteFn {
+  return async (messages, system, model) => {
+    // BYO-key fallback still uses the same JSON-schema protocol so the
+    // surrounding tool loop stays provider-agnostic.
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4096,
+        system,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Anthropic error ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    const textBlock = (data.content ?? []).find((b: { type: string }) => b.type === "text");
+    return (textBlock?.text as string) ?? "";
+  };
+}
+
 export async function sendMessage(
   messages: ChatMessage[],
   callbacks: StreamCallbacks,
   executeLocalTool: ToolExecutor,
 ): Promise<void> {
   const session = await getBackendSession();
-  const apiKey = session ? null : await getClaudeApiKey();
-  if (!session && !apiKey) {
+  const byoKey = session ? null : await getClaudeApiKey();
+  if (!session && !byoKey) {
     callbacks.onError(
-      new Error(
-        "Not signed in. Sign in with Google to use the included AI credit, or add an Anthropic API key in Settings.",
-      ),
+      new Error("Not signed in. Sign in with Google to use the included AI credit."),
     );
     return;
   }
 
-  const model = await getSelectedModel();
+  const selectedModel = await getSelectedModel();
+  const model = byoKey && selectedModel.startsWith("gemini") ? "claude-sonnet-4-6" : selectedModel;
+  const system = buildSystemPrompt();
+  const complete: CompleteFn = session
+    ? backendCompleter(session.token)
+    : anthropicCompleter(byoKey!);
 
-  const conversationMessages = [...messages];
-  let continueLoop = true;
+  const conversation: ChatMessage[] = [...messages];
+  const toolCalls: ToolCall[] = [];
+  let lastAnswer = "";
 
-  while (continueLoop) {
-    continueLoop = false;
-
-    const requestBody = {
-      model,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: TOOLS,
-      messages: conversationMessages,
-    };
-
-    const response = session
-      ? await fetch(backendUrl("/api/ai/messages"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.token}`,
-          },
-          body: JSON.stringify(requestBody),
-        })
-      : await fetch(`${ANTHROPIC_API_BASE}/v1/messages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey!,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      callbacks.onError(new Error(`API error ${response.status}: ${errorBody}`));
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    let content: string;
+    try {
+      content = await complete(conversation, system, model);
+    } catch (err) {
+      callbacks.onError(err as Error);
       return;
     }
 
-    const result = await response.json();
+    const parsed = tryExtractJson(content);
 
-    // Extract text and tool calls from the response
-    let fullText = "";
-    const toolCalls: ToolCall[] = [];
+    if (parsed && typeof parsed.tool === "string") {
+      const name = parsed.tool;
+      const input = (parsed.args as Record<string, unknown>) ?? {};
+      const tc: ToolCall = { id: `tc_${Date.now()}_${i}`, name, input };
+      toolCalls.push(tc);
+      callbacks.onToolCall(tc);
 
-    for (const block of result.content || []) {
-      if (block.type === "text") {
-        fullText += block.text;
-        callbacks.onText(block.text);
-      } else if (block.type === "tool_use") {
-        const tc: ToolCall = { id: block.id, name: block.name, input: block.input };
-        toolCalls.push(tc);
-        callbacks.onToolCall(tc);
+      // Record the assistant turn (raw JSON), then the tool result as the next user turn.
+      conversation.push({ role: "assistant", content });
+      let toolResult: string;
+      try {
+        toolResult = await executeLocalTool(name, input);
+      } catch (err) {
+        toolResult = `Error: ${(err as Error).message}`;
       }
+      conversation.push({
+        role: "user",
+        content: `Tool result for ${name}:\n${toolResult}`,
+      });
+      continue;
     }
 
-    // If Claude wants to use tools, execute them and continue
-    if (result.stop_reason === "tool_use" && toolCalls.length > 0) {
-      // Add assistant message with tool calls
-      const assistantContent: ContentBlock[] = [];
-      if (fullText) {
-        assistantContent.push({ type: "text", text: fullText });
-      }
-      for (const tc of toolCalls) {
-        assistantContent.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
-      }
-      conversationMessages.push({ role: "assistant", content: assistantContent });
-
-      // Execute each tool and collect results
-      const toolResults: ContentBlock[] = [];
-      for (const tc of toolCalls) {
-        try {
-          const toolResult = await executeLocalTool(tc.name, tc.input);
-          toolResults.push({ type: "tool_result", tool_use_id: tc.id, content: toolResult });
-        } catch (err) {
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: tc.id,
-            content: `Error: ${(err as Error).message}`,
-            is_error: true,
-          });
-        }
-      }
-      conversationMessages.push({ role: "user", content: toolResults });
-
-      // Reset text for next iteration
-      fullText = "";
-      continueLoop = true;
-    } else {
-      // Done — no more tool calls
-      callbacks.onDone(fullText, toolCalls);
-    }
+    // Final answer path: either the model returned {"answer": "..."} or free-form text.
+    lastAnswer =
+      parsed && typeof parsed.answer === "string" ? (parsed.answer as string) : content;
+    callbacks.onText(lastAnswer);
+    callbacks.onDone(lastAnswer, toolCalls);
+    return;
   }
+
+  callbacks.onError(new Error("AI exceeded tool-use iteration limit."));
 }

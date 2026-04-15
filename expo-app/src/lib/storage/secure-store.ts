@@ -101,7 +101,7 @@ export async function removeMyChartAccount(id: string): Promise<void> {
 // ─── Settings ───
 
 export async function getSelectedModel(): Promise<string> {
-  return (await getSecureValue("selected_model")) || "claude-sonnet-4-6";
+  return (await getSecureValue("selected_model")) || "gemini-2.5-flash";
 }
 
 export async function setSelectedModel(model: string): Promise<void> {

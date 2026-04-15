@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const messages: AiMessage[] = body.messages;
     const model: string | undefined = body.model;
+    const system: string | undefined = body.system;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     // Check spending limit before making the API call
     await checkSpendLimit(user.id);
 
-    const result = await provider.chat({ messages, model });
+    const result = await provider.chat({ messages, model, system });
 
     // Record the usage
     const spend = await recordUsage(

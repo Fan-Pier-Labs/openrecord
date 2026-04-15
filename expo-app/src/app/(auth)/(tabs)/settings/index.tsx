@@ -32,7 +32,7 @@ export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState("");
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [model, setModel] = useState("claude-sonnet-4-6");
+  const [model, setModel] = useState("gemini-2.5-flash");
   const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
   const [spend, setSpend] = useState<{ spentCents: number; limitCents: number } | null>(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -297,7 +297,7 @@ export default function SettingsScreen() {
           )}
 
           <Text style={[styles.label, { marginTop: 16 }]}>Model</Text>
-          {["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"].map((m) => (
+          {["gemini-2.5-flash", "gemini-2.5-pro"].map((m) => (
             <Pressable
               key={m}
               style={[styles.modelRow, model === m && styles.modelRowSelected]}

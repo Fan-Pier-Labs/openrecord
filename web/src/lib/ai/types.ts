@@ -11,6 +11,7 @@ export interface AiMessage {
 export interface AiRequest {
   messages: AiMessage[];
   model?: string;
+  system?: string;
 }
 
 export interface AiResponse {
