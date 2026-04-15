@@ -24,7 +24,12 @@ export const geminiProvider: AiProvider = {
   async chat(request: AiRequest): Promise<AiResponse> {
     const ai = await getClient();
     const modelName = request.model ?? DEFAULT_MODEL;
-    const model = ai.getGenerativeModel({ model: modelName });
+    const model = ai.getGenerativeModel({
+      model: modelName,
+      ...(request.system
+        ? { systemInstruction: { role: 'system', parts: [{ text: request.system }] } }
+        : {}),
+    });
 
     // Convert messages to Gemini format: history + final user message
     const history = request.messages.slice(0, -1).map((msg) => ({

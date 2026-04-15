@@ -85,18 +85,13 @@ export async function checkSpendLimit(userId: string): Promise<SpendInfo> {
 }
 
 /**
- * Record token usage for a completed request.
+ * Record a pre-computed cost in cents for a completed request.
+ * Use this when the provider has its own pricing (e.g. Anthropic).
  */
-export async function recordUsage(
-  userId: string,
-  inputTokens: number,
-  outputTokens: number,
-): Promise<SpendInfo> {
+export async function recordCostCents(userId: string, costCents: number): Promise<SpendInfo> {
   const db = await getPool();
   const period = currentPeriod();
-  const costCents = calculateCostCents(inputTokens, outputTokens);
 
-  // Atomically update: if the stored period matches, increment; otherwise reset to this cost
   await db.query(
     `UPDATE "user"
      SET ai_spend_cents = CASE
@@ -109,6 +104,17 @@ export async function recordUsage(
   );
 
   return getUserSpend(userId);
+}
+
+/**
+ * Record token usage for a completed Gemini request.
+ */
+export async function recordUsage(
+  userId: string,
+  inputTokens: number,
+  outputTokens: number,
+): Promise<SpendInfo> {
+  return recordCostCents(userId, calculateCostCents(inputTokens, outputTokens));
 }
 
 export class SpendLimitError extends Error {
