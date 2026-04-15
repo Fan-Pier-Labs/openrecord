@@ -7,71 +7,74 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   setSecureValue,
-  setClaudeApiKey,
   getClaudeApiKey,
   addMyChartAccount,
 } from "@/lib/storage/secure-store";
+import { signInWithGoogle } from "@/lib/backend/google-signin";
+import { getBackendSession } from "@/lib/backend/session";
 
-type Step = "welcome" | "faceid" | "apikey" | "account" | "done";
+type Step = "welcome" | "faceid" | "google" | "account" | "done";
 
 export default function OnboardingScreen() {
   const { setSetupComplete } = useAuth();
   const [step, setStep] = useState<Step>("welcome");
-  const [apiKey, setApiKey] = useState("");
-  const [apiKeyLoaded, setApiKeyLoaded] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [hostname, setHostname] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Auto-load API key from secrets.local.json if available.
-  // In dev, if the key is found, auto-complete onboarding to skip straight to chat.
+  // Dev shortcut: if a BYO Claude key is already present AND a backend
+  // session exists, skip straight to chat. Real users will always see
+  // the Google step first time.
   useEffect(() => {
-    getClaudeApiKey().then(async (key) => {
-      if (key) {
-        setApiKey(key);
-        setApiKeyLoaded(true);
-        // Dev shortcut: if we have a key from secrets, skip onboarding entirely
-        if (__DEV__) {
-          await setSecureValue("setup_complete", "true");
-          setSetupComplete();
-        }
+    (async () => {
+      const [byoKey, session] = await Promise.all([
+        getClaudeApiKey(),
+        getBackendSession(),
+      ]);
+      if (session) setSignedInEmail(session.user.email);
+      if (__DEV__ && byoKey && session) {
+        await setSecureValue("setup_complete", "true");
+        setSetupComplete();
       }
-    });
+    })();
   }, []);
 
   async function handleFaceId() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
     if (hasHardware && isEnrolled) {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Enable Face ID for OpenRecord",
         fallbackLabel: "Use Passcode",
       });
-      if (result.success) {
-        setStep(apiKeyLoaded ? "account" : "apikey");
-      } else {
+      if (!result.success) {
         Alert.alert("Authentication failed", "Try again or skip.");
+        return;
       }
-    } else {
-      // No biometrics — skip
-      setStep(apiKeyLoaded ? "account" : "apikey");
     }
+    setStep("google");
   }
 
-  async function handleSaveApiKey() {
-    if (!apiKey.trim()) {
-      Alert.alert("Error", "Please enter your Claude API key.");
-      return;
+  async function handleGoogleSignIn() {
+    setSigningIn(true);
+    try {
+      const user = await signInWithGoogle();
+      setSignedInEmail(user.email);
+      setStep("account");
+    } catch (err) {
+      Alert.alert("Sign-in failed", (err as Error).message);
+    } finally {
+      setSigningIn(false);
     }
-    await setClaudeApiKey(apiKey.trim());
-    setStep("account");
   }
 
   async function handleAddAccount() {
@@ -79,13 +82,11 @@ export default function OnboardingScreen() {
       Alert.alert("Error", "All fields are required.");
       return;
     }
-
     await addMyChartAccount({
       hostname: hostname.trim(),
       username: username.trim(),
       password,
     });
-
     await finishSetup();
   }
 
@@ -110,8 +111,8 @@ export default function OnboardingScreen() {
             <Text style={styles.subtitle}>Your health data, on your device</Text>
             <Text style={styles.body}>
               OpenRecord connects directly to your MyChart accounts and stores
-              everything locally on your phone. No servers, no cloud storage.
-              Use AI to understand and manage your health data.
+              everything locally on your phone. Use AI to understand and manage
+              your health data.
             </Text>
             <Pressable style={styles.primaryButton} onPress={() => setStep("faceid")}>
               <Text style={styles.primaryButtonText}>Get Started</Text>
@@ -129,32 +130,41 @@ export default function OnboardingScreen() {
             <Pressable style={styles.primaryButton} onPress={handleFaceId}>
               <Text style={styles.primaryButtonText}>Enable Face ID</Text>
             </Pressable>
-            <Pressable style={styles.secondaryButton} onPress={() => setStep("apikey")}>
+            <Pressable style={styles.secondaryButton} onPress={() => setStep("google")}>
               <Text style={styles.secondaryButtonText}>Skip</Text>
             </Pressable>
           </View>
         )}
 
-        {step === "apikey" && (
+        {step === "google" && (
           <View style={styles.center}>
-            <Text style={styles.title}>Claude API Key</Text>
+            <Text style={styles.title}>Sign in with Google</Text>
             <Text style={styles.body}>
-              Enter your Anthropic API key to enable AI-powered health data queries.
-              Your key is stored securely in the iOS Keychain and never leaves your device.
+              Signing in with Google unlocks $50 / month of AI credit — no API
+              key needed. We only see your email and name.
             </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="sk-ant-api03-..."
-              placeholderTextColor="#999"
-              value={apiKey}
-              onChangeText={setApiKey}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-            />
-            <Pressable style={styles.primaryButton} onPress={handleSaveApiKey}>
-              <Text style={styles.primaryButtonText}>Save API Key</Text>
+            {signedInEmail ? (
+              <Text style={styles.body}>Signed in as {signedInEmail}</Text>
+            ) : null}
+            <Pressable
+              style={[styles.primaryButton, signingIn && styles.disabled]}
+              onPress={handleGoogleSignIn}
+              disabled={signingIn}
+            >
+              {signingIn ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Continue with Google</Text>
+              )}
             </Pressable>
+            {signedInEmail ? (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setStep("account")}
+              >
+                <Text style={styles.secondaryButtonText}>Continue</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
@@ -258,4 +268,5 @@ const styles = StyleSheet.create({
     color: "#007AFF",
     fontSize: 15,
   },
+  disabled: { opacity: 0.6 },
 });

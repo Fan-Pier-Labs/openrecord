@@ -1,6 +1,8 @@
 import { getClaudeApiKey, getSelectedModel } from "@/lib/storage/secure-store";
+import { getBackendSession } from "@/lib/backend/session";
+import { backendUrl } from "@/lib/backend/client";
 
-const API_BASE = "https://api.anthropic.com";
+const ANTHROPIC_API_BASE = "https://api.anthropic.com";
 
 export type ToolCall = {
   id: string;
@@ -78,9 +80,14 @@ export async function sendMessage(
   callbacks: StreamCallbacks,
   executeLocalTool: ToolExecutor,
 ): Promise<void> {
-  const apiKey = await getClaudeApiKey();
-  if (!apiKey) {
-    callbacks.onError(new Error("No Claude API key configured. Add one in Settings."));
+  const session = await getBackendSession();
+  const apiKey = session ? null : await getClaudeApiKey();
+  if (!session && !apiKey) {
+    callbacks.onError(
+      new Error(
+        "Not signed in. Sign in with Google to use the included AI credit, or add an Anthropic API key in Settings.",
+      ),
+    );
     return;
   }
 
@@ -92,21 +99,32 @@ export async function sendMessage(
   while (continueLoop) {
     continueLoop = false;
 
-    const response = await fetch(`${API_BASE}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: TOOLS,
-        messages: conversationMessages,
-      }),
-    });
+    const requestBody = {
+      model,
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      tools: TOOLS,
+      messages: conversationMessages,
+    };
+
+    const response = session
+      ? await fetch(backendUrl("/api/ai/messages"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.token}`,
+          },
+          body: JSON.stringify(requestBody),
+        })
+      : await fetch(`${ANTHROPIC_API_BASE}/v1/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey!,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify(requestBody),
+        });
 
     if (!response.ok) {
       const errorBody = await response.text();
