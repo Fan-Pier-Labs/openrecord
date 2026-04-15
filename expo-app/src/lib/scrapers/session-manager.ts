@@ -437,10 +437,15 @@ async function runScraper(
         getMessageRecipients(request, token),
         getMessageTopics(request, token),
       ]);
-      const recipientQuery = String(input.recipient_name ?? "").toLowerCase();
-      const matchedRecipients = recipients.filter((r: MessageRecipient) =>
-        r.displayName.toLowerCase().includes(recipientQuery),
-      );
+      const titleWords = new Set(["dr", "dr.", "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "md", "md.", "do", "do.", "np", "pa", "rn"]);
+      const tokens = String(input.recipient_name ?? "")
+        .toLowerCase()
+        .split(/[\s,]+/)
+        .filter((t) => t && !titleWords.has(t));
+      const matchedRecipients = recipients.filter((r: MessageRecipient) => {
+        const name = r.displayName.toLowerCase();
+        return tokens.every((t) => name.includes(t));
+      });
       if (matchedRecipients.length === 0) {
         return {
           error: `No recipient matching "${input.recipient_name}". Available: ${recipients
