@@ -34,7 +34,7 @@ export function ChatBubble({ role, content, isStreaming }: Props) {
             {content || (isStreaming ? "..." : "")}
           </Markdown>
         )}
-        {isStreaming && <View style={styles.cursor} />}
+        {isStreaming && content ? <View style={styles.cursor} /> : null}
       </View>
     </View>
   );
