@@ -103,7 +103,26 @@ export async function createMyChartInstance(
   cekHex?: string | null,
 ): Promise<MyChartInstance> {
   const db = await getPool();
-  const layered = await getUserEncryptionMode(userId);
+  let layered = await getUserEncryptionMode(userId);
+
+  // Bootstrap: if the user is in single mode and has no existing credentials,
+  // opt them into layered mode as long as the browser provided a CEK. This is
+  // the path fresh users take the first time they save an instance — there's
+  // nothing to rewrap, so it's a free upgrade.
+  if (!layered && cekHex) {
+    const existing = await db.query(
+      'SELECT 1 FROM mychart_instances WHERE user_id = $1 LIMIT 1',
+      [userId],
+    );
+    if (existing.rows.length === 0) {
+      await db.query(
+        'UPDATE "user" SET client_encryption_enabled = TRUE WHERE id = $1',
+        [userId],
+      );
+      layered = true;
+    }
+  }
+
   if (layered && !cekHex) {
     throw new Error('Client encryption key required to save credentials');
   }
