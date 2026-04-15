@@ -15,8 +15,11 @@ import { ChatInput } from "@/components/ChatInput";
 import { LeftDrawer } from "@/components/LeftDrawer";
 import { sendMessage, type ChatMessage } from "@/lib/ai/claude-client";
 import { executeLocalTool } from "@/lib/ai/tool-executor";
+import { generateChatTitle } from "@/lib/ai/title-generator";
 import {
   getMessages,
+  getChat,
+  updateChatTitle,
   addMessage,
   type Message,
 } from "@/lib/storage/database";
@@ -35,10 +38,16 @@ export default function ChatDetailScreen() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const titleSetRef = useRef(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (chatId) loadMessages();
+    if (chatId) {
+      loadMessages();
+      getChat(chatId).then((c) => {
+        titleSetRef.current = !!c && c.title !== "New Chat";
+      });
+    }
   }, [chatId]);
 
   async function loadMessages() {
@@ -105,6 +114,21 @@ export default function ChatDetailScreen() {
           setIsStreaming(false);
           setActiveTool(null);
           await addMessage(chatId!, "assistant", finalText);
+
+          if (!titleSetRef.current) {
+            const transcript: ChatMessage[] = [
+              ...messages
+                .filter((m) => !m.isStreaming)
+                .map((m) => ({ role: m.role, content: m.content })),
+              { role: "user", content: text },
+              { role: "assistant", content: finalText },
+            ];
+            const aiTitle = await generateChatTitle(transcript);
+            if (aiTitle) {
+              titleSetRef.current = true;
+              await updateChatTitle(chatId!, aiTitle);
+            }
+          }
         },
         onError: (err) => {
           setMessages((prev) =>

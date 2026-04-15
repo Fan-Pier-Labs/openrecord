@@ -14,6 +14,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { LeftDrawer } from "@/components/LeftDrawer";
 import { sendMessage, type ChatMessage, type ToolCall } from "@/lib/ai/claude-client";
 import { executeLocalTool } from "@/lib/ai/tool-executor";
+import { generateChatTitle } from "@/lib/ai/title-generator";
 import {
   createChat,
   addMessage,
@@ -34,6 +35,7 @@ export default function ChatScreen() {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const titleSetRef = useRef(false);
   const flatListRef = useRef<FlatList>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -99,9 +101,19 @@ export default function ChatScreen() {
 
           await addMessage(currentChatId!, "assistant", finalText);
 
-          if (messages.length === 0) {
-            const title = text.length > 50 ? text.slice(0, 47) + "..." : text;
-            await updateChatTitle(currentChatId!, title);
+          if (!titleSetRef.current) {
+            const transcript: ChatMessage[] = [
+              ...messages
+                .filter((m) => !m.isStreaming)
+                .map((m) => ({ role: m.role, content: m.content })),
+              { role: "user", content: text },
+              { role: "assistant", content: finalText },
+            ];
+            const aiTitle = await generateChatTitle(transcript);
+            if (aiTitle) {
+              titleSetRef.current = true;
+              await updateChatTitle(currentChatId!, aiTitle);
+            }
           }
         },
         onError: (err) => {
@@ -124,6 +136,7 @@ export default function ChatScreen() {
     setMessages([]);
     setChatId(null);
     setActiveTool(null);
+    titleSetRef.current = false;
   }
 
   return (

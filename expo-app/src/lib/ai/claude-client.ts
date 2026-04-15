@@ -233,51 +233,62 @@ function anthropicCompleter(apiKey: string): CompleteFn {
   };
 }
 
+type ResolvedCompleter = { complete: CompleteFn; model: string };
+
+async function resolveCompleter(): Promise<ResolvedCompleter> {
+  const provider = await getAiProvider();
+  if (provider === "openai") {
+    const key = await getOpenAiApiKey();
+    if (!key) throw new Error("OpenAI API key not set. Add it in Settings → AI Provider.");
+    return { complete: openaiCompleter(key), model: "gpt-4o" };
+  }
+  if (provider === "anthropic") {
+    const key = await getClaudeApiKey();
+    if (!key) throw new Error("Anthropic API key not set. Add it in Settings → AI Provider.");
+    return { complete: anthropicCompleter(key), model: "claude-sonnet-4-6" };
+  }
+  if (provider === "gemini") {
+    const key = await getGeminiApiKey();
+    if (!key) throw new Error("Gemini API key not set. Add it in Settings → AI Provider.");
+    return { complete: geminiCompleter(key), model: "gemini-2.5-flash" };
+  }
+  const session = await getBackendSession();
+  if (!session) {
+    throw new Error(
+      "Not signed in. Sign in with Google to use the free tier, or add your own API key in Settings → AI Provider.",
+    );
+  }
+  return { complete: backendCompleter(session.token), model: "gemini-2.5-flash" };
+}
+
+/**
+ * One-shot completion that bypasses the tool-use loop. Used for
+ * lightweight side calls like generating chat titles.
+ */
+export async function oneShotComplete(
+  messages: ChatMessage[],
+  system: string,
+): Promise<string> {
+  const { complete, model } = await resolveCompleter();
+  return complete(messages, system, model);
+}
+
 export async function sendMessage(
   messages: ChatMessage[],
   callbacks: StreamCallbacks,
   executeLocalTool: ToolExecutor,
 ): Promise<void> {
-  const provider = await getAiProvider();
   const system = buildSystemPrompt();
 
   let complete: CompleteFn;
   let model: string;
-
-  if (provider === "openai") {
-    const key = await getOpenAiApiKey();
-    if (!key) {
-      callbacks.onError(new Error("OpenAI API key not set. Add it in Settings → AI Provider."));
-      return;
-    }
-    complete = openaiCompleter(key);
-    model = "gpt-4o";
-  } else if (provider === "anthropic") {
-    const key = await getClaudeApiKey();
-    if (!key) {
-      callbacks.onError(new Error("Anthropic API key not set. Add it in Settings → AI Provider."));
-      return;
-    }
-    complete = anthropicCompleter(key);
-    model = "claude-sonnet-4-6";
-  } else if (provider === "gemini") {
-    const key = await getGeminiApiKey();
-    if (!key) {
-      callbacks.onError(new Error("Gemini API key not set. Add it in Settings → AI Provider."));
-      return;
-    }
-    complete = geminiCompleter(key);
-    model = "gemini-2.5-flash";
-  } else {
-    const session = await getBackendSession();
-    if (!session) {
-      callbacks.onError(
-        new Error("Not signed in. Sign in with Google to use the free tier, or add your own API key in Settings → AI Provider."),
-      );
-      return;
-    }
-    complete = backendCompleter(session.token);
-    model = "gemini-2.5-flash";
+  try {
+    const resolved = await resolveCompleter();
+    complete = resolved.complete;
+    model = resolved.model;
+  } catch (err) {
+    callbacks.onError(err as Error);
+    return;
   }
 
   const conversation: ChatMessage[] = [...messages];
