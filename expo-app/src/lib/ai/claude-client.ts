@@ -59,6 +59,10 @@ const TOOLS: { name: string; description: string; args: Record<string, string> }
   { name: "get_care_journeys", description: "Get care journey information", args: { instance: "optional" } },
   { name: "get_goals", description: "Get health goals", args: { instance: "optional" } },
   { name: "get_education_materials", description: "Get patient education materials", args: { instance: "optional" } },
+  { name: "get_message_recipients", description: "List available message recipients and topics (use before send_message if unsure who to message)", args: { instance: "optional" } },
+  { name: "send_message", description: "Send a new message to a MyChart provider. Confirm with the user before sending.", args: { instance: "optional", recipient_name: "provider name (fuzzy match)", topic: "topic (fuzzy match, e.g. 'Medical Question')", subject: "subject line", message_body: "message body" } },
+  { name: "send_reply", description: "Reply to an existing MyChart conversation. Confirm with the user before sending.", args: { instance: "optional", conversation_id: "conversation id from get_messages", message_body: "reply text" } },
+  { name: "request_refill", description: "Request a medication refill. Confirm with the user before submitting.", args: { instance: "optional", medication_name: "medication name (fuzzy match)" } },
 ];
 
 function buildSystemPrompt(): string {

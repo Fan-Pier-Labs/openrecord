@@ -40,6 +40,16 @@ import { getActivityFeed } from "../../../../scrapers/myChart/activityFeed";
 import { getCareJourneys } from "../../../../scrapers/myChart/careJourneys";
 import { getGoals } from "../../../../scrapers/myChart/goals";
 import { getEducationMaterials } from "../../../../scrapers/myChart/educationMaterials";
+import {
+  sendNewMessage,
+  getMessageTopics,
+  getMessageRecipients,
+  getVerificationToken,
+  type MessageRecipient,
+  type MessageTopic,
+} from "../../../../scrapers/myChart/messages/sendMessage";
+import { sendReply } from "../../../../scrapers/myChart/messages/sendReply";
+import { requestMedicationRefill } from "../../../../scrapers/myChart/medicationRefill";
 
 /**
  * On React Native, use raw fetch — iOS handles cookies natively.
@@ -411,6 +421,84 @@ async function runScraper(
       return getGoals(request);
     case "get_education_materials":
       return getEducationMaterials(request);
+    case "get_message_recipients": {
+      const token = await getVerificationToken(request);
+      if (!token) throw new Error("Could not get verification token");
+      const [recipients, topics] = await Promise.all([
+        getMessageRecipients(request, token),
+        getMessageTopics(request, token),
+      ]);
+      return { recipients, topics };
+    }
+    case "send_message": {
+      const token = await getVerificationToken(request);
+      if (!token) throw new Error("Could not get verification token");
+      const [recipients, topics] = await Promise.all([
+        getMessageRecipients(request, token),
+        getMessageTopics(request, token),
+      ]);
+      const recipientQuery = String(input.recipient_name ?? "").toLowerCase();
+      const matchedRecipients = recipients.filter((r: MessageRecipient) =>
+        r.displayName.toLowerCase().includes(recipientQuery),
+      );
+      if (matchedRecipients.length === 0) {
+        return {
+          error: `No recipient matching "${input.recipient_name}". Available: ${recipients
+            .map((r: MessageRecipient) => r.displayName)
+            .join(", ")}`,
+        };
+      }
+      if (matchedRecipients.length > 1) {
+        return {
+          error: `Multiple recipients match "${input.recipient_name}": ${matchedRecipients
+            .map((r: MessageRecipient) => r.displayName)
+            .join(", ")}. Please be more specific.`,
+        };
+      }
+      const topicQuery = String(input.topic ?? "").toLowerCase();
+      const matchedTopic =
+        topics.find((t: MessageTopic) => t.displayName.toLowerCase().includes(topicQuery)) ??
+        topics[0];
+      if (!matchedTopic) return { error: "No message topics available" };
+      return sendNewMessage(request, {
+        recipient: matchedRecipients[0],
+        topic: matchedTopic,
+        subject: String(input.subject ?? ""),
+        messageBody: String(input.message_body ?? ""),
+      });
+    }
+    case "send_reply":
+      return sendReply(request, {
+        conversationId: String(input.conversation_id ?? ""),
+        messageBody: String(input.message_body ?? ""),
+      });
+    case "request_refill": {
+      const medsResult = await getMedications(request);
+      const meds = medsResult.medications;
+      const query = String(input.medication_name ?? "").toLowerCase();
+      const matched = meds.filter(
+        (m) =>
+          m.name.toLowerCase().includes(query) ||
+          m.commonName.toLowerCase().includes(query),
+      );
+      if (matched.length === 0) {
+        return {
+          error: `No medication matching "${input.medication_name}". Available: ${meds
+            .map((m) => m.name)
+            .join(", ")}`,
+        };
+      }
+      if (matched.length > 1) {
+        return {
+          error: `Multiple medications match: ${matched.map((m) => m.name).join(", ")}. Be more specific.`,
+        };
+      }
+      const med = matched[0];
+      if (!med.isRefillable) return { error: `"${med.name}" is not refillable.` };
+      if (!med.medicationKey) return { error: `"${med.name}" has no medication key.` };
+      const refillResult = await requestMedicationRefill(request, med.medicationKey);
+      return { ...refillResult, medication: med.name };
+    }
     default:
       return { error: `Unknown tool: ${toolName}` };
   }
