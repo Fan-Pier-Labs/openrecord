@@ -17,6 +17,16 @@ import * as tough from 'tough-cookie';
 import * as fs from 'fs';
 import * as path from 'path';
 import { MyChartRequest } from '../myChartRequest';
+
+// Polyfill for React Native / Hermes which lacks AbortSignal.timeout.
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function') {
+    return (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(ms);
+  }
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
 import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 
 /**
@@ -1102,7 +1112,7 @@ async function downloadImage(
       'User-Agent': UA,
     },
     body,
-    signal: AbortSignal.timeout(30_000),
+    signal: abortAfter(30_000),
   });
 
   if (!res.ok) {

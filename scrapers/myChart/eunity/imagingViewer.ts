@@ -190,6 +190,42 @@ export async function followSamlChain(
       maxSteps--;
       const res = await req(url, { method, body, contentType });
 
+      // Some runtimes (iOS fetch in particular) ignore `redirect: "manual"`
+      // and transparently follow 3xx responses. When that happens, the
+      // response status is 200 at the original URL but the body is already
+      // the viewer's HTML. Either detect the final URL on res.url or
+      // sniff viewer markers in the body.
+      if (res.status === 200) {
+        const finalUrl = res.url || url;
+        const looksLikeViewerUrl =
+          finalUrl.includes('/e/viewer') || finalUrl.includes('/eUnity/viewer');
+        if (looksLikeViewerUrl) {
+          const viewerBody = await res.text();
+          const eunityOrigin = new URL(finalUrl).origin;
+          const jsessionCookies = await jar.getCookies(eunityOrigin);
+          const jsession = jsessionCookies.find(c => c.key === 'JSESSIONID');
+          return {
+            viewerUrl: finalUrl,
+            jsessionId: jsession?.value ?? '',
+            cookieJar: jar,
+            viewerBody,
+          };
+        }
+        // Peek at the body for eUnity viewer markers (handles silent redirect).
+        const peek = await res.clone().text();
+        if (peek.includes('eUnity Viewer') || peek.includes('viewer-config')) {
+          const eunityOrigin = new URL(finalUrl).origin;
+          const jsessionCookies = await jar.getCookies(eunityOrigin);
+          const jsession = jsessionCookies.find(c => c.key === 'JSESSIONID');
+          return {
+            viewerUrl: finalUrl,
+            jsessionId: jsession?.value ?? '',
+            cookieJar: jar,
+            viewerBody: peek,
+          };
+        }
+      }
+
       // HTTP redirect — follow it
       if ([301, 302, 303, 307].includes(res.status)) {
         const loc = res.headers.get('location');
