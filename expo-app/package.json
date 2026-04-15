@@ -25,6 +25,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "jpeg-js": "^0.4.4",
     "pako": "^2.1.0",
     "react": "19.1.0",
     "react-dom": "^19.1.0",

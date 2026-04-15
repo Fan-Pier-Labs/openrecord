@@ -50,6 +50,9 @@ import {
 } from "../../../../scrapers/myChart/messages/sendMessage";
 import { sendReply } from "../../../../scrapers/myChart/messages/sendReply";
 import { requestMedicationRefill } from "../../../../scrapers/myChart/medicationRefill";
+import { downloadImagingStudyDirect } from "../../../../scrapers/myChart/eunity/imagingDirectDownload";
+import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
+import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
 /**
  * On React Native, use raw fetch — iOS handles cookies natively.
@@ -503,6 +506,39 @@ async function runScraper(
       if (!med.medicationKey) return { error: `"${med.name}" has no medication key.` };
       const refillResult = await requestMedicationRefill(request, med.medicationKey);
       return { ...refillResult, medication: med.name };
+    }
+    case "get_xray_image": {
+      const imagings = await getImagingResults(request);
+      if (imagings.length === 0) return { error: "No imaging results available." };
+      const idx = typeof input.imaging_index === "number"
+        ? input.imaging_index
+        : Number(input.imaging_index ?? 0);
+      const target = imagings[idx] ?? imagings[0];
+      if (!target?.fdiContext) {
+        return { error: `Imaging result at index ${idx} has no image viewer context (fdiContext).` };
+      }
+      const caption = `${target.orderName ?? "Imaging"}${target.resultDate ? ` — ${target.resultDate}` : ""}`;
+      const download = await downloadImagingStudyDirect(
+        request,
+        target.fdiContext,
+        target.orderName ?? "study",
+        "",
+        { skipFileWrite: true, maxImages: 1 },
+      );
+      const first = download.images.find((img) => img.pixelData);
+      if (!first?.pixelData) {
+        return {
+          error: `Could not download image: ${download.errors.join("; ") || "no pixel data"}`,
+        };
+      }
+      try {
+        const { base64, width, height } = cloToJpegBase64(first.pixelData, first.wrapperData);
+        const imageId = `xray_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        putImageAttachment(imageId, `data:image/jpeg;base64,${base64}`, caption, width, height);
+        return { image_id: imageId, caption, width, height };
+      } catch (err) {
+        return { error: `Failed to decode CLO image: ${(err as Error).message}` };
+      }
     }
     default:
       return { error: `Unknown tool: ${toolName}` };

@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import Markdown from "react-native-markdown-display";
+import { getImageAttachment, extractImageIds } from "@/lib/imaging/attachment-store";
 
 type Props = {
   role: "user" | "assistant" | "system";
@@ -9,6 +10,10 @@ type Props = {
 
 export function ChatBubble({ role, content, isStreaming }: Props) {
   const isUser = role === "user";
+  const imageIds = !isUser ? extractImageIds(content) : [];
+  const displayContent = imageIds.length
+    ? content.replace(/\[image:[a-zA-Z0-9_\-]+\]\s*/g, "").trim()
+    : content;
 
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
@@ -31,9 +36,24 @@ export function ChatBubble({ role, content, isStreaming }: Props) {
               td: { padding: 6 },
             }}
           >
-            {content || (isStreaming ? "..." : "")}
+            {displayContent || (isStreaming ? "..." : "")}
           </Markdown>
         )}
+        {imageIds.map((id) => {
+          const att = getImageAttachment(id);
+          if (!att) return null;
+          const aspect = att.width > 0 && att.height > 0 ? att.width / att.height : 1;
+          return (
+            <View key={id} style={styles.attachment}>
+              <Image
+                source={{ uri: att.dataUri }}
+                style={[styles.attachmentImage, { aspectRatio: aspect }]}
+                resizeMode="contain"
+              />
+              {att.caption ? <Text style={styles.attachmentCaption}>{att.caption}</Text> : null}
+            </View>
+          );
+        })}
         {isStreaming && content ? <View style={styles.cursor} /> : null}
       </View>
     </View>
@@ -85,6 +105,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     marginTop: 4,
     opacity: 0.6,
+  },
+  attachment: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  attachmentImage: {
+    width: "100%",
+    backgroundColor: "#000",
+  },
+  attachmentCaption: {
+    fontSize: 12,
+    color: "#ccc",
+    padding: 6,
+    backgroundColor: "#000",
   },
   toolCallContainer: {
     paddingHorizontal: 16,
