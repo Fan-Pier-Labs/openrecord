@@ -4,6 +4,7 @@ import { createMyChartInstance, getMyChartInstances } from '@/lib/db';
 import { normalizeHostname } from '@/lib/utils';
 import { autoConnectInstance } from '@/lib/mcp/auto-connect';
 import { sessionStore } from '@/lib/sessions';
+import { readClientKey } from '@/lib/client-key-header';
 import { sendTelemetryEvent } from '../../../../../shared/telemetry';
 import { isBlockedInstance } from '../../../../../shared/blockedInstances';
 
@@ -11,7 +12,8 @@ export async function GET(req: NextRequest) {
   sendTelemetryEvent('api_instances_list');
   try {
     const user = await requireAuth(req);
-    const instances = await getMyChartInstances(user.id);
+    const cekHex = readClientKey(req);
+    const instances = await getMyChartInstances(user.id, cekHex);
 
     // Auto-connect instances with passkey or TOTP that aren't already logged in (skip disabled)
     await Promise.all(
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
   sendTelemetryEvent('api_instance_create');
   try {
     const user = await requireAuth(req);
+    const cekHex = readClientKey(req);
     const body = await req.json();
     const { hostname, username, password, totpSecret, mychartEmail } = body;
 
@@ -78,7 +81,7 @@ export async function POST(req: NextRequest) {
       password,
       totpSecret,
       mychartEmail,
-    });
+    }, cekHex);
 
 
     return NextResponse.json({
