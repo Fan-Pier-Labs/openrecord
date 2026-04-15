@@ -235,22 +235,34 @@ function anthropicCompleter(apiKey: string): CompleteFn {
 
 type ResolvedCompleter = { complete: CompleteFn; model: string };
 
-async function resolveCompleter(): Promise<ResolvedCompleter> {
+type ModelTier = "default" | "mini";
+
+const MINI_MODELS: Record<string, string> = {
+  openai: "gpt-5.4-mini",
+  anthropic: "claude-haiku-4-5-20251001",
+  gemini: "gemini-2.5-flash-lite",
+  free: "gemini-2.5-flash-lite",
+};
+
+async function resolveCompleter(tier: ModelTier = "default"): Promise<ResolvedCompleter> {
   const provider = await getAiProvider();
   if (provider === "openai") {
     const key = await getOpenAiApiKey();
     if (!key) throw new Error("OpenAI API key not set. Add it in Settings → AI Provider.");
-    return { complete: openaiCompleter(key), model: "gpt-4o" };
+    const model = tier === "mini" ? MINI_MODELS.openai : "gpt-4o";
+    return { complete: openaiCompleter(key), model };
   }
   if (provider === "anthropic") {
     const key = await getClaudeApiKey();
     if (!key) throw new Error("Anthropic API key not set. Add it in Settings → AI Provider.");
-    return { complete: anthropicCompleter(key), model: "claude-sonnet-4-6" };
+    const model = tier === "mini" ? MINI_MODELS.anthropic : "claude-sonnet-4-6";
+    return { complete: anthropicCompleter(key), model };
   }
   if (provider === "gemini") {
     const key = await getGeminiApiKey();
     if (!key) throw new Error("Gemini API key not set. Add it in Settings → AI Provider.");
-    return { complete: geminiCompleter(key), model: "gemini-2.5-flash" };
+    const model = tier === "mini" ? MINI_MODELS.gemini : "gemini-2.5-flash";
+    return { complete: geminiCompleter(key), model };
   }
   const session = await getBackendSession();
   if (!session) {
@@ -258,18 +270,21 @@ async function resolveCompleter(): Promise<ResolvedCompleter> {
       "Not signed in. Sign in with Google to use the free tier, or add your own API key in Settings → AI Provider.",
     );
   }
-  return { complete: backendCompleter(session.token), model: "gemini-2.5-flash" };
+  const model = tier === "mini" ? MINI_MODELS.free : "gemini-2.5-flash";
+  return { complete: backendCompleter(session.token), model };
 }
 
 /**
  * One-shot completion that bypasses the tool-use loop. Used for
- * lightweight side calls like generating chat titles.
+ * lightweight side calls like generating chat titles. Pass tier:"mini"
+ * to use the cheapest model the active provider offers.
  */
 export async function oneShotComplete(
   messages: ChatMessage[],
   system: string,
+  tier: ModelTier = "default",
 ): Promise<string> {
-  const { complete, model } = await resolveCompleter();
+  const { complete, model } = await resolveCompleter(tier);
   return complete(messages, system, model);
 }
 

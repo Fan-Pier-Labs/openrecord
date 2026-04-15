@@ -30,7 +30,7 @@ export async function generateChatTitle(messages: ChatMessage[]): Promise<string
 
   let raw: string;
   try {
-    raw = await oneShotComplete([userMsg], SYSTEM_PROMPT);
+    raw = await oneShotComplete([userMsg], SYSTEM_PROMPT, "mini");
   } catch {
     return null;
   }
