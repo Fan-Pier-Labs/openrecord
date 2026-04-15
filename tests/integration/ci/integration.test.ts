@@ -341,6 +341,118 @@ describe('Full data scrape', () => {
 });
 
 // ===================================================================
+// 4b. eUnity Imaging Pipeline (CLO download → JPEG)
+// ===================================================================
+
+describe('eUnity imaging pipeline', () => {
+  // Shared state across sub-tests so we only walk the SAML+AMF chain once.
+  let fdiParam = '';
+  let firstSeriesUID = '';
+  let firstObjectUID = '';
+  let allImages: Array<{ seriesUID: string; objectUID: string }> = [];
+  let studyDescription = '';
+
+  it('exposes fdiContext on scraped imaging results', async () => {
+    const res = await authedFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ sessionKey }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    const imagingResults = data.imagingResults;
+    expect(Array.isArray(imagingResults)).toBe(true);
+    expect(imagingResults.length).toBeGreaterThan(0);
+
+    const withFdi = imagingResults.find(
+      (r: { fdiContext?: { fdi: string; ord: string } }) => r.fdiContext?.fdi && r.fdiContext?.ord,
+    );
+    expect(withFdi).toBeDefined();
+    expect(withFdi.fdiContext.fdi).toBeTruthy();
+    expect(withFdi.fdiContext.ord).toBeTruthy();
+
+    fdiParam = Buffer.from(JSON.stringify(withFdi.fdiContext)).toString('base64');
+    studyDescription = withFdi.orderName ?? 'xray';
+  }, 120_000);
+
+  it('initializes the eUnity session and returns series metadata', async () => {
+    expect(fdiParam).toBeTruthy();
+    const res = await authedFetch(
+      `/api/mychart-series?token=${encodeURIComponent(sessionKey)}&fdi=${encodeURIComponent(fdiParam)}`,
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.series)).toBe(true);
+    expect(body.series.length).toBeGreaterThan(0);
+
+    const firstSeries = body.series[0];
+    expect(firstSeries.seriesUID).toBeTruthy();
+    expect(firstSeries.description).toBeTruthy();
+    expect(Array.isArray(firstSeries.images)).toBe(true);
+    expect(firstSeries.images.length).toBeGreaterThan(0);
+
+    firstSeriesUID = firstSeries.images[0].seriesUID;
+    firstObjectUID = firstSeries.images[0].objectUID;
+
+    // Flatten all images across all series for the ZIP test below.
+    allImages = body.series.flatMap(
+      (s: { images: Array<{ seriesUID: string; objectUID: string }> }) => s.images,
+    );
+  }, 60_000);
+
+  it('downloads a single CLO image and converts it to JPEG', async () => {
+    expect(firstSeriesUID).toBeTruthy();
+    expect(firstObjectUID).toBeTruthy();
+
+    const url =
+      `/api/mychart-xray?token=${encodeURIComponent(sessionKey)}` +
+      `&fdi=${encodeURIComponent(fdiParam)}` +
+      `&seriesUID=${encodeURIComponent(firstSeriesUID)}` +
+      `&objectUID=${encodeURIComponent(firstObjectUID)}`;
+    const res = await authedFetch(url);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('image/jpeg');
+
+    const jpeg = Buffer.from(await res.arrayBuffer());
+    // JPEG magic bytes (SOI: FF D8, end: FF D9)
+    expect(jpeg.byteLength).toBeGreaterThan(1000);
+    expect(jpeg[0]).toBe(0xff);
+    expect(jpeg[1]).toBe(0xd8);
+    expect(jpeg[jpeg.byteLength - 2]).toBe(0xff);
+    expect(jpeg[jpeg.byteLength - 1]).toBe(0xd9);
+  }, 60_000);
+
+  it('bundles all images from the study into a ZIP', async () => {
+    expect(allImages.length).toBeGreaterThan(0);
+    const imagesJson = encodeURIComponent(JSON.stringify(allImages));
+    const desc = encodeURIComponent(studyDescription);
+    const url =
+      `/api/mychart-xray-zip?token=${encodeURIComponent(sessionKey)}` +
+      `&fdi=${encodeURIComponent(fdiParam)}&images=${imagesJson}&description=${desc}`;
+    const res = await authedFetch(url);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/zip');
+
+    const zip = Buffer.from(await res.arrayBuffer());
+    // ZIP local file header magic: 50 4B 03 04
+    expect(zip.byteLength).toBeGreaterThan(100);
+    expect(zip[0]).toBe(0x50);
+    expect(zip[1]).toBe(0x4b);
+    expect(zip[2]).toBe(0x03);
+    expect(zip[3]).toBe(0x04);
+  }, 120_000);
+
+  it('rejects xray requests with an unknown session token', async () => {
+    // Use placeholder UIDs so the auth check fires before the param check.
+    const url =
+      '/api/mychart-xray?token=bogus-token&fdi=eyJmZGkiOiJ4In0=' +
+      '&seriesUID=placeholder&objectUID=placeholder';
+    const res = await authedFetch(url);
+    expect(res.status).toBe(401);
+  });
+});
+
+// ===================================================================
 // 5. MCP API Key Lifecycle
 // ===================================================================
 
