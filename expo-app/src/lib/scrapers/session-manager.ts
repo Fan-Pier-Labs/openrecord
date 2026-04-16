@@ -50,6 +50,9 @@ import {
 } from "../../../../scrapers/myChart/messages/sendMessage";
 import { sendReply } from "../../../../scrapers/myChart/messages/sendReply";
 import { requestMedicationRefill } from "../../../../scrapers/myChart/medicationRefill";
+import { downloadImagingStudyDirect } from "../../../../scrapers/myChart/eunity/imagingDirectDownload";
+import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
+import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
 /**
  * On React Native, use raw fetch — iOS handles cookies natively.
@@ -504,11 +507,42 @@ async function runScraper(
       const refillResult = await requestMedicationRefill(request, med.medicationKey);
       return { ...refillResult, medication: med.name };
     }
-    case "get_xray_image":
-      return {
-        error:
-          "Showing X-ray images on mobile is not wired up yet — the eUnity image download pulls in Node-only dependencies we haven't vendored. Use the web app for now.",
-      };
+    case "get_xray_image": {
+      const idx = Number(input.imaging_index);
+      if (!Number.isFinite(idx) || idx < 0) {
+        return { error: "imaging_index must be a non-negative number (from get_imaging_results)." };
+      }
+      const results = await getImagingResults(request);
+      const study = results[idx];
+      if (!study) {
+        return { error: `No imaging result at index ${idx} (have ${results.length}).` };
+      }
+      if (!study.fdiContext) {
+        return { error: `Imaging result at index ${idx} has no viewer context (no attached image).` };
+      }
+      const dl = await downloadImagingStudyDirect(
+        request,
+        study.fdiContext,
+        study.orderName ?? `study_${idx}`,
+        "",
+        { skipFileWrite: true, maxImages: 1 },
+      );
+      const img = dl.images.find((i) => i.pixelData);
+      if (!img?.pixelData) {
+        const errMsg = dl.errors.length ? dl.errors.join("; ") : "No pixel data returned.";
+        return { error: `Could not download X-ray image: ${errMsg}` };
+      }
+      let base64: string, width: number, height: number;
+      try {
+        ({ base64, width, height } = cloToJpegBase64(img.pixelData, img.wrapperData));
+      } catch (err) {
+        return { error: `Failed to decode X-ray image: ${(err as Error).message}` };
+      }
+      const imageId = `xray_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const caption = img.seriesDescription || study.orderName || "X-ray";
+      putImageAttachment(imageId, `data:image/jpeg;base64,${base64}`, caption, width, height);
+      return { image_id: imageId, caption, width, height };
+    }
     default:
       return { error: `Unknown tool: ${toolName}` };
   }

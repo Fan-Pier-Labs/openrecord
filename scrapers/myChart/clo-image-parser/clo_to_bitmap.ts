@@ -244,7 +244,7 @@ export interface CloMetadata {
 
 export function parseWrapper(input: string | Buffer): CloMetadata {
   const data = typeof input === 'string' ? readFileSync(input) : input;
-  if (data.subarray(0, 12).compare(CLOHEADERZ01_MAGIC) !== 0) {
+  if (Buffer.compare(data.subarray(0, 12), CLOHEADERZ01_MAGIC) !== 0) {
     throw new Error(`Not a CLOHEADERZ01 file`);
   }
 
@@ -331,7 +331,7 @@ export function parseWrapper(input: string | Buffer): CloMetadata {
 // ==================== Pixel File Parser ====================
 
 export function parsePixelHeader(data: Buffer): { width: number; height: number } {
-  if (data.subarray(0, 12).compare(CLOCLHAAR_MAGIC) !== 0) {
+  if (Buffer.compare(data.subarray(0, 12), CLOCLHAAR_MAGIC) !== 0) {
     throw new Error("Not a CLOCLHAAR pixel file");
   }
   if (data[16] !== 0x35 || data[17] !== 0xfa) {
