@@ -18,28 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MyChartRequest } from '../myChartRequest';
 import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
-
-/**
- * Fetch wrapper using Node's built-in fetch with tough-cookie jar.
- * Uses undici under the hood, which passes TLS fingerprinting checks
- * that node-fetch fails at the SAML selfauth endpoint.
- */
-async function fetchWithCookies(
-  jar: tough.CookieJar,
-  url: string,
-  opts: RequestInit & { headers?: Record<string, string> } = {}
-): Promise<Response> {
-  const cookies = await jar.getCookies(url);
-  const cookieHeader = cookies.map(c => `${c.key}=${c.value}`).join('; ');
-  const headers: Record<string, string> = { ...(opts.headers as Record<string, string> ?? {}) };
-  if (cookieHeader) headers['Cookie'] = cookieHeader;
-  const response = await globalThis.fetch(url, { ...opts, headers });
-  const setCookies = response.headers.getSetCookie?.() ?? [];
-  for (const sc of setCookies) {
-    try { await jar.setCookie(sc, url); } catch { /* ignore */ }
-  }
-  return response;
-}
+import { fetchWithCookies, abortAfter } from './fetch';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
@@ -1102,7 +1081,7 @@ async function downloadImage(
       'User-Agent': UA,
     },
     body,
-    signal: AbortSignal.timeout(30_000),
+    signal: abortAfter(30_000),
   });
 
   if (!res.ok) {

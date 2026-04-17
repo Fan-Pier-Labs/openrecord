@@ -3,35 +3,7 @@ import * as tough from 'tough-cookie';
 import { MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
 import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
-
-/**
- * Fetch wrapper that uses Node's built-in fetch (undici) with tough-cookie jar.
- * We use the built-in fetch instead of node-fetch because the SAML selfauth endpoint
- * does TLS fingerprinting and rejects node-fetch's HTTP stack with "socket hang up".
- */
-async function fetchWithCookies(
-  jar: tough.CookieJar,
-  url: string,
-  opts: RequestInit & { headers?: Record<string, string> } = {}
-): Promise<Response> {
-  const cookies = await jar.getCookies(url);
-  const cookieHeader = cookies.map(c => `${c.key}=${c.value}`).join('; ');
-
-  const headers: Record<string, string> = { ...(opts.headers as Record<string, string> ?? {}) };
-  if (cookieHeader) {
-    headers['Cookie'] = cookieHeader;
-  }
-
-  const response = await globalThis.fetch(url, { ...opts, headers });
-
-  // Store Set-Cookie headers from response
-  const setCookies = response.headers.getSetCookie?.() ?? [];
-  for (const sc of setCookies) {
-    try { await jar.setCookie(sc, url); } catch { /* ignore invalid cookies */ }
-  }
-
-  return response;
-}
+import { fetchWithCookies } from './fetch';
 
 export interface FdiContext {
   fdi: string;
@@ -178,8 +150,14 @@ export async function followSamlChain(
     });
   }
 
+  async function makeViewerResult(viewerUrl: string, viewerBody: string) {
+    const eunityOrigin = new URL(viewerUrl).origin;
+    const jsessionCookies = await jar.getCookies(eunityOrigin);
+    const jsession = jsessionCookies.find(c => c.key === 'JSESSIONID');
+    return { viewerUrl, jsessionId: jsession?.value ?? '', cookieJar: jar, viewerBody };
+  }
+
   try {
-    // Step 1: Fetch the STS URL — returns HTML page with a SAML auto-submit form
     let url = samlUrl;
     let method = 'GET';
     let body: string | undefined;
@@ -202,18 +180,8 @@ export async function followSamlChain(
 
         // Check if we've reached eUnity (detected by /e/viewer path)
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
-          // The redirect itself IS the viewer URL — follow it to set JSESSIONID
           const viewerRes = await req(url);
-          const viewerBody = viewerRes.status === 200 ? await viewerRes.text() : '';
-          const eunityOrigin = new URL(url).origin;
-          const jsessionCookies = await jar.getCookies(eunityOrigin);
-          const jsession = jsessionCookies.find(c => c.key === 'JSESSIONID');
-          return {
-            viewerUrl: url,
-            jsessionId: jsession?.value ?? '',
-            cookieJar: jar,
-            viewerBody,
-          };
+          return makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
         }
         continue;
       }
@@ -278,17 +246,8 @@ export async function followSamlChain(
           }
         }
 
-        // Check if we're on eUnity
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
-          const eunityOrigin = new URL(url).origin;
-          const jsessionCookies = await jar.getCookies(eunityOrigin);
-          const jsession = jsessionCookies.find(c => c.key === 'JSESSIONID');
-          return {
-            viewerUrl: url,
-            jsessionId: jsession?.value ?? '',
-            cookieJar: jar,
-            viewerBody: html,
-          };
+          return makeViewerResult(url, html);
         }
 
         // Reached a page that's not eUnity and has no redirect
