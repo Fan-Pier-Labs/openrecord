@@ -36,15 +36,11 @@ try {
 }
 
 export async function getClaudeApiKey(): Promise<string | null> {
-  const stored = await getSecureValue("claude_api_key");
-  if (stored) return stored;
-
   if (devSecrets.claude_api_key) {
     await setClaudeApiKey(devSecrets.claude_api_key);
     return devSecrets.claude_api_key;
   }
-
-  return null;
+  return getSecureValue("claude_api_key");
 }
 
 export async function setClaudeApiKey(key: string): Promise<void> {
