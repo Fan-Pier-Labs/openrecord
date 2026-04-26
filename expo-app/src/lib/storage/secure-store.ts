@@ -22,7 +22,12 @@ export async function deleteSecureValue(key: string): Promise<void> {
 
 // Dev fallback: load API key from secrets.local.json at bundle time.
 // In production builds this will be an empty object (file won't exist).
-let devSecrets: { claude_api_key?: string } = {};
+let devSecrets: {
+  claude_api_key?: string;
+  openai_api_key?: string;
+  gemini_api_key?: string;
+  ai_provider?: AiProvider;
+} = {};
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   devSecrets = require("../../../secrets.local.json");
@@ -111,6 +116,10 @@ export async function setSelectedModel(model: string): Promise<void> {
 export type AiProvider = "free" | "openai" | "anthropic" | "gemini";
 
 export async function getAiProvider(): Promise<AiProvider> {
+  if (devSecrets.ai_provider) {
+    await setAiProvider(devSecrets.ai_provider);
+    return devSecrets.ai_provider;
+  }
   const v = await getSecureValue("ai_provider");
   if (v === "openai" || v === "anthropic" || v === "gemini" || v === "free") return v;
   return "free";
@@ -129,6 +138,10 @@ export async function setOpenAiApiKey(key: string): Promise<void> {
 }
 
 export async function getGeminiApiKey(): Promise<string | null> {
+  if (devSecrets.gemini_api_key) {
+    await setGeminiApiKey(devSecrets.gemini_api_key);
+    return devSecrets.gemini_api_key;
+  }
   return getSecureValue("gemini_api_key");
 }
 
