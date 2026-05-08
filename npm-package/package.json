@@ -1,15 +1,15 @@
 {
-  "name": "mychart-connector",
+  "name": "mychart-cli",
   "version": "0.1.0",
   "description": "Programmatic access to Epic MyChart patient portals: login, scrape every section of a patient's chart, and act on it.",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Fan Pier Labs",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fan-Pier-Labs/mychart-connector",
+    "url": "https://github.com/Fan-Pier-Labs/openrecord",
     "directory": "npm-package"
   },
-  "homepage": "https://github.com/Fan-Pier-Labs/mychart-connector/tree/main/npm-package",
+  "homepage": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/npm-package",
   "keywords": [
     "mychart",
     "epic",
@@ -34,7 +34,7 @@
     }
   },
   "bin": {
-    "mychart-connector": "./dist/cli.cjs"
+    "mychart-cli": "./dist/cli.cjs"
   },
   "sideEffects": false,
   "files": [

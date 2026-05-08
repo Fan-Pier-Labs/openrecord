@@ -1,4 +1,4 @@
-# mychart-connector
+# mychart-cli
 
 Programmatic access to Epic MyChart patient portals from Node.js. Log in,
 fetch every section of a patient's chart, and act on it (request refills,
@@ -16,11 +16,11 @@ return shapes.
 ## Install
 
 ```bash
-npm install mychart-connector
+npm install mychart-cli
 ```
 
-The package installs a CLI binary at `node_modules/.bin/mychart-connector`
-(use it via `npx mychart-connector …`). You only run the CLI once, to set
+The package installs a CLI binary at `node_modules/.bin/mychart-cli`
+(use it via `npx mychart-cli …`). You only run the CLI once, to set
 up a passkey — see Quick start.
 
 ## Quick start
@@ -34,7 +34,7 @@ prompts.
 Run the bundled CLI once:
 
 ```bash
-npx mychart-connector --set-up-passkey --host mychart.example.org
+npx mychart-cli --set-up-passkey --host mychart.example.org
 ```
 
 The CLI walks you through username + password + 2FA, registers a new
@@ -60,7 +60,7 @@ import {
   MyChartClient,
   deserializeCredential,
   serializeCredential,
-} from 'mychart-connector';
+} from 'mychart-cli';
 import * as fs from 'node:fs/promises';
 
 const path = './.passkey-credentials/mychart.example.org.json';
@@ -133,7 +133,7 @@ a saved TOTP secret, so prefer passkeys for unattended automation. See
 ## CLI reference
 
 ```
-npx mychart-connector --host <hostname> [flags]
+npx mychart-cli --host <hostname> [flags]
 ```
 
 | Flag | Purpose |
