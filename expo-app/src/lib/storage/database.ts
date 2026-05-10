@@ -24,11 +24,18 @@ export async function initDatabase(): Promise<void> {
       FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS alerts (
+    DROP TABLE IF EXISTS alerts;
+    CREATE TABLE alerts (
       id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
-      action_prompt TEXT NOT NULL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      cta_label TEXT NOT NULL,
+      uses_ai INTEGER NOT NULL DEFAULT 0,
+      action_kind TEXT NOT NULL,
+      action_payload TEXT NOT NULL DEFAULT '{}',
+      dedup_key TEXT NOT NULL UNIQUE,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       dismissed_at TEXT
     );
@@ -63,7 +70,6 @@ export async function initDatabase(): Promise<void> {
     );
   `);
 
-  await seedAlertsIfEmpty();
 }
 
 function getDb(): SQLite.SQLiteDatabase {
@@ -154,13 +160,34 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 
 // ─── Alerts ───
 
+export type AlertType = "bill" | "refill" | "message" | "lab" | "appointment";
+export type AlertActionKind = "open_url" | "request_refill" | "ai_chat";
+
 export type Alert = {
   id: string;
+  type: AlertType;
   title: string;
   description: string;
-  action_prompt: string;
+  metadata: string;
+  cta_label: string;
+  uses_ai: number;
+  action_kind: AlertActionKind;
+  action_payload: string;
+  dedup_key: string;
   created_at: string;
   dismissed_at: string | null;
+};
+
+export type AlertInput = {
+  type: AlertType;
+  title: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  cta_label: string;
+  uses_ai: boolean;
+  action_kind: AlertActionKind;
+  action_payload: Record<string, unknown>;
+  dedup_key: string;
 };
 
 export async function getActiveAlerts(): Promise<Alert[]> {
@@ -177,39 +204,39 @@ export async function dismissAlert(id: string): Promise<void> {
   );
 }
 
-async function seedAlertsIfEmpty(): Promise<void> {
-  const row = await getDb().getFirstAsync<{ c: number }>(
-    "SELECT COUNT(*) AS c FROM alerts"
-  );
-  if (row && row.c > 0) return;
-
-  const seeds: Array<Omit<Alert, "created_at" | "dismissed_at">> = [
-    {
-      id: "seed-bill",
-      title: "Outstanding bill",
-      description: "You have a billing statement that's due soon.",
-      action_prompt: "Look up my current outstanding medical bills and tell me what's due, when, and how to pay.",
-    },
-    {
-      id: "seed-refill",
-      title: "Medication refill",
-      description: "One of your prescriptions may be running low.",
-      action_prompt: "Check my medications and tell me which ones are running low or need a refill request soon.",
-    },
-    {
-      id: "seed-followup",
-      title: "Follow up on recent results",
-      description: "There's a recent lab or imaging result worth reviewing.",
-      action_prompt: "Summarize my most recent lab and imaging results and flag anything that warrants a follow-up with my doctor.",
-    },
-  ];
-
-  for (const s of seeds) {
-    await getDb().runAsync(
-      "INSERT INTO alerts (id, title, description, action_prompt) VALUES (?, ?, ?, ?)",
-      s.id, s.title, s.description, s.action_prompt
+export async function upsertAlerts(inputs: AlertInput[]): Promise<{
+  added: number;
+  skipped: number;
+}> {
+  let added = 0;
+  let skipped = 0;
+  for (const a of inputs) {
+    const existing = await getDb().getFirstAsync<{ id: string }>(
+      "SELECT id FROM alerts WHERE dedup_key = ?",
+      a.dedup_key,
     );
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+    const id = `alert_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    await getDb().runAsync(
+      `INSERT INTO alerts (id, type, title, description, metadata, cta_label, uses_ai, action_kind, action_payload, dedup_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      a.type,
+      a.title,
+      a.description,
+      JSON.stringify(a.metadata),
+      a.cta_label,
+      a.uses_ai ? 1 : 0,
+      a.action_kind,
+      JSON.stringify(a.action_payload),
+      a.dedup_key,
+    );
+    added += 1;
   }
+  return { added, skipped };
 }
 
 export async function searchChats(query: string): Promise<Chat[]> {

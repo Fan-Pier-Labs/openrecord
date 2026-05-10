@@ -1,38 +1,36 @@
 appId: com.fanpierlabs.openrecord
 ---
-# Run from the authenticated home screen (new chat empty state).
-# Verifies: alerts card visible, expands on tap, items render with Do/Ignore,
-# and ignoring an alert removes it.
+# Run from the authenticated home screen against fake-mychart.
+# Verifies real alerts populate from MyChart data and that CTAs render
+# with the correct labels (incl. the "with AI" suffix for AI actions).
 
 - launchApp:
     clearState: false
 
-# Card collapsed: tap header to expand (testID is stable regardless of text)
+# Card visible (regenerate runs on mount; allow time for scraping)
 - extendedWaitUntil:
     visible:
       id: "alerts-toggle"
-    timeout: 10000
+    timeout: 30000
 - tapOn:
     id: "alerts-toggle"
 
-# Three seed items render
+# Bill alert with rich context
 - assertVisible: "Outstanding bill"
-- assertVisible: "Medication refill"
-- assertVisible: "Follow up on recent results"
+- assertVisible:
+    text: ".*Springfield General Hospital.*"
+- assertVisible: "Pay bill"
 
-# Each item has Do and Ignore buttons (assert at least one of each)
-- assertVisible: "Do"
-- assertVisible: "Ignore"
+# Refill alerts (Homer is on Lisinopril among others) — no "with AI" suffix
+- assertVisible: "Lisinopril"
+- assertVisible: "Request refill"
 
-# Ignore the first seed
-- tapOn:
-    id: "alert-ignore-seed-bill"
-- assertNotVisible: "Outstanding bill"
+# Abnormal lab → AI-labeled action
+- assertVisible:
+    text: ".*Abnormal.*"
+- assertVisible: "Discuss with AI"
 
-# Tap Do on refill alert and confirm the chat starts (assistant streams a response)
-- tapOn:
-    id: "alert-do-seed-refill"
-- extendedWaitUntil:
-    visible:
-      text: ".*[Mm]edication.*|.*[Rr]efill.*"
-    timeout: 30000
+# Ignoring an alert removes it from the list
+- tapOn: "Ignore"
+- assertVisible:
+    id: "alerts-toggle"

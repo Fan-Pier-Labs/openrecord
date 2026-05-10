@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert as RNAlert, Linking } from "react-native";
 import { getActiveAlerts, dismissAlert, type Alert } from "@/lib/storage/database";
+import { regenerateAlerts } from "@/lib/alerts/generator";
+import { executeScraperTool } from "@/lib/scrapers/session-manager";
 
 type Props = {
   onDoAlert: (prompt: string) => void;
@@ -9,6 +11,7 @@ type Props = {
 export function AlertsCard({ onDoAlert }: Props) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const rows = await getActiveAlerts();
@@ -17,6 +20,9 @@ export function AlertsCard({ onDoAlert }: Props) {
 
   useEffect(() => {
     refresh();
+    regenerateAlerts()
+      .then(() => refresh())
+      .catch((err) => console.warn("[alerts] regenerate failed:", err.message));
   }, [refresh]);
 
   if (alerts.length === 0) return null;
@@ -26,8 +32,53 @@ export function AlertsCard({ onDoAlert }: Props) {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }
 
-  function handleDo(alert: Alert) {
-    onDoAlert(alert.action_prompt);
+  async function handleDo(alert: Alert) {
+    const payload = safeJson<Record<string, unknown>>(alert.action_payload, {});
+    if (alert.action_kind === "open_url") {
+      const url = payload.url as string | undefined;
+      if (!url) return;
+      await Linking.openURL(url);
+      return;
+    }
+    if (alert.action_kind === "request_refill") {
+      const medName = payload.medication_name as string;
+      const instance = payload.instance as string | undefined;
+      RNAlert.alert(
+        "Request refill?",
+        `Send a refill request for ${alert.title}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Request",
+            style: "default",
+            onPress: async () => {
+              setBusyId(alert.id);
+              try {
+                const result = (await executeScraperTool("request_refill", {
+                  medication_name: medName,
+                  ...(instance ? { instance } : {}),
+                })) as { success?: boolean; error?: string };
+                if (result?.error) {
+                  RNAlert.alert("Refill failed", result.error);
+                } else {
+                  RNAlert.alert("Refill requested", `${alert.title} refill request sent.`);
+                  await dismissAlert(alert.id);
+                  setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+                }
+              } catch (err) {
+                RNAlert.alert("Refill failed", (err as Error).message);
+              } finally {
+                setBusyId(null);
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+    // ai_chat
+    const prompt = (payload.prompt as string) ?? alert.description;
+    onDoAlert(prompt);
   }
 
   return (
@@ -51,32 +102,51 @@ export function AlertsCard({ onDoAlert }: Props) {
 
       {expanded && (
         <View style={styles.list}>
-          {alerts.map((a) => (
-            <View key={a.id} style={styles.item}>
-              <Text style={styles.itemTitle}>{a.title}</Text>
-              <Text style={styles.itemDesc}>{a.description}</Text>
-              <View style={styles.actions}>
-                <Pressable
-                  onPress={() => handleDo(a)}
-                  style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.btnPressed]}
-                  testID={`alert-do-${a.id}`}
-                >
-                  <Text style={styles.btnPrimaryText}>Do</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => handleIgnore(a.id)}
-                  style={({ pressed }) => [styles.btn, styles.btnSecondary, pressed && styles.btnPressed]}
-                  testID={`alert-ignore-${a.id}`}
-                >
-                  <Text style={styles.btnSecondaryText}>Ignore</Text>
-                </Pressable>
+          {alerts.map((a) => {
+            const ctaLabel = a.uses_ai ? `${a.cta_label} with AI` : a.cta_label;
+            const isBusy = busyId === a.id;
+            return (
+              <View key={a.id} style={styles.item}>
+                <Text style={styles.itemTitle}>{a.title}</Text>
+                <Text style={styles.itemDesc}>{a.description}</Text>
+                <View style={styles.actions}>
+                  <Pressable
+                    onPress={() => handleDo(a)}
+                    disabled={isBusy}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      styles.btnPrimary,
+                      pressed && styles.btnPressed,
+                      isBusy && styles.btnDisabled,
+                    ]}
+                    testID={`alert-do-${a.dedup_key}`}
+                  >
+                    <Text style={styles.btnPrimaryText}>{isBusy ? "Sending…" : ctaLabel}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleIgnore(a.id)}
+                    disabled={isBusy}
+                    style={({ pressed }) => [styles.btn, styles.btnSecondary, pressed && styles.btnPressed]}
+                    testID={`alert-ignore-${a.dedup_key}`}
+                  >
+                    <Text style={styles.btnSecondaryText}>Ignore</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>
   );
+}
+
+function safeJson<T>(s: string, fallback: T): T {
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -158,6 +228,9 @@ const styles = StyleSheet.create({
   },
   btnPressed: {
     opacity: 0.6,
+  },
+  btnDisabled: {
+    opacity: 0.5,
   },
   btnPrimary: {
     backgroundColor: "#007AFF",
