@@ -1,0 +1,40 @@
+appId: com.fanpierlabs.openrecord
+---
+# Run from the authenticated home screen (new chat empty state).
+# Verifies: alerts card visible, expands on tap, items render with Do/Ignore,
+# and ignoring an alert removes it.
+
+- launchApp:
+    clearState: false
+
+# Card collapsed: header shows count
+- extendedWaitUntil:
+    visible:
+      text: ".*things to review|1 thing to review"
+    timeout: 10000
+
+# Tap to expand
+- tapOn:
+    id: "alerts-toggle"
+
+# Three seed items render
+- assertVisible: "Outstanding bill"
+- assertVisible: "Medication refill"
+- assertVisible: "Follow up on recent results"
+
+# Each item has Do and Ignore buttons (assert at least one of each)
+- assertVisible: "Do"
+- assertVisible: "Ignore"
+
+# Ignore the first seed
+- tapOn:
+    id: "alert-ignore-seed-bill"
+- assertNotVisible: "Outstanding bill"
+
+# Tap Do on refill alert and confirm the chat starts (assistant streams a response)
+- tapOn:
+    id: "alert-do-seed-refill"
+- extendedWaitUntil:
+    visible:
+      text: ".*[Mm]edication.*|.*[Rr]efill.*"
+    timeout: 30000
