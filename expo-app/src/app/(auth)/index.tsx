@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   FlatList,
@@ -9,18 +9,24 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChatBubble, ToolCallIndicator } from "@/components/ChatBubble";
 import { ChatInput } from "@/components/ChatInput";
 import { LeftDrawer } from "@/components/LeftDrawer";
 import { AlertsCard } from "@/components/AlertsCard";
+import { SkillsSheet } from "@/components/SkillsSheet";
+import type { Skill } from "@/lib/skills/types";
 import { sendMessage, type ChatMessage, type ToolCall } from "@/lib/ai/claude-client";
 import { executeLocalTool } from "@/lib/ai/tool-executor";
 import { generateChatTitle } from "@/lib/ai/title-generator";
+import { extractFactsFromTurn } from "@/lib/memory/chat-extractor";
+import { loadDigestForChat } from "@/lib/memory/builder";
 import {
   createChat,
   addMessage,
   updateChatTitle,
 } from "@/lib/storage/database";
+import { getMyChartAccounts } from "@/lib/storage/secure-store";
 
 type DisplayMessage = {
   id: string;
@@ -31,17 +37,33 @@ type DisplayMessage = {
 };
 
 export default function ChatScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ ask?: string }>();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
   const titleSetRef = useRef(false);
   const flatListRef = useRef<FlatList>(null);
+  const handledAskRef = useRef<string | null>(null);
+  // Once a skill is launched, its playbook stays in the system prompt
+  // for the rest of the chat. Cleared by handleNewChat.
+  const skillAdditionRef = useRef<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
+
+  // Insights screen deep-link: open with ?ask=<question>, auto-send once.
+  useEffect(() => {
+    const q = params.ask;
+    if (!q || handledAskRef.current === q) return;
+    handledAskRef.current = q;
+    handleSend(q);
+    router.setParams({ ask: undefined });
+  }, [params.ask]);
 
   async function handleSend(text: string) {
     let currentChatId = chatId;
@@ -75,6 +97,10 @@ export default function ChatScreen() {
       .filter((m) => !m.isStreaming)
       .map((m) => ({ role: m.role, content: m.content }));
     conversationMessages.push({ role: "user", content: text });
+
+    const accounts = await getMyChartAccounts();
+    const primaryAccountId = accounts[0]?.id;
+    const memoryDigest = primaryAccountId ? await loadDigestForChat(primaryAccountId) : null;
 
     let fullText = "";
 
@@ -116,6 +142,8 @@ export default function ChatScreen() {
               await updateChatTitle(currentChatId!, aiTitle);
             }
           }
+
+          extractFactsFromTurn(text, finalText, primaryAccountId).catch(() => {});
         },
         onError: (err) => {
           setMessages((prev) =>
@@ -129,7 +157,8 @@ export default function ChatScreen() {
           setActiveTool(null);
         },
       },
-      executeLocalTool
+      executeLocalTool,
+      { memoryDigest, skillAddition: skillAdditionRef.current }
     );
   }
 
@@ -138,6 +167,12 @@ export default function ChatScreen() {
     setChatId(null);
     setActiveTool(null);
     titleSetRef.current = false;
+    skillAdditionRef.current = null;
+  }
+
+  function handlePickSkill(skill: Skill) {
+    skillAdditionRef.current = skill.playbook;
+    handleSend(skill.kickoffMessage);
   }
 
   return (
@@ -167,6 +202,15 @@ export default function ChatScreen() {
             <View style={styles.emptyHero}>
               <Text style={styles.emptyTitle}>OpenRecord</Text>
               <Text style={styles.emptySubtitle}>Ask anything about your health data</Text>
+              <Pressable
+                testID="run-skill-button"
+                accessibilityLabel="Run a skill"
+                accessibilityRole="button"
+                style={styles.runSkillButton}
+                onPress={() => setShowSkills(true)}
+              >
+                <Text style={styles.runSkillText}>Run a skill ›</Text>
+              </Pressable>
             </View>
             <AlertsCard onDoAlert={handleSend} />
           </View>
@@ -198,6 +242,12 @@ export default function ChatScreen() {
         onClose={() => setDrawerOpen(false)}
         currentChatId={chatId}
         onNewChat={handleNewChat}
+      />
+
+      <SkillsSheet
+        visible={showSkills}
+        onClose={() => setShowSkills(false)}
+        onPick={handlePickSkill}
       />
     </SafeAreaView>
   );
@@ -258,6 +308,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
+  },
+  runSkillButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#000",
+  },
+  runSkillText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#000",
   },
   messageList: {
     paddingVertical: 12,

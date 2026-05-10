@@ -2,7 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { serializeCredential, deserializeCredential, type PasskeyCredential } from '../scrapers/myChart/softwareAuthenticator';
 
-const PASSKEY_DIR = path.join(__dirname, '..', '.passkey-credentials');
+// Stored relative to the user's current working directory so credentials
+// live in the user's project, not inside node_modules (which gets nuked
+// on reinstall). Override with `MYCHART_PASSKEY_DIR=/abs/path` if needed.
+const PASSKEY_DIR = process.env.MYCHART_PASSKEY_DIR
+  ? path.resolve(process.env.MYCHART_PASSKEY_DIR)
+  : path.join(process.cwd(), '.passkey-credentials');
 
 function getCredentialPath(hostname: string): string {
   return path.join(PASSKEY_DIR, `${hostname}.json`);

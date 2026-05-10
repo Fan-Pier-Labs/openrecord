@@ -292,7 +292,7 @@ async function test() {
 
 }
 
-if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+if (import.meta.main) {
 
   test()
 

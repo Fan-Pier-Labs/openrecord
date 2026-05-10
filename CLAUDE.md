@@ -11,7 +11,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Architecture
 
 - **Scrapers** (`scrapers/`): Shared scraper code for MyChart
-- **CLI** (`cli/cli.ts`): Headless CLI entry point. Great for Claude code to use for testing changes in the cli or scrapers.
+- **CLI** (`npm-package/cli/cli.ts`): Headless CLI entry point — also bundled into the published `mychart-cli` npm package as `node_modules/.bin/mychart-cli`. Great for Claude code to use for testing changes in the cli or scrapers.
 - **Shared types** (`shared/`): Common types and enums shared across packages
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
@@ -217,6 +217,85 @@ You maintain persistent memory in markdown files at `claude-memory/` in the repo
 - Keep MEMORY.md concise — use separate files for detailed notes
 - Organize by topic, not chronologically
 
+## iOS Simulator Debugging & UI Automation
+
+Use **`maestro-cli`** (already installed at `~/.local/bin/maestro-cli`) for every interaction with the iOS simulator. It's a one-shot wrapper around Maestro (mobile.dev) designed for agent loops — each invocation does one action and writes a screenshot to `/tmp/maestro-last.png` so the next step can read it.
+
+**Hard rules (no exceptions):**
+- **NEVER take over the user's mouse.** Do not use `cliclick`, `osascript ... click at`, AppleScript mouse events, AppKit/CGEvent, or any other tool that moves the cursor or steals focus. The user may be using their computer.
+- **NEVER click on the simulator by computing pixel coordinates against the simulator window position.** It's brittle, focus-races with whatever the user is doing, and breaks on every window move or sim resize. Use `maestro-cli` instead — it talks to the simulator through iOS's native automation hooks, not the macOS cursor.
+- **Do not install a separate Maestro.** The brew `maestro` cask is a different product (runmaestro.ai). The mobile.dev Maestro CLI is what `maestro-cli` wraps and it's already on PATH.
+
+### Starting a sim session (do this exactly once per Claude session)
+
+Every Claude session that touches the simulator must own a fresh, dedicated sim — never share one with another running Claude. The recipe:
+
+```bash
+# 1. Create a new simulator. simctl assigns a UDID and prints it.
+UDID=$(xcrun simctl create "claude-$(date +%Y%m%d)-$(openssl rand -hex 3)" \
+  "iPhone 17" \
+  "com.apple.CoreSimulator.SimRuntime.iOS-26-1")
+
+# 2. Boot it and surface the Simulator.app window so the user can watch.
+xcrun simctl boot "$UDID"
+open -a Simulator
+
+# 3. Pin the UDID for the rest of the session. The Bash tool's shell state
+#    persists across tool calls, so this one export is enough — every later
+#    maestro-cli invocation picks it up automatically.
+export MAESTRO_UDID="$UDID"
+
+# 4. Build + install + launch the Expo app on this exact sim.
+cd expo-app && bunx expo run:ios --device "$UDID" --port 8083 &
+```
+
+Notes:
+- The UDID is CoreSimulator-assigned, not Claude-generated. Capture it from `simctl create`'s stdout.
+- Naming pattern `claude-<date>-<random>` makes orphaned sims easy to spot and bulk-delete: `xcrun simctl delete $(xcrun simctl list devices | grep -E 'claude-[0-9]{8}-' | grep -oE '[A-F0-9-]{36}')`.
+- Use a port other than 8081 if other Claude instances are running their own Metro on the default port. Pick deterministically (8082, 8083, …) and pass `--port` to `expo run:ios`.
+- At end of session: `xcrun simctl shutdown "$MAESTRO_UDID" && xcrun simctl delete "$MAESTRO_UDID"`. Leave it running only if the user explicitly wants to keep it.
+
+**Common commands** (full reference: `maestro-cli --help`):
+
+```
+maestro-cli tap "Get Started"         # tap by visible text or regex
+maestro-cli tap-id run-skill-button   # tap by testID — preferred when set
+maestro-cli type "homer"              # type into focused field
+maestro-cli fill "Username" "homer"   # tap a field by label, then type
+maestro-cli press Enter               # hardware/keyboard key
+maestro-cli scroll down               # screen scroll
+maestro-cli wait "Run a skill"        # block until text appears
+maestro-cli assert-visible "Insights" # fail if missing
+maestro-cli screenshot [path]         # /tmp/maestro-last.png by default
+maestro-cli hierarchy                 # dump a11y tree (great for finding testIDs)
+maestro-cli launch / stop             # relaunch / terminate app
+maestro-cli reset-keychain            # wipe sim keychain (forgets logins/setup_complete)
+```
+
+Env vars:
+- `MAESTRO_APP_ID` — bundle id (default `com.fanpierlabs.openrecord`).
+- `MAESTRO_UDID` — **REQUIRED.** iOS simulator UDID. `maestro-cli` will exit non-zero immediately if this is unset. There's no fallback, on purpose — multiple Claude sessions run in parallel and a default would let one agent silently drive another agent's sim.
+
+Find UDIDs with `xcrun simctl list devices booted`. Then either:
+
+```
+export MAESTRO_UDID=4C4A3949-7F06-4335-BFE4-DBBB8B183DFD  # session-wide
+maestro-cli tap "Get Started"
+```
+
+or pass per-command:
+
+```
+MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
+```
+
+**Every interactive element in the Expo app MUST have a testID so `maestro-cli tap-id` works deterministically.**
+
+- React Native: set `testID` AND `accessibilityLabel` on every `Pressable`, `Button`, `TextInput`, `Switch`, and tappable `View`. `testID` is the primary handle for Maestro; `accessibilityLabel` is what VoiceOver reads (also a fallback for `maestro-cli tap` by text).
+- Use a stable, kebab- or snake-case `testID` that describes what the element does, not where it sits. Examples: `get-started-button`, `onboarding-continue`, `skill-bill_itemization`, `chat-input`, `send-message`.
+- For lists of items (chats, insights, skills), include the row id in the `testID` (e.g. `chat-row-${chatId}`) so flows can target a specific row.
+- When you add a new screen or button as part of a feature, add the `testID` in the same diff. PRs that introduce new untargetable UI should be rejected at review.
+
 ## Rules
 
 - **NEVER modify or delete anything from the macOS Keychain or the browser keychain.** Read-only access is OK.
@@ -242,3 +321,36 @@ You maintain persistent memory in markdown files at `claude-memory/` in the repo
     -f body="PR body"
   ```
 - To create a PR, use `gh pr create` as normal. If a PR already exists for the branch, update it with the API method above.
+
+### Maestro UI automation (one-step pattern)
+
+When driving the iOS simulator (or any device) with Maestro, **do NOT write multi-step YAML files** that try to script the entire flow up front. Each rerun replays every prior step from the beginning, which is slow, error-prone, and bad at recovering when the UI is in an unexpected state.
+
+**Use `maestro-cli` (one-shot wrapper).** A small bash wrapper at `~/.local/bin/maestro-cli` does one Maestro action per call, so each step is a single shell command — no YAML file to write or read. After every action it auto-saves a screenshot to `/tmp/maestro-last.png` so the next prompt can read the result with the `Read` tool.
+
+```bash
+maestro-cli tap "Get Started"                       # tap by visible text / accessibilityLabel
+maestro-cli tap-id "google-continue"                # tap by accessibilityIdentifier (RN testID), regex
+maestro-cli tap-id ".*Springfield.*"                # regex match on testID
+maestro-cli tap-xy 200 480                          # tap at pixel coordinates
+maestro-cli fill "Username" "homer"                 # tap a field then type
+maestro-cli type "homer"                            # type into focused field
+maestro-cli hide-keyboard                           # dismiss soft keyboard
+maestro-cli press Enter                             # press a hardware/keyboard key
+maestro-cli back                                    # system back / swipe-back
+maestro-cli swipe-up   |  maestro-cli swipe-down    # gestures
+maestro-cli wait "Welcome"                          # extendedWaitUntil (default 10s)
+maestro-cli assert-visible "Find your provider"
+maestro-cli launch  |  maestro-cli stop             # relaunch / kill the app
+maestro-cli screenshot [/path/out.png]              # explicit screenshot
+maestro-cli hierarchy                               # dump accessibility tree (find testIDs)
+maestro-cli reset-keychain                          # wipe sim keychain (forgets all logins)
+```
+
+After each command the screenshot lives at `/tmp/maestro-last.png`. Read it with the `Read` tool to evaluate the new state, then decide the next action.
+
+Env knobs: `MAESTRO_APP_ID` (default `com.fanpierlabs.openrecord`), `MAESTRO_UDID` (default the dev sim), `MAESTRO_QUIET=1` (silence Maestro output), `MAESTRO_NO_SCREENSHOT=1` (skip auto-screenshot), `MAESTRO_SCREENSHOT=/path` (override path).
+
+**Add `testID` props to interactive elements.** All `Pressable`, `Button`, and `TextInput` components in onboarding/settings/chat should carry a stable `testID` so Maestro can target them by ID even when the visible text changes. Use kebab-case names (`google-continue`, `mychart-signin`, `picker-item-${name}`). Maestro's `tap-id` selector is a regex over `accessibilityIdentifier` (which is what RN's `testID` maps to on iOS), so values containing regex metacharacters (parens, brackets) need either escaping or a wildcard match (`.*Springfield.*`).
+
+The simulator UDID for this machine is currently `3276F6D9-0713-48EC-91A0-E34FBB27F0C8` (iOS 26.4).

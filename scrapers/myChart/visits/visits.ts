@@ -65,7 +65,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
 
 
 
-if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+if (import.meta.main) {
   (async () => {
     const mychartRequest = await login_TEST('mychart.example.org')
     await pastVisits(mychartRequest, new Date('2025-01-01T00:30:50.183Z'))

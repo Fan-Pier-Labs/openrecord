@@ -25,7 +25,7 @@ export function changeDirToPackageRoot(): void {
 }
 
 // For testing purposes, you can call the function if this file is run directly.
-if (require.main === module) {
+if (import.meta.main) {
   try {
     console.log('Current directory before change:', process.cwd());
     changeDirToPackageRoot();

@@ -22,7 +22,9 @@ import { MyChartRequest } from '../scrapers/myChart/myChartRequest';
 import { dte2date } from '../scrapers/myChart/bills/utils';
 import { getMyChartAccounts } from '../read-local-passwords/index';
 import { PasswordStoreEntryWithKey } from '../read-local-passwords/types';
-import { get2FaCodeFromResend } from './resend/resend';
+// `./resend/resend` pulls in the Resend SDK + AWS Secrets Manager. Loaded
+// lazily inside the 2FA flow only when `--resend-2fa` is set, so the
+// bundled CLI doesn't need those deps installed unless that path is used.
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../scrapers/myChart/messages/sendMessage';
 import { sendReply } from '../scrapers/myChart/messages/sendReply';
 import { getVitals } from '../scrapers/myChart/vitals';
@@ -59,7 +61,7 @@ import { isBlockedInstance } from '../scrapers/myChart/blockedInstances';
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
 // ─── Cookie cache helpers ───
-const COOKIE_CACHE_DIR = path.join(__dirname, '..', '.cookie-cache');
+const COOKIE_CACHE_DIR = path.join(process.cwd(), '.cookie-cache');
 
 async function tryLoadCachedSession(hostname: string): Promise<MyChartRequest | null> {
   const cachePath = path.join(COOKIE_CACHE_DIR, `${hostname}.json`);
@@ -93,7 +95,17 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action send-message  (send a new message)
 //   npx tsx src/cli.ts --host <hostname> --action send-reply --conversation-id <id> --message <msg>
 
-function parseArgs(): { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean; saveClo?: boolean } {
+interface CliArgs {
+  host?: string; user?: string; pass?: string; twofa?: string;
+  nocache?: boolean; readLoginFromBrowser?: boolean; action?: string;
+  conversationId?: string; message?: string; subject?: string;
+  setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
+  setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
+  deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
+  resend2fa?: boolean;
+}
+
+function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
   const parsed: Record<string, string | boolean> = {};
   for (let i = 0; i < args.length; i++) {
@@ -116,8 +128,9 @@ function parseArgs(): { host?: string; user?: string; pass?: string; twofa?: str
     else if (args[i] === '--delete-passkey') parsed.deletePasskey = true;
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
+    else if (args[i] === '--resend-2fa') parsed.resend2fa = true;
   }
-  return parsed as { host?: string; user?: string; pass?: string; twofa?: string; nocache?: boolean; readLoginFromBrowser?: boolean; action?: string; conversationId?: string; message?: string; subject?: string; setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean; setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean; deletePasskey?: boolean; local?: boolean; saveClo?: boolean };
+  return parsed as CliArgs;
 }
 
 const cliArgs = parseArgs();
@@ -349,25 +362,36 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     if (loginResult.state === 'need_2fa') {
       let twofaCodeArray: { code: string; score: number }[];
 
+      // Show where the code was sent (helpful for any path).
+      if (loginResult.twoFaDelivery) {
+        const { method, contact } = loginResult.twoFaDelivery;
+        if (method === 'sms') {
+          console.log(`  2FA code sent via text message${contact ? ` to ${contact}` : ''}`);
+        } else {
+          console.log(`  2FA code sent via email${contact ? ` to ${contact}` : ''}`);
+        }
+      }
+
       if (useTotpSecret) {
         // Generate TOTP code locally — no email, no waiting
         const totpCode = await generateTotpCode(useTotpSecret);
         console.log(`  Generated TOTP code: ${totpCode}`);
         twofaCodeArray = [{ code: totpCode, score: 1 }];
-      } else if (nonInteractive && cliArgs.twofa) {
+      } else if (cliArgs.twofa) {
         console.log('  Using 2FA code from --2fa arg');
         twofaCodeArray = [{ code: cliArgs.twofa, score: 1 }];
-      } else {
-        // Show where the code was sent
-        if (loginResult.twoFaDelivery) {
-          const { method, contact } = loginResult.twoFaDelivery;
-          if (method === 'sms') {
-            console.log(`  2FA code sent via text message${contact ? ` to ${contact}` : ''}`);
-          } else {
-            console.log(`  2FA code sent via email${contact ? ` to ${contact}` : ''}`);
-          }
-        }
+      } else if (cliArgs.resend2fa) {
+        // Opt-in: pull the code from a Resend-managed mailbox. Used by the
+        // FPL CI / fake-mychart loop. Requires `resend` and
+        // `@aws-sdk/client-secrets-manager` to be installed.
         console.log('  Waiting for 2FA code via Resend...');
+        let get2FaCodeFromResend: (since: number, host: string) => Promise<{ code: string; score: number }[]>;
+        try {
+          ({ get2FaCodeFromResend } = await import('./resend/resend'));
+        } catch (err) {
+          console.log(`  --resend-2fa requires resend + @aws-sdk/client-secrets-manager: ${(err as Error).message}`);
+          return null;
+        }
         const resendCodes = await get2FaCodeFromResend(Date.now(), creds.hostname);
         if (resendCodes.length === 0) {
           console.log('  No 2FA code found via Resend after 60s. Skipping this account.');
@@ -375,6 +399,14 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         }
         console.log(`  Found ${resendCodes.length} candidate code(s) via Resend (best: ${resendCodes[0].code}, score: ${resendCodes[0].score})`);
         twofaCodeArray = resendCodes;
+      } else {
+        // Default: prompt the user for the code from their phone / email.
+        const code = (await ask('  Enter 2FA code: ')).trim();
+        if (!code) {
+          console.log('  No 2FA code entered. Skipping this account.');
+          return null;
+        }
+        twofaCodeArray = [{ code, score: 1 }];
       }
 
       const twoFaResult = await complete2faFlow({
@@ -1523,7 +1555,7 @@ async function main() {
 
   // Handle get-imaging action
   if (cliArgs.action === 'get-imaging') {
-    const outputDir = path.join(__dirname, '..', 'imaging-output');
+    const outputDir = path.join(process.cwd(), 'imaging-output');
     await fs.promises.mkdir(outputDir, { recursive: true });
 
     for (const session of sessions) {

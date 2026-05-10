@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const TOTP_DIR = path.join(__dirname, '..', '.totp-secrets');
+// Stored relative to the user's current working directory so secrets
+// live in the user's project, not inside node_modules. Override with
+// `MYCHART_TOTP_DIR=/abs/path` if needed.
+const TOTP_DIR = process.env.MYCHART_TOTP_DIR
+  ? path.resolve(process.env.MYCHART_TOTP_DIR)
+  : path.join(process.cwd(), '.totp-secrets');
 
 function getSecretPath(hostname: string): string {
   return path.join(TOTP_DIR, `${hostname}.txt`);
