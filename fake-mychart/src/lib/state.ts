@@ -20,7 +20,14 @@ export type FakeUser = {
   username: string;
   password: string;
   displayName: string;
-  // When true, login always requires a 2FA code regardless of FAKE_MYCHART_REQUIRE_2FA.
+  // Whether the login flow itself demands the 2FA step. Seeded per user and
+  // never mutated by the TOTP toggle endpoint — that endpoint only flips the
+  // UI-visible totpEnabled flag, matching the prior fake-mychart behavior so
+  // the CLI's --set-up-totp / --disable-totp round-trip can keep using
+  // username+password without juggling a 2FA code.
+  requires2faAtLogin: boolean;
+  // What the settings UI and getTwoFactorInfo report. Mutable via the toggle
+  // endpoint. Independent of requires2faAtLogin.
   totpEnabled: boolean;
   passkeys: Passkey[];
 };
@@ -31,6 +38,7 @@ function seedUsers(): Record<string, FakeUser> {
       username: 'homer',
       password: 'donuts123',
       displayName: 'Homer Jay Simpson',
+      requires2faAtLogin: false,
       totpEnabled: false,
       passkeys: [],
     },
@@ -38,6 +46,7 @@ function seedUsers(): Record<string, FakeUser> {
       username: 'marge',
       password: 'donuts123',
       displayName: 'Marge Simpson',
+      requires2faAtLogin: true,
       totpEnabled: true,
       passkeys: [],
     },

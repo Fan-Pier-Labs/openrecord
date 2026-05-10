@@ -83,39 +83,40 @@ describe('fake-mychart marge user + /reset', () => {
     expect(body).toContain('<button')
   })
 
-  it('POST /reset returns ok and re-enables marge TOTP', async () => {
-    // Log in as marge to seed a session (and pick up its cookie)
-    const loginResp = await rawDoLogin('marge', 'donuts123')
-    expect(loginResp.body).toContain('secondaryvalidationcontroller')
-    const cookie = loginResp.cookie ?? ''
-    const sessionCookie = cookie.split(';')[0] // "MyChartSession=..."
+  it('POST /reset returns ok and restores homer TOTP toggle to off', async () => {
+    // Log in as homer to seed a session, then enable his TOTP via the toggle
+    // endpoint. The toggle only changes the UI flag, not the login flow, so
+    // homer can keep logging in with username+password.
+    const loginResp = await rawDoLogin('homer', 'donuts123')
+    expect(loginResp.body).toContain('md_home_index')
+    const sessionCookie = (loginResp.cookie ?? '').split(';')[0]
 
-    // Complete 2FA so the session is fully authenticated
-    await fetch(`${BASE}/MyChart/Authentication/SecondaryValidation/Validate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Cookie: sessionCookie,
-      },
-      body: 'TwoFactorCode=123456',
-    })
-
-    // Disable marge's TOTP so we can confirm reset puts it back
     await fetch(`${BASE}/MyChart/api/secondary-validation/UpdateTwoFactorTotpOptInStatus`, {
       method: 'POST',
       headers: { Cookie: sessionCookie },
     })
+    const totpInfoBefore = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
+      method: 'POST',
+      headers: { Cookie: sessionCookie },
+    }).then(r => r.json()) as { IsTotpEnabled: boolean }
+    expect(totpInfoBefore.IsTotpEnabled).toBe(true)
 
-    // With TOTP off, marge logs in directly
-    const beforeReset = await rawDoLogin('marge', 'donuts123')
-    expect(beforeReset.body).toContain('md_home_index')
-
-    // Reset and verify marge requires 2FA again
+    // Reset wipes sessions AND restores per-user TOTP back to seed values
     const resetResp = await fetch(`${BASE}/reset`, { method: 'POST' })
     expect(resetResp.status).toBe(200)
     expect(await resetResp.json()).toEqual({ ok: true })
 
-    const afterReset = await rawDoLogin('marge', 'donuts123')
-    expect(afterReset.body).toContain('secondaryvalidationcontroller')
+    // After reset, log in again and confirm homer's TOTP is back to disabled
+    const reloginResp = await rawDoLogin('homer', 'donuts123')
+    const reloginCookie = (reloginResp.cookie ?? '').split(';')[0]
+    const totpInfoAfter = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
+      method: 'POST',
+      headers: { Cookie: reloginCookie },
+    }).then(r => r.json()) as { IsTotpEnabled: boolean }
+    expect(totpInfoAfter.IsTotpEnabled).toBe(false)
+
+    // Marge is still always-2FA regardless of resets
+    const marge = await rawDoLogin('marge', 'donuts123')
+    expect(marge.body).toContain('secondaryvalidationcontroller')
   }, 30_000)
 })

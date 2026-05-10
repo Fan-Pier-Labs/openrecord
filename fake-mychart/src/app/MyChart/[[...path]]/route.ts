@@ -359,11 +359,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         return html(doLoginFailed());
       }
 
-      // 2FA is required when the user has TOTP enabled OR when the env-var
-      // override is set (used by integration tests to force the 2FA path
-      // regardless of which user logs in).
+      // 2FA is required when the user is seeded to require it (e.g. marge)
+      // or when the env-var override is set. Toggling totpEnabled at runtime
+      // does NOT change login behavior — the CLI's --set-up-totp /
+      // --disable-totp round-trip keeps working with username+password.
       const envRequire2fa = process.env.FAKE_MYCHART_REQUIRE_2FA === 'true';
-      const require2fa = validCreds.totpEnabled || envRequire2fa;
+      const require2fa = validCreds.requires2faAtLogin || envRequire2fa;
       if (require2fa) {
         // Create a session bound to the user so the subsequent /Validate call
         // knows whose TOTP profile to consult, but the front-end treats it

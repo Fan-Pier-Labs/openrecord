@@ -18,8 +18,8 @@ A standalone Next.js server that faithfully mimics Epic MyChart's web API surfac
 The 2FA code is always `123456`.
 
 - `homer` logs in directly.
-- `marge` exists for testing the 2FA path — TOTP is pre-enabled on her account, so login always returns the secondary-validation page until you submit the code.
-- Toggling TOTP via the settings UI (or the `UpdateTwoFactorTotpOptInStatus` endpoint) only affects the logged-in user. Use `POST /reset` to restore both users to their seed state.
+- `marge` exists for testing the 2FA path — her login always returns the secondary-validation page until you submit the code.
+- Toggling TOTP via the settings UI (or the `UpdateTwoFactorTotpOptInStatus` endpoint) only affects the per-user UI flag (`IsTotpEnabled` returned by `GetTwoFactorInfo`). It does NOT change whether login requires 2FA — that's a fixed per-user behavior (off for homer, on for marge). The CLI's `--set-up-totp` / `--disable-totp` flow can therefore keep using username+password without ever needing a 2FA code. Use `POST /reset` to restore both users to their seed state.
 
 Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password (treated as homer).
 Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) through the 2FA flow.
