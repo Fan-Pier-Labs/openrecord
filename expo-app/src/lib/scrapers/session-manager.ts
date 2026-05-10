@@ -64,7 +64,11 @@ import {
   updateMyChartAccount,
   type StoredMyChartAccount,
 } from "@/lib/storage/secure-store";
-import { deserializeCredential } from "../../../../scrapers/myChart/softwareAuthenticator";
+import {
+  deserializeCredential,
+  serializeCredential,
+} from "../../../../scrapers/myChart/softwareAuthenticator";
+import { setupPasskey } from "../../../../scrapers/myChart/setupPasskey";
 
 type SessionEntry = {
   account: StoredMyChartAccount;
@@ -223,6 +227,21 @@ export async function complete2fa(
   }
 
   return { state: result.state };
+}
+
+/**
+ * Register a passkey on an already-logged-in MyChart session and persist it.
+ * Returns true on success.
+ */
+export async function registerPasskey(accountId: string): Promise<boolean> {
+  const entry = sessions.get(accountId);
+  if (!entry || entry.status !== "logged_in") return false;
+  const credential = await setupPasskey(entry.request);
+  if (!credential) return false;
+  const serialized = serializeCredential(credential);
+  await updateMyChartAccount(accountId, { passkeyCredential: serialized });
+  entry.account = { ...entry.account, passkeyCredential: serialized };
+  return true;
 }
 
 /**

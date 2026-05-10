@@ -11,7 +11,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Architecture
 
 - **Scrapers** (`scrapers/`): Shared scraper code for MyChart
-- **CLI** (`cli/cli.ts`): Headless CLI entry point. Great for Claude code to use for testing changes in the cli or scrapers.
+- **CLI** (`npm-package/cli/cli.ts`): Headless CLI entry point — also bundled into the published `mychart-cli` npm package as `node_modules/.bin/mychart-cli`. Great for Claude code to use for testing changes in the cli or scrapers.
 - **Shared types** (`shared/`): Common types and enums shared across packages
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
@@ -242,3 +242,36 @@ You maintain persistent memory in markdown files at `claude-memory/` in the repo
     -f body="PR body"
   ```
 - To create a PR, use `gh pr create` as normal. If a PR already exists for the branch, update it with the API method above.
+
+### Maestro UI automation (one-step pattern)
+
+When driving the iOS simulator (or any device) with Maestro, **do NOT write multi-step YAML files** that try to script the entire flow up front. Each rerun replays every prior step from the beginning, which is slow, error-prone, and bad at recovering when the UI is in an unexpected state.
+
+**Use `maestro-cli` (one-shot wrapper).** A small bash wrapper at `~/.local/bin/maestro-cli` does one Maestro action per call, so each step is a single shell command — no YAML file to write or read. After every action it auto-saves a screenshot to `/tmp/maestro-last.png` so the next prompt can read the result with the `Read` tool.
+
+```bash
+maestro-cli tap "Get Started"                       # tap by visible text / accessibilityLabel
+maestro-cli tap-id "google-continue"                # tap by accessibilityIdentifier (RN testID), regex
+maestro-cli tap-id ".*Springfield.*"                # regex match on testID
+maestro-cli tap-xy 200 480                          # tap at pixel coordinates
+maestro-cli fill "Username" "homer"                 # tap a field then type
+maestro-cli type "homer"                            # type into focused field
+maestro-cli hide-keyboard                           # dismiss soft keyboard
+maestro-cli press Enter                             # press a hardware/keyboard key
+maestro-cli back                                    # system back / swipe-back
+maestro-cli swipe-up   |  maestro-cli swipe-down    # gestures
+maestro-cli wait "Welcome"                          # extendedWaitUntil (default 10s)
+maestro-cli assert-visible "Find your provider"
+maestro-cli launch  |  maestro-cli stop             # relaunch / kill the app
+maestro-cli screenshot [/path/out.png]              # explicit screenshot
+maestro-cli hierarchy                               # dump accessibility tree (find testIDs)
+maestro-cli reset-keychain                          # wipe sim keychain (forgets all logins)
+```
+
+After each command the screenshot lives at `/tmp/maestro-last.png`. Read it with the `Read` tool to evaluate the new state, then decide the next action.
+
+Env knobs: `MAESTRO_APP_ID` (default `com.fanpierlabs.openrecord`), `MAESTRO_UDID` (default the dev sim), `MAESTRO_QUIET=1` (silence Maestro output), `MAESTRO_NO_SCREENSHOT=1` (skip auto-screenshot), `MAESTRO_SCREENSHOT=/path` (override path).
+
+**Add `testID` props to interactive elements.** All `Pressable`, `Button`, and `TextInput` components in onboarding/settings/chat should carry a stable `testID` so Maestro can target them by ID even when the visible text changes. Use kebab-case names (`google-continue`, `mychart-signin`, `picker-item-${name}`). Maestro's `tap-id` selector is a regex over `accessibilityIdentifier` (which is what RN's `testID` maps to on iOS), so values containing regex metacharacters (parens, brackets) need either escaping or a wildcard match (`.*Springfield.*`).
+
+The simulator UDID for this machine is currently `3276F6D9-0713-48EC-91A0-E34FBB27F0C8` (iOS 26.4).

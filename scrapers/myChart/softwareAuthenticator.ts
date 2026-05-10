@@ -257,6 +257,10 @@ function buildAuthDataForGet(rpId: string, signCount: number): Buffer {
  *
  * MyChart uses standard base64 (btoa), not base64url.
  */
+function base64ToBase64Url(b64: string): string {
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 function buildClientDataJSON(
   type: 'webauthn.create' | 'webauthn.get',
   challenge: string, // base64 from server
@@ -264,7 +268,8 @@ function buildClientDataJSON(
 ): Buffer {
   // WebAuthn spec: challenge in clientDataJSON must be base64url-encoded.
   // The server sends it as standard base64, so convert: decode → re-encode as base64url.
-  const challengeBase64url = Buffer.from(challenge, 'base64').toString('base64url');
+  // (Avoid `.toString('base64url')` — Hermes' Buffer polyfill doesn't support it.)
+  const challengeBase64url = base64ToBase64Url(challenge);
   const clientData = {
     type,
     challenge: challengeBase64url,
@@ -366,8 +371,7 @@ export function createAssertion(
 
   // The browser's PublicKeyCredential.id is base64url-encoded,
   // while rawId is standard base64 (btoa of the ArrayBuffer bytes).
-  const credIdBuffer = base64ToBuffer(credential.credentialId);
-  const idBase64url = credIdBuffer.toString('base64url');
+  const idBase64url = base64ToBase64Url(credential.credentialId);
 
   return {
     id: idBase64url,
