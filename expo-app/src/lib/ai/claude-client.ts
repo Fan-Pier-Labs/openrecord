@@ -152,7 +152,7 @@ export type StreamCallbacks = {
 
 export type ToolExecutor = (toolName: string, input: Record<string, unknown>) => Promise<string>;
 
-const MAX_ITERATIONS = 8;
+const TOOL_LOOP_DEADLINE_MS = 10 * 60 * 1000;
 
 function tryExtractJson(raw: string): Record<string, unknown> | null {
   const trimmed = raw.trim();
@@ -351,7 +351,12 @@ export async function sendMessage(
   const pendingImageIds: string[] = [];
   let lastAnswer = "";
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  const deadline = Date.now() + TOOL_LOOP_DEADLINE_MS;
+  for (let i = 0; ; i++) {
+    if (Date.now() > deadline) {
+      callbacks.onError(new Error("AI tool-use loop exceeded 10 minute time limit."));
+      return;
+    }
     let content: string;
     try {
       content = await complete(conversation, system, model);
@@ -408,6 +413,4 @@ export async function sendMessage(
     callbacks.onDone(lastAnswer, toolCalls);
     return;
   }
-
-  callbacks.onError(new Error("AI exceeded tool-use iteration limit."));
 }
