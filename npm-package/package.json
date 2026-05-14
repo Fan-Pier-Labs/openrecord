@@ -34,7 +34,7 @@
     }
   },
   "bin": {
-    "mychart-connector": "./dist/cli.cjs"
+    "mychart-cli": "./dist/cli.cjs"
   },
   "sideEffects": false,
   "files": [
