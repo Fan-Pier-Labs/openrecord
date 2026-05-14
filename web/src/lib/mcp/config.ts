@@ -66,6 +66,18 @@ export async function getRdsPassword(): Promise<string> {
   return cachedDbPassword!;
 }
 
+/**
+ * Drop the cached DB password (and the cached connection-info bundle that
+ * lives alongside it). The next call to getRdsPassword / getDatabaseUrl
+ * will fetch a fresh value from Secrets Manager. Used by the db-pool
+ * auth-retry path when the RDS-managed password gets rotated out from
+ * under a long-running process.
+ */
+export function invalidateDbPasswordCache(): void {
+  cachedDbPassword = null;
+  cachedRdsConnectionInfo = null;
+}
+
 export async function getEncryptionKey(): Promise<string> {
   if (isEnvVarMode()) {
     if (!process.env.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY env var is required');

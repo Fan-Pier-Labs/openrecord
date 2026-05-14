@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
-import { Pool } from 'pg';
-import { getPoolOptions, getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth } from './mcp/config';
+import { getBetterAuthSecret, getGoogleOAuthCredentials, hasGoogleOAuth } from './mcp/config';
+import { getSharedPool, onPoolRecreated, isAuthError, resetPool } from './db-pool';
 import { nextCookies } from 'better-auth/next-js';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { magicLink } from 'better-auth/plugins/magic-link';
@@ -10,20 +10,22 @@ import { sendEmail } from './email';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let authInstance: any = null;
-let poolInstance: Pool | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let authPromise: Promise<any> | null = null;
 
-async function getPool(): Promise<Pool> {
-  if (poolInstance) return poolInstance;
-  const opts = await getPoolOptions();
-  poolInstance = new Pool(opts);
-  return poolInstance;
-}
+// Drop the cached auth instance so the next getAuth() call rebuilds it
+// against the freshly-rebuilt pool. The pool reference is baked into
+// BetterAuth's database adapter at construction time, so we have to
+// rebuild the whole thing — there's no public hook to swap the pool in
+// place.
+onPoolRecreated(() => {
+  authInstance = null;
+  authPromise = null;
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getAuth(): Promise<any> {
-  if (authInstance) return authInstance;
-
-  const pool = await getPool();
+async function buildAuth(): Promise<any> {
+  const pool = await getSharedPool();
   console.log('[Auth] Loading secrets...');
 
   const useGoogle = hasGoogleOAuth();
@@ -136,4 +138,47 @@ export async function getAuth(): Promise<any> {
   });
 
   return authInstance;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getAuth(): Promise<any> {
+  if (authInstance) return authInstance;
+  if (!authPromise) authPromise = buildAuth();
+  return authPromise;
+}
+
+/**
+ * Run a BetterAuth API call with auth-error retry. BetterAuth wraps the
+ * underlying pg error in its own APIError and surfaces it as
+ * INTERNAL_SERVER_ERROR / FAILED_TO_GET_SESSION, so we have to sniff
+ * both the wrapped error and any nested cause to detect an RDS
+ * rotation. On match we drop the cached auth + pool and retry once.
+ */
+export async function withAuthApiRetry<T>(fn: (auth: Awaited<ReturnType<typeof getAuth>>) => Promise<T>): Promise<T> {
+  try {
+    return await fn(await getAuth());
+  } catch (err) {
+    if (!isAuthErrorDeep(err)) throw err;
+    console.warn('[Auth] BetterAuth surfaced a DB auth error — refreshing and retrying');
+    await resetPool();
+    return await fn(await getAuth());
+  }
+}
+
+function isAuthErrorDeep(err: unknown): boolean {
+  if (isAuthError(err)) return true;
+  const e = err as { cause?: unknown; body?: { message?: string; code?: string } };
+  if (e?.cause && isAuthErrorDeep(e.cause)) return true;
+  if (e?.body) {
+    const msg = e.body.message ?? '';
+    const code = e.body.code ?? '';
+    if (code === 'FAILED_TO_GET_SESSION' && msg.toLowerCase().includes('session')) {
+      // BetterAuth's generic FAILED_TO_GET_SESSION mostly comes from a DB
+      // failure. Treat it as a possible auth error and let the single
+      // retry sort it out — if the retry also fails, the original error
+      // propagates unchanged.
+      return true;
+    }
+  }
+  return false;
 }

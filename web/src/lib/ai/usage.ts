@@ -5,8 +5,7 @@
  * The period resets on the 1st of each month.
  */
 
-import { Pool } from 'pg';
-import { getPoolOptions } from '../mcp/config';
+import { query } from '../db-pool';
 
 /** $50/month limit expressed in cents */
 const MONTHLY_LIMIT_CENTS = 50_00;
@@ -14,15 +13,6 @@ const MONTHLY_LIMIT_CENTS = 50_00;
 /** Gemini 2.5 Flash pricing per 1M tokens (thinking tokens are free) */
 const INPUT_COST_PER_MILLION = 0.15; // $0.15 per 1M input tokens
 const OUTPUT_COST_PER_MILLION = 0.60; // $0.60 per 1M output tokens (non-thinking)
-
-let pool: Pool | null = null;
-
-async function getPool(): Promise<Pool> {
-  if (pool) return pool;
-  const opts = await getPoolOptions();
-  pool = new Pool(opts);
-  return pool;
-}
 
 function currentPeriod(): string {
   const now = new Date();
@@ -46,10 +36,9 @@ export interface SpendInfo {
  * Get the user's current monthly spend. Resets if the period has rolled over.
  */
 export async function getUserSpend(userId: string): Promise<SpendInfo> {
-  const db = await getPool();
   const period = currentPeriod();
 
-  const result = await db.query(
+  const result = await query(
     `SELECT ai_spend_cents, ai_spend_period FROM "user" WHERE id = $1`,
     [userId],
   );
@@ -89,10 +78,9 @@ export async function checkSpendLimit(userId: string): Promise<SpendInfo> {
  * Use this when the provider has its own pricing (e.g. Anthropic).
  */
 export async function recordCostCents(userId: string, costCents: number): Promise<SpendInfo> {
-  const db = await getPool();
   const period = currentPeriod();
 
-  await db.query(
+  await query(
     `UPDATE "user"
      SET ai_spend_cents = CASE
            WHEN ai_spend_period = $2 THEN COALESCE(ai_spend_cents, 0) + $3

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Alert as RNAlert, Linking } from "react-native";
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert as RNAlert, Linking } from "react-native";
 import { getActiveAlerts, dismissAlert, type Alert } from "@/lib/storage/database";
 import { regenerateAlerts } from "@/lib/alerts/generator";
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
@@ -101,7 +101,7 @@ export function AlertsCard({ onDoAlert }: Props) {
       </Pressable>
 
       {expanded && (
-        <View style={styles.list}>
+        <ScrollView style={styles.list} nestedScrollEnabled>
           {alerts.map((a) => {
             const ctaLabel = a.uses_ai ? `${a.cta_label} with AI` : a.cta_label;
             const isBusy = busyId === a.id;
@@ -135,7 +135,7 @@ export function AlertsCard({ onDoAlert }: Props) {
               </View>
             );
           })}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
   list: {
     borderTopWidth: 1,
     borderTopColor: "#eee",
+    maxHeight: 360,
   },
   item: {
     paddingHorizontal: 14,

@@ -1,15 +1,5 @@
-import { Pool } from 'pg';
-import { getPoolOptions } from './mcp/config';
+import { query } from './db-pool';
 import { encrypt, decrypt } from './mcp/encryption';
-
-let pool: Pool | null = null;
-
-async function getPool(): Promise<Pool> {
-  if (pool) return pool;
-  const opts = await getPoolOptions();
-  pool = new Pool(opts);
-  return pool;
-}
 
 export interface MyChartInstance {
   id: string;
@@ -62,11 +52,10 @@ async function rowToInstance(row: Record<string, unknown>): Promise<MyChartInsta
 }
 
 export async function createMyChartInstance(userId: string, input: CreateMyChartInstanceInput): Promise<MyChartInstance> {
-  const db = await getPool();
   const encryptedPassword = await encrypt(input.password);
   const encryptedTotp = input.totpSecret ? await encrypt(input.totpSecret) : null;
 
-  const result = await db.query(
+  const result = await query(
     `INSERT INTO mychart_instances (user_id, hostname, username, encrypted_password, encrypted_totp_secret, mychart_email)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
@@ -77,8 +66,7 @@ export async function createMyChartInstance(userId: string, input: CreateMyChart
 }
 
 export async function getMyChartInstances(userId: string): Promise<MyChartInstance[]> {
-  const db = await getPool();
-  const result = await db.query(
+  const result = await query(
     'SELECT * FROM mychart_instances WHERE user_id = $1 ORDER BY created_at DESC',
     [userId]
   );
@@ -86,8 +74,7 @@ export async function getMyChartInstances(userId: string): Promise<MyChartInstan
 }
 
 export async function getMyChartInstance(id: string, userId: string): Promise<MyChartInstance | null> {
-  const db = await getPool();
-  const result = await db.query(
+  const result = await query(
     'SELECT * FROM mychart_instances WHERE id = $1 AND user_id = $2',
     [id, userId]
   );
@@ -96,8 +83,6 @@ export async function getMyChartInstance(id: string, userId: string): Promise<My
 }
 
 export async function updateMyChartInstance(id: string, userId: string, updates: UpdateMyChartInstanceInput): Promise<MyChartInstance | null> {
-  const db = await getPool();
-
   const setClauses: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
@@ -138,7 +123,7 @@ export async function updateMyChartInstance(id: string, userId: string, updates:
   setClauses.push(`updated_at = NOW()`);
   values.push(id, userId);
 
-  const result = await db.query(
+  const result = await query(
     `UPDATE mychart_instances SET ${setClauses.join(', ')} WHERE id = $${paramIndex++} AND user_id = $${paramIndex} RETURNING *`,
     values
   );
@@ -148,8 +133,7 @@ export async function updateMyChartInstance(id: string, userId: string, updates:
 }
 
 export async function deleteMyChartInstance(id: string, userId: string): Promise<boolean> {
-  const db = await getPool();
-  const result = await db.query(
+  const result = await query(
     'DELETE FROM mychart_instances WHERE id = $1 AND user_id = $2',
     [id, userId]
   );
@@ -164,8 +148,7 @@ export interface NotificationEnabledInstance extends MyChartInstance {
 }
 
 export async function getNotificationEnabledInstances(): Promise<NotificationEnabledInstance[]> {
-  const db = await getPool();
-  const result = await db.query(
+  const result = await query(
     `SELECT mi.*, u.email AS user_email, u.notifications_include_content
      FROM mychart_instances mi
      JOIN "user" u ON mi.user_id = u.id
@@ -186,8 +169,7 @@ export async function getNotificationEnabledInstances(): Promise<NotificationEna
 }
 
 export async function updateNotificationLastChecked(instanceId: string, userId: string): Promise<void> {
-  const db = await getPool();
-  await db.query(
+  await query(
     `UPDATE mychart_instances SET notifications_last_checked_at = NOW() WHERE id = $1 AND user_id = $2`,
     [instanceId, userId]
   );
@@ -199,8 +181,7 @@ export interface NotificationPreferences {
 }
 
 export async function getUserNotificationPreferences(userId: string): Promise<NotificationPreferences> {
-  const db = await getPool();
-  const result = await db.query(
+  const result = await query(
     `SELECT notifications_enabled, notifications_include_content FROM "user" WHERE id = $1`,
     [userId]
   );
@@ -218,8 +199,7 @@ export async function setUserNotificationPreferences(
   userId: string,
   prefs: NotificationPreferences
 ): Promise<void> {
-  const db = await getPool();
-  await db.query(
+  await query(
     `UPDATE "user" SET notifications_enabled = $1, notifications_include_content = $2 WHERE id = $3`,
     [prefs.enabled, prefs.includeContent, userId]
   );

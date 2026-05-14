@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server';
-import { getAuth } from './auth';
+import { withAuthApiRetry } from './auth';
+
+interface SessionShape {
+  user?: { id: string; name: string; email: string };
+}
 
 export async function requireAuth(request: NextRequest): Promise<{ id: string; name: string; email: string }> {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await withAuthApiRetry<SessionShape | null>((auth) =>
+    auth.api.getSession({ headers: request.headers })
+  );
   if (!session?.user) {
     throw new AuthError('Unauthorized', 401);
   }

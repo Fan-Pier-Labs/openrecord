@@ -6,12 +6,18 @@ const mockQuery = mock(() => Promise.resolve({ rows: [], rowCount: 0 }));
 mock.module('pg', () => ({
   Pool: class MockPool {
     query = mockQuery;
+    // db-pool wires an error handler on the pool; tests only need a no-op.
+    on() {}
+    end() {
+      return Promise.resolve();
+    }
   },
 }));
 
-// Mock config
+// Mock config (db-pool imports invalidateDbPasswordCache too)
 mock.module('../config', () => ({
   getPoolOptions: () => Promise.resolve({ connectionString: 'postgresql://localhost/test', ssl: false }),
+  invalidateDbPasswordCache: () => {},
 }));
 
 // Import after mocks
