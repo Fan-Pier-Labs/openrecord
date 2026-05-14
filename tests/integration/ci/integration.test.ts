@@ -1255,11 +1255,13 @@ describe('hostname:username disambiguation', () => {
         password: 'donuts123',
       }),
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     const body = await res.json();
+    // Capture the id first so the Cleanup section can still delete the row
+    // even if a later assertion in this describe block fails.
+    margeInstanceId = body.id;
     expect(body.hostname).toBe(FAKE_MYCHART_HOSTNAME);
     expect(body.username).toBe('marge');
-    margeInstanceId = body.id;
     expect(margeInstanceId).toBeTruthy();
   });
 
