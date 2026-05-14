@@ -12,21 +12,19 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Update open PRs authored by ryanhugh
+      - name: Update open non-draft PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUTHOR: ryanhugh
         run: |
           set -euo pipefail
           prs=$(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
             --state open \
             --base main \
-            --author "$AUTHOR" \
-            --json number,headRefName,mergeable,mergeStateStatus \
+            --json number,headRefName,isDraft,mergeStateStatus \
             --limit 100)
 
-          echo "$prs" | jq -r '.[] | "\(.number)\t\(.headRefName)\t\(.mergeStateStatus)"' | while IFS=$'\t' read -r num branch state; do
+          echo "$prs" | jq -r '.[] | select(.isDraft | not) | "\(.number)\t\(.headRefName)\t\(.mergeStateStatus)"' | while IFS=$'\t' read -r num branch state; do
             if [ "$state" = "BEHIND" ] || [ "$state" = "BLOCKED" ]; then
               echo "Updating PR #$num ($branch, state=$state)"
               if ! gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$num/update-branch" >/dev/null 2>&1; then
