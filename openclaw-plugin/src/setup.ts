@@ -467,8 +467,8 @@ async function resetCommand(hostname?: string, opts?: { all?: boolean }): Promis
 // ── Register CLI ─────────────────────────────────────────────────────────────
 
 export function registerCliCommands(api: OpenClawApi) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!api.registerCli) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.registerCli((ctx: { program: any; config: any; logger: any }) => {
     const openrecord = ctx.program.command('openrecord')
       .description('OpenRecord health data plugin');

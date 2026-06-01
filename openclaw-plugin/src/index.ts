@@ -648,13 +648,15 @@ export default function register(api: any) {
 
   // ── Service (keepalive lifecycle) ──────────────────────────────────────────
 
-  if (api.registerService) { api.registerService({
-    id: 'mychart-keepalive',
-    start: () => { api.logger.info('MyChart keepalive service started'); },
-    stop: () => {
-      clearAllSessions();
-      clearActiveAccount();
-      api.logger.info('MyChart keepalive service stopped');
-    },
-  });
+  if (api.registerService) {
+    api.registerService({
+      id: 'mychart-keepalive',
+      start: () => { api.logger.info('MyChart keepalive service started'); },
+      stop: () => {
+        clearAllSessions();
+        clearActiveAccount();
+        api.logger.info('MyChart keepalive service stopped');
+      },
+    });
+  }
 }
