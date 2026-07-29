@@ -412,18 +412,19 @@ export default function LoginPage() {
 
     setNewsletterStatus("loading");
     try {
-      // Self-hosted newsletter sink: AWS Lambda (behind API Gateway) that logs
-      // each signup to CloudWatch. Replaces Formspree (quota-limited).
+      // Centralized Fan Pier Labs forms endpoint (fanpierlabs-projects-email-submission):
+      // emails the submission to the team and logs it to CloudWatch. Shared across
+      // projects; override with NEXT_PUBLIC_NEWSLETTER_ENDPOINT.
       const endpoint =
         process.env.NEXT_PUBLIC_NEWSLETTER_ENDPOINT ||
-        "https://a4443h7zdd.execute-api.us-east-2.amazonaws.com";
+        "https://ns8remz3t7.execute-api.us-east-2.amazonaws.com";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({ name: newsletterName, email: newsletterEmail, company: newsletterCompany })
+        body: JSON.stringify({ site: "openrecord", name: newsletterName, email: newsletterEmail, company: newsletterCompany })
       });
 
       if (res.ok) {
