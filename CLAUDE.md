@@ -74,13 +74,20 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
 - **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
 
-### AWS Fargate (primary)
+### Static splash page (primary public site)
+
+- **`openrecord.fanpierlabs.com` serves a static splash page**, NOT the Next.js app. See `openrecord-splash/`.
+  - Single self-contained `index.html` (no build step) on S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh`.
+  - Presentational only — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+
+### AWS Fargate (Next.js web app)
 
 - **AWS account**: fanpierlabs (`aws --profile fanpierlabs`)
 - **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy` (from repo root, uses `web/deploy.yaml`)
   - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
   - Config: `web/deploy.yaml`
-  - Domain: `openrecord.fanpierlabs.com` (CloudFront + ALB + Route53). Old domain `mychart.fanpierlabs.com` redirects via next.config.ts.
+  - **No longer routed at `openrecord.fanpierlabs.com`** (that domain now serves the static splash above). The Fargate app + ALB (`mychart-alb-7967620`) and CloudFront distro `E2QOJCUV1KR3B0` still exist; `mychart.fanpierlabs.com` still points to them. Re-point a domain at that distro if you need the full app (incl. `/api/mcp`) publicly reachable again.
   - Region: `us-east-2`
 - **Fake MyChart** (`fake-mychart/`): Separate Fargate app deployed independently from the web app. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile` (not the repo-root web app Dockerfile):
   - `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml`
@@ -101,6 +108,8 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`)
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
   - Served via `GET /api/mychart-logo?name=<filename>`
+- **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
+  - Static splash page (`index.html`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
