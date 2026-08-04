@@ -74,12 +74,41 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
 - **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
 
-### Static splash page (primary public site)
+### Static splash page + interactive demo (primary public site)
 
-- **`openrecord.fanpierlabs.com` serves a static splash page**, NOT the Next.js app. See `openrecord-splash/`.
-  - Single self-contained `index.html` (no build step) on S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
-  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh`.
-  - Presentational only — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+- **`openrecord.fanpierlabs.com` serves a static site**, NOT the Next.js app. See `openrecord-splash/`.
+  - No build step: `index.html` is self-contained; the demo is plain ES modules. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` (uploads `index.html`, `demo.html`, and `demo/*`, setting content types explicitly — a `.js` served as `binary/octet-stream` is refused by the ES-module loader).
+  - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
+
+### Interactive demo (`openrecord-splash/demo/`)
+
+A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
+
+- `demo/data.js` — the fictional record, ported from `web/src/lib/mcp/demo-data.ts` and extended with multi-draw lab trends and a longer billing ledger.
+- `demo/tools.js` — all 46 MyChart tools over that record. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
+- `demo/agent.js` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
+- `demo/scripted.js` — offline fallback. Runs the *same real tool calls* and renders the *same real data*; only the prose is pre-written. Keyword rules must spell plurals out (`medications?`) — a bare stem with no `\b` matches inside longer words.
+- `demo/skills.js` — the three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards.
+- `demo/ios.js` / `demo/desktop.js` — the two device surfaces. Both stay mounted so switching tabs preserves each one's conversation.
+- `demo/ui.js` — shared rendering, including the strict markdown renderer and the procedurally drawn radiograph (generated, not a real image, and labelled as simulated).
+- `demo/config.js` — `AI_ENDPOINT`. Empty means scripted-only. Override at runtime with `?ai=<url>`.
+
+**Security:** model output is untrusted. `demo/ui.js` escapes every HTML-significant character before applying a fixed markdown whitelist, and `el()` throws if handed raw HTML. There is no raw-HTML path anywhere in the demo — don't add one.
+
+Run locally with `cd openrecord-splash && python3 -m http.server 8080`, then open `/demo.html` (ES modules need a real origin; `file://` won't work).
+
+### Demo AI Lambda (`openrecord-demo-lambda/`)
+
+Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and returns `{ text }` — the same provider-neutral shape as the web app's `/api/ai`, so the demo's agent loop is a straight port rather than a special case.
+
+- Model: **`gemini-2.5-flash-lite` with `thinkingBudget: 0`** — the cheapest and fastest tier. Override with `DEMO_MODEL=... ./deploy.sh`.
+- Reuses the existing `GEMINI_API_KEY` secret, read at deploy time and set as a function env var (so the Lambda needs no Secrets Manager permissions and no AWS SDK).
+- Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
+- Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
+- Usage/cost: `fields @timestamp, @message | filter @message like /demo_ai_call/ | sort @timestamp desc` on `/aws/lambda/openrecord-demo-ai`.
+- **Any proxy failure degrades the demo to the scripted engine rather than surfacing an error**, and the header badge says which engine answered.
 
 ### AWS Fargate (Next.js web app)
 
@@ -109,7 +138,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
   - Served via `GET /api/mychart-logo?name=<filename>`
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
-  - Static splash page (`index.html`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
+  - Static splash page (`index.html`), interactive demo (`demo.html` + `demo/`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
@@ -124,6 +153,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
   - Sentry auth token for error monitoring and source map uploads
 - **GEMINI_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:GEMINI_API_KEY-GPbdf6`
   - Google Gemini API key for the AI proxy. Can also be set via `GEMINI_API_KEY` env var in env-var mode.
+  - Also used by the public demo's `openrecord-demo-ai` Lambda, which copies it into a function env var at deploy time.
 - **EXPO_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:EXPO_TOKEN-XYwf9T`
   - Expo access token for EAS CLI builds and TestFlight submissions. Used with `EXPO_TOKEN` env var.
 - **APPLE_CREDENTIALS**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:APPLE_CREDENTIALS-GZhHoo`

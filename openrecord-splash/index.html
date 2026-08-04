@@ -105,6 +105,24 @@
     h1.hero-title .swap { display: inline-block; vertical-align: middle; color: var(--slate-300); margin: 0 4px; }
     .hero-sub { font-size: clamp(1.1rem, 1.5vw, 1.25rem); font-weight: 300; color: #5a5a6a; max-width: 540px; margin-bottom: 40px; }
 
+    /* ---- Demo CTA ---- */
+    .btn-demo {
+      display: inline-flex; align-items: center; gap: 14px; width: 100%; max-width: 520px;
+      padding: 14px 20px; margin-bottom: 32px; border-radius: 16px;
+      background: var(--slate-900); color: #fff; border: 1px solid #1e293b;
+      box-shadow: 0 14px 30px rgba(15,23,42,0.16); transition: transform .25s, box-shadow .25s;
+    }
+    .btn-demo:hover { transform: translateY(-2px); box-shadow: 0 22px 42px rgba(15,23,42,0.24); }
+    .btn-demo-icon {
+      width: 36px; height: 36px; flex-shrink: 0; border-radius: 9999px;
+      background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center;
+    }
+    .btn-demo-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .btn-demo-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .btn-demo-sub { font-size: 12px; font-weight: 300; color: rgba(255,255,255,0.6); }
+    .btn-demo-arrow { margin-left: auto; flex-shrink: 0; transition: transform .2s; }
+    .btn-demo:hover .btn-demo-arrow { transform: translateX(4px); }
+
     /* ---- Waitlist ---- */
     .waitlist { width: 100%; max-width: 520px; }
     .waitlist p.lead { font-size: 14px; color: var(--slate-500); font-weight: 300; margin-bottom: 12px; }
@@ -195,6 +213,51 @@
     .section-head h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 500; letter-spacing: -0.02em; color: var(--slate-900); margin-bottom: 16px; }
     .section-head p { font-size: 18px; color: var(--slate-500); font-weight: 300; }
 
+    /* ---- Demo band ---- */
+    .demo-band { padding-top: 40px; padding-bottom: 40px; }
+    .demo-band-inner {
+      display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.7); border-radius: 2rem; padding: 48px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.05);
+    }
+    @media (min-width: 900px) { .demo-band-inner { grid-template-columns: 1.15fr 1fr; gap: 56px; } }
+    .demo-band-copy h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 500; letter-spacing: -0.02em; color: var(--slate-900); margin: 20px 0 16px; }
+    .demo-band-copy > p { font-size: 17px; color: var(--slate-500); font-weight: 300; }
+    .demo-band-list { list-style: none; margin: 24px 0 32px; display: flex; flex-direction: column; gap: 10px; }
+    .demo-band-list li { position: relative; padding-left: 26px; font-size: 15px; color: var(--slate-600); font-weight: 300; }
+    .demo-band-list li::before {
+      content: ''; position: absolute; left: 6px; top: 9px; width: 6px; height: 6px;
+      border-radius: 9999px; background: var(--emerald-500);
+    }
+    .demo-band-cta { font-size: 15px; padding: 14px 32px; }
+
+    .demo-band-visual { position: relative; min-height: 300px; max-width: 440px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: center; }
+    .demo-mini { background: #fff; border: 1px solid var(--slate-200); box-shadow: 0 14px 36px rgba(15,23,42,0.10); overflow: hidden; }
+    .demo-mini.phone {
+      width: 148px; height: 250px; border-radius: 22px; z-index: 2;
+      transform: translateX(-46px) rotate(-5deg);
+    }
+    .demo-mini.desktop {
+      width: 250px; height: 176px; border-radius: 12px; position: absolute;
+      right: 0; bottom: 18px; z-index: 1; transform: rotate(3deg);
+    }
+    .demo-mini-bar { height: 26px; border-bottom: 1px solid var(--slate-100); display: flex; align-items: center; gap: 5px; padding: 0 10px; background: var(--slate-50); }
+    .demo-mini-bar .dotline { height: 4px; width: 40px; border-radius: 9999px; background: var(--slate-200); }
+    .demo-mini-bar .dotline.short { width: 18px; }
+    .demo-mini-bar .lights { width: 26px; height: 6px; border-radius: 9999px; background: linear-gradient(90deg, #ff5f57 0 30%, #febc2e 35% 65%, #28c840 70% 100%); }
+    .demo-mini-body { padding: 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+    .demo-mini-msg { height: 22px; border-radius: 9px; background: var(--slate-100); width: 72%; }
+    .demo-mini-msg.wide { width: 92%; height: 32px; }
+    .demo-mini-msg.user { width: 58%; align-self: flex-end; background: #e2e8f0; }
+    .demo-mini-tool {
+      font-family: ui-monospace, monospace; font-size: 9px; color: var(--slate-500);
+      padding: 5px 8px; border-radius: 7px; background: var(--slate-50); border: 1px solid var(--slate-200);
+      align-self: flex-start;
+    }
+    /* The phone overlaps the desktop card's left edge, so push its content clear. */
+    .demo-mini.desktop .demo-mini-body { align-items: flex-end; padding-left: 78px; }
+
     /* ---- Feature bento ---- */
     .bento { display: grid; grid-template-columns: 1fr; gap: 24px; }
     @media (min-width: 900px) { .bento { grid-template-columns: repeat(3, 1fr); } }
@@ -248,7 +311,7 @@
 
     /* ---- Timeline ---- */
     .timeline { padding: 128px 0; background: rgba(248,250,252,0.3); border-top: 1px solid rgba(226,232,240,0.4); border-bottom: 1px solid rgba(226,232,240,0.4); position: relative; overflow: hidden; }
-    .timeline .badge-qs { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 9999px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.7); backdrop-filter: blur(8px); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--slate-500); }
+    .badge-qs { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 9999px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.7); backdrop-filter: blur(8px); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--slate-500); }
     .steps { max-width: 1000px; margin: 64px auto 0; padding: 0 24px; display: flex; flex-direction: column; gap: 40px; }
     .step { background: #fff; border-radius: 16px; padding: 32px; border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 2px 8px rgba(0,0,0,0.03), 0 12px 24px rgba(0,0,0,0.02);
       opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
@@ -264,6 +327,9 @@
     .cta p { font-size: 18px; color: var(--slate-500); font-weight: 300; max-width: 640px; margin: 0 auto 40px; }
     .btn-cta { display: inline-flex; align-items: center; gap: 8px; padding: 16px 40px; font-size: 16px; font-weight: 500; color: #fff; background: var(--slate-900); border: 1px solid #1e293b; border-radius: 9999px; cursor: pointer; transition: all .3s; box-shadow: 0 10px 20px rgba(15,23,42,0.12); }
     .btn-cta:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 16px 30px rgba(15,23,42,0.2); }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .btn-cta.secondary { background: #fff; color: var(--slate-700); border-color: var(--slate-200); box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+    .btn-cta.secondary:hover { background: var(--slate-50); box-shadow: 0 12px 24px rgba(15,23,42,0.08); }
 
     /* ---- Footer ---- */
     footer { background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); border-top: 1px solid var(--slate-200); padding: 64px 24px 32px; }
@@ -292,6 +358,7 @@
     <div class="nav-shell">
       <a href="#" class="brand">OpenRecord</a>
       <nav class="nav-links">
+        <a href="./demo.html">Demo</a>
         <a href="#features">Features</a>
         <a href="#privacy">Privacy</a>
         <a href="#setup">Setup</a>
@@ -301,7 +368,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.05 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.74 0 3.92-2.34 4.78-4.57 5.04.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.59.69.48A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
           GitHub
         </a>
-        <button class="btn-dark" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">Get Notified</button>
+        <a class="btn-dark" href="./demo.html">Try the demo</a>
       </div>
     </div>
   </header>
@@ -328,6 +395,18 @@
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
         </span>MyChart.</h1>
         <p class="hero-sub">Manage your health data with Claude AI. Connect your MyChart portal to Claude (or other AI assistants). Manage your health records, send messages, book appointments, request refills, and more—all with AI.</p>
+
+        <!-- Demo CTA — the primary action; the waitlist is the fallback for people who want the real thing. -->
+        <a class="btn-demo" href="./demo.html">
+          <span class="btn-demo-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          </span>
+          <span class="btn-demo-text">
+            <span class="btn-demo-title">Try the interactive demo</span>
+            <span class="btn-demo-sub">iOS app &amp; Claude Desktop · fictional patient · no signup</span>
+          </span>
+          <svg class="btn-demo-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
 
         <!-- Waitlist -->
         <div class="waitlist" id="waitlist">
@@ -411,6 +490,49 @@
     <section class="marquee-section">
       <div class="marquee-mask">
         <div class="marquee-track" id="marquee"></div>
+      </div>
+    </section>
+
+    <!-- Demo -->
+    <section id="demo" class="section demo-band">
+      <div class="demo-band-inner">
+        <div class="demo-band-copy">
+          <span class="badge-qs">Interactive demo</span>
+          <h2>See it work before you install anything</h2>
+          <p>
+            A complete OpenRecord session running in your browser, against a fictional patient. Walk the
+            onboarding, ask the assistant real questions, watch every MyChart tool call as it fires, and
+            switch between the iOS app and the Claude Desktop extension mid-conversation.
+          </p>
+          <ul class="demo-band-list">
+            <li>Both clients, one shared session — a refill on the phone shows up in Claude Desktop</li>
+            <li>All 46 tools are live: labs, imaging, billing, messaging, scheduling, refills</li>
+            <li>Nothing to sign up for, and not one byte of real health data involved</li>
+          </ul>
+          <a class="btn-cta demo-band-cta" href="./demo.html">
+            Launch the demo
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+        <div class="demo-band-visual" aria-hidden="true">
+          <div class="demo-mini phone">
+            <div class="demo-mini-bar"><span class="dotline"></span><span class="dotline short"></span></div>
+            <div class="demo-mini-body">
+              <span class="demo-mini-msg user"></span>
+              <span class="demo-mini-tool">get_lab_results()</span>
+              <span class="demo-mini-msg"></span>
+              <span class="demo-mini-msg wide"></span>
+            </div>
+          </div>
+          <div class="demo-mini desktop">
+            <div class="demo-mini-bar"><span class="lights"></span></div>
+            <div class="demo-mini-body">
+              <span class="demo-mini-tool">get_billing()</span>
+              <span class="demo-mini-msg wide"></span>
+              <span class="demo-mini-msg"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -575,11 +697,16 @@
     <!-- CTA -->
     <section class="cta">
       <h2>Ready to explore your health data?</h2>
-      <p>Get up and running in minutes. Connect your MyChart portal and start using Claude to manage your health records.</p>
-      <button class="btn-cta" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">
-        Get notified
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </button>
+      <p>Try it on a fictional patient right now, or leave your email and we'll tell you when you can point it at your own records.</p>
+      <div class="cta-row">
+        <a class="btn-cta" href="./demo.html">
+          Try the demo
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <button class="btn-cta secondary" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">
+          Get notified
+        </button>
+      </div>
     </section>
 
     <!-- Footer -->
