@@ -6,7 +6,9 @@
  * which tools to pull, in what order, and what to do with the answers.
  */
 
-export const SKILLS = [
+import type { Alert, BillingCharge, Session, Skill } from './types';
+
+export const SKILLS: Skill[] = [
   {
     id: 'bill_itemization',
     title: 'Find bills to itemize',
@@ -79,7 +81,7 @@ export const SKILLS = [
   },
 ];
 
-export function getSkillById(id) {
+export function getSkillById(id: string): Skill | undefined {
   return SKILLS.find((s) => s.id === id);
 }
 
@@ -91,8 +93,8 @@ export function getSkillById(id) {
  * so the list reacts to what you do — pay attention to `resolvedWhen`, which
  * hides a card once the session state makes it moot.
  */
-export function buildAlerts(session, billingData) {
-  const alerts = [];
+export function buildAlerts(session: Session, billingData: BillingCharge[]): Alert[] {
+  const alerts: Alert[] = [];
 
   for (const bill of billingData) {
     if (bill.status !== 'Outstanding' && bill.status !== 'Payment Plan') continue;
@@ -126,7 +128,7 @@ export function buildAlerts(session, billingData) {
       // Once a refill goes through, the card has done its job. Compare against
       // the snapshot, not lastFilled — the demo pins "today" to a fixed date,
       // so refilling twice in a session leaves lastFilled unchanged.
-      resolvedWhen: (s) => {
+      resolvedWhen: (s: Session) => {
         const current = s.medications.find((m) => m.name === med.name);
         return !current || current.refillsRemaining < refillsAtBuild;
       },

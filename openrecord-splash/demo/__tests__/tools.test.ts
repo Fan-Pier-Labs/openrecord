@@ -8,10 +8,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { createSession, executeTool, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../tools.js';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import * as data from '../data.js';
+import { createSession, executeTool, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
+import * as data from '../src/data';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Session = any;
@@ -58,7 +56,7 @@ describe('tool catalogue', () => {
   });
 
   test('getToolSpec resolves by name', () => {
-    expect(getToolSpec('get_profile').group).toBe('Record');
+    expect(getToolSpec('get_profile')!.group).toBe('Record');
     expect(getToolSpec('nope')).toBeUndefined();
   });
 

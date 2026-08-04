@@ -8,13 +8,23 @@
  * turn. That protocol is what lets the real app point at any chat model — and
  * it's why the demo can run on the cheapest, fastest model available.
  *
- * Tool calls execute against the local fake record in `tools.js`. Nothing about
+ * Tool calls execute against the local fake record in `tools.ts`. Nothing about
  * the fictional patient is ever sent anywhere; only the conversation text and
  * the tool results the model asked for go to the proxy.
  */
 
-import { TOOL_SPECS, executeTool, isWriteTool, toolLatencyMs } from './tools.js';
-import { scriptedTurn } from './scripted.js';
+import { TOOL_SPECS, executeTool, isWriteTool, toolLatencyMs } from './tools';
+import { scriptedTurn } from './scripted';
+import type {
+  ChatMessage,
+  CompleteFn,
+  ParsedToolCall,
+  Session,
+  Surface,
+  ToolRecord,
+  TurnCallbacks,
+  TurnResult,
+} from './types';
 
 const RESPOND_TOOL = 'respond';
 const MAX_TURNS = 8;
@@ -29,12 +39,12 @@ const MAX_CONSECUTIVE_PARSE_FAILURES = 3;
  * the ones that parse as a tool call. Prose, malformed JSON, and JSON without a
  * `tool` field are ignored rather than failing the whole turn.
  */
-export function extractToolCalls(raw) {
+export function extractToolCalls(raw: string | null | undefined): ParsedToolCall[] {
   if (!raw) return [];
 
   const stripped = String(raw).replace(/```(?:json)?\s*/gi, '').replace(/```/g, '');
 
-  const calls = [];
+  const calls: ParsedToolCall[] = [];
   let depth = 0;
   let start = -1;
   let inString = false;
@@ -72,29 +82,67 @@ export function extractToolCalls(raw) {
   return calls;
 }
 
-function tryParseToolCall(span) {
-  let parsed;
+function tryParseToolCall(span: string): ParsedToolCall | null {
+  let parsed: unknown;
   try {
     parsed = JSON.parse(span);
   } catch {
     return null;
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  if (typeof parsed.tool !== 'string') return null;
-  const args = parsed.args && typeof parsed.args === 'object' && !Array.isArray(parsed.args) ? parsed.args : {};
-  return { tool: parsed.tool, args };
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.tool !== 'string') return null;
+  const args =
+    obj.args && typeof obj.args === 'object' && !Array.isArray(obj.args)
+      ? (obj.args as Record<string, unknown>)
+      : {};
+  return { tool: obj.tool, args };
 }
 
 /** `respond` and every write tool must be called alone, with no siblings. */
-export function isExclusiveTool(name) {
+export function isExclusiveTool(name: string): boolean {
   return name === RESPOND_TOOL || isWriteTool(name);
+}
+
+/**
+ * When a model answers in prose instead of calling `respond`, that prose is
+ * usually a perfectly good answer — but it often opens by apologising for the
+ * format, which is addressed to the protocol, not to the patient. Strip those
+ * leading lines so the user sees the answer rather than the machinery.
+ *
+ * Only leading, self-contained apologies about *format* are removed; an
+ * apology in the middle of a reply, or one about the patient's actual
+ * situation, is left alone.
+ */
+export function stripProtocolChatter(text: string): string {
+  const APOLOGY =
+    /^\s*(i (?:apologi[sz]e|'m sorry|am sorry)|sorry|my apologies)\b[^.!?\n]*(again|error|mistake|careful|format|instruction|tool call|json|request)[^.!?\n]*[.!?]?\s*/i;
+  const FOLLOW_UP = /^\s*(i will|i'll) be more careful[^.!?\n]*[.!?]?\s*/i;
+
+  let out = text;
+  for (let i = 0; i < 3; i++) {
+    const next = out.replace(APOLOGY, '').replace(FOLLOW_UP, '');
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim() || text.trim();
 }
 
 /* ------------------------------------------------------------------ *
  * System prompt
  * ------------------------------------------------------------------ */
 
-export function buildSystemPrompt({ memoryDigest = null, skillAddition = null, surface = 'ios' } = {}) {
+export type SystemPromptOptions = {
+  memoryDigest?: string | null;
+  skillAddition?: string | null;
+  surface?: Surface;
+};
+
+export function buildSystemPrompt({
+  memoryDigest = null,
+  skillAddition = null,
+  surface = 'ios',
+}: SystemPromptOptions = {}): string {
   const toolList = TOOL_SPECS.filter((t) => t.group !== 'Account')
     .map((t) => `- ${t.name}(${Object.keys(t.args).join(', ')}) — ${t.description}`)
     .join('\n');
@@ -185,12 +233,23 @@ export function buildSystemPrompt({ memoryDigest = null, skillAddition = null, s
  * Model transport
  * ------------------------------------------------------------------ */
 
+/** Raised when the demo proxy answers with anything other than a clean 200. */
+export class ProxyError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ProxyError';
+    this.status = status;
+  }
+}
+
 /**
  * Calls the OpenRecord demo proxy (see `openrecord-demo-lambda/`), which fronts
  * the cheapest, fastest model available and rate-limits by IP. Anything other
  * than a clean 200 raises, and the caller falls back to the scripted engine.
  */
-export function createProxyCompleter(endpoint) {
+export function createProxyCompleter(endpoint: string): CompleteFn {
   return async (messages, system, signal) => {
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -201,15 +260,14 @@ export function createProxyCompleter(endpoint) {
     if (!res.ok) {
       let detail = '';
       try {
-        detail = (await res.json()).error ?? '';
+        const body = (await res.json()) as { error?: string };
+        detail = body.error ?? '';
       } catch {
         /* body wasn't JSON — the status alone is enough */
       }
-      const err = new Error(detail || `Demo AI proxy returned ${res.status}`);
-      err.status = res.status;
-      throw err;
+      throw new ProxyError(detail || `Demo AI proxy returned ${res.status}`, res.status);
     }
-    const body = await res.json();
+    const body = (await res.json()) as { text?: string };
     return String(body.text ?? '');
   };
 }
@@ -218,23 +276,29 @@ export function createProxyCompleter(endpoint) {
  * Agent loop
  * ------------------------------------------------------------------ */
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * Run one user turn to completion.
- *
- * @param {object}   opts
- * @param {object}   opts.session    mutable record from tools.createSession()
- * @param {Array}    opts.history    prior [{role, content}] turns
- * @param {string}   opts.userText   what the user just said
- * @param {Function} opts.complete   (messages, system, signal) => Promise<string>, or null for scripted
- * @param {object}   opts.callbacks  { onToolStart, onToolEnd, onDone, onError, onFallback }
- * @param {string?}  opts.skillAddition
- * @param {string?}  opts.memoryDigest
- * @param {string}   opts.surface    'ios' | 'desktop'
- *
- * @returns {Promise<{text: string, toolCalls: Array, usedFallback: boolean}>}
- */
+export type RunTurnOptions = {
+  /** Mutable record from `createSession()`. */
+  session: Session;
+  /** Prior turns in this conversation. */
+  history?: ChatMessage[];
+  /** What the user just said. */
+  userText: string;
+  /** Model transport, or null to run entirely on the scripted engine. */
+  complete: CompleteFn | null;
+  callbacks?: TurnCallbacks;
+  /** Active skill playbook, appended to the system prompt. */
+  skillAddition?: string | null;
+  memoryDigest?: string | null;
+  surface?: Surface;
+  signal?: AbortSignal;
+};
+
+/** Runs a batch of parsed calls against the local record, in parallel. */
+export type BatchRunner = (calls: ParsedToolCall[]) => Promise<ToolRecord[]>;
+
+/** Run one user turn to completion. */
 export async function runTurn({
   session,
   history = [],
@@ -245,49 +309,58 @@ export async function runTurn({
   memoryDigest = null,
   surface = 'ios',
   signal,
-}) {
+}: RunTurnOptions): Promise<TurnResult> {
   const onToolStart = callbacks.onToolStart ?? (() => {});
   const onToolEnd = callbacks.onToolEnd ?? (() => {});
   const onFallback = callbacks.onFallback ?? (() => {});
 
-  const executed = [];
+  const executed: ToolRecord[] = [];
 
-  /** Run a batch of parsed calls against the local record, in parallel. */
-  async function runBatch(calls) {
-    const results = await Promise.all(
+  const runBatch: BatchRunner = async (calls) => {
+    return Promise.all(
       calls.map(async (call) => {
         onToolStart(call);
         const started = Date.now();
         await sleep(toolLatencyMs(call.tool));
         const result = executeTool(session, call.tool, call.args);
-        const record = { tool: call.tool, args: call.args, result, ms: Date.now() - started };
+        const record: ToolRecord = { tool: call.tool, args: call.args, result, ms: Date.now() - started };
         executed.push(record);
         onToolEnd(record);
         return record;
-      })
+      }),
     );
-    return results;
-  }
+  };
 
   if (!complete) {
-    const scripted = await scriptedTurn({ session, userText, history, runBatch, skillAddition });
+    const scripted = await scriptedTurn({ userText, runBatch, skillAddition });
     return { text: scripted, toolCalls: executed, usedFallback: true };
   }
 
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
-  const messages = [...history, { role: 'user', content: userText }];
+  const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
   let parseFailures = 0;
+  /**
+   * The best un-parseable prose we've seen this turn.
+   *
+   * A model that answers in prose instead of calling `respond` has usually
+   * written a perfectly good answer. Re-prompting it for the JSON wrapper often
+   * yields something *shorter and worse* ("I can help with that — what would
+   * you like to know?"), so keep the fullest attempt rather than whichever one
+   * happened to come last.
+   */
+  let bestProse = '';
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
-    let raw;
+    let raw: string;
     try {
       raw = await complete(messages, system, signal);
     } catch (err) {
-      if (err.name === 'AbortError') throw err;
+      const error = err as Error;
+      if (error.name === 'AbortError') throw error;
       // The proxy is down, over quota, or rate-limiting this visitor. Rather
       // than showing an error, finish the turn on the scripted engine.
-      onFallback(err);
-      const scripted = await scriptedTurn({ session, userText, history, runBatch, skillAddition });
+      onFallback(error);
+      const scripted = await scriptedTurn({ userText, runBatch, skillAddition });
       return { text: scripted, toolCalls: executed, usedFallback: true };
     }
 
@@ -295,12 +368,14 @@ export async function runTurn({
 
     if (calls.length === 0) {
       parseFailures++;
+      const prose = stripProtocolChatter(String(raw));
+      if (prose.length > bestProse.length) bestProse = prose;
+
       if (parseFailures >= MAX_CONSECUTIVE_PARSE_FAILURES) {
-        // The model kept answering in prose. That prose is usually a perfectly
-        // good answer, so surface it instead of erroring out.
-        const prose = String(raw).trim();
+        // The model kept answering in prose. Surface its best attempt rather
+        // than erroring out.
         return {
-          text: prose || "I couldn't put that together — try rephrasing?",
+          text: bestProse || "I couldn't put that together — try rephrasing?",
           toolCalls: executed,
           usedFallback: false,
         };
@@ -309,7 +384,7 @@ export async function runTurn({
       messages.push({
         role: 'user',
         content:
-          'That turn contained no valid tool call. Reply with ONLY JSON objects of the form {"tool": "...", "args": {...}}. To answer the user, emit {"tool": "respond", "args": {"text": "..."}}.',
+          'Reminder: every turn must be JSON. To answer the user, wrap your reply: {"tool": "respond", "args": {"text": "<your reply>"}}. Send only that object — no apology, no preamble.',
       });
       continue;
     }
@@ -351,8 +426,12 @@ export async function runTurn({
     });
   }
 
+  // Out of turns. If the model wrote a real answer somewhere along the way and
+  // simply never wrapped it in `respond`, that beats a housekeeping message.
   return {
-    text: "That took more steps than I have room for. Try asking for one thing at a time — the demo caps each question at a handful of tool calls.",
+    text:
+      bestProse ||
+      'That took more steps than I have room for. Try asking for one thing at a time — the demo caps each question at a handful of tool calls.',
     toolCalls: executed,
     usedFallback: false,
   };

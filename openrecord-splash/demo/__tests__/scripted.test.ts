@@ -8,14 +8,10 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { scriptedTurn } from '../scripted.js';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { createSession, executeTool, TOOL_NAMES } from '../tools.js';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { SKILLS, buildAlerts } from '../skills.js';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import * as data from '../data.js';
+import { scriptedTurn } from '../src/scripted';
+import { createSession, executeTool, TOOL_NAMES } from '../src/tools';
+import { SKILLS, buildAlerts } from '../src/skills';
+import * as data from '../src/data';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -33,7 +29,7 @@ function makeRunner(session: Any) {
 
 async function ask(userText: string, skillAddition: string | null = null, session = createSession()) {
   const { runBatch, called } = makeRunner(session);
-  const text = await scriptedTurn({ session, userText, history: [], runBatch, skillAddition });
+  const text = await scriptedTurn({ userText, runBatch, skillAddition });
   return { text, called, session };
 }
 
@@ -110,7 +106,8 @@ describe('the numbers come from the tools, not the prose', () => {
 
   test('a booked slot disappears from the open list', async () => {
     const session = createSession();
-    const slot = executeTool(session, 'get_available_appointments', {})[0].slots[0];
+    const offers = executeTool(session, 'get_available_appointments', {}) as Any[];
+    const slot = offers[0].slots[0];
     executeTool(session, 'book_appointment', { slot_id: slot.slotId });
 
     const { text } = await ask('when is my next appointment?', null, session);
@@ -120,7 +117,7 @@ describe('the numbers come from the tools, not the prose', () => {
 
 describe('skill playbooks', () => {
   test('bill itemization skips bills already asked about', async () => {
-    const skill = SKILLS.find((s: Any) => s.id === 'bill_itemization');
+    const skill = SKILLS.find((s) => s.id === 'bill_itemization')!;
     const { text, called } = await ask(skill.kickoffMessage, skill.playbook);
 
     expect(called).toEqual(['get_billing', 'get_messages', 'get_message_recipients']);
@@ -133,7 +130,7 @@ describe('skill playbooks', () => {
   });
 
   test('history analysis surfaces repeat out-of-range values with their trend', async () => {
-    const skill = SKILLS.find((s: Any) => s.id === 'analyze_history');
+    const skill = SKILLS.find((s) => s.id === 'analyze_history')!;
     const { text, called } = await ask(skill.kickoffMessage, skill.playbook);
 
     expect(called).toContain('get_lab_results');
@@ -145,7 +142,7 @@ describe('skill playbooks', () => {
   });
 
   test('insurance fit estimates from real spend and refuses to name a plan', async () => {
-    const skill = SKILLS.find((s: Any) => s.id === 'recommend_insurance');
+    const skill = SKILLS.find((s) => s.id === 'recommend_insurance')!;
     const { text, called } = await ask(skill.kickoffMessage, skill.playbook);
 
     expect(called).toContain('get_billing');
@@ -155,7 +152,7 @@ describe('skill playbooks', () => {
   });
 
   test('an active skill overrides keyword matching', async () => {
-    const skill = SKILLS.find((s: Any) => s.id === 'analyze_history');
+    const skill = SKILLS.find((s) => s.id === 'analyze_history')!;
     // The text would otherwise route to the billing rule.
     const { called } = await ask('what do I owe?', skill.playbook);
     expect(called).toContain('get_lab_results');
@@ -178,7 +175,7 @@ describe('buildAlerts', () => {
   test('flags outstanding bills and low-refill medications', () => {
     const session = createSession();
     const alerts = buildAlerts(session, data.billing);
-    const ids = alerts.map((a: Any) => a.id);
+    const ids = alerts.map((a) => a.id);
 
     expect(ids.some((id: string) => id.startsWith('bill:'))).toBe(true);
     expect(ids).toContain('refill:Metformin 500mg');
@@ -189,7 +186,7 @@ describe('buildAlerts', () => {
 
   test('the out-of-refills card offers a message, not a refill request', () => {
     const alerts = buildAlerts(createSession(), data.billing);
-    const metformin = alerts.find((a: Any) => a.id === 'refill:Metformin 500mg');
+    const metformin = alerts.find((a) => a.id === 'refill:Metformin 500mg')!;
     expect(metformin.ctaLabel).toBe('Message provider');
     expect(metformin.prompt).toContain('new prescription');
   });
@@ -200,12 +197,12 @@ describe('buildAlerts', () => {
     // to 1 first — that's the state where the card actually appears.
     executeTool(session, 'request_refill', { medication_name: 'Lisinopril' });
 
-    const lisinopril = buildAlerts(session, data.billing).find((a: Any) => a.id === 'refill:Lisinopril 20mg');
+    const lisinopril = buildAlerts(session, data.billing).find((a) => a.id === 'refill:Lisinopril 20mg')!;
     expect(lisinopril).toBeTruthy();
-    expect(lisinopril.resolvedWhen(session)).toBe(false);
+    expect(lisinopril.resolvedWhen!(session)).toBe(false);
 
     executeTool(session, 'request_refill', { medication_name: 'Lisinopril' });
-    expect(lisinopril.resolvedWhen(session)).toBe(true);
+    expect(lisinopril.resolvedWhen!(session)).toBe(true);
   });
 
   test('every alert carries a prompt the chat can actually run', () => {

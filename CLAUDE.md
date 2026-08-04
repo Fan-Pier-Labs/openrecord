@@ -77,8 +77,8 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 ### Static splash page + interactive demo (primary public site)
 
 - **`openrecord.fanpierlabs.com` serves a static site**, NOT the Next.js app. See `openrecord-splash/`.
-  - No build step: `index.html` is self-contained; the demo is plain ES modules. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
-  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` (uploads `index.html`, `demo.html`, and `demo/*`, setting content types explicitly — a `.js` served as `binary/octet-stream` is refused by the ES-module loader).
+  - Two halves on purpose: `index.html` is a hand-written self-contained splash with no build step, and `demo/` is a React + TypeScript app built with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` — it typechecks, builds the demo into `dist/`, then uploads `index.html`, `demo.html`, and the hashed assets, setting content types explicitly (a `.js` served as `binary/octet-stream` is refused by the browser's module loader). Hashed assets get a one-year immutable cache; only the HTML is invalidated.
   - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
   - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
 
@@ -86,18 +86,29 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 
 A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
 
-- `demo/data.js` — the fictional record, ported from `web/src/lib/mcp/demo-data.ts` and extended with multi-draw lab trends and a longer billing ledger.
-- `demo/tools.js` — all 46 MyChart tools over that record. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
-- `demo/agent.js` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
-- `demo/scripted.js` — offline fallback. Runs the *same real tool calls* and renders the *same real data*; only the prose is pre-written. Keyword rules must spell plurals out (`medications?`) — a bare stem with no `\b` matches inside longer words.
-- `demo/skills.js` — the three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards.
-- `demo/ios.js` / `demo/desktop.js` — the two device surfaces. Both stay mounted so switching tabs preserves each one's conversation.
-- `demo/ui.js` — shared rendering, including the strict markdown renderer and the procedurally drawn radiograph (generated, not a real image, and labelled as simulated).
-- `demo/config.js` — `AI_ENDPOINT`. Empty means scripted-only. Override at runtime with `?ai=<url>`.
+**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored).
 
-**Security:** model output is untrusted. `demo/ui.js` escapes every HTML-significant character before applying a fixed markdown whitelist, and `el()` throws if handed raw HTML. There is no raw-HTML path anywhere in the demo — don't add one.
+Logic modules — framework-free and fully unit-tested:
 
-Run locally with `cd openrecord-splash && python3 -m http.server 8080`, then open `/demo.html` (ES modules need a real origin; `file://` won't work).
+- `src/data.ts` — the fictional record, ported from `web/src/lib/mcp/demo-data.ts` and extended with multi-draw lab trends and a longer billing ledger. Payload shapes elsewhere are derived from it with `typeof` so they can't drift.
+- `src/types.ts` — shared types for the record, tool layer, and agent loop.
+- `src/tools.ts` — all 46 MyChart tools. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
+- `src/agent.ts` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
+- `src/scripted.ts` — offline fallback. Runs the *same real tool calls* and renders the *same real data*; only the prose is pre-written. Keyword rules must spell plurals out (`medications?`) — a bare stem with no `\b` matches inside longer words.
+- `src/skills.ts` — the three skill playbooks plus the home-screen alert cards.
+- `src/markdown.ts` — parses assistant replies into a typed tree. Produces no HTML.
+
+Components:
+
+- `src/App.tsx` — shell: owns the session, surface switching, the shared tool-call activity panel. Both surfaces stay mounted (toggled with `hidden`) so switching clients preserves each conversation.
+- `src/components/IosSurface.tsx`, `DesktopSurface.tsx` — the two device surfaces.
+- `src/components/Markdown.tsx` — renders the parsed tree as React elements.
+- `src/components/Radiograph.tsx` — the chest X-ray, drawn procedurally on a canvas rather than shipped as a file, and labelled as simulated.
+- `src/config.ts` — `AI_ENDPOINT`. Empty means scripted-only. Override at runtime with `?ai=<url>`.
+
+**Security:** model output is untrusted. `markdown.ts` parses it into a typed tree and `Markdown.tsx` renders that tree as React elements, so React escapes every text node. **There is no `dangerouslySetInnerHTML` in the demo and there must never be one** — see the project rule above. Tests assert that markup in model output stays text.
+
+Local dev: `cd openrecord-splash/demo && npx vite` (serves `/demo.html` with hot reload).
 
 ### Demo AI Lambda (`openrecord-demo-lambda/`)
 

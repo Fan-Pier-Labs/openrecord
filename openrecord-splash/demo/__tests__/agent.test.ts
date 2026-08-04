@@ -8,10 +8,15 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { extractToolCalls, isExclusiveTool, buildSystemPrompt, runTurn, createProxyCompleter } from '../agent.js';
-// @ts-expect-error — plain ES modules, no type declarations by design
-import { createSession } from '../tools.js';
+import {
+  buildSystemPrompt,
+  createProxyCompleter,
+  extractToolCalls,
+  isExclusiveTool,
+  runTurn,
+  stripProtocolChatter,
+} from '../src/agent';
+import { createSession } from '../src/tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -52,7 +57,7 @@ describe('extractToolCalls', () => {
 
   test('handles nested objects in args', () => {
     const calls = extractToolCalls('{"tool":"send_message","args":{"meta":{"a":{"b":1}},"subject":"hi"}}');
-    expect(calls[0].args.meta.a.b).toBe(1);
+    expect((calls[0].args.meta as { a: { b: number } }).a.b).toBe(1);
   });
 
   test('braces inside strings do not confuse the scanner', () => {
@@ -100,6 +105,39 @@ describe('isExclusiveTool', () => {
     for (const name of ['get_profile', 'get_lab_results', 'get_billing']) {
       expect(isExclusiveTool(name)).toBe(false);
     }
+  });
+});
+
+describe('stripProtocolChatter', () => {
+  test('drops a leading apology about the output format', () => {
+    expect(stripProtocolChatter('I apologize for the error. Your A1c is 7.2%.')).toBe('Your A1c is 7.2%.');
+    expect(stripProtocolChatter('Sorry, I used the wrong format. Here are your meds.')).toBe('Here are your meds.');
+  });
+
+  test('drops the follow-up promise that usually trails it', () => {
+    const raw = 'I apologize again for the error. I will be more careful.\n\nHere is your summary.';
+    expect(stripProtocolChatter(raw)).toBe('Here is your summary.');
+  });
+
+  test('keeps an apology that is about the patient, not the protocol', () => {
+    const raw = "I'm sorry to hear you have been feeling unwell. Your last visit was on 2026-01-10.";
+    expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+
+  test('keeps an apology that is not at the start', () => {
+    const raw = 'Your A1c is 7.2%. I apologize for the earlier error in that number.';
+    expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+
+  test('never strips a reply down to nothing', () => {
+    // If the apology *is* the whole message, showing it beats showing a blank.
+    const raw = 'I apologize for the error.';
+    expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+
+  test('leaves ordinary replies untouched', () => {
+    const raw = '## Medications\n\n**Atorvastatin 40mg** — 3 refills left';
+    expect(stripProtocolChatter(raw)).toBe(raw);
   });
 });
 
@@ -233,6 +271,34 @@ describe('runTurn', () => {
     expect(result.usedFallback).toBe(false);
   });
 
+  test('the fullest prose attempt wins, not the last one', async () => {
+    // Re-prompting a model that answered in prose often yields something much
+    // shorter and less useful. Keeping the best attempt is the whole point.
+    const model = scriptedModel([
+      'Your A1c is 7.2%, up from 6.8% in July and 6.4% in December 2024.',
+      'I can help with that. What would you like to know?',
+      'Sure.',
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).toContain('7.2%');
+    expect(result.text).not.toContain('What would you like to know');
+  });
+
+  test('running out of turns surfaces real prose over the housekeeping message', async () => {
+    // Reads forever, but slipped a real answer in on the second turn.
+    let n = 0;
+    const complete = async () => {
+      n += 1;
+      if (n === 2) return 'Your cholesterol panel shows LDL 172, which is above the target of 130.';
+      return '{"tool":"get_profile","args":{}}';
+    };
+    const result = await runTurn({ ...base(), complete });
+
+    expect(result.text).toContain('LDL 172');
+    expect(result.text).not.toContain('more steps than I have room for');
+  });
+
   test('a model that recovers after one prose turn is not penalised', async () => {
     const model = scriptedModel(['I will look that up.', respond('Four medications.')]);
     const result = await runTurn({ ...base(), complete: model.complete });
@@ -316,9 +382,8 @@ describe('fallback to the scripted engine', () => {
   });
 
   test('an active skill routes the scripted engine to that playbook', async () => {
-    // @ts-expect-error — plain ES modules, no type declarations by design
-    const { SKILLS } = await import('../skills.js');
-    const billSkill = SKILLS.find((s: Any) => s.id === 'bill_itemization');
+        const { SKILLS } = await import('../src/skills');
+    const billSkill = SKILLS.find((s) => s.id === 'bill_itemization')!;
     const result = await runTurn({
       session: createSession(),
       userText: billSkill.kickoffMessage,

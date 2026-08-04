@@ -9,6 +9,18 @@
  * Everything here is invented. Homer Simpson is not a patient.
  */
 
+import type {
+  AppointmentOffer,
+  BillingCharge,
+  Conversation,
+  EmergencyContact,
+  Insight,
+  LabPanel,
+  Medication,
+  SeedChat,
+  Visit,
+} from './types';
+
 export const DEMO_HOSTNAME = 'mychart.springfieldmed.example.org';
 export const DEMO_USERNAME = 'homersimpson742';
 export const DEMO_ORG = 'Springfield General Hospital';
@@ -35,7 +47,7 @@ export const healthSummary = {
   lastUpdated: '2026-02-20',
 };
 
-export const medications = [
+export const medications: Medication[] = [
   {
     name: 'Atorvastatin 40mg',
     directions: 'Take 1 tablet by mouth daily at bedtime',
@@ -84,7 +96,7 @@ export const healthIssues = [
   { condition: 'Crayon lodged in brain (frontal lobe, since childhood)', status: 'Resolved', onsetDate: '1972-05-09', provider: 'Dr. Nick Riviera' },
 ];
 
-export const upcomingVisits = [
+export const upcomingVisits: Visit[] = [
   {
     type: 'Office Visit',
     provider: 'Dr. Julius Hibbert',
@@ -149,7 +161,7 @@ export const pastVisits = [
  * Lab history spans four draws so trends are visible — the "analyze history"
  * skill leans on the repeat out-of-range values rather than a single result.
  */
-export const labResults = [
+export const labResults: LabPanel[] = [
   {
     testName: 'Comprehensive Metabolic Panel',
     orderedBy: 'Dr. Julius Hibbert',
@@ -259,7 +271,7 @@ export const labResults = [
   },
 ];
 
-export const messages = [
+export const messages: Conversation[] = [
   {
     id: 'msg-001',
     subject: 'Lab Results Available',
@@ -323,7 +335,7 @@ export const messages = [
  * Billing ledger. Note the ER visit already has an itemization request in
  * messages (msg-003) — the "find bills to itemize" skill should skip it.
  */
-export const billing = [
+export const billing: BillingCharge[] = [
   {
     date: '2026-01-10',
     description: 'Office Visit — Annual Physical',
@@ -472,7 +484,7 @@ export const visitNotes = {
   ],
 };
 
-export const noteContentByHnoId = {
+export const noteContentByHnoId: Record<string, { contentHtml: string; contentCss: string }> = {
   'WP-demo-hno-ed-attending': {
     contentHtml:
       '<div class="fmtConv1"><h3>ED Attending Note</h3><p><strong>Chief Complaint:</strong> Chest pain after dinner.</p><p><strong>HPI:</strong> Male presents with substernal chest discomfort beginning ~45 minutes after a large meal. Pain reproducible with palpation. No diaphoresis, no radiation, no shortness of breath.</p><p><strong>Workup:</strong> EKG sinus rhythm, no ST changes. Troponin x2 negative.</p><p><strong>Assessment:</strong> Musculoskeletal chest pain + GERD exacerbation.</p><p><strong>Plan:</strong> Discharge with omeprazole 20mg daily x14 days. Follow up with PCP. Counseled on portion sizes.</p></div>',
@@ -543,7 +555,7 @@ export const vitals = [
   },
 ];
 
-export const emergencyContacts = [
+export const emergencyContacts: EmergencyContact[] = [
   { id: 'ec-001', name: 'Marge Simpson', relationship: 'Spouse', phone: '(555) 636-7664' },
   { id: 'ec-002', name: 'Bart Simpson', relationship: 'Son', phone: '(555) 636-7665' },
 ];
@@ -658,7 +670,7 @@ export const messageRecipients = {
   ],
 };
 
-export const availableAppointments = [
+export const availableAppointments: AppointmentOffer[] = [
   {
     provider: 'Dr. Julius Hibbert',
     department: 'Internal Medicine',
@@ -712,7 +724,11 @@ export const directory = [
  * In the real app these are model-generated from the record on first sync;
  * here they are pre-baked so the screen has content without burning a call.
  */
-export const memoryDigest = {
+export const memoryDigest: {
+  generatedAt: string;
+  summaryMd: string;
+  insights: Insight[];
+} = {
   generatedAt: '2026-03-20',
   summaryMd: [
     '**Homer J. Simpson** · 69 · O+ · MRN-7704201 · PCP Dr. Julius Hibbert',
@@ -766,7 +782,7 @@ export const memoryDigest = {
 };
 
 /** Pre-seeded chat history so the drawer looks lived-in. */
-export const seedChats = [
+export const seedChats: SeedChat[] = [
   { id: 'chat-seed-1', title: 'What do my cholesterol numbers mean?', updatedAt: '2026-03-19' },
   { id: 'chat-seed-2', title: 'Prep for the March 25 follow-up', updatedAt: '2026-03-17' },
   { id: 'chat-seed-3', title: 'Is the ER bill correct?', updatedAt: '2026-03-11' },
