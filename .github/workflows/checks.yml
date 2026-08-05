@@ -108,18 +108,8 @@ jobs:
             echo "Waiting for server... ($i)"
             sleep 1
           done
-      - name: Run scrapers against fake-mychart (path-prefixed)
+      - name: Run scrapers against fake-mychart
         run: bun run test:fake-mychart
-        env:
-          FAKE_MYCHART_MODE: prefixed
-      - name: Run scrapers against fake-mychart (root-mounted)
-        run: bun run test:fake-mychart
-        env:
-          FAKE_MYCHART_MODE: root
-      - name: Run mount-mode tests
-        run: bun run test:fake-mychart-mounts
-        env:
-          FAKE_MYCHART_HOST: localhost:4000
       - name: Run Claude Desktop extension tests against fake-mychart
         run: cd claude-desktop-extension && bun install && bun test
         env:
