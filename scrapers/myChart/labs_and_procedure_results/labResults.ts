@@ -117,7 +117,7 @@ export async function listLabResults(mychartRequest: MyChartRequest): Promise<La
           'Content-Type': 'application/json; charset=utf-8',
           '__RequestVerificationToken': requestVerificationToken,
         },
-        body: JSON.stringify({ groupType, searchString: '', maxResults: 50, isCurAdmFilterEnabled: false }),
+        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
         method: 'POST',
       });
 
@@ -169,7 +169,7 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
           'Content-Type': 'application/json; charset=utf-8',
           '__RequestVerificationToken': requestVerificationToken,
         },
-        body: JSON.stringify({ groupType, searchString: '', maxResults: 50, isCurAdmFilterEnabled: false }),
+        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
         method: 'POST',
       });
 
