@@ -128,7 +128,7 @@ export function getActiveAccount(): string | null {
 async function loginAccount(account: AccountConfig): Promise<MyChartRequest> {
   const hostname = normalizeHostname(account.hostname);
 
-  sendTelemetryEvent('openclaw_login');
+  sendTelemetryEvent('openclaw_login', {}, 'openclaw');
 
   const passkeySerialized = readAccountPasskey(hostname);
 
@@ -370,7 +370,7 @@ function makeTool(name: string, label: string, description: string, scraperFn: S
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function register(api: any) {
-  sendTelemetryEvent('openclaw_plugin_started');
+  sendTelemetryEvent('openclaw_plugin_started', {}, 'openclaw');
 
   // Fire-and-forget update check
   void checkForUpdate({ currentVersion: pluginPkg.version, packageName: 'plugin', logger: api.logger });

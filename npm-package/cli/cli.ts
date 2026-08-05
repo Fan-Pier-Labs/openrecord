@@ -1255,7 +1255,7 @@ async function main() {
   sendTelemetryEvent('cli_started', {
     action: cliArgs.action || 'default',
     host: cliArgs.host || 'unknown',
-  });
+  }, 'cli');
 
   // Fire-and-forget update check — never blocks or breaks the CLI
   const { version } = await import('../package.json');
