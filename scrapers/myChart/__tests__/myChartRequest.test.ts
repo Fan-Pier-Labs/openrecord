@@ -8,9 +8,9 @@ describe('MyChartRequest', () => {
       expect(req.hostname).toBe('mychart.example.com')
     })
 
-    it('initializes firstPathPart as empty string', () => {
+    it('initializes firstPathPart as null (no prefix discovered yet)', () => {
       const req = new MyChartRequest('mychart.example.com')
-      expect(req.firstPathPart).toBe('')
+      expect(req.firstPathPart).toBeNull()
     })
 
     it('creates a cookie jar', () => {

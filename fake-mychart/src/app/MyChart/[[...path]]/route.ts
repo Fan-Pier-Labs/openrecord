@@ -12,6 +12,7 @@ import {
 } from '@/lib/html';
 import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, type FakeUser } from '@/lib/state';
+import { mountPrefix } from '@/lib/mount';
 
 import crypto from 'crypto';
 
@@ -118,7 +119,7 @@ function publicBaseUrl(request: NextRequest): string {
 function requireSession(request: NextRequest): NextResponse | null {
   const cookie = request.headers.get('cookie');
   if (!validateSession(cookie)) {
-    return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
   return null;
 }
@@ -135,14 +136,14 @@ function requireTermsRedirect(request: NextRequest): NextResponse | null {
   if (!requireTerms()) return null;
   const cookie = request.headers.get('cookie');
   if (hasAcceptedTerms(cookie)) return null;
-  return NextResponse.redirect(new URL('/MyChart/Authentication/TermsConditions', publicBaseUrl(request)), 302);
+  return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/TermsConditions`, publicBaseUrl(request)), 302);
 }
 
 // ─── Route handler ──────────────────────────────────────────────────
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   if (!path || path.length === 0) {
-    return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
   const joined = joinPath(path);
   const lower = joined.toLowerCase();
@@ -178,7 +179,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'home') {
     const cookie = request.headers.get('cookie');
     if (!validateSession(cookie)) {
-      return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+      return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
     }
     const termsRedirect = requireTermsRedirect(request);
     if (termsRedirect) return termsRedirect;
@@ -479,7 +480,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const cookie = request.headers.get('cookie');
     acceptTerms(cookie);
     // Redirect to home after accepting
-    return NextResponse.redirect(new URL('/MyChart/Home', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Home`, publicBaseUrl(request)), 302);
   }
 
   // ── 2FA ────────────────────────────────────────────────────────
