@@ -327,6 +327,8 @@ MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
 - CI must pass (lint, tests, build) before merging
 - **NEVER merge pull requests or enable auto merge without the user's explicit permission.** Wait for the user to explicitly tell you to do so.
 - **Always write tests for all changes.** Unit tests for scraper/utility logic, and integration tests (in `tests/integration/ci/integration.test.ts`) for web app features and API endpoints. No PR should be submitted without corresponding test coverage.
+- **Scraper tests live in `scrapers/myChart/__tests__/` only.** Everything under `web/src/lib/mychart/` is a one-line re-export shim around `scrapers/myChart/`, so a test placed in `web/` exercises the exact same implementation as the scrapers suite while running in a different `bun test` invocation. That split is how a change can pass `bun run test:unit` and still fail `bun run test`. Never add a test under `web/src/lib/mychart/` — put it next to the implementation in `scrapers/`. Tests for genuinely web-only code (API routes, MCP server, notifications, auth) stay in `web/`.
+- **Never assert against logic pasted into the test file.** Import the real function. If a module isn't importable (e.g. it runs a script at load time), guard the script with `if (import.meta.main)` and export the function instead.
 - **Run the web app for the user to test.** When web app changes are ready for review, start the dev server on a random local port (use `python3 -c "import random; print(random.randint(3100, 3999))"` to pick the port, then `cd web && PORT=<port> bun run dev`). Share the URL so the user can test in the browser.
 
 ### Creating / Updating PRs

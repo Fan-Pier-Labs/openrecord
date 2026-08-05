@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { saveReplyDraft, saveNewMessageDraft, deleteDraft } from '../messageDrafts'
+import { saveReplyDraft, saveNewMessageDraft, deleteDraft } from '../messages/messageDrafts'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {

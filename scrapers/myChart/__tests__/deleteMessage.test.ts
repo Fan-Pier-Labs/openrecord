@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { deleteMessage } from '../deleteMessage'
+import { deleteMessage } from '../messages/deleteMessage'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {
