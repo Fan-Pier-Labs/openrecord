@@ -15,6 +15,10 @@ services:
 
   fake-mychart:
     build: ./fake-mychart
+    # Tagged so fake-mychart-root can reuse this exact image. The two services
+    # differ only by env var, so building the same Dockerfile twice just doubles
+    # the Next.js build load on the runner.
+    image: fake-mychart-ci
     ports:
       - "4000:3000"
     environment:
@@ -22,6 +26,30 @@ services:
       PORT: "3000"
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:3000/',{redirect:'manual'}).then(r => process.exit(r.status === 302 || r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 3s
+      timeout: 10s
+      retries: 20
+
+  # Second fake instance, mounted at the domain root instead of under /MyChart/,
+  # modelling mychart.clevelandclinic.org. Its root redirect is a relative
+  # ./Authentication/Login?, so the first path segment is a MyChart route
+  # rather than a deployment prefix.
+  #
+  # Reuses the image fake-mychart builds rather than rebuilding it — only the
+  # env differs. depends_on keeps the build/start ordering explicit.
+  fake-mychart-root:
+    image: fake-mychart-ci
+    depends_on:
+      fake-mychart:
+        condition: service_started
+    ports:
+      - "4002:3000"
+    environment:
+      FAKE_MYCHART_ACCEPT_ANY: "true"
+      FAKE_MYCHART_ROOT_MOUNT: "true"
+      PORT: "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:3000/',{redirect:'manual'}).then(r => process.exit(r.status === 302 ? 0 : 1)).catch(() => process.exit(1))\""]
       interval: 3s
       timeout: 10s
       retries: 20
@@ -46,6 +74,8 @@ services:
       postgres:
         condition: service_healthy
       fake-mychart:
+        condition: service_healthy
+      fake-mychart-root:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
