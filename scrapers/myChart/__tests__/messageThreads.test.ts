@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getConversationMessages } from '../messageThreads'
+import { getConversationMessages } from '../messages/messageThreads'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { sendNewMessage, getVerificationToken, getMessageTopics, getMessageRecipients } from '../sendMessage'
-import { MyChartRequest } from '../../myChartRequest'
+import { sendNewMessage, getVerificationToken, getMessageTopics, getMessageRecipients } from '../messages/sendMessage'
+import { MyChartRequest } from '../myChartRequest'
 
 const TOKEN_HTML = '<input name="__RequestVerificationToken" value="csrf_tok" />'
 
