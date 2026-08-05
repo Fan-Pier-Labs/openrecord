@@ -234,7 +234,11 @@ export class MyChartRequest {
       headers: finalHeaders
     }
 
-    const url = config.url ?? (this.protocol + '://' + this.hostname + '/' + this.firstPathPart + config.path);
+    // firstPathPart is '' for root-mounted instances (e.g. Cleveland Clinic).
+    // Only insert the separating slash when there is actually a prefix —
+    // otherwise every URL picks up a double slash, which some servers 308 on.
+    const mountPath = this.firstPathPart ? '/' + this.firstPathPart : '';
+    const url = config.url ?? (this.protocol + '://' + this.hostname + mountPath + config.path);
 
     let response ;
 

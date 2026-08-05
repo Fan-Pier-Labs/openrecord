@@ -19,6 +19,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **OpenRecord plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin (package name: `openrecord`) that bundles all MyChart scrapers locally. No server dependency.
 - **Newsletter Lambda** (`newsletter-lambda/`): Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups from the login page and `console.log`s them to CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration. Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account blocks unauthenticated Lambda Function URLs. Deploy with `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com` (frontend reads `NEXT_PUBLIC_NEWSLETTER_ENDPOINT`, falling back to this URL). Read signups via CloudWatch Logs Insights: `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`. Hidden `company` honeypot field drops bots. See `newsletter-lambda/README.md`.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (no 2FA) or `marge`/`donuts123` (TOTP enabled — always requires the 2FA code `123456`). Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password. All state lives in RAM. Visit `/reset` (or `POST /reset`) to wipe all in-memory state — sessions, sent messages, emergency contacts, per-user TOTP/passkeys, booked appointments — back to the seed.
+  - **Mount modes.** Real MyChart is deployed one of two ways, and the fake models both. By default it is **path-prefixed**: `/` redirects to `/MyChart/` and every route lives under that prefix (uhhospitals.org, UCSF, most instances). Set `FAKE_MYCHART_ROOT_MOUNT=true` to make it **root-mounted** instead: `/` returns a relative `Location: ./Authentication/Login?` and all routes are served from the domain root, exactly as `mychart.clevelandclinic.org` does. In root mode the first path segment is a MyChart controller name, not a deployment prefix — treating it as one is what used to break Cleveland Clinic login. Implementation: `fake-mychart/src/lib/mount.ts` (`isRootMount()` / `mountPrefix()`), the root-level catch-all at `fake-mychart/src/app/[...path]/route.ts`, and `MP()` in `fake-mychart/src/lib/html.ts`. In path-prefixed mode root-level MyChart paths deliberately 404.
   - **Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a convenience mock. Always replicate the real API's response shapes, field names/casing, pagination (page sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules (e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the fake returns 10, and the fixture/test is sized around that. When you discover how a real endpoint behaves, update the fake to match it exactly.
 
 ## Key Commands
@@ -33,12 +34,13 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `cd fake-mychart && bun run build` — Build fake MyChart for production
 - `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
 - `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose services running)
-- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, fake-mychart, web app)
+- `bun run test:fake-mychart-mounts` — Test both fake MyChart mount modes (needs servers on ports 4000 and 4002)
+- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, both fake-mychart instances, web app)
 - `docker compose -f docker-compose.ci.yaml down -v` — Tear down CI services
 
 ## CI Integration Tests
 
-End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, fake-mychart, and the web app.
+End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, two fake-mychart instances, and the web app.
 
 **Single test file** (`tests/integration/ci/integration.test.ts`) runs all scenarios sequentially to maintain shared state (session cookies, instance IDs). Covers:
 1. Health check canary
@@ -50,7 +52,10 @@ End-to-end tests in `tests/integration/ci/` that exercise the full user journey 
 7. App-level TOTP 2FA enable/verify/sign-in/disable
 8. Password reset request, token validation, password change, old password rejection
 9. Passkey setup on MyChart instance and passkey auto-login
-10. MyChart instance deletion and cleanup
+10. Root-mounted MyChart instance (Cleveland Clinic shape) — connect, scrape, empty-prefix assertion
+11. MyChart instance deletion and cleanup
+
+**Two fake instances**: `fake-mychart` (host port 4000) is path-prefixed under `/MyChart/`; `fake-mychart-root` (host port 4002, `FAKE_MYCHART_ROOT_MOUNT=true`) is mounted at the domain root like Cleveland Clinic. Both mount shapes are covered end-to-end here, and at the scraper level by `bun run test:fake-mychart-mounts` (`scrapers/myChart/__tests__/fake-mychart/mount-modes.test.ts`), which the `fake-mychart` CI job runs against servers on ports 4000 and 4002.
 
 **Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
 

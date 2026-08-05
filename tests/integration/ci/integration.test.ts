@@ -27,6 +27,11 @@ const FAKE_MYCHART_HOSTNAME = process.env.CI_FAKE_MYCHART_HOSTNAME || 'fake-mych
 // Host-side address for the scraper-level eUnity test, which talks to
 // fake-mychart directly (not through the web app's Docker network).
 const FAKE_MYCHART_HOST_URL = process.env.CI_FAKE_MYCHART_HOST_URL || 'localhost:4000';
+// Second fake instance, mounted at the domain root instead of under /MyChart/
+// (the mychart.clevelandclinic.org shape). Docker-network name first, then the
+// host-side address for scraper-level checks.
+const FAKE_MYCHART_ROOT_HOSTNAME = process.env.CI_FAKE_MYCHART_ROOT_HOSTNAME || 'fake-mychart-root:3000';
+const FAKE_MYCHART_ROOT_HOST_URL = process.env.CI_FAKE_MYCHART_ROOT_HOST_URL || 'localhost:4002';
 
 const TEST_EMAIL = `ci-test-${Date.now()}@example.com`;
 const TEST_PASSWORD = 'TestPassword123!';
@@ -1497,7 +1502,111 @@ describe('hostname:username disambiguation', () => {
 });
 
 // ===================================================================
-// 13. Cleanup
+// 13. Root-mounted MyChart instance (Cleveland Clinic shape)
+// ===================================================================
+
+// Every other scenario in this file runs against the path-prefixed fake
+// (`/` → `/MyChart/`), which is how most real instances are deployed. A
+// second fake runs with FAKE_MYCHART_ROOT_MOUNT=true to model the other
+// shape: MyChart served straight from the domain root, where `/` redirects
+// to `./Authentication/Login?` and the first path segment is a controller
+// name rather than a deployment prefix. Treating that segment as a prefix
+// produced `/Authentication/Authentication/Login/DoLogin` → 404, which
+// broke login against mychart.clevelandclinic.org entirely.
+
+describe('Root-mounted MyChart instance', () => {
+  let rootInstanceId = '';
+  let rootSessionKey = '';
+
+  it('redirects from its root with a relative controller path', async () => {
+    const res = await fetch(`http://${FAKE_MYCHART_ROOT_HOST_URL}/`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('./Authentication/Login?');
+  });
+
+  it('creates the instance', async () => {
+    const res = await authedFetch('/api/mychart-instances', {
+      method: 'POST',
+      body: JSON.stringify({
+        hostname: FAKE_MYCHART_ROOT_HOSTNAME,
+        username: 'homer',
+        password: 'donuts123',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.hostname).toBe(FAKE_MYCHART_ROOT_HOSTNAME);
+    rootInstanceId = body.id;
+  });
+
+  it('connects (login) without mistaking the controller for a path prefix', async () => {
+    const res = await authedFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ myChartInstanceId: rootInstanceId }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    if (body.state === 'need_2fa') {
+      const twofaRes = await authedFetch('/api/twofa', {
+        method: 'POST',
+        body: JSON.stringify({ sessionKey: body.sessionKey, code: '123456' }),
+      });
+      expect(twofaRes.status).toBe(200);
+      const twofaBody = await twofaRes.json();
+      expect(twofaBody.state).toBe('logged_in');
+      rootSessionKey = twofaBody.sessionKey;
+    } else {
+      expect(body.state).toBe('logged_in');
+      rootSessionKey = body.sessionKey;
+    }
+
+    expect(rootSessionKey).toBeTruthy();
+  }, 30_000);
+
+  it('scrapes real data through the root mount', async () => {
+    const res = await authedFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ sessionKey: rootSessionKey }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    // Same Homer Simpson spot-checks as the path-prefixed instance — the
+    // mount shape must make no difference to what comes back.
+    expect(data.profile?.name).toBe('Homer Jay Simpson');
+    expect(data.medications?.medications?.length).toBeGreaterThan(0);
+    expect(data.allergies).toBeDefined();
+    expect(data.allergies.error).toBeUndefined();
+    expect(JSON.stringify(data.allergies).length).toBeGreaterThan(10);
+  }, 120_000);
+
+  it('logs in at the scraper level with an empty firstPathPart', async () => {
+    const result = await myChartUserPassLogin({
+      hostname: FAKE_MYCHART_ROOT_HOST_URL,
+      user: 'homer',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+
+    expect(result.state).toBe('logged_in');
+    // The regression: this used to be 'Authentication'.
+    expect(result.mychartRequest.firstPathPart).toBe('');
+  }, 30_000);
+
+  it('deletes the instance', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${rootInstanceId}`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(200);
+  });
+});
+
+// ===================================================================
+// 14. Cleanup
 // ===================================================================
 
 describe('Cleanup', () => {
