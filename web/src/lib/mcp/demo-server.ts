@@ -10,6 +10,16 @@ function jsonResult(data: unknown): CallToolResult {
 const DEMO_HOSTNAME = 'mychart.springfieldmed.example.org';
 const DEMO_USERNAME = 'homersimpson742';
 
+/**
+ * The patient records the demo account can access. Mirrors the real tool's
+ * contract, including the account holder's empty-string id.
+ */
+const DEMO_PROXY_TARGETS = [
+  { id: '', displayName: 'Homer J. Simpson', isSelf: true, profileName: 'Homer J. Simpson', dob: '05/12/1956' },
+  { id: 'PROXY-BART', displayName: 'Bart Simpson', isSelf: false, profileName: 'Bartholomew JoJo Simpson', dob: '04/01/2014' },
+  { id: 'PROXY-LISA', displayName: 'Lisa Simpson', isSelf: false, profileName: 'Lisa Marie Simpson', dob: '05/09/2016' },
+];
+
 /** Maps tool name → demo data for simple scraper tools (instance-only param) */
 const scraperToolData: Record<string, unknown> = {
   get_profile: demo.demoProfile,
@@ -86,6 +96,49 @@ export function createDemoMcpServer(): McpServer {
   reg('complete_2fa',
     async (_args: { code: string; instance: string }): Promise<CallToolResult> => {
       return jsonResult({ status: 'logged_in', message: '2FA completed successfully', hostname: DEMO_HOSTNAME, username: DEMO_USERNAME });
+    }
+  );
+
+  // ── Proxy (multi-patient) tools ──
+  // Which record is active is real state for the life of this server, so a
+  // caller can see list → switch → list reflect each other the way it does
+  // against a live portal.
+  let activeProxyId = '';
+
+  reg('list_proxy_targets',
+    async (_args: { instance?: string }): Promise<CallToolResult> => {
+      return jsonResult(DEMO_PROXY_TARGETS.map(t => ({
+        id: t.id,
+        displayName: t.displayName,
+        isSelf: t.isSelf,
+        isActive: t.id === activeProxyId,
+      })));
+    }
+  );
+
+  reg('switch_proxy_target',
+    async (args: { instance?: string; id?: string; display_name?: string }): Promise<CallToolResult> => {
+      if (args.id === undefined && !args.display_name) {
+        return { content: [{ type: 'text', text: 'Pass id or display_name. Use id="" to switch back to the account holder\'s own record.' }], isError: true };
+      }
+      const target = args.id !== undefined
+        ? DEMO_PROXY_TARGETS.find(t => t.id === args.id)
+        : DEMO_PROXY_TARGETS.find(t => t.displayName.toLowerCase() === args.display_name!.trim().toLowerCase());
+
+      if (!target) {
+        return {
+          content: [{ type: 'text', text: `No such patient record. Known records: ${DEMO_PROXY_TARGETS.map(t => `${t.displayName} (id ${JSON.stringify(t.id)})`).join(', ')}.` }],
+          isError: true,
+        };
+      }
+
+      activeProxyId = target.id;
+      return jsonResult({
+        success: true,
+        activeRecord: { id: target.id, displayName: target.displayName, isSelf: target.isSelf },
+        verifiedProfileName: target.profileName,
+        verifiedDob: target.dob,
+      });
     }
   );
 

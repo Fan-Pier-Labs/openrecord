@@ -24,6 +24,65 @@ The 2FA code is always `123456`.
 Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password (treated as homer).
 Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) through the 2FA flow.
 
+## Proxy (Multi-Patient) Records
+
+`homer` has proxy access to two other patient records, so the "one login, several
+charts" shape is exercisable:
+
+| Record          | Id            | Profile name              | DOB        | MRN |
+|-----------------|---------------|---------------------------|------------|-----|
+| Homer (self)    | `""`          | Homer Jay Simpson         | 05/12/1956 | 742 |
+| Bart            | `PROXY-BART`  | Bartholomew JoJo Simpson  | 04/01/2014 | 744 |
+| Lisa            | `PROXY-LISA`  | Lisa Marie Simpson        | 05/09/2016 | 745 |
+
+The account holder's own record has the **empty-string id**, matching real
+MyChart. Note that the proxy list shows a short name ("Bart Simpson") while the
+profile page carries the legal name ("Bartholomew JoJo Simpson") — real portals
+do this, and any code verifying a switch has to tolerate it.
+
+`marge` has no proxy access at all, covering the single-record account.
+
+Endpoints:
+
+- `GET /ProxySwitch` → `{"ProxySubjectList":[...]}` with `Id`, `DisplayName`, `LinkUrl`, `IsSelected`, `IsSelf`.
+- `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>` → 302 to `/Home`, switching the session's active record. An `eid` the account can't reach returns 403.
+- `GET /inside.asp?mode=self` → 302 to `/Home`, back to the account holder's own record.
+
+`/Home` then renders whichever record is active, so the profile scraper reads the
+proxy patient's details after a switch.
+
+### Discovery modes
+
+Real instances don't all expose the same surface, so the shape is switchable via
+`POST /mode` (see below):
+
+| `proxyDiscovery` | `GET /ProxySwitch` | `/Home` markup                            |
+|------------------|--------------------|-------------------------------------------|
+| `json` (default) | JSON list          | `.proxySubjectLink` anchors               |
+| `html`           | 404                | `.proxySubjectLink` anchors               |
+| `script`         | 404                | only `proxySubjects.push(...)` script blocks |
+
+`script` mode is the awkward one: the payload lists the records but never says
+which is active, so anything confirming a switch there has to fall back to the
+profile page.
+
+## Deployment Shape and Discovery Mode
+
+`POST /mode` flips the server between real MyChart shapes without a restart. Both
+fields are optional; omitted ones are left alone.
+
+```bash
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"mode":"root"}'
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
+curl http://localhost:4000/mode   # {"mode":"prefixed","proxyDiscovery":"json"}
+```
+
+- `mode`: `prefixed` (default, `/` → `/MyChart/`) or `root` (served from the domain root). Changing this requires re-login — the session discovered its path prefix at login time.
+- `proxyDiscovery`: `json` (default), `html`, or `script`. No re-login needed.
+
+Both are global to the process, so a test suite that depends on either must set it
+rather than inherit whatever ran before it.
+
 ## Resetting In-Memory State
 
 Because all state lives in RAM, mutations during a session (sent messages, deleted contacts, TOTP toggles, registered passkeys, etc.) accumulate until the process exits. Two ways to reset without restarting:
@@ -31,7 +90,7 @@ Because all state lives in RAM, mutations during a session (sent messages, delet
 - **Browser**: visit [`/reset`](http://localhost:4000/reset) and click the **Reset Fake MyChart RAM** button.
 - **HTTP**: `curl -X POST http://localhost:4000/reset` — returns `{"ok":true}`.
 
-Reset clears all sessions, restores the seeded conversations and emergency contacts, disables every user's TOTP, removes all passkeys, and forgets booked appointments.
+Reset clears all sessions, restores the seeded conversations and emergency contacts, disables every user's TOTP, removes all passkeys, forgets booked appointments, and restores the default mount and proxy-discovery modes.
 
 ## Running
 

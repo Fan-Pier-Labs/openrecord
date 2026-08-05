@@ -12,7 +12,9 @@
 
 import { describe, it, expect } from 'bun:test';
 import { parseTotpUri } from '../../../scrapers/myChart/totp';
-import { myChartUserPassLogin } from '../../../scrapers/myChart/login';
+import { myChartUserPassLogin, complete2faFlow } from '../../../scrapers/myChart/login';
+import { getMyChartProfile } from '../../../scrapers/myChart/profile';
+import { discoverProxyTargets, switchProxyTarget } from '../../../scrapers/myChart/proxyContext';
 import { getImagingResults } from '../../../scrapers/myChart/labs_and_procedure_results/labResults';
 import { downloadImagingStudyDirect } from '../../../scrapers/myChart/eunity/imagingDirectDownload';
 import { convertCloToJpg } from '../../../scrapers/myChart/clo-image-parser/clo_to_jpg';
@@ -1497,7 +1499,201 @@ describe('hostname:username disambiguation', () => {
 });
 
 // ===================================================================
-// 13. Root-mounted MyChart instance (Cleveland Clinic shape)
+// 13. Proxy (multi-patient) context
+// ===================================================================
+
+// Accounts that can see more than one patient's chart — a parent reading a
+// child's record. The scraper has three discovery paths because real instances
+// don't all expose the same surface, so this section drives the fake through
+// all three via its `/mode` endpoint, then exercises the same capability
+// through MCP.
+//
+// The discovery mode is global to the fake, so this section restores the
+// default before handing off.
+
+describe('Proxy (multi-patient) context', () => {
+  const HOMER_PROXY_HOST = FAKE_MYCHART_HOST_URL;
+  let proxyApiKey = '';
+
+  async function setProxyDiscovery(proxyDiscovery: 'json' | 'html' | 'script') {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proxyDiscovery }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).proxyDiscovery).toBe(proxyDiscovery);
+  }
+
+  async function loginHomer() {
+    const result = await myChartUserPassLogin({
+      hostname: HOMER_PROXY_HOST,
+      user: 'homer',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+    expect(result.state).toBe('logged_in');
+    return result.mychartRequest;
+  }
+
+  // Each discovery shape must support the whole round trip, not just listing.
+  // The script fallback in particular reports no selection flag at all, so
+  // confirmation there rests on the profile identity check.
+  for (const mode of ['json', 'html', 'script'] as const) {
+    describe(`discovery via ${mode}`, () => {
+      it(`discovers both children and the account holder`, async () => {
+        await setProxyDiscovery(mode);
+        const req = await loginHomer();
+        const targets = await discoverProxyTargets(req);
+
+        const names = targets.map(t => t.displayName).sort();
+        expect(names).toEqual(['Bart Simpson', 'Homer Jay Simpson', 'Lisa Simpson']);
+
+        const self = targets.find(t => t.isSelf);
+        expect(self).toBeDefined();
+        // The account holder's own record is identified by the empty string,
+        // not by a missing id.
+        expect(self!.id).toBe('');
+
+        // Only the JSON and anchor shapes can say which record is active.
+        expect(targets.every(t => t.selectionKnown)).toBe(mode !== 'script');
+      }, 30_000);
+
+      it(`switches to a child, then back to the account holder`, async () => {
+        await setProxyDiscovery(mode);
+        const req = await loginHomer();
+
+        const switched = await switchProxyTarget(req, { id: 'PROXY-BART' });
+        expect(switched.target.displayName).toBe('Bart Simpson');
+        // The proxy list shows a short name; the profile page carries the
+        // legal name. Both refer to the same patient.
+        expect(switched.verifiedProfileName).toBe('Bartholomew JoJo Simpson');
+        expect(switched.verifiedDob).toBe('04/01/2014');
+
+        // Every other scraper now reads the child's chart.
+        const childProfile = await getMyChartProfile(req);
+        expect(childProfile?.name).toBe('Bartholomew JoJo Simpson');
+        expect(childProfile?.mrn).toBe('744');
+
+        const back = await switchProxyTarget(req, { id: '' });
+        expect(back.target.isSelf).toBe(true);
+        expect(back.verifiedProfileName).toBe('Homer Jay Simpson');
+
+        const ownProfile = await getMyChartProfile(req);
+        expect(ownProfile?.mrn).toBe('742');
+      }, 30_000);
+
+      it(`switches by display name`, async () => {
+        await setProxyDiscovery(mode);
+        const req = await loginHomer();
+
+        const switched = await switchProxyTarget(req, { displayName: 'Lisa Simpson' });
+        expect(switched.verifiedProfileName).toBe('Lisa Marie Simpson');
+        expect(switched.verifiedDob).toBe('05/09/2016');
+      }, 30_000);
+    });
+  }
+
+  it('rejects a record this account has no access to', async () => {
+    await setProxyDiscovery('json');
+    const req = await loginHomer();
+    await expect(switchProxyTarget(req, { id: 'PROXY-NELSON' }))
+      .rejects.toThrow(/Could not resolve proxy target by id/);
+  }, 30_000);
+
+  it('reports no proxy records for an account with only its own chart', async () => {
+    await setProxyDiscovery('json');
+    const login = await myChartUserPassLogin({
+      hostname: HOMER_PROXY_HOST,
+      user: 'marge',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+    expect(login.state).toBe('need_2fa');
+    const verified = await complete2faFlow({ mychartRequest: login.mychartRequest, code: '123456' });
+    expect(verified.state).toBe('logged_in');
+
+    expect(await discoverProxyTargets(login.mychartRequest)).toEqual([]);
+  }, 30_000);
+
+  // ── Through MCP ──
+
+  async function callProxyTool(toolName: string, args: Record<string, unknown>) {
+    const res = await fetch(`${BASE_URL}/api/mcp?key=${proxyApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: toolName, arguments: args },
+      }),
+    });
+    const raw = await res.text();
+    const dataLine = raw.split('\n').find(l => l.startsWith('data: '));
+    const json = JSON.parse(dataLine ? dataLine.slice(6) : raw);
+    return { text: json.result?.content?.[0]?.text ?? '', isError: !!json.result?.isError };
+  }
+
+  it('generates an MCP API key for the proxy tools', async () => {
+    await setProxyDiscovery('json');
+    const res = await authedFetch('/api/mcp-key', { method: 'POST' });
+    expect(res.status).toBe(200);
+    proxyApiKey = (await res.json()).key;
+    expect(proxyApiKey).toBeTruthy();
+  });
+
+  it('list_proxy_targets returns the account holder and both children', async () => {
+    const result = await callProxyTool('list_proxy_targets', {});
+    expect(result.isError).toBe(false);
+    const targets = JSON.parse(result.text) as { id: string; displayName: string; isSelf: boolean; isActive: boolean | null }[];
+    expect(targets.map(t => t.displayName).sort()).toEqual(['Bart Simpson', 'Homer Jay Simpson', 'Lisa Simpson']);
+    expect(targets.find(t => t.isSelf)?.isActive).toBe(true);
+  }, 60_000);
+
+  it('switch_proxy_target moves get_profile onto the child\'s chart', async () => {
+    const switched = await callProxyTool('switch_proxy_target', { id: 'PROXY-BART' });
+    expect(switched.isError).toBe(false);
+    const body = JSON.parse(switched.text);
+    expect(body.success).toBe(true);
+    expect(body.activeRecord.displayName).toBe('Bart Simpson');
+    expect(body.verifiedProfileName).toBe('Bartholomew JoJo Simpson');
+
+    const profile = await callProxyTool('get_profile', {});
+    expect(profile.isError).toBe(false);
+    expect(JSON.parse(profile.text).mrn).toBe('744');
+  }, 60_000);
+
+  it('switch_proxy_target with the empty id returns to the account holder', async () => {
+    const back = await callProxyTool('switch_proxy_target', { id: '' });
+    expect(back.isError).toBe(false);
+    expect(JSON.parse(back.text).activeRecord.isSelf).toBe(true);
+
+    const profile = await callProxyTool('get_profile', {});
+    expect(JSON.parse(profile.text).mrn).toBe('742');
+  }, 60_000);
+
+  it('switch_proxy_target without id or display_name is an error, not a silent no-op', async () => {
+    const result = await callProxyTool('switch_proxy_target', {});
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('Pass id or display_name');
+  }, 60_000);
+
+  it('revokes the API key and restores the default discovery mode', async () => {
+    const res = await authedFetch('/api/mcp-key', { method: 'DELETE' });
+    expect(res.status).toBe(200);
+
+    await setProxyDiscovery('json');
+    const modeRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`);
+    expect((await modeRes.json()).proxyDiscovery).toBe('json');
+  });
+});
+
+// ===================================================================
+// 14. Root-mounted MyChart instance (Cleveland Clinic shape)
 // ===================================================================
 
 // Every other scenario in this file runs against the fake in its default
@@ -1618,7 +1814,7 @@ describe('Root-mounted MyChart instance', () => {
 });
 
 // ===================================================================
-// 14. Cleanup
+// 15. Cleanup
 // ===================================================================
 
 describe('Cleanup', () => {

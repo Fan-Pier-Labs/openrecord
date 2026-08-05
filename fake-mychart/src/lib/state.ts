@@ -8,6 +8,7 @@
 import * as homer from '@/data/homer';
 import { resetSessions } from './session';
 import { resetMountMode } from './mount';
+import { resetProxyDiscoveryMode } from './proxy';
 
 export type Passkey = {
   rawId: string;
@@ -29,6 +30,19 @@ export type FakeUserProfile = {
   pcp: string;
 };
 
+/**
+ * A patient record the account holder has proxy access to — Epic's model for a
+ * parent seeing a child's chart. `id` is what shows up as `Id` in the
+ * `/ProxySwitch` payload and as `eid` in the switch URL. The account holder's
+ * own record is NOT in this list; it is represented separately with the
+ * empty-string id, exactly as real MyChart does.
+ */
+export type ProxySubject = {
+  id: string;
+  displayName: string;
+  profile: FakeUserProfile;
+};
+
 export type FakeUser = {
   username: string;
   password: string;
@@ -47,6 +61,8 @@ export type FakeUser = {
   // endpoint. Independent of requires2faAtLogin.
   totpEnabled: boolean;
   passkeys: Passkey[];
+  /** Other patients' records this account can switch into. May be empty. */
+  proxySubjects: ProxySubject[];
 };
 
 function seedUsers(): Record<string, FakeUser> {
@@ -64,6 +80,31 @@ function seedUsers(): Record<string, FakeUser> {
       requires2faAtLogin: false,
       totpEnabled: false,
       passkeys: [],
+      // Homer has proxy access to both kids, so discover → switch → switch
+      // back is exercisable, and so "resolve by display name" has more than
+      // one candidate to choose between.
+      proxySubjects: [
+        {
+          id: 'PROXY-BART',
+          displayName: 'Bart Simpson',
+          profile: {
+            name: 'Bartholomew JoJo Simpson',
+            dob: '04/01/2014',
+            mrn: '744',
+            pcp: 'Dr. Julius Hibbert, MD',
+          },
+        },
+        {
+          id: 'PROXY-LISA',
+          displayName: 'Lisa Simpson',
+          profile: {
+            name: 'Lisa Marie Simpson',
+            dob: '05/09/2016',
+            mrn: '745',
+            pcp: 'Dr. Julius Hibbert, MD',
+          },
+        },
+      ],
     },
     marge: {
       username: 'marge',
@@ -78,6 +119,8 @@ function seedUsers(): Record<string, FakeUser> {
       requires2faAtLogin: true,
       totpEnabled: true,
       passkeys: [],
+      // Marge has no proxy access — the "single-record account" case.
+      proxySubjects: [],
     },
   };
 }
@@ -127,6 +170,25 @@ export function resetState(): void {
   state.bookedAppointments.length = 0;
   resetSessions();
   resetMountMode();
+  resetProxyDiscoveryMode();
+}
+
+/**
+ * The record a session is currently looking at: the account holder's own when
+ * `activeProxyId` is empty, otherwise one of their proxy subjects. Returns null
+ * for an id the user has no access to, which callers must treat as a failed
+ * switch rather than silently falling back to self.
+ */
+export function resolveActiveRecord(
+  user: FakeUser,
+  activeProxyId: string,
+): { id: string; displayName: string; profile: FakeUserProfile; isSelf: boolean } | null {
+  if (!activeProxyId) {
+    return { id: '', displayName: user.displayName, profile: user.profile, isSelf: true };
+  }
+  const subject = user.proxySubjects.find(s => s.id === activeProxyId);
+  if (!subject) return null;
+  return { id: subject.id, displayName: subject.displayName, profile: subject.profile, isSelf: false };
 }
 
 export function findUser(username: string | null | undefined): FakeUser | null {

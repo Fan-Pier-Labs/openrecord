@@ -43,6 +43,7 @@ import { AMF3Reader } from '../../scrapers/myChart/clo-image-parser/clo_to_bitma
 import { inflateSync } from 'zlib';
 import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
 import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
+import { discoverProxyTargets, switchProxyTarget, verifyActiveProxyTarget } from '../../scrapers/myChart/proxyContext';
 import { sessionStore } from '../../scrapers/myChart/sessionStore';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
 import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
@@ -92,11 +93,15 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --read-login-from-browser               (auto-pick first MyChart account from browsers)
 //   npx tsx src/cli.ts --host <hostname> --action send-message  (send a new message)
 //   npx tsx src/cli.ts --host <hostname> --action send-reply --conversation-id <id> --message <msg>
+//   npx tsx src/cli.ts --host <hostname> --action list-proxies                 (list accessible patient records)
+//   npx tsx src/cli.ts --host <hostname> --action switch-proxy --proxy-id <id> (switch active patient record)
+//   npx tsx src/cli.ts --host <hostname> --action switch-proxy --proxy-self    (switch back to your own record)
 
 interface CliArgs {
   host?: string; user?: string; pass?: string; twofa?: string;
   nocache?: boolean; readLoginFromBrowser?: boolean; action?: string;
   conversationId?: string; message?: string; subject?: string;
+  proxyId?: string; proxyName?: string; proxySelf?: boolean;
   setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
   setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
   deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
@@ -116,6 +121,13 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i];
     else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i];
     else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i];
+    // Presence, not truthiness: '' is the account holder's own record id.
+    else if (args[i] === '--proxy-id' && args[i + 1] !== undefined) parsed.proxyId = args[++i];
+    else if (args[i] === '--proxy-name' && args[i + 1]) parsed.proxyName = args[++i];
+    // `--proxy-id ""` is awkward to pass through a shell (and `bun run` drops
+    // empty trailing args outright), so give the common "go back to my own
+    // record" case a flag of its own.
+    else if (args[i] === '--proxy-self') parsed.proxySelf = true;
     else if (args[i] === '--set-up-totp') parsed.setupTotp = true;
     else if (args[i] === '--use-saved-totp') parsed.useSavedTotp = true;
     else if (args[i] === '--disable-totp') parsed.disableTotp = true;
@@ -1470,6 +1482,59 @@ async function main() {
         } else {
           console.log(`  Failed to delete passkey: ${rawId}`);
         }
+      }
+    }
+    closeRL();
+    return;
+  }
+
+  // Handle list-proxies action: which patient records can this account reach?
+  if (cliArgs.action === 'list-proxies') {
+    for (const session of sessions) {
+      header(`Patient records: ${session.hostname}`);
+      const targets = await discoverProxyTargets(session.request);
+      if (targets.length === 0) {
+        console.log('  This account has access to only its own record.');
+        continue;
+      }
+      const active = await verifyActiveProxyTarget(session.request, { proxyTargets: targets });
+      for (const target of targets) {
+        // A blank isSelected is not "inactive" when the portal never said which
+        // record is active — don't print a marker we can't stand behind.
+        const marker = !target.selectionKnown ? '?' : (target.isSelected ? '*' : ' ');
+        const id = target.isSelf ? '(self)' : target.id;
+        console.log(`  ${marker} ${target.displayName}  ${id}`);
+      }
+      if (!active.selectionKnown) {
+        console.log('  (This instance does not report which record is active; ? marks unknown.)');
+      }
+      console.log(`  Profile currently shown: ${active.profileName ?? 'unknown'}`);
+    }
+    closeRL();
+    return;
+  }
+
+  // Handle switch-proxy action
+  if (cliArgs.action === 'switch-proxy') {
+    // `--proxy-id ""` and `--proxy-self` both mean the account holder's own
+    // record, whose id is the empty string — so test for presence, not truth.
+    const proxyId = cliArgs.proxySelf || cliArgs.proxyId === 'self' ? '' : cliArgs.proxyId;
+    if (proxyId === undefined && !cliArgs.proxyName) {
+      console.log('  Pass --proxy-id <id> or --proxy-name <name>. Use --proxy-self to return to your own record.');
+      closeRL();
+      return;
+    }
+    for (const session of sessions) {
+      header(`Switching patient record: ${session.hostname}`);
+      try {
+        const result = await switchProxyTarget(session.request, {
+          id: proxyId,
+          displayName: cliArgs.proxyName,
+        });
+        console.log(`  Now viewing: ${result.target.displayName}${result.target.isSelf ? ' (your own record)' : ''}`);
+        console.log(`  Profile confirms: ${result.verifiedProfileName ?? 'unknown'} (DOB ${result.verifiedDob ?? 'unknown'})`);
+      } catch (err) {
+        console.log(`  Switch failed: ${(err as Error).message}`);
       }
     }
     closeRL();

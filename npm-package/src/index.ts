@@ -60,6 +60,7 @@ export {
   discoverProxyTargets,
   switchProxyTarget,
   verifyActiveProxyTarget,
+  compareProfileNames,
   type ProxyTarget,
 } from '../../scrapers/myChart/proxyContext';
 

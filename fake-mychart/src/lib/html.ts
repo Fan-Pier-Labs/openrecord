@@ -1,6 +1,7 @@
 import { generateCsrfToken } from './csrf';
 
 import { mountPrefix } from './mount';
+import { rendersProxyAnchors } from './proxy';
 
 // Path prefix for every MyChart URL emitted in this HTML: '/MyChart' normally,
 // '' for a root-mounted instance. Templates read `${MP()}/Foo`, so the leading
@@ -514,10 +515,79 @@ export function secondaryValidationPage(): string {
 </body></html>`;
 }
 
+// ─── Proxy (multi-patient) selector ───────────────────────────────────
+export type ProxySelectorEntry = { id: string; displayName: string };
+
+export type ProxySelectorModel = {
+  /** The account holder's own record. Its id is always the empty string. */
+  self: ProxySelectorEntry;
+  /** Other patients this account can switch into. */
+  subjects: ProxySelectorEntry[];
+  /** Currently active record id; '' when viewing the account holder's own. */
+  activeId: string;
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Escape for embedding inside a double-quoted JS string in a <script> block. */
+function escapeJsString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\u003c');
+}
+
+function proxySwitchHref(id: string): string {
+  return id
+    ? `${MP()}/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=${encodeURIComponent(id)}`
+    : `${MP()}/inside.asp?mode=self`;
+}
+
+/**
+ * The proxy-record selector MyChart renders in the header.
+ *
+ * In `json` and `html` discovery modes this is the anchor dropdown, with the
+ * active record carrying `currentContext`. In `script` mode the anchors are
+ * absent entirely and only the React personalization payload is emitted — the
+ * shape where the portal lists the records but never says which one is active.
+ */
+function proxySelectorHtml(model: ProxySelectorModel | null): string {
+  if (!model) return '';
+  const entries: Array<ProxySelectorEntry & { isSelf: boolean }> = [
+    { ...model.self, isSelf: true },
+    ...model.subjects.map(s => ({ ...s, isSelf: false })),
+  ];
+
+  if (rendersProxyAnchors()) {
+    const anchors = entries.map(entry => {
+      const selected = entry.id === model.activeId ? ' currentContext' : '';
+      const label = entry.isSelf ? 'Access your record' : `Access ${entry.displayName}'s record`;
+      const dataId = entry.isSelf ? '' : ` data-id="${escapeHtml(entry.id)}"`;
+      return `      <a class="proxySubjectLink${selected}"${dataId} href="${proxySwitchHref(entry.id)}" aria-label="${escapeHtml(label)}">` +
+        `<span class="proxySelectorDropDownNameEllipsis">${escapeHtml(entry.displayName)}</span></a>`;
+    }).join('\n');
+    return `\n    <div class="proxySelectorDropDown">\n${anchors}\n    </div>\n`;
+  }
+
+  // `script` mode: minified personalization pushes, no selection flag. The
+  // account holder's entry has no INTERNAL id — that absence is how the
+  // scraper tells self apart from a proxy record here.
+  const pushes = entries.map(entry => {
+    const idPart = entry.isSelf
+      ? 'isSelf:!0'
+      : `id:{type:"INTERNAL",value:"${escapeJsString(entry.id)}"}`;
+    return `EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"${escapeJsString(entry.displayName)}",${idPart}});`;
+  }).join('');
+  return `\n    <script>${pushes}</script>\n`;
+}
+
 // ─── Home / Dashboard ──────────────────────────────────────────────────
-export function homePage(name: string, dob: string, mrn: string, pcp: string): string {
+export function homePage(name: string, dob: string, mrn: string, pcp: string, proxy?: ProxySelectorModel | null): string {
   return portalLayout('Home', 'Home', `
-    <div class="printheader">Name: ${name} | DOB: ${dob} | MRN: ${mrn} | PCP: ${pcp}</div>
+    <div class="printheader">Name: ${name} | DOB: ${dob} | MRN: ${mrn} | PCP: ${pcp}</div>${proxySelectorHtml(proxy ?? null)}
     <h1>Welcome, ${name.split(' ')[0]}</h1>
     <div class="card-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
       <div class="dash-card">

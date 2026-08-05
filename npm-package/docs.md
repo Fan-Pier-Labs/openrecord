@@ -253,18 +253,36 @@ if (result.state === 'logged_in') {
 
 ## Proxy account context
 
-Some MyChart accounts can access multiple patient records. After login, use
-the proxy helpers to discover available records, switch context, and verify
-which profile is active before scraping patient-specific data:
+Some MyChart accounts can reach more than one patient's chart — a parent reading
+a child's record. Switching changes the session, so every scraper called
+afterwards reads the record you switched to.
 
 ```ts
 const targets = await discoverProxyTargets(result.mychartRequest);
-const proxyTarget = targets.find((target) => !target.isSelf);
-if (proxyTarget) {
-  await switchProxyTarget(result.mychartRequest, { id: proxyTarget.id });
+const child = targets.find((target) => !target.isSelf);
+if (child) {
+  await switchProxyTarget(result.mychartRequest, { id: child.id });
+  const childMeds = await getMedications(result.mychartRequest); // the child's chart
 }
+
+// The account holder's own record is identified by the EMPTY STRING, not by a
+// missing id — this is how you switch back.
+await switchProxyTarget(result.mychartRequest, { id: '' });
+
 const active = await verifyActiveProxyTarget(result.mychartRequest);
 ```
+
+`switchProxyTarget` confirms the switch against the profile page before
+returning, and throws rather than handing back a different patient's chart. It
+returns `verifiedProfileName` / `verifiedDob` so callers can assert further.
+
+Two details worth knowing about `ProxyTarget`:
+
+- `id` is `''` for the account holder's own record.
+- `selectionKnown` says whether `isSelected` came from the portal or is just a
+  default. Some instances expose the record list without saying which one is
+  active; treat `isSelected === false` as meaningful only when
+  `selectionKnown` is `true`.
 
 Login result shape:
 

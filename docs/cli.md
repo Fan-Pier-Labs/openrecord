@@ -41,6 +41,31 @@ By default (no `--action` flag), the CLI scrapes all 30+ data categories in para
 - `--action get-imaging` — Download imaging results (X-ray, MRI, CT, etc.) with report text, FDI context, and SAML viewer URLs
 - `--action get-thread --conversation-id <id>` — Get full message thread details
 - `--action keep-alive-test` — Ping /Home every 5 minutes to keep session alive; runs forever, prints status each ping
+- `--action list-proxies` — List the patient records this account can reach (its own, plus any it has proxy access to)
+- `--action switch-proxy --proxy-id <id>` — Switch which patient record subsequent requests read from
+- `--action switch-proxy --proxy-name "<name>"` — Same, selecting by display name instead of id
+- `--action switch-proxy --proxy-self` — Switch back to the account holder's own record
+
+## Proxy (Multi-Patient) Records
+
+Some MyChart accounts can see more than one patient's chart — a parent reading a
+child's record, for example. `--action list-proxies` shows what's reachable:
+
+```
+  * Homer Jay Simpson  (self)
+    Bart Simpson  PROXY-BART
+    Lisa Simpson  PROXY-LISA
+```
+
+`*` marks the active record, and `?` means the portal did not say which record is
+active (some instances don't report it). The account holder's own record always
+has the empty-string id, which is why `--proxy-self` exists — it's easier to type
+than `--proxy-id ""`, which some shells and `bun run` swallow.
+
+Switching changes the session, so every subsequent scrape reads the record you
+switched to. The switch is verified against the profile page before it returns:
+if the portal ends up showing a different patient than the one you asked for, the
+command fails rather than handing back the wrong person's chart.
 
 ## Passkey Authentication
 

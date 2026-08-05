@@ -50,6 +50,34 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
 
+  // Proxy (multi-patient) tools
+  {
+    name: 'list_proxy_targets',
+    description:
+      'List the patient records this MyChart account can access — the account holder\'s own record plus any ' +
+      'records they have proxy access to (a child, a parent). Use this before switch_proxy_target to find the ' +
+      'record id. Returns an empty list for accounts with access to only their own chart.',
+    inputSchema: instanceParam,
+  },
+  {
+    name: 'switch_proxy_target',
+    description:
+      'Switch which patient record subsequent tools read from. Every other scraper tool returns data for ' +
+      'whichever record is currently active, so switch first, then scrape. Pass the id from ' +
+      'list_proxy_targets; the account holder\'s own record has the empty-string id, so pass id="" to switch ' +
+      'back. Verifies the portal actually moved to the requested patient and fails rather than returning ' +
+      'another patient\'s chart.',
+    inputSchema: {
+      ...instanceParam,
+      id: z.string().optional().describe(
+        'Record id from list_proxy_targets. Use the empty string to return to the account holder\'s own record.'
+      ),
+      display_name: z.string().optional().describe(
+        'Record display name, as an alternative to id. Rejected if more than one record shares the name.'
+      ),
+    },
+  },
+
   // Auth tools
   {
     name: 'complete_2fa',

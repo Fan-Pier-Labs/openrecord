@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession, validateSession, sessionCookieHeader, hasAcceptedTerms, acceptTerms, getSessionUsername } from '@/lib/session';
+import { createSession, validateSession, sessionCookieHeader, hasAcceptedTerms, acceptTerms, getSessionUsername, getActiveProxyId, setActiveProxyId } from '@/lib/session';
 import {
   loginPage, loginPageControllerJs, doLoginSuccess, doLoginNeed2FA, doLoginFailed,
   secondaryValidationPage, homePage, csrfTokenPage, genericTokenPage, get2faMethods,
@@ -9,10 +9,12 @@ import {
   vitalsPage, medicalHistoryPage, testResultsPage, messagesPage, visitsPage,
   lettersPage, goalsPage, referralsPage, careJourneysPage, documentsPage,
   educationPage, emergencyContactsPage, profilePage, settingsPage,
+  type ProxySelectorModel,
 } from '@/lib/html';
 import * as homer from '@/data/homer';
-import { state, findUser, findUserByPasskey, type FakeUser } from '@/lib/state';
+import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser } from '@/lib/state';
 import { mountPrefix } from '@/lib/mount';
+import { servesProxySwitchJson } from '@/lib/proxy';
 
 import crypto from 'crypto';
 
@@ -23,6 +25,20 @@ import crypto from 'crypto';
 function currentUser(request: NextRequest): FakeUser | null {
   const cookie = request.headers.get('cookie');
   return findUser(getSessionUsername(cookie));
+}
+
+/**
+ * The proxy-record dropdown model for this session, or null when the account
+ * has no proxy access at all. Real MyChart renders no selector for a
+ * single-record account, and the scraper must cope with that.
+ */
+function proxySelectorFor(request: NextRequest, user: FakeUser): ProxySelectorModel | null {
+  if (user.proxySubjects.length === 0) return null;
+  return {
+    self: { id: '', displayName: user.displayName },
+    subjects: user.proxySubjects.map(s => ({ id: s.id, displayName: s.displayName })),
+    activeId: getActiveProxyId(request.headers.get('cookie')),
+  };
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -172,7 +188,70 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'inside.asp') {
     const termsRedirect = requireTermsRedirect(request);
     if (termsRedirect) return termsRedirect;
+
+    // Proxy context switching. MyChart drives this through inside.asp query
+    // modes: `mode=self` returns to the account holder's own record, and
+    // `mode=proxyswitch&action=switchcontext&src=0&eid=<id>` moves into a proxy
+    // record. Both answer with a 302 back to Home rather than rendering
+    // anything; the new context lives in the session from then on.
+    const mode = (request.nextUrl.searchParams.get('mode') || '').toLowerCase();
+    if (mode === 'self' || mode === 'proxyswitch') {
+      const cookie = request.headers.get('cookie');
+      if (!validateSession(cookie)) {
+        return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
+      }
+      const user = currentUser(request);
+      if (!user) return new NextResponse('Session is missing username', { status: 500 });
+
+      const targetId = mode === 'self' ? '' : (request.nextUrl.searchParams.get('eid') || '');
+      if (resolveActiveRecord(user, targetId) === null) {
+        // An eid this account has no proxy access to. Real MyChart refuses
+        // rather than silently leaving you where you were.
+        return new NextResponse('Forbidden', { status: 403 });
+      }
+      setActiveProxyId(cookie, targetId);
+      return NextResponse.redirect(new URL(`${mountPrefix()}/Home`, publicBaseUrl(request)), 302);
+    }
+
     return html('Welcome to MyChart');
+  }
+
+  // ── Proxy record list ───────────────────────────────────────────
+  // The JSON surface the scraper tries first. Instances configured for the
+  // HTML/script discovery shapes do not serve it at all, so it 404s there —
+  // that 404 is what pushes the scraper onto its fallbacks.
+  if (lower === 'proxyswitch') {
+    const cookie = request.headers.get('cookie');
+    if (!validateSession(cookie)) {
+      return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
+    }
+    if (!servesProxySwitchJson()) {
+      return new NextResponse('Not Found', { status: 404 });
+    }
+    const user = currentUser(request);
+    if (!user) return new NextResponse('Session is missing username', { status: 500 });
+    if (user.proxySubjects.length === 0) {
+      return json({ ProxySubjectList: [] });
+    }
+    const activeId = getActiveProxyId(cookie);
+    return json({
+      ProxySubjectList: [
+        {
+          Id: '',
+          DisplayName: user.displayName,
+          LinkUrl: '#',
+          IsSelected: activeId === '',
+          IsSelf: true,
+        },
+        ...user.proxySubjects.map(subject => ({
+          Id: subject.id,
+          DisplayName: subject.displayName,
+          LinkUrl: `${mountPrefix()}/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${encodeURIComponent(subject.id)}`,
+          IsSelected: activeId === subject.id,
+          IsSelf: false,
+        })),
+      ],
+    });
   }
 
   // ── Session / Home ─────────────────────────────────────────────
@@ -187,7 +266,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) {
       return new NextResponse('Session is missing username', { status: 500 });
     }
-    return html(homePage(user.profile.name, user.profile.dob, user.profile.mrn, user.profile.pcp));
+    // Home reflects whichever patient record the session is currently in, so
+    // the profile scraper reads the proxy patient's details after a switch.
+    const active = resolveActiveRecord(user, getActiveProxyId(cookie)) ?? {
+      profile: user.profile,
+    };
+    const { profile } = active;
+    return html(homePage(profile.name, profile.dob, profile.mrn, profile.pcp, proxySelectorFor(request, user)));
   }
 
   if (lower.startsWith('home/csrftoken')) {
