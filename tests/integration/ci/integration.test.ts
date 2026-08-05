@@ -1505,9 +1505,7 @@ describe('hostname:username disambiguation', () => {
 // are deployed. This section flips the same server to the other shape via its
 // `/mode` endpoint: MyChart served straight from the domain root, where `/`
 // redirects to `./Authentication/Login?` and the first path segment is a
-// MyChart route rather than a deployment prefix. Treating that segment as a
-// prefix produced `/Authentication/Authentication/Login/DoLogin` → 404, which
-// broke login against mychart.clevelandclinic.org entirely.
+// MyChart route rather than a deployment prefix.
 //
 // The mode is global to the fake, so this section restores the default before
 // handing off to Cleanup.
@@ -1604,7 +1602,6 @@ describe('Root-mounted MyChart instance', () => {
     });
 
     expect(result.state).toBe('logged_in');
-    // The regression: this used to be 'Authentication'.
     expect(result.mychartRequest.firstPathPart).toBeNull();
   }, 30_000);
 

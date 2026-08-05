@@ -10,11 +10,6 @@
  *     (mychart.clevelandclinic.org). There is no prefix — the first path
  *     segment is already a MyChart route.
  *
- * The second shape used to break login entirely: "Authentication" was stored
- * as the prefix and prepended to paths that already began with it, producing
- * `/Authentication/Authentication/Login/DoLogin` → 404 → "ended up on an
- * unexpected page".
- *
  * A single fake-mychart server covers both — `POST /mode` flips it. Requires
  * one server on localhost:4000 (or FAKE_MYCHART_HOST).
  *
@@ -107,7 +102,6 @@ describe('root-mounted instance (Cleveland Clinic shape)', () => {
   it('logs in with no prefix instead of mistaking the route for one', async () => {
     const result = await login()
     expect(result.state).toBe('logged_in')
-    // The regression: this used to be 'Authentication'.
     expect(result.mychartRequest.firstPathPart).toBeNull()
   }, 30_000)
 

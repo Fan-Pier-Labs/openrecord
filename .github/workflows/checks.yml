@@ -108,10 +108,6 @@ jobs:
             echo "Waiting for server... ($i)"
             sleep 1
           done
-      # One server covers both real MyChart deployment shapes: POST /mode flips
-      # it between path-prefixed (/MyChart/, most instances) and root-mounted
-      # (mychart.clevelandclinic.org). Running the whole scraper suite twice
-      # exercises every scraper against both, not just the mount tests.
       - name: Run scrapers against fake-mychart (path-prefixed)
         run: bun run test:fake-mychart
         env:

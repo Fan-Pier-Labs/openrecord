@@ -52,8 +52,7 @@ const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
 // Which MyChart deployment shape to run this whole suite against. The fake
 // serves both; CI runs the suite twice, once per mode, so every scraper is
-// exercised against a path-prefixed instance AND a root-mounted one rather
-// than only the handful of paths a dedicated mount test can cover.
+// exercised against a path-prefixed instance and a root-mounted one.
 const MODE: MountMode = process.env.FAKE_MYCHART_MODE === 'root' ? 'root' : 'prefixed'
 const EXPECTED_FIRST_PATH_PART = MODE === 'root' ? null : 'MyChart'
 

@@ -1,7 +1,7 @@
 /**
- * Which of the two real MyChart deployment shapes this server is currently
- * pretending to be. The scraper has to discover the shape before it can build
- * a single URL, so both need to be exercised:
+ * Which of the two real MyChart deployment shapes this server is pretending to
+ * be. The scraper has to discover the shape before it can build a single URL,
+ * so both need to be exercised:
  *
  *   - **path-prefixed** (default): `/` redirects to `/MyChart/`, and every
  *     route lives under that prefix. This is uhhospitals.org, UCSF, and most
@@ -9,12 +9,11 @@
  *   - **root-mounted**: `/` redirects to a relative `./Authentication/Login?`
  *     and routes are served straight from the domain root. This is
  *     mychart.clevelandclinic.org. Here the first path segment is already a
- *     MyChart route, not a deployment prefix — mistaking it for one used to
- *     break login against Cleveland Clinic entirely.
+ *     MyChart route, not a deployment prefix.
  *
- * The mode is switchable at runtime via `POST /mode` so one server can cover
- * both shapes; see `src/app/mode/route.ts`. It lives in RAM alongside the rest
- * of the fake's mutable state and `/reset` restores the default.
+ * Switch at runtime via `POST /mode`; see `src/app/mode/route.ts`. The mode
+ * lives in RAM alongside the rest of the fake's mutable state, and `/reset`
+ * restores the default.
  */
 export type MountMode = 'prefixed' | 'root';
 
