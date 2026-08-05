@@ -99,4 +99,111 @@ describe('telemetry', () => {
       expect(fetchMock.mock.calls).toHaveLength(0);
     });
   });
+
+  describe('self-hosted analytics sink', () => {
+    let originalFetch: typeof globalThis.fetch;
+    const analyticsEnvKeys = [
+      'OPENRECORD_ANALYTICS_ENDPOINT',
+      'OPENRECORD_ANALYTICS_DISABLED',
+      'MYCHART_CLI_TELEMETRY_DISABLED',
+    ] as const;
+    let originalEnv: Record<string, string | undefined>;
+
+    /** Mock fetch, emit one event, and return every URL it was called with. */
+    async function capturePostUrls(...args: Parameters<typeof sendTelemetryEvent>) {
+      const fetchMock = mock(() => Promise.resolve(new Response('{}', { status: 200 })));
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+      sendTelemetryEvent(...args);
+      await new Promise((r) => setTimeout(r, 100));
+      return {
+        urls: fetchMock.mock.calls.map((call) => String(call[0])),
+        calls: fetchMock.mock.calls,
+      };
+    }
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      originalEnv = Object.fromEntries(analyticsEnvKeys.map((k) => [k, process.env[k]]));
+      for (const key of analyticsEnvKeys) delete process.env[key];
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      for (const key of analyticsEnvKeys) {
+        if (originalEnv[key] === undefined) delete process.env[key];
+        else process.env[key] = originalEnv[key]!;
+      }
+    });
+
+    test('posts to both Amplitude and the analytics Lambda', async () => {
+      const { urls } = await capturePostUrls('test_event', { foo: 'bar' }, 'cli');
+      expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
+      expect(urls.some((u) => u.includes('execute-api.us-east-2.amazonaws.com'))).toBe(true);
+    });
+
+    test('sends the analytics payload in the Lambda event contract', async () => {
+      const { calls } = await capturePostUrls('cli_started', { action: 'scrape' }, 'cli');
+      const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
+      expect(analyticsCall).toBeTruthy();
+
+      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      expect(body.event).toBe('cli_started');
+      expect(body.source).toBe('cli');
+      expect(body.deviceId).toBeTruthy();
+      expect(typeof body.ts).toBe('number');
+      expect(body.properties.action).toBe('scrape');
+      // Env info rides along on every event.
+      expect(body.properties.platform).toBeTruthy();
+      expect(body.properties.runtime_version).toBeTruthy();
+    });
+
+    test('defaults source to "node" when the caller omits it', async () => {
+      const { calls } = await capturePostUrls('test_event');
+      const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
+      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      expect(body.source).toBe('node');
+    });
+
+    test('uses the same anonymous device id for both sinks', async () => {
+      const { calls } = await capturePostUrls('test_event');
+      const amplitudeBody = JSON.parse(
+        (calls.find((c) => String(c[0]).includes('amplitude.com'))![1] as RequestInit).body as string,
+      );
+      const analyticsBody = JSON.parse(
+        (calls.find((c) => String(c[0]).includes('execute-api'))![1] as RequestInit).body as string,
+      );
+      expect(analyticsBody.deviceId).toBe(amplitudeBody.events[0].device_id);
+    });
+
+    test('honors OPENRECORD_ANALYTICS_ENDPOINT as an override', async () => {
+      process.env.OPENRECORD_ANALYTICS_ENDPOINT = 'https://analytics.example.test';
+      const { urls } = await capturePostUrls('test_event');
+      expect(urls.some((u) => u === 'https://analytics.example.test')).toBe(true);
+      expect(urls.some((u) => u.includes('execute-api'))).toBe(false);
+      // Amplitude is unaffected by the self-hosted override.
+      expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
+    });
+
+    test('skips only the self-hosted sink when OPENRECORD_ANALYTICS_DISABLED is set', async () => {
+      process.env.OPENRECORD_ANALYTICS_DISABLED = '1';
+      const { urls } = await capturePostUrls('test_event');
+      expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
+      expect(urls.some((u) => u.includes('execute-api'))).toBe(false);
+    });
+
+    test('still delivers to Amplitude when the analytics sink rejects', async () => {
+      const fetchMock = mock((url: string) =>
+        String(url).includes('execute-api')
+          ? Promise.reject(new Error('sink down'))
+          : Promise.resolve(new Response('{}', { status: 200 })),
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      expect(() => sendTelemetryEvent('test_event')).not.toThrow();
+      await new Promise((r) => setTimeout(r, 100));
+
+      const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+      expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
+    });
+  });
 });

@@ -313,7 +313,7 @@ export function parse2faDeliveryMethods(html: string): {
 // if were going the 2fa flow
 export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, fetchFn}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string, fetchFn?: (url: string, init: RequestInit) => Promise<Response>}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
-  sendTelemetryEvent('scraper_login_started', { hostname });
+  sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
   if (!hostname || !user || !pass) {
     logger.debug('missing hostname, user, or pass', {hostname, user, pass})
@@ -709,7 +709,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
   protocol?: string,
   fetchFn?: (url: string, init: RequestInit) => Promise<Response>,
 }): Promise<LoginResult> {
-  sendTelemetryEvent('scraper_passkey_login_started', { hostname });
+  sendTelemetryEvent('scraper_passkey_login_started', { hostname }, 'scraper');
 
   if (!hostname || !credential) {
     throw new Error('Missing hostname or passkey credential');
