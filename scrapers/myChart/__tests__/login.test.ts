@@ -207,6 +207,37 @@ describe('parseFirstPathPartFromLocation', () => {
     )).toBe(null)
   })
 
+  it('handles a path part with a hyphen', () => {
+    expect(parseFirstPathPartFromLocation(
+      '/MyChart-PRD/Authentication/Login',
+      'mychart.example.com'
+    )).toBe('MyChart-PRD')
+  })
+
+  it('handles a path with no trailing slash or segments', () => {
+    expect(parseFirstPathPartFromLocation('/MyChart', 'mychart.example.com')).toBe('MyChart')
+  })
+
+  it('returns null for an absolute URL with no path at all', () => {
+    expect(parseFirstPathPartFromLocation(
+      'https://mychart.example.com',
+      'mychart.example.com'
+    )).toBe(null)
+  })
+
+  it('ignores query parameters', () => {
+    expect(parseFirstPathPartFromLocation(
+      '/MyChart/Login?redirect=home',
+      'mychart.example.com'
+    )).toBe('MyChart')
+  })
+
+  it('preserves the instance-specific casing of the path part', () => {
+    expect(parseFirstPathPartFromLocation('/mychart/', 'h.com')).toBe('mychart')
+    expect(parseFirstPathPartFromLocation('/chart/', 'h.com')).toBe('chart')
+    expect(parseFirstPathPartFromLocation('/epicmychart/', 'h.com')).toBe('epicmychart')
+  })
+
   it('returns null when the redirect goes straight to a MyChart route (root-mounted instance)', () => {
     // Cleveland Clinic redirects / -> ./Authentication/Login?, meaning MyChart is
     // served from the domain root. Treating "Authentication" as the path prefix
@@ -255,6 +286,40 @@ describe('parseFirstPathPartFromHtml', () => {
   it('returns null when no meta refresh tag', () => {
     const html = '<html><body>Hello</body></html>'
     expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+
+  it('extracts a path part with a hyphen', () => {
+    const html = `<meta http-equiv="REFRESH" content="0; URL=/MyChart-PRD/" />`
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart-PRD')
+  })
+
+  it('handles a lowercase url= key', () => {
+    const html = `<meta http-equiv="REFRESH" content="0; url=/MyChart/" />`
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('returns null for empty HTML', () => {
+    expect(parseFirstPathPartFromHtml('')).toBe(null)
+  })
+
+  it('returns null when the meta refresh has no URL part', () => {
+    expect(parseFirstPathPartFromHtml('<meta http-equiv="REFRESH" content="5" />')).toBe(null)
+  })
+
+  it('handles a non-MyChart path part', () => {
+    const html = `<meta http-equiv="REFRESH" content="0; URL=/PatientPortal/" />`
+    expect(parseFirstPathPartFromHtml(html)).toBe('PatientPortal')
+  })
+
+  it('handles extra whitespace in the content attribute', () => {
+    const html = `<meta http-equiv="REFRESH" content="0;  URL=/MyChart/" />`
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('strips leading and trailing slashes from the path part', () => {
+    const result = parseFirstPathPartFromHtml('<meta http-equiv="REFRESH" content="0; URL=/MyChart/" />')
+    expect(result).toBe('MyChart')
+    expect(result).not.toContain('/')
   })
 })
 

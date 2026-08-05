@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
-import { date2dte, parsePaymentUrl, parseBillingAccountsHtml } from '../bills'
+import { parsePaymentUrl, parseBillingAccountsHtml } from '../bills/bills'
+import { date2dte } from '../bills/utils'
 
 describe('date2dte', () => {
   it('converts Unix epoch (Jan 1, 1970) to DTE value of 47117', () => {
@@ -47,6 +48,39 @@ describe('date2dte', () => {
     const feb29 = new Date(2024, 1, 29)
     const mar1 = new Date(2024, 2, 1)
     expect(date2dte(mar1) - date2dte(feb29)).toBe(1)
+  })
+
+  it('puts day 0 on the DTE base date (Dec 31, 1840)', () => {
+    expect(date2dte(new Date(1840, 11, 31))).toBe(0)
+    expect(date2dte(new Date(1841, 0, 1))).toBe(1)
+  })
+
+  it('handles Y2K', () => {
+    // 10957 days from Jan 1, 1970 to Jan 1, 2000
+    expect(date2dte(new Date(2000, 0, 1))).toBe(47117 + 10957)
+  })
+
+  it('handles a far future date', () => {
+    const result = date2dte(new Date(2100, 0, 1))
+    expect(result).toBeGreaterThan(47117)
+    expect(Number.isInteger(result)).toBe(true)
+  })
+
+  it('skips Feb 29 in a non-leap year', () => {
+    const feb28 = new Date(2023, 1, 28)
+    const mar1 = new Date(2023, 2, 1)
+    expect(date2dte(mar1) - date2dte(feb28)).toBe(1)
+  })
+
+  it('counts 365 days in a non-leap year and 366 in a leap year', () => {
+    expect(date2dte(new Date(2024, 0, 1)) - date2dte(new Date(2023, 0, 1))).toBe(365)
+    expect(date2dte(new Date(2025, 0, 1)) - date2dte(new Date(2024, 0, 1))).toBe(366)
+  })
+
+  it('is deterministic for the same date', () => {
+    // The function builds a UTC date internally, so local time must not matter
+    const date = new Date(2023, 6, 4)
+    expect(date2dte(date)).toBe(date2dte(date))
   })
 })
 

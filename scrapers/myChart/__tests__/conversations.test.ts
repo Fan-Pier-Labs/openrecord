@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { listConversations } from '../conversations'
-import { MyChartRequest } from '../../myChartRequest'
+import { listConversations } from '../messages/conversations'
+import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
