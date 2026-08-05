@@ -7,6 +7,7 @@
 
 import * as homer from '@/data/homer';
 import { resetSessions } from './session';
+import { resetMountMode } from './mount';
 
 export type Passkey = {
   rawId: string;
@@ -125,6 +126,7 @@ export function resetState(): void {
   state.passkeyIdCounter = next.passkeyIdCounter;
   state.bookedAppointments.length = 0;
   resetSessions();
+  resetMountMode();
 }
 
 export function findUser(username: string | null | undefined): FakeUser | null {

@@ -27,11 +27,6 @@ const FAKE_MYCHART_HOSTNAME = process.env.CI_FAKE_MYCHART_HOSTNAME || 'fake-mych
 // Host-side address for the scraper-level eUnity test, which talks to
 // fake-mychart directly (not through the web app's Docker network).
 const FAKE_MYCHART_HOST_URL = process.env.CI_FAKE_MYCHART_HOST_URL || 'localhost:4000';
-// Second fake instance, mounted at the domain root instead of under /MyChart/
-// (the mychart.clevelandclinic.org shape). Docker-network name first, then the
-// host-side address for scraper-level checks.
-const FAKE_MYCHART_ROOT_HOSTNAME = process.env.CI_FAKE_MYCHART_ROOT_HOSTNAME || 'fake-mychart-root:3000';
-const FAKE_MYCHART_ROOT_HOST_URL = process.env.CI_FAKE_MYCHART_ROOT_HOST_URL || 'localhost:4002';
 
 const TEST_EMAIL = `ci-test-${Date.now()}@example.com`;
 const TEST_PASSWORD = 'TestPassword123!';
@@ -1505,42 +1500,56 @@ describe('hostname:username disambiguation', () => {
 // 13. Root-mounted MyChart instance (Cleveland Clinic shape)
 // ===================================================================
 
-// Every other scenario in this file runs against the path-prefixed fake
-// (`/` → `/MyChart/`), which is how most real instances are deployed. A
-// second fake runs with FAKE_MYCHART_ROOT_MOUNT=true to model the other
-// shape: MyChart served straight from the domain root, where `/` redirects
-// to `./Authentication/Login?` and the first path segment is a controller
-// name rather than a deployment prefix. Treating that segment as a prefix
-// produced `/Authentication/Authentication/Login/DoLogin` → 404, which
-// broke login against mychart.clevelandclinic.org entirely.
+// Every other scenario in this file runs against the fake in its default
+// path-prefixed shape (`/` → `/MyChart/`), which is how most real instances
+// are deployed. This section flips the same server to the other shape via its
+// `/mode` endpoint: MyChart served straight from the domain root, where `/`
+// redirects to `./Authentication/Login?` and the first path segment is a
+// MyChart route rather than a deployment prefix.
+//
+// The mode is global to the fake, so this section restores the default before
+// handing off to Cleanup.
 
 describe('Root-mounted MyChart instance', () => {
   let rootInstanceId = '';
   let rootSessionKey = '';
 
-  it('redirects from its root with a relative controller path', async () => {
-    const res = await fetch(`http://${FAKE_MYCHART_ROOT_HOST_URL}/`, { redirect: 'manual' });
+  async function setFakeMode(mode: 'prefixed' | 'root') {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).mode).toBe(mode);
+  }
+
+  it('switches the fake to root-mounted and redirects with a relative controller path', async () => {
+    await setFakeMode('root');
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe('./Authentication/Login?');
   });
 
-  it('creates the instance', async () => {
+  it('creates an instance against the now root-mounted host', async () => {
+    // Same hostname as the main instance but a different MyChart user, so the
+    // duplicate-instance guard (hostname + username) doesn't reject it.
     const res = await authedFetch('/api/mychart-instances', {
       method: 'POST',
       body: JSON.stringify({
-        hostname: FAKE_MYCHART_ROOT_HOSTNAME,
-        username: 'homer',
+        hostname: FAKE_MYCHART_HOSTNAME,
+        username: 'marge',
         password: 'donuts123',
       }),
     });
 
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.hostname).toBe(FAKE_MYCHART_ROOT_HOSTNAME);
+    expect(body.hostname).toBe(FAKE_MYCHART_HOSTNAME);
     rootInstanceId = body.id;
   });
 
-  it('connects (login) without mistaking the controller for a path prefix', async () => {
+  it('connects (login) without mistaking the route for a path prefix', async () => {
     const res = await authedFetch('/api/login', {
       method: 'POST',
       body: JSON.stringify({ myChartInstanceId: rootInstanceId }),
@@ -1575,9 +1584,9 @@ describe('Root-mounted MyChart instance', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    // Same Homer Simpson spot-checks as the path-prefixed instance — the
-    // mount shape must make no difference to what comes back.
-    expect(data.profile?.name).toBe('Homer Jay Simpson');
+    // Marge's profile, proving we reached the right session — and that the
+    // mount shape makes no difference to what comes back.
+    expect(data.profile?.name).toBe('Marge Bouvier Simpson');
     expect(data.medications?.medications?.length).toBeGreaterThan(0);
     expect(data.allergies).toBeDefined();
     expect(data.allergies.error).toBeUndefined();
@@ -1586,22 +1595,25 @@ describe('Root-mounted MyChart instance', () => {
 
   it('logs in at the scraper level with a null firstPathPart', async () => {
     const result = await myChartUserPassLogin({
-      hostname: FAKE_MYCHART_ROOT_HOST_URL,
+      hostname: FAKE_MYCHART_HOST_URL,
       user: 'homer',
       pass: 'donuts123',
       protocol: 'http',
     });
 
     expect(result.state).toBe('logged_in');
-    // The regression: this used to be 'Authentication'.
     expect(result.mychartRequest.firstPathPart).toBeNull();
   }, 30_000);
 
-  it('deletes the instance', async () => {
+  it('deletes the instance and restores the default mount mode', async () => {
     const res = await authedFetch(`/api/mychart-instances/${rootInstanceId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
+
+    await setFakeMode('prefixed');
+    const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.headers.get('location')).toContain('/MyChart/');
   });
 });
 
