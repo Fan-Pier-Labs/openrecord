@@ -162,37 +162,60 @@ export const healthSummaryHeader = {
   },
 };
 
-// ─── Vitals / Flowsheets ────────────────────────────────────────────
+// ─── Vitals / Flowsheets (Track My Health) ──────────────────────────
+// Real MyChart splits this across two endpoints: GetFlowsheets returns the
+// flowsheet DEFINITION (rows, episodeId) with an always-empty `readings`,
+// and GetFlowsheetReadings returns the actual values keyed by rowId.
+const VITALS_ROWS = [
+  { id: 'row-bp', name: 'Blood Pressure', rowType: '1', valueType: '4', unitsDisplayName: 'mmHg', decimalPlaces: 0 },
+  { id: 'row-hr', name: 'Pulse', rowType: '1', valueType: '1', decimalPlaces: 0 },
+  { id: 'row-wt', name: 'Weight', rowType: '1', valueType: '5', units: '6', unitsDisplayName: 'lbs', decimalPlaces: 0 },
+];
+
+// GetFlowsheets response — definition only, `readings` empty (matches real MyChart)
 export const vitals = {
   flowsheets: [
     {
-      name: 'Blood Pressure',
-      flowsheetId: 'FS-BP',
-      readings: [
-        { date: '01/10/2026', value: '145/95', units: 'mmHg' },
-        { date: '07/15/2025', value: '150/98', units: 'mmHg' },
-        { date: '01/20/2025', value: '142/92', units: 'mmHg' },
-      ],
-    },
-    {
-      name: 'Heart Rate',
-      flowsheetId: 'FS-HR',
-      readings: [
-        { date: '01/10/2026', value: '88', units: 'bpm' },
-        { date: '07/15/2025', value: '92', units: 'bpm' },
-        { date: '01/20/2025', value: '85', units: 'bpm' },
-      ],
-    },
-    {
-      name: 'Weight',
-      flowsheetId: 'FS-WT',
-      readings: [
-        { date: '01/10/2026', value: '260', units: 'lbs' },
-        { date: '07/15/2025', value: '265', units: 'lbs' },
-        { date: '01/20/2025', value: '255', units: 'lbs' },
-      ],
+      episodeId: 'EP-VITALS',
+      templateId: 'EP-VITALS',
+      name: 'Vitals Trending',
+      entryType: '1',
+      entryMode: '1',
+      status: '1',
+      startDateIso: '2114-10-15',
+      endDateIso: '',
+      instructions: '',
+      hasMoreData: false,
+      hasEpisodeData: false,
+      rowGroups: [{ id: '-1', name: '', rowIds: VITALS_ROWS.map((r) => r.id) }],
+      rows: VITALS_ROWS,
+      readings: [],
     },
   ],
+  userSettings: {},
+};
+
+// GetFlowsheetReadings response — the actual values keyed by rowId
+export const vitalsReadings = {
+  flowsheet: {
+    episodeId: 'EP-VITALS',
+    templateId: 'EP-VITALS',
+    name: 'Vitals Trending',
+    startDateIso: '2114-10-15',
+    endDateIso: '',
+    hasMoreData: false,
+    hasEpisodeData: false,
+    rowGroups: [{ id: '-1', name: '', rowIds: VITALS_ROWS.map((r) => r.id) }],
+    rows: VITALS_ROWS,
+    readings: [
+      { id: 'rd-bp-1', fsdId: 'fsd-1', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: true, documentationSource: '34000', stringValue: '145/95', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+      { id: 'rd-hr-1', fsdId: 'fsd-1', rowId: 'row-hr', valueType: '1', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 88, dataType: '32005', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+      { id: 'rd-wt-1', fsdId: 'fsd-1', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 260, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+      { id: 'rd-bp-2', fsdId: 'fsd-2', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-07-15T10:30:00', isAbnormal: true, documentationSource: '34002', stringValue: '150/98', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+      { id: 'rd-bp-3', fsdId: 'fsd-3', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-01-20T08:15:00', isAbnormal: false, documentationSource: '34002', stringValue: '142/92', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+    ],
+  },
+  userSettings: {},
 };
 
 // ─── Care Team (HTML parsed) ────────────────────────────────────────
