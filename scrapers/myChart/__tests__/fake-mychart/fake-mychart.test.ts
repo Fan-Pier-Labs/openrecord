@@ -8,8 +8,9 @@
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/
  */
 
-import { describe, it, expect, beforeAll } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { MyChartRequest } from '../../myChartRequest'
+import { setMountMode, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
 import { setupPasskey } from '../../setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../passkeyLoginRetry'
@@ -49,9 +50,17 @@ import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
+// Which MyChart deployment shape to run this whole suite against. The fake
+// serves both; CI runs the suite twice, once per mode, so every scraper is
+// exercised against a path-prefixed instance AND a root-mounted one rather
+// than only the handful of paths a dedicated mount test can cover.
+const MODE: MountMode = process.env.FAKE_MYCHART_MODE === 'root' ? 'root' : 'prefixed'
+const EXPECTED_FIRST_PATH_PART = MODE === 'root' ? null : 'MyChart'
+
 let session: MyChartRequest
 
 beforeAll(async () => {
+  await setMountMode(HOST, MODE)
   const result = await myChartUserPassLogin({
     hostname: HOST,
     user: 'homer',
@@ -62,9 +71,15 @@ beforeAll(async () => {
   session = result.mychartRequest
 }, 30_000)
 
+// Put the server back in its default shape so a suite that runs after this one
+// in the same process doesn't inherit root mode.
+afterAll(async () => {
+  await setMountMode(HOST, 'prefixed')
+})
+
 describe('fake-mychart integration', () => {
-  it('login sets firstPathPart to MyChart', () => {
-    expect(session.firstPathPart).toBe('MyChart')
+  it(`login discovers the right firstPathPart for ${MODE} mode`, () => {
+    expect(session.firstPathPart).toBe(EXPECTED_FIRST_PATH_PART)
   })
 
   it('getMyChartProfile returns Homer Simpson', async () => {

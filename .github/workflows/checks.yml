@@ -92,36 +92,38 @@ jobs:
       - run: bun install
       - name: Install fake-mychart deps
         run: cd fake-mychart && bun install
-      - name: Build & start fake-mychart servers
+      - name: Build & start fake-mychart server
         run: |
-          cd fake-mychart && bun run build
-          # Two instances, modelling the two ways real MyChart is deployed:
-          #   4000 — path-prefixed (/MyChart/), like most instances
-          #   4002 — root-mounted, like mychart.clevelandclinic.org
-          PORT=4000 bun run start &
-          FAKE_MYCHART_ROOT_MOUNT=true PORT=4002 bun run start &
-          # Wait for both servers to be ready
-          for port in 4000 4002; do
-            for i in $(seq 1 30); do
-              if curl -s -o /dev/null -w '%{http_code}' http://localhost:$port/ | grep -q '302'; then
-                echo "Server on $port ready"
-                break
-              fi
-              if [ $i -eq 30 ]; then
-                echo "Server on $port failed to start within 30s"
-                exit 1
-              fi
-              echo "Waiting for server on $port... ($i)"
-              sleep 1
-            done
+          cd fake-mychart && bun run build && PORT=4000 bun run start &
+          # Wait for server to be ready
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/ | grep -q '302'; then
+              echo "Server ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start within 30s"
+              exit 1
+            fi
+            echo "Waiting for server... ($i)"
+            sleep 1
           done
-      - name: Run scrapers against fake-mychart
+      # One server covers both real MyChart deployment shapes: POST /mode flips
+      # it between path-prefixed (/MyChart/, most instances) and root-mounted
+      # (mychart.clevelandclinic.org). Running the whole scraper suite twice
+      # exercises every scraper against both, not just the mount tests.
+      - name: Run scrapers against fake-mychart (path-prefixed)
         run: bun run test:fake-mychart
-      - name: Run mount-mode tests against both fake-mychart instances
+        env:
+          FAKE_MYCHART_MODE: prefixed
+      - name: Run scrapers against fake-mychart (root-mounted)
+        run: bun run test:fake-mychart
+        env:
+          FAKE_MYCHART_MODE: root
+      - name: Run mount-mode tests
         run: bun run test:fake-mychart-mounts
         env:
           FAKE_MYCHART_HOST: localhost:4000
-          FAKE_MYCHART_ROOT_MOUNT_HOST: localhost:4002
       - name: Run Claude Desktop extension tests against fake-mychart
         run: cd claude-desktop-extension && bun install && bun test
         env:

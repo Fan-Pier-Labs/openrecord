@@ -1,24 +1,46 @@
 /**
- * Real MyChart instances are deployed one of two ways, and the scraper has to
- * discover which before it can build any URL:
+ * Which of the two real MyChart deployment shapes this server is currently
+ * pretending to be. The scraper has to discover the shape before it can build
+ * a single URL, so both need to be exercised:
  *
- *   - **Path-prefixed** (the common case): `mychart.uhhospitals.org/` redirects
- *     to `/MyChart/`, UCSF to `/UCSFMyChart/`. Every route lives under that
- *     prefix.
- *   - **Root-mounted**: `mychart.clevelandclinic.org/` redirects straight to
- *     `./Authentication/Login?`. There is no prefix — the controller name *is*
- *     the first path segment.
+ *   - **path-prefixed** (default): `/` redirects to `/MyChart/`, and every
+ *     route lives under that prefix. This is uhhospitals.org, UCSF, and most
+ *     other instances.
+ *   - **root-mounted**: `/` redirects to a relative `./Authentication/Login?`
+ *     and routes are served straight from the domain root. This is
+ *     mychart.clevelandclinic.org. Here the first path segment is already a
+ *     MyChart route, not a deployment prefix — mistaking it for one used to
+ *     break login against Cleveland Clinic entirely.
  *
- * Set `FAKE_MYCHART_ROOT_MOUNT=true` to model the root-mounted deployment.
- * The fake defaults to path-prefixed so existing tests are unaffected.
+ * The mode is switchable at runtime via `POST /mode` so one server can cover
+ * both shapes; see `src/app/mode/route.ts`. It lives in RAM alongside the rest
+ * of the fake's mutable state and `/reset` restores the default.
  */
+export type MountMode = 'prefixed' | 'root';
+
+export const DEFAULT_MOUNT_MODE: MountMode = 'prefixed';
+
+const mountState: { mode: MountMode } = { mode: DEFAULT_MOUNT_MODE };
+
+export function getMountMode(): MountMode {
+  return mountState.mode;
+}
+
+export function setMountMode(mode: MountMode): void {
+  mountState.mode = mode;
+}
+
+export function resetMountMode(): void {
+  mountState.mode = DEFAULT_MOUNT_MODE;
+}
+
 export function isRootMount(): boolean {
-  return process.env.FAKE_MYCHART_ROOT_MOUNT === 'true';
+  return mountState.mode === 'root';
 }
 
 /**
- * Path prefix to put in front of MyChart routes: `/MyChart` normally, empty
- * for a root-mounted instance.
+ * Path prefix to put in front of MyChart routes: `/MyChart` in prefixed mode,
+ * empty when root-mounted.
  */
 export function mountPrefix(): string {
   return isRootMount() ? '' : '/MyChart';

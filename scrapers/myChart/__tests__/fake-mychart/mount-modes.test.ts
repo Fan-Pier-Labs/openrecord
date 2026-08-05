@@ -15,45 +15,66 @@
  * `/Authentication/Authentication/Login/DoLogin` → 404 → "ended up on an
  * unexpected page".
  *
- * Requires two fake-mychart servers:
- *   - localhost:4000 (or FAKE_MYCHART_HOST)             — default, path-prefixed
- *   - localhost:4002 (or FAKE_MYCHART_ROOT_MOUNT_HOST)  — FAKE_MYCHART_ROOT_MOUNT=true
+ * A single fake-mychart server covers both — `POST /mode` flips it. Requires
+ * one server on localhost:4000 (or FAKE_MYCHART_HOST).
  *
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/mount-modes.test.ts
  */
 
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
 import { getMyChartProfile } from '../../profile'
 import { getMedications } from '../../medications'
+import { setMountMode, getMountMode } from './mountMode'
 
-const PREFIXED_HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
-const ROOT_HOST = process.env.FAKE_MYCHART_ROOT_MOUNT_HOST ?? 'localhost:4002'
+const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
-async function login(hostname: string) {
-  return myChartUserPassLogin({ hostname, user: 'homer', pass: 'donuts123', protocol: 'http' })
+async function login() {
+  return myChartUserPassLogin({ hostname: HOST, user: 'homer', pass: 'donuts123', protocol: 'http' })
 }
 
+describe('mount mode switching', () => {
+  it('round-trips through the endpoint', async () => {
+    await setMountMode(HOST, 'prefixed')
+    expect(await getMountMode(HOST)).toBe('prefixed')
+    await setMountMode(HOST, 'root')
+    expect(await getMountMode(HOST)).toBe('root')
+    await setMountMode(HOST, 'prefixed')
+  })
+
+  it('rejects an unknown mode and leaves the current one alone', async () => {
+    const res = await fetch(`http://${HOST}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'sideways' }),
+    })
+    expect(res.status).toBe(400)
+    expect(await getMountMode(HOST)).toBe('prefixed')
+  })
+})
+
 describe('path-prefixed instance (/MyChart/)', () => {
+  beforeAll(async () => { await setMountMode(HOST, 'prefixed') })
+
   it('serves its root redirect as an absolute URL carrying the prefix', async () => {
-    const res = await fetch(`http://${PREFIXED_HOST}/`, { redirect: 'manual' })
+    const res = await fetch(`http://${HOST}/`, { redirect: 'manual' })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toContain('/MyChart/')
   })
 
   it('does not serve MyChart routes at the domain root', async () => {
-    const res = await fetch(`http://${PREFIXED_HOST}/Authentication/Login`, { redirect: 'manual' })
+    const res = await fetch(`http://${HOST}/Authentication/Login`, { redirect: 'manual' })
     expect(res.status).toBe(404)
   })
 
   it('logs in and discovers the prefix', async () => {
-    const result = await login(PREFIXED_HOST)
+    const result = await login()
     expect(result.state).toBe('logged_in')
     expect(result.mychartRequest.firstPathPart).toBe('MyChart')
   }, 30_000)
 
   it('scrapes through the prefix', async () => {
-    const result = await login(PREFIXED_HOST)
+    const result = await login()
     expect(result.state).toBe('logged_in')
 
     const profile = await getMyChartProfile(result.mychartRequest)
@@ -66,28 +87,32 @@ describe('path-prefixed instance (/MyChart/)', () => {
 })
 
 describe('root-mounted instance (Cleveland Clinic shape)', () => {
+  beforeAll(async () => { await setMountMode(HOST, 'root') })
+  // Leave the server as the next suite expects to find it.
+  afterAll(async () => { await setMountMode(HOST, 'prefixed') })
+
   it('serves its root redirect as a relative URL straight to a route', async () => {
     // Byte-for-byte what mychart.clevelandclinic.org sends. Both the relative
     // form and the trailing "?" are part of the real response.
-    const res = await fetch(`http://${ROOT_HOST}/`, { redirect: 'manual' })
+    const res = await fetch(`http://${HOST}/`, { redirect: 'manual' })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe('./Authentication/Login?')
   })
 
   it('serves MyChart routes at the domain root', async () => {
-    const res = await fetch(`http://${ROOT_HOST}/Authentication/Login`)
+    const res = await fetch(`http://${HOST}/Authentication/Login`)
     expect(res.status).toBe(200)
   })
 
   it('logs in with no prefix instead of mistaking the route for one', async () => {
-    const result = await login(ROOT_HOST)
+    const result = await login()
     expect(result.state).toBe('logged_in')
     // The regression: this used to be 'Authentication'.
     expect(result.mychartRequest.firstPathPart).toBeNull()
   }, 30_000)
 
   it('builds URLs without a doubled route segment or a double slash', async () => {
-    const result = await login(ROOT_HOST)
+    const result = await login()
     expect(result.state).toBe('logged_in')
 
     const requested: string[] = []
@@ -111,7 +136,7 @@ describe('root-mounted instance (Cleveland Clinic shape)', () => {
   }, 30_000)
 
   it('scrapes from the domain root', async () => {
-    const result = await login(ROOT_HOST)
+    const result = await login()
     expect(result.state).toBe('logged_in')
 
     const meds = await getMedications(result.mychartRequest)
