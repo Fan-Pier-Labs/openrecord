@@ -540,9 +540,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return json(homer.healthSummaryHeader);
   }
 
-  // Vitals / Flowsheets
+  // Vitals / Flowsheets — two-call contract (definitions, then readings)
   if (lower === 'api/track-my-health/getflowsheets') {
     return json(homer.vitals);
+  }
+  if (lower === 'api/track-my-health/getflowsheetreadings') {
+    // Real MyChart pages backwards through history: it returns readings at or
+    // before endInstantIso, and numReadings caps distinct reading INSTANTS
+    // (flowsheet columns), not individual readings. Honor both so the scraper's
+    // paging loop is actually exercised.
+    const body = await request.json();
+    const endInstantIso: string = body?.endInstantIso || '9999-12-31T23:59:59';
+    const numReadings: number = Number(body?.numReadings) || 200;
+
+    const all = homer.vitalsReadings.flowsheet.readings;
+    const inRange = all.filter((r) => r.instantTakenIso <= endInstantIso);
+    const instants = [...new Set(inRange.map((r) => r.instantTakenIso))].sort().reverse();
+    const page = instants.slice(0, numReadings);
+    const pageSet = new Set(page);
+
+    return json({
+      ...homer.vitalsReadings,
+      flowsheet: {
+        ...homer.vitalsReadings.flowsheet,
+        readings: inRange.filter((r) => pageSet.has(r.instantTakenIso)),
+        hasMoreData: instants.length > page.length,
+        nextReadingDateIso: instants[page.length] || '',
+      },
+    });
   }
 
   // Medical History
