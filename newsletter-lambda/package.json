@@ -1,0 +1,11 @@
+{
+  "name": "newsletter-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS Lambda Function URL that logs OpenRecord newsletter/waitlist signups to CloudWatch",
+  "type": "module",
+  "scripts": {
+    "test": "bun test src/__tests__/",
+    "deploy": "./deploy.sh"
+  }
+}

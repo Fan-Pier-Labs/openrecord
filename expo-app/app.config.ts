@@ -58,6 +58,9 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-local-authentication",
     googleSigninPlugin,
+    // Enables `use_modular_headers!` so google-signin's Firebase pods
+    // (AppCheckCore / RecaptchaInterop) compile as static libraries.
+    "./plugins/withModularHeaders",
   ],
   extra: {
     eas: {

@@ -17,6 +17,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
 - **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
 - **OpenRecord plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin (package name: `openrecord`) that bundles all MyChart scrapers locally. No server dependency.
+- **Newsletter Lambda** (`newsletter-lambda/`): Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups from the login page and `console.log`s them to CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration. Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account blocks unauthenticated Lambda Function URLs. Deploy with `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com` (frontend reads `NEXT_PUBLIC_NEWSLETTER_ENDPOINT`, falling back to this URL). Read signups via CloudWatch Logs Insights: `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`. Hidden `company` honeypot field drops bots. See `newsletter-lambda/README.md`.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (no 2FA) or `marge`/`donuts123` (TOTP enabled — always requires the 2FA code `123456`). Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password. All state lives in RAM. Visit `/reset` (or `POST /reset`) to wipe all in-memory state — sessions, sent messages, emergency contacts, per-user TOTP/passkeys, booked appointments — back to the seed.
   - **Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a convenience mock. Always replicate the real API's response shapes, field names/casing, pagination (page sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules (e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the fake returns 10, and the fixture/test is sized around that. When you discover how a real endpoint behaves, update the fake to match it exactly.
 
@@ -73,13 +74,20 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
 - **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
 
-### AWS Fargate (primary)
+### Static splash page (primary public site)
+
+- **`openrecord.fanpierlabs.com` serves a static splash page**, NOT the Next.js app. See `openrecord-splash/`.
+  - Single self-contained `index.html` (no build step) on S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh`.
+  - Presentational only — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+
+### AWS Fargate (Next.js web app)
 
 - **AWS account**: fanpierlabs (`aws --profile fanpierlabs`)
 - **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy` (from repo root, uses `web/deploy.yaml`)
   - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
   - Config: `web/deploy.yaml`
-  - Domain: `openrecord.fanpierlabs.com` (CloudFront + ALB + Route53). Old domain `mychart.fanpierlabs.com` redirects via next.config.ts.
+  - **No longer routed at `openrecord.fanpierlabs.com`** (that domain now serves the static splash above). The Fargate app + ALB (`mychart-alb-7967620`) and CloudFront distro `E2QOJCUV1KR3B0` still exist; `mychart.fanpierlabs.com` still points to them. Re-point a domain at that distro if you need the full app (incl. `/api/mcp`) publicly reachable again.
   - Region: `us-east-2`
 - **Fake MyChart** (`fake-mychart/`): Separate Fargate app deployed independently from the web app. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile` (not the repo-root web app Dockerfile):
   - `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml`
@@ -100,6 +108,8 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`)
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
   - Served via `GET /api/mychart-logo?name=<filename>`
+- **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
+  - Static splash page (`index.html`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 

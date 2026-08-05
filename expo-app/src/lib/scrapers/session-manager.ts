@@ -69,6 +69,7 @@ import {
   serializeCredential,
 } from "../../../../scrapers/myChart/softwareAuthenticator";
 import { setupPasskey } from "../../../../scrapers/myChart/setupPasskey";
+import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/passkeyLoginRetry";
 import { getMemorySummary } from "@/lib/storage/database";
 
 type SessionEntry = {
@@ -129,11 +130,20 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
   if (account.passkeyCredential) {
     try {
       const credential = deserializeCredential(account.passkeyCredential);
-      const result = await myChartPasskeyLogin({
-        hostname: account.hostname,
+      // MyChart enforces a strictly-increasing WebAuthn signature counter. Our
+      // stored counter can lag the server's (a prior login bumped the server but
+      // the new value was never persisted, or the passkey was used on another
+      // device), which rejects the first assertion. passkeyLoginWithCounterRetry
+      // bumps and retries to recover; on success `credential.signCount` holds the
+      // accepted value, which we persist below.
+      const result = await passkeyLoginWithCounterRetry(
+        (cred) => myChartPasskeyLogin({
+          hostname: account.hostname,
+          credential: cred,
+          fetchFn: nativeFetch,
+        }),
         credential,
-        fetchFn: nativeFetch,
-      });
+      );
 
       if (result.state === "logged_in") {
         sessions.set(account.id, {
@@ -142,7 +152,8 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
           status: "logged_in",
         });
         startKeepalive(account.id);
-        // Update sign count
+        // Persist the accepted (incremented) sign counter so the next login
+        // starts from the right place and doesn't have to retry.
         await updateMyChartAccount(account.id, {
           passkeyCredential: JSON.stringify(credential),
         });
