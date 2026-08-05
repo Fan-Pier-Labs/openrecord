@@ -96,7 +96,9 @@ export class MyChartRequest {
   static async unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
     try {
       const data = JSON.parse(serializedData);
-      if (data && data.hostname && data.firstPathPart && data.cookies) {
+      // firstPathPart is '' for instances mounted at the domain root (e.g. Cleveland
+      // Clinic), so check for presence rather than truthiness.
+      if (data && data.hostname && data.firstPathPart !== undefined && data.cookies) {
         const request = new MyChartRequest(data.hostname, { ...options, protocol: data.protocol });
         request.firstPathPart = data.firstPathPart;
         if (Object.keys(data.cookies).length > 0) {

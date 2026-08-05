@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, isMyChartRootController } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -205,6 +205,46 @@ describe('parseFirstPathPartFromLocation', () => {
       'https://mychart.example.com/',
       'mychart.example.com'
     )).toBe(null)
+  })
+
+  it('returns null when the redirect goes straight to a MyChart controller (root-mounted instance)', () => {
+    // Cleveland Clinic redirects / -> ./Authentication/Login?, meaning MyChart is
+    // served from the domain root. Treating "Authentication" as the path prefix
+    // produced /Authentication/Authentication/Login, which 404s.
+    expect(parseFirstPathPartFromLocation(
+      './Authentication/Login?',
+      'mychart.clevelandclinic.org'
+    )).toBe(null)
+
+    expect(parseFirstPathPartFromLocation(
+      '/Home/Index',
+      'mychart.example.com'
+    )).toBe(null)
+  })
+
+  it('still extracts a real prefix that merely resembles a controller name', () => {
+    expect(parseFirstPathPartFromLocation(
+      '/MyChartAuthentication/',
+      'mychart.example.com'
+    )).toBe('MyChartAuthentication')
+  })
+})
+
+describe('isMyChartRootController', () => {
+  it('recognizes MyChart controller names case-insensitively', () => {
+    expect(isMyChartRootController('Authentication')).toBe(true)
+    expect(isMyChartRootController('authentication')).toBe(true)
+    expect(isMyChartRootController('Home')).toBe(true)
+    expect(isMyChartRootController('Clinical')).toBe(true)
+  })
+
+  it('does not treat deployment prefixes as controllers', () => {
+    expect(isMyChartRootController('MyChart')).toBe(false)
+    expect(isMyChartRootController('MyChart-PRD')).toBe(false)
+    expect(isMyChartRootController('prd')).toBe(false)
+    expect(isMyChartRootController('')).toBe(false)
+    expect(isMyChartRootController(null)).toBe(false)
+    expect(isMyChartRootController(undefined)).toBe(false)
   })
 })
 
