@@ -225,7 +225,9 @@ import {
   complete2faFlow,
   areCookiesValid,
   parse2faDeliveryMethods,
-  getMyChartProfile, getEmail, getHealthSummary, getVitals,
+  getMyChartProfile, getEmail,
+  discoverProxyTargets, switchProxyTarget, verifyActiveProxyTarget,
+  getHealthSummary, getVitals,
   getMedications, requestMedicationRefill,
   getAllergies, getHealthIssues, getMedicalHistory, getImmunizations,
   listLabResults, getImagingResults, downloadImagingStudyDirect,
@@ -247,6 +249,21 @@ const result = await myChartUserPassLogin({ hostname, user, pass });
 if (result.state === 'logged_in') {
   const meds = await getMedications(result.mychartRequest);
 }
+```
+
+## Proxy account context
+
+Some MyChart accounts can access multiple patient records. After login, use
+the proxy helpers to discover available records, switch context, and verify
+which profile is active before scraping patient-specific data:
+
+```ts
+const targets = await discoverProxyTargets(result.mychartRequest);
+const proxyTarget = targets.find((target) => !target.isSelf);
+if (proxyTarget) {
+  await switchProxyTarget(result.mychartRequest, { id: proxyTarget.id });
+}
+const active = await verifyActiveProxyTarget(result.mychartRequest);
 ```
 
 Login result shape:

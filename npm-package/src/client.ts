@@ -21,6 +21,11 @@ import { generateTotpCode } from '../../scrapers/myChart/totp';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
+import {
+  discoverProxyTargets,
+  switchProxyTarget,
+  verifyActiveProxyTarget,
+} from '../../scrapers/myChart/proxyContext';
 import { getHealthSummary } from '../../scrapers/myChart/healthSummary';
 import { getVitals } from '../../scrapers/myChart/vitals';
 import { getMedications } from '../../scrapers/myChart/medications';
@@ -284,6 +289,9 @@ export class MyChartClient {
   // ── Profile ─────────────────────────────────────────────────────────────
   getProfile() { return getMyChartProfile(this.req()); }
   getEmail()   { return getEmail(this.req()); }
+  discoverProxyTargets() { return discoverProxyTargets(this.req()); }
+  switchProxyTarget(target: { id?: string; displayName?: string }) { return switchProxyTarget(this.req(), target); }
+  verifyActiveProxyTarget() { return verifyActiveProxyTarget(this.req()); }
 
   // ── Health summary / vitals ─────────────────────────────────────────────
   getHealthSummary() { return getHealthSummary(this.req()); }
