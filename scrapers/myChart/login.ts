@@ -24,24 +24,31 @@ export function parseFirstPathPartFromHtml(html: string): string | null {
   return possibleFirstPathPart || null;
 }
 
-// MyChart's own controller names. If the root redirect lands directly on one of
-// these, MyChart is mounted at the domain root and there is no path prefix —
-// e.g. Cleveland Clinic redirects / -> ./Authentication/Login, and treating
-// "Authentication" as the prefix yields /Authentication/Authentication/Login (404).
-const MYCHART_ROOT_CONTROLLERS = new Set([
-  'authentication', 'home', 'clinical', 'scheduling', 'billing', 'messaging',
-  'inside', 'todo', 'account', 'profile', 'medicalrecord', 'insurance',
-]);
+// MyChart's login route. When a root redirect lands on it, everything in front
+// of it is the deployment prefix — and for root-mounted instances that's nothing.
+const MYCHART_LOGIN_ROUTE = '/authentication/';
 
-export function isMyChartRootController(part: string | null | undefined): boolean {
-  return !!part && MYCHART_ROOT_CONTROLLERS.has(part.toLowerCase());
+/** Does this redirect path land on a MyChart route we recognize? */
+export function landsOnMyChartRoute(path: string): boolean {
+  return path.toLowerCase().includes(MYCHART_LOGIN_ROUTE);
 }
 
+/**
+ * Work out the deployment prefix from the redirect a root probe returns.
+ *
+ *   /MyChart/                   → 'MyChart'      (uhhospitals.org and most others)
+ *   /UCSFMyChart/               → 'UCSFMyChart'
+ *   /Authentication/Login       → null           (Cleveland Clinic — no prefix)
+ *   /prd/Authentication/Login   → 'prd'
+ *
+ * null means "no prefix": nothing at all goes in front of MyChart's routes.
+ */
 export function parseFirstPathPartFromLocation(locationHeader: string, hostname: string, protocol = 'https'): string | null {
-  const url = new URL(locationHeader, protocol + '://' + hostname);
-  const part = url.pathname.split('/')[1];
-  if (isMyChartRootController(part)) return null;
-  return part || null;
+  const { pathname } = new URL(locationHeader, protocol + '://' + hostname);
+  const routeStart = pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
+  // Redirect went straight to a MyChart route — take whatever precedes it.
+  if (routeStart >= 0) return pathname.slice(1, routeStart) || null;
+  return pathname.split('/')[1] || null;
 }
 
 export function parseFirstPathPartFromInput(input: string): string | null {
@@ -183,16 +190,20 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
       // that point back to the original hostname (e.g. script tags, data attributes, links).
       firstPathPart = await extractFirstPathPartFromMarketingPage(mychartRequest, redirectUrl.href);
     } else {
-      const rawPart = new URL(locationResponseHeader, mychartRequest.protocol + '://' + mychartRequest.hostname).pathname.split('/')[1];
-      if (isMyChartRootController(rawPart)) {
-        // MyChart is mounted at the domain root (e.g. Cleveland Clinic). Leave
-        // firstPathPart empty rather than probing/guessing a prefix.
-        logger.debug('MyChart is mounted at the domain root (redirect went straight to', rawPart + '), using empty first path part');
-        mychartRequest.setFirstPathPart('');
-        return mychartRequest;
-      }
       firstPathPart = parseFirstPathPartFromLocation(locationResponseHeader, mychartRequest.hostname, mychartRequest.protocol);
       logger.debug('first path part', firstPathPart)
+
+      if (landsOnMyChartRoute(redirectUrl.pathname)) {
+        // The redirect went straight to a MyChart route, so it already told us
+        // everything: whatever precedes that route is the whole prefix, and for
+        // root-mounted instances there is none. Take it and stop looking —
+        // falling through to the guessing fallbacks would invent a prefix.
+        logger.debug(firstPathPart
+          ? `redirect landed on a MyChart route; prefix is ${firstPathPart}`
+          : 'redirect landed on a MyChart route with nothing in front of it; instance is mounted at the domain root');
+        mychartRequest.setFirstPathPart(firstPathPart);
+        return mychartRequest;
+      }
     }
   }
   else {

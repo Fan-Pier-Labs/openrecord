@@ -8,7 +8,7 @@
  *     UCSF, and most others). The first path segment is a deployment prefix.
  *   - **Root-mounted**: `/` redirects to `./Authentication/Login?`
  *     (mychart.clevelandclinic.org). There is no prefix — the first path
- *     segment is already a MyChart controller name.
+ *     segment is already a MyChart route.
  *
  * The second shape used to break login entirely: "Authentication" was stored
  * as the prefix and prepended to paths that already began with it, producing
@@ -66,7 +66,7 @@ describe('path-prefixed instance (/MyChart/)', () => {
 })
 
 describe('root-mounted instance (Cleveland Clinic shape)', () => {
-  it('serves its root redirect as a relative URL straight to a controller', async () => {
+  it('serves its root redirect as a relative URL straight to a route', async () => {
     // Byte-for-byte what mychart.clevelandclinic.org sends. Both the relative
     // form and the trailing "?" are part of the real response.
     const res = await fetch(`http://${ROOT_HOST}/`, { redirect: 'manual' })
@@ -79,14 +79,14 @@ describe('root-mounted instance (Cleveland Clinic shape)', () => {
     expect(res.status).toBe(200)
   })
 
-  it('logs in with an empty prefix instead of mistaking the controller for one', async () => {
+  it('logs in with no prefix instead of mistaking the route for one', async () => {
     const result = await login(ROOT_HOST)
     expect(result.state).toBe('logged_in')
     // The regression: this used to be 'Authentication'.
-    expect(result.mychartRequest.firstPathPart).toBe('')
+    expect(result.mychartRequest.firstPathPart).toBeNull()
   }, 30_000)
 
-  it('builds URLs without a doubled controller segment or a double slash', async () => {
+  it('builds URLs without a doubled route segment or a double slash', async () => {
     const result = await login(ROOT_HOST)
     expect(result.state).toBe('logged_in')
 

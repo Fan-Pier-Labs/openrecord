@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, isMyChartRootController } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -207,7 +207,7 @@ describe('parseFirstPathPartFromLocation', () => {
     )).toBe(null)
   })
 
-  it('returns null when the redirect goes straight to a MyChart controller (root-mounted instance)', () => {
+  it('returns null when the redirect goes straight to a MyChart route (root-mounted instance)', () => {
     // Cleveland Clinic redirects / -> ./Authentication/Login?, meaning MyChart is
     // served from the domain root. Treating "Authentication" as the path prefix
     // produced /Authentication/Authentication/Login, which 404s.
@@ -215,14 +215,16 @@ describe('parseFirstPathPartFromLocation', () => {
       './Authentication/Login?',
       'mychart.clevelandclinic.org'
     )).toBe(null)
-
-    expect(parseFirstPathPartFromLocation(
-      '/Home/Index',
-      'mychart.example.com'
-    )).toBe(null)
   })
 
-  it('still extracts a real prefix that merely resembles a controller name', () => {
+  it('takes everything in front of the route when a prefix and a route appear together', () => {
+    expect(parseFirstPathPartFromLocation(
+      '/prd/Authentication/Login',
+      'mychart.example.com'
+    )).toBe('prd')
+  })
+
+  it('still extracts a real prefix that merely resembles a route name', () => {
     expect(parseFirstPathPartFromLocation(
       '/MyChartAuthentication/',
       'mychart.example.com'
@@ -230,21 +232,17 @@ describe('parseFirstPathPartFromLocation', () => {
   })
 })
 
-describe('isMyChartRootController', () => {
-  it('recognizes MyChart controller names case-insensitively', () => {
-    expect(isMyChartRootController('Authentication')).toBe(true)
-    expect(isMyChartRootController('authentication')).toBe(true)
-    expect(isMyChartRootController('Home')).toBe(true)
-    expect(isMyChartRootController('Clinical')).toBe(true)
+describe('landsOnMyChartRoute', () => {
+  it('recognizes a MyChart route case-insensitively', () => {
+    expect(landsOnMyChartRoute('/Authentication/Login')).toBe(true)
+    expect(landsOnMyChartRoute('/authentication/login')).toBe(true)
+    expect(landsOnMyChartRoute('/prd/Authentication/Login')).toBe(true)
   })
 
-  it('does not treat deployment prefixes as controllers', () => {
-    expect(isMyChartRootController('MyChart')).toBe(false)
-    expect(isMyChartRootController('MyChart-PRD')).toBe(false)
-    expect(isMyChartRootController('prd')).toBe(false)
-    expect(isMyChartRootController('')).toBe(false)
-    expect(isMyChartRootController(null)).toBe(false)
-    expect(isMyChartRootController(undefined)).toBe(false)
+  it('does not fire on a bare deployment prefix', () => {
+    expect(landsOnMyChartRoute('/MyChart/')).toBe(false)
+    expect(landsOnMyChartRoute('/UCSFMyChart/')).toBe(false)
+    expect(landsOnMyChartRoute('/')).toBe(false)
   })
 })
 

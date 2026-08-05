@@ -1584,7 +1584,7 @@ describe('Root-mounted MyChart instance', () => {
     expect(JSON.stringify(data.allergies).length).toBeGreaterThan(10);
   }, 120_000);
 
-  it('logs in at the scraper level with an empty firstPathPart', async () => {
+  it('logs in at the scraper level with a null firstPathPart', async () => {
     const result = await myChartUserPassLogin({
       hostname: FAKE_MYCHART_ROOT_HOST_URL,
       user: 'homer',
@@ -1594,7 +1594,7 @@ describe('Root-mounted MyChart instance', () => {
 
     expect(result.state).toBe('logged_in');
     // The regression: this used to be 'Authentication'.
-    expect(result.mychartRequest.firstPathPart).toBe('');
+    expect(result.mychartRequest.firstPathPart).toBeNull();
   }, 30_000);
 
   it('deletes the instance', async () => {
