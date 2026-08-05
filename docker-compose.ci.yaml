@@ -15,6 +15,10 @@ services:
 
   fake-mychart:
     build: ./fake-mychart
+    # Tagged so fake-mychart-root can reuse this exact image. The two services
+    # differ only by env var, so building the same Dockerfile twice just doubles
+    # the Next.js build load on the runner.
+    image: fake-mychart-ci
     ports:
       - "4000:3000"
     environment:
@@ -28,10 +32,16 @@ services:
 
   # Second fake instance, mounted at the domain root instead of under /MyChart/,
   # modelling mychart.clevelandclinic.org. Its root redirect is a relative
-  # ./Authentication/Login?, so the first path segment is a controller name
+  # ./Authentication/Login?, so the first path segment is a MyChart route
   # rather than a deployment prefix.
+  #
+  # Reuses the image fake-mychart builds rather than rebuilding it — only the
+  # env differs. depends_on keeps the build/start ordering explicit.
   fake-mychart-root:
-    build: ./fake-mychart
+    image: fake-mychart-ci
+    depends_on:
+      fake-mychart:
+        condition: service_started
     ports:
       - "4002:3000"
     environment:
