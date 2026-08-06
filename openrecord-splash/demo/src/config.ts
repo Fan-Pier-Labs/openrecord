@@ -2,12 +2,14 @@
  * Demo configuration.
  *
  * AI_ENDPOINT is the `openrecord-demo-ai` API Gateway endpoint (see
- * `openrecord-demo-lambda/`). Leave it empty and the demo runs entirely
- * offline on its scripted engine — real tool calls against the fictional
- * record, pre-written prose.
+ * `openrecord-demo-lambda/`). Every reply in the demo comes from a real model
+ * call through it — there is no offline path, so without an endpoint the demo
+ * says so plainly rather than answering from a canned table.
  *
- * Override at runtime for local testing without editing this file by
- * appending `?ai=<url>` to the demo URL.
+ * Resolution order:
+ *   1. `?ai=<url>` on the demo URL — handy for pointing at a local proxy.
+ *   2. `VITE_AI_ENDPOINT` at build or dev time.
+ *   3. The baked-in default below.
  */
 
 const DEFAULT_AI_ENDPOINT = '';
@@ -17,9 +19,10 @@ function endpointOverride(): string | null {
   return new URLSearchParams(window.location.search).get('ai');
 }
 
-export const AI_ENDPOINT: string = endpointOverride() ?? DEFAULT_AI_ENDPOINT;
+export const AI_ENDPOINT: string =
+  endpointOverride() ?? import.meta.env.VITE_AI_ENDPOINT ?? DEFAULT_AI_ENDPOINT;
 
-/** True when a live model is wired up; false means scripted-only. */
+/** False means the demo cannot answer anything and should say so. */
 export const HAS_LIVE_AI: boolean = Boolean(AI_ENDPOINT);
 
 export const GITHUB_URL = 'https://github.com/Fan-Pier-Labs/openrecord';

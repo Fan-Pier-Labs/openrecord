@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import * as data from '../data';
 import { SKILLS, buildAlerts } from '../skills';
 import { executeTool } from '../tools';
-import { HAS_LIVE_AI } from '../config';
-import { fallbackNote } from '../display';
 import { Markdown } from './Markdown';
+import { streamText } from '../stream';
 import type { Session, Skill, TurnCallbacks } from '../types';
 
 /**
@@ -16,21 +15,17 @@ import type { Session, Skill, TurnCallbacks } from '../types';
  * worth clicking through; not a pixel-perfect clone, and the page says so.
  */
 
-type Screen = 'welcome' | 'signin' | 'picker' | 'login' | 'twofa' | 'passkey' | 'chat' | 'insights' | 'settings';
-
-const ONBOARDING_SCREENS: Screen[] = ['welcome', 'signin', 'picker', 'login', 'twofa', 'passkey'];
+type Screen = 'chat' | 'insights' | 'settings';
 
 export type ChatEntry = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  fallback?: boolean;
+  failed?: boolean;
 };
 
 export type IosHandle = {
   send: (text: string) => void;
-  skipOnboarding: () => void;
-  isOnboarding: () => boolean;
 };
 
 type Props = {
@@ -42,22 +37,14 @@ type Props = {
     skillAddition: string | null;
     memoryDigest: string | null;
     callbacks: TurnCallbacks;
-  }) => Promise<{ text: string; usedFallback: boolean }>;
+  }) => Promise<{ text: string }>;
   onReady: (handle: IosHandle) => void;
 };
 
 export function IosSurface({ session, runTurn, onReady }: Props) {
-  const [screen, setScreen] = useState<Screen>('welcome');
-  const [email, setEmail] = useState('');
-  const [instance, setInstance] = useState(data.directory[0]);
-  const [providerQuery, setProviderQuery] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [connecting, setConnecting] = useState(false);
-  const [code, setCode] = useState('');
-  const [codeError, setCodeError] = useState('');
-  const [registering, setRegistering] = useState(false);
+  const [screen, setScreen] = useState<Screen>('chat');
+  // The demo starts on a connected account, so the provider is fixed.
+  const instance = data.directory[0];
 
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -120,12 +107,18 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
           onToolEnd: () => setActiveTool(null),
         },
       });
-      setMessages((prev) =>
-        prev.map((m) => (m.id === assistantId ? { ...m, content: result.text, fallback: result.usedFallback } : m)),
+      // The proxy answers a whole turn at once, so reveal it at the pace a
+      // model would have produced it — an instant wall of text reads as canned.
+      await streamText(result.text, (visible) =>
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: visible } : m))),
       );
     } catch (err) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === assistantId ? { ...m, content: `Something went wrong: ${(err as Error).message}` } : m)),
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: `I couldn't reach the model just now — ${(err as Error).message}`, failed: true }
+            : m,
+        ),
       );
     } finally {
       setBusy(false);
@@ -134,11 +127,6 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   }
 
   sendRef.current = send;
-
-  function finishOnboarding() {
-    executeTool(session, 'connect_instance', {});
-    setScreen('chat');
-  }
 
   function newChat() {
     setMessages([]);
@@ -150,282 +138,10 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   }
 
   useEffect(() => {
-    onReady({
-      send: (text) => sendRef.current(text),
-      skipOnboarding: () => {
-        setEmail('homer.simpson@example.com');
-        executeTool(session, 'connect_instance', {});
-        setScreen('chat');
-      },
-      isOnboarding: () => ONBOARDING_SCREENS.includes(screenRef.current),
-    });
+    onReady({ send: (text) => sendRef.current(text) });
     // Registered once on mount, deliberately: it reads live state through refs
     // rather than closing over this render's values.
   }, []);
-
-  // `isOnboarding` is polled from outside React, so it needs a ref, not state.
-  const screenRef = useRef<Screen>(screen);
-  screenRef.current = screen;
-
-  /* ── Onboarding ─────────────────────────────────────────────────── */
-
-  function renderWelcome() {
-    return (
-      <div className="ios-page ios-onboarding">
-        <div className="ios-ob-body">
-          <div className="ios-ob-mark">◍</div>
-          <h1 className="ios-ob-title">OpenRecord</h1>
-          <p className="ios-ob-copy">
-            Your health record, in plain language. Connect your MyChart portal and ask it anything.
-          </p>
-        </div>
-        <div className="ios-ob-actions">
-          <button className="ios-btn primary" onClick={() => setScreen('signin')}>
-            Get Started
-          </button>
-          <p className="ios-fineprint">Records stay on your device. Nothing is uploaded.</p>
-        </div>
-      </div>
-    );
-  }
-
-  function renderSignin() {
-    const proceed = () => {
-      setEmail('homer.simpson@example.com');
-      setScreen('picker');
-    };
-    return (
-      <div className="ios-page ios-onboarding">
-        <div className="ios-ob-body">
-          <h1 className="ios-ob-title">Sign in</h1>
-          <p className="ios-ob-copy">
-            Your OpenRecord account is separate from your MyChart login — that boundary is the point.
-          </p>
-        </div>
-        <div className="ios-ob-actions">
-          <button className="ios-btn google" onClick={proceed}>
-            <span className="g-mark">G</span>
-            Continue with Google
-          </button>
-          <button className="ios-btn ghost" onClick={proceed}>
-            Continue with email
-          </button>
-          <p className="ios-fineprint">Demo — no real account is created.</p>
-        </div>
-      </div>
-    );
-  }
-
-  function renderPicker() {
-    const q = providerQuery.trim().toLowerCase();
-    const matches = data.directory.filter(
-      (d) => !q || d.name.toLowerCase().includes(q) || d.city.toLowerCase().includes(q),
-    );
-    return (
-      <div className="ios-page">
-        <div className="ios-nav">
-          <button className="ios-nav-icon" onClick={() => setScreen('signin')}>
-            ‹
-          </button>
-          <span className="ios-nav-title">Your provider</span>
-          <span className="ios-nav-spacer" />
-        </div>
-        <div className="ios-scroll">
-          <input
-            className="ios-input"
-            type="search"
-            placeholder="Search health systems"
-            value={providerQuery}
-            onChange={(e) => setProviderQuery(e.target.value)}
-          />
-          <div className="ios-picker-list">
-            {matches.length === 0 ? (
-              <p className="ios-empty">
-                No matches. In the real app this searches every Epic MyChart instance.
-              </p>
-            ) : (
-              matches.map((entry) => {
-                const isDemo = entry.hostname === data.DEMO_HOSTNAME;
-                return (
-                  <button
-                    key={entry.hostname}
-                    className={`ios-picker-row${isDemo ? ' demo' : ''}`}
-                    disabled={!isDemo}
-                    onClick={() => {
-                      setInstance(entry);
-                      setScreen('login');
-                    }}
-                  >
-                    <span className="ios-picker-logo">{entry.name.slice(0, 1)}</span>
-                    <span className="ios-picker-text">
-                      <span className="ios-picker-name">{entry.name}</span>
-                      <span className="ios-picker-host">{entry.city}</span>
-                    </span>
-                    {isDemo ? <span className="ios-pill">Demo</span> : <span className="ios-picker-host">—</span>}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function renderLogin() {
-    async function connect() {
-      if (!username.trim() || !password) {
-        setLoginError('Enter the demo username and password shown above.');
-        return;
-      }
-      setLoginError('');
-      setConnecting(true);
-      await new Promise((r) => setTimeout(r, 900));
-      setConnecting(false);
-      setScreen('twofa');
-    }
-
-    return (
-      <div className="ios-page">
-        <div className="ios-nav">
-          <button className="ios-nav-icon" onClick={() => setScreen('picker')}>
-            ‹
-          </button>
-          <span className="ios-nav-title">Connect MyChart</span>
-          <span className="ios-nav-spacer" />
-        </div>
-        <div className="ios-scroll">
-          <div className="ios-selected-instance">
-            <span className="ios-picker-logo">{instance.name.slice(0, 1)}</span>
-            <span className="ios-picker-text">
-              <span className="ios-picker-name">{instance.name}</span>
-              <span className="ios-picker-host">{instance.hostname}</span>
-            </span>
-            <button className="ios-linkbtn" onClick={() => setScreen('picker')}>
-              Change
-            </button>
-          </div>
-          <p className="ios-copy">
-            Sign in to your portal. If your provider asks for a code, we handle that next — then we register a
-            passkey so you never type this password again.
-          </p>
-          <div className="ios-credhint">
-            <strong>Demo credentials</strong>
-            <span>{data.DEMO_USERNAME} · donuts123</span>
-            <button
-              className="ios-linkbtn"
-              onClick={() => {
-                setUsername(data.DEMO_USERNAME);
-                setPassword('donuts123');
-              }}
-            >
-              Fill
-            </button>
-          </div>
-          <input
-            className="ios-input"
-            placeholder="MyChart username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input
-            className="ios-input"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <p className="ios-error">{loginError}</p>
-          <button className="ios-btn primary" onClick={connect} disabled={connecting}>
-            {connecting ? 'Connecting…' : 'Connect'}
-          </button>
-          <p className="ios-fineprint">Credentials are stored in the device keychain, encrypted at rest.</p>
-        </div>
-      </div>
-    );
-  }
-
-  function renderTwoFa() {
-    function verify() {
-      const result = executeTool(session, 'complete_2fa', { code });
-      if (result && typeof result === 'object' && 'error' in result) {
-        setCodeError(String((result as { error: string }).error));
-        return;
-      }
-      setCodeError('');
-      setScreen('passkey');
-    }
-
-    return (
-      <div className="ios-page">
-        <div className="ios-nav">
-          <button className="ios-nav-icon" onClick={() => setScreen('login')}>
-            ‹
-          </button>
-          <span className="ios-nav-title">Two-factor</span>
-          <span className="ios-nav-spacer" />
-        </div>
-        <div className="ios-scroll">
-          <p className="ios-copy">
-            Springfield General sent a 6-digit code to your email. Enter it to finish signing in.
-          </p>
-          <div className="ios-credhint">
-            <strong>Demo code</strong>
-            <span>123456</span>
-            <button className="ios-linkbtn" onClick={() => setCode('123456')}>
-              Fill
-            </button>
-          </div>
-          <input
-            className="ios-input ios-code"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-          <p className="ios-error">{codeError}</p>
-          <button className="ios-btn primary" onClick={verify}>
-            Verify
-          </button>
-          <p className="ios-fineprint">
-            The real app can also read the code from a linked inbox, or generate it from a stored authenticator
-            secret.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  function renderPasskey() {
-    async function register() {
-      setRegistering(true);
-      await new Promise((r) => setTimeout(r, 900));
-      setRegistering(false);
-      finishOnboarding();
-    }
-
-    return (
-      <div className="ios-page ios-onboarding">
-        <div className="ios-ob-body">
-          <div className="ios-ob-mark">⛨</div>
-          <h1 className="ios-ob-title">Set up a passkey</h1>
-          <p className="ios-ob-copy">
-            Register a passkey on your portal and future logins skip the password and the 2FA code entirely —
-            Face ID and you are in.
-          </p>
-        </div>
-        <div className="ios-ob-actions">
-          <button className="ios-btn primary" onClick={register} disabled={registering}>
-            {registering ? 'Registering…' : 'Register passkey'}
-          </button>
-          <button className="ios-btn ghost" onClick={finishOnboarding}>
-            Skip for now
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   /* ── Chat ───────────────────────────────────────────────────────── */
 
@@ -502,7 +218,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
                     ) : (
                       <span className="ios-thinking">Thinking…</span>
                     )}
-                    {msg.fallback && <p className="ios-fallback-note">{fallbackNote(HAS_LIVE_AI)}</p>}
+                    {msg.failed && <p className="ios-fallback-note">Try again in a moment.</p>}
                   </div>
                 ),
               )}
@@ -620,7 +336,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
           <div className="ios-settings-card">
             <div className="ios-settings-row">
               <span>Signed in</span>
-              <span className="ios-picker-host">{email || 'homer.simpson@example.com'}</span>
+              <span className="ios-picker-host">homer.simpson@example.com</span>
             </div>
           </div>
 
@@ -784,12 +500,6 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   }
 
   const SCREENS: Record<Screen, () => ReactElement> = {
-    welcome: renderWelcome,
-    signin: renderSignin,
-    picker: renderPicker,
-    login: renderLogin,
-    twofa: renderTwoFa,
-    passkey: renderPasskey,
     chat: renderChat,
     insights: renderInsights,
     settings: renderSettings,

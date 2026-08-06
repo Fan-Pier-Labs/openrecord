@@ -21,9 +21,11 @@ Deliberately the same provider-neutral shape the web app's `/api/ai` uses, so
 the demo's agent loop is a straight port of the iOS app's rather than a special
 case. Swap the upstream in `buildGeminiRequest`/`extractText` to change models.
 
-Error responses are `{ "error": "..." }` with a 4xx/5xx status. The demo treats
-*any* failure as a signal to finish the turn on its offline scripted engine, so
-an outage here degrades the demo rather than breaking it.
+Error responses are `{ "error": "..." }` with a 4xx/5xx status. The demo has no
+offline path — every reply is a real model call — so an outage here shows an
+honest error in the chat and flips its header badge to "Model unreachable". That
+is deliberate: a canned-response fallback produced confident non sequiturs
+whenever a visitor asked something it hadn't anticipated.
 
 ## Model
 

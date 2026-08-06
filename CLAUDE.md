@@ -94,7 +94,7 @@ Logic modules — framework-free and fully unit-tested:
 - `src/types.ts` — shared types for the record, tool layer, and agent loop.
 - `src/tools.ts` — all 46 MyChart tools. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
 - `src/agent.ts` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
-- `src/scripted.ts` — offline fallback. Runs the *same real tool calls* and renders the *same real data*; only the prose is pre-written. Keyword rules must spell plurals out (`medications?`) — a bare stem with no `\b` matches inside longer words.
+- `src/stream.ts` — reveals a finished reply at the pace a model would have produced it. Uses `setTimeout`, **not** `requestAnimationFrame`: rAF is paused in background tabs, so a visitor who switches away mid-reply would return to a message frozen half-written.
 - `src/skills.ts` — the three skill playbooks plus the home-screen alert cards.
 - `src/markdown.ts` — parses assistant replies into a typed tree. Produces no HTML.
 
@@ -104,7 +104,9 @@ Components:
 - `src/components/IosSurface.tsx`, `DesktopSurface.tsx` — the two device surfaces.
 - `src/components/Markdown.tsx` — renders the parsed tree as React elements.
 - `src/components/Radiograph.tsx` — the chest X-ray, drawn procedurally on a canvas rather than shipped as a file, and labelled as simulated.
-- `src/config.ts` — `AI_ENDPOINT`. Empty means scripted-only. Override at runtime with `?ai=<url>`.
+- `src/config.ts` — `AI_ENDPOINT`, resolved from `?ai=<url>`, then `VITE_AI_ENDPOINT`, then the baked-in default.
+
+**Every reply is a real model call — there is deliberately no canned-response path.** An earlier version fell back to a keyword table when no model was reachable, and it produced confident non sequiturs the moment a visitor asked something it hadn't anticipated. A failed call now surfaces an honest error and the badge reads "Model unreachable". **The demo also starts on a connected account** — the onboarding and extension-setup flows belong to the product, not the demo.
 
 **Security:** model output is untrusted. `markdown.ts` parses it into a typed tree and `Markdown.tsx` renders that tree as React elements, so React escapes every text node. **There is no `dangerouslySetInnerHTML` in the demo and there must never be one** — see the project rule above. Tests assert that markup in model output stays text.
 
@@ -119,7 +121,7 @@ Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and 
 - Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
 - Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
 - Usage/cost: `fields @timestamp, @message | filter @message like /demo_ai_call/ | sort @timestamp desc` on `/aws/lambda/openrecord-demo-ai`.
-- **Any proxy failure degrades the demo to the scripted engine rather than surfacing an error**, and the header badge says which engine answered.
+- **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model unreachable". The demo has no offline path by design.
 
 ### AWS Fargate (Next.js web app)
 

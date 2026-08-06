@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import * as data from '../data';
-import { TOOL_SPECS, executeTool } from '../tools';
-import { HAS_LIVE_AI } from '../config';
-import { describeResult, fallbackNote, summarizeArgs, truncateJson } from '../display';
+import { TOOL_SPECS } from '../tools';
+import { describeResult, summarizeArgs, truncateJson } from '../display';
 import { Markdown } from './Markdown';
-import type { Session, ToolGroup, ToolRecord, TurnCallbacks } from '../types';
+import { streamText } from '../stream';
+import type { ToolGroup, ToolRecord, TurnCallbacks } from '../types';
 
 /**
  * The Claude Desktop surface.
@@ -28,25 +28,20 @@ const SUGGESTIONS = [
   'Find me an appointment slot and book it.',
 ];
 
-type SetupStep = 'install' | 'connect' | 'twofa' | 'done';
-
 type DesktopEntry = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   toolCalls: ToolRecord[];
   pendingTool: string | null;
-  fallback?: boolean;
+  failed?: boolean;
 };
 
 export type DesktopHandle = {
   send: (text: string) => void;
-  skipSetup: () => void;
-  isOnboarding: () => boolean;
 };
 
 type Props = {
-  session: Session;
   runTurn: (opts: {
     userText: string;
     history: { role: 'user' | 'assistant'; content: string }[];
@@ -54,18 +49,11 @@ type Props = {
     skillAddition: null;
     memoryDigest: null;
     callbacks: TurnCallbacks;
-  }) => Promise<{ text: string; usedFallback: boolean }>;
+  }) => Promise<{ text: string }>;
   onReady: (handle: DesktopHandle) => void;
 };
 
-export function DesktopSurface({ session, runTurn, onReady }: Props) {
-  const [installed, setInstalled] = useState(false);
-  const [setupStep, setSetupStep] = useState<SetupStep>('install');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [setupError, setSetupError] = useState('');
-  const [signingIn, setSigningIn] = useState(false);
-  const [code, setCode] = useState('');
+export function DesktopSurface({ runTurn, onReady }: Props) {
 
   const [messages, setMessages] = useState<DesktopEntry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -75,8 +63,6 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
 
   const threadRef = useRef<HTMLDivElement | null>(null);
   const sendRef = useRef<(text: string) => void>(() => {});
-  const installedRef = useRef(installed);
-  installedRef.current = installed;
 
   useEffect(() => {
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
@@ -114,9 +100,16 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
             ),
         },
       });
-      update({ content: result.text, fallback: result.usedFallback, pendingTool: null });
+      update({ pendingTool: null });
+      // The proxy answers a whole turn at once, so reveal it at the pace a
+      // model would have produced it — an instant wall of text reads as canned.
+      await streamText(result.text, (visible) => update({ content: visible }));
     } catch (err) {
-      update({ content: `Something went wrong: ${(err as Error).message}`, pendingTool: null });
+      update({
+        content: `I couldn't reach the model just now — ${(err as Error).message}`,
+        failed: true,
+        pendingTool: null,
+      });
     } finally {
       setBusy(false);
     }
@@ -125,189 +118,10 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
   sendRef.current = send;
 
   useEffect(() => {
-    onReady({
-      send: (text) => sendRef.current(text),
-      skipSetup: () => {
-        executeTool(session, 'connect_instance', {});
-        setInstalled(true);
-        setSetupStep('done');
-      },
-      isOnboarding: () => !installedRef.current,
-    });
+    onReady({ send: (text) => sendRef.current(text) });
     // Registered once on mount, deliberately: it reads live state through refs
     // rather than closing over this render's values.
   }, []);
-
-  /* ── Setup ──────────────────────────────────────────────────────── */
-
-  function renderInstall() {
-    return (
-      <div className="cd-center">
-        <div className="cd-extension-card">
-          <div className="cd-ext-head">
-            <div className="cd-ext-icon">◍</div>
-            <div>
-              <h3 className="cd-ext-name">OpenRecord — MyChart for Claude</h3>
-              <p className="cd-ext-author">Fan Pier Labs · v0.1.0 · Extension</p>
-            </div>
-          </div>
-          <p className="cd-ext-desc">
-            Connects Claude Desktop to Epic MyChart patient portals. Ask Claude to fetch your medications, lab
-            results, imaging, messages, and billing — or to send a message to your care team, request a refill,
-            or update emergency contacts.
-          </p>
-          <div className="cd-ext-perms">
-            <p className="cd-side-label">Provides {TOOL_SPECS.length} tools</p>
-            <p className="cd-muted">
-              Runs locally on your machine. Credentials go in the OS keychain; health data never leaves the
-              device except in the messages you send to Claude.
-            </p>
-          </div>
-          <button
-            className="cd-btn primary"
-            onClick={() => {
-              // If the account was already connected on the phone, the extension
-              // picks it up — the credentials belong to the account, not to one
-              // client. Only a cold start needs the sign-in flow.
-              if (session.connected) {
-                setInstalled(true);
-                setSetupStep('done');
-              } else {
-                setSetupStep('connect');
-              }
-            }}
-          >
-            Install extension
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  function renderConnect() {
-    async function signIn() {
-      if (!username.trim() || !password) {
-        setSetupError('Enter the demo username and password.');
-        return;
-      }
-      setSetupError('');
-      setSigningIn(true);
-      await new Promise((r) => setTimeout(r, 900));
-      setSigningIn(false);
-      setSetupStep('twofa');
-    }
-
-    return (
-      <div className="cd-center">
-        <div className="cd-widget">
-          <div className="cd-widget-head">
-            <span className="cd-tool-chip">get_setup_widget</span>
-            <span className="cd-muted">Interactive setup</span>
-          </div>
-          <h3 className="cd-widget-title">Connect your MyChart</h3>
-          <ol className="cd-steps">
-            <li className="done">Pick a health system</li>
-            <li className="active">Sign in</li>
-            <li>Two-factor</li>
-            <li>Register a passkey</li>
-          </ol>
-          <div className="cd-selected">
-            <span className="cd-selected-logo">S</span>
-            <span>
-              <strong>{data.DEMO_ORG}</strong>
-              <br />
-              <span className="cd-muted">{data.DEMO_HOSTNAME}</span>
-            </span>
-          </div>
-          <div className="cd-credhint">
-            <strong>Demo credentials</strong>
-            <code>{data.DEMO_USERNAME} / donuts123</code>
-            <button
-              className="cd-linkbtn"
-              onClick={() => {
-                setUsername(data.DEMO_USERNAME);
-                setPassword('donuts123');
-              }}
-            >
-              Fill
-            </button>
-          </div>
-          <input
-            className="cd-input"
-            placeholder="MyChart username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input
-            className="cd-input"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <p className="cd-error">{setupError}</p>
-          <button className="cd-btn primary" onClick={signIn} disabled={signingIn}>
-            {signingIn ? 'Signing in…' : 'Sign in'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  function renderTwoFa() {
-    async function verify() {
-      const result = executeTool(session, 'complete_2fa', { code });
-      if (result && typeof result === 'object' && 'error' in result) {
-        setSetupError(String((result as { error: string }).error));
-        return;
-      }
-      setSetupError('');
-      setSigningIn(true);
-      await new Promise((r) => setTimeout(r, 900));
-      executeTool(session, 'connect_instance', {});
-      setSigningIn(false);
-      setInstalled(true);
-      setSetupStep('done');
-    }
-
-    return (
-      <div className="cd-center">
-        <div className="cd-widget">
-          <div className="cd-widget-head">
-            <span className="cd-tool-chip">complete_2fa</span>
-            <span className="cd-muted">Two-factor</span>
-          </div>
-          <h3 className="cd-widget-title">Enter your code</h3>
-          <ol className="cd-steps">
-            <li className="done">Pick a health system</li>
-            <li className="done">Sign in</li>
-            <li className="active">Two-factor</li>
-            <li>Register a passkey</li>
-          </ol>
-          <p className="cd-muted">{data.DEMO_ORG} sent a 6-digit code to your email.</p>
-          <div className="cd-credhint">
-            <strong>Demo code</strong>
-            <code>123456</code>
-            <button className="cd-linkbtn" onClick={() => setCode('123456')}>
-              Fill
-            </button>
-          </div>
-          <input
-            className="cd-input cd-code"
-            placeholder="000000"
-            maxLength={6}
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-          <p className="cd-error">{setupError}</p>
-          <button className="cd-btn primary" onClick={verify} disabled={signingIn}>
-            {signingIn ? 'Registering passkey…' : 'Verify and register passkey'}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   /* ── Chat ───────────────────────────────────────────────────────── */
 
@@ -372,7 +186,7 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
                   {msg.content ? (
                     <>
                       <Markdown className="cd-markdown" source={msg.content} />
-                      {msg.fallback && <p className="cd-fallback-note">{fallbackNote(HAS_LIVE_AI)}</p>}
+                      {msg.failed && <p className="cd-fallback-note">Try again in a moment.</p>}
                     </>
                   ) : (
                     !msg.pendingTool && <div className="cd-thinking">Thinking…</div>
@@ -482,7 +296,7 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
           <div className="cd-tool-group">
             <div className="cd-tool-row">
               <span className="cd-tool-desc">Status</span>
-              <code className="cd-tool-code">{installed ? 'connected' : 'not connected'}</code>
+              <code className="cd-tool-code">connected</code>
             </div>
             <div className="cd-tool-row">
               <span className="cd-tool-desc">Account</span>
@@ -507,14 +321,6 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
       </div>
     );
   }
-
-  const body = !installed
-    ? setupStep === 'install'
-      ? renderInstall()
-      : setupStep === 'connect'
-        ? renderConnect()
-        : renderTwoFa()
-    : renderChat();
 
   return (
     <div className="cd-window">
@@ -546,16 +352,16 @@ export function DesktopSurface({ session, runTurn, onReady }: Props) {
             ))}
           </div>
           <button className="cd-connector" onClick={() => setSettingsOpen(true)}>
-            <span className="cd-connector-dot" data-on={String(installed)} />
+            <span className="cd-connector-dot" data-on="true" />
             <span>
               <strong>OpenRecord</strong>
               <br />
-              <span className="cd-muted">{installed ? 'Connected' : 'Not connected'}</span>
+              <span className="cd-muted">Connected</span>
             </span>
           </button>
         </aside>
         <div className="cd-main">
-          {body}
+          {renderChat()}
           {settingsOpen && renderSettings()}
         </div>
       </div>

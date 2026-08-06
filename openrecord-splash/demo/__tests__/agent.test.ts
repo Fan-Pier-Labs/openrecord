@@ -4,7 +4,7 @@
  * The loop is a port of the iOS app's, so these tests pin the behaviour that
  * actually matters when a cheap model misbehaves: prose gets ignored rather
  * than crashing the turn, write tools can't be smuggled into a read batch, and
- * a dead model proxy degrades to the scripted engine instead of an error.
+ * a dead model proxy surfaces an honest error instead of inventing one.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -182,7 +182,6 @@ describe('runTurn', () => {
 
     expect(result.text).toBe('Here you go.');
     expect(result.toolCalls).toHaveLength(0);
-    expect(result.usedFallback).toBe(false);
   });
 
   test('reads run, then their results are fed back for the reply', async () => {
@@ -268,7 +267,6 @@ describe('runTurn', () => {
     // Three attempts before giving up, matching the iOS client.
     expect(model.calls()).toBe(3);
     expect(result.text).toBe('Your medications are Atorvastatin and Lisinopril.');
-    expect(result.usedFallback).toBe(false);
   });
 
   test('the fullest prose attempt wins, not the last one', async () => {
@@ -334,68 +332,58 @@ describe('runTurn', () => {
   });
 });
 
-describe('fallback to the scripted engine', () => {
-  test('no completer means scripted from the start', async () => {
-    const session = createSession();
-    const result = await runTurn({ session, userText: 'what are my medications?', history: [], complete: null });
-
-    expect(result.usedFallback).toBe(true);
-    expect(result.toolCalls.map((c: Any) => c.tool)).toContain('get_medications');
-    expect(result.text).toContain('Atorvastatin');
-  });
-
-  test('a proxy failure mid-turn finishes on the scripted engine, not an error', async () => {
+describe('a failing model surfaces an error rather than inventing an answer', () => {
+  test('a proxy failure propagates and notifies', async () => {
     const dead = async () => {
       throw new Error('502 Bad Gateway');
     };
     let notified: Error | null = null;
-    const result = await runTurn({
-      session: createSession(),
-      userText: 'show me my lab results',
-      history: [],
-      complete: dead,
-      callbacks: { onFallback: (err: Error) => (notified = err) },
-    });
 
-    expect(result.usedFallback).toBe(true);
+    await expect(
+      runTurn({
+        session: createSession(),
+        userText: 'show me my lab results',
+        history: [],
+        complete: dead,
+        callbacks: { onError: (err: Error) => (notified = err) },
+      }),
+    ).rejects.toThrow('502 Bad Gateway');
+
     expect(notified).toBeTruthy();
-    expect(result.text).toContain('Out of range');
   });
 
-  test('an abort propagates instead of silently falling back', async () => {
+  test('a failure part-way through still reports the tools that already ran', async () => {
+    // The UI shows the activity panel regardless, so the calls must not be lost.
+    let n = 0;
+    const flaky = async () => {
+      n += 1;
+      if (n === 1) return '{"tool":"get_medications","args":{}}';
+      throw new Error('rate limited');
+    };
+
+    const records: string[] = [];
+    await expect(
+      runTurn({
+        session: createSession(),
+        userText: 'meds?',
+        history: [],
+        complete: flaky,
+        callbacks: { onToolEnd: (r: Any) => records.push(r.tool) },
+      }),
+    ).rejects.toThrow('rate limited');
+
+    expect(records).toEqual(['get_medications']);
+  });
+
+  test('an abort propagates as an abort', async () => {
     const aborted = async () => {
       const err = new Error('aborted');
       err.name = 'AbortError';
       throw err;
     };
     await expect(
-      runTurn({ session: createSession(), userText: 'hi', history: [], complete: aborted })
+      runTurn({ session: createSession(), userText: 'hi', history: [], complete: aborted }),
     ).rejects.toThrow('aborted');
-  });
-
-  test('the scripted engine still runs real tools against the live session', async () => {
-    const session = createSession();
-    const result = await runTurn({ session, userText: 'what do I owe?', history: [], complete: null });
-    expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['get_billing', 'get_insurance']);
-    // The dollar figure comes from the fixture, not from prose.
-    expect(result.text).toContain('$3,369.00');
-  });
-
-  test('an active skill routes the scripted engine to that playbook', async () => {
-        const { SKILLS } = await import('../src/skills');
-    const billSkill = SKILLS.find((s) => s.id === 'bill_itemization')!;
-    const result = await runTurn({
-      session: createSession(),
-      userText: billSkill.kickoffMessage,
-      history: [],
-      complete: null,
-      skillAddition: billSkill.playbook,
-    });
-
-    expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['get_billing', 'get_messages', 'get_message_recipients']);
-    // The ER visit already has an itemization request in the message history.
-    expect(result.text).toContain('Already requested');
-    expect(result.text).toContain('Patient Accounts');
   });
 });
 

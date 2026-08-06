@@ -1,5 +1,28 @@
-import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+/**
+ * Dev-only: serve the splash page from the parent directory at `/index.html`.
+ *
+ * In production both sit at the bucket root, so the demo's "back to OpenRecord"
+ * link and the splash's "Try the demo" CTAs resolve. Vite's root is `demo/`, so
+ * without this those links 404 locally and you cannot click between the two.
+ */
+function splashPage(): Plugin {
+  return {
+    name: 'openrecord-splash-page',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url ?? '').split('?')[0];
+        if (url !== '/' && url !== '/index.html') return next();
+        res.setHeader('content-type', 'text/html; charset=utf-8');
+        res.end(readFileSync(`${__dirname}/../index.html`, 'utf8'));
+      });
+    },
+  };
+}
 
 /**
  * The demo is a React app; the splash page next to it is hand-written HTML with
@@ -14,7 +37,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   root: __dirname,
   base: '/',
-  plugins: [react()],
+  plugins: [react(), splashPage()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,

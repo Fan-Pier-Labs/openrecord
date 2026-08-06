@@ -163,14 +163,13 @@ export type CompleteFn = (
 export type TurnCallbacks = {
   onToolStart?: (call: ParsedToolCall) => void;
   onToolEnd?: (record: ToolRecord) => void;
-  onFallback?: (error: Error) => void;
+  /** The model call failed; the turn is about to throw. */
+  onError?: (error: Error) => void;
 };
 
 export type TurnResult = {
   text: string;
   toolCalls: ToolRecord[];
-  /** True when the scripted engine produced the prose. Surfaced in the UI. */
-  usedFallback: boolean;
 };
 
 export type Surface = 'ios' | 'desktop';

@@ -11,10 +11,14 @@
  * Tool calls execute against the local fake record in `tools.ts`. Nothing about
  * the fictional patient is ever sent anywhere; only the conversation text and
  * the tool results the model asked for go to the proxy.
+ *
+ * Every reply comes from a real model call. There is no canned-response path:
+ * a demo that quietly answers from a keyword table produces confident non
+ * sequiturs the moment a visitor asks something it didn't anticipate, which is
+ * worse than showing an honest error.
  */
 
 import { TOOL_SPECS, executeTool, isWriteTool, toolLatencyMs } from './tools';
-import { scriptedTurn } from './scripted';
 import type {
   ChatMessage,
   CompleteFn,
@@ -219,6 +223,7 @@ export function buildSystemPrompt({
     '- Paginated reads (get_lab_results, get_billing, get_messages, get_imaging_results) return only 10 items by default. Whenever the question is about a trend, a history, or "all" of something, pass limit: 50 so you see everything before you answer.',
     '- Answer the question that was actually asked, and answer it from the data you fetched. If you find yourself apologizing for missing information, fetch it instead — with a bigger limit if the first call was truncated.',
     '- NEVER state a specific value — a dose, a refill count, a date, a lab number, an amount owed — that you have not read from a tool result in this conversation. If you need one, call the tool. A wrong number is worse than an extra tool call.',
+    "- NEVER say you don't know or don't have information until you have actually looked. If the user asks about a person, a provider, a medication, a bill, a visit, a date, or anything else that could plausibly be in a medical record, call the tools that would contain it first. A name you don't recognise is usually a provider on the care team or someone from a past visit — check get_care_team, get_past_visits, and get_message_recipients before saying you have no information about them.",
     '- Omit "instance" — there is only one connected account.',
     "- Don't refuse a request because you don't immediately know how — check the tool list first.",
     '',
@@ -247,7 +252,7 @@ export class ProxyError extends Error {
 /**
  * Calls the OpenRecord demo proxy (see `openrecord-demo-lambda/`), which fronts
  * the cheapest, fastest model available and rate-limits by IP. Anything other
- * than a clean 200 raises, and the caller falls back to the scripted engine.
+ * than a clean 200 raises.
  */
 export function createProxyCompleter(endpoint: string): CompleteFn {
   return async (messages, system, signal) => {
@@ -285,8 +290,8 @@ export type RunTurnOptions = {
   history?: ChatMessage[];
   /** What the user just said. */
   userText: string;
-  /** Model transport, or null to run entirely on the scripted engine. */
-  complete: CompleteFn | null;
+  /** Model transport. Required — there is no offline path. */
+  complete: CompleteFn;
   callbacks?: TurnCallbacks;
   /** Active skill playbook, appended to the system prompt. */
   skillAddition?: string | null;
@@ -312,7 +317,7 @@ export async function runTurn({
 }: RunTurnOptions): Promise<TurnResult> {
   const onToolStart = callbacks.onToolStart ?? (() => {});
   const onToolEnd = callbacks.onToolEnd ?? (() => {});
-  const onFallback = callbacks.onFallback ?? (() => {});
+  const onError = callbacks.onError ?? (() => {});
 
   const executed: ToolRecord[] = [];
 
@@ -330,11 +335,6 @@ export async function runTurn({
       }),
     );
   };
-
-  if (!complete) {
-    const scripted = await scriptedTurn({ userText, runBatch, skillAddition });
-    return { text: scripted, toolCalls: executed, usedFallback: true };
-  }
 
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
@@ -357,11 +357,10 @@ export async function runTurn({
     } catch (err) {
       const error = err as Error;
       if (error.name === 'AbortError') throw error;
-      // The proxy is down, over quota, or rate-limiting this visitor. Rather
-      // than showing an error, finish the turn on the scripted engine.
-      onFallback(error);
-      const scripted = await scriptedTurn({ userText, runBatch, skillAddition });
-      return { text: scripted, toolCalls: executed, usedFallback: true };
+      // Down, over quota, or rate-limiting this visitor. Say so plainly — the
+      // alternative is inventing an answer, which is worse.
+      onError(error);
+      throw error;
     }
 
     const calls = extractToolCalls(raw);
@@ -377,8 +376,7 @@ export async function runTurn({
         return {
           text: bestProse || "I couldn't put that together — try rephrasing?",
           toolCalls: executed,
-          usedFallback: false,
-        };
+            };
       }
       messages.push({ role: 'assistant', content: raw });
       messages.push({
@@ -402,7 +400,7 @@ export async function runTurn({
         continue;
       }
       const text = String(respondCall.args.text ?? '').trim();
-      return { text: text || 'Done.', toolCalls: executed, usedFallback: false };
+      return { text: text || 'Done.', toolCalls: executed };
     }
 
     const exclusive = calls.filter((c) => isExclusiveTool(c.tool));
@@ -433,6 +431,5 @@ export async function runTurn({
       bestProse ||
       'That took more steps than I have room for. Try asking for one thing at a time — the demo caps each question at a handful of tool calls.',
     toolCalls: executed,
-    usedFallback: false,
   };
 }

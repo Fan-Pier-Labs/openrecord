@@ -46,18 +46,6 @@ export function summarizeArgs(args: ToolArgs): string {
     .join(' · ');
 }
 
-/**
- * The disclaimer shown under a reply the scripted engine produced. There are
- * two distinct reasons that happens and conflating them would be misleading:
- * a checkout with no endpoint configured never had a model, while a deployed
- * demo that falls back genuinely lost one.
- */
-export function fallbackNote(hasLiveAi: boolean): string {
-  return hasLiveAi
-    ? 'Answered offline — the demo model was unavailable or rate limited. The tool calls are real; the wording is pre-written.'
-    : 'Answered by the offline engine — no model endpoint is configured. The tool calls and every number above are real; the wording is pre-written.';
-}
-
 export function truncateJson(value: unknown, max = 2400): string {
   const json = JSON.stringify(value, null, 2) ?? 'null';
   return json.length > max ? `${json.slice(0, max)}\n… truncated` : json;

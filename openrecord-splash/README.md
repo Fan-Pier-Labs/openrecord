@@ -48,36 +48,54 @@ is part of `build`, so the demo cannot ship with a type error.
 | `src/types.ts` | Shared types for the record, the tool layer, and the agent loop. |
 | `src/tools.ts` | All 46 MyChart tools over that record. Write tools genuinely mutate session state. |
 | `src/agent.ts` | The agent loop — a faithful port of `expo-app/src/lib/ai/claude-client.ts`, including the JSON tool-call protocol, read batching, and exclusive write tools. |
-| `src/scripted.ts` | Offline fallback. Runs the *same real tool calls* and renders the *same real data*; only the prose is pre-written. |
+| `src/stream.ts` | Reveals a finished reply at the pace a model would have produced it. |
 | `src/skills.ts` | The three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards. |
 | `src/markdown.ts` | Parses assistant replies into a typed tree. Produces no HTML. |
 | `src/display.ts` | Formatting helpers for the activity panel and tool disclosures. |
-| `src/config.ts` | `AI_ENDPOINT`. Empty means scripted-only. |
+| `src/config.ts` | `AI_ENDPOINT`. Required — without it the demo cannot answer and says so. |
 
 ### Components
 
 | File | What it is |
 | --- | --- |
 | `src/App.tsx` | Shell — owns the session, surface switching, and the shared tool-call activity panel. |
-| `src/components/IosSurface.tsx` | The iPhone app: onboarding, chat, alerts, skills, insights, drawer, settings. |
-| `src/components/DesktopSurface.tsx` | Claude Desktop: extension install, setup widget, chat with tool disclosures, tool catalogue. |
+| `src/components/IosSurface.tsx` | The iPhone app: chat, alerts, skills, insights, drawer, settings. |
+| `src/components/DesktopSurface.tsx` | Claude Desktop: chat with tool disclosures, the tool catalogue, connector settings. |
 | `src/components/Markdown.tsx` | Renders the parsed tree as React elements. |
 | `src/components/Radiograph.tsx` | The procedurally drawn chest X-ray. |
 
 **Everything is fictional.** No portal is contacted, nothing is persisted, and reloading
-starts over. The header carries a "Fictional data" badge, and any reply the scripted
-engine produced is labelled as such under the message.
+starts over. The header carries a "Fictional data" badge.
+
+**Every reply is a real model call.** There is deliberately no canned-response path. An
+earlier version fell back to a keyword table when no model was reachable, which produced
+confident non sequiturs the moment a visitor asked something it hadn't anticipated — ask
+it who one of the doctors is and it would answer with a summary of the whole record. An
+honest error is better than a fluent wrong answer, so a failed call says so and the badge
+reads "Model unreachable".
+
+**The demo starts on a connected account.** The onboarding and extension-setup flows
+belong to the product, not the demo; making visitors click through sign-in, 2FA, and
+passkey registration before they can ask anything buries the part worth showing.
 
 ### Wiring up the model
 
-The demo calls [`openrecord-demo-lambda`](../openrecord-demo-lambda) for chat turns. Set
-`AI_ENDPOINT` in `demo/src/config.ts` to that endpoint. With it empty the demo still
-works — it runs on the scripted engine and the header badge says "Scripted replies"
-instead of "Live model".
+The demo calls [`openrecord-demo-lambda`](../openrecord-demo-lambda) for chat turns, and
+cannot answer anything without it. The endpoint is resolved in this order:
 
-Any proxy failure (down, rate limited, over quota) finishes the turn on the scripted
-engine rather than surfacing an error, so an outage degrades the demo instead of
-breaking it.
+1. `?ai=<url>` on the demo URL — handy for pointing at a local proxy.
+2. `VITE_AI_ENDPOINT` at dev or build time.
+3. `DEFAULT_AI_ENDPOINT` in `demo/src/config.ts`.
+
+With none of them set the badge reads "No model configured" and every turn fails
+explicitly, rather than the demo pretending to work.
+
+Replies arrive whole from the proxy, so `stream.ts` reveals them on a timer at roughly a
+fast model's token rate. It uses `setTimeout` rather than `requestAnimationFrame` on
+purpose: rAF is paused entirely in a background tab, so a visitor who switches away
+mid-reply would come back to a message frozen half-written. The reveal is derived from
+elapsed time rather than tick count, so throttling costs smoothness but never
+correctness.
 
 ### Running it locally
 
