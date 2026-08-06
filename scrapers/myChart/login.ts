@@ -24,10 +24,31 @@ export function parseFirstPathPartFromHtml(html: string): string | null {
   return possibleFirstPathPart || null;
 }
 
+// MyChart's login route. When a root redirect lands on it, everything in front
+// of it is the deployment prefix — and for root-mounted instances that's nothing.
+const MYCHART_LOGIN_ROUTE = '/authentication/';
+
+/** Does this redirect path land on a MyChart route we recognize? */
+export function landsOnMyChartRoute(path: string): boolean {
+  return path.toLowerCase().includes(MYCHART_LOGIN_ROUTE);
+}
+
+/**
+ * Work out the deployment prefix from the redirect a root probe returns.
+ *
+ *   /MyChart/                   → 'MyChart'      (uhhospitals.org and most others)
+ *   /UCSFMyChart/               → 'UCSFMyChart'
+ *   /Authentication/Login       → null           (Cleveland Clinic — no prefix)
+ *   /prd/Authentication/Login   → 'prd'
+ *
+ * null means "no prefix": nothing at all goes in front of MyChart's routes.
+ */
 export function parseFirstPathPartFromLocation(locationHeader: string, hostname: string, protocol = 'https'): string | null {
-  const url = new URL(locationHeader, protocol + '://' + hostname);
-  const part = url.pathname.split('/')[1];
-  return part || null;
+  const { pathname } = new URL(locationHeader, protocol + '://' + hostname);
+  const routeStart = pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
+  // Redirect went straight to a MyChart route — take whatever precedes it.
+  if (routeStart >= 0) return pathname.slice(1, routeStart) || null;
+  return pathname.split('/')[1] || null;
 }
 
 export function parseFirstPathPartFromInput(input: string): string | null {
@@ -171,6 +192,18 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
     } else {
       firstPathPart = parseFirstPathPartFromLocation(locationResponseHeader, mychartRequest.hostname, mychartRequest.protocol);
       logger.debug('first path part', firstPathPart)
+
+      if (landsOnMyChartRoute(redirectUrl.pathname)) {
+        // The redirect went straight to a MyChart route, so it already told us
+        // everything: whatever precedes that route is the whole prefix, and for
+        // root-mounted instances there is none. Take it and stop looking —
+        // falling through to the guessing fallbacks would invent a prefix.
+        logger.debug(firstPathPart
+          ? `redirect landed on a MyChart route; prefix is ${firstPathPart}`
+          : 'redirect landed on a MyChart route with nothing in front of it; instance is mounted at the domain root');
+        mychartRequest.setFirstPathPart(firstPathPart);
+        return mychartRequest;
+      }
     }
   }
   else {
@@ -280,7 +313,7 @@ export function parse2faDeliveryMethods(html: string): {
 // if were going the 2fa flow
 export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, fetchFn}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string, fetchFn?: (url: string, init: RequestInit) => Promise<Response>}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
-  sendTelemetryEvent('scraper_login_started', { hostname });
+  sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
   if (!hostname || !user || !pass) {
     logger.debug('missing hostname, user, or pass', {hostname, user, pass})
@@ -676,7 +709,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
   protocol?: string,
   fetchFn?: (url: string, init: RequestInit) => Promise<Response>,
 }): Promise<LoginResult> {
-  sendTelemetryEvent('scraper_passkey_login_started', { hostname });
+  sendTelemetryEvent('scraper_passkey_login_started', { hostname }, 'scraper');
 
   if (!hostname || !credential) {
     throw new Error('Missing hostname or passkey credential');

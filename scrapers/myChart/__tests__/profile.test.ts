@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getMyChartProfile } from '../profile'
+import { getMyChartProfile, parseProfileHtml } from '../profile'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(body: string) {
@@ -93,6 +93,57 @@ describe('getMyChartProfile', () => {
       dob: '4/10/1992',
       mrn: '112233',
       pcp: 'Dr. Sarah Connor',
+    })
+  })
+})
+
+describe('parseProfileHtml', () => {
+  it('parses profile with single-digit month and day', () => {
+    const html = `<div class="printheader">Name: Test User | DOB: 3/5/2000 | MRN: 111222 | PCP: Dr. Smith</div>`
+    expect(parseProfileHtml(html)).toEqual({
+      name: 'Test User',
+      dob: '3/5/2000',
+      mrn: '111222',
+      pcp: 'Dr. Smith',
+    })
+  })
+
+  it('returns null when printheader exists but has no text', () => {
+    expect(parseProfileHtml('<div class="printheader"></div>')).toBeNull()
+  })
+
+  it('handles printheader with extra whitespace', () => {
+    const html = `
+      <div class="printheader">
+        Name: Whitespace User | DOB: 2/28/1980 | MRN: 445566 | PCP: Dr. Space
+      </div>
+    `
+    const result = parseProfileHtml(html)
+    expect(result).not.toBeNull()
+    expect(result!.name).toBe('Whitespace User')
+  })
+
+  it('parses MyChart Central format with only Name and DOB', () => {
+    const html = `
+      <div class="printheader">
+                Name: Central Patient | DOB: 4/2/1973
+            </div>
+    `
+    expect(parseProfileHtml(html)).toEqual({
+      name: 'Central Patient',
+      dob: '4/2/1973',
+      mrn: '',
+      pcp: '',
+    })
+  })
+
+  it('parses Name | DOB | MRN without PCP', () => {
+    const html = `<div class="printheader">Name: Jane Doe | DOB: 6/15/1990 | MRN: 112233</div>`
+    expect(parseProfileHtml(html)).toEqual({
+      name: 'Jane Doe',
+      dob: '6/15/1990',
+      mrn: '112233',
+      pcp: '',
     })
   })
 })

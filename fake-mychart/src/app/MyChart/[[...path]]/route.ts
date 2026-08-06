@@ -12,6 +12,7 @@ import {
 } from '@/lib/html';
 import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, type FakeUser } from '@/lib/state';
+import { mountPrefix } from '@/lib/mount';
 
 import crypto from 'crypto';
 
@@ -118,7 +119,7 @@ function publicBaseUrl(request: NextRequest): string {
 function requireSession(request: NextRequest): NextResponse | null {
   const cookie = request.headers.get('cookie');
   if (!validateSession(cookie)) {
-    return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
   return null;
 }
@@ -135,14 +136,14 @@ function requireTermsRedirect(request: NextRequest): NextResponse | null {
   if (!requireTerms()) return null;
   const cookie = request.headers.get('cookie');
   if (hasAcceptedTerms(cookie)) return null;
-  return NextResponse.redirect(new URL('/MyChart/Authentication/TermsConditions', publicBaseUrl(request)), 302);
+  return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/TermsConditions`, publicBaseUrl(request)), 302);
 }
 
 // ─── Route handler ──────────────────────────────────────────────────
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   if (!path || path.length === 0) {
-    return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
   const joined = joinPath(path);
   const lower = joined.toLowerCase();
@@ -178,7 +179,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'home') {
     const cookie = request.headers.get('cookie');
     if (!validateSession(cookie)) {
-      return NextResponse.redirect(new URL('/MyChart/Authentication/Login', publicBaseUrl(request)), 302);
+      return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
     }
     const termsRedirect = requireTermsRedirect(request);
     if (termsRedirect) return termsRedirect;
@@ -479,7 +480,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const cookie = request.headers.get('cookie');
     acceptTerms(cookie);
     // Redirect to home after accepting
-    return NextResponse.redirect(new URL('/MyChart/Home', publicBaseUrl(request)), 302);
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Home`, publicBaseUrl(request)), 302);
   }
 
   // ── 2FA ────────────────────────────────────────────────────────
@@ -539,9 +540,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return json(homer.healthSummaryHeader);
   }
 
-  // Vitals / Flowsheets
+  // Vitals / Flowsheets — two-call contract (definitions, then readings)
   if (lower === 'api/track-my-health/getflowsheets') {
     return json(homer.vitals);
+  }
+  if (lower === 'api/track-my-health/getflowsheetreadings') {
+    // Real MyChart pages backwards through history: it returns readings at or
+    // before endInstantIso, and numReadings caps distinct reading INSTANTS
+    // (flowsheet columns), not individual readings. Honor both so the scraper's
+    // paging loop is actually exercised.
+    const body = await request.json();
+    const endInstantIso: string = body?.endInstantIso || '9999-12-31T23:59:59';
+    const numReadings: number = Number(body?.numReadings) || 200;
+
+    const all = homer.vitalsReadings.flowsheet.readings;
+    const inRange = all.filter((r) => r.instantTakenIso <= endInstantIso);
+    const instants = [...new Set(inRange.map((r) => r.instantTakenIso))].sort().reverse();
+    const page = instants.slice(0, numReadings);
+    const pageSet = new Set(page);
+
+    return json({
+      ...homer.vitalsReadings,
+      flowsheet: {
+        ...homer.vitalsReadings.flowsheet,
+        readings: inRange.filter((r) => pageSet.has(r.instantTakenIso)),
+        hasMoreData: instants.length > page.length,
+        nextReadingDateIso: instants[page.length] || '',
+      },
+    });
   }
 
   // Medical History

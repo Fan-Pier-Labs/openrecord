@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getImagingResults } from '../imagingResults'
+import { getImagingResults } from '../labs_and_procedure_results/labResults'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {

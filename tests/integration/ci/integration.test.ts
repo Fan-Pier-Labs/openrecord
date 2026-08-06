@@ -1497,7 +1497,128 @@ describe('hostname:username disambiguation', () => {
 });
 
 // ===================================================================
-// 13. Cleanup
+// 13. Root-mounted MyChart instance (Cleveland Clinic shape)
+// ===================================================================
+
+// Every other scenario in this file runs against the fake in its default
+// path-prefixed shape (`/` → `/MyChart/`), which is how most real instances
+// are deployed. This section flips the same server to the other shape via its
+// `/mode` endpoint: MyChart served straight from the domain root, where `/`
+// redirects to `./Authentication/Login?` and the first path segment is a
+// MyChart route rather than a deployment prefix.
+//
+// The mode is global to the fake, so this section restores the default before
+// handing off to Cleanup.
+
+describe('Root-mounted MyChart instance', () => {
+  let rootInstanceId = '';
+  let rootSessionKey = '';
+
+  async function setFakeMode(mode: 'prefixed' | 'root') {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).mode).toBe(mode);
+  }
+
+  it('switches the fake to root-mounted and redirects with a relative controller path', async () => {
+    await setFakeMode('root');
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('./Authentication/Login?');
+  });
+
+  it('creates an instance against the now root-mounted host', async () => {
+    // Same hostname as the main instance but a different MyChart user, so the
+    // duplicate-instance guard (hostname + username) doesn't reject it.
+    const res = await authedFetch('/api/mychart-instances', {
+      method: 'POST',
+      body: JSON.stringify({
+        hostname: FAKE_MYCHART_HOSTNAME,
+        username: 'marge',
+        password: 'donuts123',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.hostname).toBe(FAKE_MYCHART_HOSTNAME);
+    rootInstanceId = body.id;
+  });
+
+  it('connects (login) without mistaking the route for a path prefix', async () => {
+    const res = await authedFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ myChartInstanceId: rootInstanceId }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    if (body.state === 'need_2fa') {
+      const twofaRes = await authedFetch('/api/twofa', {
+        method: 'POST',
+        body: JSON.stringify({ sessionKey: body.sessionKey, code: '123456' }),
+      });
+      expect(twofaRes.status).toBe(200);
+      const twofaBody = await twofaRes.json();
+      expect(twofaBody.state).toBe('logged_in');
+      rootSessionKey = twofaBody.sessionKey;
+    } else {
+      expect(body.state).toBe('logged_in');
+      rootSessionKey = body.sessionKey;
+    }
+
+    expect(rootSessionKey).toBeTruthy();
+  }, 30_000);
+
+  it('scrapes real data through the root mount', async () => {
+    const res = await authedFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ sessionKey: rootSessionKey }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    // Marge's profile, proving we reached the right session — and that the
+    // mount shape makes no difference to what comes back.
+    expect(data.profile?.name).toBe('Marge Bouvier Simpson');
+    expect(data.medications?.medications?.length).toBeGreaterThan(0);
+    expect(data.allergies).toBeDefined();
+    expect(data.allergies.error).toBeUndefined();
+    expect(JSON.stringify(data.allergies).length).toBeGreaterThan(10);
+  }, 120_000);
+
+  it('logs in at the scraper level with a null firstPathPart', async () => {
+    const result = await myChartUserPassLogin({
+      hostname: FAKE_MYCHART_HOST_URL,
+      user: 'homer',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+
+    expect(result.state).toBe('logged_in');
+    expect(result.mychartRequest.firstPathPart).toBeNull();
+  }, 30_000);
+
+  it('deletes the instance and restores the default mount mode', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${rootInstanceId}`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(200);
+
+    await setFakeMode('prefixed');
+    const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.headers.get('location')).toContain('/MyChart/');
+  });
+});
+
+// ===================================================================
+// 14. Cleanup
 // ===================================================================
 
 describe('Cleanup', () => {

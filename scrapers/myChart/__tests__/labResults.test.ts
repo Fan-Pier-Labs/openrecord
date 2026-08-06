@@ -1,9 +1,71 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { listLabResults } from '../labResults'
-import { MyChartRequest } from '../../myChartRequest'
+import { listLabResults, getImagingResults } from '../labs_and_procedure_results/labResults'
+import { MyChartRequest } from '../myChartRequest'
 
-/** Route-based mock: matches URL substrings to responses. Falls back to sequential for unmatched. */
-function mockRequest(routes: Record<string, Array<{ body: string; status?: number }>>) {
+// Capture every request the scraper makes so we can assert on the GetList body.
+function mockRequest(responses: Array<{ body: string }>) {
+  const req = new MyChartRequest('mychart.example.com')
+  req.firstPathPart = 'MyChart'
+  const captured: Array<{ url: string; body?: string }> = []
+  let i = 0
+  req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    captured.push({ url: String(url), body: init?.body ? String(init.body) : undefined })
+    const r = responses[Math.min(i++, responses.length - 1)]
+    return new Response(r.body, { status: 200 })
+  }) as typeof req.fetchWithCookieJar
+  return { req, captured }
+}
+
+const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok123" />'
+const EMPTY_LIST = JSON.stringify({ newResultGroups: [] })
+
+function getListMaxResults(captured: Array<{ url: string; body?: string }>): number[] {
+  return captured
+    .filter((c) => c.url.includes('/api/test-results/GetList') && c.body)
+    .map((c) => JSON.parse(c.body as string).maxResults)
+}
+
+describe('lab results GetList pagination cap', () => {
+  it('listLabResults requests a large maxResults (not the old 50 cap)', async () => {
+    // token page, then one empty GetList per groupType (0-3) so no detail fetches happen
+    const { req, captured } = mockRequest([
+      { body: TOKEN_PAGE },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+    ])
+
+    await listLabResults(req)
+
+    const maxResults = getListMaxResults(captured)
+    expect(maxResults.length).toBeGreaterThan(0)
+    for (const m of maxResults) {
+      expect(m).toBeGreaterThanOrEqual(1000)
+    }
+  })
+
+  it('getImagingResults requests a large maxResults (not the old 50 cap)', async () => {
+    const { req, captured } = mockRequest([
+      { body: TOKEN_PAGE },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+      { body: EMPTY_LIST },
+    ])
+
+    await getImagingResults(req)
+
+    const maxResults = getListMaxResults(captured)
+    expect(maxResults.length).toBeGreaterThan(0)
+    for (const m of maxResults) {
+      expect(m).toBeGreaterThanOrEqual(1000)
+    }
+  })
+})
+
+/** Route-based mock: matches URL substrings to responses, in order per pattern. */
+function routedRequest(routes: Record<string, Array<{ body: string; status?: number }>>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   const routeCounters: Record<string, number> = {}
@@ -29,7 +91,7 @@ const emptyHistory = { body: JSON.stringify(null), status: 200 }
 
 describe('listLabResults', () => {
   it('returns empty array when no token found', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       'test-results': [{ body: '<html></html>' }],
     })
     const result = await listLabResults(req)
@@ -37,7 +99,7 @@ describe('listLabResults', () => {
   })
 
   it('returns empty array when no result groups', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [emptyList, emptyList, emptyList, emptyList],
     })
@@ -46,7 +108,7 @@ describe('listLabResults', () => {
   })
 
   it('returns empty array when newResultGroups is missing', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [
         { body: JSON.stringify({}) },
@@ -60,7 +122,7 @@ describe('listLabResults', () => {
   })
 
   it('fetches details for each result group', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [
         // group type 0 has the results
@@ -114,7 +176,7 @@ describe('listLabResults', () => {
   })
 
   it('fetches report content when reportDetails has a reportID', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [
         {
@@ -159,7 +221,7 @@ describe('listLabResults', () => {
   })
 
   it('skips report content when reportDetails has no reportID', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [
         {
@@ -188,7 +250,7 @@ describe('listLabResults', () => {
   })
 
   it('handles results with no results array', async () => {
-    const req = mockRequest({
+    const req = routedRequest({
       '/app/test-results': [{ body: '<input name="__RequestVerificationToken" value="tok123" />' }],
       'GetList': [
         {

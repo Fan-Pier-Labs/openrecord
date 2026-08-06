@@ -36,8 +36,11 @@ export class MyChartRequest {
   // Protocol to use for requests. Defaults to 'https'. Set to 'http' for local fake-mychart server.
   protocol: string;
 
-  // the first part of the path. For some instances, it is /MyChart-PRD. For others, it is /MyChart.
-  firstPathPart: string = '';
+  // The deployment prefix every MyChart route sits under: '/MyChart' for most
+  // instances, '/MyChart-PRD' or '/UCSFMyChart' for others. null means the
+  // instance is mounted at the domain root and there is no prefix at all
+  // (e.g. mychart.clevelandclinic.org), or that we haven't discovered one yet.
+  firstPathPart: string | null = null;
 
   constructor(hostname: string, options?: string | MyChartRequestOptions) {
     // Support old signature: new MyChartRequest(hostname, protocol?)
@@ -96,7 +99,9 @@ export class MyChartRequest {
   static async unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
     try {
       const data = JSON.parse(serializedData);
-      if (data && data.hostname && data.firstPathPart && data.cookies) {
+      // firstPathPart is null for root-mounted instances, so check for presence
+      // rather than truthiness.
+      if (data && data.hostname && data.firstPathPart !== undefined && data.cookies) {
         const request = new MyChartRequest(data.hostname, { ...options, protocol: data.protocol });
         request.firstPathPart = data.firstPathPart;
         if (Object.keys(data.cookies).length > 0) {
@@ -112,7 +117,7 @@ export class MyChartRequest {
     return null;
   }
 
-  setFirstPathPart(firstPathPart: string) {
+  setFirstPathPart(firstPathPart: string | null) {
     this.firstPathPart = firstPathPart;
   }
 
@@ -232,7 +237,11 @@ export class MyChartRequest {
       headers: finalHeaders
     }
 
-    const url = config.url ?? (this.protocol + '://' + this.hostname + '/' + this.firstPathPart + config.path);
+    // No prefix (root-mounted instance) means nothing goes in front of the
+    // path — not even the separating slash, which would leave a double slash
+    // that some servers redirect on.
+    const mountPath = this.firstPathPart ? '/' + this.firstPathPart : '';
+    const url = config.url ?? (this.protocol + '://' + this.hostname + mountPath + config.path);
 
     let response ;
 
