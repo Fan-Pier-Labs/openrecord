@@ -81,6 +81,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
   - Single self-contained `index.html` (no build step) on S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
   - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh`.
   - Presentational only — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  - **Share previews + PWA assets**: `og-image.png` (1200×630 card), `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`. The PNGs are generated but committed — run `cd openrecord-splash && ./generate-assets.sh` after editing `icon.svg` or `assets-src/og-image.html`. It renders the card with headless Chrome and the icons with `rsvg-convert` (`brew install librsvg`), and also writes the web app's copies into `web/public/`. `og:image` must be an **absolute** `https://` URL — iMessage and Slack will not resolve a relative path. `deploy.sh` uploads and invalidates every asset; `openrecord-splash/__tests__/metadata.test.ts` fails if one is referenced but not deployed.
 
 ### AWS Fargate (Next.js web app)
 
@@ -88,6 +89,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy` (from repo root, uses `web/deploy.yaml`)
   - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
   - Config: `web/deploy.yaml`
+  - **Share previews + PWA**: `web/src/app/layout.tsx` sets `metadataBase` from `resolveSiteUrl()` (`web/src/lib/site-url.ts`), which is what makes the relative `/og-image.png` resolve to an absolute URL — iMessage and Slack ignore relative ones. `web/src/app/manifest.ts` is served at `/manifest.webmanifest`. Override the origin with `NEXT_PUBLIC_SITE_URL`; it falls back to `BETTER_AUTH_URL`, `NEXT_PUBLIC_BASE_URL`, `RAILWAY_PUBLIC_DOMAIN`, then the `deploy.yaml` domain in production. Assets come from `openrecord-splash/generate-assets.sh` — don't hand-edit the PNGs.
   - **No longer routed at `openrecord.fanpierlabs.com`** (that domain now serves the static splash above). The Fargate app + ALB (`mychart-alb-7967620`) and CloudFront distro `E2QOJCUV1KR3B0` still exist; `mychart.fanpierlabs.com` still points to them. Re-point a domain at that distro if you need the full app (incl. `/api/mcp`) publicly reachable again.
   - Region: `us-east-2`
 - **Fake MyChart** (`fake-mychart/`): Separate Fargate app deployed independently from the web app. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile` (not the repo-root web app Dockerfile):

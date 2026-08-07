@@ -174,6 +174,7 @@ If you restart ngrok and get a new URL, update `BETTER_AUTH_URL` in `web/.env.lo
 | `ENCRYPTION_KEY` | Yes | Encryption key for stored MyChart credentials. |
 | `BETTER_AUTH_URL` | Yes | Your public URL (ngrok/Cloudflare/custom domain). Used as BetterAuth base URL and to configure allowed origins. |
 | `TRUSTED_ORIGINS` | No | Comma-separated additional trusted origins for auth (e.g. `https://other.example.com`). |
+| `NEXT_PUBLIC_SITE_URL` | No | Public origin used to build absolute link-preview URLs (`og:image`) and the web app manifest's `start_url`. Defaults to `BETTER_AUTH_URL`, so you rarely need to set it — only when the app is reachable at a different origin than the one auth uses. **Must be set at build time** to take effect on the statically prerendered pages (`/`, `/login`, `/home`); Railway passes service variables to the build automatically. If unset at build time, share previews fall back to loading the card image from `openrecord.fanpierlabs.com` — the preview still renders correctly, just hosted elsewhere. |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth client ID. Google sign-in disabled without this. |
 | `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret. |
 | `PORT` | No | Server port (default: 3000). |
