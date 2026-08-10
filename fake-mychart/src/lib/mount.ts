@@ -10,12 +10,16 @@
  *     and routes are served straight from the domain root. This is
  *     mychart.clevelandclinic.org. Here the first path segment is already a
  *     MyChart route, not a deployment prefix.
+ *   - **meta-refresh**: routes live under the same `/MyChart` prefix, but `/`
+ *     answers 200 with `<meta http-equiv="refresh" content="1 ;url=https://<host>/mychart">`
+ *     instead of a redirect. This is mychart.renown.org — the prefix is only
+ *     discoverable from an *absolute* URL inside the HTML.
  *
  * Switch at runtime via `POST /mode`; see `src/app/mode/route.ts`. The mode
  * lives in RAM alongside the rest of the fake's mutable state, and `/reset`
  * restores the default.
  */
-export type MountMode = 'prefixed' | 'root';
+export type MountMode = 'prefixed' | 'root' | 'meta-refresh';
 
 export const DEFAULT_MOUNT_MODE: MountMode = 'prefixed';
 
@@ -35,6 +39,11 @@ export function resetMountMode(): void {
 
 export function isRootMount(): boolean {
   return mountState.mode === 'root';
+}
+
+/** Does `/` announce the prefix with a meta refresh instead of a redirect? */
+export function isMetaRefreshMount(): boolean {
+  return mountState.mode === 'meta-refresh';
 }
 
 /**

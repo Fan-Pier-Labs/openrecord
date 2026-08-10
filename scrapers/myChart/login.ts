@@ -17,16 +17,59 @@ function readTestCredentials_TEST_ONLY() {
 }
 
 
-export function parseFirstPathPartFromHtml(html: string): string | null {
-  const $ = cheerio.load(html);
-  const refreshTag = $('meta[http-equiv="REFRESH"]');
-  const possibleFirstPathPart = refreshTag?.attr('content')?.split(';')?.[1]?.trim()?.split('=')?.[1]?.replaceAll?.('/', '');
-  return possibleFirstPathPart || null;
-}
-
 // MyChart's login route. When a root redirect lands on it, everything in front
 // of it is the deployment prefix — and for root-mounted instances that's nothing.
 const MYCHART_LOGIN_ROUTE = '/authentication/';
+
+/**
+ * Work out the deployment prefix from a `<meta http-equiv="refresh">` on the root page.
+ *
+ *   0; URL=/MyChart/                              → 'MyChart'
+ *   1 ;url=https://mychart.renown.org/mychart     → 'mychart'   (Renown — absolute URL)
+ *   0; URL=/Authentication/Login                  → null        (root-mounted)
+ *
+ * The refresh target may be relative or absolute, so it goes through `new URL` and
+ * we read the first segment of the *pathname* — stripping every `/` from an absolute
+ * URL mangles the host into the prefix (`https:mychart.renown.orgmychart`).
+ *
+ * Pass `hostname` to reject targets that point at another host, the same way the
+ * Location-header path does: a marketing page's path is not a MyChart prefix.
+ */
+export function parseFirstPathPartFromHtml(html: string, hostname?: string): string | null {
+  const $ = cheerio.load(html);
+  const content = $('meta[http-equiv="REFRESH"]').attr('content');
+  if (!content) return null;
+
+  // content is `<seconds>; url=<target>`. Split on the first `=` only — the target
+  // can carry its own query string (`?id=…`).
+  const afterDelay = content.split(';').slice(1).join(';');
+  const equals = afterDelay.indexOf('=');
+  if (equals < 0) return null;
+
+  const target = afterDelay.slice(equals + 1).trim().replace(/^['"]|['"]$/g, '');
+  if (!target) return null;
+
+  // A placeholder base resolves relative targets; absolute ones ignore it.
+  const base = `https://${hostname || 'mychart.invalid'}`;
+  let url: URL;
+  try {
+    url = new URL(target, base);
+  } catch {
+    return null;
+  }
+
+  if (hostname && url.host !== hostname) {
+    logger.debug('Meta refresh points off-host:', hostname, '->', url.host);
+    return null;
+  }
+
+  // The refresh may go straight to a MyChart route, in which case whatever precedes
+  // that route is the whole prefix — and for root-mounted instances that's nothing.
+  const routeStart = url.pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
+  if (routeStart >= 0) return url.pathname.slice(1, routeStart) || null;
+
+  return url.pathname.split('/').filter(Boolean)[0] || null;
+}
 
 /** Does this redirect path land on a MyChart route we recognize? */
 export function landsOnMyChartRoute(path: string): boolean {
@@ -212,7 +255,7 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
 
   if (!firstPathPart) {
     const body = await pathResponse.text()
-    firstPathPart = parseFirstPathPartFromHtml(body);
+    firstPathPart = parseFirstPathPartFromHtml(body, mychartRequest.hostname);
     if (firstPathPart) {
       logger.debug('extracted first url path part from the body')
     }

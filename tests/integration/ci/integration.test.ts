@@ -1514,7 +1514,7 @@ describe('Root-mounted MyChart instance', () => {
   let rootInstanceId = '';
   let rootSessionKey = '';
 
-  async function setFakeMode(mode: 'prefixed' | 'root') {
+  async function setFakeMode(mode: 'prefixed' | 'root' | 'meta-refresh') {
     const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1618,7 +1618,123 @@ describe('Root-mounted MyChart instance', () => {
 });
 
 // ===================================================================
-// 14. Cleanup
+// 14. Meta-refresh mount discovery (Renown shape)
+// ===================================================================
+
+// Renown's root URL answers 200 with no Location header at all — the prefix
+// lives in an *absolute* URL inside a `<meta http-equiv="refresh">`. That form
+// used to be mangled into `https:mychart.renown.orgmychart`, so every request
+// after discovery went to a bogus path and login 400'd.
+//
+// The mode is global to the fake, so this section restores the default before
+// handing off to Cleanup.
+
+describe('Meta-refresh mount discovery', () => {
+  let metaInstanceId = '';
+  let metaSessionKey = '';
+
+  async function setFakeMode(mode: 'prefixed' | 'root' | 'meta-refresh') {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).mode).toBe(mode);
+  }
+
+  it('serves 200 with an absolute meta refresh and no Location header', async () => {
+    await setFakeMode('meta-refresh');
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+
+    const body = await res.text();
+    expect(body).toContain('http-equiv="refresh"');
+    expect(body).toContain(`http://${FAKE_MYCHART_HOST_URL}/MyChart`);
+  });
+
+  it('discovers the prefix from the absolute URL rather than mangling it', async () => {
+    const result = await myChartUserPassLogin({
+      hostname: FAKE_MYCHART_HOST_URL,
+      user: 'homer',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+
+    expect(result.state).toBe('logged_in');
+    expect(result.mychartRequest.firstPathPart).toBe('MyChart');
+  }, 30_000);
+
+  it('creates an instance against the meta-refresh host', async () => {
+    // Same hostname as the main instance but a different MyChart user, so the
+    // duplicate-instance guard (hostname + username) doesn't reject it.
+    const res = await authedFetch('/api/mychart-instances', {
+      method: 'POST',
+      body: JSON.stringify({
+        hostname: FAKE_MYCHART_HOSTNAME,
+        username: 'marge',
+        password: 'donuts123',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    metaInstanceId = (await res.json()).id;
+  });
+
+  it('connects (login) through the meta-refresh discovery path', async () => {
+    const res = await authedFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ myChartInstanceId: metaInstanceId }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    if (body.state === 'need_2fa') {
+      const twofaRes = await authedFetch('/api/twofa', {
+        method: 'POST',
+        body: JSON.stringify({ sessionKey: body.sessionKey, code: '123456' }),
+      });
+      expect(twofaRes.status).toBe(200);
+      const twofaBody = await twofaRes.json();
+      expect(twofaBody.state).toBe('logged_in');
+      metaSessionKey = twofaBody.sessionKey;
+    } else {
+      expect(body.state).toBe('logged_in');
+      metaSessionKey = body.sessionKey;
+    }
+
+    expect(metaSessionKey).toBeTruthy();
+  }, 30_000);
+
+  it('scrapes real data through the meta-refresh mount', async () => {
+    const res = await authedFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ sessionKey: metaSessionKey }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    expect(data.profile?.name).toBe('Marge Bouvier Simpson');
+    expect(data.medications?.medications?.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  it('deletes the instance and restores the default mount mode', async () => {
+    const res = await authedFetch(`/api/mychart-instances/${metaInstanceId}`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(200);
+
+    await setFakeMode('prefixed');
+    const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.headers.get('location')).toContain('/MyChart/');
+  });
+});
+
+// ===================================================================
+// 15. Cleanup
 // ===================================================================
 
 describe('Cleanup', () => {

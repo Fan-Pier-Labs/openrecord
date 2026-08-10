@@ -321,6 +321,59 @@ describe('parseFirstPathPartFromHtml', () => {
     expect(result).toBe('MyChart')
     expect(result).not.toContain('/')
   })
+
+  // Renown's root page refreshes to an absolute URL. Stripping every `/` used to
+  // fold the host into the prefix and produce `https:mychart.renown.orgmychart`.
+  it('extracts the path part from an absolute refresh URL', () => {
+    const html = '<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('mychart')
+  })
+
+  it('extracts the path part from an absolute refresh URL with a deeper path', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/MyChart-PRD/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart-PRD')
+  })
+
+  it('returns null for an absolute refresh URL mounted at the domain root', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/">'
+    expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+
+  it('returns null when the refresh goes straight to a root-mounted MyChart route', () => {
+    // Nothing in front of /Authentication/, so there is no prefix to report.
+    const html = '<meta http-equiv="refresh" content="0; URL=/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+
+  it('takes everything in front of a MyChart route as the prefix', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/prd/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('prd')
+  })
+
+  it('keeps a query string out of the path part', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=/MyChart/Authentication/Login?mode=stdfile&option=termsandconditions">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('handles a quoted refresh target', () => {
+    const html = `<meta http-equiv="refresh" content="0; url='https://mychart.example.org/MyChart/'">`
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('accepts an absolute refresh URL that stays on the expected host', () => {
+    const html = '<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe('mychart')
+  })
+
+  it('rejects a refresh that points at a different host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://www.renown.org/patients/">'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe(null)
+  })
+
+  it('resolves a relative refresh against the expected host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=/MyChart/" />'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.example.org')).toBe('MyChart')
+  })
 })
 
 describe('parseFirstPathPartFromInput', () => {
