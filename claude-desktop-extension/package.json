@@ -16,6 +16,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.0",
     "cheerio": "^1.2.0",
+    "fast-uri": "4.1.2",
     "fetch-cookie": "^3.2.0",
     "jpeg-js": "^0.4.4",
     "totp-generator": "^2.0.1",
