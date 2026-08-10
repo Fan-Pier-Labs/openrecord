@@ -329,6 +329,26 @@ describe('parseFirstPathPartFromHtml', () => {
     expect(parseFirstPathPartFromHtml(html)).toBe('mychart')
   })
 
+  // Captured verbatim from GET https://mychart.renown.org/ — a public redirect
+  // stub, no session or patient data in it. Kept byte-for-byte (uppercase tags,
+  // the space before the `;`, the lowercase `url=`) because every one of those
+  // quirks is something the parser has to survive.
+  it('handles the real Renown root page', () => {
+    const html = `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML>
+<HEAD>
+<TITLE>MyChart - Login Page</TITLE>
+<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">
+
+</HEAD>
+<BODY>
+<!-- this is a redirect to MyChart -->
+</BODY>
+</HTML>`
+    expect(parseFirstPathPartFromHtml(html)).toBe('mychart')
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe('mychart')
+  })
+
   it('extracts the path part from an absolute refresh URL with a deeper path', () => {
     const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/MyChart-PRD/Authentication/Login">'
     expect(parseFirstPathPartFromHtml(html)).toBe('MyChart-PRD')
