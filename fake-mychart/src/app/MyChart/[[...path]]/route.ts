@@ -9,6 +9,7 @@ import {
   vitalsPage, medicalHistoryPage, testResultsPage, messagesPage, visitsPage,
   lettersPage, goalsPage, referralsPage, careJourneysPage, documentsPage,
   educationPage, emergencyContactsPage, profilePage, settingsPage,
+  renderProxySelector, PROXY_SELECTOR_PLACEHOLDER,
   type ProxySelectorModel,
 } from '@/lib/html';
 import * as homer from '@/data/homer';
@@ -284,7 +285,7 @@ function requireTermsRedirect(request: NextRequest): NextResponse | null {
 // wrappers that refuse to answer under `/MyChart` when the instance is
 // root-mounted — a root-mounted instance has no `/MyChart` to serve, and a fake
 // that answers on both prefixes lets a broken prefix guess silently "work".
-export async function handleGet(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
+async function renderGet(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   const ds = activeDataset(request);
   if (!path || path.length === 0) {
@@ -402,7 +403,7 @@ export async function handleGet(request: NextRequest, { params }: { params: Prom
       profile: user.profile,
     };
     const { profile } = active;
-    return html(homePage(profile.name, profile.dob, profile.mrn, profile.pcp, proxySelectorFor(request, user)));
+    return html(homePage(profile.name, profile.dob, profile.mrn, profile.pcp));
   }
 
   if (lower.startsWith('home/csrftoken')) {
@@ -583,7 +584,7 @@ export async function handleGet(request: NextRequest, { params }: { params: Prom
   return html(genericTokenPage('MyChart'));
 }
 
-export async function handlePost(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
+async function renderPost(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   const ds = activeDataset(request);
   if (!path || path.length === 0) {
@@ -1304,6 +1305,45 @@ function notServedHere(path: string[] | undefined) {
     { error: 'Not found', path: (path ?? []).join('/') },
     { status: 404 },
   );
+}
+
+
+
+/**
+ * Fill in the header's proxy selector for whichever session made this request.
+ *
+ * Doing it here rather than passing a model into each page function keeps every
+ * page consistent — real MyChart shows the selector in the header everywhere,
+ * not only on Home — without threading an argument through ~25 templates.
+ * Pages for accounts with no proxy access get an empty string, matching real
+ * instances, which render no selector for a single-record account.
+ */
+async function withProxySelector(request: NextRequest, res: NextResponse): Promise<NextResponse> {
+  if (!(res.headers.get('Content-Type') || '').includes('text/html')) return res;
+  const body = await res.text();
+  if (!body.includes(PROXY_SELECTOR_PLACEHOLDER)) {
+    return new NextResponse(body, { status: res.status, headers: res.headers });
+  }
+  const user = currentUser(request);
+  const markup = user ? renderProxySelector(proxySelectorFor(request, user)) : '';
+  return new NextResponse(body.replaceAll(PROXY_SELECTOR_PLACEHOLDER, markup), {
+    status: res.status,
+    headers: res.headers,
+  });
+}
+
+/**
+ * The MyChart surface itself, independent of where it's mounted. The root
+ * catch-all calls these directly when the instance is root-mounted, so the
+ * header selector is filled in here rather than in the prefix-gated exports
+ * below — otherwise root-mounted pages would ship the raw placeholder.
+ */
+export async function handleGet(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
+  return withProxySelector(request, await renderGet(request, ctx));
+}
+
+export async function handlePost(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
+  return withProxySelector(request, await renderPost(request, ctx));
 }
 
 export async function GET(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
