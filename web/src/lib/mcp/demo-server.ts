@@ -12,12 +12,14 @@ const DEMO_USERNAME = 'homersimpson742';
 
 /**
  * The patient records the demo account can access. Mirrors the real tool's
- * contract, including the account holder's empty-string id.
+ * contract, including that the account holder's record carries a real opaque
+ * `WP-…` id and is identified by isSelf rather than by a blank id.
  */
 const DEMO_PROXY_TARGETS = [
-  { id: '', displayName: 'Homer J. Simpson', isSelf: true, profileName: 'Homer J. Simpson', dob: '05/12/1956' },
-  { id: 'PROXY-BART', displayName: 'Bart Simpson', isSelf: false, profileName: 'Bartholomew JoJo Simpson', dob: '04/01/2014' },
-  { id: 'PROXY-LISA', displayName: 'Lisa Simpson', isSelf: false, profileName: 'Lisa Marie Simpson', dob: '05/09/2016' },
+  { id: 'WP-DEMOSELF4KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ', displayName: 'Homer J. Simpson', isSelf: true, profileName: 'Homer J. Simpson', dob: '05/12/1956' },
+  { id: 'WP-DEMOBART7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRX', displayName: 'Bart Simpson', isSelf: false, profileName: 'Bartholomew JoJo Simpson', dob: '04/01/2014' },
+  { id: 'WP-DEMOLISA3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXW', displayName: 'Lisa Simpson', isSelf: false, profileName: 'Lisa Marie Simpson', dob: '05/09/2016' },
+  { id: 'WP-DEMOMAGG9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXW', displayName: 'Maggie Simpson', isSelf: false, profileName: 'Margaret Evelyn Simpson', dob: '01/12/2024' },
 ];
 
 /** Maps tool name → demo data for simple scraper tools (instance-only param) */
@@ -103,7 +105,7 @@ export function createDemoMcpServer(): McpServer {
   // Which record is active is real state for the life of this server, so a
   // caller can see list → switch → list reflect each other the way it does
   // against a live portal.
-  let activeProxyId = '';
+  let activeProxyId = DEMO_PROXY_TARGETS.find(t => t.isSelf)!.id;
 
   reg('list_proxy_targets',
     async (_args: { instance?: string }): Promise<CallToolResult> => {
@@ -117,13 +119,16 @@ export function createDemoMcpServer(): McpServer {
   );
 
   reg('switch_proxy_target',
-    async (args: { instance?: string; id?: string; display_name?: string }): Promise<CallToolResult> => {
-      if (args.id === undefined && !args.display_name) {
-        return { content: [{ type: 'text', text: 'Pass id or display_name. Use id="" to switch back to the account holder\'s own record.' }], isError: true };
+    async (args: { instance?: string; self?: boolean; id?: string; display_name?: string }): Promise<CallToolResult> => {
+      if (!args.self && args.id === undefined && !args.display_name) {
+        return { content: [{ type: 'text', text: 'Pass self=true, id or display_name. Use self=true to switch back to the account holder\'s own record.' }], isError: true };
       }
-      const target = args.id !== undefined
-        ? DEMO_PROXY_TARGETS.find(t => t.id === args.id)
-        : DEMO_PROXY_TARGETS.find(t => t.displayName.toLowerCase() === args.display_name!.trim().toLowerCase());
+      // self wins, then id (with '' as a spelling of self), then display name.
+      const target = (args.self || args.id === '')
+        ? DEMO_PROXY_TARGETS.find(t => t.isSelf)
+        : args.id !== undefined
+          ? DEMO_PROXY_TARGETS.find(t => t.id === args.id)
+          : DEMO_PROXY_TARGETS.find(t => t.displayName.toLowerCase() === args.display_name!.trim().toLowerCase());
 
       if (!target) {
         return {

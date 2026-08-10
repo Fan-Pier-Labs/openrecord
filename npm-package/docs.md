@@ -265,9 +265,10 @@ if (child) {
   const childMeds = await getMedications(result.mychartRequest); // the child's chart
 }
 
-// The account holder's own record is identified by the EMPTY STRING, not by a
-// missing id — this is how you switch back.
-await switchProxyTarget(result.mychartRequest, { id: '' });
+// Going back. Use `self` rather than an id: proxy ids are opaque and differ
+// between organizations, and `isSelf` is the portal's own marker for
+// "the account holder".
+await switchProxyTarget(result.mychartRequest, { self: true });
 
 const active = await verifyActiveProxyTarget(result.mychartRequest);
 ```
@@ -276,9 +277,12 @@ const active = await verifyActiveProxyTarget(result.mychartRequest);
 returning, and throws rather than handing back a different patient's chart. It
 returns `verifiedProfileName` / `verifiedDob` so callers can assert further.
 
-Two details worth knowing about `ProxyTarget`:
+Three details worth knowing about `ProxyTarget`:
 
-- `id` is `''` for the account holder's own record.
+- `id` is a long opaque `WP-…` string, unique to one organization and
+  meaningless elsewhere. Never parse or construct one.
+- **The account holder's record is `isSelf`, not a blank id.** It carries a real
+  id like every other record. Confirmed against UCSF, Renown and Carson Tahoe.
 - `selectionKnown` says whether `isSelected` came from the portal or is just a
   default. Some instances expose the record list without saying which one is
   active; treat `isSelected === false` as meaningful only when

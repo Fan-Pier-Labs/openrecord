@@ -26,29 +26,66 @@ Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) thr
 
 ## Proxy (Multi-Patient) Records
 
-`homer` has proxy access to two other patient records, so the "one login, several
-charts" shape is exercisable:
+`homer` has proxy access to his three kids, so the "one login, several charts"
+shape is exercisable:
 
-| Record          | Id            | Profile name              | DOB        | MRN |
-|-----------------|---------------|---------------------------|------------|-----|
-| Homer (self)    | `""`          | Homer Jay Simpson         | 05/12/1956 | 742 |
-| Bart            | `PROXY-BART`  | Bartholomew JoJo Simpson  | 04/01/2014 | 744 |
-| Lisa            | `PROXY-LISA`  | Lisa Marie Simpson        | 05/09/2016 | 745 |
-
-The account holder's own record has the **empty-string id**, matching real
-MyChart. Note that the proxy list shows a short name ("Bart Simpson") while the
-profile page carries the legal name ("Bartholomew JoJo Simpson") — real portals
-do this, and any code verifying a switch has to tolerate it.
+| Record        | `IsSelf` | Profile name             | DOB        | MRN |
+|---------------|----------|--------------------------|------------|-----|
+| Homer (self)  | `true`   | Homer Jay Simpson        | 05/12/1956 | 742 |
+| Bart          | `false`  | Bartholomew JoJo Simpson | 04/01/2014 | 744 |
+| Lisa          | `false`  | Lisa Marie Simpson       | 05/09/2016 | 745 |
+| Maggie        | `false`  | Margaret Evelyn Simpson  | 01/12/2024 | 746 |
 
 `marge` has no proxy access at all, covering the single-record account.
 
-Endpoints:
+### The account holder is NOT the record with a blank id
 
-- `GET /ProxySwitch` → `{"ProxySubjectList":[...]}` with `Id`, `DisplayName`, `LinkUrl`, `IsSelected`, `IsSelf`.
+**Every record, self included, carries a long opaque `WP-…` id** — 84-90
+characters, different on every organization, meaningless outside the session
+that produced it. The account holder's record is identified by `IsSelf: true`
+and nothing else.
+
+This is worth stating loudly because this fake previously modelled self as the
+empty string. That shape came from a hand-written mock in the original PR, was
+never observed anywhere, and does not exist on any instance measured: UCSF
+(`/ucsfmychart`), Renown (`/mychart`) and Carson Tahoe (`/patientportal`) all
+give the account holder a real `WP-…` id. Anything that needs "the account
+holder" must key off `IsSelf`; never parse, construct or compare an id to find
+it.
+
+Two more details reproduced from the live captures:
+
+- The self entry's `LinkUrl` is a **bare `inside.asp` with no query string** —
+  not `?mode=self`. Following it is what returns you to the account holder.
+- `LinkUrl` is relative and un-prefixed on UCSF and Carson Tahoe; Renown serves
+  a prefix-absolute `/mychart/inside.asp`. The fake emits the relative form —
+  the majority shape, and the harder one for a scraper to resolve.
+
+The proxy list shows a short name ("Bart Simpson") while the profile page
+carries the legal name ("Bartholomew JoJo Simpson"). Real portals do this, and
+any code verifying a switch has to tolerate it.
+
+### Per-record chart data
+
+Switching context changes what **every** endpoint returns, not just the profile.
+Each child has their own medications, allergies, health issues, immunizations,
+care team and insurance. A category a child has no data for comes back
+structurally empty — same envelope, empty lists — and **never** falls back to
+the account holder's data. A parent's prescriptions appearing inside a child's
+chart is the worst failure this codebase could ship, so the fallback direction
+is always "empty", never "inherit".
+
+Account-level data (TOTP config, passkeys) is deliberately *not* scoped to the
+active record — it belongs to the login, not to a patient.
+
+### Endpoints
+
+- `GET /ProxySwitch` → `{"ProxySubjectList":[...]}` with `Id`, `IdEmpty`, `IdPrefix`, `DisplayName`, `LinkUrl`, `IsSelected`, `IsSelf`, plus `BlobToken`, `Disabled`, `DisplayText`, `Ids`, `Loading`, `PhotoMagicId`, `PhotoUrl`, `ServiceAreaAbbreviationList`, `TabColor`. Those last nine were confirmed present by NAME only — their real value shapes were never captured, so the values here are synthetic placeholders. No scraper reads them.
 - `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>` → 302 to `/Home`, switching the session's active record. An `eid` the account can't reach returns 403.
-- `GET /inside.asp?mode=self` → 302 to `/Home`, back to the account holder's own record.
+- `GET /inside.asp?mode=self` → 302 to `/Home`, back to the account holder.
+- `GET /inside.asp` (bare, as served in the self `LinkUrl`) → when a proxy record is active, 302 to `?mode=self` and so back to the account holder; otherwise an ordinary page.
 
-`/Home` then renders whichever record is active, so the profile scraper reads the
+`/Home` renders whichever record is active, so the profile scraper reads the
 proxy patient's details after a switch.
 
 ### Discovery modes
@@ -65,6 +102,12 @@ Real instances don't all expose the same surface, so the shape is switchable via
 `script` mode is the awkward one: the payload lists the records but never says
 which is active, so anything confirming a switch there has to fall back to the
 profile page.
+
+> **Only the `json` surface is verified.** The anchor markup and the
+> personalization script blocks — their class names, `data-id` attributes,
+> aria-labels and payload shape — are inferred, not captured. Agreement between
+> the fake and the scraper on those two paths is self-consistency, not evidence
+> about real MyChart. Replace them the moment a real Home page is captured.
 
 ## Deployment Shape and Discovery Mode
 

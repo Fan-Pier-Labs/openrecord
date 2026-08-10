@@ -6,9 +6,18 @@
 // the server back to a clean slate without restarting the process.
 
 import * as homer from '@/data/homer';
+import { HOMER_PROXY_RECORDS } from '@/data/kids';
+import { buildDataset, selfDataset, resetDatasetCache, type PatientDataset } from './dataset';
 import { resetSessions } from './session';
 import { resetMountMode } from './mount';
 import { resetProxyDiscoveryMode } from './proxy';
+
+/**
+ * Homer's own patient record id. Real instances give the account holder a real
+ * opaque id just like a proxy record — see `FakeUser.selfProxyId`.
+ */
+export const HOMER_SELF_PROXY_ID =
+  'WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C';
 
 export type Passkey = {
   rawId: string;
@@ -33,14 +42,19 @@ export type FakeUserProfile = {
 /**
  * A patient record the account holder has proxy access to — Epic's model for a
  * parent seeing a child's chart. `id` is what shows up as `Id` in the
- * `/ProxySwitch` payload and as `eid` in the switch URL. The account holder's
- * own record is NOT in this list; it is represented separately with the
- * empty-string id, exactly as real MyChart does.
+ * `/ProxySwitch` payload and as `eid` in the switch URL.
+ *
+ * The account holder's own record is not in this list — it's the user itself,
+ * and it carries its own `selfProxyId`. Both kinds of record have a real,
+ * non-empty opaque `WP-…` id; "self" is signalled by `IsSelf`, never by the id
+ * being blank. See the note on `FakeUser.selfProxyId`.
  */
 export type ProxySubject = {
   id: string;
   displayName: string;
   profile: FakeUserProfile;
+  /** This patient's own chart data. Never falls back to the account holder's. */
+  dataset: PatientDataset;
 };
 
 export type FakeUser = {
@@ -61,6 +75,19 @@ export type FakeUser = {
   // endpoint. Independent of requires2faAtLogin.
   totpEnabled: boolean;
   passkeys: Passkey[];
+  /**
+   * The opaque id of this account holder's OWN patient record.
+   *
+   * Confirmed against UCSF, Renown and Carson Tahoe: the self entry in
+   * `/ProxySwitch` carries a real non-empty `WP-…` id exactly like a proxy
+   * record does, and is distinguished only by `IsSelf: true`. An earlier
+   * version of this fake modelled self as the empty string; that shape was
+   * never observed on any real instance and has been removed. Anything needing
+   * "the account holder" must key off `IsSelf`.
+   *
+   * Empty for accounts with no proxy access, which expose no proxy surface.
+   */
+  selfProxyId: string;
   /** Other patients' records this account can switch into. May be empty. */
   proxySubjects: ProxySubject[];
 };
@@ -80,31 +107,17 @@ function seedUsers(): Record<string, FakeUser> {
       requires2faAtLogin: false,
       totpEnabled: false,
       passkeys: [],
-      // Homer has proxy access to both kids, so discover → switch → switch
-      // back is exercisable, and so "resolve by display name" has more than
-      // one candidate to choose between.
-      proxySubjects: [
-        {
-          id: 'PROXY-BART',
-          displayName: 'Bart Simpson',
-          profile: {
-            name: 'Bartholomew JoJo Simpson',
-            dob: '04/01/2014',
-            mrn: '744',
-            pcp: 'Dr. Julius Hibbert, MD',
-          },
-        },
-        {
-          id: 'PROXY-LISA',
-          displayName: 'Lisa Simpson',
-          profile: {
-            name: 'Lisa Marie Simpson',
-            dob: '05/09/2016',
-            mrn: '745',
-            pcp: 'Dr. Julius Hibbert, MD',
-          },
-        },
-      ],
+      selfProxyId: HOMER_SELF_PROXY_ID,
+      // Homer has proxy access to all three kids, so discover → switch →
+      // switch back is exercisable, "resolve by display name" has several
+      // candidates to choose between, and the multi-proxy case observed on
+      // Carson Tahoe is covered.
+      proxySubjects: HOMER_PROXY_RECORDS.map(kid => ({
+        id: kid.id,
+        displayName: kid.displayName,
+        profile: kid.profile,
+        dataset: buildDataset(kid.dataset),
+      })),
     },
     marge: {
       username: 'marge',
@@ -119,7 +132,9 @@ function seedUsers(): Record<string, FakeUser> {
       requires2faAtLogin: true,
       totpEnabled: true,
       passkeys: [],
-      // Marge has no proxy access — the "single-record account" case.
+      // Marge has no proxy access — the "single-record account" case, where
+      // MyChart exposes no proxy surface at all.
+      selfProxyId: '',
       proxySubjects: [],
     },
   };
@@ -171,24 +186,45 @@ export function resetState(): void {
   resetSessions();
   resetMountMode();
   resetProxyDiscoveryMode();
+  resetDatasetCache();
 }
 
+export type ActiveRecord = {
+  id: string;
+  displayName: string;
+  profile: FakeUserProfile;
+  isSelf: boolean;
+  /** Chart data scoped to this patient. */
+  dataset: PatientDataset;
+};
+
 /**
- * The record a session is currently looking at: the account holder's own when
- * `activeProxyId` is empty, otherwise one of their proxy subjects. Returns null
- * for an id the user has no access to, which callers must treat as a failed
- * switch rather than silently falling back to self.
+ * The record a session is currently looking at.
+ *
+ * A session with no stored `activeProxyId` is on the account holder's own
+ * record, as is one holding the account holder's real `selfProxyId` — both mean
+ * self. Returns null for an id the account has no access to, which callers must
+ * treat as a failed switch rather than silently falling back to self.
  */
-export function resolveActiveRecord(
-  user: FakeUser,
-  activeProxyId: string,
-): { id: string; displayName: string; profile: FakeUserProfile; isSelf: boolean } | null {
-  if (!activeProxyId) {
-    return { id: '', displayName: user.displayName, profile: user.profile, isSelf: true };
+export function resolveActiveRecord(user: FakeUser, activeProxyId: string): ActiveRecord | null {
+  if (!activeProxyId || activeProxyId === user.selfProxyId) {
+    return {
+      id: user.selfProxyId,
+      displayName: user.displayName,
+      profile: user.profile,
+      isSelf: true,
+      dataset: selfDataset(),
+    };
   }
   const subject = user.proxySubjects.find(s => s.id === activeProxyId);
   if (!subject) return null;
-  return { id: subject.id, displayName: subject.displayName, profile: subject.profile, isSelf: false };
+  return {
+    id: subject.id,
+    displayName: subject.displayName,
+    profile: subject.profile,
+    isSelf: false,
+    dataset: subject.dataset,
+  };
 }
 
 export function findUser(username: string | null | undefined): FakeUser | null {

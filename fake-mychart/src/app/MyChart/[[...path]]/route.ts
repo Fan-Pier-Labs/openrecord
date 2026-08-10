@@ -13,6 +13,7 @@ import {
 } from '@/lib/html';
 import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser } from '@/lib/state';
+import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 
@@ -34,11 +35,94 @@ function currentUser(request: NextRequest): FakeUser | null {
  */
 function proxySelectorFor(request: NextRequest, user: FakeUser): ProxySelectorModel | null {
   if (user.proxySubjects.length === 0) return null;
+  const active = resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')));
   return {
-    self: { id: '', displayName: user.displayName },
+    self: { id: user.selfProxyId, displayName: user.displayName },
     subjects: user.proxySubjects.map(s => ({ id: s.id, displayName: s.displayName })),
-    activeId: getActiveProxyId(request.headers.get('cookie')),
+    activeId: active?.id ?? user.selfProxyId,
   };
+}
+
+/**
+ * One entry in the `/ProxySwitch` payload.
+ *
+ * Field names, casing and value shapes below were confirmed against three live
+ * Epic instances (UCSF `/ucsfmychart`, Renown `/mychart`, Carson Tahoe
+ * `/patientportal`) — see the capture posted on PR #206. Two things this pins
+ * down that the fake previously got wrong:
+ *
+ *   - The account holder's entry carries a real non-empty `WP-…` `Id`, exactly
+ *     like a proxy record. `IsSelf` is the only thing distinguishing it. The
+ *     empty-string self id modelled here before was never observed anywhere.
+ *   - `LinkUrl` is *relative* and un-prefixed (`inside.asp`,
+ *     `inside.asp?mode=proxyswitch&…`) on UCSF and Carson Tahoe. Renown serves
+ *     a prefix-absolute `/mychart/inside.asp`. We emit the relative form: it's
+ *     the majority shape and the harder one for a scraper to resolve.
+ *   - The self entry's `LinkUrl` carries NO query string at all — it is a bare
+ *     `inside.asp`, not `?mode=self`.
+ *
+ * `BlobToken`, `Disabled`, `DisplayText`, `Ids`, `Loading`, `PhotoMagicId`,
+ * `PhotoUrl`, `ServiceAreaAbbreviationList` and `TabColor` were reported present
+ * on every subject, but only by NAME — their real value shapes were not
+ * captured. They are populated here with plausible synthetic values so a
+ * consumer written against the fake isn't surprised by their absence, but the
+ * shapes are inferred and must be corrected once a full capture exists. No
+ * scraper reads them today.
+ */
+function proxySubjectEntry(
+  subject: { id: string; displayName: string },
+  opts: { isSelf: boolean; isSelected: boolean },
+) {
+  const linkUrl = opts.isSelf
+    ? 'inside.asp'
+    : `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${encodeURIComponent(subject.id)}`;
+  return {
+    Id: subject.id,
+    IdEmpty: false,
+    IdPrefix: 'WP-',
+    DisplayName: subject.displayName,
+    LinkUrl: linkUrl,
+    IsSelected: opts.isSelected,
+    IsSelf: opts.isSelf,
+    // ── Inferred value shapes; names confirmed, contents not captured ──
+    BlobToken: '',
+    Disabled: false,
+    DisplayText: subject.displayName,
+    Ids: [subject.id],
+    Loading: false,
+    PhotoMagicId: '',
+    PhotoUrl: '',
+    ServiceAreaAbbreviationList: [],
+    TabColor: '',
+  };
+}
+
+/** The full `ProxySubjectList`: the account holder first, then their proxies. */
+function proxySubjectList(user: FakeUser, activeId: string) {
+  return [
+    proxySubjectEntry(
+      { id: user.selfProxyId, displayName: user.displayName },
+      { isSelf: true, isSelected: activeId === user.selfProxyId },
+    ),
+    ...user.proxySubjects.map(subject =>
+      proxySubjectEntry(subject, { isSelf: false, isSelected: activeId === subject.id })),
+  ];
+}
+
+/**
+ * Chart data scoped to the record this session is currently in.
+ *
+ * This is what makes proxy switching mean something: after switching into a
+ * child's record, every data endpoint reads that child's dataset. A record with
+ * nothing in a given category returns an empty envelope — never the account
+ * holder's data. Before login (no session, no user) it falls back to the
+ * account holder's seed so unauthenticated paths behave as they always did.
+ */
+function activeDataset(request: NextRequest): PatientDataset {
+  const user = currentUser(request);
+  if (!user) return selfDataset();
+  const active = resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')));
+  return active?.dataset ?? selfDataset();
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -69,8 +153,8 @@ const PAST_VISITS_PAGE_SIZE = 10;
  * model the token as a simple numeric offset into the full visit list. See
  * issue #189 — the scraper previously only ever read the first page.
  */
-function buildPastVisitsPage(serializedIndex: string | null) {
-  const all = homer.pastVisits.PastVisitsList;
+function buildPastVisitsPage(ds: PatientDataset, serializedIndex: string | null) {
+  const all = ds.pastVisits.PastVisitsList;
   const offset = serializedIndex ? (Number(serializedIndex) || 0) : 0;
   const slice = all.slice(offset, offset + PAST_VISITS_PAGE_SIZE);
   const nextOffset = offset + slice.length;
@@ -158,6 +242,7 @@ function requireTermsRedirect(request: NextRequest): NextResponse | null {
 // ─── Route handler ──────────────────────────────────────────────────
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
+  const ds = activeDataset(request);
   if (!path || path.length === 0) {
     return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
@@ -195,15 +280,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // record. Both answer with a 302 back to Home rather than rendering
     // anything; the new context lives in the session from then on.
     const mode = (request.nextUrl.searchParams.get('mode') || '').toLowerCase();
+    const cookie = request.headers.get('cookie');
+
+    // A bare `inside.asp` with no query is what `/ProxySwitch` hands back as
+    // the account holder's own LinkUrl on every instance we've captured. When a
+    // proxy record is active, following it returns to the account holder — via
+    // a `mode=self` hop, matching the redirect chain observed live. When
+    // already on the account holder's record it's an ordinary page.
+    //
+    // The hop itself is inferred from a scrubbed report ("redirect chain
+    // included mode=self / ProxySwitch/SwitchContext hops"), not a verbatim
+    // capture. What IS confirmed is that following the bare self LinkUrl
+    // restores the account holder.
+    if (!mode && validateSession(cookie) && getActiveProxyId(cookie)) {
+      return NextResponse.redirect(
+        new URL(`${mountPrefix()}/inside.asp?mode=self`, publicBaseUrl(request)), 302);
+    }
+
     if (mode === 'self' || mode === 'proxyswitch') {
-      const cookie = request.headers.get('cookie');
       if (!validateSession(cookie)) {
         return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
       }
       const user = currentUser(request);
       if (!user) return new NextResponse('Session is missing username', { status: 500 });
 
-      const targetId = mode === 'self' ? '' : (request.nextUrl.searchParams.get('eid') || '');
+      const targetId = mode === 'self'
+        ? user.selfProxyId
+        : (request.nextUrl.searchParams.get('eid') || '');
       if (resolveActiveRecord(user, targetId) === null) {
         // An eid this account has no proxy access to. Real MyChart refuses
         // rather than silently leaving you where you were.
@@ -233,25 +336,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (user.proxySubjects.length === 0) {
       return json({ ProxySubjectList: [] });
     }
-    const activeId = getActiveProxyId(cookie);
-    return json({
-      ProxySubjectList: [
-        {
-          Id: '',
-          DisplayName: user.displayName,
-          LinkUrl: '#',
-          IsSelected: activeId === '',
-          IsSelf: true,
-        },
-        ...user.proxySubjects.map(subject => ({
-          Id: subject.id,
-          DisplayName: subject.displayName,
-          LinkUrl: `${mountPrefix()}/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${encodeURIComponent(subject.id)}`,
-          IsSelected: activeId === subject.id,
-          IsSelf: false,
-        })),
-      ],
-    });
+    const active = resolveActiveRecord(user, getActiveProxyId(cookie));
+    return json({ ProxySubjectList: proxySubjectList(user, active?.id ?? user.selfProxyId) });
   }
 
   // ── Session / Home ─────────────────────────────────────────────
@@ -289,43 +375,43 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'clinical/careteam') {
     const redirect = requireSession(request);
     if (redirect) return redirect;
-    return html(careTeamPage(homer.careTeam));
+    return html(careTeamPage(ds.careTeam));
   }
 
   if (lower === 'insurance') {
     const redirect = requireSession(request);
     if (redirect) return redirect;
-    return html(insurancePage(homer.insurance));
+    return html(insurancePage(ds.insurance));
   }
 
   if (lower === 'healthadvisories') {
     const redirect = requireSession(request);
     if (redirect) return redirect;
-    return html(preventiveCarePage(homer.preventiveCare));
+    return html(preventiveCarePage(ds.preventiveCare));
   }
 
   if (lower === 'billing/summary') {
     const redirect = requireSession(request);
     if (redirect) return redirect;
-    return html(billingSummaryPage(homer.billingSummary));
+    return html(billingSummaryPage(ds.billingSummary));
   }
 
   if (lower === 'billing/details') {
     const redirect = requireSession(request);
     if (redirect) return redirect;
-    return html(billingDetailsPage(homer.billingEncId));
+    return html(billingDetailsPage(ds.billingEncId));
   }
 
   if (lower.startsWith('billing/details/getvisits')) {
-    return json(homer.billingVisits);
+    return json(ds.billingVisits);
   }
 
   if (lower.startsWith('billing/details/getstatementlist')) {
-    return json(homer.billingStatements);
+    return json(ds.billingStatements);
   }
 
   if (lower.startsWith('billing/details/loadpaymentlist')) {
-    return json(homer.billingPayments);
+    return json(ds.billingPayments);
   }
 
   if (lower.startsWith('billing/details/downloadfromblob')) {
@@ -455,6 +541,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
+  const ds = activeDataset(request);
   if (!path || path.length === 0) {
     return json({ error: 'Not found' }, 404);
   }
@@ -596,7 +683,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // ── JSON API endpoints ────────────────────────────────────────
   // Medications
   if (lower === 'api/medications/loadmedicationspage') {
-    return json(homer.medications);
+    return json(ds.medications);
   }
   if (lower === 'api/medications/requestrefill') {
     return json({ success: true });
@@ -604,30 +691,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Allergies
   if (lower === 'api/allergies/loadallergies') {
-    return json(homer.allergies);
+    return json(ds.allergies);
   }
 
   // Immunizations
   if (lower === 'api/immunizations/loadimmunizations') {
-    return json(homer.immunizations);
+    return json(ds.immunizations);
   }
 
   // Health Issues
   if (lower === 'api/healthissues/loadhealthissuesdata') {
-    return json(homer.healthIssues);
+    return json(ds.healthIssues);
   }
 
   // Health Summary
   if (lower === 'api/health-summary/fetchhealthsummary') {
-    return json(homer.healthSummary);
+    return json(ds.healthSummary);
   }
   if (lower === 'api/health-summary/fetchh2gheader') {
-    return json(homer.healthSummaryHeader);
+    return json(ds.healthSummaryHeader);
   }
 
   // Vitals / Flowsheets — two-call contract (definitions, then readings)
   if (lower === 'api/track-my-health/getflowsheets') {
-    return json(homer.vitals);
+    return json(ds.vitals);
   }
   if (lower === 'api/track-my-health/getflowsheetreadings') {
     // Real MyChart pages backwards through history: it returns readings at or
@@ -638,16 +725,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const endInstantIso: string = body?.endInstantIso || '9999-12-31T23:59:59';
     const numReadings: number = Number(body?.numReadings) || 200;
 
-    const all = homer.vitalsReadings.flowsheet.readings;
+    const all = ds.vitalsReadings.flowsheet.readings;
     const inRange = all.filter((r) => r.instantTakenIso <= endInstantIso);
     const instants = [...new Set(inRange.map((r) => r.instantTakenIso))].sort().reverse();
     const page = instants.slice(0, numReadings);
     const pageSet = new Set(page);
 
     return json({
-      ...homer.vitalsReadings,
+      ...ds.vitalsReadings,
       flowsheet: {
-        ...homer.vitalsReadings.flowsheet,
+        ...ds.vitalsReadings.flowsheet,
         readings: inRange.filter((r) => pageSet.has(r.instantTakenIso)),
         hasMoreData: instants.length > page.length,
         nextReadingDateIso: instants[page.length] || '',
@@ -657,30 +744,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Medical History
   if (lower === 'api/histories/loadhistoriesviewmodel') {
-    return json(homer.medicalHistory);
+    return json(ds.medicalHistory);
   }
 
   // Care Journeys
   if (lower === 'api/care-journeys/getcarejourneys') {
-    return json(homer.careJourneys);
+    return json(ds.careJourneys);
   }
 
   // Goals
   if (lower === 'api/goals/loadcareteamgoals') {
-    return json(homer.careTeamGoals);
+    return json(ds.careTeamGoals);
   }
   if (lower === 'api/goals/loadpatientgoals') {
-    return json(homer.patientGoals);
+    return json(ds.patientGoals);
   }
 
   // Letters
   if (lower === 'api/letters/getletterslist') {
-    return json(homer.letters);
+    return json(ds.letters);
   }
   if (lower === 'api/letters/getletterdetails') {
     try {
       const body = await request.json();
-      const details = homer.letterDetails[body.hnoId];
+      const details = ds.letterDetails[body.hnoId];
       if (details) return json(details);
       return json({ bodyHTML: '<p>Letter not found</p>' });
     } catch {
@@ -690,17 +777,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Referrals
   if (lower === 'api/referrals/listreferrals') {
-    return json(homer.referrals);
+    return json(ds.referrals);
   }
 
   // Documents
   if (lower === 'api/documents/viewer/loadotherdocuments') {
-    return json(homer.documents);
+    return json(ds.documents);
   }
 
   // Education
   if (lower === 'api/education/getpateducationtitles') {
-    return json(homer.educationMaterials);
+    return json(ds.educationMaterials);
   }
 
   // Emergency Contacts
@@ -752,17 +839,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Upcoming Orders
   if (lower === 'api/upcoming-orders/getupcomingorders') {
-    return json(homer.upcomingOrders);
+    return json(ds.upcomingOrders);
   }
 
   // EHI Export
   if (lower === 'api/release-of-information/getehietemplates') {
-    return json(homer.ehiExport);
+    return json(ds.ehiExport);
   }
 
   // Activity Feed
   if (lower === 'api/item-feed/fetchitemfeed') {
-    return json(homer.activityFeed);
+    return json(ds.activityFeed);
   }
 
   // Test Results / Labs
@@ -771,22 +858,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const body = await request.json();
       // groupType 2 or 3 may return imaging results
       if (body.groupType === 2) {
-        return json(homer.imagingLabResultsList);
+        return json(ds.imagingLabResultsList);
       }
     } catch { /* fall through */ }
-    return json(homer.labResultsList);
+    return json(ds.labResultsList);
   }
   if (lower === 'api/test-results/getdetails') {
     try {
       const body = await request.json();
       if (body.orderKey === 'GRP-XRAY') {
-        return json(homer.imagingLabResultDetails);
+        return json(ds.imagingLabResultDetails);
       }
       if (body.orderKey === 'GRP-CT') {
-        return json(homer.ctLabResultDetails);
+        return json(ds.ctLabResultDetails);
       }
     } catch { /* fall through */ }
-    return json(homer.labResultsDetails);
+    return json(ds.labResultsDetails);
   }
   if (lower === 'api/past-results/getmultiplehistoricalresultcomponents') {
     return json({ historicalResults: [] });
@@ -794,7 +881,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (lower === 'api/visit-notes/getvisitnotes') {
     try {
       const body = await request.json();
-      const data = homer.visitNotesByCsn[body.CSN];
+      const data = ds.visitNotesByCsn[body.CSN];
       if (data) return json(data);
     } catch { /* fall through */ }
     return json({ lrpID: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, noteList: [] });
@@ -804,20 +891,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const body = await request.json();
       // Clinical note content (see getNoteContent in scrapers/myChart/notes/notes.ts).
       if (body.reportMnemonic === 'OPEN_NOTES') {
-        const note = homer.noteContent[body.contextID];
+        const note = ds.noteContent[body.contextID];
         if (note) return json(note);
       }
       // After Visit Summary (see getVisitAVS in scrapers/myChart/notes/notes.ts).
       else if (body.reportMnemonic === 'AMB_AVS') {
-        const avs = homer.avsByCsn[body.csn];
+        const avs = ds.avsByCsn[body.csn];
         if (avs) return json(avs);
       }
       // Imaging report bodies (existing).
       else if (body.reportID === 'RPT-XRAY-001') {
-        return json(homer.imagingReportContent);
+        return json(ds.imagingReportContent);
       }
       else if (body.reportID === 'RPT-CT-001') {
-        return json(homer.ctReportContent);
+        return json(ds.ctReportContent);
       }
     } catch { /* fall through */ }
     return json({ reportContent: '', reportCss: '' });
@@ -856,11 +943,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── Visits ────────────────────────────────────────────────────
   if (lower.startsWith('visits/visitslist/loadupcoming')) {
-    return json(homer.upcomingVisits);
+    return json(ds.upcomingVisits);
   }
   if (lower.startsWith('visits/visitslist/loadpast')) {
     const serializedIndex = new URL(request.url).searchParams.get('serializedIndex');
-    return json(buildPastVisitsPage(serializedIndex));
+    return json(buildPastVisitsPage(ds, serializedIndex));
   }
 
   // ── Messages / Conversations (mutable state) ──────────────────
@@ -930,13 +1017,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── Medical Advice Requests (new message compose) ─────────────
   if (lower === 'api/medicaladvicerequests/getsubtopics') {
-    return json(homer.subtopics);
+    return json(ds.subtopics);
   }
   if (lower === 'api/medicaladvicerequests/getmedicaladvicerequestrecipients') {
-    return json(homer.messageRecipients);
+    return json(ds.messageRecipients);
   }
   if (lower === 'api/medicaladvicerequests/getviewers') {
-    return json(homer.messageViewers);
+    return json(ds.messageViewers);
   }
   if (lower === 'api/medicaladvicerequests/sendmedicaladvicerequest') {
     try {
@@ -1011,17 +1098,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── Contact Information ───────────────────────────────────────
   if (lower.startsWith('personalinformation/getcontactinformation')) {
-    return json(homer.contactInfo);
+    return json(ds.contactInfo);
   }
 
   // ── Linked Accounts ───────────────────────────────────────────
   if (lower.startsWith('community/shared/loadcommunitylinks')) {
-    return json(homer.linkedAccounts);
+    return json(ds.linkedAccounts);
   }
 
   // ── Questionnaires ────────────────────────────────────────────
   if (lower === 'questionnaire/getquestionnairelist') {
-    return json(homer.questionnaires);
+    return json(ds.questionnaires);
   }
 
   // ── Passkey Login Challenge ───────────────────────────────────
@@ -1118,7 +1205,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── Appointment Booking ───────────────────────────────────────
   if (lower === 'api/scheduling/getavailableappointments') {
-    return json({ appointments: homer.availableAppointments });
+    return json({ appointments: ds.availableAppointments });
   }
   if (lower === 'api/scheduling/bookappointment') {
     try {
@@ -1126,8 +1213,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const slotId = body.slotId;
       // Find the slot across all providers
       let foundSlot: { date: string; time: string; slotId: string } | null = null;
-      let foundProvider: typeof homer.availableAppointments[0] | null = null;
-      for (const appt of homer.availableAppointments) {
+      let foundProvider: typeof ds.availableAppointments[0] | null = null;
+      for (const appt of ds.availableAppointments) {
         const slot = appt.slots.find(s => s.slotId === slotId);
         if (slot) { foundSlot = slot; foundProvider = appt; break; }
       }

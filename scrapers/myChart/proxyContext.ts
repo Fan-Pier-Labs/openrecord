@@ -6,10 +6,13 @@ import { logger } from '../../shared/logger';
 
 export type ProxyTarget = {
   /**
-   * Epic's identifier for the patient record. The account holder's own record
-   * ("self") is identified by the **empty string**, not by a missing value —
-   * that is what MyChart puts in `Id` for the self entry. Callers wanting to
-   * switch back to the account holder pass `{ id: '' }`.
+   * Epic's identifier for the patient record: a long opaque `WP-…` string,
+   * different on every organization and meaningless outside the session that
+   * produced it. Never parse or construct one.
+   *
+   * The account holder's own record carries a real id like any other — it is
+   * **not** blank. Identify it with `isSelf`, never by inspecting the id.
+   * (Confirmed on UCSF, Renown and Carson Tahoe; see PR #206.)
    */
   id: string;
   displayName: string;
@@ -38,6 +41,22 @@ type ProxySwitchSubject = {
 
 type ProxySwitchResponse = {
   ProxySubjectList?: ProxySwitchSubject[];
+};
+
+/**
+ * How to name the record you want. Exactly one of these is needed.
+ *
+ * Prefer `self: true` over an id when returning to the account holder — proxy
+ * ids are opaque and organization-specific, and the portal's own `IsSelf` flag
+ * is the only portable way to name that record.
+ */
+export type ProxyTargetSelector = {
+  /** The account holder's own record, whatever its id happens to be. */
+  self?: boolean;
+  /** An opaque id from `discoverProxyTargets`. */
+  id?: string;
+  /** Display name; rejected if more than one record shares it. */
+  displayName?: string;
 };
 
 /** Max redirects to follow before giving up on a proxy-switch chain. */
@@ -141,7 +160,15 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
     const id = (link.attr('data-id') || '').trim();
     const href = link.attr('href') || '';
     const isSelected = link.hasClass('currentContext');
-    const isSelf = href.includes('mode=self') || (!id && /access your record/i.test(link.attr('aria-label') || ''));
+    // Self is NOT "the one without an id" — the account holder's record has a
+    // real id too. What distinguishes it is that its link does not carry the
+    // switch-context query, which is the one thing the confirmed `/ProxySwitch`
+    // payload tells us about link shape: proxies get `mode=proxyswitch&…&eid=`,
+    // self gets a bare page URL.
+    const looksLikeProxySwitch = /mode=proxyswitch|[?&]eid=/i.test(href);
+    const isSelf = href.includes('mode=self')
+      || /access your record/i.test(link.attr('aria-label') || '')
+      || (!!href && !looksLikeProxySwitch);
 
     if (!displayName) return;
     targets.push({
@@ -166,7 +193,11 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
     const displayName = block.match(/displayName:"([^"]+)"/)?.[1] || '';
     const id = block.match(/\{type:"INTERNAL",value:"([^"]+)"\}/)?.[1] || '';
     if (!displayName) continue;
-    const isSelf = !id;
+    // Prefer an explicit self flag (`isSelf:!0` once minified). Falling back to
+    // "has no id" is a last resort and is known to be wrong wherever the
+    // account holder carries a real id, which is every instance measured so far.
+    const selfFlag = /\bisSelf:\s*(!0|true)/.test(block);
+    const isSelf = selfFlag || !id;
     targets.push({
       id,
       displayName,
@@ -213,10 +244,25 @@ async function followProxySwitchChain(mychartRequest: MyChartRequest, startPathO
   debugLog(`final home url=${finalHome.url} status=${finalHome.status}`);
 }
 
-function resolveTarget(targets: ProxyTarget[], target: { id?: string; displayName?: string }): ProxyTarget {
-  // `id` must be checked for presence, not truthiness: the account holder's own
-  // record has the empty-string id, and switching back to it is the single most
-  // common thing a caller does after switching away.
+function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): ProxyTarget {
+  // Returning to the account holder is the most common thing a caller does
+  // after switching away, and it must not depend on knowing an opaque
+  // organization-specific id. `isSelf` is the portal's own marker for it.
+  //
+  // `id: ''` is accepted as a spelling of the same request: no observed
+  // instance issues a blank id, so it cannot collide with a real record, and on
+  // any instance that did use blank-for-self it resolves to the same entry.
+  if (target.self === true || target.id === '') {
+    const matches = targets.filter((entry) => entry.isSelf);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Could not resolve the account holder's own record: ${matches.length} of ${targets.length} ` +
+        `discovered records are flagged as self.`
+      );
+    }
+    return matches[0];
+  }
+
   if (target.id !== undefined) {
     const matches = targets.filter((entry) => entry.id === target.id);
     if (matches.length !== 1) {
@@ -237,7 +283,7 @@ function resolveTarget(targets: ProxyTarget[], target: { id?: string; displayNam
     return matches[0];
   }
 
-  throw new Error('Proxy target must include id or displayName.');
+  throw new Error('Proxy target must include self, id or displayName.');
 }
 
 function nameTokens(value: string): string[] {
@@ -362,7 +408,7 @@ export async function verifyActiveProxyTarget(
 
 export async function switchProxyTarget(
   mychartRequest: MyChartRequest,
-  target: { id?: string; displayName?: string },
+  target: ProxyTargetSelector,
   options?: { discoveredTargets?: ProxyTarget[] }
 ): Promise<{ target: ProxyTarget; verifiedProfileName: string | null; verifiedDob: string | null }> {
   const discovered = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest);
@@ -374,9 +420,10 @@ export async function switchProxyTarget(
   debugLog('chosen target=', resolved);
 
   if (resolved.isSelf) {
-    const explicitSelfById = target.id !== undefined && target.id === resolved.id;
-    const explicitSelfByName = !!target.displayName && normalize(target.displayName) === normalize(resolved.displayName);
-    if (!explicitSelfById && !explicitSelfByName) {
+    const explicitSelf = target.self === true
+      || (target.id !== undefined && (target.id === '' || target.id === resolved.id))
+      || (!!target.displayName && normalize(target.displayName) === normalize(resolved.displayName));
+    if (!explicitSelf) {
       throw new Error('Refusing to switch to self without an explicit self target request.');
     }
   }

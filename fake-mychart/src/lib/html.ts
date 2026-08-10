@@ -519,11 +519,14 @@ export function secondaryValidationPage(): string {
 export type ProxySelectorEntry = { id: string; displayName: string };
 
 export type ProxySelectorModel = {
-  /** The account holder's own record. Its id is always the empty string. */
+  /**
+   * The account holder's own record. Carries a real opaque `WP-…` id just like
+   * a proxy record does — it is distinguished by being self, not by a blank id.
+   */
   self: ProxySelectorEntry;
   /** Other patients this account can switch into. */
   subjects: ProxySelectorEntry[];
-  /** Currently active record id; '' when viewing the account holder's own. */
+  /** Currently active record id. */
   activeId: string;
 };
 
@@ -540,10 +543,15 @@ function escapeJsString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\u003c');
 }
 
-function proxySwitchHref(id: string): string {
-  return id
-    ? `${MP()}/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=${encodeURIComponent(id)}`
-    : `${MP()}/inside.asp?mode=self`;
+/**
+ * Anchor href for a record. Mirrors the `LinkUrl` values confirmed in the
+ * `/ProxySwitch` payload: proxies carry the full switchcontext query, the
+ * account holder's own record is a bare un-queried `inside.asp`.
+ */
+function proxySwitchHref(id: string, isSelf: boolean): string {
+  return isSelf
+    ? `${MP()}/inside.asp`
+    : `${MP()}/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=${encodeURIComponent(id)}`;
 }
 
 /**
@@ -553,6 +561,14 @@ function proxySwitchHref(id: string): string {
  * active record carrying `currentContext`. In `script` mode the anchors are
  * absent entirely and only the React personalization payload is emitted — the
  * shape where the portal lists the records but never says which one is active.
+ *
+ * ⚠️ UNVERIFIED. Unlike the `/ProxySwitch` JSON above, none of this markup has
+ * been captured from a live instance — the class names, the `data-id`
+ * attribute, the aria-labels and the personalization payload are all inferred
+ * from the original PR's guesses. Treat agreement between this and the scraper
+ * as self-consistency, not as evidence about real MyChart. It stays here so the
+ * fallback code paths are executable at all; replace it the moment a real Home
+ * page is captured.
  */
 function proxySelectorHtml(model: ProxySelectorModel | null): string {
   if (!model) return '';
@@ -565,21 +581,20 @@ function proxySelectorHtml(model: ProxySelectorModel | null): string {
     const anchors = entries.map(entry => {
       const selected = entry.id === model.activeId ? ' currentContext' : '';
       const label = entry.isSelf ? 'Access your record' : `Access ${entry.displayName}'s record`;
-      const dataId = entry.isSelf ? '' : ` data-id="${escapeHtml(entry.id)}"`;
-      return `      <a class="proxySubjectLink${selected}"${dataId} href="${proxySwitchHref(entry.id)}" aria-label="${escapeHtml(label)}">` +
+      // Every record carries its real id, self included — the account holder is
+      // not identified by a missing one.
+      return `      <a class="proxySubjectLink${selected}" data-id="${escapeHtml(entry.id)}" href="${proxySwitchHref(entry.id, entry.isSelf)}" aria-label="${escapeHtml(label)}">` +
         `<span class="proxySelectorDropDownNameEllipsis">${escapeHtml(entry.displayName)}</span></a>`;
     }).join('\n');
     return `\n    <div class="proxySelectorDropDown">\n${anchors}\n    </div>\n`;
   }
 
-  // `script` mode: minified personalization pushes, no selection flag. The
-  // account holder's entry has no INTERNAL id — that absence is how the
-  // scraper tells self apart from a proxy record here.
+  // `script` mode: minified personalization pushes with no selection flag.
+  // Self carries an id like everyone else, so it's marked with an explicit
+  // isSelf flag rather than by the absence of one.
   const pushes = entries.map(entry => {
-    const idPart = entry.isSelf
-      ? 'isSelf:!0'
-      : `id:{type:"INTERNAL",value:"${escapeJsString(entry.id)}"}`;
-    return `EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"${escapeJsString(entry.displayName)}",${idPart}});`;
+    const selfPart = entry.isSelf ? ',isSelf:!0' : '';
+    return `EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"${escapeJsString(entry.displayName)}",id:{type:"INTERNAL",value:"${escapeJsString(entry.id)}"}${selfPart}});`;
   }).join('');
   return `\n    <script>${pushes}</script>\n`;
 }

@@ -1502,8 +1502,8 @@ async function main() {
         // A blank isSelected is not "inactive" when the portal never said which
         // record is active — don't print a marker we can't stand behind.
         const marker = !target.selectionKnown ? '?' : (target.isSelected ? '*' : ' ');
-        const id = target.isSelf ? '(self)' : target.id;
-        console.log(`  ${marker} ${target.displayName}  ${id}`);
+        console.log(`  ${marker} ${target.displayName}${target.isSelf ? '  (your own record)' : ''}`);
+        console.log(`      --proxy-id ${target.id}`);
       }
       if (!active.selectionKnown) {
         console.log('  (This instance does not report which record is active; ? marks unknown.)');
@@ -1516,10 +1516,10 @@ async function main() {
 
   // Handle switch-proxy action
   if (cliArgs.action === 'switch-proxy') {
-    // `--proxy-id ""` and `--proxy-self` both mean the account holder's own
-    // record, whose id is the empty string — so test for presence, not truth.
-    const proxyId = cliArgs.proxySelf || cliArgs.proxyId === 'self' ? '' : cliArgs.proxyId;
-    if (proxyId === undefined && !cliArgs.proxyName) {
+    // Proxy ids are opaque and organization-specific, so returning to your own
+    // record is a flag rather than an id you'd have to look up first.
+    const wantsSelf = cliArgs.proxySelf || cliArgs.proxyId === 'self' || cliArgs.proxyId === '';
+    if (!wantsSelf && cliArgs.proxyId === undefined && !cliArgs.proxyName) {
       console.log('  Pass --proxy-id <id> or --proxy-name <name>. Use --proxy-self to return to your own record.');
       closeRL();
       return;
@@ -1528,7 +1528,8 @@ async function main() {
       header(`Switching patient record: ${session.hostname}`);
       try {
         const result = await switchProxyTarget(session.request, {
-          id: proxyId,
+          self: wantsSelf || undefined,
+          id: wantsSelf ? undefined : cliArgs.proxyId,
           displayName: cliArgs.proxyName,
         });
         console.log(`  Now viewing: ${result.target.displayName}${result.target.isSelf ? ' (your own record)' : ''}`);

@@ -49,23 +49,32 @@ By default (no `--action` flag), the CLI scrapes all 30+ data categories in para
 ## Proxy (Multi-Patient) Records
 
 Some MyChart accounts can see more than one patient's chart — a parent reading a
-child's record, for example. `--action list-proxies` shows what's reachable:
+child's record. `--action list-proxies` shows what's reachable:
 
 ```
-  * Homer Jay Simpson  (self)
-    Bart Simpson  PROXY-BART
-    Lisa Simpson  PROXY-LISA
+  * Homer Jay Simpson  (your own record)
+      --proxy-id WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FG...
+    Bart Simpson
+      --proxy-id WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FG...
 ```
 
-`*` marks the active record, and `?` means the portal did not say which record is
-active (some instances don't report it). The account holder's own record always
-has the empty-string id, which is why `--proxy-self` exists — it's easier to type
-than `--proxy-id ""`, which some shells and `bun run` swallow.
+`*` marks the active record; `?` means the portal did not say which record is
+active (some instances don't report it).
+
+Record ids are long opaque strings that differ between healthcare organizations
+and mean nothing outside the session that produced them — never type one from
+memory or construct one. Copy them from `list-proxies`, or select by name with
+`--proxy-name`. To go back to your own record use `--proxy-self`, which finds it
+by the portal's own "this is you" flag rather than by id:
+
+```bash
+mychart-cli --host mychart.example.org --action switch-proxy --proxy-self
+```
 
 Switching changes the session, so every subsequent scrape reads the record you
 switched to. The switch is verified against the profile page before it returns:
-if the portal ends up showing a different patient than the one you asked for, the
-command fails rather than handing back the wrong person's chart.
+if the portal ends up showing a different patient than the one you asked for,
+the command fails rather than handing back the wrong person's chart.
 
 ## Passkey Authentication
 

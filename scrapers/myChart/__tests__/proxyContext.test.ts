@@ -18,6 +18,13 @@ afterAll(() => {
   resetLogSink()
 })
 
+// Opaque `WP-…` ids in the shape observed on UCSF, Renown and Carson Tahoe.
+// The account holder's record carries one of these too — it is NOT blank, and
+// nothing may key off the id to find it.
+const SELF_ID = 'WP-4KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MT'
+const CHILD_ID = 'WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MT'
+const SIBLING_ID = 'WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6'
+
 function requestWithMockedResponses(
   handler: (config: RequestConfig) => Response | Promise<Response>,
   firstPathPart: string | null = 'MyChart',
@@ -49,19 +56,30 @@ function profileHtml(name = 'Alex Patient', dob = '1/2/2000'): string {
 }
 
 /**
- * A ProxySwitch payload whose selection follows an in-memory "active id", so a
- * test can switch context and have discovery report the new state — the way a
- * real portal does.
+ * A `/ProxySwitch` payload in the real observed shape: every record has an
+ * opaque id, self is flagged with `IsSelf`, and `LinkUrl` is relative and
+ * un-prefixed — a bare `inside.asp` for the account holder, a switchcontext
+ * query for proxies.
  */
-function proxySwitchPayload(activeId: string) {
+function proxySwitchPayload(activeId: string = SELF_ID) {
   return {
     ProxySubjectList: [
-      { Id: '', DisplayName: 'Account Holder', LinkUrl: '#', IsSelected: activeId === '', IsSelf: true },
       {
-        Id: 'proxy-4',
+        Id: SELF_ID,
+        IdEmpty: false,
+        IdPrefix: 'WP-',
+        DisplayName: 'Account Holder',
+        LinkUrl: 'inside.asp',
+        IsSelected: activeId === SELF_ID,
+        IsSelf: true,
+      },
+      {
+        Id: CHILD_ID,
+        IdEmpty: false,
+        IdPrefix: 'WP-',
         DisplayName: 'Casey Patient',
-        LinkUrl: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-4',
-        IsSelected: activeId === 'proxy-4',
+        LinkUrl: `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`,
+        IsSelected: activeId === CHILD_ID,
         IsSelf: false,
       },
     ],
@@ -73,55 +91,50 @@ describe('proxyContext', () => {
     const req = requestWithMockedResponses((config) => {
       expect(config.path).toStartWith('/ProxySwitch?noCache=')
       expect(config.headers['X-Requested-With']).toBe('XMLHttpRequest')
-      return jsonResponse({
-        ProxySubjectList: [
-          {
-            Id: '',
-            DisplayName: 'Account Holder',
-            LinkUrl: '#',
-            IsSelected: true,
-            IsSelf: true,
-          },
-          {
-            Id: 'proxy-1',
-            DisplayName: 'Alex Patient',
-            LinkUrl: 'https://mychart.example.org/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-1',
-            IsSelected: false,
-            IsSelf: false,
-          },
-        ],
-      })
+      return jsonResponse(proxySwitchPayload())
     })
 
     const targets = await discoverProxyTargets(req)
 
     expect(targets).toEqual([
       {
-        id: '',
+        id: SELF_ID,
         displayName: 'Account Holder',
         isSelf: true,
         isSelected: true,
         selectionKnown: true,
-        linkUrl: '/MyChart/inside.asp?mode=self',
+        // Relative LinkUrls get the deployment prefix put back on.
+        linkUrl: '/MyChart/inside.asp',
         source: 'proxy-switch-json',
       },
       {
-        id: 'proxy-1',
-        displayName: 'Alex Patient',
+        id: CHILD_ID,
+        displayName: 'Casey Patient',
         isSelf: false,
         isSelected: false,
         selectionKnown: true,
-        linkUrl: 'https://mychart.example.org/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-1',
+        linkUrl: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`,
         source: 'proxy-switch-json',
       },
     ])
   })
 
+  it('does not treat the account holder as the record with a blank id', async () => {
+    // Regression guard for the assumption this code shipped with. Three live
+    // instances give self a real opaque id; only IsSelf identifies it.
+    const req = requestWithMockedResponses(() => jsonResponse(proxySwitchPayload()))
+    const targets = await discoverProxyTargets(req)
+
+    expect(targets.every(t => t.id.startsWith('WP-'))).toBe(true)
+    expect(targets.filter(t => t.isSelf)).toHaveLength(1)
+    expect(targets.find(t => t.isSelf)!.id).toBe(SELF_ID)
+  })
+
   it('builds switch links without a prefix on root-mounted instances', async () => {
     const req = requestWithMockedResponses(() => jsonResponse({
       ProxySubjectList: [
-        { Id: '', DisplayName: 'Account Holder', LinkUrl: '#', IsSelected: true, IsSelf: true },
-        { Id: 'proxy-9', DisplayName: 'Sam Patient', LinkUrl: '', IsSelected: false, IsSelf: false },
+        { Id: SELF_ID, DisplayName: 'Account Holder', LinkUrl: 'inside.asp', IsSelected: true, IsSelf: true },
+        { Id: CHILD_ID, DisplayName: 'Sam Patient', LinkUrl: '', IsSelected: false, IsSelf: false },
       ],
     }), null)
 
@@ -129,8 +142,8 @@ describe('proxyContext', () => {
 
     // firstPathPart is null for instances mounted at the domain root. A naive
     // template would emit '/null/inside.asp'.
-    expect(targets[0].linkUrl).toBe('/inside.asp?mode=self')
-    expect(targets[1].linkUrl).toBe('/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-9')
+    expect(targets[0].linkUrl).toBe('/inside.asp')
+    expect(targets[1].linkUrl).toBe(`/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`)
   })
 
   it('falls back to Home HTML proxy links when ProxySwitch JSON is unavailable', async () => {
@@ -140,10 +153,10 @@ describe('proxyContext', () => {
       }
       if (config.path === '/Home') {
         return htmlResponse(`
-          <a class="proxySubjectLink currentContext" href="/MyChart/inside.asp?mode=self" aria-label="access your record">
+          <a class="proxySubjectLink currentContext" data-id="${SELF_ID}" href="/MyChart/inside.asp" aria-label="access your record">
             <span class="proxySelectorDropDownNameEllipsis">Account Holder</span>
           </a>
-          <a class="proxySubjectLink" data-id="proxy-2" href="/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-2">
+          <a class="proxySubjectLink" data-id="${CHILD_ID}" href="/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}">
             <span class="proxySelectorDropDownNameEllipsis">Jordan Patient</span>
           </a>
         `)
@@ -162,7 +175,7 @@ describe('proxyContext', () => {
       source: target.source,
     }))).toEqual([
       {
-        id: '',
+        id: SELF_ID,
         displayName: 'Account Holder',
         isSelf: true,
         isSelected: true,
@@ -170,7 +183,7 @@ describe('proxyContext', () => {
         source: 'home-html',
       },
       {
-        id: 'proxy-2',
+        id: CHILD_ID,
         displayName: 'Jordan Patient',
         isSelf: false,
         isSelected: false,
@@ -178,6 +191,30 @@ describe('proxyContext', () => {
         source: 'home-html',
       },
     ])
+  })
+
+  it('identifies self in HTML by link shape, not by a missing data-id', async () => {
+    // Self carries a data-id like everyone else. What sets it apart is that its
+    // link has no switchcontext query.
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return new Response('nope', { status: 404 })
+      if (config.path === '/Home') {
+        return htmlResponse(`
+          <a class="proxySubjectLink" data-id="${SELF_ID}" href="/MyChart/inside.asp">
+            <span class="proxySelectorDropDownNameEllipsis">Account Holder</span>
+          </a>
+          <a class="proxySubjectLink currentContext" data-id="${CHILD_ID}" href="/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}">
+            <span class="proxySelectorDropDownNameEllipsis">Jordan Patient</span>
+          </a>
+        `)
+      }
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+
+    const targets = await discoverProxyTargets(req)
+
+    expect(targets.find(t => t.displayName === 'Account Holder')!.isSelf).toBe(true)
+    expect(targets.find(t => t.displayName === 'Jordan Patient')!.isSelf).toBe(false)
   })
 
   it('discovers proxy targets from Home personalization script data', async () => {
@@ -188,7 +225,8 @@ describe('proxyContext', () => {
       if (config.path === '/Home') {
         return htmlResponse(`
           <script>
-            EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"proxy-3"}});
+            EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Account Holder",id:{type:"INTERNAL",value:"${SELF_ID}"},isSelf:!0});
+            EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"${CHILD_ID}"}});
           </script>
         `)
       }
@@ -199,21 +237,45 @@ describe('proxyContext', () => {
 
     expect(targets).toEqual([
       {
-        id: 'proxy-3',
+        id: SELF_ID,
+        displayName: 'Account Holder',
+        isSelf: true,
+        isSelected: false,
+        selectionKnown: false,
+        linkUrl: '/MyChart/inside.asp?mode=self',
+        source: 'home-html',
+      },
+      {
+        id: CHILD_ID,
         displayName: 'Taylor Patient',
         isSelf: false,
         isSelected: false,
         // The script payload carries no selection flag at all, so isSelected
         // is a default rather than a fact.
         selectionKnown: false,
-        linkUrl: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-3',
+        linkUrl: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`,
         source: 'home-html',
       },
     ])
   })
 
+  it('reads the explicit isSelf flag in script data rather than inferring from a missing id', async () => {
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse({ ProxySubjectList: [] })
+      if (config.path === '/Home') {
+        return htmlResponse(
+          `<script>EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Account Holder",id:{type:"INTERNAL",value:"${SELF_ID}"},isSelf:!0});</script>`)
+      }
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+
+    const targets = await discoverProxyTargets(req)
+    expect(targets[0].isSelf).toBe(true)
+    expect(targets[0].id).toBe(SELF_ID)
+  })
+
   it('switches proxy context and verifies the selected target', async () => {
-    let activeId = ''
+    let activeId = SELF_ID
     const requestedUrls: string[] = []
     const req = requestWithMockedResponses((config) => {
       if (config.path?.startsWith('/ProxySwitch')) {
@@ -222,7 +284,7 @@ describe('proxyContext', () => {
 
       if (config.url?.includes('switchcontext')) {
         requestedUrls.push(config.url)
-        activeId = 'proxy-4'
+        activeId = CHILD_ID
         return new Response('', {
           status: 302,
           headers: { Location: '/MyChart/Home' },
@@ -241,56 +303,89 @@ describe('proxyContext', () => {
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
-    const result = await switchProxyTarget(req, { id: 'proxy-4' })
+    const result = await switchProxyTarget(req, { id: CHILD_ID })
 
     expect(result.target.displayName).toBe('Casey Patient')
     expect(result.target.isSelected).toBe(true)
     expect(result.verifiedProfileName).toBe('Casey Patient')
     expect(result.verifiedDob).toBe('3/4/2010')
-    expect(requestedUrls[0]).toBe('https://mychart.example.org/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-4')
+    expect(requestedUrls[0]).toBe(`https://mychart.example.org/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`)
   })
 
-  it('switches back to the account holder by their empty-string id', async () => {
-    // The self entry's Id is '' — the whole point of the round trip. A
-    // truthiness check on the id sends this down the displayName branch and
-    // then throws "must include id or displayName".
-    let activeId = 'proxy-4'
+  it('switches back to the account holder with { self: true }, without knowing its id', async () => {
+    // The portable way home. Proxy ids differ per organization, so a caller
+    // must never have to look one up just to undo a switch.
+    let activeId = CHILD_ID
     const requestedUrls: string[] = []
     const req = requestWithMockedResponses((config) => {
       if (config.path?.startsWith('/ProxySwitch')) {
         return jsonResponse(proxySwitchPayload(activeId))
       }
-
-      if (config.url?.includes('mode=self')) {
+      if (config.url?.endsWith('/MyChart/inside.asp')) {
         requestedUrls.push(config.url)
-        activeId = ''
+        activeId = SELF_ID
         return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
       }
-
       if (config.url?.endsWith('/MyChart/Home')) {
         return htmlResponse('ok')
       }
-
       if (config.path === '/Home') {
         return htmlResponse(profileHtml('Account Holder', '1/1/1980'))
       }
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
 
+    const result = await switchProxyTarget(req, { self: true })
+
+    expect(result.target.isSelf).toBe(true)
+    expect(result.target.id).toBe(SELF_ID)
+    // Followed the account holder's bare LinkUrl, exactly as served.
+    expect(requestedUrls[0]).toBe('https://mychart.example.org/MyChart/inside.asp')
+  })
+
+  it('accepts id:"" as a spelling of "the account holder"', async () => {
+    // Kept working because no observed instance issues a blank id, so it can't
+    // collide with a real record.
+    let activeId = CHILD_ID
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse(proxySwitchPayload(activeId))
+      if (config.url?.endsWith('/MyChart/inside.asp')) {
+        activeId = SELF_ID
+        return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
+      }
+      if (config.url?.endsWith('/MyChart/Home')) return htmlResponse('ok')
+      if (config.path === '/Home') return htmlResponse(profileHtml('Account Holder', '1/1/1980'))
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
     const result = await switchProxyTarget(req, { id: '' })
-
     expect(result.target.isSelf).toBe(true)
-    expect(result.target.displayName).toBe('Account Holder')
-    expect(requestedUrls[0]).toBe('https://mychart.example.org/MyChart/inside.asp?mode=self')
+    expect(result.target.id).toBe(SELF_ID)
+  })
+
+  it('switches back to the account holder by its real id too', async () => {
+    let activeId = CHILD_ID
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse(proxySwitchPayload(activeId))
+      if (config.url?.endsWith('/MyChart/inside.asp')) {
+        activeId = SELF_ID
+        return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
+      }
+      if (config.url?.endsWith('/MyChart/Home')) return htmlResponse('ok')
+      if (config.path === '/Home') return htmlResponse(profileHtml('Account Holder', '1/1/1980'))
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+
+    const result = await switchProxyTarget(req, { id: SELF_ID })
+    expect(result.target.isSelf).toBe(true)
   })
 
   it('still refuses an implicit switch to self', async () => {
-    const req = requestWithMockedResponses(() => jsonResponse(proxySwitchPayload('proxy-4')))
+    const req = requestWithMockedResponses(() => jsonResponse(proxySwitchPayload(CHILD_ID)))
 
     // Nothing in the request names the account holder, so resolving to self
     // here would mean silently leaving the proxy record the caller asked about.
-    await expect(switchProxyTarget(req, {})).rejects.toThrow('Proxy target must include id or displayName.')
+    await expect(switchProxyTarget(req, {})).rejects.toThrow('Proxy target must include self, id or displayName.')
   })
 
   it('confirms a switch by profile identity when the portal reports no selection', async () => {
@@ -315,28 +410,28 @@ describe('proxyContext', () => {
         const name = switched ? 'Taylor Ann Patient' : 'Account Holder'
         return htmlResponse(`
           ${profileHtml(name, '7/8/2011')}
-          <script>EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"proxy-3"}});</script>
+          <script>EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"${CHILD_ID}"}});</script>
         `)
       }
 
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
-    const result = await switchProxyTarget(req, { id: 'proxy-3' })
+    const result = await switchProxyTarget(req, { id: CHILD_ID })
 
-    expect(result.target.id).toBe('proxy-3')
+    expect(result.target.id).toBe(CHILD_ID)
     expect(result.target.isSelected).toBe(true)
     expect(result.verifiedProfileName).toBe('Taylor Ann Patient')
   })
 
   it('rejects a switch that lands on a different patient', async () => {
-    let activeId = ''
+    let activeId = SELF_ID
     const req = requestWithMockedResponses((config) => {
       if (config.path?.startsWith('/ProxySwitch')) {
         return jsonResponse(proxySwitchPayload(activeId))
       }
       if (config.url?.includes('switchcontext')) {
-        activeId = 'proxy-4'
+        activeId = CHILD_ID
         return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
       }
       if (config.url?.endsWith('/MyChart/Home')) {
@@ -349,7 +444,7 @@ describe('proxyContext', () => {
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
-    await expect(switchProxyTarget(req, { id: 'proxy-4' }))
+    await expect(switchProxyTarget(req, { id: CHILD_ID }))
       .rejects.toThrow("Proxy switch landed on the wrong patient: asked for 'Casey Patient', portal reports 'Morgan Different'.")
   })
 
@@ -359,9 +454,9 @@ describe('proxyContext', () => {
     // landed on matches a *different* record in the list.
     const siblings = {
       ProxySubjectList: [
-        { Id: '', DisplayName: 'Homer Simpson', LinkUrl: '#', IsSelected: false, IsSelf: true },
-        { Id: 'kid-1', DisplayName: 'Bart Simpson', LinkUrl: '', IsSelected: false, IsSelf: false },
-        { Id: 'kid-2', DisplayName: 'Lisa Simpson', LinkUrl: '', IsSelected: true, IsSelf: false },
+        { Id: SELF_ID, DisplayName: 'Homer Simpson', LinkUrl: 'inside.asp', IsSelected: false, IsSelf: true },
+        { Id: CHILD_ID, DisplayName: 'Bart Simpson', LinkUrl: `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`, IsSelected: false, IsSelf: false },
+        { Id: SIBLING_ID, DisplayName: 'Lisa Simpson', LinkUrl: `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${SIBLING_ID}`, IsSelected: true, IsSelf: false },
       ],
     }
     const req = requestWithMockedResponses((config) => {
@@ -374,44 +469,44 @@ describe('proxyContext', () => {
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
-    await expect(switchProxyTarget(req, { id: 'kid-1' }))
+    await expect(switchProxyTarget(req, { id: CHILD_ID }))
       .rejects.toThrow("portal is showing 'Lisa Marie Simpson' (Lisa Simpson)")
   })
 
   it('errors instead of falling through when the redirect chain will not settle', async () => {
     const req = requestWithMockedResponses((config) => {
       if (config.path?.startsWith('/ProxySwitch')) {
-        return jsonResponse(proxySwitchPayload(''))
+        return jsonResponse(proxySwitchPayload())
       }
       if (config.url) {
         // Endless redirect loop.
-        return new Response('', { status: 302, headers: { Location: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-4' } })
+        return new Response('', { status: 302, headers: { Location: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}` } })
       }
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)
     })
 
-    await expect(switchProxyTarget(req, { id: 'proxy-4' }))
+    await expect(switchProxyTarget(req, { id: CHILD_ID }))
       .rejects.toThrow(/redirect chain exceeded 5 hops/)
   })
 
   it('rejects ambiguous display names', async () => {
     const targets: ProxyTarget[] = [
       {
-        id: 'proxy-5',
+        id: CHILD_ID,
         displayName: 'Morgan Patient',
         isSelf: false,
         isSelected: false,
         selectionKnown: true,
-        linkUrl: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-5',
+        linkUrl: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`,
         source: 'proxy-switch-json',
       },
       {
-        id: 'proxy-6',
+        id: SIBLING_ID,
         displayName: 'Morgan Patient',
         isSelf: false,
         isSelected: false,
         selectionKnown: true,
-        linkUrl: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-6',
+        linkUrl: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${SIBLING_ID}`,
         source: 'proxy-switch-json',
       },
     ]
@@ -423,24 +518,44 @@ describe('proxyContext', () => {
       .rejects.toThrow("Ambiguous proxy target displayName 'Morgan Patient'.")
   })
 
+  it('reports clearly when no discovered record is flagged as self', async () => {
+    const targets: ProxyTarget[] = [
+      {
+        id: CHILD_ID,
+        displayName: 'Casey Patient',
+        isSelf: false,
+        isSelected: true,
+        selectionKnown: true,
+        linkUrl: '/MyChart/inside.asp',
+        source: 'proxy-switch-json',
+      },
+    ]
+    const req = requestWithMockedResponses(() => {
+      throw new Error('should not make a network request')
+    })
+
+    await expect(switchProxyTarget(req, { self: true }, { discoveredTargets: targets }))
+      .rejects.toThrow(/Could not resolve the account holder's own record: 0 of 1/)
+  })
+
   it('verifies the active proxy target against profile data', async () => {
     const proxyTargets: ProxyTarget[] = [
       {
-        id: '',
+        id: SELF_ID,
         displayName: 'Account Holder',
         isSelf: true,
         isSelected: false,
         selectionKnown: true,
-        linkUrl: '/MyChart/inside.asp?mode=self',
+        linkUrl: '/MyChart/inside.asp',
         source: 'home-html',
       },
       {
-        id: 'proxy-7',
+        id: CHILD_ID,
         displayName: 'Riley Patient',
         isSelf: false,
         isSelected: true,
         selectionKnown: true,
-        linkUrl: '/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=proxy-7',
+        linkUrl: `/MyChart/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`,
         source: 'home-html',
       },
     ]
@@ -455,7 +570,7 @@ describe('proxyContext', () => {
 
     expect(result.profileName).toBe('Riley Patient')
     expect(result.profileDob).toBe('5/6/2012')
-    expect(result.selectedTarget?.id).toBe('proxy-7')
+    expect(result.selectedTarget?.id).toBe(CHILD_ID)
     expect(result.selectionKnown).toBe(true)
   })
 
@@ -467,7 +582,7 @@ describe('proxyContext', () => {
       if (config.path === '/Home') {
         return htmlResponse(`
           ${profileHtml('Taylor Patient', '7/8/2011')}
-          <script>EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"proxy-3"}});</script>
+          <script>EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"Taylor Patient",id:{type:"INTERNAL",value:"${CHILD_ID}"}});</script>
         `)
       }
       throw new Error(`Unexpected request ${JSON.stringify(config)}`)

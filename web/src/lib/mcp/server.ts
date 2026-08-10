@@ -346,17 +346,18 @@ export function createMcpServer(userId: string): McpServer {
   );
 
   reg('switch_proxy_target',
-    async (args: { instance?: string; id?: string; display_name?: string }): Promise<CallToolResult> => {
+    async (args: { instance?: string; self?: boolean; id?: string; display_name?: string }): Promise<CallToolResult> => {
       sendTelemetryEvent('mcp_tool_called', { tool_name: 'switch_proxy_target' });
-      console.log(`[mcp] Tool call: switch_proxy_target (user=${userId}, id=${JSON.stringify(args.id)}, displayName=${args.display_name || 'none'})`);
+      console.log(`[mcp] Tool call: switch_proxy_target (user=${userId}, self=${!!args.self}, id=${JSON.stringify(args.id)}, displayName=${args.display_name || 'none'})`);
       try {
-        if (args.id === undefined && !args.display_name) {
-          return errorResult('Pass id or display_name. Use id="" to switch back to the account holder\'s own record.');
+        if (!args.self && args.id === undefined && !args.display_name) {
+          return errorResult('Pass self=true, id or display_name. Use self=true to switch back to the account holder\'s own record.');
         }
         const result = await resolveRequest(userId, args.instance);
         if ('error' in result) return errorResult(result.error);
 
         const switched = await switchProxyTarget(result.mychartRequest, {
+          self: args.self,
           id: args.id,
           displayName: args.display_name,
         });
