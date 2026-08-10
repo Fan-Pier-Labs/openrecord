@@ -109,22 +109,29 @@ profile page.
 > the fake and the scraper on those two paths is self-consistency, not evidence
 > about real MyChart. Replace them the moment a real Home page is captured.
 
-## Deployment Shape and Discovery Mode
+## Deployment Shape and Discovery Modes
 
-`POST /mode` flips the server between real MyChart shapes without a restart. Both
-fields are optional; omitted ones are left alone.
+`POST /mode` flips the server between real MyChart shapes without a restart.
+Three independent knobs; every field is optional and omitted ones are left
+alone, so a caller that cares about one doesn't silently reset the others.
 
 ```bash
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"mode":"root"}'
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"meta-refresh"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","proxyDiscovery":"json"}
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","proxyDiscovery":"json"}
 ```
 
-- `mode`: `prefixed` (default, `/` → `/MyChart/`) or `root` (served from the domain root). Changing this requires re-login — the session discovered its path prefix at login time.
-- `proxyDiscovery`: `json` (default), `html`, or `script`. No re-login needed.
+- `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
+- `discovery` — **how `/` announces the prefix.** `redirect` (default, a 302 with a `Location` header) or `meta-refresh` (a 200 carrying an absolute `<meta http-equiv="refresh">`, the Renown shape). Requires re-login for the same reason.
+- `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 
-Both are global to the process, so a test suite that depends on either must set it
-rather than inherit whatever ran before it.
+`mode` and `discovery` are orthogonal — all four combinations work, and whichever
+mount is active serves MyChart from exactly one prefix while the other 404s.
+
+All three are global to the process, so a test suite that depends on any of them
+must set it rather than inherit whatever ran before it. `/reset` restores the
+defaults.
 
 ## Resetting In-Memory State
 

@@ -14,7 +14,7 @@ import {
 import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
-import { mountPrefix } from '@/lib/mount';
+import { isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 
 import crypto from 'crypto';
@@ -240,7 +240,14 @@ function requireTermsRedirect(request: NextRequest): NextResponse | null {
 }
 
 // ─── Route handler ──────────────────────────────────────────────────
-export async function GET(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
+//
+// `handleGet`/`handlePost` are the MyChart surface itself, independent of where
+// it's mounted; the root catch-all imports them to serve the same responses from
+// the domain root. The `GET`/`POST` Next.js actually routes here are thin
+// wrappers that refuse to answer under `/MyChart` when the instance is
+// root-mounted — a root-mounted instance has no `/MyChart` to serve, and a fake
+// that answers on both prefixes lets a broken prefix guess silently "work".
+export async function handleGet(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   const ds = activeDataset(request);
   if (!path || path.length === 0) {
@@ -539,7 +546,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return html(genericTokenPage('MyChart'));
 }
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
+export async function handlePost(request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   const { path } = await params;
   const ds = activeDataset(request);
   if (!path || path.length === 0) {
@@ -1246,4 +1253,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // ── Fallback ──────────────────────────────────────────────────
   console.log(`[fake-mychart] Unhandled POST: /MyChart/${joined}`);
   return json({ error: 'Not implemented', path: joined }, 404);
+}
+
+// ─── Prefix guard ───────────────────────────────────────────────────
+// Mirror of the root catch-all: each mount mode serves MyChart from exactly one
+// place, never both.
+function notServedHere(path: string[] | undefined) {
+  return NextResponse.json(
+    { error: 'Not found', path: (path ?? []).join('/') },
+    { status: 404 },
+  );
+}
+
+export async function GET(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
+  if (isRootMount()) return notServedHere((await ctx.params).path);
+  return handleGet(request, ctx);
+}
+
+export async function POST(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
+  if (isRootMount()) return notServedHere((await ctx.params).path);
+  return handlePost(request, ctx);
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GET as myChartGet, POST as myChartPost } from '../MyChart/[[...path]]/route';
+import { handleGet as myChartGet, handlePost as myChartPost } from '../MyChart/[[...path]]/route';
 import { isRootMount } from '@/lib/mount';
 
 /**
@@ -10,7 +10,8 @@ import { isRootMount } from '@/lib/mount';
  *
  * In the default path-prefixed mode MyChart is not served here at all, so these
  * paths 404. Keeping that honest matters: it's what stops a scraper bug from
- * silently "working" against the fake.
+ * silently "working" against the fake. `/MyChart/*` applies the mirror-image
+ * guard, so exactly one of the two prefixes answers in either mode.
  *
  * More specific routes (`/api/*`, `/reset`, `/mode`, `/e/*`, `/MyChart/*`) take
  * precedence over this catch-all, so they are unaffected in both modes.
