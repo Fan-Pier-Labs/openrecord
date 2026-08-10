@@ -12,7 +12,7 @@ import {
   type ProxySelectorModel,
 } from '@/lib/html';
 import * as homer from '@/data/homer';
-import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser } from '@/lib/state';
+import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
@@ -123,6 +123,43 @@ function activeDataset(request: NextRequest): PatientDataset {
   if (!user) return selfDataset();
   const active = resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')));
   return active?.dataset ?? selfDataset();
+}
+
+/**
+ * Emergency contacts for the record this session is in.
+ *
+ * These can't ride in the per-record dataset because they're mutable — the
+ * add/update/remove endpoints write to them — so they live in `state`, keyed by
+ * record id. A record with no entry yet gets a fresh empty list rather than
+ * inheriting anyone else's.
+ */
+function activeEmergencyContacts(request: NextRequest): typeof homer.emergencyContacts {
+  const user = currentUser(request);
+  const active = user
+    ? resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')))
+    : null;
+  const recordId = active?.id ?? user?.selfProxyId ?? '';
+  if (!state.emergencyContactsByRecord[recordId]) {
+    state.emergencyContactsByRecord[recordId] = { relationships: [] };
+  }
+  return state.emergencyContactsByRecord[recordId];
+}
+
+/**
+ * Message threads for the record this session is in. Mutable like emergency
+ * contacts, so keyed by record id for the same reason — a child's chart must
+ * not list the account holder's messages.
+ */
+function activeConversations(request: NextRequest): ConversationStore {
+  const user = currentUser(request);
+  const active = user
+    ? resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')))
+    : null;
+  const recordId = active?.id ?? user?.selfProxyId ?? '';
+  if (!state.conversationsByRecord[recordId]) {
+    state.conversationsByRecord[recordId] = { conversations: [], users: {}, hasMoreMessages: false };
+  }
+  return state.conversationsByRecord[recordId];
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -797,9 +834,11 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
     return json(ds.educationMaterials);
   }
 
-  // Emergency Contacts
+  // Emergency Contacts. Per-patient in real MyChart, and mutable, so they're
+  // keyed by record id rather than living in the immutable dataset — a child's
+  // chart must not list the account holder's contacts.
   if (lower === 'api/personalinformation/getrelationships') {
-    return json(state.emergencyContacts);
+    return json(activeEmergencyContacts(request));
   }
   if (lower === 'api/personalinformation/addrelationship') {
     try {
@@ -812,7 +851,7 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
         phoneNumber: body.phoneNumber || '',
         isEmergencyContact: body.isEmergencyContact ?? true,
       };
-      state.emergencyContacts.relationships.push(newContact);
+      activeEmergencyContacts(request).relationships.push(newContact);
       return json({ success: true, id: newContact.id });
     } catch {
       return json({ error: 'Invalid request' }, 400);
@@ -821,12 +860,13 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
   if (lower === 'api/personalinformation/updaterelationship') {
     try {
       const body = await request.json();
-      const idx = state.emergencyContacts.relationships.findIndex(
+      const contacts = activeEmergencyContacts(request);
+      const idx = contacts.relationships.findIndex(
         (r: { id?: string; name?: string }) => r.id === body.id || r.name === body.id
       );
       if (idx === -1) return json({ error: 'Contact not found' }, 404);
-      const existing = state.emergencyContacts.relationships[idx];
-      state.emergencyContacts.relationships[idx] = { ...existing, ...body };
+      const existing = contacts.relationships[idx];
+      contacts.relationships[idx] = { ...existing, ...body };
       return json({ success: true });
     } catch {
       return json({ error: 'Invalid request' }, 400);
@@ -835,7 +875,8 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
   if (lower === 'api/personalinformation/removerelationship') {
     try {
       const body = await request.json();
-      state.emergencyContacts.relationships = state.emergencyContacts.relationships.filter(
+      const contacts = activeEmergencyContacts(request);
+      contacts.relationships = contacts.relationships.filter(
         (r: { id?: string; name?: string }) => r.id !== body.id && r.name !== body.id
       );
       return json({ success: true });
@@ -959,12 +1000,12 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
 
   // ── Messages / Conversations (mutable state) ──────────────────
   if (lower === 'api/conversations/getconversationlist') {
-    return json(state.conversations);
+    return json(activeConversations(request));
   }
   if (lower === 'api/conversations/getconversationmessages') {
     try {
       const body = await request.json();
-      const conv = state.conversations.conversations.find(
+      const conv = activeConversations(request).conversations.find(
         (c: { hthId: string }) => c.hthId === body.conversationId
       );
       if (conv) {
@@ -991,7 +1032,7 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
   if (lower === 'api/conversations/deleteconversation') {
     try {
       const body = await request.json();
-      state.conversations.conversations = state.conversations.conversations.filter(
+      activeConversations(request).conversations = activeConversations(request).conversations.filter(
         (c: { hthId: string }) => c.hthId !== body.conversationId
       );
       return json({ success: true });
@@ -1003,7 +1044,7 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
     try {
       const body = await request.json();
       const convId = body.conversationId || '';
-      const conv = state.conversations.conversations.find(
+      const conv = activeConversations(request).conversations.find(
         (c: { hthId: string }) => c.hthId === convId
       );
       if (conv) {
@@ -1039,7 +1080,7 @@ export async function handlePost(request: NextRequest, { params }: { params: Pro
       const msgBody = Array.isArray(body.messageBody) ? body.messageBody[0] : (body.messageBody || '');
       const msgSubject = body.messageSubject || body.subject || 'New Message';
       const recipientName = body.recipient?.displayName || body.recipientName || 'Provider';
-      state.conversations.conversations.unshift({
+      activeConversations(request).conversations.unshift({
         hthId: newConvId,
         subject: msgSubject,
         previewText: msgBody,

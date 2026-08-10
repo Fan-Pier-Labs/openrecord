@@ -32,6 +32,17 @@ export type Passkey = {
   signCount: number;
 };
 
+/**
+ * Message threads for one patient record. Structural rather than
+ * `typeof homer.conversations` so an empty record can be represented — the
+ * seed's `users` map has literal keys that a fresh record obviously lacks.
+ */
+export type ConversationStore = {
+  conversations: typeof homer.conversations.conversations;
+  users: Record<string, { name: string }>;
+  hasMoreMessages: boolean;
+};
+
 export type FakeUserProfile = {
   name: string;
   dob: string;
@@ -142,8 +153,22 @@ function seedUsers(): Record<string, FakeUser> {
 
 type State = {
   users: Record<string, FakeUser>;
-  conversations: typeof homer.conversations;
-  emergencyContacts: typeof homer.emergencyContacts;
+  /**
+   * Message threads, keyed by patient record id. Per-patient in real MyChart
+   * and mutable (send/reply/delete write to them), so they live here rather
+   * than in the immutable per-record dataset — same reasoning as emergency
+   * contacts. Without the keying, a child's chart lists the parent's messages.
+   */
+  conversationsByRecord: Record<string, ConversationStore>;
+  /**
+   * Emergency contacts, keyed by patient record id.
+   *
+   * These are per-patient in real MyChart, and they are *mutable* — the add /
+   * update / remove endpoints write to them — so they can't live in the
+   * immutable per-record dataset. Keying by record id is what stops a child's
+   * chart from listing the account holder's contacts.
+   */
+  emergencyContactsByRecord: Record<string, typeof homer.emergencyContacts>;
   ecIdCounter: number;
   composeIdCounter: number;
   passkeyIdCounter: number;
@@ -163,8 +188,19 @@ type State = {
 function freshState(): State {
   return {
     users: seedUsers(),
-    conversations: JSON.parse(JSON.stringify(homer.conversations)),
-    emergencyContacts: JSON.parse(JSON.stringify(homer.emergencyContacts)),
+    conversationsByRecord: {
+      [HOMER_SELF_PROXY_ID]: JSON.parse(JSON.stringify(homer.conversations)),
+      ...Object.fromEntries(HOMER_PROXY_RECORDS.map(kid => [
+        kid.id,
+        { conversations: [], users: {}, hasMoreMessages: false },
+      ])),
+    },
+    // Only the account holder is seeded with contacts; each child starts
+    // empty, which is what their chart must report rather than the parent's.
+    emergencyContactsByRecord: {
+      [HOMER_SELF_PROXY_ID]: JSON.parse(JSON.stringify(homer.emergencyContacts)),
+      ...Object.fromEntries(HOMER_PROXY_RECORDS.map(kid => [kid.id, { relationships: [] }])),
+    },
     ecIdCounter: 100,
     composeIdCounter: 1000,
     passkeyIdCounter: 0,
@@ -177,8 +213,8 @@ export const state: State = freshState();
 export function resetState(): void {
   const next = freshState();
   state.users = next.users;
-  state.conversations = next.conversations;
-  state.emergencyContacts = next.emergencyContacts;
+  state.conversationsByRecord = next.conversationsByRecord;
+  state.emergencyContactsByRecord = next.emergencyContactsByRecord;
   state.ecIdCounter = next.ecIdCounter;
   state.composeIdCounter = next.composeIdCounter;
   state.passkeyIdCounter = next.passkeyIdCounter;

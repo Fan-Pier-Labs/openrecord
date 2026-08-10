@@ -14,10 +14,12 @@ import { describe, it, expect } from 'bun:test';
 import { parseTotpUri } from '../../../scrapers/myChart/totp';
 import { myChartUserPassLogin, complete2faFlow } from '../../../scrapers/myChart/login';
 import { getMyChartProfile } from '../../../scrapers/myChart/profile';
-import { discoverProxyTargets, switchProxyTarget } from '../../../scrapers/myChart/proxyContext';
+import { discoverProxyTargets, switchProxyTarget, withProxyTarget } from '../../../scrapers/myChart/proxyContext';
 import { getMedications } from '../../../scrapers/myChart/medications';
 import { getAllergies } from '../../../scrapers/myChart/allergies';
 import { getHealthIssues } from '../../../scrapers/myChart/healthIssues';
+import { getEmergencyContacts } from '../../../scrapers/myChart/emergencyContacts';
+import { listConversations } from '../../../scrapers/myChart/messages/conversations';
 import { getImagingResults } from '../../../scrapers/myChart/labs_and_procedure_results/labResults';
 import { downloadImagingStudyDirect } from '../../../scrapers/myChart/eunity/imagingDirectDownload';
 import { convertCloToJpg } from '../../../scrapers/myChart/clo-image-parser/clo_to_jpg';
@@ -1665,6 +1667,47 @@ describe('Proxy (multi-patient) context', () => {
     const homerIssues = JSON.stringify(await getHealthIssues(req));
     expect(homerIssues).toContain('crayon');
     expect(homerIssues).not.toContain('Asthma');
+  }, 60_000);
+
+  it('does not leak the account holder\'s emergency contacts or messages into a child\'s chart', async () => {
+    // These are mutable per-patient state on the server, so they can't ride in
+    // the immutable per-record dataset — they're the categories most likely to
+    // be forgotten when scoping, and a parent's contacts or message threads
+    // showing inside a child's chart is a real privacy failure.
+    await setProxyDiscovery('json');
+    const req = await loginHomer();
+
+    expect(JSON.stringify(await getEmergencyContacts(req))).toContain('Marge');
+    expect(JSON.stringify(await listConversations(req))).toContain('CONV-');
+
+    const bart = byName(await discoverProxyTargets(req), 'Bart Simpson');
+    await switchProxyTarget(req, { id: bart.id });
+
+    const bartContacts = JSON.stringify(await getEmergencyContacts(req));
+    expect(bartContacts).not.toContain('Marge');
+    expect(bartContacts).not.toContain('Barney');
+
+    const bartMessages = JSON.stringify(await listConversations(req));
+    expect(bartMessages).not.toContain('CONV-001');
+    expect(bartMessages).not.toContain('Weight Management');
+  }, 60_000);
+
+  it('reads the patient named for this call, regardless of what the session was on', async () => {
+    // The stale-context hazard: MyChart's active patient is server-side and
+    // rides the session cookie, so a target set earlier must never decide what
+    // a later call returns. withProxyTarget re-states it every time.
+    await setProxyDiscovery('json');
+    const req = await loginHomer();
+
+    // Leave the session pointed somewhere unrelated first.
+    await switchProxyTarget(req, { displayName: 'Lisa Simpson' });
+
+    const asBart = await withProxyTarget(req, 'Bart', () => getMyChartProfile(req));
+    expect(asBart?.mrn).toBe('744');
+
+    // No patient named means the account holder — not "whoever we were on".
+    const asSelf = await withProxyTarget(req, undefined, () => getMyChartProfile(req));
+    expect(asSelf?.mrn).toBe('742');
   }, 60_000);
 
   it('rejects a record this account has no access to', async () => {

@@ -42,9 +42,6 @@ By default (no `--action` flag), the CLI scrapes all 30+ data categories in para
 - `--action get-thread --conversation-id <id>` — Get full message thread details
 - `--action keep-alive-test` — Ping /Home every 5 minutes to keep session alive; runs forever, prints status each ping
 - `--action list-proxies` — List the patient records this account can reach (its own, plus any it has proxy access to)
-- `--action switch-proxy --proxy-id <id>` — Switch which patient record subsequent requests read from
-- `--action switch-proxy --proxy-name "<name>"` — Same, selecting by display name instead of id
-- `--action switch-proxy --proxy-self` — Switch back to the account holder's own record
 
 ## Proxy (Multi-Patient) Records
 
@@ -53,28 +50,64 @@ child's record. `--action list-proxies` shows what's reachable:
 
 ```
   * Homer Jay Simpson  (your own record)
-      --proxy-id WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FG...
+      --patient "Homer Jay Simpson"
     Bart Simpson
-      --proxy-id WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FG...
+      --patient "Bart Simpson"
 ```
 
-`*` marks the active record; `?` means the portal did not say which record is
-active (some instances don't report it).
+`*` marks the record the portal currently has active; `?` means the portal does
+not report which one is active.
 
-Record ids are long opaque strings that differ between healthcare organizations
-and mean nothing outside the session that produced them — never type one from
-memory or construct one. Copy them from `list-proxies`, or select by name with
-`--proxy-name`. To go back to your own record use `--proxy-self`, which finds it
-by the portal's own "this is you" flag rather than by id:
+### Reading a chart: `--patient`
+
+`--patient` works with **every** action, including the default full scrape. It
+takes a patient **name** — never a record id:
 
 ```bash
-mychart-cli --host mychart.example.org --action switch-proxy --proxy-self
+mychart-cli --host mychart.example.org --patient "Bart Simpson"
 ```
 
-Switching changes the session, so every subsequent scrape reads the record you
-switched to. The switch is verified against the profile page before it returns:
-if the portal ends up showing a different patient than the one you asked for,
-the command fails rather than handing back the wrong person's chart.
+A full name, or an unambiguous partial one (`--patient bart`), or `me` / `self`
+for the account holder. If a query matches more than one record it fails and
+lists them rather than guessing.
+
+**Omitting `--patient` means the account holder, explicitly.**
+
+### Changing which chart MyChart is on: `--switch`
+
+Reads never change anything. If MyChart is pointed at a different patient than
+the command is about, the CLI **stops and tells you**, rather than switching
+behind your back:
+
+```
+  Refusing to read: mychart.example.org is currently on Bart Simpson,
+  but this command is about Homer Jay Simpson.
+
+  The active patient is stored on MyChart's server, so it has to be changed
+  deliberately — reading never changes it. Run:
+
+    mychart-cli --host mychart.example.org --action list-proxies     # every patient name on this account
+    mychart-cli --host mychart.example.org --switch "Homer Jay Simpson"
+
+  then re-run this command.
+```
+
+`--switch` is the only command that mutates anything, and it confirms against
+the profile page before reporting success.
+
+### Why it works this way
+
+MyChart's active patient is *server-side session state*. There is no
+per-request patient parameter — the portal simply returns whoever the session is
+pointed at. The CLI also caches session cookies to disk, so that state outlives
+a single invocation and can silently follow you into the next one.
+
+So every command states the patient it is about and verifies it before reading
+anything. Two runs with the same flags always mean the same thing, and a read
+can never quietly change what a later read returns. Where an instance does not
+report which record is active, the check falls back to comparing the profile
+page against the requested patient; if neither can settle it, the CLI refuses
+rather than guessing.
 
 ## Passkey Authentication
 

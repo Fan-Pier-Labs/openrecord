@@ -1,10 +1,13 @@
 import { afterAll, beforeAll, describe, it, expect, mock } from 'bun:test'
 import { MyChartRequest } from '../myChartRequest'
 import {
+  checkProxyContext,
   compareProfileNames,
   discoverProxyTargets,
+  findProxyTarget,
   switchProxyTarget,
   verifyActiveProxyTarget,
+  withProxyTarget,
   type ProxyTarget,
 } from '../proxyContext'
 import type { RequestConfig } from '../types'
@@ -626,5 +629,224 @@ describe('compareProfileNames', () => {
     expect(compareProfileNames('Homer Simpson', '')).toBe('unknown')
     expect(compareProfileNames('Me', 'Homer Simpson')).toBe('unknown')
     expect(compareProfileNames('Myself', 'Homer Simpson')).toBe('unknown')
+  })
+})
+
+function target(over: Partial<ProxyTarget> & { id: string; displayName: string }): ProxyTarget {
+  return {
+    isSelf: false,
+    isSelected: false,
+    selectionKnown: true,
+    linkUrl: '/MyChart/inside.asp',
+    source: 'proxy-switch-json',
+    ...over,
+  }
+}
+
+const FAMILY: ProxyTarget[] = [
+  target({ id: SELF_ID, displayName: 'Homer Jay Simpson', isSelf: true, isSelected: true }),
+  target({ id: CHILD_ID, displayName: 'Bart Simpson' }),
+  target({ id: SIBLING_ID, displayName: 'Lisa Simpson' }),
+]
+
+describe('findProxyTarget', () => {
+  it('matches a full display name, case-insensitively', () => {
+    expect(findProxyTarget(FAMILY, 'Bart Simpson').id).toBe(CHILD_ID)
+    expect(findProxyTarget(FAMILY, 'bart simpson').id).toBe(CHILD_ID)
+  })
+
+  it('matches an unambiguous partial name', () => {
+    expect(findProxyTarget(FAMILY, 'bart').id).toBe(CHILD_ID)
+    expect(findProxyTarget(FAMILY, 'Lisa').id).toBe(SIBLING_ID)
+  })
+
+  it('matches an exact id', () => {
+    expect(findProxyTarget(FAMILY, CHILD_ID).id).toBe(CHILD_ID)
+  })
+
+  it('resolves self aliases without needing the id', () => {
+    for (const alias of ['me', 'self', 'myself', 'Account Holder']) {
+      expect(findProxyTarget(FAMILY, alias).isSelf).toBe(true)
+    }
+  })
+
+  it('refuses to guess when a query matches several records', () => {
+    // Every Simpson matches. Picking one would be picking a patient at random.
+    expect(() => findProxyTarget(FAMILY, 'Simpson')).toThrow(/matches 3 patient records/)
+  })
+
+  it('lists the options when nothing matches', () => {
+    expect(() => findProxyTarget(FAMILY, 'Nelson')).toThrow(/No patient record matches 'Nelson'/)
+  })
+
+  it('prefers an exact id over a name that would be ambiguous', () => {
+    const collide: ProxyTarget[] = [
+      target({ id: 'WP-AAA', displayName: 'Sam Patient' }),
+      target({ id: 'WP-BBB', displayName: 'Sam Patient' }),
+    ]
+    expect(() => findProxyTarget(collide, 'Sam Patient')).toThrow(/more than one patient record/)
+    expect(findProxyTarget(collide, 'WP-BBB').id).toBe('WP-BBB')
+  })
+})
+
+describe('withProxyTarget', () => {
+  function familyRequest(activeId: string) {
+    const state = { activeId }
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) {
+        return jsonResponse({
+          ProxySubjectList: FAMILY.map(t => ({
+            Id: t.id,
+            DisplayName: t.displayName,
+            LinkUrl: t.isSelf ? 'inside.asp' : `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${t.id}`,
+            IsSelected: t.id === state.activeId,
+            IsSelf: t.isSelf,
+          })),
+        })
+      }
+      if (config.url?.includes('switchcontext')) {
+        state.activeId = decodeURIComponent(config.url.split('eid=')[1])
+        return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
+      }
+      if (config.url?.endsWith('/MyChart/inside.asp')) {
+        state.activeId = SELF_ID
+        return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
+      }
+      if (config.url?.endsWith('/MyChart/Home')) return htmlResponse('ok')
+      if (config.path === '/Home') {
+        const name = FAMILY.find(t => t.id === state.activeId)!.displayName
+        return htmlResponse(profileHtml(name, '1/1/2010'))
+      }
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+    return { req, state }
+  }
+
+  it('switches to the named patient before running the operation', async () => {
+    const { req, state } = familyRequest(SELF_ID)
+    const seen = await withProxyTarget(req, 'Bart', async () => state.activeId)
+    expect(seen).toBe(CHILD_ID)
+  })
+
+  it('targets the account holder when no patient is named', async () => {
+    // Not "whoever the session was already on" — that is the stale-context bug.
+    const { req, state } = familyRequest(CHILD_ID)
+    const seen = await withProxyTarget(req, undefined, async () => state.activeId)
+    expect(seen).toBe(SELF_ID)
+  })
+
+  it('skips the switch when the portal already reports the wanted record', async () => {
+    const { req, state } = familyRequest(CHILD_ID)
+    let switches = 0
+    const original = req.makeRequest
+    req.makeRequest = ((config: RequestConfig) => {
+      if (config.url?.includes('switchcontext')) switches += 1
+      return original.call(req, config)
+    }) as typeof req.makeRequest
+
+    await withProxyTarget(req, 'Bart Simpson', async () => state.activeId)
+    expect(switches).toBe(0)
+  })
+
+  it('runs unchanged on an account with no proxy access', async () => {
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse({ ProxySubjectList: [] })
+      if (config.path === '/Home') return htmlResponse(profileHtml('Solo Patient'))
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+    expect(await withProxyTarget(req, undefined, async () => 'ran')).toBe('ran')
+  })
+
+  it('refuses to silently ignore a patient on a single-record account', async () => {
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse({ ProxySubjectList: [] })
+      if (config.path === '/Home') return htmlResponse(profileHtml('Solo Patient'))
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+    await expect(withProxyTarget(req, 'Bart', async () => 'ran'))
+      .rejects.toThrow(/access to only one patient record/)
+  })
+})
+
+describe('checkProxyContext', () => {
+  function payload(activeId: string, opts?: { reportSelection?: boolean }) {
+    const reportSelection = opts?.reportSelection ?? true
+    return {
+      ProxySubjectList: FAMILY.map(t => ({
+        Id: t.id,
+        DisplayName: t.displayName,
+        LinkUrl: t.isSelf ? 'inside.asp' : `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${t.id}`,
+        IsSelected: reportSelection ? t.id === activeId : false,
+        IsSelf: t.isSelf,
+      })),
+    }
+  }
+
+  function req(activeId: string, opts?: { reportSelection?: boolean; profileName?: string }) {
+    return requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse(payload(activeId, opts))
+      if (config.path === '/Home') {
+        const fallback = FAMILY.find(t => t.id === activeId)!.displayName
+        return htmlResponse(profileHtml(opts?.profileName ?? fallback, '1/1/2010'))
+      }
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+  }
+
+  it('reports active when the portal is already on the wanted patient', async () => {
+    const check = await checkProxyContext(req(CHILD_ID), 'Bart')
+    expect(check.active).toBe(true)
+    expect(check.current?.id).toBe(CHILD_ID)
+    expect(check.determinedBy).toBe('selection-flag')
+  })
+
+  it('reports the mismatch without changing anything', async () => {
+    const r = req(CHILD_ID)
+    const check = await checkProxyContext(r, 'me')
+    expect(check.active).toBe(false)
+    expect(check.current?.displayName).toBe('Bart Simpson')
+    expect(check.wanted?.isSelf).toBe(true)
+    // Read-only: no switch URL was ever requested.
+    const calls = (r.makeRequest as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    expect(JSON.stringify(calls)).not.toContain('switchcontext')
+  })
+
+  it('defaults to asking about the account holder', async () => {
+    const check = await checkProxyContext(req(SELF_ID))
+    expect(check.wanted?.isSelf).toBe(true)
+    expect(check.active).toBe(true)
+  })
+
+  it('falls back to the profile name when the portal reports no selection', async () => {
+    const check = await checkProxyContext(
+      req(CHILD_ID, { reportSelection: false, profileName: 'Bartholomew JoJo Simpson' }),
+      'Bart',
+    )
+    expect(check.determinedBy).toBe('profile-name')
+    expect(check.active).toBe(true)
+    expect(check.current?.id).toBe(CHILD_ID)
+  })
+
+  it('refuses to claim a state it could not determine', async () => {
+    const check = await checkProxyContext(
+      req(CHILD_ID, { reportSelection: false, profileName: 'Someone Unrelated' }),
+      'Bart',
+    )
+    expect(check.determinedBy).toBe('unknown')
+    expect(check.active).toBe(false)
+    expect(check.current).toBeNull()
+  })
+
+  it('treats a single-record account as always satisfied', async () => {
+    const r = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse({ ProxySubjectList: [] })
+      // An empty list sends discovery on to the HTML fallbacks, which find
+      // nothing either — that's what "no proxy access" looks like.
+      if (config.path === '/Home') return htmlResponse(profileHtml('Solo Patient'))
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+    const check = await checkProxyContext(r)
+    expect(check.active).toBe(true)
+    expect(check.wanted).toBeNull()
   })
 })

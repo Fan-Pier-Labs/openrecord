@@ -406,6 +406,174 @@ export async function verifyActiveProxyTarget(
   return result;
 }
 
+/** Strings a human might type to mean "the account holder's own record". */
+const SELF_QUERIES = new Set(['self', 'me', 'myself', 'my record', 'account holder']);
+
+/**
+ * Resolve a human-supplied string to exactly one record.
+ *
+ * Accepts, in order of precedence: a self alias ("me", "self"), an exact id, an
+ * exact display name, or a unique case-insensitive partial name. Ambiguity is
+ * always an error listing the candidates — guessing which patient was meant is
+ * precisely the failure this codebase must never produce.
+ */
+export function findProxyTarget(targets: ProxyTarget[], query: string): ProxyTarget {
+  const wanted = normalize(query);
+  if (!wanted) throw new Error('Patient query is empty.');
+
+  const describe = () => targets.map((t) => `'${t.displayName}'${t.isSelf ? ' (you)' : ''}`).join(', ');
+
+  if (SELF_QUERIES.has(wanted)) {
+    const selves = targets.filter((entry) => entry.isSelf);
+    if (selves.length !== 1) {
+      throw new Error(`Could not identify the account holder's own record among: ${describe()}.`);
+    }
+    return selves[0];
+  }
+
+  // Ids are opaque and exact — check them before any name matching so a record
+  // can always be named unambiguously even if display names collide.
+  const byId = targets.filter((entry) => entry.id === query.trim());
+  if (byId.length === 1) return byId[0];
+
+  const exact = targets.filter((entry) => normalize(entry.displayName) === wanted);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) {
+    throw new Error(`'${query}' matches more than one patient record. Use --patient with the record id instead.`);
+  }
+
+  const partial = targets.filter((entry) => normalize(entry.displayName).includes(wanted));
+  if (partial.length === 1) return partial[0];
+  if (partial.length > 1) {
+    throw new Error(
+      `'${query}' matches ${partial.length} patient records (${partial.map((t) => `'${t.displayName}'`).join(', ')}). Be more specific.`
+    );
+  }
+
+  throw new Error(`No patient record matches '${query}'. Available: ${describe()}.`);
+}
+
+export type ProxyContextCheck = {
+  /** Every record this account can reach. Empty for single-record accounts. */
+  targets: ProxyTarget[];
+  /** The record the caller asked for. Null when the account has no proxy access. */
+  wanted: ProxyTarget | null;
+  /** The record the portal is actually on, as best we can determine. */
+  current: ProxyTarget | null;
+  /** True when the portal is already on `wanted`. */
+  active: boolean;
+  /**
+   * How `current` was established: the portal's own selection flag, or by
+   * matching the scraped profile name when the portal doesn't report one.
+   * 'unknown' means neither worked and `active` must not be trusted.
+   */
+  determinedBy: 'selection-flag' | 'profile-name' | 'unknown';
+};
+
+/**
+ * Report whether the portal is already on a given patient, WITHOUT changing
+ * anything.
+ *
+ * This is the read-only counterpart to `switchProxyTarget`, for callers that
+ * want to verify before acting rather than mutate a session as a side effect of
+ * reading. Passing no query asks about the account holder.
+ *
+ * Where the portal reports a selection, that's used. Where it doesn't — the
+ * script-block discovery surface never does — the active record is inferred by
+ * comparing the scraped profile against each known record, which is stronger
+ * evidence than a flag anyway.
+ */
+export async function checkProxyContext(
+  mychartRequest: MyChartRequest,
+  query?: string,
+  options?: { discoveredTargets?: ProxyTarget[] }
+): Promise<ProxyContextCheck> {
+  const targets = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest);
+  if (targets.length === 0) {
+    return { targets, wanted: null, current: null, active: true, determinedBy: 'unknown' };
+  }
+
+  const wanted = findProxyTarget(targets, query ?? 'me');
+
+  const flagged = targets.find((entry) => entry.selectionKnown && entry.isSelected);
+  if (flagged) {
+    return {
+      targets,
+      wanted,
+      current: flagged,
+      active: flagged.id === wanted.id,
+      determinedBy: 'selection-flag',
+    };
+  }
+
+  // No selection flag: ask the profile page who we are.
+  const profile = await getMyChartProfile(mychartRequest);
+  const profileName = profile?.name || '';
+  const byName = profileName
+    ? targets.filter((entry) => compareProfileNames(entry.displayName, profileName) === 'match')
+    : [];
+
+  if (byName.length === 1) {
+    return {
+      targets,
+      wanted,
+      current: byName[0],
+      active: byName[0].id === wanted.id,
+      determinedBy: 'profile-name',
+    };
+  }
+
+  return { targets, wanted, current: null, active: false, determinedBy: 'unknown' };
+}
+
+/**
+ * Run `fn` with the portal pointed at `target`.
+ *
+ * MyChart has no per-request patient parameter — the active record is
+ * server-side session state, reached only by following a switch URL. That makes
+ * "which patient am I reading?" invisible at the call site and, because
+ * sessions are resumed from cached cookies, it can persist across processes.
+ * This wrapper puts the target back at the call site: state the patient you
+ * mean, every time, and let the switching be an implementation detail.
+ *
+ * Passing no target means the account holder — explicitly, not "whoever the
+ * session happens to be pointed at". The switch is skipped when the portal
+ * already reports the wanted record as active, so the common case costs one
+ * discovery request rather than a full switch.
+ *
+ * Accounts with no proxy access have no proxy surface at all; there `fn` simply
+ * runs.
+ */
+export async function withProxyTarget<T>(
+  mychartRequest: MyChartRequest,
+  target: ProxyTargetSelector | string | undefined,
+  fn: () => Promise<T>
+): Promise<T> {
+  const discovered = await discoverProxyTargets(mychartRequest);
+
+  if (discovered.length === 0) {
+    if (typeof target === 'string' || (target && (target.id !== undefined || target.displayName))) {
+      throw new Error('This account has access to only one patient record, so a patient cannot be selected.');
+    }
+    return fn();
+  }
+
+  const resolved = typeof target === 'string'
+    ? findProxyTarget(discovered, target)
+    : resolveTarget(discovered, target ?? { self: true });
+
+  // Already there — don't pay for a redirect chain we don't need.
+  if (!(resolved.selectionKnown && resolved.isSelected)) {
+    await switchProxyTarget(
+      mychartRequest,
+      resolved.isSelf ? { self: true } : { id: resolved.id },
+      { discoveredTargets: discovered }
+    );
+  }
+
+  return fn();
+}
+
 export async function switchProxyTarget(
   mychartRequest: MyChartRequest,
   target: ProxyTargetSelector,
