@@ -1717,7 +1717,7 @@ describe('Proxy (multi-patient) context', () => {
       .rejects.toThrow(/Could not resolve proxy target by id/);
   }, 30_000);
 
-  it('reports no proxy records for an account with only its own chart', async () => {
+  it('returns just the account holder for an account with no proxy access', async () => {
     await setProxyDiscovery('json');
     const login = await myChartUserPassLogin({
       hostname: HOMER_PROXY_HOST,
@@ -1729,7 +1729,13 @@ describe('Proxy (multi-patient) context', () => {
     const verified = await complete2faFlow({ mychartRequest: login.mychartRequest, code: '123456' });
     expect(verified.state).toBe('logged_in');
 
-    expect(await discoverProxyTargets(login.mychartRequest)).toEqual([]);
+    // Captured from two live instances: a single-record account's /ProxySwitch
+    // returns a ONE-entry list containing the account holder, not an empty one.
+    const targets = await discoverProxyTargets(login.mychartRequest);
+    expect(targets).toHaveLength(1);
+    expect(targets[0].isSelf).toBe(true);
+    expect(targets[0].id).toMatch(/^WP-/);
+    expect(targets[0].displayName).toContain('Marge');
   }, 30_000);
 
   // ── Through MCP ──

@@ -19,6 +19,10 @@ import { resetProxyDiscoveryMode } from './proxy';
 export const HOMER_SELF_PROXY_ID =
   'WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C';
 
+/** Marge's own record id. She has no proxy access, but she still has a record. */
+export const MARGE_SELF_PROXY_ID =
+  'WP-8HRTVN3QZ5XKMW2JBC7LFD9PYGA4SEU6KQMWJ1RXTV5NZBHFC3LPD8YSGA2EK7UNQXWRJ6MVTZ4HC9';
+
 export type Passkey = {
   rawId: string;
   name: string;
@@ -143,9 +147,12 @@ function seedUsers(): Record<string, FakeUser> {
       requires2faAtLogin: true,
       totpEnabled: true,
       passkeys: [],
-      // Marge has no proxy access — the "single-record account" case, where
-      // MyChart exposes no proxy surface at all.
-      selfProxyId: '',
+      // Marge has no proxy access — the single-record account. She still has
+      // her own record id, because `/ProxySwitch` on such an account returns a
+      // one-entry list containing the account holder rather than an empty one.
+      // Captured on two live instances; the empty list modelled here before was
+      // never observed anywhere.
+      selfProxyId: MARGE_SELF_PROXY_ID,
       proxySubjects: [],
     },
   };

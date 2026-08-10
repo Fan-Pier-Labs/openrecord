@@ -47,28 +47,23 @@ function proxySelectorFor(request: NextRequest, user: FakeUser): ProxySelectorMo
 /**
  * One entry in the `/ProxySwitch` payload.
  *
- * Field names, casing and value shapes below were confirmed against three live
- * Epic instances (UCSF `/ucsfmychart`, Renown `/mychart`, Carson Tahoe
- * `/patientportal`) — see the capture posted on PR #206. Two things this pins
- * down that the fake previously got wrong:
+ * Every field below is now taken from real captures rather than inference —
+ * two live instances (UCSF `/ucsfmychart`, Mass General Brigham `/mychart-prd`)
+ * returned byte-identical shapes, cross-checked against the UCSF / Renown /
+ * Carson Tahoe captures on PR #206.
  *
- *   - The account holder's entry carries a real non-empty `WP-…` `Id`, exactly
- *     like a proxy record. `IsSelf` is the only thing distinguishing it. The
- *     empty-string self id modelled here before was never observed anywhere.
- *   - `LinkUrl` is *relative* and un-prefixed (`inside.asp`,
- *     `inside.asp?mode=proxyswitch&…`) on UCSF and Carson Tahoe. Renown serves
- *     a prefix-absolute `/mychart/inside.asp`. We emit the relative form: it's
- *     the majority shape and the harder one for a scraper to resolve.
- *   - The self entry's `LinkUrl` carries NO query string at all — it is a bare
- *     `inside.asp`, not `?mode=self`.
+ * Details that inference got wrong, kept here so they don't drift back:
  *
- * `BlobToken`, `Disabled`, `DisplayText`, `Ids`, `Loading`, `PhotoMagicId`,
- * `PhotoUrl`, `ServiceAreaAbbreviationList` and `TabColor` were reported present
- * on every subject, but only by NAME — their real value shapes were not
- * captured. They are populated here with plausible synthetic values so a
- * consumer written against the fake isn't surprised by their absence, but the
- * shapes are inferred and must be corrected once a full capture exists. No
- * scraper reads them today.
+ *   - `Ids` is an EMPTY ARRAY, not a list containing the record's id.
+ *   - `DisplayText` and `PhotoMagicId` are `null`, not strings.
+ *   - `TabColor` is a NUMBER, not a string.
+ *   - `ServiceAreaAbbreviationList` is a STRING, not an array.
+ *   - There is no `IdEmpty` or `IdPrefix` field at all.
+ *
+ * Confirmed as already correct: `Id` is an opaque ~86-character string on every
+ * record including the account holder's, `IsSelf` is the only thing marking
+ * self, and the self entry's `LinkUrl` is a bare relative `inside.asp` with no
+ * query string.
  */
 function proxySubjectEntry(
   subject: { id: string; displayName: string },
@@ -79,22 +74,36 @@ function proxySubjectEntry(
     : `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${encodeURIComponent(subject.id)}`;
   return {
     Id: subject.id,
-    IdEmpty: false,
-    IdPrefix: 'WP-',
+    Ids: [],
     DisplayName: subject.displayName,
+    DisplayText: null,
+    PhotoUrl: '',
+    PhotoMagicId: null,
+    BlobToken: '',
+    TabColor: 0,
     LinkUrl: linkUrl,
     IsSelected: opts.isSelected,
     IsSelf: opts.isSelf,
-    // ── Inferred value shapes; names confirmed, contents not captured ──
-    BlobToken: '',
-    Disabled: false,
-    DisplayText: subject.displayName,
-    Ids: [subject.id],
     Loading: false,
-    PhotoMagicId: '',
-    PhotoUrl: '',
-    ServiceAreaAbbreviationList: [],
-    TabColor: '',
+    Disabled: false,
+    ServiceAreaAbbreviationList: '',
+  };
+}
+
+/**
+ * The sibling keys `/ProxySwitch` returns alongside the subject list. Present on
+ * both instances captured; no scraper reads them, but a consumer written
+ * against the fake shouldn't be surprised by their absence.
+ */
+function proxySwitchEnvelope(list: ReturnType<typeof proxySubjectList>) {
+  return {
+    ProxySubjectList: list,
+    ShowFriendsAndFamily: true,
+    ShouldTryAgain: false,
+    ShowPersonalInformation: true,
+    ShowAccountSettings: true,
+    AvailableLanguageList: [],
+    CurrentlySelectedTabColor: 0,
   };
 }
 
@@ -378,11 +387,8 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
     }
     const user = currentUser(request);
     if (!user) return new NextResponse('Session is missing username', { status: 500 });
-    if (user.proxySubjects.length === 0) {
-      return json({ ProxySubjectList: [] });
-    }
     const active = resolveActiveRecord(user, getActiveProxyId(cookie));
-    return json({ ProxySubjectList: proxySubjectList(user, active?.id ?? user.selfProxyId) });
+    return json(proxySwitchEnvelope(proxySubjectList(user, active?.id ?? user.selfProxyId)));
   }
 
   // ── Session / Home ─────────────────────────────────────────────

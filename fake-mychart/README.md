@@ -36,7 +36,10 @@ shape is exercisable:
 | Lisa          | `false`  | Lisa Marie Simpson       | 05/09/2016 | 745 |
 | Maggie        | `false`  | Margaret Evelyn Simpson  | 01/12/2024 | 746 |
 
-`marge` has no proxy access at all, covering the single-record account.
+`marge` has no proxy access at all, covering the single-record account. Note
+that her `/ProxySwitch` still returns a **one-entry list containing herself** —
+captured from two live single-record accounts. An empty list is not a shape that
+has ever been observed.
 
 ### The account holder is NOT the record with a blank id
 
@@ -80,7 +83,7 @@ active record — it belongs to the login, not to a patient.
 
 ### Endpoints
 
-- `GET /ProxySwitch` → `{"ProxySubjectList":[...]}` with `Id`, `IdEmpty`, `IdPrefix`, `DisplayName`, `LinkUrl`, `IsSelected`, `IsSelf`, plus `BlobToken`, `Disabled`, `DisplayText`, `Ids`, `Loading`, `PhotoMagicId`, `PhotoUrl`, `ServiceAreaAbbreviationList`, `TabColor`. Those last nine were confirmed present by NAME only — their real value shapes were never captured, so the values here are synthetic placeholders. No scraper reads them.
+- `GET /ProxySwitch` → `ProxySubjectList` plus `ShowFriendsAndFamily`, `ShouldTryAgain`, `ShowPersonalInformation`, `ShowAccountSettings`, `AvailableLanguageList`, `CurrentlySelectedTabColor`. Each subject carries `Id`, `Ids`, `DisplayName`, `DisplayText`, `PhotoUrl`, `PhotoMagicId`, `BlobToken`, `TabColor`, `LinkUrl`, `IsSelected`, `IsSelf`, `Loading`, `Disabled`, `ServiceAreaAbbreviationList`. **This shape is captured from two live instances, not inferred** — note `Ids` is an empty array, `DisplayText`/`PhotoMagicId` are `null`, `TabColor` is a number, `ServiceAreaAbbreviationList` is a string, and there is no `IdEmpty`/`IdPrefix`. No scraper reads any of them.
 - `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>` → 302 to `/Home`, switching the session's active record. An `eid` the account can't reach returns 403.
 - `GET /inside.asp?mode=self` → 302 to `/Home`, back to the account holder.
 - `GET /inside.asp` (bare, as served in the self `LinkUrl`) → when a proxy record is active, 302 to `?mode=self` and so back to the account holder; otherwise an ordinary page.
