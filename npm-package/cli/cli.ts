@@ -1420,9 +1420,20 @@ async function main() {
       try {
         check = await checkProxyContext(session.request, cliArgs.patient);
       } catch (err) {
-        console.log(`\n  ${(err as Error).message}`);
-        closeRL();
-        process.exit(1);
+        const why = (err as Error).message;
+        if (cliArgs.patient) {
+          // A specific patient was asked for and we can't confirm we're on
+          // them. Refusing is the whole point.
+          console.log(`\n  ${why}`);
+          closeRL();
+          process.exit(1);
+        }
+        // Nobody asked for a proxy patient. Most accounts have no proxy access
+        // at all, and two of the three discovery surfaces are inferred rather
+        // than captured from a real instance — so a parsing miss here must not
+        // break an ordinary scrape that has nothing to do with this feature.
+        console.log(`  Note: could not determine the active patient on ${session.hostname} (${why}). Continuing.`);
+        continue;
       }
 
       // Single-record account: no proxy surface, nothing to assert.

@@ -670,6 +670,23 @@ describe('findProxyTarget', () => {
     }
   })
 
+  it('treats the only reachable record as the account holder even if unflagged', () => {
+    // Guards a regression risk for people who don't use this feature at all:
+    // the HTML/script discovery surfaces are inferred, so a single-record
+    // account whose markup we misparse (no isSelf flag) must still resolve
+    // rather than locking the CLI out of an ordinary scrape.
+    const solo: ProxyTarget[] = [target({ id: 'WP-ONLYONE', displayName: 'Solo Patient' })]
+    expect(findProxyTarget(solo, 'me').id).toBe('WP-ONLYONE')
+  })
+
+  it('still refuses when several records exist and none is flagged as self', () => {
+    const unflagged: ProxyTarget[] = [
+      target({ id: 'WP-A', displayName: 'Alex Patient' }),
+      target({ id: 'WP-B', displayName: 'Blake Patient' }),
+    ]
+    expect(() => findProxyTarget(unflagged, 'me')).toThrow(/Could not identify the account holder/)
+  })
+
   it('refuses to guess when a query matches several records', () => {
     // Every Simpson matches. Picking one would be picking a patient at random.
     expect(() => findProxyTarget(FAMILY, 'Simpson')).toThrow(/matches 3 patient records/)

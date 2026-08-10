@@ -425,10 +425,14 @@ export function findProxyTarget(targets: ProxyTarget[], query: string): ProxyTar
 
   if (SELF_QUERIES.has(wanted)) {
     const selves = targets.filter((entry) => entry.isSelf);
-    if (selves.length !== 1) {
-      throw new Error(`Could not identify the account holder's own record among: ${describe()}.`);
-    }
-    return selves[0];
+    if (selves.length === 1) return selves[0];
+    // Only one record is reachable at all, so it IS the account holder —
+    // whether or not the portal bothered to flag it. This matters because the
+    // HTML and script discovery surfaces are inferred rather than captured: a
+    // single-record account whose markup we misparse must not get locked out
+    // of a tool that has nothing to do with proxy access.
+    if (targets.length === 1) return targets[0];
+    throw new Error(`Could not identify the account holder's own record among: ${describe()}.`);
   }
 
   // Ids are opaque and exact — check them before any name matching so a record
