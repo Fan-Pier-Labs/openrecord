@@ -1514,7 +1514,7 @@ describe('Root-mounted MyChart instance', () => {
   let rootInstanceId = '';
   let rootSessionKey = '';
 
-  async function setFakeMode(mode: 'prefixed' | 'root' | 'meta-refresh') {
+  async function setFakeMode(mode: 'prefixed' | 'root') {
     const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1618,33 +1618,38 @@ describe('Root-mounted MyChart instance', () => {
 });
 
 // ===================================================================
-// 14. Meta-refresh mount discovery (Renown shape)
+// 14. Meta-refresh prefix discovery (Renown shape)
 // ===================================================================
 
-// Renown's root URL answers 200 with no Location header at all — the prefix
-// lives in an *absolute* URL inside a `<meta http-equiv="refresh">`. That form
-// used to be mangled into `https:mychart.renown.orgmychart`, so every request
-// after discovery went to a bogus path and login 400'd.
+// Renown is mounted under /MyChart exactly like the default, but its root URL
+// answers 200 with no Location header at all — the prefix lives in an
+// *absolute* URL inside a `<meta http-equiv="refresh">`. That form used to be
+// mangled into `https:mychart.renown.orgmychart`, so every request after
+// discovery went to a bogus path and login 400'd.
 //
-// The mode is global to the fake, so this section restores the default before
-// handing off to Cleanup.
+// Mount and discovery are independent knobs on the fake, so this exercises the
+// mount the rest of the suite already uses with the other announcement shape,
+// then puts discovery back before handing off to Cleanup.
 
-describe('Meta-refresh mount discovery', () => {
+describe('Meta-refresh prefix discovery', () => {
   let metaInstanceId = '';
   let metaSessionKey = '';
 
-  async function setFakeMode(mode: 'prefixed' | 'root' | 'meta-refresh') {
+  async function setFakeDiscovery(discovery: 'redirect' | 'meta-refresh') {
     const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ discovery }),
     });
     expect(res.status).toBe(200);
-    expect((await res.json()).mode).toBe(mode);
+    const body = await res.json();
+    expect(body.discovery).toBe(discovery);
+    // Changing discovery must not disturb where MyChart is mounted.
+    expect(body.mode).toBe('prefixed');
   }
 
   it('serves 200 with an absolute meta refresh and no Location header', async () => {
-    await setFakeMode('meta-refresh');
+    await setFakeDiscovery('meta-refresh');
     const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
@@ -1721,14 +1726,56 @@ describe('Meta-refresh mount discovery', () => {
     expect(data.medications?.medications?.length).toBeGreaterThan(0);
   }, 120_000);
 
-  it('deletes the instance and restores the default mount mode', async () => {
+  it('deletes the instance and restores redirect discovery', async () => {
     const res = await authedFetch(`/api/mychart-instances/${metaInstanceId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
 
-    await setFakeMode('prefixed');
+    await setFakeDiscovery('redirect');
     const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.status).toBe(302);
+    expect(rootRes.headers.get('location')).toContain('/MyChart/');
+  });
+
+  // The two knobs compose: a root-mounted instance can announce itself with a
+  // meta refresh too. Nobody's reported one in the wild, but the combination is
+  // expressible, and "no prefix" is the answer a slash-stripping parser is
+  // least likely to get right.
+  it('reports no prefix for a root mount announced by meta refresh', async () => {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'root', discovery: 'meta-refresh' }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ mode: 'root', discovery: 'meta-refresh' });
+
+    const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.status).toBe(200);
+    expect(await rootRes.text()).toContain(`http://${FAKE_MYCHART_HOST_URL}/Authentication/Login`);
+
+    const result = await myChartUserPassLogin({
+      hostname: FAKE_MYCHART_HOST_URL,
+      user: 'homer',
+      pass: 'donuts123',
+      protocol: 'http',
+    });
+
+    expect(result.state).toBe('logged_in');
+    expect(result.mychartRequest.firstPathPart).toBeNull();
+  }, 30_000);
+
+  it('restores both defaults', async () => {
+    const res = await fetch(`http://${FAKE_MYCHART_HOST_URL}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'prefixed', discovery: 'redirect' }),
+    });
+    expect(res.status).toBe(200);
+
+    const rootRes = await fetch(`http://${FAKE_MYCHART_HOST_URL}/`, { redirect: 'manual' });
+    expect(rootRes.status).toBe(302);
     expect(rootRes.headers.get('location')).toContain('/MyChart/');
   });
 });

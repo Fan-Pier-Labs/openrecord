@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseMetaRefreshTarget, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -393,6 +393,38 @@ describe('parseFirstPathPartFromHtml', () => {
   it('resolves a relative refresh against the expected host', () => {
     const html = '<meta http-equiv="refresh" content="0; URL=/MyChart/" />'
     expect(parseFirstPathPartFromHtml(html, 'mychart.example.org')).toBe('MyChart')
+  })
+})
+
+describe('parseMetaRefreshTarget', () => {
+  // parseFirstPathPartFromHtml returns null for both "root-mounted" and "no
+  // refresh tag". Discovery has to tell those apart — the first is an answer,
+  // the second means keep looking — so it works off the target URL instead.
+  it('distinguishes a root-mounted instance from a page with no refresh tag', () => {
+    const rootMounted = parseMetaRefreshTarget('<meta http-equiv="refresh" content="0; URL=/Authentication/Login">')
+    expect(rootMounted).not.toBeNull()
+    expect(landsOnMyChartRoute(rootMounted!.pathname)).toBe(true)
+    expect(parseFirstPathPartFromHtml('<meta http-equiv="refresh" content="0; URL=/Authentication/Login">')).toBe(null)
+
+    expect(parseMetaRefreshTarget('<html><body>Hello</body></html>')).toBe(null)
+  })
+
+  it('resolves an absolute target as written', () => {
+    const target = parseMetaRefreshTarget('<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">')
+    expect(target?.href).toBe('https://mychart.renown.org/mychart')
+    // Renown's target is not itself a MyChart route, so discovery keeps going
+    // rather than short-circuiting on it.
+    expect(landsOnMyChartRoute(target!.pathname)).toBe(false)
+  })
+
+  it('resolves a relative target against the expected host', () => {
+    const target = parseMetaRefreshTarget('<meta http-equiv="refresh" content="0; URL=/MyChart/">', 'mychart.example.org')
+    expect(target?.href).toBe('https://mychart.example.org/MyChart/')
+  })
+
+  it('rejects a target on another host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://www.renown.org/patients/">'
+    expect(parseMetaRefreshTarget(html, 'mychart.renown.org')).toBe(null)
   })
 })
 
