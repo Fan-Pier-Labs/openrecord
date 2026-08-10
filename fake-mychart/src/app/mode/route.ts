@@ -1,43 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMountMode, setMountMode, type MountMode } from '@/lib/mount';
+import {
+  getMountMode, setMountMode, getDiscoveryMode, setDiscoveryMode,
+  type MountMode, type DiscoveryMode,
+} from '@/lib/mount';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
  *
- * Flips the server between the two real MyChart deployment shapes so one
- * instance can stand in for both:
+ * Sets the two things about a real deployment that the scraper has to discover,
+ * so one instance can stand in for all of them. They're independent: `mode` is
+ * where MyChart is mounted, `discovery` is how `/` announces that.
  *
- *   GET  /mode            → { "mode": "prefixed" }
- *   POST /mode {"mode":"root"}  → { "ok": true, "mode": "root" }
+ *   GET  /mode                              → { "mode": "prefixed", "discovery": "redirect" }
+ *   POST /mode {"mode":"root"}              → root-mounted, still announced by redirect
+ *   POST /mode {"discovery":"meta-refresh"} → still under /MyChart, announced by meta refresh (Renown)
+ *   POST /mode {"mode":"root","discovery":"meta-refresh"}  → both at once
+ *
+ * Whatever a request omits is left alone, so a caller that only cares about one
+ * knob doesn't silently reset the other. The response always reports both.
  *
  * The switch takes effect immediately for every subsequent request. Callers
  * must re-login afterwards: a session discovered its path prefix at login
  * time, and that prefix is exactly what changes here.
  *
- * The mode is global to the process, so suites that depend on it must set it
- * themselves rather than inheriting whatever the previous suite left behind.
+ * Both settings are global to the process, so suites that depend on them must
+ * set them themselves rather than inheriting whatever the previous suite left
+ * behind. `/reset` restores the defaults.
  */
 const VALID_MODES: MountMode[] = ['prefixed', 'root'];
+const VALID_DISCOVERY: DiscoveryMode[] = ['redirect', 'meta-refresh'];
+
+function currentSettings() {
+  return { mode: getMountMode(), discovery: getDiscoveryMode() };
+}
 
 export async function GET() {
-  return NextResponse.json({ mode: getMountMode() });
+  return NextResponse.json(currentSettings());
 }
 
 export async function POST(request: NextRequest) {
-  let mode: unknown;
+  let body: Record<string, unknown>;
   try {
-    ({ mode } = await request.json());
+    body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Body must be JSON: {"mode":"prefixed"|"root"}' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Body must be JSON: {"mode":"prefixed"|"root","discovery":"redirect"|"meta-refresh"}' },
+      { status: 400 },
+    );
   }
 
-  if (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode)) {
+  const { mode, discovery } = body ?? {};
+
+  if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
       { error: `mode must be one of ${VALID_MODES.join(', ')}`, received: mode },
       { status: 400 },
     );
   }
 
-  setMountMode(mode as MountMode);
-  return NextResponse.json({ ok: true, mode: getMountMode() });
+  if (discovery !== undefined && (typeof discovery !== 'string' || !VALID_DISCOVERY.includes(discovery as DiscoveryMode))) {
+    return NextResponse.json(
+      { error: `discovery must be one of ${VALID_DISCOVERY.join(', ')}`, received: discovery },
+      { status: 400 },
+    );
+  }
+
+  if (mode === undefined && discovery === undefined) {
+    return NextResponse.json(
+      { error: 'Provide at least one of mode, discovery' },
+      { status: 400 },
+    );
+  }
+
+  if (mode !== undefined) setMountMode(mode as MountMode);
+  if (discovery !== undefined) setDiscoveryMode(discovery as DiscoveryMode);
+
+  return NextResponse.json({ ok: true, ...currentSettings() });
 }

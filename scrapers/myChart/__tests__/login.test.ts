@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseMetaRefreshTarget, parseFirstPathPartFromInput, extractFirstPathPartFromMarketingPage, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
 import { MyChartRequest } from '../myChartRequest'
 
 /**
@@ -320,6 +320,111 @@ describe('parseFirstPathPartFromHtml', () => {
     const result = parseFirstPathPartFromHtml('<meta http-equiv="REFRESH" content="0; URL=/MyChart/" />')
     expect(result).toBe('MyChart')
     expect(result).not.toContain('/')
+  })
+
+  // Renown's root page refreshes to an absolute URL. Stripping every `/` used to
+  // fold the host into the prefix and produce `https:mychart.renown.orgmychart`.
+  it('extracts the path part from an absolute refresh URL', () => {
+    const html = '<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('mychart')
+  })
+
+  // Captured verbatim from GET https://mychart.renown.org/ — a public redirect
+  // stub, no session or patient data in it. Kept byte-for-byte (uppercase tags,
+  // the space before the `;`, the lowercase `url=`) because every one of those
+  // quirks is something the parser has to survive.
+  it('handles the real Renown root page', () => {
+    const html = `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML>
+<HEAD>
+<TITLE>MyChart - Login Page</TITLE>
+<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">
+
+</HEAD>
+<BODY>
+<!-- this is a redirect to MyChart -->
+</BODY>
+</HTML>`
+    expect(parseFirstPathPartFromHtml(html)).toBe('mychart')
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe('mychart')
+  })
+
+  it('extracts the path part from an absolute refresh URL with a deeper path', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/MyChart-PRD/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart-PRD')
+  })
+
+  it('returns null for an absolute refresh URL mounted at the domain root', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/">'
+    expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+
+  it('returns null when the refresh goes straight to a root-mounted MyChart route', () => {
+    // Nothing in front of /Authentication/, so there is no prefix to report.
+    const html = '<meta http-equiv="refresh" content="0; URL=/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe(null)
+  })
+
+  it('takes everything in front of a MyChart route as the prefix', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://mychart.example.org/prd/Authentication/Login">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('prd')
+  })
+
+  it('keeps a query string out of the path part', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=/MyChart/Authentication/Login?mode=stdfile&option=termsandconditions">'
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('handles a quoted refresh target', () => {
+    const html = `<meta http-equiv="refresh" content="0; url='https://mychart.example.org/MyChart/'">`
+    expect(parseFirstPathPartFromHtml(html)).toBe('MyChart')
+  })
+
+  it('accepts an absolute refresh URL that stays on the expected host', () => {
+    const html = '<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe('mychart')
+  })
+
+  it('rejects a refresh that points at a different host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://www.renown.org/patients/">'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.renown.org')).toBe(null)
+  })
+
+  it('resolves a relative refresh against the expected host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=/MyChart/" />'
+    expect(parseFirstPathPartFromHtml(html, 'mychart.example.org')).toBe('MyChart')
+  })
+})
+
+describe('parseMetaRefreshTarget', () => {
+  // parseFirstPathPartFromHtml returns null for both "root-mounted" and "no
+  // refresh tag". Discovery has to tell those apart — the first is an answer,
+  // the second means keep looking — so it works off the target URL instead.
+  it('distinguishes a root-mounted instance from a page with no refresh tag', () => {
+    const rootMounted = parseMetaRefreshTarget('<meta http-equiv="refresh" content="0; URL=/Authentication/Login">')
+    expect(rootMounted).not.toBeNull()
+    expect(landsOnMyChartRoute(rootMounted!.pathname)).toBe(true)
+    expect(parseFirstPathPartFromHtml('<meta http-equiv="refresh" content="0; URL=/Authentication/Login">')).toBe(null)
+
+    expect(parseMetaRefreshTarget('<html><body>Hello</body></html>')).toBe(null)
+  })
+
+  it('resolves an absolute target as written', () => {
+    const target = parseMetaRefreshTarget('<meta http-equiv="refresh" content="1 ;url=https://mychart.renown.org/mychart">')
+    expect(target?.href).toBe('https://mychart.renown.org/mychart')
+    // Renown's target is not itself a MyChart route, so discovery keeps going
+    // rather than short-circuiting on it.
+    expect(landsOnMyChartRoute(target!.pathname)).toBe(false)
+  })
+
+  it('resolves a relative target against the expected host', () => {
+    const target = parseMetaRefreshTarget('<meta http-equiv="refresh" content="0; URL=/MyChart/">', 'mychart.example.org')
+    expect(target?.href).toBe('https://mychart.example.org/MyChart/')
+  })
+
+  it('rejects a target on another host', () => {
+    const html = '<meta http-equiv="refresh" content="0; URL=https://www.renown.org/patients/">'
+    expect(parseMetaRefreshTarget(html, 'mychart.renown.org')).toBe(null)
   })
 })
 
