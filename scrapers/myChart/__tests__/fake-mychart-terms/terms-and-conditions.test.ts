@@ -5,7 +5,14 @@
  * The fake-mychart server must be running on localhost:4001 (or FAKE_MYCHART_TERMS_HOST)
  * with FAKE_MYCHART_REQUIRE_TERMS=true before these tests are executed.
  *
- * Run with: bun test scrapers/myChart/__tests__/fake-mychart/terms-and-conditions.test.ts
+ * This suite lives in its own directory, apart from the other fake-mychart
+ * suites, because that flag is a server-wide mode: with it on, every login
+ * redirects to the T&C page, which is not the shape the other suites are
+ * written against. Separate directories let each runner glob its own, so a new
+ * file is picked up by whichever server it belongs to instead of having to be
+ * named by hand — which is how `marge-and-reset.test.ts` went unrun for months.
+ *
+ * Run with: bun run test:fake-mychart-terms
  */
 
 import { describe, it, expect } from 'bun:test'
