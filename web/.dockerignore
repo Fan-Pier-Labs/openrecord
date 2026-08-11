@@ -1,9 +1,0 @@
-node_modules
-.next
-.git
-*.md
-deploy.yaml
-dev-https-proxy.mjs
-tsconfig.tsbuildinfo
-package-lock.json
-migrate-to-bun.md

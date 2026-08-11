@@ -213,13 +213,14 @@ Post the verdict as an issue comment (Step 5 covers tone/format).
 A technically-perfect PR that takes the product somewhere we don't want is **not** a good PR.
 Decide direction **first**; if it's wrong, quality is moot.
 
-Ground yourself in the actual vision before judging — read `CLAUDE.md`, `README.md`, `LICENSE`,
-`MYCHART_FEATURES.md`, and `SELF_HOSTING.md`. In short, this product is:
+Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, `LICENSE`,
+and `docs/MYCHART_FEATURES.md`. In short, this product is:
 
 - A **patient-controlled health-data aggregator** for Epic MyChart portals: scrape and consolidate
   a person's *own* medical records across 30+ categories.
-- **Local-first / self-hostable and agent-accessible** — a headless CLI, a self-contained OpenClaw
-  plugin that needs **no server**, an MCP server for Claude, a Next.js demo, and an Expo app.
+- **Local-first and agent-accessible** — a headless CLI (`mychart-cli`), a Claude Desktop
+  extension (`.mcpb`) that needs **no server**, and an Expo mobile app, all running the same
+  scrapers locally.
 - Under a **proprietary, source-available license**: viewing and personal/educational use only —
   **no commercial use, no redistribution, no SaaS, no competing products**; modifications must be
   contributed back.

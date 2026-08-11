@@ -20,12 +20,11 @@ find . -name "package.json" \
 
 You should see (at minimum):
 - `./package.json` (root)
-- `./web/package.json`
 - `./npm-package/package.json`
 - `./shared/package.json`
 - `./scrapers/package.json`
 - `./scrapers/myChart/clo-image-parser/package.json`
-- `./openclaw-plugin/package.json`
+- `./claude-desktop-extension/package.json`
 - `./fake-mychart/package.json`
 - `./expo-app/package.json`
 - `./tests/integration/ci/package.json`
@@ -66,9 +65,7 @@ Known anchors in this repo (verify each before deciding the target — these con
   - `@typescript-eslint/*` packages must be on the same minor version as each other.
 - **AWS SDK v3 (`@aws-sdk/*`)** — bump all `@aws-sdk/*` packages to the same version in lockstep.
 - **Sentry (`@sentry/*`)** — bump all `@sentry/*` packages to the same version in lockstep.
-- **Radix UI (`@radix-ui/*`)** — independent versions, but bump them all together to whatever each one's latest is.
-- **better-auth + @better-auth/passkey** — must match minor versions.
-- **@modelcontextprotocol/sdk** — check that the MCP server code in `web/src/lib/mcp/` is compatible with the new SDK shape before bumping.
+- **@modelcontextprotocol/sdk** — check that the MCP server code in `claude-desktop-extension/` is compatible with the new SDK shape before bumping.
 
 If the latest version of an anchor package isn't yet compatible with a peer's latest, **pick the highest mutually-compatible set** — that may mean staying one minor behind on either side. Document the constraint in the PR description so a reviewer understands why.
 
@@ -78,11 +75,10 @@ Edit each `package.json` with the new versions. Then reinstall in each workspace
 
 ```bash
 bun install                              # root
-cd web && bun install && cd ..
 cd npm-package && bun install && cd ..
 cd fake-mychart && bun install && cd ..
 cd expo-app && bun install && cd ..
-cd openclaw-plugin && bun install && cd ..
+cd claude-desktop-extension && bun install && cd ..
 cd tests/integration/ci && bun install && cd ../../..
 ```
 
@@ -118,7 +114,6 @@ Common breaking-change hotspots in this repo to spot-check:
 - `@modelcontextprotocol/sdk` major → tool registration API.
 - `cheerio` major → ESM-only changes.
 - `eslint` major → flat config differences.
-- `@sentry/nextjs` major → instrumentation hook changes.
 
 ## Step 6: Run every test suite
 
@@ -126,8 +121,6 @@ Run all of these and fix any failures:
 
 ```bash
 bun run lint
-bun run test:unit
-bun run test:unit:web
 bun run test
 ```
 
@@ -138,7 +131,7 @@ bun run test:ci-integration
 docker compose -f docker-compose.ci.yaml down -v
 ```
 
-Don't skip the CI integration tests just because they're slow — they're the only thing that catches runtime regressions in the web app's auth, MCP, and scraping endpoints. If Docker isn't running, ask the user whether to start it or skip CI integration (note the skip in the PR description).
+Don't skip the CI integration tests just because they're slow — they're the only thing that catches runtime regressions in the CLI passkey flow against a real fake-mychart server. If Docker isn't running, ask the user whether to start it or skip CI integration (note the skip in the PR description).
 
 For `expo-app/`, also run any unit tests it has and at minimum confirm `bunx expo doctor` is clean.
 
@@ -156,21 +149,19 @@ If a test failure looks unrelated to a package bump (e.g. a flaky CI integration
 
 ```bash
 bun run lint
-bun run lint:web
 ```
 
 If a package bump enables new lint rules and creates a flood of warnings, fix them. Don't disable rules to make the diff smaller.
 
-## Step 9: Verify the web app still boots
+## Step 9: Verify fake-mychart still boots
 
 Start the dev server and hit at least one route to confirm the app actually runs end-to-end:
 
 ```bash
-PORT=$(python3 -c "import random; print(random.randint(3100, 3999))") \
-  && cd web && PORT=$PORT bun run dev &
+cd fake-mychart && PORT=4000 bun run dev &
 ```
 
-Wait for "Ready" in the output, then `curl http://localhost:$PORT/` to confirm a 200. Kill the server after.
+Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
 
 For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `expo-app/`. Don't try to launch the simulator unless the user asks.
 
@@ -186,7 +177,7 @@ For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `e
    - **Summary** — short list of major version bumps (e.g. `next 16 → 17`, `expo 55 → 56`).
    - **Compatibility decisions** — any package you intentionally held back, and why (cite the peer-dep conflict).
    - **Code changes** — every non-trivial code fix made to adopt a new API.
-   - **Test plan** — boxes for lint, unit, web unit, CI integration, dev server smoke, expo doctor.
+   - **Test plan** — boxes for lint, unit, CI integration, fake-mychart smoke, expo doctor.
 
 Do not enable auto-merge. Wait for the user.
 

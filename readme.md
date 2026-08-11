@@ -1,12 +1,12 @@
 # OpenRecord
 
-**Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to MyChart and exposes 35+ tools through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Unlike other health MCP servers that only let you read your data, OpenRecord has full write support — send messages, request refills, and update your insurance information, not just view it.
+**Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to Epic MyChart patient portals and exposes 35+ tools for reading and managing your health data, with full write support — send messages, request refills, and update your insurance information, not just view it.
 
-The project is **open source** and designed to run on your own infrastructure. Deploy your own instance to [Railway](https://railway.com) with one click — it provisions a database, generates secrets, and runs migrations automatically. You'll have a fully functional MCP server in under 3 minutes with zero configuration.
+OpenRecord ships as three clients, all built on the same scraper core:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/5F69Mf?referralCode=xrxOUg)
-
-Or try the hosted version at [openrecord.fanpierlabs.com](https://openrecord.fanpierlabs.com).
+1. **Claude Desktop extension** (`claude-desktop-extension/`) — a `.mcpb` bundle that runs entirely on your machine. Install it, say "Set up my MyChart", and Claude handles the rest.
+2. **Mobile app** (`expo-app/`) — an Expo/React Native iOS app with an on-device agent, skills, and alerts.
+3. **CLI + npm package** (`npm-package/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
 
 ## What It Does
 
@@ -34,114 +34,58 @@ Connects to any Epic MyChart patient portal and exposes 35+ tools for reading an
 
 ## How It Works
 
-OpenRecord logs in with your credentials, handles 2FA automatically (via TOTP authenticator codes), and interacts with MyChart's APIs on your behalf. No FHIR, no OAuth, no Epic developer account needed — just your MyChart username, password, and optionally a TOTP secret for automatic 2FA.
+OpenRecord logs in with your credentials, handles 2FA automatically (via TOTP authenticator codes or passkeys), and interacts with MyChart's APIs on your behalf. No FHIR, no OAuth, no Epic developer account needed — just your MyChart username, password, and optionally a TOTP secret for automatic 2FA.
 
-Sessions are kept alive automatically and re-established on expiry.
-
-## Demo MCP Server
-
-Try the MCP server with fake patient data — no account or API key required.
-
-**Demo URL:** `https://openrecord.fanpierlabs.com/api/mcp/demo`
-
-The demo server exposes the same 35+ tools as the real MCP server (medications, lab results, vitals, messages, etc.) but returns fictional data for a sample patient. All meta tools (list_accounts, connect_instance, check_session, complete_2fa) work as well — they just return pre-connected status.
+Sessions are kept alive automatically and re-established on expiry. Credentials never leave your machine — every client runs the scrapers locally.
 
 ## Getting Started
 
-### 1. Claude Desktop
-
-The fastest way to get started. Sign up, connect your MyChart account, and add the MCP server to Claude Desktop.
-
-1. Sign up at [openrecord.fanpierlabs.com](https://openrecord.fanpierlabs.com) (or your self-hosted instance)
-2. Add your MyChart account — hostname, username, and password
-3. Generate an MCP URL
-4. In Claude Desktop: **Settings → MCP Servers → Add** → Name: `mychart` and MCP URL: the one you copied
-
-One URL works for all your MyChart accounts. If you have multiple accounts connected, tools accept an optional `instance` parameter to target a specific hospital. TOTP-enabled instances auto-connect on first tool call.
-
-MCP servers added in Claude Desktop automatically sync to the **Claude mobile app** and any other MCP-compatible client.
-
-### 2. OpenClaw Plugin (Local, No Server)
-
-Runs entirely on your machine with no server dependency.
+### 1. Claude Desktop extension
 
 ```bash
-# Install
-cd openclaw-plugin && bun run build
-openclaw plugins install -l ./openclaw-plugin
-
-# Setup (interactive — configures hostname, username, password, optional TOTP)
-openclaw mychart setup
-
-# Check config
-openclaw mychart status
-
-# Reset credentials
-openclaw mychart reset
+cd claude-desktop-extension
+bun install
+bun run pack          # builds dist/server.cjs and produces openrecord.mcpb
 ```
 
-The plugin auto-logs in on first tool call, keeps the session alive, and re-authenticates when it expires. Optionally import credentials from your browser (Chrome, Arc, Firefox) during setup.
+Then double-click `openrecord.mcpb` (or drag it into Claude Desktop → Settings → Extensions), open a new chat, and say "Set up my MyChart". Claude walks you through picking your health system, signing in, and 2FA. Credentials are stored locally in `~/.openrecord-mcpb/` and are never sent to Anthropic.
 
-## Deployment
+Want to try it without real credentials? Search for **Springfield General Hospital (test)** during setup — it points at the `fake-mychart.fanpierlabs.com` sandbox (sign in with `homer` / `donuts123`).
 
-### Self-Host on Railway
+See [claude-desktop-extension/README.md](claude-desktop-extension/README.md) for details.
 
-Deploy your own instance with one click using the button at the top of this README.
+### 2. Mobile app
 
-The template automatically provisions a Postgres database, generates secrets, and runs migrations on first startup. No manual configuration required.
+The Expo app in `expo-app/` runs the scrapers on-device. See `expo-app/` for build instructions (`bunx expo run:ios`).
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Auto-injected by Railway Postgres plugin |
-| `BETTER_AUTH_SECRET` | Auto-generated by template |
-| `ENCRYPTION_KEY` | Auto-generated by template |
-| `GOOGLE_CLIENT_ID` | Optional — for Google OAuth sign-in |
-| `GOOGLE_CLIENT_SECRET` | Optional — for Google OAuth sign-in |
-
-**Setup:**
-
-1. Click the deploy button above
-2. Wait for the build to finish (~2 minutes)
-3. Visit your domain, sign up, add your MyChart account, and generate an API key
-
-### AWS Fargate
-
-The web app deploys to AWS Fargate via a single command:
+### 3. CLI
 
 ```bash
-bun run deploy
+npm i -g mychart-cli
+mychart-cli --help
 ```
 
-This builds a Docker image, pushes it to ECR, and deploys to ECS Fargate. Infrastructure:
-
-- **Platform**: AWS Fargate (spot instances)
-- **Config**: `web/deploy.yaml`
-- **Resources**: 1 vCPU, 2 GB RAM, 21 GB ephemeral storage
-- **Frontend**: CloudFront + ALB + Route53
-- **Auth**: BetterAuth (email+password, Google OAuth) with PostgreSQL
-- **Secrets**: AWS Secrets Manager (Resend API key for email 2FA, BetterAuth secret, Google OAuth creds)
+Or from a checkout: `bun run cli mychart [flags]`. See [docs/cli.md](docs/cli.md) for cookie caching, credential resolution, 2FA, and the full action list.
 
 ## Architecture
 
 ```
 openrecord/
-  scrapers/          # Shared MyChart scraper code (login, API calls, parsing)
-  web/               # Next.js web app + hosted MCP server
-  openclaw-plugin/   # Self-contained OpenRecord plugin for OpenClaw
-  cli/               # Headless CLI for testing and scripting
-  shared/            # Common types and enums
+  scrapers/                  # Shared MyChart scraper code (login, API calls, parsing)
+  shared/                    # Common types and enums
+  claude-desktop-extension/  # Claude Desktop .mcpb extension
+  expo-app/                  # Expo/React Native mobile app
+  npm-package/               # mychart-cli npm package (CLI + library)
+  read-local-passwords/      # Browser password store extraction (used by the CLI)
+  fake-mychart/              # Fake MyChart server for development and CI
 ```
 
-The scrapers are shared across all entry points (web app, OpenRecord plugin, CLI). Each entry point handles auth and session management differently, but they all call into the same scraper functions.
+The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions.
 
 ## Development
 
 ```bash
 bun install
-
-# Web app
-cd web && bun run dev        # Next.js dev server
-cd web && bun run build      # Production build
 
 # Fake MyChart (for development without real credentials)
 cd fake-mychart && bun run dev   # Fake MyChart server on port 4000
@@ -150,24 +94,17 @@ cd fake-mychart && bun run dev   # Fake MyChart server on port 4000
 bun run cli                  # Run the CLI scraper
 
 # Tests
-bun run test                 # All tests (unit + web)
-bun run test:unit            # Scraper unit tests only
-bun run test:unit:web        # Web app tests only
+bun run test                 # Unit tests
 bun run test:fake-mychart    # Fake MyChart integration tests
 
 # Linting
-bun run lint                 # ESLint (scrapers + web)
+bun run lint                 # ESLint
 bun run fix                  # ESLint auto-fix
 ```
 
-## Todo
-
-1. Build a Claude extension so everything can run locally instead of via an MCP server
-2. Add support for refills and sending messages to doctors via MyChart
-
 ## Telemetry
 
-The CLI, web app, and `mychart-cli` npm package send anonymous
+The CLI and `mychart-cli` npm package send anonymous
 usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart

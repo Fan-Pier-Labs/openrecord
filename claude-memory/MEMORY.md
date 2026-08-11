@@ -96,12 +96,15 @@ MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Remov
 - CLI at `cli/cli.ts` with `--host`, `--user`, `--pass`, `--2fa`, `--action` args
 - Primary test target is the MyChart instance configured in creds.json
 
-## Monorepo Structure (Refactored 2026-03-04)
+## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)
-- `cli/` — CLI entry point + resend 2FA
+- `npm-package/` — `mychart-cli` npm package (CLI entry at `npm-package/cli/cli.ts`) + resend 2FA
+- `claude-desktop-extension/` — Claude Desktop `.mcpb` extension
+- `expo-app/` — Expo/React Native mobile app
 - `shared/` — common types (AccountStatus, CommonMyChartAccount)
 - `read-local-passwords/` — browser keystore extraction
 - `scrapers/myChart/clo-image-parser/` — eUnity CLO image parser
-- `web/` — Next.js web app (still has its own scraper copies in `web/src/lib/mychart/`)
-- Tests: `bun test scrapers/myChart/__tests__/*.test.ts` (132 unit) + `cd web && bun test` (295 web)
+- `fake-mychart/` — fake MyChart server for dev/CI
+- Removed 2026-08: `web/` (Next.js app), `openrecord-splash/`, `openrecord-demo-lambda/`, `newsletter-lambda/`, `openclaw-plugin/`
+- Tests: `bun run test` (all unit suites from repo root)
 - Node 25 + ESLint crashes (SIGABRT) — pre-existing issue, not refactor-related

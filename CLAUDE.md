@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Health data aggregation platform that connects to Epic MyChart portals to scrape and consolidate a patient's medical records. Supports 30+ data categories. Ships a headless CLI mode, a Next.js web demo on AWS Fargate, and an MCP server for Claude AI integration.
+Health data platform that connects to Epic MyChart portals to scrape and consolidate a patient's medical records. Supports 30+ data categories. Ships three clients on one shared scraper core: a Claude Desktop extension (`.mcpb`), an Expo/React Native mobile app, and a headless CLI published as the `mychart-cli` npm package.
 
 ## License
 
@@ -10,15 +10,14 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 
 ## Architecture
 
-- **Scrapers** (`scrapers/`): Shared scraper code for MyChart
+- **Scrapers** (`scrapers/`): Shared scraper code for MyChart — every client calls into these
 - **Mount discovery** (`scrapers/myChart/login.ts`): `determineFirstPathPart` works out where MyChart lives on a hostname — the prefix its routes sit under (`/MyChart`, `/UCSFMyChart`, `prd`, or nothing for a root-mounted instance) and which host actually serves it. It follows the root redirect chain to the end (Location headers, meta refreshes, scripted `window.location`, cross-host moves), since MyChart's canonical bounce only names the mount on its last hop. Guesses — a link off a landing page, a host it was redirected to — are checked for a real login page before being trusted. Verify changes with `probe-mount-discovery.ts` (see Key Commands).
-- **CLI** (`npm-package/cli/cli.ts`): Headless CLI entry point — bundled into the published `mychart-cli` npm package as the `mychart-cli` bin. `npm i -g mychart-cli` puts `mychart-cli` on PATH. Great for Claude code to use for testing changes in the cli or scrapers.
+- **CLI + npm package** (`npm-package/`): Headless CLI entry point (`npm-package/cli/cli.ts`) — bundled into the published `mychart-cli` npm package as the `mychart-cli` bin, alongside an importable library. `npm i -g mychart-cli` puts `mychart-cli` on PATH. Great for Claude Code to use for testing changes in the CLI or scrapers.
+- **Claude Desktop extension** (`claude-desktop-extension/`): A `.mcpb` Claude Desktop Extension that runs the scrapers locally as an MCP server. `bun run pack` builds `dist/server.cjs` and produces `openrecord.mcpb`. Includes an interactive setup widget (health-system autocomplete over the MyChart directory, sign-in, 2FA) with a tool-call fallback for non-widget clients. Credentials are stored locally in `~/.openrecord-mcpb/`. Ships a built-in **Springfield General Hospital (test)** instance pointing at `fake-mychart.fanpierlabs.com`. See `claude-desktop-extension/README.md`.
+- **Mobile app** (`expo-app/`): Expo/React Native iOS app running the scrapers on-device, with an agent loop (`src/lib/ai/claude-client.ts`), skills, and alerts. Build with `bunx expo run:ios`. Note: its `backendUrl` (`expo-app/app.config.ts`) points at a hosted backend for AI chat (`/api/ai`) and Google sign-in; override with `EXPO_PUBLIC_BACKEND_URL`.
 - **Shared types** (`shared/`): Common types and enums shared across packages
-- **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
+- **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
-- **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
-- **OpenRecord plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin (package name: `openrecord`) that bundles all MyChart scrapers locally. No server dependency.
-- **Newsletter Lambda** (`newsletter-lambda/`): Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups from the login page and `console.log`s them to CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration. Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account blocks unauthenticated Lambda Function URLs. Deploy with `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com` (frontend reads `NEXT_PUBLIC_NEWSLETTER_ENDPOINT`, falling back to this URL). Read signups via CloudWatch Logs Insights: `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`. Hidden `company` honeypot field drops bots. See `newsletter-lambda/README.md`.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (no 2FA) or `marge`/`donuts123` (TOTP enabled — always requires the 2FA code `123456`). Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password. All state lives in RAM. Visit `/reset` (or `POST /reset`) to wipe all in-memory state — sessions, sent messages, emergency contacts, per-user TOTP/passkeys, booked appointments, active patient record, mount/discovery/proxy-discovery/terms modes — back to the seed. `POST /mode` sets the knobs: `{"mode":"prefixed"|"root"}` is where MyChart is mounted (under `/MyChart`, or at the domain root like Cleveland Clinic); `{"discovery":…}` is how `/` announces that — `redirect` (302 with a `Location`), `meta-refresh` (200 with an absolute `<meta http-equiv="refresh">`, Renown), `default-asp` (the multi-hop bounce through a bare relative `DefaultAsp` that only names the route on its last hop, adams.mychartcc.com), `script` (a `window.location` assignment, mydovetale.ca), `landing-page` (an affiliate chooser that redirects nowhere and only links at the mount, mychart.chihealth.com), or `moved-host` (the deployment now lives elsewhere, patients.mycslink.org → mycslink.cedars-sinai.org — pair it with `{"movedHost":"127.0.0.1:4000"}`); and `{"proxyDiscovery":"json"|"html"|"script"}` is which surface lists the patient records an account can access, and `{"requireTerms":true|false}` is whether login lands on the chart or bounces to Terms & Conditions until accepted (this replaced the `FAKE_MYCHART_REQUIRE_TERMS` env var, which needed a whole second server on another port, its own CI job and its own test directory to exercise). Omitted keys are left alone; all combinations work. Whichever mount is active serves MyChart from exactly one prefix — the other 404s, and a root-mounted instance 404s `/<anything>/Authentication/*` so a wrong prefix guess can't silently pass.
   - **Proxy (multi-patient) records**: `homer` has proxy access to his three kids (Bart, Lisa, Maggie), each with its own chart data — switching context changes what every endpoint returns, and a category a child has no data for comes back empty rather than falling through to Homer's. `marge` has none. **Every record, the account holder's included, carries a long opaque `WP-…` id; self is identified by `IsSelf`, never by a blank id** (confirmed on UCSF, Renown and Carson Tahoe — see PR #206). Served via `GET /ProxySwitch` and switched via `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>`; the account holder's own `LinkUrl` is a bare `inside.asp`. The `proxyDiscovery` knob above selects the JSON endpoint, `.proxySubjectLink` anchors, or bare `proxySubjects.push(...)` script blocks, so all three scraper fallbacks are testable. Only the JSON surface has been verified against real instances; the HTML/script markup is inferred. See `fake-mychart/README.md`.
   - **Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a convenience mock. Always replicate the real API's response shapes, field names/casing, pagination (page sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules (e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the fake returns 10, and the fixture/test is sized around that. When you discover how a real endpoint behaves, update the fake to match it exactly.
@@ -26,237 +25,67 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Key Commands
 
 - `bun run lint` — Run ESLint
-- `bun run test` — Run unit tests + web tests
-- `bun run test:unit` — Run scraper unit tests only
+- `bun run test` — Run all unit tests (scrapers, shared, CLI, expo-app libs, desktop extension)
+- `bun run test:unit` — Alias for `bun run test`
 - `bun run test:integration` — Run integration tests (requires credentials)
+- `bun run test:fake-mychart` — Run scraper tests against a running fake-mychart on port 4000
 - `bun run cli` — Run the CLI scraper (defaults to MyChart)
 - `bun run cli mychart [flags]` — MyChart scraper
 - `cd fake-mychart && bun run dev` — Run fake MyChart server on port 4000
 - `cd fake-mychart && bun run build` — Build fake MyChart for production
-- `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
-- `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose services running)
+- `cd claude-desktop-extension && bun run pack` — Build the Claude Desktop extension (`openrecord.mcpb`)
+- `cd npm-package && bun run build` — Build the `mychart-cli` npm package (CLI binary at `npm-package/dist/cli.cjs`)
+- `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose fake-mychart running and the CLI binary built)
 - `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` — Run mount discovery against all ~750 hosts in the directory and report the ones it gets wrong. Run it after touching discovery. Sends no credentials. Flags: `--out`, `--concurrency`, `--limit`, `--hosts a.org,b.org`, `--verbose`.
-- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, fake-mychart, web app)
+- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start the CI fake-mychart service (port 4000)
 - `docker compose -f docker-compose.ci.yaml down -v` — Tear down CI services
 
 ## CI Integration Tests
 
-End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, fake-mychart, and the web app.
+Integration tests in `tests/integration/ci/` run against the dockerized fake-mychart from `docker-compose.ci.yaml` (served on `localhost:4000`):
 
-**Single test file** (`tests/integration/ci/integration.test.ts`) runs all scenarios sequentially to maintain shared state (session cookies, instance IDs). Covers:
-1. Health check canary
-2. Sign up, sign in, sign out
-3. MyChart instance CRUD, connect, login flow
-4. Full 30-category data scrape with Homer Simpson spot-checks
-5. MCP API key generate/revoke lifecycle
-6. Notification preference CRUD
-7. App-level TOTP 2FA enable/verify/sign-in/disable
-8. Password reset request, token validation, password change, old password rejection
-9. Passkey setup on MyChart instance and passkey auto-login
-10. Proxy (multi-patient) context — discover → switch → verify → switch back across all three discovery surfaces, per-record data scoping (a child's chart never returns the parent's data), plus the same capability through MCP
-11. Root-mounted MyChart instance — flips the fake to root mode, connects, scrapes, restores the default
-12. Meta-refresh prefix discovery — flips the fake to `meta-refresh` discovery (root answers 200 with an absolute `<meta http-equiv="refresh">`, the Renown shape), connects, scrapes, then checks root-mount + meta-refresh together before restoring the defaults
-13. MyChart instance deletion and cleanup
+- `cli-passkey.test.ts` — spawns the built CLI (`npm-package/dist/cli.cjs`) to exercise passkey setup, passkey auto-login, and passkey removal end to end. Build the CLI first (`cd npm-package && bun run build`).
+- `fake-mychart-passkey-ui.test.ts` — Playwright-driven browser test of the fake-mychart passkey UI using Chromium's WebAuthn virtual authenticator (a CDP feature plain `fetch` can't replicate).
+
+The `fake-mychart` CI job separately runs the scraper suite (`bun run test:fake-mychart`), the desktop-extension tests, and the npm-package tests against a locally built fake-mychart server.
 
 **Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
 
-**Database access**: PostgreSQL is exposed on host port 5433 (mapped from container port 5432) so integration tests can query the DB directly (e.g., to extract password reset tokens from the `verification` table). Connection string: `postgresql://testuser:testpass@localhost:5433/mychart_test` (override with `CI_DATABASE_URL` env var).
+## Proxy (Multi-Patient) Support
+
+Accounts with proxy access to several patients' charts (a parent reading a child's record) can list and switch the active patient. **MyChart's active patient is server-side session state — there is no per-request patient parameter — so callers must name the patient they mean rather than relying on a previous switch.** `withProxyTarget(request, patient, fn)` in `scrapers/myChart/proxyContext.ts` is the primitive for that; `findProxyTarget` resolves a name, partial name, id or `me` and refuses to guess when ambiguous. The CLI is deliberately conservative: reads never mutate. `--patient "<name>"` (names only, never ids; defaults to the account holder) asserts who the command is about via `checkProxyContext`, and if MyChart is on someone else the CLI errors out with the `--action list-proxies` and `--switch "<name>"` commands to run. `--switch` is the only command that changes MyChart's server-side active patient. Switching changes which record every other tool reads from, and is verified against the profile page before it returns — a switch that lands on a different patient fails instead of returning the wrong chart. Record ids are opaque and organization-specific, so switch tools accept `self: true` to return to the account holder rather than requiring a looked-up id.
 
 ## Reference Docs
 
 - **[CLI reference](docs/cli.md)** — Cookie caching, credential resolution, 2FA, CLI actions
 - **[Imaging scraper](docs/imaging.md)** — eUnity protocol, AMF3, instance-specific notes
 - **[Scraping guide](docs/scraping.md)** — MyChart login, scraping tips, and tooling
-- **[OpenRecord plugin](docs/openclaw.md)** — Build, install, setup, and tool registration
-- **[Deployment details](docs/deployment.md)** — Additional infrastructure notes
-- **[MyChart features](MYCHART_FEATURES.md)** — Full inventory of MyChart features and scraper coverage
+- **[MyChart features](docs/MYCHART_FEATURES.md)** — Full inventory of MyChart features and scraper coverage
 - **[MyChart TOTP](docs/mychart-totp.md)** — TOTP authenticator app 2FA setup, API endpoints, CLI flags
-- **[Self-hosting](SELF_HOSTING.md)** — Run locally with PostgreSQL, ngrok/Cloudflare Tunnel, and env-var config
 
 ## Deployment
 
-The web app supports two deployment modes, auto-detected via the `DATABASE_URL` env var:
-
-- **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
-- **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
-
-### Static splash page + interactive demo (primary public site)
-
-- **`openrecord.fanpierlabs.com` serves a static site**, NOT the Next.js app. See `openrecord-splash/`.
-  - Two halves on purpose: `index.html` is a hand-written self-contained splash with no build step, and `demo/` is a React + TypeScript app built with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
-  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` — it typechecks, builds the demo into `dist/`, then uploads `index.html`, `demo.html`, the hashed assets, and the icons/share card/manifest, setting content types explicitly (a `.js` served as `binary/octet-stream` is refused by the browser's module loader). Hashed assets get a one-year immutable cache; the HTML and the fixed-name assets are invalidated.
-  - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
-  - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
-  - **The splash deliberately does not link to the demo.** `/demo.html` deploys with every push but is unadvertised, so it is reached by sharing the URL. Don't "fix" the missing CTA — putting the demo on the homepage is a product decision to make on purpose.
-  - **Share previews + PWA assets**: `og-image.png` (1200×630 card), `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`. The PNGs are generated but committed — run `cd openrecord-splash && ./generate-assets.sh` after editing `icon.svg` or `assets-src/og-image.html`. It renders the card with headless Chrome and the icons with `rsvg-convert` (`brew install librsvg`), and also writes the web app's copies into `web/public/`. `og:image` must be an **absolute** `https://` URL — iMessage and Slack will not resolve a relative path. `deploy.sh` uploads and invalidates every asset; `openrecord-splash/__tests__/metadata.test.ts` fails if one is referenced but not deployed.
-
-### Interactive demo (`openrecord-splash/demo/`)
-
-A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
-
-**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored).
-
-Logic modules — framework-free and fully unit-tested:
-
-- `src/data.ts` — the fictional record, ported from `web/src/lib/mcp/demo-data.ts` and extended with multi-draw lab trends and a longer billing ledger. Payload shapes elsewhere are derived from it with `typeof` so they can't drift.
-- `src/types.ts` — shared types for the record, tool layer, and agent loop.
-- `src/tools.ts` — all 46 MyChart tools. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
-- `src/agent.ts` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
-- `src/stream.ts` — reveals a finished reply at the pace a model would have produced it. Uses `setTimeout`, **not** `requestAnimationFrame`: rAF is paused in background tabs, so a visitor who switches away mid-reply would return to a message frozen half-written.
-- `src/skills.ts` — the three skill playbooks plus the home-screen alert cards.
-- `src/markdown.ts` — parses assistant replies into a typed tree. Produces no HTML.
-
-Components:
-
-- `src/App.tsx` — shell: owns the session, surface switching, the shared tool-call activity panel. Both surfaces stay mounted (toggled with `hidden`) so switching clients preserves each conversation.
-- `src/components/IosSurface.tsx`, `DesktopSurface.tsx` — the two device surfaces.
-- `src/components/Markdown.tsx` — renders the parsed tree as React elements.
-- `src/components/Radiograph.tsx` — the chest X-ray, drawn procedurally on a canvas rather than shipped as a file, and labelled as simulated.
-- `src/config.ts` — `AI_ENDPOINT`, resolved from `?ai=<url>`, then `VITE_AI_ENDPOINT`, then the baked-in default.
-
-**Every reply is a real model call — there is deliberately no canned-response path.** An earlier version fell back to a keyword table when no model was reachable, and it produced confident non sequiturs the moment a visitor asked something it hadn't anticipated. A failed call now surfaces an honest error and the badge reads "Model unreachable". **The demo also starts on a connected account** — the onboarding and extension-setup flows belong to the product, not the demo.
-
-**Security:** model output is untrusted. `markdown.ts` parses it into a typed tree and `Markdown.tsx` renders that tree as React elements, so React escapes every text node. **There is no `dangerouslySetInnerHTML` in the demo and there must never be one** — see the project rule above. Tests assert that markup in model output stays text.
-
-Local dev: `cd openrecord-splash/demo && npx vite` (serves `/demo.html` with hot reload).
-
-### Demo AI Lambda (`openrecord-demo-lambda/`)
-
-Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and returns `{ text }` — the same provider-neutral shape as the web app's `/api/ai`, so the demo's agent loop is a straight port rather than a special case.
-
-- Model: **`gemini-2.5-flash` with `thinkingBudget: 0`**. Override with `DEMO_MODEL=... ./deploy.sh`. Was `flash-lite`; it completed 23/40 of the demo's own suggested prompts against flash's 40/40, and its failures were the bad kind ("I've listed your current medications" with no medications listed). See `openrecord-demo-lambda/README.md`.
-- Reuses the existing `GEMINI_API_KEY` secret, read at deploy time and set as a function env var (so the Lambda needs no Secrets Manager permissions and no AWS SDK).
-- Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
-- Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
-- Usage/cost: `fields @timestamp, @message | filter @message like /demo_ai_call/ | sort @timestamp desc` on `/aws/lambda/openrecord-demo-ai`.
-- **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model unreachable". The demo has no offline path by design.
-
-### AWS Fargate (Next.js web app)
-
-- **AWS account**: fanpierlabs (`aws --profile fanpierlabs`)
-- **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy` (from repo root, uses `web/deploy.yaml`)
-  - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
-  - Config: `web/deploy.yaml`
-  - **Share previews + PWA**: `web/src/app/layout.tsx` sets `metadataBase` from `resolveSiteUrl()` (`web/src/lib/site-url.ts`), which is what makes the relative `/og-image.png` resolve to an absolute URL — iMessage and Slack ignore relative ones. `web/src/app/manifest.ts` is served at `/manifest.webmanifest`. Override the origin with `NEXT_PUBLIC_SITE_URL`; it falls back to `BETTER_AUTH_URL`, `NEXT_PUBLIC_BASE_URL`, `RAILWAY_PUBLIC_DOMAIN`, then the `deploy.yaml` domain in production. Assets come from `openrecord-splash/generate-assets.sh` — don't hand-edit the PNGs.
-  - **No longer routed at `openrecord.fanpierlabs.com`** (that domain now serves the static splash above). The Fargate app + ALB (`mychart-alb-7967620`) and CloudFront distro `E2QOJCUV1KR3B0` still exist; `mychart.fanpierlabs.com` still points to them. Re-point a domain at that distro if you need the full app (incl. `/api/mcp`) publicly reachable again.
-  - Region: `us-east-2`
-- **Fake MyChart** (`fake-mychart/`): Separate Fargate app deployed independently from the web app. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile` (not the repo-root web app Dockerfile):
-  - `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml`
-  - Config: `fake-mychart/deploy.yaml`
+- **AWS account**: fanpierlabs (`aws --profile fanpierlabs`), region `us-east-2`
+- **Fake MyChart** (`fake-mychart/`): Fargate app deployed independently. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile`:
+  - `cd fake-mychart && bun install && bun run deploy` (uses its own `deploy` dev dependency and `deploy.yaml`)
   - Domain: `fake-mychart.fanpierlabs.com` (its own ALB + ECS service `fake-mychart-service` in cluster `fake-mychart-cluster`)
-  - Region: `us-east-2`
-
-### Railway / Self-Hosted
-
-- Config: `railway.toml` (Dockerfile-based build)
-- Required env vars: `DATABASE_URL` (auto from Postgres plugin), `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`
-- Railway deployments work zero-config: `*.up.railway.app` is always trusted. Set `BETTER_AUTH_URL` only if using a custom domain.
-- Optional env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google OAuth disabled without them)
-- SSL is enabled by default for all Postgres connections (Railway and AWS). Set `DB_SSL=false` only for local dev with a plain Postgres container. AWS RDS uses full certificate verification (`rejectUnauthorized: true`) with the committed CA bundle at `web/certs/rds-global-bundle.pem`. Railway uses `rejectUnauthorized: false` (self-signed certs).
 
 ## S3 Buckets (us-east-2)
 
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`)
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
-  - Served via `GET /api/mychart-logo?name=<filename>`
-- **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
-  - Static splash page (`index.html`), interactive demo (`demo.html` + `demo/`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
 - **RESEND_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:RESEND_API_KEY-vKJonO`
   - Used by CLI for autonomous 2FA code retrieval via Resend inbound emails
   - Inbound email address: `healthapp@bocuedpo.resend.app`
-- **BETTER_AUTH_SECRET**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:BETTER_AUTH_SECRET-ViBKHZ`
-  - BetterAuth session signing secret, loaded automatically from Secrets Manager
-- **BETTER_AUTH_URL**: Base URL for BetterAuth (defaults to `RAILWAY_PUBLIC_DOMAIN` or `http://localhost:3000`)
-- **GOOGLE_CLIENT_ID** / **GOOGLE_CLIENT_SECRET**: Google OAuth credentials (optional, Google sign-in disabled without them)
-- **SENTRY_AUTH_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:mychart-connector-sentry-auth-token-UputCa`
-  - Sentry auth token for error monitoring and source map uploads
-- **GEMINI_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:GEMINI_API_KEY-GPbdf6`
-  - Google Gemini API key for the AI proxy. Can also be set via `GEMINI_API_KEY` env var in env-var mode.
-  - Also used by the public demo's `openrecord-demo-ai` Lambda, which copies it into a function env var at deploy time.
 - **EXPO_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:EXPO_TOKEN-XYwf9T`
   - Expo access token for EAS CLI builds and TestFlight submissions. Used with `EXPO_TOKEN` env var.
 - **APPLE_CREDENTIALS**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:APPLE_CREDENTIALS-GZhHoo`
   - Apple Developer credentials (appleId, appleTeamId) for iOS builds and App Store submissions.
 - **APPLE_APP_SPECIFIC_PASSWORD** (ryanhughes624): `arn:aws:secretsmanager:us-east-2:066949051862:secret:APPLE_APP_SPECIFIC_PASSWORD-fZNTNC`
   - Apple app-specific password for App Store Connect / TestFlight CLI uploads (ryan@fanpierlabs.com).
-
-## App Authentication & 2FA
-
-BetterAuth handles email+password and Google OAuth sign-in. Two additional auth methods are supported:
-
-- **Passkeys (WebAuthn)**: Users can register passkeys (Touch ID, Face ID, security keys) from the Security card on the home page. Sign-in with passkey is available on the login page.
-- **TOTP 2FA (Authenticator App)**: Users can enable TOTP-based two-factor authentication from the Security card. When enabled, sign-in with email+password requires a 6-digit code from an authenticator app. Backup codes are provided during setup.
-- **Password Reset**: Users can reset their password via email. The flow: `/forgot-password` (enter email) → receive reset email via Resend → `/reset-password?token=...` (enter new password). Uses BetterAuth's built-in `forgetPassword`/`resetPassword` APIs.
-
-Key files:
-- `web/src/lib/auth.ts` — Server config with `twoFactor()` and `passkey()` plugins, `sendResetPassword` email handler
-- `web/src/lib/auth-client.ts` — Client config with `twoFactorClient()` and `passkeyClient()` plugins
-- `web/src/lib/email.ts` — Shared transactional email utility (Resend). Supports both AWS Secrets Manager and `RESEND_API_KEY` env var
-- `web/src/app/login/page.tsx` — Passkey sign-in button + TOTP verification step + "Forgot password?" link
-- `web/src/app/forgot-password/page.tsx` — Request password reset email
-- `web/src/app/reset-password/page.tsx` — Set new password with reset token
-- `web/src/app/home/page.tsx` — Security settings card (enable/disable TOTP, manage passkeys)
-
-Database tables (`twoFactor`, `passkey`) are auto-created by `runMigrations()`.
-
-Note: This is separate from MyChart portal TOTP (used for auto-connecting to health portals).
-
-## MCP Server
-
-The web app exposes a per-user MCP server at `/api/mcp?key={apiKey}` for Claude AI integration. Users generate a long-lived API key (SHA-256 hash stored in `user.mcp_api_key_hash`) via `POST /api/mcp-key`. One MCP URL works for all of a user's MyChart accounts — tools accept an optional `instance` parameter to target a specific hostname when multiple accounts are connected. Auto-connects TOTP-enabled instances on first tool call.
-
-Accounts with proxy access to several patients' charts (a parent reading a child's record) get `list_proxy_targets` and `switch_proxy_target`. **MyChart's active patient is server-side session state — there is no per-request patient parameter — so callers must name the patient they mean rather than relying on a previous switch.** `withProxyTarget(request, patient, fn)` in `scrapers/myChart/proxyContext.ts` is the primitive for that; `findProxyTarget` resolves a name, partial name, id or `me` and refuses to guess when ambiguous. The CLI is deliberately conservative: reads never mutate. `--patient "<name>"` (names only, never ids; defaults to the account holder) asserts who the command is about via `checkProxyContext`, and if MyChart is on someone else the CLI errors out with the `--action list-proxies` and `--switch "<name>"` commands to run. `--switch` is the only command that changes MyChart's server-side active patient. Switching changes which record every other tool reads from, and is verified against the profile page before it returns — a switch that lands on a different patient fails instead of returning the wrong chart. Record ids are opaque and organization-specific, so `switch_proxy_target` takes `self: true` to return to the account holder rather than requiring a looked-up id.
-
-Write tools include `send_message`, `send_reply`, `request_refill`, `book_appointment`, `get_available_appointments`, and emergency contact management (`add_emergency_contact`, `update_emergency_contact`, `remove_emergency_contact`). Appointment booking (`get_available_appointments`, `book_appointment`) is a placeholder in production (returns "coming soon" error) but fully functional in the demo server.
-
-A public demo MCP endpoint at `/api/mcp/demo` requires no authentication and returns fictional Homer Simpson data. The demo server mirrors all production tools exactly with fake responses.
-
-Key files:
-- `web/src/lib/mcp/server.ts` — MCP server creation, tool registration (per-user)
-- `web/src/lib/mcp/demo-server.ts` — Demo MCP server with fake Homer Simpson data
-- `web/src/lib/mcp/demo-data.ts` — All fictional demo data (profile, meds, appointments, etc.)
-- `web/src/lib/mcp/api-keys.ts` — API key generate/validate/revoke
-- `web/src/lib/mcp/auto-connect.ts` — shared login+TOTP auto-connect logic
-- `web/src/app/api/mcp/route.ts` — HTTP transport handler (authenticates via API key)
-- `web/src/app/api/mcp/demo/route.ts` — Demo MCP endpoint (no auth required)
-- `web/src/app/api/mcp-key/route.ts` — API key management endpoint
-
-## AI Proxy
-
-Server-side AI proxy at `POST /api/ai` that forwards requests to Gemini (currently Gemini 2.5 Flash). Designed with a provider abstraction (`AiProvider` interface) so the backend can be swapped without changing the API contract.
-
-- **Per-user spending limit**: $50/month tracked via `ai_spend_cents` and `ai_spend_period` columns on the `user` table. Period resets automatically on calendar month boundaries.
-- **Usage endpoint**: `GET /api/ai` returns current spend info (spentCents, limitCents, remainingCents, period).
-- **Auth**: Session-based (same as other protected routes via `requireAuth`).
-
-Key files:
-- `web/src/lib/ai/types.ts` — Provider-agnostic types (`AiProvider`, `AiMessage`, `AiRequest`, `AiResponse`)
-- `web/src/lib/ai/gemini.ts` — Gemini provider implementation (swap this to change providers)
-- `web/src/lib/ai/usage.ts` — Per-user spending tracking and limit enforcement
-- `web/src/app/api/ai/route.ts` — API route (POST for chat, GET for spend info)
-
-## Notification System
-
-Daily email notifications when MyChart account changes are detected. Users opt in via the home page UI.
-
-- **Preferences**: Per-user `notifications_enabled` and `notifications_include_content` columns on the `user` table
-- **Tracking**: `notifications_last_checked_at` on `mychart_instances` — timestamp of last check per instance
-- **Change detection**: Checks 10 categories (messages, lab results, imaging, medications, letters, visits, activity feed, documents, allergies, health issues) using timestamp comparison
-- **Email modes**: Summary (category counts + login link) or detailed (actual medical content + X-ray JPEGs as attachments)
-- **Imaging pipeline**: Downloads CLO images via `downloadImagingStudyDirect()`, converts to JPEG via `convertCloToJpg()`, attaches to email (max 5)
-- **Orchestration**: `startNotificationChecker()` in `instrumentation.ts` runs on server startup, then every 24 hours
-- **First run**: When `notifications_last_checked_at` is NULL, sets baseline without sending email
-
-Key files:
-- `web/src/lib/notifications/change-detector.ts` — Timestamp-based change detection across 10 scrapers
-- `web/src/lib/notifications/check.ts` — Orchestrator (checkAllUsers, startNotificationChecker)
-- `web/src/lib/notifications/email.ts` — Resend email sending
-- `web/src/lib/notifications/imaging.ts` — X-ray CLO→JPEG for email attachments
-- `web/src/lib/notifications/templates.ts` — HTML email templates (summary + detailed)
-- `web/src/app/api/notifications/preferences/route.ts` — GET/PUT user preferences
 
 ## Memory
 
@@ -369,10 +198,10 @@ MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
 ## Rules
 
 - **NEVER modify or delete anything from the macOS Keychain or the browser keychain.** Read-only access is OK.
-- **NEVER make changes in AWS without explicit user direction.** No `aws ... create-*`, `delete-*`, `update-*`, `put-*`, ECS service updates, ALB/target-group/listener changes, IAM edits, Secrets Manager writes, RDS modifications, S3 deletes, CloudFront invalidations, etc. Read-only AWS calls (`describe-*`, `list-*`, `get-*`, `sts get-caller-identity`) are fine. Running the official deploy scripts (`bun run deploy` for the web app, `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml` for fake-mychart) is also fine when the user has asked you to deploy. If a deploy script fails partway and leaves orphan/inconsistent AWS resources, **stop and ask** before cleaning them up.
+- **NEVER make changes in AWS without explicit user direction.** No `aws ... create-*`, `delete-*`, `update-*`, `put-*`, ECS service updates, ALB/target-group/listener changes, IAM edits, Secrets Manager writes, RDS modifications, S3 deletes, CloudFront invalidations, etc. Read-only AWS calls (`describe-*`, `list-*`, `get-*`, `sts get-caller-identity`) are fine. Running the official deploy script (`cd fake-mychart && bun run deploy`) is also fine when the user has asked you to deploy. If a deploy script fails partway and leaves orphan/inconsistent AWS resources, **stop and ask** before cleaning them up.
 - **NEVER use `git stash`.** If you're considering stashing changes, stop and ask the user first.
 - **NEVER upload PII to git or GitHub.** Before committing, review all staged changes to ensure no personally identifiable information (names, emails, phone numbers, addresses, dates of birth, medical record numbers, patient IDs, health data, credentials, API keys, or any other sensitive data) is included. If PII is found in code, test fixtures, logs, or output files, remove or redact it before committing. **Body parts, diagnoses, procedures, dates of medical events, and medical details extracted from real patient data also count as PII** — do not include specific body parts (e.g., "shoulder"), procedure names (e.g., "arthrogram"), series descriptions from real imaging studies, or when specific scans/procedures were performed (e.g., "MRI was done on 1/1") in commit messages, PR descriptions, documentation examples, or code comments. Use generic examples instead.
-- **NEVER use `dangerouslySetInnerHTML`.** All HTML from external sources (MyChart API responses, scraped content) must be sanitized with DOMPurify before rendering. Use the `SafeHtml` component from `web/src/components/SafeHtml.tsx` which wraps the `sanitizeHtml()` utility. This is a health data app — XSS is unacceptable.
+- **NEVER use `dangerouslySetInnerHTML`.** All HTML from external sources (MyChart API responses, scraped content) must be sanitized (e.g. with DOMPurify) before rendering, or parsed into a typed tree and rendered as React elements so every text node is escaped. This is a health data app — XSS is unacceptable.
 - **Always update this CLAUDE.md when adding new features** — document new CLI flags, scrapers, configuration, or architectural changes so this file stays current.
 
 ## Workflow
@@ -380,10 +209,9 @@ MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
 - Always create a PR for new features — never push directly to `main`
 - CI must pass (lint, tests, build) before merging
 - **NEVER merge pull requests or enable auto merge without the user's explicit permission.** Wait for the user to explicitly tell you to do so.
-- **Always write tests for all changes.** Unit tests for scraper/utility logic, and integration tests (in `tests/integration/ci/integration.test.ts`) for web app features and API endpoints. No PR should be submitted without corresponding test coverage.
-- **Scraper tests live in `scrapers/myChart/__tests__/` only.** Everything under `web/src/lib/mychart/` is a one-line re-export shim around `scrapers/myChart/`, so a test placed in `web/` exercises the exact same implementation as the scrapers suite while running in a different `bun test` invocation. That split is how a change can pass `bun run test:unit` and still fail `bun run test`. Never add a test under `web/src/lib/mychart/` — put it next to the implementation in `scrapers/`. Tests for genuinely web-only code (API routes, MCP server, notifications, auth) stay in `web/`.
+- **Always write tests for all changes.** Unit tests for scraper/utility logic; fake-mychart-backed tests (`scrapers/myChart/__tests__/fake-mychart/` or `tests/integration/ci/`) for end-to-end flows. No PR should be submitted without corresponding test coverage.
+- **Scraper tests live in `scrapers/myChart/__tests__/` only** — put tests next to the implementation in `scrapers/`, not in a client package that re-exports it.
 - **Never assert against logic pasted into the test file.** Import the real function. If a module isn't importable (e.g. it runs a script at load time), guard the script with `if (import.meta.main)` and export the function instead.
-- **Run the web app for the user to test.** When web app changes are ready for review, start the dev server on a random local port (use `python3 -c "import random; print(random.randint(3100, 3999))"` to pick the port, then `cd web && PORT=<port> bun run dev`). Share the URL so the user can test in the browser.
 
 ### Creating / Updating PRs
 
