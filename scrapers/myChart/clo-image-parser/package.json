@@ -4,6 +4,6 @@
   "private": true,
   "dependencies": {
     "fzstd": "^0.1.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.3"
   }
 }
