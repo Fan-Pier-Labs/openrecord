@@ -17,13 +17,6 @@ function readTestCredentials_TEST_ONLY() {
 }
 
 
-export function parseFirstPathPartFromHtml(html: string): string | null {
-  const $ = cheerio.load(html);
-  const refreshTag = $('meta[http-equiv="REFRESH"]');
-  const possibleFirstPathPart = refreshTag?.attr('content')?.split(';')?.[1]?.trim()?.split('=')?.[1]?.replaceAll?.('/', '');
-  return possibleFirstPathPart || null;
-}
-
 // MyChart's login route. When a root redirect lands on it, everything in front
 // of it is the deployment prefix — and for root-mounted instances that's nothing.
 const MYCHART_LOGIN_ROUTE = '/authentication/';
@@ -34,7 +27,7 @@ export function landsOnMyChartRoute(path: string): boolean {
 }
 
 /**
- * Work out the deployment prefix from the redirect a root probe returns.
+ * The deployment prefix carried by a path, whatever announced it.
  *
  *   /MyChart/                   → 'MyChart'      (uhhospitals.org and most others)
  *   /UCSFMyChart/               → 'UCSFMyChart'
@@ -43,12 +36,81 @@ export function landsOnMyChartRoute(path: string): boolean {
  *
  * null means "no prefix": nothing at all goes in front of MyChart's routes.
  */
-export function parseFirstPathPartFromLocation(locationHeader: string, hostname: string, protocol = 'https'): string | null {
-  const { pathname } = new URL(locationHeader, protocol + '://' + hostname);
+function firstPathPartFromPathname(pathname: string): string | null {
   const routeStart = pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
-  // Redirect went straight to a MyChart route — take whatever precedes it.
+  // Path went straight to a MyChart route — take whatever precedes it.
   if (routeStart >= 0) return pathname.slice(1, routeStart) || null;
   return pathname.split('/')[1] || null;
+}
+
+/**
+ * Where a root page's `<meta http-equiv="refresh">` points, or null if there
+ * isn't one we can use.
+ *
+ *   0; URL=/MyChart/                              → https://<host>/MyChart/
+ *   1 ;url=https://mychart.renown.org/mychart     → as written (Renown)
+ *
+ * The target may be relative or absolute, so it goes through `new URL` rather
+ * than string surgery — stripping every `/` out of an absolute URL folds the
+ * host into the prefix (`https:mychart.renown.orgmychart`).
+ *
+ * Pass `hostname` to reject targets pointing at another host, the same way the
+ * Location-header path does: a marketing page's path is not a MyChart prefix.
+ */
+export function parseMetaRefreshTarget(html: string, hostname?: string): URL | null {
+  const $ = cheerio.load(html);
+  const content = $('meta[http-equiv="REFRESH"]').attr('content');
+  if (!content) return null;
+
+  // content is `<seconds>; url=<target>`. Split on the first `=` only — the target
+  // can carry its own query string (`?id=…`).
+  const afterDelay = content.split(';').slice(1).join(';');
+  const equals = afterDelay.indexOf('=');
+  if (equals < 0) return null;
+
+  const target = afterDelay.slice(equals + 1).trim().replace(/^['"]|['"]$/g, '');
+  if (!target) return null;
+
+  // A placeholder base resolves relative targets; absolute ones ignore it.
+  let url: URL;
+  try {
+    url = new URL(target, `https://${hostname || 'mychart.invalid'}`);
+  } catch {
+    return null;
+  }
+
+  if (hostname && url.host !== hostname) {
+    logger.debug('Meta refresh points off-host:', hostname, '->', url.host);
+    return null;
+  }
+
+  return url;
+}
+
+/**
+ * Work out the deployment prefix from a `<meta http-equiv="refresh">` on the root page.
+ *
+ *   0; URL=/MyChart/                              → 'MyChart'
+ *   1 ;url=https://mychart.renown.org/mychart     → 'mychart'   (Renown — absolute URL)
+ *   0; URL=/Authentication/Login                  → null        (root-mounted)
+ *
+ * null is ambiguous here — it means either "root-mounted" or "no usable refresh
+ * tag". Callers that need to tell those apart use `parseMetaRefreshTarget` and
+ * check `landsOnMyChartRoute` on the result.
+ */
+export function parseFirstPathPartFromHtml(html: string, hostname?: string): string | null {
+  const target = parseMetaRefreshTarget(html, hostname);
+  return target ? firstPathPartFromPathname(target.pathname) : null;
+}
+
+/**
+ * Work out the deployment prefix from the redirect a root probe returns. See
+ * `firstPathPartFromPathname` for what the shapes map to; null means "no
+ * prefix": nothing at all goes in front of MyChart's routes.
+ */
+export function parseFirstPathPartFromLocation(locationHeader: string, hostname: string, protocol = 'https'): string | null {
+  const { pathname } = new URL(locationHeader, protocol + '://' + hostname);
+  return firstPathPartFromPathname(pathname);
 }
 
 export function parseFirstPathPartFromInput(input: string): string | null {
@@ -211,10 +273,26 @@ async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<M
   }
 
   if (!firstPathPart) {
+    // No Location header at all: instances like mychart.renown.org answer 200
+    // and announce the mount from a meta refresh instead.
     const body = await pathResponse.text()
-    firstPathPart = parseFirstPathPartFromHtml(body);
-    if (firstPathPart) {
-      logger.debug('extracted first url path part from the body')
+    const refreshTarget = parseMetaRefreshTarget(body, mychartRequest.hostname);
+
+    if (refreshTarget) {
+      firstPathPart = parseFirstPathPartFromHtml(body, mychartRequest.hostname);
+      logger.debug('extracted first url path part from the body', firstPathPart)
+
+      if (landsOnMyChartRoute(refreshTarget.pathname)) {
+        // Same reasoning as the Location branch above: the refresh went straight
+        // to a MyChart route, so it already told us the whole prefix — which for
+        // a root-mounted instance is nothing. Stop here rather than letting the
+        // guessing fallbacks invent one.
+        logger.debug(firstPathPart
+          ? `meta refresh landed on a MyChart route; prefix is ${firstPathPart}`
+          : 'meta refresh landed on a MyChart route with nothing in front of it; instance is mounted at the domain root');
+        mychartRequest.setFirstPathPart(firstPathPart);
+        return mychartRequest;
+      }
     }
     else {
       logger.debug('could not extract second part', body)

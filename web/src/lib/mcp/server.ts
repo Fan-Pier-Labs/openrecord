@@ -5,6 +5,7 @@ import { sendTelemetryEvent } from '../../../../shared/telemetry';
 import { getMyChartInstances, type MyChartInstance } from '../db';
 import { autoConnectInstance } from './auto-connect';
 import { getMyChartProfile, getEmail } from '../mychart/profile';
+import { discoverProxyTargets, switchProxyTarget } from '../mychart/proxyContext';
 import { getHealthSummary } from '../mychart/healthSummary';
 import { getMedications } from '../mychart/medications';
 import { getAllergies } from '../mychart/allergies';
@@ -313,6 +314,68 @@ export function createMcpServer(userId: string): McpServer {
         const error = err as Error;
         console.error(`[mcp] connect_instance: error -`, error.message, error.stack);
         return errorResult(`Error connecting to ${args.instance}: ${error.message}`);
+      }
+    }
+  );
+
+  // Proxy (multi-patient) tools
+  reg('list_proxy_targets',
+    async (args: { instance?: string }): Promise<CallToolResult> => {
+      sendTelemetryEvent('mcp_tool_called', { tool_name: 'list_proxy_targets' });
+      console.log(`[mcp] Tool call: list_proxy_targets (user=${userId}, instance=${args.instance || 'auto'})`);
+      try {
+        const result = await resolveRequest(userId, args.instance);
+        if ('error' in result) return errorResult(result.error);
+
+        const targets = await discoverProxyTargets(result.mychartRequest);
+        console.log(`[mcp] list_proxy_targets: ${targets.length} target(s) on ${result.instance.hostname}`);
+        return jsonResult(targets.map(t => ({
+          id: t.id,
+          displayName: t.displayName,
+          isSelf: t.isSelf,
+          // Only report an active record when the portal actually said which
+          // one it is — see ProxyTarget.selectionKnown.
+          isActive: t.selectionKnown ? t.isSelected : null,
+        })));
+      } catch (err) {
+        const error = err as Error;
+        console.error(`[mcp] list_proxy_targets: error -`, error.message, error.stack);
+        return errorResult(`Error listing proxy targets: ${error.message}`);
+      }
+    }
+  );
+
+  reg('switch_proxy_target',
+    async (args: { instance?: string; self?: boolean; id?: string; display_name?: string }): Promise<CallToolResult> => {
+      sendTelemetryEvent('mcp_tool_called', { tool_name: 'switch_proxy_target' });
+      console.log(`[mcp] Tool call: switch_proxy_target (user=${userId}, self=${!!args.self}, id=${JSON.stringify(args.id)}, displayName=${args.display_name || 'none'})`);
+      try {
+        if (!args.self && args.id === undefined && !args.display_name) {
+          return errorResult('Pass self=true, id or display_name. Use self=true to switch back to the account holder\'s own record.');
+        }
+        const result = await resolveRequest(userId, args.instance);
+        if ('error' in result) return errorResult(result.error);
+
+        const switched = await switchProxyTarget(result.mychartRequest, {
+          self: args.self,
+          id: args.id,
+          displayName: args.display_name,
+        });
+        console.log(`[mcp] switch_proxy_target: now on ${switched.target.displayName} (${result.instance.hostname})`);
+        return jsonResult({
+          success: true,
+          activeRecord: {
+            id: switched.target.id,
+            displayName: switched.target.displayName,
+            isSelf: switched.target.isSelf,
+          },
+          verifiedProfileName: switched.verifiedProfileName,
+          verifiedDob: switched.verifiedDob,
+        });
+      } catch (err) {
+        const error = err as Error;
+        console.error(`[mcp] switch_proxy_target: error -`, error.message, error.stack);
+        return errorResult(`Error switching proxy target: ${error.message}`);
       }
     }
   );

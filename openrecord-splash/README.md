@@ -29,6 +29,37 @@ dist/           build output — gitignored, produced by deploy.sh
 - **No auth** — sign in / sign up were removed. "Get Notified" scrolls to the waitlist.
 - **Download buttons** for iOS & Android are scaffolded in the hero (`href="#"` placeholders) —
   swap in real App Store / Google Play URLs when the apps ship.
+- **Link previews + PWA install** — Open Graph / Twitter card tags, favicons, an apple-touch-icon,
+  and `manifest.json`. See "Assets" below.
+
+## Assets
+
+| File | Purpose |
+| --- | --- |
+| `og-image.png` | 1200×630 share card (iMessage, Slack, Twitter/X, Facebook, LinkedIn) |
+| `icon.svg` | Source of truth for every icon |
+| `favicon.ico` | 16/32px browser tab icon |
+| `apple-touch-icon.png` | 180×180 iOS home-screen icon |
+| `icon-192.png`, `icon-512.png` | PWA manifest icons (512 doubles as the maskable icon) |
+| `manifest.json` | Web app manifest — name, theme colors, icons |
+
+The PNGs are **generated, but committed** so deploying stays a plain `s3 cp` with no build step.
+Regenerate them after editing `icon.svg` or `assets-src/og-image.html`:
+
+```bash
+./generate-assets.sh
+```
+
+It renders the share card with headless Chrome and the icons with `rsvg-convert`
+(`brew install librsvg`), and writes the web app's matching assets into `../web/public` so both
+sites share one design and one icon source.
+
+Two things are easy to get wrong and are covered by `__tests__/metadata.test.ts`:
+
+- **`og:image` must be an absolute `https://` URL.** iMessage and Slack do not resolve a relative
+  path, so the preview silently falls back to a bare link.
+- **Every referenced asset must be in `deploy.sh`.** A file that exists locally but was never
+  uploaded looks fine in a local browser and 403s in production.
 
 ## The demo (`demo/`)
 

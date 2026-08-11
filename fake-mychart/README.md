@@ -24,6 +24,118 @@ The 2FA code is always `123456`.
 Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password (treated as homer).
 Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) through the 2FA flow.
 
+## Proxy (Multi-Patient) Records
+
+`homer` has proxy access to his three kids, so the "one login, several charts"
+shape is exercisable:
+
+| Record        | `IsSelf` | Profile name             | DOB        | MRN |
+|---------------|----------|--------------------------|------------|-----|
+| Homer (self)  | `true`   | Homer Jay Simpson        | 05/12/1956 | 742 |
+| Bart          | `false`  | Bartholomew JoJo Simpson | 04/01/2014 | 744 |
+| Lisa          | `false`  | Lisa Marie Simpson       | 05/09/2016 | 745 |
+| Maggie        | `false`  | Margaret Evelyn Simpson  | 01/12/2024 | 746 |
+
+`marge` has no proxy access at all, covering the single-record account. Note
+that her `/ProxySwitch` still returns a **one-entry list containing herself** —
+captured from two live single-record accounts. An empty list is not a shape that
+has ever been observed.
+
+### The account holder is NOT the record with a blank id
+
+**Every record, self included, carries a long opaque `WP-…` id** — 84-90
+characters, different on every organization, meaningless outside the session
+that produced it. The account holder's record is identified by `IsSelf: true`
+and nothing else.
+
+This is worth stating loudly because this fake previously modelled self as the
+empty string. That shape came from a hand-written mock in the original PR, was
+never observed anywhere, and does not exist on any instance measured: UCSF
+(`/ucsfmychart`), Renown (`/mychart`) and Carson Tahoe (`/patientportal`) all
+give the account holder a real `WP-…` id. Anything that needs "the account
+holder" must key off `IsSelf`; never parse, construct or compare an id to find
+it.
+
+Two more details reproduced from the live captures:
+
+- The self entry's `LinkUrl` is a **bare `inside.asp` with no query string** —
+  not `?mode=self`. Following it is what returns you to the account holder.
+- `LinkUrl` is relative and un-prefixed on UCSF and Carson Tahoe; Renown serves
+  a prefix-absolute `/mychart/inside.asp`. The fake emits the relative form —
+  the majority shape, and the harder one for a scraper to resolve.
+
+The proxy list shows a short name ("Bart Simpson") while the profile page
+carries the legal name ("Bartholomew JoJo Simpson"). Real portals do this, and
+any code verifying a switch has to tolerate it.
+
+### Per-record chart data
+
+Switching context changes what **every** endpoint returns, not just the profile.
+Each child has their own medications, allergies, health issues, immunizations,
+care team and insurance. A category a child has no data for comes back
+structurally empty — same envelope, empty lists — and **never** falls back to
+the account holder's data. A parent's prescriptions appearing inside a child's
+chart is the worst failure this codebase could ship, so the fallback direction
+is always "empty", never "inherit".
+
+Account-level data (TOTP config, passkeys) is deliberately *not* scoped to the
+active record — it belongs to the login, not to a patient.
+
+### Endpoints
+
+- `GET /ProxySwitch` → `ProxySubjectList` plus `ShowFriendsAndFamily`, `ShouldTryAgain`, `ShowPersonalInformation`, `ShowAccountSettings`, `AvailableLanguageList`, `CurrentlySelectedTabColor`. Each subject carries `Id`, `Ids`, `DisplayName`, `DisplayText`, `PhotoUrl`, `PhotoMagicId`, `BlobToken`, `TabColor`, `LinkUrl`, `IsSelected`, `IsSelf`, `Loading`, `Disabled`, `ServiceAreaAbbreviationList`. **This shape is captured from two live instances, not inferred** — note `Ids` is an empty array, `DisplayText`/`PhotoMagicId` are `null`, `TabColor` is a number, `ServiceAreaAbbreviationList` is a string, and there is no `IdEmpty`/`IdPrefix`. No scraper reads any of them.
+- `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>` → 302 to `/Home`, switching the session's active record. An `eid` the account can't reach returns 403.
+- `GET /inside.asp?mode=self` → 302 to `/Home`, back to the account holder.
+- `GET /inside.asp` (bare, as served in the self `LinkUrl`) → when a proxy record is active, 302 to `?mode=self` and so back to the account holder; otherwise an ordinary page.
+
+`/Home` renders whichever record is active, so the profile scraper reads the
+proxy patient's details after a switch.
+
+### Discovery modes
+
+Real instances don't all expose the same surface, so the shape is switchable via
+`POST /mode` (see below):
+
+| `proxyDiscovery` | `GET /ProxySwitch` | `/Home` markup                            |
+|------------------|--------------------|-------------------------------------------|
+| `json` (default) | JSON list          | `.proxySubjectLink` anchors               |
+| `html`           | 404                | `.proxySubjectLink` anchors               |
+| `script`         | 404                | only `proxySubjects.push(...)` script blocks |
+
+`script` mode is the awkward one: the payload lists the records but never says
+which is active, so anything confirming a switch there has to fall back to the
+profile page.
+
+> **Only the `json` surface is verified.** The anchor markup and the
+> personalization script blocks — their class names, `data-id` attributes,
+> aria-labels and payload shape — are inferred, not captured. Agreement between
+> the fake and the scraper on those two paths is self-consistency, not evidence
+> about real MyChart. Replace them the moment a real Home page is captured.
+
+## Deployment Shape and Discovery Modes
+
+`POST /mode` flips the server between real MyChart shapes without a restart.
+Three independent knobs; every field is optional and omitted ones are left
+alone, so a caller that cares about one doesn't silently reset the others.
+
+```bash
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"mode":"root"}'
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"meta-refresh"}'
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","proxyDiscovery":"json"}
+```
+
+- `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
+- `discovery` — **how `/` announces the prefix.** `redirect` (default, a 302 with a `Location` header) or `meta-refresh` (a 200 carrying an absolute `<meta http-equiv="refresh">`, the Renown shape). Requires re-login for the same reason.
+- `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
+
+`mode` and `discovery` are orthogonal — all four combinations work, and whichever
+mount is active serves MyChart from exactly one prefix while the other 404s.
+
+All three are global to the process, so a test suite that depends on any of them
+must set it rather than inherit whatever ran before it. `/reset` restores the
+defaults.
+
 ## Resetting In-Memory State
 
 Because all state lives in RAM, mutations during a session (sent messages, deleted contacts, TOTP toggles, registered passkeys, etc.) accumulate until the process exits. Two ways to reset without restarting:
@@ -31,7 +143,7 @@ Because all state lives in RAM, mutations during a session (sent messages, delet
 - **Browser**: visit [`/reset`](http://localhost:4000/reset) and click the **Reset Fake MyChart RAM** button.
 - **HTTP**: `curl -X POST http://localhost:4000/reset` — returns `{"ok":true}`.
 
-Reset clears all sessions, restores the seeded conversations and emergency contacts, disables every user's TOTP, removes all passkeys, and forgets booked appointments.
+Reset clears all sessions, restores the seeded conversations and emergency contacts, disables every user's TOTP, removes all passkeys, forgets booked appointments, and restores the default mount and proxy-discovery modes.
 
 ## Running
 

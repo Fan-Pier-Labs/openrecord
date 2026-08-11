@@ -56,6 +56,13 @@ export {
   getEmail,
   type ProfileData,
 } from '../../scrapers/myChart/profile';
+export {
+  discoverProxyTargets,
+  switchProxyTarget,
+  verifyActiveProxyTarget,
+  compareProfileNames,
+  type ProxyTarget,
+} from '../../scrapers/myChart/proxyContext';
 
 // ─── Health summary / vitals ──────────────────────────────────────────────
 export {
