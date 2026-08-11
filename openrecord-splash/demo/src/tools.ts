@@ -217,12 +217,28 @@ function paginate<T>(list: T[], args: ToolArgs): Page<T> {
   };
 }
 
+/**
+ * Does `candidate` match what a person typed?
+ *
+ * Substring matching alone is not enough. Patients say "Dr. Hibbert"; the
+ * record says "Dr. Julius Hibbert"; and `"dr. julius hibbert".includes("dr.
+ * hibbert")` is false, so the middle name silently loses the match. Fall back
+ * to tokens: every word typed has to appear somewhere, in any order.
+ */
+export function matchesName(candidate: string, query: string): boolean {
+  const c = candidate.trim().toLowerCase();
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  if (c === q || c.includes(q)) return true;
+  return q.split(/\s+/).every((token) => c.includes(token));
+}
+
 function fuzzyFind<T>(list: T[], query: string, key: (item: T) => string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const exact = list.filter((item) => key(item).toLowerCase() === q);
   if (exact.length) return exact;
-  return list.filter((item) => key(item).toLowerCase().includes(q));
+  return list.filter((item) => matchesName(key(item), q));
 }
 
 function fail(message: string): ToolError {
@@ -419,11 +435,21 @@ const HANDLERS: Record<string, Handler> = {
 
   get_available_appointments: (s, args) => {
     let results: AppointmentOffer[] = s.availableAppointments.filter((r) => r.slots.length > 0);
-    const provider = str(args, 'provider_name').toLowerCase();
-    if (provider) results = results.filter((r) => r.provider.toLowerCase().includes(provider));
-    const visitType = str(args, 'visit_type').toLowerCase();
-    if (visitType) results = results.filter((r) => r.visitType.toLowerCase().includes(visitType));
-    if (results.length === 0) return fail('No available appointments matching your criteria.');
+    const open = results;
+    const provider = str(args, 'provider_name');
+    if (provider) results = results.filter((r) => matchesName(r.provider, provider));
+    const visitType = str(args, 'visit_type');
+    if (visitType) results = results.filter((r) => matchesName(r.visitType, visitType));
+    if (results.length === 0) {
+      // Say what IS bookable, the way the recipient and medication lookups do.
+      // A model that invents a filter value ("visit_type: New Appointment")
+      // otherwise dead-ends here and tells the patient there is nothing free.
+      const providers = [...new Set(open.map((r) => r.provider))].join(', ');
+      const types = [...new Set(open.map((r) => r.visitType))].join(', ');
+      return fail(
+        `No available appointments matching your criteria. Open slots are with: ${providers}. Visit types: ${types}. Retry with one of these, or omit the filters.`,
+      );
+    }
     return clone(results);
   },
 

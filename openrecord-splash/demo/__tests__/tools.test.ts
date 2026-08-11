@@ -8,8 +8,11 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { createSession, executeTool, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
+import { createSession, executeTool, matchesName, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
 import * as data from '../src/data';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Any = any;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Session = any;
@@ -329,5 +332,71 @@ describe('the fictional record contains no real-looking identifiers', () => {
     for (const email of blob.match(/[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []) {
       expect(email.endsWith('@example.com')).toBe(true);
     }
+  });
+});
+
+describe('matchesName', () => {
+  test('matches a name the patient shortened by dropping the middle name', () => {
+    // "dr. julius hibbert".includes("dr. hibbert") is false. Substring matching
+    // alone silently broke the demo's own suggested appointment prompt.
+    expect(matchesName('Dr. Julius Hibbert', 'Dr. Hibbert')).toBe(true);
+    expect(matchesName('Dr. Julius Hibbert', 'hibbert')).toBe(true);
+    expect(matchesName('Dr. Julius Hibbert', 'julius')).toBe(true);
+  });
+
+  test('still refuses a different person', () => {
+    expect(matchesName('Dr. Julius Hibbert', 'Dr. Nick Riviera')).toBe(false);
+    expect(matchesName('Dr. Julius Hibbert', 'Riviera')).toBe(false);
+  });
+
+  test('is order-insensitive but needs every word', () => {
+    expect(matchesName('Dr. Julius Hibbert', 'hibbert julius')).toBe(true);
+    expect(matchesName('Dr. Julius Hibbert', 'hibbert riviera')).toBe(false);
+  });
+
+  test('an empty query matches nothing', () => {
+    expect(matchesName('Dr. Julius Hibbert', '   ')).toBe(false);
+  });
+});
+
+describe('get_available_appointments filtering', () => {
+  test('finds slots by the name a patient would actually type', () => {
+    const s = createSession();
+    const all = executeTool(s, 'get_available_appointments', {}) as Any;
+    const byName = executeTool(s, 'get_available_appointments', { provider_name: 'Dr. Hibbert' }) as Any;
+
+    expect(Array.isArray(all)).toBe(true);
+    expect(Array.isArray(byName)).toBe(true);
+    expect(byName[0].provider).toBe('Dr. Julius Hibbert');
+    expect(byName[0].slots.length).toBeGreaterThan(0);
+  });
+
+  test('the whole suggested prompt works: find a slot, then book it', () => {
+    const s = createSession();
+    const offers = executeTool(s, 'get_available_appointments', { provider_name: 'Dr. Hibbert' }) as Any;
+    const slot = offers[0].slots[0];
+    const booked = executeTool(s, 'book_appointment', { slot_id: slot.slotId, reason: 'Follow-up' }) as Any;
+
+    expect(booked.error).toBeUndefined();
+    expect(s.upcomingVisits.some((v: Any) => v.date === slot.date && v.time === slot.time)).toBe(true);
+  });
+
+  test('an unknown provider still returns an honest error', () => {
+    const s = createSession();
+    const none = executeTool(s, 'get_available_appointments', { provider_name: 'Dr. Zoidberg' }) as Any;
+    expect(none.error).toContain('No available appointments');
+  });
+
+  test('a no-match error names what is bookable so the model can recover', () => {
+    // A weak model invents filter values ("visit_type: New Appointment"). Left
+    // to a bare "no matches" it dead-ends and tells the patient nothing is free.
+    const s = createSession();
+    const none = executeTool(s, 'get_available_appointments', {
+      provider_name: 'Dr. Hibbert',
+      visit_type: 'New Appointment',
+    }) as Any;
+
+    expect(none.error).toContain('Dr. Julius Hibbert');
+    expect(none.error).toContain('Office Visit');
   });
 });
