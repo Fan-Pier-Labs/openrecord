@@ -29,7 +29,7 @@ type ProviderOption = {
 };
 
 const OPTIONS: ProviderOption[] = [
-  { id: "free", title: "Free tier (our server)", description: "Uses our hosted, rate-limited model endpoint. No account or API key needed." },
+  { id: "free", title: "Free tier (our server)", description: "Uses the $50/month of included AI credit that comes with your Google sign-in. No API key needed." },
   { id: "openai", title: "OpenAI API key", description: "Your own OpenAI key (gpt-4o). Calls go directly to OpenAI." },
   { id: "anthropic", title: "Anthropic API key", description: "Your own Anthropic key (Claude Sonnet 4.6). Calls go directly to Anthropic." },
   { id: "gemini", title: "Gemini API key", description: "Your own Google Gemini key (2.5 Flash). Calls go directly to Google." },

@@ -5,37 +5,46 @@ import {
   getClaudeApiKey,
   type StoredMyChartAccount,
 } from "@/lib/storage/secure-store";
+import { getBackendSession } from "@/lib/backend/session";
 import { prefetchInstances, type MyChartInstance } from "@/lib/mychart-instances";
 import { WelcomeStep } from "./steps/welcome-step";
+import { GoogleStep } from "./steps/google-step";
 import { PickerStep } from "./steps/picker-step";
 import { MyChartStep } from "./steps/mychart-step";
 import { TwoFaStep } from "./steps/twofa-step";
 import { PasskeyStep } from "./steps/passkey-step";
 
-type Step = "welcome" | "picker" | "mychart" | "twofa" | "passkey";
+type Step = "welcome" | "google" | "picker" | "mychart" | "twofa" | "passkey";
 
 /**
  * Onboarding orchestrator. Owns the current step and the cross-step state
- * (selected provider, connected MyChart account, 2FA delivery label) and
- * renders one step component at a time. Each step owns its own UI-local
- * state (form fields, in-flight flags) and reports back through callbacks.
+ * (signed-in email, selected provider, connected MyChart account, 2FA
+ * delivery label) and renders one step component at a time. Each step
+ * owns its own UI-local state (form fields, in-flight flags) and reports
+ * back through callbacks.
  *
- * There is no account or sign-in step: the free AI tier talks to a public
- * rate-limited endpoint, and everything else lives on-device.
+ * Google sign-in is required: AI (including BYO keys) is gated behind it,
+ * and it is what unlocks the $50/month included AI credit — the Lambda
+ * verifies the Google ID token server-side.
  */
 export default function OnboardingScreen() {
   const { setSetupComplete } = useAuth();
   const [step, setStep] = useState<Step>("welcome");
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<MyChartInstance | null>(null);
   const [account, setAccount] = useState<StoredMyChartAccount | null>(null);
   const [twoFaDelivery, setTwoFaDelivery] = useState<string>("your inbox");
 
-  // Dev shortcut: BYO Claude key → straight to chat.
+  // Dev shortcut: BYO Claude key + Google session → straight to chat.
   // Also pre-warm the MyChart instance list so the picker is instant.
   useEffect(() => {
     (async () => {
-      const byoKey = await getClaudeApiKey();
-      if (__DEV__ && byoKey) {
+      const [byoKey, session] = await Promise.all([
+        getClaudeApiKey(),
+        getBackendSession(),
+      ]);
+      if (session) setSignedInEmail(session.user.email);
+      if (__DEV__ && byoKey && session) {
         await setSecureValue("setup_complete", "true");
         setSetupComplete();
         return;
@@ -50,7 +59,19 @@ export default function OnboardingScreen() {
   }
 
   if (step === "welcome") {
-    return <WelcomeStep onGetStarted={() => setStep("picker")} />;
+    return <WelcomeStep onGetStarted={() => setStep("google")} />;
+  }
+
+  if (step === "google") {
+    return (
+      <GoogleStep
+        initialEmail={signedInEmail}
+        onSignedIn={(email) => {
+          setSignedInEmail(email);
+          setStep("picker");
+        }}
+      />
+    );
   }
 
   if (step === "picker") {

@@ -32,6 +32,8 @@ import {
   getAiProvider,
 } from "@/lib/storage/secure-store";
 import { backendUrl } from "@/lib/backend/client";
+import { getBackendSession } from "@/lib/backend/session";
+import { getFreshIdToken } from "@/lib/backend/google-signin";
 import { extractToolCalls } from "./tool-call-parser";
 
 export type ToolCall = {
@@ -181,16 +183,32 @@ function isExclusiveTool(name: string): boolean {
 type CompleteFn = (messages: ChatMessage[], system: string, model: string) => Promise<string>;
 
 function backendCompleter(): CompleteFn {
-  // The free tier talks to the public OpenRecord AI Lambda: no account, no
-  // auth — abuse is handled server-side (rate limits, model allow-list,
-  // guard preamble). Contract: { system, messages, model? } → { text }.
+  // The free tier talks to the OpenRecord AI Lambda with the user's Google
+  // ID token attached. The Lambda verifies the token server-side and meters
+  // the $50/month included credit against the Google account.
+  // Contract: { system, messages, model? } → { text }.
   return async (messages, system, model) => {
+    const token = await getFreshIdToken();
+    if (!token) {
+      throw new Error("Your Google sign-in expired. Sign in again in Settings → Account.");
+    }
     const res = await fetch(backendUrl(), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ messages, system, model }),
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error("Your Google sign-in expired. Sign in again in Settings → Account.");
+      }
+      if (res.status === 402) {
+        throw new Error(
+          "Your $50 monthly AI credit is used up. It resets next month, or add your own API key in Settings → AI Provider.",
+        );
+      }
       const body = await res.text();
       throw new Error(`Backend AI error ${res.status}: ${body}`);
     }
@@ -288,6 +306,13 @@ const MINI_MODELS: Record<string, string> = {
 };
 
 async function resolveCompleter(tier: ModelTier = "default"): Promise<ResolvedCompleter> {
+  // AI is gated behind Google sign-in across ALL providers — including
+  // BYO keys — so there is one consistent rule: no sign-in, no AI.
+  const session = await getBackendSession();
+  if (!session) {
+    throw new Error("Sign in with Google to use AI. You can sign in from Settings.");
+  }
+
   const provider = await getAiProvider();
   if (provider === "openai") {
     const key = await getOpenAiApiKey();

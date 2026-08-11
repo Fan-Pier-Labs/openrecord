@@ -30,6 +30,11 @@ RUNTIME="nodejs22.x"
 HANDLER="handler.handler"
 SECRET_NAME="${SECRET_NAME:-GEMINI_API_KEY}"
 MODEL="${DEMO_MODEL:-gemini-2.5-flash}"
+SPEND_TABLE="${SPEND_TABLE:-openrecord-ai-spend}"
+# Google OAuth client ids the signed-in tier accepts as ID-token audiences.
+# Not secrets — the app ships them in every IPA.
+GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID:-810533222194-p2dod0idou95jlh70qi07m84uscb4170.apps.googleusercontent.com}"
+GOOGLE_IOS_CLIENT_ID="${GOOGLE_IOS_CLIENT_ID:-810533222194-hhcn0nkf1mgelfrgq5vogbsjuemmvde8.apps.googleusercontent.com}"
 
 # CORS is wide open. It doesn't protect anything here (curl ignores it), and
 # "*" lets the CloudFront-hosted demo and local checkouts both post.
@@ -71,12 +76,34 @@ if ! "${AWS[@]}" iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
 fi
 ROLE_ARN="$("${AWS[@]}" iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text)"
 
+echo "==> Ensuring DynamoDB spend table $SPEND_TABLE exists"
+if ! "${AWS[@]}" dynamodb describe-table --table-name "$SPEND_TABLE" >/dev/null 2>&1; then
+  "${AWS[@]}" dynamodb create-table \
+    --table-name "$SPEND_TABLE" \
+    --attribute-definitions AttributeName=pk,AttributeType=S \
+    --key-schema AttributeName=pk,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST >/dev/null
+  "${AWS[@]}" dynamodb wait table-exists --table-name "$SPEND_TABLE"
+  echo "    created"
+fi
+"${AWS[@]}" iam put-role-policy \
+  --role-name "$ROLE_NAME" \
+  --policy-name spend-table-access \
+  --policy-document "{
+    \"Version\": \"2012-10-17\",
+    \"Statement\": [{
+      \"Effect\": \"Allow\",
+      \"Action\": [\"dynamodb:GetItem\", \"dynamodb:UpdateItem\"],
+      \"Resource\": \"arn:aws:dynamodb:${REGION}:${ACCOUNT_ID}:table/${SPEND_TABLE}\"
+    }]
+  }" >/dev/null
+
 echo "==> Packaging handler"
 TMP_ZIP="$(mktemp -t openrecord-demo-ai-XXXX.zip)"
 rm -f "$TMP_ZIP" # zip needs to create the archive itself, not append to an empty file
 trap 'rm -f "$TMP_ZIP"' EXIT
 # Lambda expects handler.mjs at the zip root (handler == "handler.handler").
-( cd src && zip -q -j "$TMP_ZIP" handler.mjs )
+( cd src && zip -q -j "$TMP_ZIP" handler.mjs google-auth.mjs spend.mjs )
 
 echo "==> Deploying function $FN_NAME ($RUNTIME, model $MODEL)"
 if "${AWS[@]}" lambda get-function --function-name "$FN_NAME" >/dev/null 2>&1; then
@@ -88,7 +115,7 @@ if "${AWS[@]}" lambda get-function --function-name "$FN_NAME" >/dev/null 2>&1; t
     --function-name "$FN_NAME" \
     --timeout 30 \
     --memory-size 256 \
-    --environment "Variables={GEMINI_API_KEY=$GEMINI_API_KEY,DEMO_MODEL=$MODEL}" >/dev/null
+    --environment "Variables={GEMINI_API_KEY=$GEMINI_API_KEY,DEMO_MODEL=$MODEL,SPEND_TABLE=$SPEND_TABLE,GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID,GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID}" >/dev/null
 else
   "${AWS[@]}" lambda create-function \
     --function-name "$FN_NAME" \
@@ -97,7 +124,7 @@ else
     --role "$ROLE_ARN" \
     --timeout 30 \
     --memory-size 256 \
-    --environment "Variables={GEMINI_API_KEY=$GEMINI_API_KEY,DEMO_MODEL=$MODEL}" \
+    --environment "Variables={GEMINI_API_KEY=$GEMINI_API_KEY,DEMO_MODEL=$MODEL,SPEND_TABLE=$SPEND_TABLE,GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID,GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID}" \
     --zip-file "fileb://$TMP_ZIP" >/dev/null
 fi
 "${AWS[@]}" lambda wait function-updated --function-name "$FN_NAME"

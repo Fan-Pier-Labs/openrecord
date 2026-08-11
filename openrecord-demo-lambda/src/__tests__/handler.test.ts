@@ -69,12 +69,26 @@ describe('validatePayload', () => {
     expect(out.model).toBe('gemini-2.5-flash-lite');
   });
 
-  test('rejects a model outside the allow-list', () => {
+  test('rejects a signed-in-only model for unauthenticated callers with a 403', () => {
     try {
       validatePayload({
         system: '',
         messages: [{ role: 'user', content: 'hi' }],
         model: 'gemini-2.5-pro',
+      });
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect((err as Any).statusCode).toBe(403);
+      expect((err as Any).message).toContain('requires sign-in');
+    }
+  });
+
+  test('rejects an unknown model with a 400', () => {
+    try {
+      validatePayload({
+        system: '',
+        messages: [{ role: 'user', content: 'hi' }],
+        model: 'gpt-4o',
       });
       expect.unreachable('should have thrown');
     } catch (err) {
@@ -199,8 +213,11 @@ describe('checkRateLimit', () => {
 describe('handler', () => {
   test('answers a preflight and rejects non-POST', async () => {
     expect((await handler({ requestContext: { http: { method: 'OPTIONS' } } })).statusCode).toBe(204);
-    const res = await handler({ requestContext: { http: { method: 'GET' } } });
-    expect(res.statusCode).toBe(405);
+    // GET is the spend endpoint and needs a verified token.
+    const getRes = await handler({ requestContext: { http: { method: 'GET' } } });
+    expect(getRes.statusCode).toBe(401);
+    const putRes = await handler({ requestContext: { http: { method: 'PUT' } } });
+    expect(putRes.statusCode).toBe(405);
   });
 
   test('returns 503 when no key is configured', async () => {

@@ -18,16 +18,35 @@ Current endpoint: `https://dur15eh31e.execute-api.us-east-2.amazonaws.com`
 ```
 POST /
 Content-Type: application/json
+Authorization: Bearer <google id token>        # optional — unlocks the signed-in tier
 
 { "system": "<system prompt>", "messages": [{ "role": "user", "content": "..." }], "model": "gemini-2.5-flash-lite" }
 → 200 { "text": "<model output>", "model": "gemini-2.5-flash-lite" }
+
+GET /                                          # requires a valid token
+→ 200 { "spentCents": 55, "limitCents": 5000, "remainingCents": 4945, "period": "2026-08" }
 ```
 
-`model` is optional and allow-listed (`gemini-2.5-flash`, `gemini-2.5-flash-lite`);
-anything else is a 400 so a caller can't request an expensive model. The iOS app
-uses the lite model for cheap side calls like chat titles. The provider-neutral
-shape keeps the demo's and the app's agent loops identical. Swap the upstream in
-`buildGeminiRequest`/`extractText` to change models.
+The provider-neutral shape keeps the demo's and the app's agent loops identical.
+Swap the upstream in `buildGeminiRequest`/`extractText` to change models.
+
+## Tiers
+
+| | Unauthenticated (demo) | Signed-in (iOS app) |
+|---|---|---|
+| Identity | none | Google ID token, verified server-side (`google-auth.mjs`: signature vs Google's JWKS, issuer, audience, expiry) |
+| Models | `gemini-2.5-flash`, `gemini-2.5-flash-lite` | + `gemini-2.5-pro` |
+| Rate limit | 40 req / 10 min per IP | 120 req / 10 min per Google account |
+| Spend | — | $50/month included credit, metered per account × month in the `openrecord-ai-spend` DynamoDB table (`spend.mjs`); 402 once used up |
+
+An invalid or expired token is a 401 — never a silent downgrade — so the app
+knows to silently refresh the token and retry. An unauthenticated request for
+`gemini-2.5-pro` is a 403; an unknown model is a 400. The iOS app uses the lite
+model for cheap side calls like chat titles.
+
+The DynamoDB client comes from the AWS SDK bundled in the Lambda Node runtime
+and is imported lazily, so the source stays zero-dependency and local `bun test`
+runs against an in-memory store.
 
 Error responses are `{ "error": "..." }` with a 4xx/5xx status. The demo has no
 offline path — every reply is a real model call — so an outage here shows an
