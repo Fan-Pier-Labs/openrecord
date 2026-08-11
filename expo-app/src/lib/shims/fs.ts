@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Stub for Node's `fs` module.
  * The main repo scrapers import `fs` but only use it in TEST-only methods

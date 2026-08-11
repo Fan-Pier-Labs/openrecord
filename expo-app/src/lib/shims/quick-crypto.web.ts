@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Web shim for react-native-quick-crypto.
  * Passkey operations aren't available on web — this just prevents import crashes.

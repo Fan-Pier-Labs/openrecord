@@ -10,14 +10,14 @@
     "deploy": "python3 node_modules/deploy/main.py --config deploy.yaml"
   },
   "dependencies": {
-    "next": "^16.2.6",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "uuid": "^14.0.0"
+    "next": "^16.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
-    "@types/node": "^25.8.0",
-    "@types/react": "^19.2.14",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
     "@types/uuid": "^11.0.0",
     "deploy": "https://github.com/fan-Pier-Labs/deploy",
     "typescript": "^6.0.3"
