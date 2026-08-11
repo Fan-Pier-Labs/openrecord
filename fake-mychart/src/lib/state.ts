@@ -11,6 +11,7 @@ import { buildDataset, selfDataset, resetDatasetCache, type PatientDataset } fro
 import { resetSessions } from './session';
 import { resetMountMode } from './mount';
 import { resetProxyDiscoveryMode } from './proxy';
+import { resetRequireTerms } from './terms';
 
 /**
  * Homer's own patient record id. Real instances give the account holder a real
@@ -229,6 +230,7 @@ export function resetState(): void {
   resetSessions();
   resetMountMode();
   resetProxyDiscoveryMode();
+  resetRequireTerms();
   resetDatasetCache();
 }
 

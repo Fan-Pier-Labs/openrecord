@@ -67,3 +67,26 @@ export async function getMountMode(host: string): Promise<MountMode> {
   }
   return (await res.json()).mode;
 }
+
+/**
+ * Whether the instance makes patients accept Terms & Conditions before it lets
+ * them into the chart.
+ *
+ * Global to the server process, like the mount mode above, so a suite that
+ * turns it on must turn it back off in an `afterAll` — otherwise every suite
+ * that runs afterwards logs in to a T&C page it wasn't written for.
+ */
+export async function setRequireTerms(host: string, requireTerms: boolean): Promise<void> {
+  const res = await fetch(`http://${host}/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requireTerms }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to set requireTerms to ${requireTerms} on ${host}: ${res.status} ${await res.text()}`);
+  }
+  const body = await res.json();
+  if (body.requireTerms !== requireTerms) {
+    throw new Error(`Server reported requireTerms ${body.requireTerms} after asking for ${requireTerms}`);
+  }
+}
