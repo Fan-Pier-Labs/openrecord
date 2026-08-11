@@ -167,9 +167,24 @@ export type TurnCallbacks = {
   onError?: (error: Error) => void;
 };
 
+/**
+ * A write the model proposed but has not been allowed to run yet.
+ *
+ * The system prompt tells the model to confirm every write with the user
+ * first, but a prompt is not a guarantee — a cheap model will happily fire
+ * send_message off the back of a plain question. The loop holds the call here
+ * instead, and only runs it once the user says yes to this exact payload.
+ */
+export type PendingWrite = {
+  tool: string;
+  args: ToolArgs;
+};
+
 export type TurnResult = {
   text: string;
   toolCalls: ToolRecord[];
+  /** Set when the turn ended by asking the user to confirm a write. */
+  pendingWrite?: PendingWrite | null;
 };
 
 export type Surface = 'ios' | 'desktop';

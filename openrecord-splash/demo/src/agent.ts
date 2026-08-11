@@ -23,8 +23,10 @@ import type {
   ChatMessage,
   CompleteFn,
   ParsedToolCall,
+  PendingWrite,
   Session,
   Surface,
+  ToolArgs,
   ToolRecord,
   TurnCallbacks,
   TurnResult,
@@ -110,26 +112,125 @@ export function isExclusiveTool(name: string): boolean {
 
 /**
  * When a model answers in prose instead of calling `respond`, that prose is
- * usually a perfectly good answer — but it often opens by apologising for the
- * format, which is addressed to the protocol, not to the patient. Strip those
- * leading lines so the user sees the answer rather than the machinery.
+ * usually a perfectly good answer — but it often opens by talking to the
+ * protocol rather than to the patient: apologising for the format, or
+ * acknowledging the JSON instruction ("I understand. I will ensure all my
+ * responses are in JSON format."). Strip those leading sentences so the user
+ * sees the answer rather than the machinery.
  *
- * Only leading, self-contained apologies about *format* are removed; an
- * apology in the middle of a reply, or one about the patient's actual
- * situation, is left alone.
+ * Only *leading* sentences are considered, and only ones that pair a
+ * protocol-facing opener with a protocol-facing topic. An apology about the
+ * patient's actual situation, or one in the middle of a reply, is left alone.
+ *
+ * Returns '' when the message is nothing but chatter. Callers must treat that
+ * as "no answer here" — surfacing the machinery to a patient is worse than
+ * falling back to an honest "I couldn't put that together".
  */
-export function stripProtocolChatter(text: string): string {
-  const APOLOGY =
-    /^\s*(i (?:apologi[sz]e|'m sorry|am sorry)|sorry|my apologies)\b[^.!?\n]*(again|error|mistake|careful|format|instruction|tool call|json|request)[^.!?\n]*[.!?]?\s*/i;
-  const FOLLOW_UP = /^\s*(i will|i'll) be more careful[^.!?\n]*[.!?]?\s*/i;
 
-  let out = text;
-  for (let i = 0; i < 3; i++) {
-    const next = out.replace(APOLOGY, '').replace(FOLLOW_UP, '');
-    if (next === out) break;
-    out = next;
+/**
+ * Openers split into two tiers, because they tolerate very different topics.
+ *
+ * An apology may be about a generic "error" or "mistake" and still be aimed at
+ * the protocol. An acknowledgement may not: "I will send that request to your
+ * doctor" and "I see an error in your lab report" are answers, not machinery,
+ * so acknowledgements are only chatter when paired with an explicitly
+ * protocol-facing word.
+ */
+const APOLOGY_OPENER = /^(?:i\s+(?:apologi[sz]e|'m\s+sorry|am\s+sorry)|sorry|my\s+apologies)\b/i;
+const ACK_OPENER =
+  /^(?:i\s+(?:understand|see|will|'ll)|understood|got\s+it|noted|acknowledged|sure|of\s+course|thank\s+you\s+for\s+the\s+(?:reminder|correction|clarification))\b/i;
+
+/** Anything that names the machinery itself. Safe for either opener. */
+const PROTOCOL_TOPIC =
+  /\b(json|formats?|formatted|formatting|instructions?|protocol|tool\s*calls?|wrapper|schema|syntax|code\s*fence)\b/i;
+/** Vaguer, and only trustworthy after an apology. */
+const APOLOGY_TOPIC = /\b(again|error|mistake|careful|request)\b/i;
+
+/** The stock promise that trails a format apology. */
+const FOLLOW_UP = /^(?:i\s+will|i'll)\s+be\s+more\s+careful\b/i;
+
+/** Leading run up to and including its terminator (or newline, or end). */
+const LEADING_SENTENCE = /^\s*[^.!?\n]+(?:[.!?]+|\n|$)\s*/;
+
+function isChatterSentence(sentence: string): boolean {
+  const s = sentence.trim();
+  if (FOLLOW_UP.test(s)) return true;
+
+  const apology = APOLOGY_OPENER.test(s);
+  const ack = ACK_OPENER.test(s);
+  if (!apology && !ack) return false;
+
+  if (PROTOCOL_TOPIC.test(s)) return true;
+  if (apology && APOLOGY_TOPIC.test(s)) return true;
+
+  // A bare acknowledgement carries no topic at all — "Understood.", "Got it."
+  return s.replace(/[^\w\s']/g, '').split(/\s+/).filter(Boolean).length <= 4;
+}
+
+export function stripProtocolChatter(text: string): string {
+  let rest = text;
+  // Bounded: a model rarely stacks more than a couple of these.
+  for (let i = 0; i < 4; i++) {
+    const match = LEADING_SENTENCE.exec(rest);
+    if (!match || !isChatterSentence(match[0])) break;
+    rest = rest.slice(match[0].length);
   }
-  return out.trim() || text.trim();
+  return rest.trim();
+}
+
+/* ------------------------------------------------------------------ *
+ * Write confirmation
+ * ------------------------------------------------------------------ */
+
+/**
+ * Whether the user's message approves the write that was put to them.
+ *
+ * Deliberately narrow and fail-closed: anything that isn't a recognisable yes
+ * is a no. A missed "yes" costs one extra turn; a false positive sends a real
+ * message to a real doctor.
+ */
+const AFFIRMATIVE =
+  /^\s*(?:yes|yeah|yep|yup|ok|okay|sure|confirm(?:ed|ing)?|do it|send it|book it|go ahead|please do|sounds good|approve[ds]?|affirmative|looks good|lgtm)\b/i;
+/** Any hint of a brake anywhere in the message vetoes the whole thing. */
+const NEGATIVE = /\b(?:no|not|don'?t|do not|cancel|stop|wait|hold off|never ?mind|instead|change|edit|different)\b/i;
+
+export function isAffirmative(text: string): boolean {
+  const trimmed = String(text ?? '').trim();
+  if (!trimmed) return false;
+  if (NEGATIVE.test(trimmed)) return false;
+  return AFFIRMATIVE.test(trimmed);
+}
+
+/** Key-order-independent identity for a proposed write. */
+function writeIdentity(tool: string, args: ToolArgs): string {
+  const entries = Object.entries(args ?? {})
+    .filter(([key]) => key !== 'instance')
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify([tool, entries]);
+}
+
+export function isSameWrite(a: PendingWrite | null | undefined, b: PendingWrite | null | undefined): boolean {
+  if (!a || !b) return false;
+  return writeIdentity(a.tool, a.args) === writeIdentity(b.tool, b.args);
+}
+
+/**
+ * The confirmation put to the user. Written by code, not by the model: the
+ * whole point is to show the payload that will actually run, so it cannot be
+ * a paraphrase of it.
+ */
+export function describePendingWrite({ tool, args }: PendingWrite): string {
+  const fields = Object.entries(args ?? {})
+    .filter(([key]) => key !== 'instance')
+    .map(([key, value]) => `- **${key}:** ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+
+  return [
+    `Just to confirm before I do it — this will run \`${tool}\`:`,
+    '',
+    ...(fields.length > 0 ? fields : ['- _(no details)_']),
+    '',
+    'Reply **yes** to go ahead, or tell me what to change.',
+  ].join('\n');
 }
 
 /* ------------------------------------------------------------------ *
@@ -212,6 +313,7 @@ export function buildSystemPrompt({
     '- Showing an X-ray picture: call get_imaging_results to pick the study, then get_xray_image with its 0-based index. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
     '- Refills: use request_refill. If a medication has no refills left, message the prescriber instead.',
     '- For EVERY write action, show the user the exact payload and get explicit confirmation before calling the tool.',
+    '- This is enforced, not advisory: a write tool you call without the user having agreed to that exact payload does not run. The user is shown the payload and asked. Do not claim you have sent, booked, or requested anything until you see the tool result saying so.',
     '- Before proposing a write, read the current state in the same turn — call get_medications before discussing a refill, get_available_appointments before proposing a booking, get_emergency_contacts before editing one. The payload you show the user has to match what is actually on file.',
     '',
     formatting,
@@ -293,6 +395,8 @@ export type RunTurnOptions = {
   /** Model transport. Required — there is no offline path. */
   complete: CompleteFn;
   callbacks?: TurnCallbacks;
+  /** The write this turn's message may be confirming, from the previous turn. */
+  pendingWrite?: PendingWrite | null;
   /** Active skill playbook, appended to the system prompt. */
   skillAddition?: string | null;
   memoryDigest?: string | null;
@@ -310,11 +414,16 @@ export async function runTurn({
   userText,
   complete,
   callbacks = {},
+  pendingWrite = null,
   skillAddition = null,
   memoryDigest = null,
   surface = 'ios',
   signal,
 }: RunTurnOptions): Promise<TurnResult> {
+  // Approval is granted by this message, for that exact payload, and nothing
+  // else. It is spent on the first write it authorises.
+  let approved = pendingWrite && isAffirmative(userText) ? pendingWrite : null;
+
   const onToolStart = callbacks.onToolStart ?? (() => {});
   const onToolEnd = callbacks.onToolEnd ?? (() => {});
   const onError = callbacks.onError ?? (() => {});
@@ -338,6 +447,22 @@ export async function runTurn({
 
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
+
+  // The user approved a held write, so run it here rather than asking the
+  // model to reproduce the payload verbatim — a cheap model rewords it, the
+  // reworded call fails the identity check, and the user gets asked forever.
+  // Running it from the stored payload also guarantees that what executes is
+  // exactly what was shown.
+  let approvedRecord: ToolRecord | null = null;
+  if (approved) {
+    [approvedRecord] = await runBatch([{ tool: approved.tool, args: approved.args }]);
+    messages.push({
+      role: 'user',
+      content: `Result of ${approvedRecord.tool}:\n${JSON.stringify(approvedRecord.result)}`,
+    });
+    approved = null;
+  }
+
   let parseFailures = 0;
   /**
    * The best un-parseable prose we've seen this turn.
@@ -367,6 +492,8 @@ export async function runTurn({
 
     if (calls.length === 0) {
       parseFailures++;
+      // '' means the turn was pure protocol chatter — no answer to keep. Let
+      // the retry below try again rather than banking the machinery as prose.
       const prose = stripProtocolChatter(String(raw));
       if (prose.length > bestProse.length) bestProse = prose;
 
@@ -411,6 +538,34 @@ export async function runTurn({
         content: `${exclusive.map((c) => c.tool).join(', ')} must be called alone with no other tool calls in the same turn. Retry.`,
       });
       continue;
+    }
+
+    // The gate. The system prompt asks the model to confirm every write, but
+    // asking is not enforcing: the model that prompted this check fired
+    // request_refill and send_message off the back of "what am i on?", a plain
+    // question. Hold the write and put the real payload to the user instead.
+    const writeCall = calls.find((c) => isWriteTool(c.tool));
+    if (writeCall) {
+      const proposed: PendingWrite = { tool: writeCall.tool, args: writeCall.args };
+      // The approved write already ran at the top of this turn, and the model
+      // has no way to know that — its first move is usually to emit the call
+      // again, often reworded. Match on the tool alone, and only on the first
+      // model turn: past that, a write is a genuinely new one and gets gated
+      // like any other.
+      const isReemit = approvedRecord !== null && turn === 0 && proposed.tool === approvedRecord.tool;
+      if (isReemit && approvedRecord) {
+        messages.push({ role: 'assistant', content: raw });
+        messages.push({
+          role: 'user',
+          content: `Result of ${approvedRecord.tool}:\n${JSON.stringify(approvedRecord.result)}`,
+        });
+        continue;
+      }
+      return {
+        text: describePendingWrite(proposed),
+        toolCalls: executed,
+        pendingWrite: proposed,
+      };
     }
 
     const batch = await runBatch(calls);

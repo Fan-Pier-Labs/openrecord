@@ -14,6 +14,7 @@ import {
   extractToolCalls,
   isExclusiveTool,
   runTurn,
+  isAffirmative,
   stripProtocolChatter,
 } from '../src/agent';
 import { createSession } from '../src/tools';
@@ -129,15 +130,65 @@ describe('stripProtocolChatter', () => {
     expect(stripProtocolChatter(raw)).toBe(raw);
   });
 
-  test('never strips a reply down to nothing', () => {
-    // If the apology *is* the whole message, showing it beats showing a blank.
-    const raw = 'I apologize for the error.';
+  test('drops a leading acknowledgement of the JSON instruction', () => {
+    // The model talking to the protocol instead of the patient. Surfacing this
+    // verbatim is the bug this guards: a patient asked "hi" and was told the
+    // assistant would ensure its responses were in JSON format.
+    const raw =
+      'I understand. I will ensure all my responses are in JSON format. How can I help you today?';
+    expect(stripProtocolChatter(raw)).toBe('How can I help you today?');
+  });
+
+  test('returns empty when the message is nothing but chatter', () => {
+    // Callers use '' as "no answer here" and fall back, because showing the
+    // machinery to a patient is worse than an honest miss.
+    expect(stripProtocolChatter('I apologize for the error.')).toBe('');
+    expect(stripProtocolChatter('Understood. I will use the correct JSON format.')).toBe('');
+    expect(stripProtocolChatter('Got it.')).toBe('');
+  });
+
+  test('keeps an acknowledgement that is about the patient', () => {
+    const raw = 'I understand your concern about the cholesterol result. It is 210 mg/dL.';
     expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+
+  test('an acknowledgement opener is not chatter without a protocol word', () => {
+    // These read like chatter and are not. Widening the topic list to generic
+    // words ("request", "again", "error") ate all three — the second one
+    // entirely, leaving the patient with nothing.
+    for (const raw of [
+      'I will send that request to your doctor. It should be answered in 2 days.',
+      'I will check again for new results tomorrow.',
+      'I see an error in your lab report. The units look wrong.',
+      'Sure, here are your medications: Atorvastatin, Lisinopril.',
+    ]) {
+      expect(stripProtocolChatter(raw)).toBe(raw);
+    }
   });
 
   test('leaves ordinary replies untouched', () => {
     const raw = '## Medications\n\n**Atorvastatin 40mg** — 3 refills left';
     expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+});
+
+describe('isAffirmative', () => {
+  test('accepts a plain yes', () => {
+    for (const yes of ['yes', 'Yes', 'yep', 'ok', 'sure', 'go ahead', 'send it', 'yes please']) {
+      expect(isAffirmative(yes)).toBe(true);
+    }
+  });
+
+  test('fails closed on anything else', () => {
+    // A missed yes costs a turn; a false positive sends a real message.
+    for (const notYes of ['no', 'not yet', "don't", 'cancel', 'wait', 'what am i on?', '', '   ']) {
+      expect(isAffirmative(notYes)).toBe(false);
+    }
+  });
+
+  test('a yes with a caveat is not a yes', () => {
+    expect(isAffirmative('yes but change the subject first')).toBe(false);
+    expect(isAffirmative('ok, send it to a different doctor')).toBe(false);
   });
 });
 
@@ -238,23 +289,36 @@ describe('runTurn', () => {
   });
 
   test('a write tool called alone executes and mutates the session', async () => {
+    const args = { medication_name: 'Atorvastatin' };
     const model = scriptedModel([
-      '{"tool":"request_refill","args":{"medication_name":"Atorvastatin"}}',
+      JSON.stringify({ tool: 'request_refill', args }),
       respond('Refill submitted.'),
     ]);
     const session = createSession();
-    const result = await runTurn({ ...base(), session, complete: model.complete });
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'yes',
+      pendingWrite: { tool: 'request_refill', args },
+      complete: model.complete,
+    });
 
     expect(result.text).toBe('Refill submitted.');
     expect(session.medications[0].refillsRemaining).toBe(2);
   });
 
   test('a tool error is fed back so the model can recover', async () => {
+    const args = { medication_name: 'Metformin' };
     const model = scriptedModel([
-      '{"tool":"request_refill","args":{"medication_name":"Metformin"}}',
+      JSON.stringify({ tool: 'request_refill', args }),
       respond('That one has no refills left.'),
     ]);
-    const result = await runTurn({ ...base(), complete: model.complete });
+    const result = await runTurn({
+      ...base(),
+      userText: 'yes',
+      pendingWrite: { tool: 'request_refill', args },
+      complete: model.complete,
+    });
 
     expect(result.text).toBe('That one has no refills left.');
     expect(model.seen[1].messages.at(-1).content).toContain('no refills remaining');
@@ -267,6 +331,135 @@ describe('runTurn', () => {
     // Three attempts before giving up, matching the iOS client.
     expect(model.calls()).toBe(3);
     expect(result.text).toBe('Your medications are Atorvastatin and Lisinopril.');
+  });
+
+  test('a turn that is pure protocol chatter never reaches the user', async () => {
+    // The reported leak: greeted with "hi", the model acknowledged the JSON
+    // instruction instead of using it, and the acknowledgement was shown to
+    // the patient. Nothing about the machinery may survive to result.text.
+    const model = scriptedModel([
+      'I understand. I will ensure all my responses are in JSON format.',
+      'Understood. I will use the correct format from now on.',
+      'I apologize for the error.',
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).not.toContain('JSON');
+    expect(result.text).not.toContain('format');
+    expect(result.text).not.toContain('apologize');
+    expect(result.text).toBe("I couldn't put that together — try rephrasing?");
+  });
+
+  test('a real answer buried under chatter is surfaced without it', async () => {
+    const model = scriptedModel([
+      'I understand. I will ensure all my responses are in JSON format. Your A1c is 7.2%.',
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).toBe('Your A1c is 7.2%.');
+  });
+
+  test('a write is held for confirmation instead of running', async () => {
+    // The reported failure: asked "what am i on?", the model fired a write.
+    // The payload must be put to the user and nothing may reach the session.
+    const session = createSession();
+    const before = structuredClone(session.messages);
+    const model = scriptedModel([
+      '{"tool":"send_message","args":{"recipient_name":"Dr. Julius Hibbert","subject":"Refill","message_body":"Please refill my Metformin."}}',
+    ]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'what am i on?',
+      complete: model.complete,
+    });
+
+    expect(result.toolCalls).toHaveLength(0);
+    expect(session.messages).toEqual(before);
+    expect(result.pendingWrite?.tool).toBe('send_message');
+    expect(result.text).toContain('send_message');
+    expect(result.text).toContain('Please refill my Metformin.');
+  });
+
+  test('a held write runs once the user says yes', async () => {
+    const session = createSession();
+    const pendingWrite = {
+      tool: 'send_message',
+      args: { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' },
+    };
+    const model = scriptedModel([
+      JSON.stringify({ tool: 'send_message', args: pendingWrite.args }),
+      respond('Sent.'),
+    ]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'yes',
+      pendingWrite,
+      complete: model.complete,
+    });
+
+    expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['send_message']);
+    expect(result.text).toBe('Sent.');
+    expect(result.pendingWrite ?? null).toBeNull();
+  });
+
+  test('a yes approves only the exact payload it was shown', async () => {
+    // Approval must not become a blank cheque: a model that swaps the body
+    // after the user agrees has to ask again.
+    const session = createSession();
+    const model = scriptedModel([
+      '{"tool":"send_message","args":{"recipient_name":"Dr. Julius Hibbert","subject":"Refill","message_body":"Something else entirely."}}',
+    ]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'yes',
+      pendingWrite: {
+        tool: 'send_message',
+        args: { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' },
+      },
+      complete: model.complete,
+    });
+
+    // The approved payload ran, exactly as shown. The swapped one did not —
+    // it is held for its own confirmation.
+    expect(result.toolCalls).toHaveLength(1);
+    expect(result.toolCalls[0].args.message_body).toBe('Please refill my Metformin.');
+    expect(result.pendingWrite?.args.message_body).toBe('Something else entirely.');
+    expect(session.messages.some((m: Any) => m.body === 'Something else entirely.')).toBe(false);
+  });
+
+  test('the approved write runs from the stored payload, not the model re-emit', async () => {
+    // The model rewording the body on re-emit must not run a second copy, and
+    // must not bounce the user back into another confirmation for work that is
+    // already done.
+    const session = createSession();
+    const args = { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' };
+    const model = scriptedModel([
+      JSON.stringify({ tool: 'send_message', args: { ...args, message_body: 'Reworded on re-emit.' } }),
+      respond('Sent.'),
+    ]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'yes',
+      pendingWrite: { tool: 'send_message', args },
+      complete: model.complete,
+    });
+
+    expect(result.text).toBe('Sent.');
+    expect(result.toolCalls).toHaveLength(1);
+    expect(result.toolCalls[0].args.message_body).toBe('Please refill my Metformin.');
+    expect(session.messages.filter((m: Any) => m.subject === 'Refill')).toHaveLength(1);
+  });
+
+  test('reads are never gated', async () => {
+    const model = scriptedModel(['{"tool":"get_medications","args":{}}', respond('Four medications.')]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['get_medications']);
+    expect(result.pendingWrite ?? null).toBeNull();
   });
 
   test('the fullest prose attempt wins, not the last one', async () => {
