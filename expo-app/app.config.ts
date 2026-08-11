@@ -1,25 +1,5 @@
 import type { ExpoConfig } from "expo/config";
 
-// Google OAuth client IDs. These are not secrets — iOS bakes the reversed
-// client ID into its Info.plist URL schemes and ships it in every IPA, and
-// the web client ID is used client-side too. Stored in AWS Secrets Manager
-// under GOOGLE_OAUTH_CREDENTIALS for server parity; kept here as defaults
-// so local builds work without a Secrets Manager lookup.
-const GOOGLE_WEB_CLIENT_ID =
-  "810533222194-p2dod0idou95jlh70qi07m84uscb4170.apps.googleusercontent.com";
-const GOOGLE_IOS_CLIENT_ID =
-  "810533222194-hhcn0nkf1mgelfrgq5vogbsjuemmvde8.apps.googleusercontent.com";
-const GOOGLE_IOS_URL_SCHEME =
-  "com.googleusercontent.apps.810533222194-hhcn0nkf1mgelfrgq5vogbsjuemmvde8";
-
-const iosUrlScheme =
-  process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME ?? GOOGLE_IOS_URL_SCHEME;
-
-const googleSigninPlugin: [string, { iosUrlScheme: string }] = [
-  "@react-native-google-signin/google-signin",
-  { iosUrlScheme },
-];
-
 const config: ExpoConfig = {
   name: "OpenRecord",
   slug: "openrecord",
@@ -57,22 +37,16 @@ const config: ExpoConfig = {
     "expo-sqlite",
     "expo-font",
     "expo-local-authentication",
-    googleSigninPlugin,
-    // Enables `use_modular_headers!` so google-signin's Firebase pods
-    // (AppCheckCore / RecaptchaInterop) compile as static libraries.
-    "./plugins/withModularHeaders",
   ],
   extra: {
     eas: {
       projectId: "6ed85fb8-688f-44c3-8ecb-e8019524f524",
     },
+    // The public OpenRecord AI endpoint (openrecord-demo-lambda) backing
+    // the free tier. No auth — abuse controls live server-side.
     backendUrl:
       process.env.EXPO_PUBLIC_BACKEND_URL ??
-      "https://openrecord.fanpierlabs.com",
-    googleWebClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? GOOGLE_WEB_CLIENT_ID,
-    googleIosClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? GOOGLE_IOS_CLIENT_ID,
+      "https://dur15eh31e.execute-api.us-east-2.amazonaws.com",
   },
 };
 

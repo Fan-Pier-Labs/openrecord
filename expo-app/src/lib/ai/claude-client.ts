@@ -1,8 +1,9 @@
 /**
  * Model-agnostic chat client.
  *
- * Sends user messages to the backend's /api/ai endpoint (currently
- * Gemini, swappable server-side). Tool use is expressed by prompting
+ * The free tier sends user messages to the public OpenRecord AI Lambda
+ * (see `openrecord-demo-lambda/` — currently Gemini, swappable
+ * server-side). Tool use is expressed by prompting
  * the model to emit JSON objects — instead of using any provider-native
  * tool schema. That lets us point this client at any reasonable chat
  * model without code changes.
@@ -30,7 +31,6 @@ import {
   getGeminiApiKey,
   getAiProvider,
 } from "@/lib/storage/secure-store";
-import { getBackendSession } from "@/lib/backend/session";
 import { backendUrl } from "@/lib/backend/client";
 import { extractToolCalls } from "./tool-call-parser";
 
@@ -180,14 +180,14 @@ function isExclusiveTool(name: string): boolean {
 
 type CompleteFn = (messages: ChatMessage[], system: string, model: string) => Promise<string>;
 
-function backendCompleter(token: string): CompleteFn {
+function backendCompleter(): CompleteFn {
+  // The free tier talks to the public OpenRecord AI Lambda: no account, no
+  // auth — abuse is handled server-side (rate limits, model allow-list,
+  // guard preamble). Contract: { system, messages, model? } → { text }.
   return async (messages, system, model) => {
-    const res = await fetch(backendUrl("/api/ai"), {
+    const res = await fetch(backendUrl(), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages, system, model }),
     });
     if (!res.ok) {
@@ -195,7 +195,7 @@ function backendCompleter(token: string): CompleteFn {
       throw new Error(`Backend AI error ${res.status}: ${body}`);
     }
     const data = await res.json();
-    return data.content as string;
+    return data.text as string;
   };
 }
 
@@ -307,14 +307,8 @@ async function resolveCompleter(tier: ModelTier = "default"): Promise<ResolvedCo
     const model = tier === "mini" ? MINI_MODELS.gemini : "gemini-2.5-flash";
     return { complete: geminiCompleter(key), model };
   }
-  const session = await getBackendSession();
-  if (!session) {
-    throw new Error(
-      "Not signed in. Sign in with Google to use the free tier, or add your own API key in Settings → AI Provider.",
-    );
-  }
   const model = tier === "mini" ? MINI_MODELS.free : "gemini-2.5-flash";
-  return { complete: backendCompleter(session.token), model };
+  return { complete: backendCompleter(), model };
 }
 
 /**

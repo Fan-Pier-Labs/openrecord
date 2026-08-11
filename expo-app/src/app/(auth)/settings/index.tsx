@@ -18,20 +18,11 @@ import {
   type AiProvider,
 } from "@/lib/storage/secure-store";
 import { deleteMemoryForAccount } from "@/lib/storage/database";
-import {
-  getBackendSession,
-  clearBackendSession,
-  type BackendUser,
-} from "@/lib/backend/session";
-import { signInWithGoogle, signOutFromGoogle } from "@/lib/backend/google-signin";
-import { backendFetch } from "@/lib/backend/client";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<StoredMyChartAccount[]>([]);
   const [aiProvider, setAiProviderState] = useState<AiProvider>("free");
-  const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
-  const [spend, setSpend] = useState<{ spentCents: number; limitCents: number } | null>(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newHostname, setNewHostname] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -48,37 +39,6 @@ export default function SettingsScreen() {
     setAccounts(accts);
 
     setAiProviderState(await getAiProvider());
-
-    const session = await getBackendSession();
-    setBackendUser(session?.user ?? null);
-    if (session) {
-      try {
-        const res = await backendFetch("/api/ai");
-        if (res.ok) {
-          const data = await res.json();
-          setSpend({ spentCents: data.spentCents, limitCents: data.limitCents });
-        }
-      } catch {
-        // ignore
-      }
-    } else {
-      setSpend(null);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    try {
-      await signInWithGoogle();
-      await loadSettings();
-    } catch (err) {
-      Alert.alert("Sign-in failed", (err as Error).message);
-    }
-  }
-
-  async function handleSignOut() {
-    await signOutFromGoogle();
-    await clearBackendSession();
-    await loadSettings();
   }
 
   async function handleDeleteAccount(account: StoredMyChartAccount) {
@@ -139,35 +99,6 @@ export default function SettingsScreen() {
           </Pressable>
           <Text style={styles.headerTitle}>Settings</Text>
           <View style={styles.backSpacer} />
-        </View>
-
-        {/* Account */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          {backendUser ? (
-            <>
-              <Text style={styles.label}>Signed in as</Text>
-              <Text style={styles.accountHostname}>{backendUser.email}</Text>
-              {spend ? (
-                <Text style={[styles.securityNote, { marginTop: 8 }]}>
-                  AI credit used this month: ${(spend.spentCents / 100).toFixed(2)} of $
-                  {(spend.limitCents / 100).toFixed(2)}
-                </Text>
-              ) : null}
-              <Pressable style={[styles.saveButton, { backgroundColor: "#d32f2f", marginTop: 12 }]} onPress={handleSignOut}>
-                <Text style={styles.saveButtonText}>Sign out</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.securityNote}>
-                Sign in with Google to get $50 / month of included AI credit.
-              </Text>
-              <Pressable style={[styles.saveButton, { marginTop: 12 }]} onPress={handleGoogleSignIn}>
-                <Text style={styles.saveButtonText}>Continue with Google</Text>
-              </Pressable>
-            </>
-          )}
         </View>
 
         {/* MyChart Accounts */}
@@ -269,9 +200,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Security</Text>
           <Text style={styles.securityNote}>
             All MyChart credentials and health data are stored locally in the
-            iOS Keychain. When signed in with Google, AI prompts pass through
-            our server so credit can be tracked. With your own API key, calls
-            go directly to the provider.
+            iOS Keychain. On the free tier, AI prompts pass through our
+            rate-limited server. With your own API key, calls go directly to
+            the provider.
           </Text>
         </View>
 

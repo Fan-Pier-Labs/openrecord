@@ -21,7 +21,6 @@ import {
   setGeminiApiKey,
   type AiProvider,
 } from "@/lib/storage/secure-store";
-import { getBackendSession } from "@/lib/backend/session";
 
 type ProviderOption = {
   id: AiProvider;
@@ -30,7 +29,7 @@ type ProviderOption = {
 };
 
 const OPTIONS: ProviderOption[] = [
-  { id: "free", title: "Free tier (our server)", description: "Uses the $50/month of included AI credit via Google sign-in. No API key needed." },
+  { id: "free", title: "Free tier (our server)", description: "Uses our hosted, rate-limited model endpoint. No account or API key needed." },
   { id: "openai", title: "OpenAI API key", description: "Your own OpenAI key (gpt-4o). Calls go directly to OpenAI." },
   { id: "anthropic", title: "Anthropic API key", description: "Your own Anthropic key (Claude Sonnet 4.6). Calls go directly to Anthropic." },
   { id: "gemini", title: "Gemini API key", description: "Your own Google Gemini key (2.5 Flash). Calls go directly to Google." },
@@ -42,7 +41,6 @@ export default function AiSettings() {
   const [openaiKey, setOpenaiKeyLocal] = useState("");
   const [anthropicKey, setAnthropicKeyLocal] = useState("");
   const [geminiKey, setGeminiKeyLocal] = useState("");
-  const [hasSession, setHasSession] = useState(false);
   const [show, setShow] = useState<Record<string, boolean>>({});
 
   useFocusEffect(
@@ -52,16 +50,11 @@ export default function AiSettings() {
         setOpenaiKeyLocal((await getOpenAiApiKey()) || "");
         setAnthropicKeyLocal((await getClaudeApiKey()) || "");
         setGeminiKeyLocal((await getGeminiApiKey()) || "");
-        setHasSession(!!(await getBackendSession()));
       })();
     }, []),
   );
 
   async function handlePick(p: AiProvider) {
-    if (p === "free" && !hasSession) {
-      Alert.alert("Sign in required", "Sign in with Google from the Settings screen to use the free tier.");
-      return;
-    }
     setProvider(p);
     await setAiProvider(p);
   }
