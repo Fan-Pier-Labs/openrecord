@@ -21,6 +21,20 @@ function readTestCredentials_TEST_ONLY() {
 // of it is the deployment prefix — and for root-mounted instances that's nothing.
 const MYCHART_LOGIN_ROUTE = '/authentication/';
 
+/**
+ * Where a MyChart deployment actually lives: the host serving it, and the
+ * prefix its routes sit under (null for a root-mounted instance).
+ *
+ * The host is part of it because portals move. `patients.mycslink.org` redirects
+ * to `mycslink.cedars-sinai.org/mycslink`, `login.wellspan.org` to
+ * `my.wellspan.org/mywellspan` — the hostname a user hands us is often a
+ * vanity alias for a deployment that lives somewhere else entirely.
+ */
+export type MountLocation = { hostname: string; firstPathPart: string | null };
+
+/** How many hops to follow before deciding a redirect chain is a loop. */
+const MAX_DISCOVERY_HOPS = 10;
+
 /** Does this redirect path land on a MyChart route we recognize? */
 export function landsOnMyChartRoute(path: string): boolean {
   return path.toLowerCase().includes(MYCHART_LOGIN_ROUTE);
@@ -36,7 +50,7 @@ export function landsOnMyChartRoute(path: string): boolean {
  *
  * null means "no prefix": nothing at all goes in front of MyChart's routes.
  */
-function firstPathPartFromPathname(pathname: string): string | null {
+export function firstPathPartFromPathname(pathname: string): string | null {
   const routeStart = pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
   // Path went straight to a MyChart route — take whatever precedes it.
   if (routeStart >= 0) return pathname.slice(1, routeStart) || null;
@@ -56,8 +70,12 @@ function firstPathPartFromPathname(pathname: string): string | null {
  *
  * Pass `hostname` to reject targets pointing at another host, the same way the
  * Location-header path does: a marketing page's path is not a MyChart prefix.
+ *
+ * Pass `baseUrl` when the page came from somewhere other than the bare host —
+ * a relative `url=DefaultAsp` partway down a redirect chain resolves against
+ * the page carrying it, not against `/`.
  */
-export function parseMetaRefreshTarget(html: string, hostname?: string): URL | null {
+export function parseMetaRefreshTarget(html: string, hostname?: string, baseUrl?: string): URL | null {
   const $ = cheerio.load(html);
   const content = $('meta[http-equiv="REFRESH"]').attr('content');
   if (!content) return null;
@@ -74,7 +92,7 @@ export function parseMetaRefreshTarget(html: string, hostname?: string): URL | n
   // A placeholder base resolves relative targets; absolute ones ignore it.
   let url: URL;
   try {
-    url = new URL(target, `https://${hostname || 'mychart.invalid'}`);
+    url = new URL(target, baseUrl ?? `https://${hostname || 'mychart.invalid'}`);
   } catch {
     return null;
   }
@@ -127,7 +145,7 @@ export function parseFirstPathPartFromInput(input: string): string | null {
   }
 }
 
-function looksLikeLoginPage(html: string): boolean {
+export function looksLikeLoginPage(html: string): boolean {
   const bodyLower = html.toLowerCase();
   return bodyLower.includes('__requestverificationtoken')
     || bodyLower.includes('login with passkey')
@@ -135,6 +153,98 @@ function looksLikeLoginPage(html: string): boolean {
     || bodyLower.includes('error: please enable cookies to log in')
     || bodyLower.includes('secondaryvalidationcontroller')
     || bodyLower.includes('mychart® licensed from epic');
+}
+
+/**
+ * Where a root page's `window.location = "…"` points, or null if there isn't one.
+ *
+ * A handful of instances (mydovetale.ca) announce the mount from a script tag
+ * instead of a meta refresh:
+ *
+ *   <script>window.location="https://mydovetale.ca/MyDovetale/";</script>
+ *
+ * The target is resolved against `baseUrl` and returned as-is — whether a
+ * target on another host is worth following is the caller's decision.
+ */
+export function parseScriptRedirectTarget(html: string, baseUrl: string): URL | null {
+  // window.location = "…" / window.location.href = '…' / location.replace("…")
+  const match = html.match(/\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i)
+    ?? html.match(/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i);
+  if (!match) return null;
+  try {
+    return new URL(match[1], baseUrl);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every MyChart mount a page links to, most-linked first.
+ *
+ * Landing pages come in two flavours and both are covered here:
+ *
+ *   - an affiliate chooser that links straight at the route
+ *     (`https://mychart.example.org/prd/Authentication/Login`), and
+ *   - a hospital marketing homepage that links at the mount
+ *     (`https://mychart.example.org/MyChart/`).
+ *
+ * Ranking, in order: links that name the login route, then links on the host we
+ * were asked about, then paths that read like a MyChart mount, then how often
+ * the page refers to them. Nothing here is trusted on sight — the caller checks
+ * each candidate for a login page — so the ordering only decides how quickly we
+ * get to the right one, which is why a bare `/NorthMemorial/` stays in the
+ * running even though it names neither the route nor MyChart.
+ */
+export function extractMountsFromLinks(html: string, preferHostname?: string): MountLocation[] {
+  const $ = cheerio.load(html);
+  const candidates = new Map<string, MountLocation & { hits: number; namesRoute: boolean; namesMyChart: boolean }>();
+
+  const urls: string[] = [];
+  $('a[href], link[href], area[href]').each((_i, el) => { const v = $(el).attr('href'); if (v) urls.push(v); });
+  $('script[src], img[src], iframe[src], form[action]').each((_i, el) => {
+    const v = $(el).attr('src') ?? $(el).attr('action'); if (v) urls.push(v);
+  });
+  // Absolute URLs sitting in inline script/JSON that cheerio's selectors miss.
+  for (const m of html.matchAll(/https?:\/\/[^\s"'<>()]+/g)) urls.push(m[0]);
+
+  for (const raw of urls) {
+    let url: URL;
+    try { url = new URL(raw, `https://${preferHostname || 'mychart.invalid'}`); } catch { continue; }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') continue;
+
+    const namesRoute = landsOnMyChartRoute(url.pathname);
+    const prefix = firstPathPartFromPathname(url.pathname);
+    const namesMyChart = !!prefix && /mychart|chart|portal|prd/i.test(prefix);
+    const trimmed = url.pathname.replace(/\/$/, '');
+    const segments = trimmed.split('/').filter(Boolean).length;
+
+    // `/Authentication/Login` on the bare host is a root mount; anything else
+    // with no prefix at all carries no information.
+    if (!namesRoute && !prefix) continue;
+    // A deep path is only interesting when its first segment already reads as a
+    // mount (`/MyChart/Scripts/…` on a marketing page). Otherwise it's the
+    // site's own content: `/patients-and-visitors/find-a-doctor.html`.
+    if (!namesRoute && !namesMyChart && segments > 1) continue;
+    // Files aren't mounts — keeps `/style.css` and `/logo.png` out of it.
+    if (!namesRoute && !namesMyChart && /\.[a-z0-9]{2,5}$/i.test(trimmed)) continue;
+
+    const key = `${url.host}|${(prefix ?? '').toLowerCase()}`;
+    const existing = candidates.get(key);
+    if (existing) {
+      existing.hits++;
+      existing.namesRoute ||= namesRoute;
+    } else {
+      candidates.set(key, { hostname: url.host, firstPathPart: prefix, hits: 1, namesRoute, namesMyChart });
+    }
+  }
+
+  return [...candidates.values()]
+    .sort((a, b) =>
+      Number(b.namesRoute) - Number(a.namesRoute)
+      || Number(b.hostname === preferHostname) - Number(a.hostname === preferHostname)
+      || Number(b.namesMyChart) - Number(a.namesMyChart)
+      || b.hits - a.hits)
+    .map(({ hostname, firstPathPart }) => ({ hostname, firstPathPart }));
 }
 
 const COMMON_FIRST_PATH_PART_CANDIDATES = ['MyChart', 'MyChart-PRD', 'MyChartPRD'];
@@ -170,149 +280,187 @@ export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest:
 }
 
 /**
- * When the root URL redirects cross-domain (e.g. to a marketing/landing page),
- * fetch that page and look for URLs pointing back to the original MyChart hostname.
- * These appear in script tags, data attributes, and links embedded on the marketing page.
- * Extract the firstPathPart from the first matching URL.
- *
- * NOTE: This is experimental — not fully confident this works for all edge cases.
- * If it causes issues, it can be safely removed (the login flow will fall through
- * to the body/meta-refresh detection instead).
+ * Does this URL serve a MyChart login page? Used to sanity-check a mount we
+ * only guessed at — a link on a landing page, or a host a redirect handed us.
  */
-export async function extractFirstPathPartFromMarketingPage(mychartRequest: MyChartRequest, marketingPageUrl: string): Promise<string | null> {
+export async function verifyMount(mychartRequest: MyChartRequest, mount: MountLocation): Promise<boolean> {
+  const url = `${mychartRequest.protocol}://${mount.hostname}${mount.firstPathPart ? '/' + mount.firstPathPart : ''}/Authentication/Login`;
   try {
-    const resp = await mychartRequest.makeRequest({ url: marketingPageUrl });
-    const html = await resp.text();
-
-    // Look for any URL that points back to the original hostname with a path.
-    // Matches patterns like:
-    //   https://mychart.uchealth.org/MyChart/Scripts/...
-    //   https://mychart.uchealth.org/MyChart-PRD/
-    //   data-mhc-url="https://mychart.uchealth.org/MyChart"
-    const escapedHostname = mychartRequest.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`https?://${escapedHostname}/([A-Za-z][A-Za-z0-9_-]*)(?:/|"|'|\\s)`, 'g');
-
-    const candidates = new Map<string, number>();
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      const candidate = match[1];
-      candidates.set(candidate, (candidates.get(candidate) || 0) + 1);
+    const resp = await mychartRequest.makeRequest({ url });
+    if (resp.status >= 400) {
+      logger.debug('mount check failed:', url, resp.status);
+      return false;
     }
-
-    if (candidates.size > 0) {
-      // Pick the most frequently referenced path part
-      const sorted = [...candidates.entries()].sort((a, b) => b[1] - a[1]);
-      const bestCandidate = sorted[0][0];
-      logger.debug('Extracted firstPathPart from marketing page:', bestCandidate, `(found ${candidates.size} candidate(s):`, [...candidates.entries()].map(([k, v]) => `${k}=${v}`).join(', ') + ')');
-      return bestCandidate;
-    }
-
-    logger.debug('No MyChart URLs found on marketing page for hostname:', mychartRequest.hostname);
-    return null;
+    const ok = looksLikeLoginPage(await resp.text());
+    logger.debug('mount check', ok ? 'passed:' : 'failed (not a login page):', url);
+    return ok;
   } catch (e) {
-    logger.debug('Failed to fetch marketing page:', e);
-    return null;
+    logger.debug('mount check errored:', url, e);
+    return false;
   }
 }
 
-async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<MyChartRequest | null> {
+function mountFromUrl(url: URL): MountLocation {
+  return { hostname: url.host, firstPathPart: firstPathPartFromPathname(url.pathname) };
+}
+
+/**
+ * Walk the redirect chain from the root the way a browser would, and stop the
+ * moment it lands on a MyChart route.
+ *
+ * Following the whole chain rather than just the first hop is what makes this
+ * reliable. The canonical MyChart bounce is three hops, and only the last one
+ * names the mount:
+ *
+ *   /                        302 → /MyChart/
+ *   /MyChart/                302 → DefaultAsp          ← relative, no leading slash
+ *   /MyChart/DefaultAsp      302 → /MyChart/Authentication/Login?
+ *
+ * Reading one hop is enough for the instances that redirect straight to
+ * `/MyChart/`, but a root-mounted instance's first hop is the bare
+ * `DefaultAsp` — which, read as a prefix, is nonsense. So we keep going, and
+ * whatever precedes `/Authentication/` at the end of the chain is the answer.
+ *
+ * The chain is also allowed to leave the host: portals get consolidated, and a
+ * vanity hostname redirecting to the deployment that now serves it is the norm,
+ * not an anomaly. Whether to trust the new host is the caller's call.
+ *
+ * Returns the mount if the chain found one, plus the last page fetched so the
+ * caller can mine a landing page for links when it didn't.
+ */
+export async function followChainToMyChartRoute(
+  mychartRequest: MyChartRequest,
+  startUrl: string,
+): Promise<{ mount: MountLocation | null; finalUrl: string; html: string | null }> {
+  let url = startUrl;
+  let html: string | null = null;
+  const seen = new Set<string>();
+
+  for (let hop = 0; hop < MAX_DISCOVERY_HOPS; hop++) {
+    if (seen.has(url)) {
+      logger.debug('discovery: redirect loop back to', url);
+      break;
+    }
+    seen.add(url);
+
+    let response: Response;
+    try {
+      response = await mychartRequest.makeRequest({ followRedirects: false, url });
+    } catch (e) {
+      logger.debug('discovery: request failed', url, e);
+      break;
+    }
+
+    // Some runtimes (iOS) ignore redirect:'manual' and follow the chain
+    // themselves, in which case the response URL is already the end of it.
+    const followedTo = !response.headers.get('Location') && response.url && response.url !== url
+      ? response.url
+      : null;
+    const next = response.headers.get('Location') ?? followedTo;
+
+    if (next) {
+      let resolved: URL;
+      try {
+        resolved = new URL(next, url);
+      } catch {
+        logger.debug('discovery: uninterpretable redirect target', next);
+        break;
+      }
+      logger.debug('discovery:', response.status, url, '->', resolved.href);
+      if (landsOnMyChartRoute(resolved.pathname)) {
+        return { mount: mountFromUrl(resolved), finalUrl: resolved.href, html: null };
+      }
+      url = resolved.href;
+      continue;
+    }
+
+    html = await response.text().catch(() => '');
+    logger.debug('discovery:', response.status, url, `(${html.length} bytes, no redirect)`);
+
+    // Landed on the login page itself: this URL *is* the mount, and its own
+    // `<meta refresh>` points at nojs.asp — following that would lose it.
+    if (response.status < 400 && looksLikeLoginPage(html)) {
+      return { mount: mountFromUrl(new URL(url)), finalUrl: url, html };
+    }
+
+    // Not a redirect at the HTTP level, but the page may still announce the
+    // mount: a meta refresh (Renown) or a scripted window.location (Dovetale).
+    const target = parseMetaRefreshTarget(html, undefined, url) ?? parseScriptRedirectTarget(html, url);
+    if (!target) break;
+
+    logger.debug('discovery: body redirect', url, '->', target.href);
+    if (landsOnMyChartRoute(target.pathname)) {
+      return { mount: mountFromUrl(target), finalUrl: target.href, html };
+    }
+    url = target.href;
+  }
+
+  return { mount: null, finalUrl: url, html };
+}
+
+/**
+ * Pin a discovered mount onto the request, moving hosts if that's where the
+ * deployment turned out to live.
+ *
+ * A host move is only ever accepted on the strength of a login page actually
+ * being served there (`verified`) — the host we end up on is the one that gets
+ * sent the user's password. The scheme is not up for grabs either: only the
+ * host is taken from the chain, so a session that started on https stays there
+ * even if some hop along the way was plain http.
+ */
+function applyMount(mychartRequest: MyChartRequest, mount: MountLocation, verified: boolean): boolean {
+  if (mount.hostname !== mychartRequest.hostname) {
+    if (!verified) return false;
+    logger.debug('MyChart moved hosts:', mychartRequest.hostname, '->', mount.hostname);
+    mychartRequest.setHostname(mount.hostname);
+  }
+  logger.debug('MyChart mount:', mychartRequest.hostname, mount.firstPathPart
+    ? `is prefixed with ${mount.firstPathPart}`
+    : 'is mounted at the domain root');
+  mychartRequest.setFirstPathPart(mount.firstPathPart);
+  return true;
+}
+
+export async function determineFirstPathPart(mychartRequest: MyChartRequest): Promise<MyChartRequest | null> {
 
   if (mychartRequest.firstPathPart) {
     logger.debug('first path part already determined', mychartRequest.firstPathPart)
     return mychartRequest;
   }
 
-  const requestUrl = mychartRequest.protocol + '://' + mychartRequest.hostname;
-  const pathResponse = await mychartRequest.makeRequest({followRedirects: false, url: requestUrl })
+  const startedOnHostname = mychartRequest.hostname;
+  const root = mychartRequest.protocol + '://' + mychartRequest.hostname;
+  const { mount, html } = await followChainToMyChartRoute(mychartRequest, root);
 
-  const locationResponseHeader = pathResponse.headers.get('Location')
-  logger.debug('location response header', locationResponseHeader)
-
-  let firstPathPart;
-
-  // If the runtime followed redirects automatically (e.g. iOS ignores redirect:"manual"),
-  // the response URL will differ from the request URL. Extract the path from it.
-  if (!locationResponseHeader && pathResponse.url && pathResponse.url !== requestUrl) {
-    const finalUrl = new URL(pathResponse.url);
-    const pathPart = finalUrl.pathname.split('/')[1];
-    if (pathPart) {
-      firstPathPart = pathPart;
-      logger.debug('extracted first path part from response URL:', firstPathPart);
+  if (mount) {
+    // A chain that stayed put proved the prefix by landing on it. One that
+    // moved hosts has to prove the new host serves MyChart before we trust it.
+    const sameHost = mount.hostname === startedOnHostname;
+    if (applyMount(mychartRequest, mount, sameHost || await verifyMount(mychartRequest, mount))) {
+      return mychartRequest;
     }
   }
 
-  if (!firstPathPart && locationResponseHeader) {
-    // Only use the Location header if it stays on the same host.
-    // Cross-domain redirects (e.g. to a marketing page) need special handling.
-    // Use redirectUrl.host (includes port) since mychartRequest.hostname may include a port.
-    const redirectUrl = new URL(locationResponseHeader, mychartRequest.protocol + '://' + mychartRequest.hostname);
-    if (redirectUrl.host !== mychartRequest.hostname) {
-      logger.debug('Cross-domain redirect detected:', mychartRequest.hostname, '->', redirectUrl.host);
-      // Follow the redirect and scrape the marketing page for MyChart URLs
-      // that point back to the original hostname (e.g. script tags, data attributes, links).
-      firstPathPart = await extractFirstPathPartFromMarketingPage(mychartRequest, redirectUrl.href);
-    } else {
-      firstPathPart = parseFirstPathPartFromLocation(locationResponseHeader, mychartRequest.hostname, mychartRequest.protocol);
-      logger.debug('first path part', firstPathPart)
-
-      if (landsOnMyChartRoute(redirectUrl.pathname)) {
-        // The redirect went straight to a MyChart route, so it already told us
-        // everything: whatever precedes that route is the whole prefix, and for
-        // root-mounted instances there is none. Take it and stop looking —
-        // falling through to the guessing fallbacks would invent a prefix.
-        logger.debug(firstPathPart
-          ? `redirect landed on a MyChart route; prefix is ${firstPathPart}`
-          : 'redirect landed on a MyChart route with nothing in front of it; instance is mounted at the domain root');
-        mychartRequest.setFirstPathPart(firstPathPart);
+  // The chain ran out on a page that isn't MyChart — an affiliate chooser, a
+  // hospital homepage, an SSO stop. Those pages nearly always link at the real
+  // mount, so read it off them rather than guessing.
+  if (html) {
+    for (const candidate of extractMountsFromLinks(html, startedOnHostname).slice(0, 5)) {
+      logger.debug('trying mount linked from the landing page:', candidate.hostname, candidate.firstPathPart);
+      if (await verifyMount(mychartRequest, candidate) && applyMount(mychartRequest, candidate, true)) {
         return mychartRequest;
       }
     }
   }
-  else {
-    logger.debug('Looking for first path part: no location response header')
-  }
 
-  if (!firstPathPart) {
-    // No Location header at all: instances like mychart.renown.org answer 200
-    // and announce the mount from a meta refresh instead.
-    const body = await pathResponse.text()
-    const refreshTarget = parseMetaRefreshTarget(body, mychartRequest.hostname);
-
-    if (refreshTarget) {
-      firstPathPart = parseFirstPathPartFromHtml(body, mychartRequest.hostname);
-      logger.debug('extracted first url path part from the body', firstPathPart)
-
-      if (landsOnMyChartRoute(refreshTarget.pathname)) {
-        // Same reasoning as the Location branch above: the refresh went straight
-        // to a MyChart route, so it already told us the whole prefix — which for
-        // a root-mounted instance is nothing. Stop here rather than letting the
-        // guessing fallbacks invent one.
-        logger.debug(firstPathPart
-          ? `meta refresh landed on a MyChart route; prefix is ${firstPathPart}`
-          : 'meta refresh landed on a MyChart route with nothing in front of it; instance is mounted at the domain root');
-        mychartRequest.setFirstPathPart(firstPathPart);
-        return mychartRequest;
-      }
-    }
-    else {
-      logger.debug('could not extract second part', body)
-    }
-  }
-
-  if (!firstPathPart) {
-    firstPathPart = await probeFirstPathPartByTryingCommonLoginPaths(mychartRequest);
-  }
-
-  if (!firstPathPart) {
-    logger.debug('Could not find first path part');
-    logger.debug('TODO: handle this error better')
+  const probed = await probeFirstPathPartByTryingCommonLoginPaths(mychartRequest);
+  if (probed) {
+    mychartRequest.setFirstPathPart(probed);
     return mychartRequest;
   }
 
-  mychartRequest.setFirstPathPart(firstPathPart);
-
+  logger.debug('Could not work out where MyChart is mounted on', mychartRequest.hostname);
   return mychartRequest;
-
 }
 
 export type TwoFaDeliveryInfo = {
@@ -389,6 +537,59 @@ export function parse2faDeliveryMethods(html: string): {
 // 2. we need 2fa code to complete login process
 // Note that this flow will trigger the 2fa code to be sent to the user's email
 // if were going the 2fa flow
+/**
+ * The hidden bookkeeping fields MyChart's login form posts back alongside the
+ * credentials. They are page-load telemetry, not secrets, but an instance that
+ * renders them expects them echoed — so they're read off the page rather than
+ * invented, with the defaults MyChart's own JS uses when a field is absent.
+ */
+export function parseLoginPageFields(html: string) {
+  const $ = cheerio.load(html);
+  return {
+    navRequestMetrics: $('input[name="__NavigationRequestMetrics"]').attr('value') || '',
+    navRedirectMetrics: $('input[name="__NavigationRedirectMetrics"]').attr('value') || '[]',
+    redirectChainIncludesLogin: $('input[name="__RedirectChainIncludesLogin"]').attr('value') || '0',
+    currentPageLoadDescriptor: $('input[name="__CurrentPageLoadDescriptor"]').attr('value') || '',
+    rttCaptureEnabled: $('input[name="__RttCaptureEnabled"]').attr('value') || '1',
+  };
+}
+
+/** The name MyChart's login controller JS gives the username credential. */
+export function usernameFieldFromControllerJs(js: string): 'LoginIdentifier' | 'Username' {
+  const credMatch = js.match(/Credentials:\s*\{([^}]{0,300})\}/);
+  if (credMatch && credMatch[1].includes('Username') && !credMatch[1].includes('LoginIdentifier')) {
+    return 'Username';
+  }
+  return 'LoginIdentifier';
+}
+
+/**
+ * Whether this instance calls the username credential `LoginIdentifier` (the
+ * newer name) or `Username`, read out of the login controller JS the page
+ * references. Falls back to the newer name when the script can't be fetched.
+ */
+export async function detectUsernameField(mychartRequest: MyChartRequest, loginPageHtml: string): Promise<'LoginIdentifier' | 'Username'> {
+  const $ = cheerio.load(loginPageHtml);
+  const loginControllerSrc = $('script[src*="loginpagecontroller"]').attr('src');
+  if (!loginControllerSrc) return 'LoginIdentifier';
+
+  try {
+    const jsUrl = loginControllerSrc.startsWith('http')
+      ? loginControllerSrc
+      // mychartRequest.hostname, not the raw hostname the caller passed: that
+      // one may still carry the scheme and path the user typed, and discovery
+      // may since have moved the session to the host that serves MyChart.
+      : mychartRequest.protocol + '://' + mychartRequest.hostname + loginControllerSrc;
+    const jsResp = await mychartRequest.makeRequest({ url: jsUrl });
+    const usernameField = usernameFieldFromControllerJs(await jsResp.text());
+    logger.debug('Detected credential field:', usernameField);
+    return usernameField;
+  } catch (e) {
+    logger.debug('Could not detect credential field, defaulting to LoginIdentifier', e);
+    return 'LoginIdentifier';
+  }
+}
+
 export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, fetchFn}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string, fetchFn?: (url: string, init: RequestInit) => Promise<Response>}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
@@ -428,39 +629,15 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   const firstRequst = await mychartRequest.makeRequest({path: '/Authentication/Login'})
 
   const loginPageHtml = await firstRequst.text()
-  const $ = cheerio.load(loginPageHtml);
 
   let requestVerificationToken = getRequestVerificationTokenFromBody(loginPageHtml)
 
   logger.debug('request verification token:', requestVerificationToken)
 
-  // Extract additional hidden fields that MyChart expects
-  const navRequestMetrics = $('input[name="__NavigationRequestMetrics"]').attr('value') || '';
-  const navRedirectMetrics = $('input[name="__NavigationRedirectMetrics"]').attr('value') || '[]';
-  const redirectChainIncludesLogin = $('input[name="__RedirectChainIncludesLogin"]').attr('value') || '0';
-  const currentPageLoadDescriptor = $('input[name="__CurrentPageLoadDescriptor"]').attr('value') || '';
-  const rttCaptureEnabled = $('input[name="__RttCaptureEnabled"]').attr('value') || '1';
+  const { navRequestMetrics, navRedirectMetrics, redirectChainIncludesLogin, currentPageLoadDescriptor, rttCaptureEnabled } =
+    parseLoginPageFields(loginPageHtml);
 
-  // Detect whether this MyChart instance uses "LoginIdentifier" or "Username"
-  // by checking the login controller JS referenced on the page.
-  let usernameField = 'LoginIdentifier'; // newer default
-  const loginControllerSrc = $('script[src*="loginpagecontroller"]').attr('src');
-  if (loginControllerSrc) {
-    try {
-      const jsUrl = loginControllerSrc.startsWith('http')
-        ? loginControllerSrc
-        : mychartRequest.protocol + '://' + hostname + loginControllerSrc;
-      const jsResp = await mychartRequest.makeRequest({ url: jsUrl });
-      const jsText = await jsResp.text();
-      const credMatch = jsText.match(/Credentials:\s*\{([^}]{0,300})\}/);
-      if (credMatch && credMatch[1].includes('Username') && !credMatch[1].includes('LoginIdentifier')) {
-        usernameField = 'Username';
-      }
-      logger.debug('Detected credential field:', usernameField);
-    } catch (e) {
-      logger.debug('Could not detect credential field, defaulting to', usernameField, e);
-    }
-  }
+  const usernameField = await detectUsernameField(mychartRequest, loginPageHtml);
 
   // b64EncodeUnicode handles unicode chars properly (matching WP.Utils.b64EncodeUnicode from MyChart JS)
   const b64EncodeUnicode = (str: string) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
@@ -850,12 +1027,8 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
   const assertion = createAssertion(credential, passkeyParams.Challenge, origin);
 
   // Extract additional hidden fields from the login page
-  const $ = cheerio.load(loginPageHtml);
-  const navRequestMetrics = $('input[name="__NavigationRequestMetrics"]').attr('value') || '';
-  const navRedirectMetrics = $('input[name="__NavigationRedirectMetrics"]').attr('value') || '[]';
-  const redirectChainIncludesLogin = $('input[name="__RedirectChainIncludesLogin"]').attr('value') || '0';
-  const currentPageLoadDescriptor = $('input[name="__CurrentPageLoadDescriptor"]').attr('value') || '';
-  const rttCaptureEnabled = $('input[name="__RttCaptureEnabled"]').attr('value') || '1';
+  const { navRequestMetrics, navRedirectMetrics, redirectChainIncludesLogin, currentPageLoadDescriptor, rttCaptureEnabled } =
+    parseLoginPageFields(loginPageHtml);
 
   // Submit passkey login
   const LoginInfo = encodeURIComponent(JSON.stringify({

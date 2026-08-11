@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isMetaRefreshDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
+import { getDiscoveryMode, getMovedHost, isMetaRefreshDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 
 // GET / → however this instance announces where MyChart lives. This is the only
 // thing the scraper has to go on when it discovers the firstPathPart.
@@ -48,6 +48,74 @@ export async function GET(request: Request) {
     return new NextResponse(body, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  if (getDiscoveryMode() === 'script') {
+    // mydovetale.ca's body, verbatim apart from the host and prefix — including
+    // the HTML comment wrapper, which is what the page actually ships. There is
+    // no Location header and no refresh tag; the assignment is the only clue.
+    const body = `<script type="text/javascript">
+<!--
+window.location="${protocol}://${host}${target}";
+// -->
+</script>`;
+    return new NextResponse(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  if (getDiscoveryMode() === 'landing-page') {
+    // An affiliate chooser: 200, no redirect of any kind, and the mount is
+    // named only by the links. Modelled on mychart.chihealth.com, which links
+    // its own mount alongside a sister organization's on another host — so a
+    // reader that just takes the first link it sees ends up at the wrong one.
+    const body = `<!DOCTYPE html>
+<html>
+<head><title>Select your organization</title>
+<link href="en-US/styles/Affiliates.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+  <a href="https://mychart.sisterorg.example/theirprefix/"><img src="sisterlogo.png" /></a>
+  <a href="${protocol}://${host}${target}"><img src="mychartlogo.png" /></a>
+  <a href="/patients-and-visitors/find-a-doctor.html">Find a doctor</a>
+</body>
+</html>`;
+    return new NextResponse(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  if (getDiscoveryMode() === 'moved-host') {
+    // The deployment now lives on another hostname. Real examples redirect to
+    // the new host's root and bounce onward from there; here we skip straight
+    // to where that bounce ends, because in this fake both names resolve to the
+    // same server and a second `/` would land back in this branch forever.
+    const movedHost = getMovedHost();
+    if (!movedHost) {
+      return NextResponse.json(
+        { error: 'discovery=moved-host needs a movedHost; POST /mode {"discovery":"moved-host","movedHost":"127.0.0.1:4000"}' },
+        { status: 500 },
+      );
+    }
+    return new NextResponse(null, {
+      status: 301,
+      headers: { Location: `${protocol}://${movedHost}${target}` },
+    });
+  }
+
+  if (getDiscoveryMode() === 'default-asp') {
+    // Root-mounted instances hop straight to the bare relative `DefaultAsp`
+    // (adams.mychartcc.com); prefixed ones go to the mount first and hit
+    // DefaultAsp on the way out of it. Either way the first hop names no route.
+    if (isRootMount()) {
+      return new NextResponse(null, { status: 302, headers: { Location: 'DefaultAsp' } });
+    }
+    return new NextResponse(null, {
+      status: 302,
+      headers: { Location: `${protocol}://${host}${mountPrefix()}/` },
     });
   }
 
