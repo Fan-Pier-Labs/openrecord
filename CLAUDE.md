@@ -80,13 +80,56 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
 - **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
 - **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
 
-### Static splash page (primary public site)
+### Static splash page + interactive demo (primary public site)
 
-- **`openrecord.fanpierlabs.com` serves a static splash page**, NOT the Next.js app. See `openrecord-splash/`.
-  - Single self-contained `index.html` (no build step) on S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
-  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh`.
-  - Presentational only — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+- **`openrecord.fanpierlabs.com` serves a static site**, NOT the Next.js app. See `openrecord-splash/`.
+  - Two halves on purpose: `index.html` is a hand-written self-contained splash with no build step, and `demo/` is a React + TypeScript app built with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` — it typechecks, builds the demo into `dist/`, then uploads `index.html`, `demo.html`, the hashed assets, and the icons/share card/manifest, setting content types explicitly (a `.js` served as `binary/octet-stream` is refused by the browser's module loader). Hashed assets get a one-year immutable cache; the HTML and the fixed-name assets are invalidated.
+  - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
+  - **The splash deliberately does not link to the demo.** `/demo.html` deploys with every push but is unadvertised, so it is reached by sharing the URL. Don't "fix" the missing CTA — putting the demo on the homepage is a product decision to make on purpose.
   - **Share previews + PWA assets**: `og-image.png` (1200×630 card), `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`. The PNGs are generated but committed — run `cd openrecord-splash && ./generate-assets.sh` after editing `icon.svg` or `assets-src/og-image.html`. It renders the card with headless Chrome and the icons with `rsvg-convert` (`brew install librsvg`), and also writes the web app's copies into `web/public/`. `og:image` must be an **absolute** `https://` URL — iMessage and Slack will not resolve a relative path. `deploy.sh` uploads and invalidates every asset; `openrecord-splash/__tests__/metadata.test.ts` fails if one is referenced but not deployed.
+
+### Interactive demo (`openrecord-splash/demo/`)
+
+A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
+
+**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored).
+
+Logic modules — framework-free and fully unit-tested:
+
+- `src/data.ts` — the fictional record, ported from `web/src/lib/mcp/demo-data.ts` and extended with multi-draw lab trends and a longer billing ledger. Payload shapes elsewhere are derived from it with `typeof` so they can't drift.
+- `src/types.ts` — shared types for the record, tool layer, and agent loop.
+- `src/tools.ts` — all 46 MyChart tools. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
+- `src/agent.ts` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
+- `src/stream.ts` — reveals a finished reply at the pace a model would have produced it. Uses `setTimeout`, **not** `requestAnimationFrame`: rAF is paused in background tabs, so a visitor who switches away mid-reply would return to a message frozen half-written.
+- `src/skills.ts` — the three skill playbooks plus the home-screen alert cards.
+- `src/markdown.ts` — parses assistant replies into a typed tree. Produces no HTML.
+
+Components:
+
+- `src/App.tsx` — shell: owns the session, surface switching, the shared tool-call activity panel. Both surfaces stay mounted (toggled with `hidden`) so switching clients preserves each conversation.
+- `src/components/IosSurface.tsx`, `DesktopSurface.tsx` — the two device surfaces.
+- `src/components/Markdown.tsx` — renders the parsed tree as React elements.
+- `src/components/Radiograph.tsx` — the chest X-ray, drawn procedurally on a canvas rather than shipped as a file, and labelled as simulated.
+- `src/config.ts` — `AI_ENDPOINT`, resolved from `?ai=<url>`, then `VITE_AI_ENDPOINT`, then the baked-in default.
+
+**Every reply is a real model call — there is deliberately no canned-response path.** An earlier version fell back to a keyword table when no model was reachable, and it produced confident non sequiturs the moment a visitor asked something it hadn't anticipated. A failed call now surfaces an honest error and the badge reads "Model unreachable". **The demo also starts on a connected account** — the onboarding and extension-setup flows belong to the product, not the demo.
+
+**Security:** model output is untrusted. `markdown.ts` parses it into a typed tree and `Markdown.tsx` renders that tree as React elements, so React escapes every text node. **There is no `dangerouslySetInnerHTML` in the demo and there must never be one** — see the project rule above. Tests assert that markup in model output stays text.
+
+Local dev: `cd openrecord-splash/demo && npx vite` (serves `/demo.html` with hot reload).
+
+### Demo AI Lambda (`openrecord-demo-lambda/`)
+
+Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and returns `{ text }` — the same provider-neutral shape as the web app's `/api/ai`, so the demo's agent loop is a straight port rather than a special case.
+
+- Model: **`gemini-2.5-flash` with `thinkingBudget: 0`**. Override with `DEMO_MODEL=... ./deploy.sh`. Was `flash-lite`; it completed 23/40 of the demo's own suggested prompts against flash's 40/40, and its failures were the bad kind ("I've listed your current medications" with no medications listed). See `openrecord-demo-lambda/README.md`.
+- Reuses the existing `GEMINI_API_KEY` secret, read at deploy time and set as a function env var (so the Lambda needs no Secrets Manager permissions and no AWS SDK).
+- Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
+- Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
+- Usage/cost: `fields @timestamp, @message | filter @message like /demo_ai_call/ | sort @timestamp desc` on `/aws/lambda/openrecord-demo-ai`.
+- **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model unreachable". The demo has no offline path by design.
 
 ### AWS Fargate (Next.js web app)
 
@@ -117,7 +160,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
   - Served via `GET /api/mychart-logo?name=<filename>`
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
-  - Static splash page (`index.html`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
+  - Static splash page (`index.html`), interactive demo (`demo.html` + `demo/`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
@@ -132,6 +175,7 @@ The web app supports two deployment modes, auto-detected via the `DATABASE_URL` 
   - Sentry auth token for error monitoring and source map uploads
 - **GEMINI_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:GEMINI_API_KEY-GPbdf6`
   - Google Gemini API key for the AI proxy. Can also be set via `GEMINI_API_KEY` env var in env-var mode.
+  - Also used by the public demo's `openrecord-demo-ai` Lambda, which copies it into a function env var at deploy time.
 - **EXPO_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:EXPO_TOKEN-XYwf9T`
   - Expo access token for EAS CLI builds and TestFlight submissions. Used with `EXPO_TOKEN` env var.
 - **APPLE_CREDENTIALS**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:APPLE_CREDENTIALS-GZhHoo`
