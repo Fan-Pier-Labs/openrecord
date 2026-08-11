@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "cheerio": "^1.0.0",
-    "googleapis": "^171.4.0"
+    "cheerio": "^1.2.0",
+    "googleapis": "^174.0.1"
   }
 }

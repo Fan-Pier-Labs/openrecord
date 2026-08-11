@@ -352,7 +352,7 @@ export function parseAmfResponse(buf: Buffer): AmfResponse | null {
     } else if (buf[pos] === 0x06) { // string
       pos++;
       // Read U29 string length
-      let len = 0;
+      let len: number;
       if (buf[pos] < 0x80) {
         len = buf[pos] >> 1;
         pos++;

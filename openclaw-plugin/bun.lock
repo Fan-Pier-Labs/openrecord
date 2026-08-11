@@ -5,16 +5,16 @@
     "": {
       "name": "openclaw-plugin-mychart",
       "dependencies": {
-        "cheerio": "latest",
-        "fetch-cookie": "latest",
-        "totp-generator": "latest",
+        "cheerio": "^1.2.0",
+        "fetch-cookie": "^3.2.0",
+        "totp-generator": "^2.0.1",
       },
       "devDependencies": {
-        "tsup": "latest",
-        "typescript": "latest",
+        "tsup": "^8.5.1",
+        "typescript": "^6.0.3",
       },
       "optionalDependencies": {
-        "sqlite3": "latest",
+        "sqlite3": "^6.0.1",
       },
     },
   },
