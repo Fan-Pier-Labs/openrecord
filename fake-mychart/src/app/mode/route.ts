@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getMountMode, setMountMode, getDiscoveryMode, setDiscoveryMode,
+  getMovedHost, setMovedHost, DISCOVERY_MODES,
   type MountMode, type DiscoveryMode,
 } from '@/lib/mount';
 import {
@@ -15,12 +16,21 @@ import { getRequireTerms, setRequireTerms } from '@/lib/terms';
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
  *
  * Sets the things about a real deployment that the scraper has to discover, so
- * one instance can stand in for all of them. All three knobs are independent:
+ * one instance can stand in for all of them. Every knob is independent:
  *
  *   - `mode` — where MyChart is mounted: under `/MyChart`, or at the domain
  *     root like Cleveland Clinic.
- *   - `discovery` — how `/` announces that: a 302 with a `Location` header, or
- *     a 200 carrying an absolute `<meta http-equiv="refresh">` like Renown.
+ *   - `discovery` — how `/` announces that. Six shapes, all taken from real
+ *     instances: `redirect` (a 302 with a `Location` header), `meta-refresh`
+ *     (Renown's absolute `<meta http-equiv="refresh">`), `default-asp` (the
+ *     multi-hop bounce through a bare relative `DefaultAsp`, which only names
+ *     the route on its last hop), `script` (mydovetale.ca's `window.location`
+ *     assignment), `landing-page` (an affiliate chooser that redirects nowhere
+ *     and only links at the mount), and `moved-host` (the deployment now lives
+ *     on a different hostname — pair it with `movedHost`). See `src/lib/mount.ts`.
+ *   - `movedHost` — where `discovery: "moved-host"` sends the client. Point it
+ *     at another name for this same server (`127.0.0.1:4000` when the client
+ *     came in on `localhost:4000`) to exercise the move without a second server.
  *   - `proxyDiscovery` — which surface lists the patient records an account can
  *     access: the `/ProxySwitch` JSON endpoint, `.proxySubjectLink` anchors on
  *     `/Home`, or bare `proxySubjects.push(...)` script blocks. See
@@ -29,7 +39,7 @@ import { getRequireTerms, setRequireTerms } from '@/lib/terms';
  *     `/Authentication/TermsConditions` until the patient accepts once. See
  *     `src/lib/terms.ts`.
  *
- *   GET  /mode                              → { "mode": …, "discovery": …, "proxyDiscovery": …, "requireTerms": … }
+ *   GET  /mode                              → every knob's current value
  *   POST /mode {"mode":"root"}              → root-mounted, still announced by redirect
  *   POST /mode {"discovery":"meta-refresh"} → still under /MyChart, announced by meta refresh (Renown)
  *   POST /mode {"proxyDiscovery":"script"}  → proxy records only in the script payload
@@ -37,7 +47,7 @@ import { getRequireTerms, setRequireTerms } from '@/lib/terms';
  *   POST /mode {"mode":"root","discovery":"meta-refresh"}  → several at once
  *
  * Whatever a request omits is left alone, so a caller that only cares about one
- * knob doesn't silently reset the others. The response always reports all four.
+ * knob doesn't silently reset the others. The response always reports every knob.
  *
  * The switch takes effect immediately for every subsequent request. Callers
  * changing `mode` or `discovery` must re-login afterwards: a session discovered
@@ -50,12 +60,13 @@ import { getRequireTerms, setRequireTerms } from '@/lib/terms';
  * behind. `/reset` restores the defaults.
  */
 const VALID_MODES: MountMode[] = ['prefixed', 'root'];
-const VALID_DISCOVERY: DiscoveryMode[] = ['redirect', 'meta-refresh'];
+const VALID_DISCOVERY: DiscoveryMode[] = DISCOVERY_MODES;
 
 function currentSettings() {
   return {
     mode: getMountMode(),
     discovery: getDiscoveryMode(),
+    movedHost: getMovedHost(),
     proxyDiscovery: getProxyDiscoveryMode(),
     requireTerms: getRequireTerms(),
   };
@@ -76,7 +87,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { mode, discovery, proxyDiscovery, requireTerms } = body ?? {};
+  const { mode, discovery, movedHost, proxyDiscovery, requireTerms } = body ?? {};
 
   if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
@@ -102,6 +113,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (movedHost !== undefined && movedHost !== null && typeof movedHost !== 'string') {
+    return NextResponse.json(
+      { error: 'movedHost must be a hostname string (or null to clear it)', received: movedHost },
+      { status: 400 },
+    );
+  }
+
   if (requireTerms !== undefined && typeof requireTerms !== 'boolean') {
     return NextResponse.json(
       { error: 'requireTerms must be a boolean', received: requireTerms },
@@ -109,15 +127,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (mode === undefined && discovery === undefined && proxyDiscovery === undefined && requireTerms === undefined) {
+  // `moved-host` with nowhere to move to would answer every request with a 500,
+  // which is a confusing way to find out the call was incomplete.
+  const effectiveMovedHost = movedHost !== undefined ? movedHost : getMovedHost();
+  if (discovery === 'moved-host' && !effectiveMovedHost) {
     return NextResponse.json(
-      { error: 'Provide at least one of mode, discovery, proxyDiscovery, requireTerms' },
+      { error: 'discovery "moved-host" needs movedHost set in the same request, e.g. {"discovery":"moved-host","movedHost":"127.0.0.1:4000"}' },
+      { status: 400 },
+    );
+  }
+
+  if (
+    mode === undefined && discovery === undefined && movedHost === undefined
+    && proxyDiscovery === undefined && requireTerms === undefined
+  ) {
+    return NextResponse.json(
+      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms' },
       { status: 400 },
     );
   }
 
   if (mode !== undefined) setMountMode(mode as MountMode);
   if (discovery !== undefined) setDiscoveryMode(discovery as DiscoveryMode);
+  if (movedHost !== undefined) setMovedHost(movedHost as string | null);
   if (proxyDiscovery !== undefined) setProxyDiscoveryMode(proxyDiscovery as ProxyDiscoveryMode);
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
 

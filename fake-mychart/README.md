@@ -115,28 +115,39 @@ profile page.
 ## Deployment Shape and Discovery Modes
 
 `POST /mode` flips the server between real MyChart shapes without a restart.
-Four independent knobs; every field is optional and omitted ones are left
-alone, so a caller that cares about one doesn't silently reset the others.
+Independent knobs; every field is optional and omitted ones are left alone, so a
+caller that cares about one doesn't silently reset the others.
 
 ```bash
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"mode":"root"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"meta-refresh"}'
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"moved-host","movedHost":"127.0.0.1:4000"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"requireTerms":true}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","proxyDiscovery":"json","requireTerms":false}
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false}
 ```
 
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
-- `discovery` — **how `/` announces the prefix.** `redirect` (default, a 302 with a `Location` header) or `meta-refresh` (a 200 carrying an absolute `<meta http-equiv="refresh">`, the Renown shape). Requires re-login for the same reason.
+- `discovery` — **how `/` announces the mount.** Requires re-login for the same reason. Every value is a shape observed on a live instance:
+  - `redirect` (default) — a 302 with a `Location` header.
+  - `meta-refresh` — a 200 carrying an *absolute* `<meta http-equiv="refresh">`. The Renown shape; the absolute form is what breaks naive parsing.
+  - `default-asp` — the multi-hop bounce almost every instance uses: `/` → `/MyChart/` → a bare relative `DefaultAsp` → `/MyChart/Authentication/Login?`. Only the last hop names the route, so reading one hop yields the nonsense prefix `DefaultAsp`. Root-mounted instances hop straight from `/` to `DefaultAsp` (adams.mychartcc.com).
+  - `script` — a 200 whose body assigns `window.location`, with no refresh tag and no `Location` header (mydovetale.ca).
+  - `landing-page` — a 200 affiliate chooser that redirects nowhere; the mount is only discoverable from the page's links, and a sister organization's portal on another host is linked alongside it (mychart.chihealth.com).
+  - `moved-host` — the deployment now lives on a different hostname (patients.mycslink.org → mycslink.cedars-sinai.org). Pair it with `movedHost`.
+- `movedHost` — **where `moved-host` sends the client.** Point it at another name for this same server — `127.0.0.1:4000` when the client came in on `localhost:4000` — to exercise the move without running a second server. Setting `discovery: "moved-host"` without it is a 400.
 - `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 - `requireTerms` — **whether login lands on the chart or on Terms & Conditions.** `false` (default) or `true`, which bounces every un-accepted session to `/Authentication/TermsConditions`. Wants a fresh login, since it gates sessions that haven't accepted yet. This was the `FAKE_MYCHART_REQUIRE_TERMS` environment variable, which needed a second server on another port to exercise.
 
-`mode` and `discovery` are orthogonal — all four combinations work, and whichever
-mount is active serves MyChart from exactly one prefix while the other 404s.
+`mode` and `discovery` are orthogonal — every combination works, and whichever
+mount is active serves MyChart from exactly one prefix while the other 404s. A
+root-mounted instance also 404s `/<anything>/Authentication/*`, matching real
+root-mounted instances, so a wrong prefix guess can't quietly look like it
+worked.
 
-All four are global to the process, so a test suite that depends on any of them
-must set it rather than inherit whatever ran before it. `/reset` restores the
-defaults.
+All of them are global to the process, so a test suite that depends on any of
+them must set it rather than inherit whatever ran before it. `/reset` restores
+the defaults.
 
 ## Resetting In-Memory State
 

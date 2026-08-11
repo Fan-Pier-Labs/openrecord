@@ -16,6 +16,14 @@ export type MyChartRequestOptions = {
   fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
 };
 
+// Redirect statuses worth following. 303/307/308 are rare on MyChart but do
+// show up in front of it (SSO stops, load balancers), and dropping them turns
+// a working instance into an unexplained blank response.
+const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
+
+// Matches what browsers allow before declaring a redirect loop.
+const MAX_REDIRECTS = 20;
+
 // Class to keep track of variables used when making requests
 // to MyChart's Site.
 export class MyChartRequest {
@@ -121,6 +129,18 @@ export class MyChartRequest {
     this.firstPathPart = firstPathPart;
   }
 
+  /**
+   * Point every subsequent request at a different host.
+   *
+   * Vanity hostnames outlive the deployments behind them — `login.wellspan.org`
+   * redirects to `my.wellspan.org`, `patients.mycslink.org` to
+   * `mycslink.cedars-sinai.org`. Discovery follows those moves so the rest of
+   * the session talks to the host that actually serves the chart.
+   */
+  setHostname(hostname: string) {
+    this.hostname = MyChartRequest.normalizeHostname(hostname);
+  }
+
 
   // Save the current state of the cookie jar to a JSON file.
   // Only used for local testing.
@@ -198,7 +218,10 @@ export class MyChartRequest {
 
   // Make a request with the given config.
   // Returns the raw response object.
-  async makeRequest(config: RequestConfig): Promise<Response> {
+  //
+  // `redirectsFollowed` is bookkeeping for the recursive redirect follow below;
+  // callers pass one argument and let it default.
+  async makeRequest(config: RequestConfig, redirectsFollowed = 0): Promise<Response> {
     if (config.method === undefined) {
       config.method = 'GET';
     }
@@ -257,7 +280,7 @@ export class MyChartRequest {
 
 
     // Follow redirects, if necessary.
-    if ([301, 302].includes(response.status) && config.followRedirects !== false) {
+    if (REDIRECT_STATUSES.includes(response.status) && config.followRedirects !== false) {
 
       let newLocation = response.headers.get('Location');
 
@@ -265,11 +288,26 @@ export class MyChartRequest {
         throw new Error("302 didn't have a location header" + url)
       }
 
+      // Some instances redirect a URL straight back to itself and never stop —
+      // mychart.crossingrivers.org does this on /MyChart/, cookies and all.
+      // Without a cap this recurses until the process runs out of stack.
+      if (redirectsFollowed >= MAX_REDIRECTS) {
+        logger.debug(`Giving up after ${MAX_REDIRECTS} redirects, last hop:`, url);
+        return response;
+      }
+
       // If the Location header returned doesn't isn't absolute, make it absolute.
       newLocation = new URL(newLocation, url).href
 
-      // Following 302 should always be a GET
-      return await this.makeRequest({ ...config, url: newLocation, method: 'GET', body: undefined })
+      // 307/308 exist precisely to preserve the method and body; everything
+      // else turns into a GET, which is what browsers do with a 302 too.
+      const preserveMethod = response.status === 307 || response.status === 308;
+      return await this.makeRequest({
+        ...config,
+        url: newLocation,
+        method: preserveMethod ? config.method : 'GET',
+        body: preserveMethod ? config.body : undefined,
+      }, redirectsFollowed + 1)
     }
 
     return response;
