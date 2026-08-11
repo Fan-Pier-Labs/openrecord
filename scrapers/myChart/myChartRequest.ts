@@ -4,6 +4,7 @@ import {mockRequest} from './mock_data/index'
 import { OPENRECORD_MOCK_DATA } from '../../shared/env';
 import { RequestConfig } from './types';
 import { logger } from '../../shared/logger';
+import { withHostLimit } from '../../shared/hostConcurrency';
 
 /**
  * Options for creating a MyChartRequest.
@@ -273,7 +274,12 @@ export class MyChartRequest {
       logger.debug('MOCK:', response.status, url)
     }
     else {
-      response = await this.fetchWithCookieJar(url, finalConfig)
+      // Every outbound scraper request passes through here, so this is the one
+      // place the per-host cap has to be applied. Only the fetch itself is
+      // inside the permit — the redirect follow below recurses back into
+      // makeRequest, and holding a permit across that would let a single chain
+      // hold several at once and deadlock against its own callers.
+      response = await withHostLimit(url, () => this.fetchWithCookieJar(url, finalConfig))
       // Log each request and its status code.
       logger.debug(response.status, url)
     }
