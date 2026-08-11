@@ -3,8 +3,9 @@ import * as data from '../data';
 import { TOOL_SPECS } from '../tools';
 import { describeResult, summarizeArgs, truncateJson } from '../display';
 import { Markdown } from './Markdown';
+import { WriteConfirm } from './WriteConfirm';
 import { streamText } from '../stream';
-import type { ToolGroup, ToolRecord, TurnCallbacks } from '../types';
+import type { PendingWrite, ToolGroup, ToolRecord, TurnCallbacks } from '../types';
 
 /**
  * The Claude Desktop surface.
@@ -60,6 +61,8 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
   const [draft, setDraft] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** A write waiting on the user. `decide` resolves the agent loop's promise. */
+  const [confirm, setConfirm] = useState<{ write: PendingWrite; decide: (ok: boolean) => void } | null>(null);
 
   const threadRef = useRef<HTMLDivElement | null>(null);
   const sendRef = useRef<(text: string) => void>(() => {});
@@ -98,6 +101,12 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
                 m.id === assistantId ? { ...m, pendingTool: null, toolCalls: [...m.toolCalls, record] } : m,
               ),
             ),
+          // Blocks the loop until the user answers the dialog.
+          onConfirmWrite: (write) =>
+            new Promise<boolean>((decide) => {
+              update({ pendingTool: null });
+              setConfirm({ write, decide });
+            }),
         },
       });
       update({ pendingTool: null });
@@ -365,6 +374,16 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
           {settingsOpen && renderSettings()}
         </div>
       </div>
+      {confirm && (
+        <WriteConfirm
+          write={confirm.write}
+          variant="desktop"
+          onDecide={(approved) => {
+            confirm.decide(approved);
+            setConfirm(null);
+          }}
+        />
+      )}
     </div>
   );
 }

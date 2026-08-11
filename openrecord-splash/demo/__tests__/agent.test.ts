@@ -11,13 +11,13 @@ import { describe, expect, test } from 'bun:test';
 import {
   buildSystemPrompt,
   createProxyCompleter,
+  describeWrite,
   extractToolCalls,
   isExclusiveTool,
   runTurn,
-  isAffirmative,
   stripProtocolChatter,
 } from '../src/agent';
-import { createSession } from '../src/tools';
+import { TOOL_SPECS, createSession } from '../src/tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -34,6 +34,18 @@ function scriptedModel(turns: string[]) {
 }
 
 const respond = (text: string) => JSON.stringify({ tool: 'respond', args: { text } });
+
+/** Answers the write-confirmation dialog. Records what it was shown. */
+function dialog(answer: boolean) {
+  const shown: Any[] = [];
+  return {
+    shown,
+    onConfirmWrite: async (write: Any) => {
+      shown.push(write);
+      return answer;
+    },
+  };
+}
 
 describe('extractToolCalls', () => {
   test('pulls a single call out of a bare JSON turn', () => {
@@ -172,23 +184,38 @@ describe('stripProtocolChatter', () => {
   });
 });
 
-describe('isAffirmative', () => {
-  test('accepts a plain yes', () => {
-    for (const yes of ['yes', 'Yes', 'yep', 'ok', 'sure', 'go ahead', 'send it', 'yes please']) {
-      expect(isAffirmative(yes)).toBe(true);
-    }
+describe('describeWrite', () => {
+  test('shows the literal payload, labelled for a patient', () => {
+    const shown = describeWrite({
+      tool: 'send_message',
+      args: {
+        recipient_name: 'Dr. Julius Hibbert',
+        message_body: 'Please refill my Metformin.',
+        instance: 'springfield',
+      },
+    });
+
+    expect(shown.title).toBe('Send Message');
+    expect(shown.verb).toBe('Send');
+    expect(shown.fields).toEqual([
+      { label: 'Recipient name', value: 'Dr. Julius Hibbert' },
+      { label: 'Message body', value: 'Please refill my Metformin.' },
+    ]);
   });
 
-  test('fails closed on anything else', () => {
-    // A missed yes costs a turn; a false positive sends a real message.
-    for (const notYes of ['no', 'not yet', "don't", 'cancel', 'wait', 'what am i on?', '', '   ']) {
-      expect(isAffirmative(notYes)).toBe(false);
-    }
+  test('hides instance — it is plumbing, not something to approve', () => {
+    const shown = describeWrite({ tool: 'request_refill', args: { instance: 'springfield' } });
+    expect(shown.fields).toEqual([]);
   });
 
-  test('a yes with a caveat is not a yes', () => {
-    expect(isAffirmative('yes but change the subject first')).toBe(false);
-    expect(isAffirmative('ok, send it to a different doctor')).toBe(false);
+  test('every write tool has patient-readable copy', () => {
+    // A tool with no entry falls back to its raw name, which is a poor thing
+    // to show someone being asked to approve it.
+    for (const spec of TOOL_SPECS.filter((t: Any) => t.write)) {
+      const shown = describeWrite({ tool: spec.name, args: {} });
+      expect(shown.title).not.toBe(spec.name);
+      expect(shown.description).not.toContain(spec.name);
+    }
   });
 });
 
@@ -298,9 +325,8 @@ describe('runTurn', () => {
     const result = await runTurn({
       ...base(),
       session,
-      userText: 'yes',
-      pendingWrite: { tool: 'request_refill', args },
       complete: model.complete,
+      callbacks: dialog(true),
     });
 
     expect(result.text).toBe('Refill submitted.');
@@ -315,9 +341,8 @@ describe('runTurn', () => {
     ]);
     const result = await runTurn({
       ...base(),
-      userText: 'yes',
-      pendingWrite: { tool: 'request_refill', args },
       complete: model.complete,
+      callbacks: dialog(true),
     });
 
     expect(result.text).toBe('That one has no refills left.');
@@ -359,107 +384,105 @@ describe('runTurn', () => {
     expect(result.text).toBe('Your A1c is 7.2%.');
   });
 
-  test('a write is held for confirmation instead of running', async () => {
+  test('a write is put to the user and does not run until approved', async () => {
     // The reported failure: asked "what am i on?", the model fired a write.
-    // The payload must be put to the user and nothing may reach the session.
+    // The dialog must be shown the real payload and nothing may reach the
+    // session before it is answered.
     const session = createSession();
     const before = structuredClone(session.messages);
+    const args = {
+      recipient_name: 'Dr. Julius Hibbert',
+      subject: 'Refill',
+      message_body: 'Please refill my Metformin.',
+    };
+    const d = dialog(false);
     const model = scriptedModel([
-      '{"tool":"send_message","args":{"recipient_name":"Dr. Julius Hibbert","subject":"Refill","message_body":"Please refill my Metformin."}}',
+      JSON.stringify({ tool: 'send_message', args }),
+      respond('Okay, I have not sent it.'),
     ]);
     const result = await runTurn({
       ...base(),
       session,
       userText: 'what am i on?',
       complete: model.complete,
+      callbacks: d,
     });
 
+    expect(d.shown).toEqual([{ tool: 'send_message', args }]);
     expect(result.toolCalls).toHaveLength(0);
     expect(session.messages).toEqual(before);
-    expect(result.pendingWrite?.tool).toBe('send_message');
-    expect(result.text).toContain('send_message');
-    expect(result.text).toContain('Please refill my Metformin.');
+    expect(result.text).toBe('Okay, I have not sent it.');
   });
 
-  test('a held write runs once the user says yes', async () => {
+  test('a decline is fed back so the model stops instead of retrying', async () => {
+    const model = scriptedModel([
+      JSON.stringify({ tool: 'request_refill', args: { medication_name: 'Atorvastatin' } }),
+      respond('No problem, I left it alone.'),
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete, callbacks: dialog(false) });
+
+    expect(result.toolCalls).toHaveLength(0);
+    const fedBack = model.seen[1].messages.at(-1).content;
+    expect(fedBack).toContain('User declined to run request_refill');
+    expect(fedBack).toContain('Do not retry unless they ask again');
+  });
+
+  test('approving runs the write against the session', async () => {
     const session = createSession();
-    const pendingWrite = {
-      tool: 'send_message',
-      args: { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' },
+    const args = {
+      recipient_name: 'Dr. Julius Hibbert',
+      subject: 'Refill',
+      message_body: 'Please refill my Metformin.',
     };
-    const model = scriptedModel([
-      JSON.stringify({ tool: 'send_message', args: pendingWrite.args }),
-      respond('Sent.'),
-    ]);
+    const model = scriptedModel([JSON.stringify({ tool: 'send_message', args }), respond('Sent.')]);
     const result = await runTurn({
       ...base(),
       session,
-      userText: 'yes',
-      pendingWrite,
       complete: model.complete,
+      callbacks: dialog(true),
     });
 
+    expect(result.text).toBe('Sent.');
     expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['send_message']);
-    expect(result.text).toBe('Sent.');
-    expect(result.pendingWrite ?? null).toBeNull();
-  });
-
-  test('a yes approves only the exact payload it was shown', async () => {
-    // Approval must not become a blank cheque: a model that swaps the body
-    // after the user agrees has to ask again.
-    const session = createSession();
-    const model = scriptedModel([
-      '{"tool":"send_message","args":{"recipient_name":"Dr. Julius Hibbert","subject":"Refill","message_body":"Something else entirely."}}',
-    ]);
-    const result = await runTurn({
-      ...base(),
-      session,
-      userText: 'yes',
-      pendingWrite: {
-        tool: 'send_message',
-        args: { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' },
-      },
-      complete: model.complete,
-    });
-
-    // The approved payload ran, exactly as shown. The swapped one did not —
-    // it is held for its own confirmation.
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].args.message_body).toBe('Please refill my Metformin.');
-    expect(result.pendingWrite?.args.message_body).toBe('Something else entirely.');
-    expect(session.messages.some((m: Any) => m.body === 'Something else entirely.')).toBe(false);
-  });
-
-  test('the approved write runs from the stored payload, not the model re-emit', async () => {
-    // The model rewording the body on re-emit must not run a second copy, and
-    // must not bounce the user back into another confirmation for work that is
-    // already done.
-    const session = createSession();
-    const args = { recipient_name: 'Dr. Julius Hibbert', subject: 'Refill', message_body: 'Please refill my Metformin.' };
-    const model = scriptedModel([
-      JSON.stringify({ tool: 'send_message', args: { ...args, message_body: 'Reworded on re-emit.' } }),
-      respond('Sent.'),
-    ]);
-    const result = await runTurn({
-      ...base(),
-      session,
-      userText: 'yes',
-      pendingWrite: { tool: 'send_message', args },
-      complete: model.complete,
-    });
-
-    expect(result.text).toBe('Sent.');
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].args.message_body).toBe('Please refill my Metformin.');
     expect(session.messages.filter((m: Any) => m.subject === 'Refill')).toHaveLength(1);
   });
 
+  test('every write is asked about separately — approval is never standing', async () => {
+    // No "always allow". A second write in the same turn opens its own dialog.
+    const session = createSession();
+    const d = dialog(true);
+    const model = scriptedModel([
+      JSON.stringify({ tool: 'request_refill', args: { medication_name: 'Atorvastatin' } }),
+      JSON.stringify({ tool: 'request_refill', args: { medication_name: 'Lisinopril' } }),
+      respond('Both requested.'),
+    ]);
+    await runTurn({ ...base(), session, complete: model.complete, callbacks: d });
+
+    expect(d.shown).toHaveLength(2);
+    expect(d.shown.map((w: Any) => w.args.medication_name)).toEqual(['Atorvastatin', 'Lisinopril']);
+  });
+
+  test('a surface with no dialog wired runs no writes at all', async () => {
+    // Fail shut. The alternative is silently executing unconfirmed writes,
+    // which is the bug the dialog exists to prevent.
+    const session = createSession();
+    const model = scriptedModel([
+      JSON.stringify({ tool: 'request_refill', args: { medication_name: 'Atorvastatin' } }),
+      respond('I could not do that.'),
+    ]);
+    const result = await runTurn({ ...base(), session, complete: model.complete });
+
+    expect(result.toolCalls).toHaveLength(0);
+    expect(session.medications[0].refillsRemaining).toBe(3);
+  });
+
   test('reads are never gated', async () => {
+    const d = dialog(true);
     const model = scriptedModel(['{"tool":"get_medications","args":{}}', respond('Four medications.')]);
-    const result = await runTurn({ ...base(), complete: model.complete });
+    const result = await runTurn({ ...base(), complete: model.complete, callbacks: d });
 
     expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['get_medications']);
-    expect(result.pendingWrite ?? null).toBeNull();
+    expect(d.shown).toHaveLength(0);
   });
 
   test('the fullest prose attempt wins, not the last one', async () => {

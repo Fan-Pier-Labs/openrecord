@@ -165,6 +165,14 @@ export type TurnCallbacks = {
   onToolEnd?: (record: ToolRecord) => void;
   /** The model call failed; the turn is about to throw. */
   onError?: (error: Error) => void;
+  /**
+   * Put a proposed write to the user and resolve with their answer. The loop
+   * blocks on this, so the tool does not run until it resolves true.
+   *
+   * Omitting it denies every write: a surface that forgets to wire the dialog
+   * must fail shut, not run writes with no confirmation at all.
+   */
+  onConfirmWrite?: (write: PendingWrite) => Promise<boolean>;
 };
 
 /**
@@ -172,8 +180,8 @@ export type TurnCallbacks = {
  *
  * The system prompt tells the model to confirm every write with the user
  * first, but a prompt is not a guarantee — a cheap model will happily fire
- * send_message off the back of a plain question. The loop holds the call here
- * instead, and only runs it once the user says yes to this exact payload.
+ * send_message off the back of a plain question. The loop holds the call and
+ * puts it to the user as a dialog before anything executes.
  */
 export type PendingWrite = {
   tool: string;
@@ -183,8 +191,6 @@ export type PendingWrite = {
 export type TurnResult = {
   text: string;
   toolCalls: ToolRecord[];
-  /** Set when the turn ended by asking the user to confirm a write. */
-  pendingWrite?: PendingWrite | null;
 };
 
 export type Surface = 'ios' | 'desktop';

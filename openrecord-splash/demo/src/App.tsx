@@ -5,7 +5,7 @@ import { createSession, executeTool, TOOL_SPECS } from './tools';
 import { describeResult, resultError, summarizeArgs } from './display';
 import { IosSurface, type IosHandle } from './components/IosSurface';
 import { DesktopSurface, type DesktopHandle } from './components/DesktopSurface';
-import type { PendingWrite, Surface, ToolRecord, TurnCallbacks } from './types';
+import type { Surface, ToolRecord, TurnCallbacks } from './types';
 
 /**
  * Demo shell.
@@ -71,9 +71,6 @@ export function App() {
   const iosRef = useRef<IosHandle | null>(null);
   const desktopRef = useRef<DesktopHandle | null>(null);
 
-  /** Writes awaiting a yes, one slot per surface. A ref: never rendered. */
-  const pendingWrites = useRef<Record<Surface, PendingWrite | null>>({ ios: null, desktop: null });
-
   const complete = useMemo(() => {
     if (HAS_LIVE_AI) return createProxyCompleter(AI_ENDPOINT);
     // Nothing to call. Fail loudly rather than inventing an answer.
@@ -91,15 +88,11 @@ export function App() {
       memoryDigest: string | null;
       callbacks: TurnCallbacks;
     }) => {
-      // Per surface: the phone and the desktop hold separate conversations, so
-      // a confirmation typed in one must never approve a write proposed in the
-      // other.
-      const result = await runAgentTurn({
+      return runAgentTurn({
         session,
         userText: opts.userText,
         history: opts.history,
         complete,
-        pendingWrite: pendingWrites.current[opts.surface],
         skillAddition: opts.skillAddition,
         memoryDigest: opts.memoryDigest,
         surface: opts.surface,
@@ -110,12 +103,11 @@ export function App() {
             opts.callbacks.onToolEnd?.(record);
           },
           onError: () => setEngine('unavailable'),
+          // Each surface renders its own dialog, so this passes straight
+          // through — the phone's confirmation must not answer the desktop's.
+          onConfirmWrite: opts.callbacks.onConfirmWrite,
         },
       });
-
-      // Either a fresh proposal to hold, or the old one is now spent.
-      pendingWrites.current[opts.surface] = result.pendingWrite ?? null;
-      return result;
     },
     [session, complete],
   );
@@ -128,7 +120,6 @@ export function App() {
   }
 
   function reset() {
-    pendingWrites.current = { ios: null, desktop: null };
     setActivity([]);
     setEngine(HAS_LIVE_AI ? 'live' : 'unconfigured');
     setSessionKey((k) => k + 1);

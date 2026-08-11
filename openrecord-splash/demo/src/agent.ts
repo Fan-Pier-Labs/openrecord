@@ -26,7 +26,6 @@ import type {
   PendingWrite,
   Session,
   Surface,
-  ToolArgs,
   ToolRecord,
   TurnCallbacks,
   TurnResult,
@@ -183,54 +182,82 @@ export function stripProtocolChatter(text: string): string {
  * ------------------------------------------------------------------ */
 
 /**
- * Whether the user's message approves the write that was put to them.
- *
- * Deliberately narrow and fail-closed: anything that isn't a recognisable yes
- * is a no. A missed "yes" costs one extra turn; a false positive sends a real
- * message to a real doctor.
+ * Plain-language titles for the confirmation dialog, mirroring the real iOS
+ * client's WRITE_TOOLS map in expo-app/src/lib/ai/tool-executor.ts. The user
+ * is being asked to approve an action, not a function call, so the dialog
+ * leads with what it does.
  */
-const AFFIRMATIVE =
-  /^\s*(?:yes|yeah|yep|yup|ok|okay|sure|confirm(?:ed|ing)?|do it|send it|book it|go ahead|please do|sounds good|approve[ds]?|affirmative|looks good|lgtm)\b/i;
-/** Any hint of a brake anywhere in the message vetoes the whole thing. */
-const NEGATIVE = /\b(?:no|not|don'?t|do not|cancel|stop|wait|hold off|never ?mind|instead|change|edit|different)\b/i;
+const WRITE_TOOL_META: Record<string, { title: string; description: string; verb: string }> = {
+  send_message: {
+    title: 'Send Message',
+    description: 'Sends a new message to your care team.',
+    verb: 'Send',
+  },
+  send_reply: {
+    title: 'Send Reply',
+    description: 'Replies to an existing conversation.',
+    verb: 'Send',
+  },
+  request_refill: {
+    title: 'Request Refill',
+    description: 'Submits a medication refill request.',
+    verb: 'Request',
+  },
+  book_appointment: {
+    title: 'Book Appointment',
+    description: 'Books this appointment slot.',
+    verb: 'Book',
+  },
+  add_emergency_contact: {
+    title: 'Add Emergency Contact',
+    description: 'Adds a new emergency contact to your record.',
+    verb: 'Add',
+  },
+  update_emergency_contact: {
+    title: 'Update Emergency Contact',
+    description: 'Changes an emergency contact on your record.',
+    verb: 'Update',
+  },
+  remove_emergency_contact: {
+    title: 'Remove Emergency Contact',
+    description: 'Removes an emergency contact from your record.',
+    verb: 'Remove',
+  },
+};
 
-export function isAffirmative(text: string): boolean {
-  const trimmed = String(text ?? '').trim();
-  if (!trimmed) return false;
-  if (NEGATIVE.test(trimmed)) return false;
-  return AFFIRMATIVE.test(trimmed);
-}
+export type WriteConfirmation = {
+  title: string;
+  description: string;
+  /** Label for the approve button. */
+  verb: string;
+  /** The literal payload that will run, as label/value pairs. */
+  fields: { label: string; value: string }[];
+};
 
-/** Key-order-independent identity for a proposed write. */
-function writeIdentity(tool: string, args: ToolArgs): string {
-  const entries = Object.entries(args ?? {})
-    .filter(([key]) => key !== 'instance')
-    .sort(([a], [b]) => a.localeCompare(b));
-  return JSON.stringify([tool, entries]);
-}
-
-export function isSameWrite(a: PendingWrite | null | undefined, b: PendingWrite | null | undefined): boolean {
-  if (!a || !b) return false;
-  return writeIdentity(a.tool, a.args) === writeIdentity(b.tool, b.args);
+/** Turns an arg key into something a patient can read: message_body → Message body. */
+function fieldLabel(key: string): string {
+  const spaced = key.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 /**
- * The confirmation put to the user. Written by code, not by the model: the
- * whole point is to show the payload that will actually run, so it cannot be
- * a paraphrase of it.
+ * What the dialog shows. Built by code from the actual payload, never from the
+ * model's description of it — the point of the dialog is that the user sees
+ * what will really run.
  */
-export function describePendingWrite({ tool, args }: PendingWrite): string {
-  const fields = Object.entries(args ?? {})
-    .filter(([key]) => key !== 'instance')
-    .map(([key, value]) => `- **${key}:** ${typeof value === 'string' ? value : JSON.stringify(value)}`);
-
-  return [
-    `Just to confirm before I do it — this will run \`${tool}\`:`,
-    '',
-    ...(fields.length > 0 ? fields : ['- _(no details)_']),
-    '',
-    'Reply **yes** to go ahead, or tell me what to change.',
-  ].join('\n');
+export function describeWrite({ tool, args }: PendingWrite): WriteConfirmation {
+  const meta = WRITE_TOOL_META[tool];
+  return {
+    title: meta?.title ?? tool,
+    description: meta?.description ?? `Runs ${tool}.`,
+    verb: meta?.verb ?? 'Confirm',
+    fields: Object.entries(args ?? {})
+      .filter(([key]) => key !== 'instance')
+      .map(([key, value]) => ({
+        label: fieldLabel(key),
+        value: typeof value === 'string' ? value : JSON.stringify(value),
+      })),
+  };
 }
 
 /* ------------------------------------------------------------------ *
@@ -313,7 +340,7 @@ export function buildSystemPrompt({
     '- Showing an X-ray picture: call get_imaging_results to pick the study, then get_xray_image with its 0-based index. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
     '- Refills: use request_refill. If a medication has no refills left, message the prescriber instead.',
     '- For EVERY write action, show the user the exact payload and get explicit confirmation before calling the tool.',
-    '- This is enforced, not advisory: a write tool you call without the user having agreed to that exact payload does not run. The user is shown the payload and asked. Do not claim you have sent, booked, or requested anything until you see the tool result saying so.',
+    '- This is enforced, not advisory: calling a write tool opens a confirmation dialog showing the exact payload, and the tool only runs if the user approves it there. Do not claim you have sent, booked, or requested anything until you see the tool result saying so. If the result says the user declined, acknowledge that and do not retry unless they ask again.',
     '- Before proposing a write, read the current state in the same turn — call get_medications before discussing a refill, get_available_appointments before proposing a booking, get_emergency_contacts before editing one. The payload you show the user has to match what is actually on file.',
     '',
     formatting,
@@ -395,8 +422,6 @@ export type RunTurnOptions = {
   /** Model transport. Required — there is no offline path. */
   complete: CompleteFn;
   callbacks?: TurnCallbacks;
-  /** The write this turn's message may be confirming, from the previous turn. */
-  pendingWrite?: PendingWrite | null;
   /** Active skill playbook, appended to the system prompt. */
   skillAddition?: string | null;
   memoryDigest?: string | null;
@@ -414,19 +439,17 @@ export async function runTurn({
   userText,
   complete,
   callbacks = {},
-  pendingWrite = null,
   skillAddition = null,
   memoryDigest = null,
   surface = 'ios',
   signal,
 }: RunTurnOptions): Promise<TurnResult> {
-  // Approval is granted by this message, for that exact payload, and nothing
-  // else. It is spent on the first write it authorises.
-  let approved = pendingWrite && isAffirmative(userText) ? pendingWrite : null;
-
   const onToolStart = callbacks.onToolStart ?? (() => {});
   const onToolEnd = callbacks.onToolEnd ?? (() => {});
   const onError = callbacks.onError ?? (() => {});
+  // No dialog wired means no writes. Fail shut: the alternative is a surface
+  // that silently runs them unconfirmed, which is the bug this exists to stop.
+  const onConfirmWrite = callbacks.onConfirmWrite ?? (async () => false);
 
   const executed: ToolRecord[] = [];
 
@@ -447,22 +470,6 @@ export async function runTurn({
 
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
-
-  // The user approved a held write, so run it here rather than asking the
-  // model to reproduce the payload verbatim — a cheap model rewords it, the
-  // reworded call fails the identity check, and the user gets asked forever.
-  // Running it from the stored payload also guarantees that what executes is
-  // exactly what was shown.
-  let approvedRecord: ToolRecord | null = null;
-  if (approved) {
-    [approvedRecord] = await runBatch([{ tool: approved.tool, args: approved.args }]);
-    messages.push({
-      role: 'user',
-      content: `Result of ${approvedRecord.tool}:\n${JSON.stringify(approvedRecord.result)}`,
-    });
-    approved = null;
-  }
-
   let parseFailures = 0;
   /**
    * The best un-parseable prose we've seen this turn.
@@ -543,29 +550,23 @@ export async function runTurn({
     // The gate. The system prompt asks the model to confirm every write, but
     // asking is not enforcing: the model that prompted this check fired
     // request_refill and send_message off the back of "what am i on?", a plain
-    // question. Hold the write and put the real payload to the user instead.
+    // question. Put the real payload to the user and block until they answer.
     const writeCall = calls.find((c) => isWriteTool(c.tool));
     if (writeCall) {
-      const proposed: PendingWrite = { tool: writeCall.tool, args: writeCall.args };
-      // The approved write already ran at the top of this turn, and the model
-      // has no way to know that — its first move is usually to emit the call
-      // again, often reworded. Match on the tool alone, and only on the first
-      // model turn: past that, a write is a genuinely new one and gets gated
-      // like any other.
-      const isReemit = approvedRecord !== null && turn === 0 && proposed.tool === approvedRecord.tool;
-      if (isReemit && approvedRecord) {
+      const approved = await onConfirmWrite({ tool: writeCall.tool, args: writeCall.args });
+      if (!approved) {
+        // Same shape and wording as the real iOS client, so the model reacts
+        // to a decline the same way in both.
         messages.push({ role: 'assistant', content: raw });
         messages.push({
           role: 'user',
-          content: `Result of ${approvedRecord.tool}:\n${JSON.stringify(approvedRecord.result)}`,
+          content: JSON.stringify({
+            cancelled: true,
+            message: `User declined to run ${writeCall.tool}. Do not retry unless they ask again.`,
+          }),
         });
         continue;
       }
-      return {
-        text: describePendingWrite(proposed),
-        toolCalls: executed,
-        pendingWrite: proposed,
-      };
     }
 
     const batch = await runBatch(calls);

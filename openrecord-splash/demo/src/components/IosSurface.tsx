@@ -3,8 +3,9 @@ import * as data from '../data';
 import { SKILLS, buildAlerts } from '../skills';
 import { executeTool } from '../tools';
 import { Markdown } from './Markdown';
+import { WriteConfirm } from './WriteConfirm';
 import { streamText } from '../stream';
-import type { Session, Skill, TurnCallbacks } from '../types';
+import type { PendingWrite, Session, Skill, TurnCallbacks } from '../types';
 
 /**
  * The iOS app surface.
@@ -51,6 +52,9 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [activeSkill, setActiveSkill] = useState<Skill | null>(null);
+
+  /** A write waiting on the user. `decide` resolves the agent loop's promise. */
+  const [confirm, setConfirm] = useState<{ write: PendingWrite; decide: (ok: boolean) => void } | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
@@ -105,6 +109,12 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
         callbacks: {
           onToolStart: (call) => setActiveTool(call.tool),
           onToolEnd: () => setActiveTool(null),
+          // Blocks the loop until the user answers the dialog.
+          onConfirmWrite: (write) =>
+            new Promise<boolean>((decide) => {
+              setActiveTool(null);
+              setConfirm({ write, decide });
+            }),
         },
       });
       // The proxy answers a whole turn at once, so reveal it at the pace a
@@ -518,6 +528,16 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
           {SCREENS[screen]()}
           {renderDrawer()}
           {renderSkillsSheet()}
+          {confirm && (
+            <WriteConfirm
+              write={confirm.write}
+              variant="ios"
+              onDecide={(approved) => {
+                confirm.decide(approved);
+                setConfirm(null);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

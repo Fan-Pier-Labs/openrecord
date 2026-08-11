@@ -529,3 +529,63 @@ code, pre { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospa
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ── Write confirmation dialog ──────────────────────────────────────────
+   Every write tool stops here before it runs. Scoped to the surface that
+   asked (absolute, not fixed) so the phone's alert sits inside the phone. */
+.wc-overlay {
+  position: absolute; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 23, 42, 0.42);
+  animation: wc-fade .14s ease-out;
+}
+.wc-overlay.ios { padding: 22px; }
+.wc-overlay.desktop { padding: 30px; }
+
+.wc-card {
+  width: 100%; background: #fff; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+  animation: wc-pop .16s cubic-bezier(.2,.9,.3,1.2);
+}
+.wc-overlay.ios .wc-card { max-width: 290px; border-radius: 17px; }
+.wc-overlay.desktop .wc-card { max-width: 420px; border-radius: 13px; }
+
+.wc-head { display: flex; gap: 11px; align-items: flex-start; padding: 17px 17px 12px; }
+.wc-icon {
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 9999px;
+  background: #fef3c7; color: #b45309;
+  display: grid; place-items: center; font-weight: 700; font-size: 15px;
+}
+.wc-title { font-size: 15.5px; font-weight: 650; color: var(--slate-900); letter-spacing: -0.01em; }
+.wc-desc { font-size: 12.5px; color: var(--slate-500); line-height: 1.45; margin-top: 2px; }
+
+.wc-fields {
+  margin: 0; padding: 0 17px 14px;
+  display: flex; flex-direction: column; gap: 9px;
+  max-height: 190px; overflow-y: auto;
+}
+.wc-field { display: flex; flex-direction: column; gap: 2px; }
+.wc-field dt {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--slate-400);
+}
+.wc-field dd {
+  margin: 0; font-size: 13px; color: var(--slate-900); line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.wc-empty { color: var(--slate-400); font-style: italic; }
+
+.wc-actions { display: flex; border-top: 1px solid var(--slate-200); }
+.wc-btn {
+  flex: 1; padding: 12px 10px; background: #fff; border: 0; cursor: pointer;
+  font-size: 14.5px; font-family: inherit; transition: background .12s;
+}
+.wc-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.wc-no { color: var(--slate-500); border-right: 1px solid var(--slate-200); }
+.wc-no:hover { background: var(--slate-50); }
+.wc-yes { color: #b91c1c; font-weight: 650; }
+.wc-yes:hover { background: #fef2f2; }
+
+@keyframes wc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wc-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
