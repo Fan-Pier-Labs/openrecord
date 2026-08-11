@@ -11,6 +11,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Architecture
 
 - **Scrapers** (`scrapers/`): Shared scraper code for MyChart
+- **Mount discovery** (`scrapers/myChart/login.ts`): Works out where MyChart lives on a hostname before anything else happens — the prefix its routes sit under (`/MyChart`, `/UCSFMyChart`, `prd`, or nothing at all for a root-mounted instance), and which host actually serves it. `determineFirstPathPart` follows the root redirect chain to the end rather than reading one hop, because MyChart's canonical bounce is `/` → `/<prefix>/` → `DefaultAsp` → `/<prefix>/Authentication/Login` and only the last hop names the mount. It also follows meta refreshes, scripted `window.location` redirects, and cross-host moves (vanity domains like `patients.mycslink.org` redirect to the deployment that now serves them). Anything it only guessed at — a link scraped off a landing page, a host it was redirected to — is checked for a real login page before being trusted, and a host change never downgrades https. Verify changes against the whole directory with `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` (see below).
 - **CLI** (`npm-package/cli/cli.ts`): Headless CLI entry point — bundled into the published `mychart-cli` npm package as the `mychart-cli` bin. `npm i -g mychart-cli` puts `mychart-cli` on PATH. Great for Claude code to use for testing changes in the cli or scrapers.
 - **Shared types** (`shared/`): Common types and enums shared across packages
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
@@ -34,6 +35,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `cd fake-mychart && bun run build` — Build fake MyChart for production
 - `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
 - `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose services running)
+- `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` — Run mount discovery against every MyChart instance in the directory (~750 hosts) and report the ones it gets wrong. Sends no credentials — every request is one an unauthenticated browser makes opening the portal. Flags: `--out results.jsonl`, `--concurrency 24`, `--limit 50`, `--hosts a.org,b.org`, `--verbose` (per-host discovery trace). Run it after touching discovery: the deployment shapes in the wild are far more varied than any fixture set, and this is the only way to know a change didn't regress a few dozen hospitals.
 - `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, fake-mychart, web app)
 - `docker compose -f docker-compose.ci.yaml down -v` — Tear down CI services
 

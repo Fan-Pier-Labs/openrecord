@@ -295,6 +295,80 @@ describe('MyChartRequest', () => {
       })
       expect(capturedHeaders['Content-Type']).toBe('application/x-www-form-urlencoded')
     })
+
+    it('follows 303/307/308 redirects too', async () => {
+      for (const status of [303, 307, 308]) {
+        const req = new MyChartRequest('mychart.example.com')
+        const calls: string[] = []
+        req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+          calls.push(url.toString())
+          if (calls.length === 1) {
+            return new Response('', { status, headers: { 'Location': '/moved' } })
+          }
+          return new Response('Final', { status: 200 })
+        }) as typeof req.fetchWithCookieJar
+
+        const res = await req.makeRequest({ path: '/Home' })
+        expect(res.status).toBe(200)
+        expect(calls[1]).toBe('https://mychart.example.com/moved')
+      }
+    })
+
+    it('keeps the method and body across a 307, but turns a 303 into a GET', async () => {
+      for (const [status, expectedMethod] of [[307, 'POST'], [303, 'GET']] as const) {
+        const req = new MyChartRequest('mychart.example.com')
+        const methods: (string | undefined)[] = []
+        let calls = 0
+        req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+          methods.push(init?.method)
+          if (++calls === 1) {
+            return new Response('', { status, headers: { 'Location': '/moved' } })
+          }
+          return new Response('Final', { status: 200 })
+        }) as typeof req.fetchWithCookieJar
+
+        await req.makeRequest({ path: '/DoLogin', method: 'POST', body: 'x=1' })
+        expect(methods[1]).toBe(expectedMethod)
+      }
+    })
+
+    it('gives up on a URL that redirects to itself instead of recursing forever', async () => {
+      // mychart.crossingrivers.org answers /CRH/ with a 301 to /CRH/. Without a
+      // cap this recursion never terminates.
+      const req = new MyChartRequest('mychart.example.com')
+      let calls = 0
+      req.fetchWithCookieJar = mock(async () => {
+        calls++
+        return new Response('', { status: 301, headers: { 'Location': 'https://mychart.example.com/loop' } })
+      }) as typeof req.fetchWithCookieJar
+
+      const res = await req.makeRequest({ url: 'https://mychart.example.com/loop' })
+      expect(res.status).toBe(301)
+      expect(calls).toBeLessThanOrEqual(21)
+    })
+  })
+
+  describe('setHostname', () => {
+    it('sends subsequent requests to the new host', async () => {
+      const req = new MyChartRequest('patients.mycslink.org')
+      req.setHostname('mycslink.cedars-sinai.org')
+      req.setFirstPathPart('mycslink')
+
+      const calls: string[] = []
+      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+        calls.push(url.toString())
+        return new Response('ok', { status: 200 })
+      }) as typeof req.fetchWithCookieJar
+
+      await req.makeRequest({ path: '/Authentication/Login' })
+      expect(calls[0]).toBe('https://mycslink.cedars-sinai.org/mycslink/Authentication/Login')
+    })
+
+    it('normalizes a full URL down to the host', () => {
+      const req = new MyChartRequest('mychart.example.com')
+      req.setHostname('https://mychart.other.org/MyChart')
+      expect(req.hostname).toBe('mychart.other.org')
+    })
   })
 
   describe('serialization', () => {
