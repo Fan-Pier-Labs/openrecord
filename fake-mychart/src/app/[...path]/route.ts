@@ -23,12 +23,33 @@ function notServedHere(path: string[] | undefined) {
   );
 }
 
+/**
+ * Is this request addressing a deployment prefix that doesn't exist here?
+ *
+ * A root-mounted instance serves `/Authentication/Login` and nothing at
+ * `/<anything>/Authentication/Login` — real ones answer 404 there
+ * (`adams.mychartcc.com/DefaultAsp/Authentication/Login`, and ochin answers the
+ * same for a made-up prefix). That 404 is load-bearing for the scraper: it is
+ * how a wrong prefix guess gets ruled out. The shared handler ends with a
+ * generic CSRF-token page for unknown GETs, which a scraper checking "does this
+ * look like a login page?" would read as a yes — so the check has to happen
+ * here, before that fallback, where root-mount knowledge lives.
+ */
+function addressesAPrefixThatDoesNotExist(path: string[] | undefined): boolean {
+  if (!path || path.length < 2) return false;
+  return path.slice(1).join('/').toLowerCase().startsWith('authentication/');
+}
+
 export async function GET(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  if (!isRootMount()) return notServedHere((await ctx.params).path);
+  const { path } = await ctx.params;
+  if (!isRootMount()) return notServedHere(path);
+  if (addressesAPrefixThatDoesNotExist(path)) return notServedHere(path);
   return myChartGet(request, ctx);
 }
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  if (!isRootMount()) return notServedHere((await ctx.params).path);
+  const { path } = await ctx.params;
+  if (!isRootMount()) return notServedHere(path);
+  if (addressesAPrefixThatDoesNotExist(path)) return notServedHere(path);
   return myChartPost(request, ctx);
 }
