@@ -310,6 +310,3 @@ Available methods on `window.VIEWER`:
 - `src/main/scrapers/myChart/myChartRequest.ts` — `async serialize()`
 - `src/cli.ts` — `await mychartRequest.serialize()`
 - `src/main/storage/storage.ts` — `await mychartRequest.serialize()` + `Promise.all` for map
-- `web/src/lib/mychart/myChartRequest.ts` — same fix
-- `web/src/lib/mcp/keepalive.ts` — two call sites
-- `web/src/app/api/mcp-session/route.ts` — one call site

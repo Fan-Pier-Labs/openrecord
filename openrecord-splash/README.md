@@ -54,8 +54,7 @@ Regenerate them after editing `icon.svg` or `assets-src/og-image.html`:
 ```
 
 It renders the share card with headless Chrome and the icons with `rsvg-convert`
-(`brew install librsvg`), and writes the web app's matching assets into `../web/public` so both
-sites share one design and one icon source.
+(`brew install librsvg`).
 
 Two things are easy to get wrong and are covered by `__tests__/metadata.test.ts`:
 
