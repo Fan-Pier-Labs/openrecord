@@ -344,7 +344,7 @@ Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo
 
 ### Coverage in CI
 
-`tests/integration/ci/integration.test.ts` (the "eUnity imaging pipeline" describe block) walks the full chain through the web app's xray endpoints: scrape → `/api/mychart-series` → `/api/mychart-xray` (single CLO → JPEG) → `/api/mychart-xray-zip` (multi-image bundle).
+`claude-desktop-extension/src/imaging/__tests__/encode.test.ts` exercises the CLO fixtures directly, and the fake-mychart CI job runs the scraper suite (`bun run test:fake-mychart`) plus the desktop-extension and npm-package tests against a live instance of this server.
 
 ## What's NOT Implemented
 

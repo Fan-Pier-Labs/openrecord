@@ -12,7 +12,7 @@
  *   3. The baked-in default below.
  */
 
-const DEFAULT_AI_ENDPOINT = '';
+const DEFAULT_AI_ENDPOINT = 'https://dur15eh31e.execute-api.us-east-2.amazonaws.com';
 
 function endpointOverride(): string | null {
   if (typeof window === 'undefined') return null;

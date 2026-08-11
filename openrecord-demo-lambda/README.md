@@ -1,25 +1,52 @@
 # openrecord-demo-lambda
 
-The model proxy behind the public OpenRecord demo at
-**https://openrecord.fanpierlabs.com/demo.html**.
+The model proxy behind every OpenRecord surface that needs a hosted model:
 
-The demo runs entirely in the browser: the fictional health record, the 45-tool
-MyChart layer, and the agent loop all live in `openrecord-splash/demo/`. The one
-thing a static page can't do is call a model, which is all this Lambda is for.
+- the public demo at **https://openrecord.fanpierlabs.com/demo.html**, whose
+  fictional health record, 45-tool MyChart layer, and agent loop all live in
+  `openrecord-splash/demo/` — the one thing a static page can't do is call a
+  model, and
+- the iOS app's **free tier** (`expo-app/`), whose agent loop runs on-device
+  against the user's real record. The record is scraped locally; only what the
+  client puts in the prompt reaches this Lambda.
+
+Current endpoint: `https://dur15eh31e.execute-api.us-east-2.amazonaws.com`
+(baked into `openrecord-splash/demo/src/config.ts` and `expo-app/app.config.ts`).
 
 ## Contract
 
 ```
 POST /
 Content-Type: application/json
+Authorization: Bearer <google id token>        # optional — unlocks the signed-in tier
 
-{ "system": "<system prompt>", "messages": [{ "role": "user", "content": "..." }] }
-→ 200 { "text": "<model output>", "model": "gemini-2.5-flash" }
+{ "system": "<system prompt>", "messages": [{ "role": "user", "content": "..." }], "model": "gemini-2.5-flash-lite" }
+→ 200 { "text": "<model output>", "model": "gemini-2.5-flash-lite" }
+
+GET /                                          # requires a valid token
+→ 200 { "spentCents": 55, "limitCents": 5000, "remainingCents": 4945, "period": "2026-08" }
 ```
 
-Deliberately the same provider-neutral shape the web app's `/api/ai` uses, so
-the demo's agent loop is a straight port of the iOS app's rather than a special
-case. Swap the upstream in `buildGeminiRequest`/`extractText` to change models.
+The provider-neutral shape keeps the demo's and the app's agent loops identical.
+Swap the upstream in `buildGeminiRequest`/`extractText` to change models.
+
+## Tiers
+
+| | Unauthenticated (demo) | Signed-in (iOS app) |
+|---|---|---|
+| Identity | none | Google ID token, verified server-side (`google-auth.mjs`: signature vs Google's JWKS, issuer, audience, expiry) |
+| Models | `gemini-2.5-flash`, `gemini-2.5-flash-lite` | + `gemini-2.5-pro` |
+| Rate limit | 40 req / 10 min per IP | 120 req / 10 min per Google account |
+| Spend | — | $50/month included credit, metered per account × month in the `openrecord-ai-spend` DynamoDB table (`spend.mjs`); 402 once used up |
+
+An invalid or expired token is a 401 — never a silent downgrade — so the app
+knows to silently refresh the token and retry. An unauthenticated request for
+`gemini-2.5-pro` is a 403; an unknown model is a 400. The iOS app uses the lite
+model for cheap side calls like chat titles.
+
+The DynamoDB client comes from the AWS SDK bundled in the Lambda Node runtime
+and is imported lazily, so the source stays zero-dependency and local `bun test`
+runs against an in-memory store.
 
 Error responses are `{ "error": "..." }` with a 4xx/5xx status. The demo has no
 offline path — every reply is a real model call — so an outage here shows an

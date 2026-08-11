@@ -6,13 +6,6 @@
 #   icon-512.png      PWA manifest icon           <- icon.svg
 #   apple-touch-icon.png  180x180 iOS home screen <- icon.svg
 #
-# It also writes the Next.js web app's matching assets into ../web/public, so
-# the splash page and the app share one card design and one icon source:
-#
-#   ../web/public/og-image.png        same card, minus the marketing domain
-#   ../web/public/icon-{192,512}.png  PWA manifest icons
-#   ../web/public/apple-touch-icon.png
-#
 # The PNGs are committed so deploys need no build step; rerun this only when
 # icon.svg or assets-src/og-image.html changes.
 #
@@ -33,8 +26,6 @@ if ! command -v rsvg-convert >/dev/null 2>&1; then
   exit 1
 fi
 
-WEB_DIR="$SRC_DIR/../web/public"
-
 # render_card <output-png> <query-string>
 # --virtual-time-budget lets the webfont load and lay out before the capture.
 render_card() {
@@ -51,17 +42,13 @@ render_card() {
 
 echo "==> Rendering og-image.png (1200x630)"
 render_card "$SRC_DIR/og-image.png" ""
-render_card "$WEB_DIR/og-image.png" "?domain=0"
 
 echo "==> Rendering icon PNGs from icon.svg"
-for dir in "$SRC_DIR" "$WEB_DIR"; do
-  rsvg-convert -w 192 -h 192 "$SRC_DIR/icon.svg" -o "$dir/icon-192.png"
-  rsvg-convert -w 512 -h 512 "$SRC_DIR/icon.svg" -o "$dir/icon-512.png"
-  rsvg-convert -w 180 -h 180 "$SRC_DIR/icon.svg" -o "$dir/apple-touch-icon.png"
-done
+rsvg-convert -w 192 -h 192 "$SRC_DIR/icon.svg" -o "$SRC_DIR/icon-192.png"
+rsvg-convert -w 512 -h 512 "$SRC_DIR/icon.svg" -o "$SRC_DIR/icon-512.png"
+rsvg-convert -w 180 -h 180 "$SRC_DIR/icon.svg" -o "$SRC_DIR/apple-touch-icon.png"
 
 echo "==> Done:"
 for f in og-image.png icon-192.png icon-512.png apple-touch-icon.png; do
   printf '    %-28s %s\n' "openrecord-splash/$f" "$(file -b "$SRC_DIR/$f")"
-  printf '    %-28s %s\n' "web/public/$f"        "$(file -b "$WEB_DIR/$f")"
 done

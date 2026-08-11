@@ -18,11 +18,7 @@ import {
   type AiProvider,
 } from "@/lib/storage/secure-store";
 import { deleteMemoryForAccount } from "@/lib/storage/database";
-import {
-  getBackendSession,
-  clearBackendSession,
-  type BackendUser,
-} from "@/lib/backend/session";
+import { getBackendSession, type BackendUser } from "@/lib/backend/session";
 import { signInWithGoogle, signOutFromGoogle } from "@/lib/backend/google-signin";
 import { backendFetch } from "@/lib/backend/client";
 
@@ -53,7 +49,9 @@ export default function SettingsScreen() {
     setBackendUser(session?.user ?? null);
     if (session) {
       try {
-        const res = await backendFetch("/api/ai");
+        // GET on the AI Lambda returns the month's metered spend for the
+        // verified Google account.
+        const res = await backendFetch("");
         if (res.ok) {
           const data = await res.json();
           setSpend({ spentCents: data.spentCents, limitCents: data.limitCents });
@@ -77,7 +75,6 @@ export default function SettingsScreen() {
 
   async function handleSignOut() {
     await signOutFromGoogle();
-    await clearBackendSession();
     await loadSettings();
   }
 
@@ -154,16 +151,25 @@ export default function SettingsScreen() {
                   {(spend.limitCents / 100).toFixed(2)}
                 </Text>
               ) : null}
-              <Pressable style={[styles.saveButton, { backgroundColor: "#d32f2f", marginTop: 12 }]} onPress={handleSignOut}>
+              <Pressable
+                testID="google-sign-out"
+                style={[styles.saveButton, { backgroundColor: "#d32f2f", marginTop: 12 }]}
+                onPress={handleSignOut}
+              >
                 <Text style={styles.saveButtonText}>Sign out</Text>
               </Pressable>
             </>
           ) : (
             <>
               <Text style={styles.securityNote}>
-                Sign in with Google to get $50 / month of included AI credit.
+                Sign in with Google to use AI and get $50 / month of included
+                credit.
               </Text>
-              <Pressable style={[styles.saveButton, { marginTop: 12 }]} onPress={handleGoogleSignIn}>
+              <Pressable
+                testID="google-sign-in"
+                style={[styles.saveButton, { marginTop: 12 }]}
+                onPress={handleGoogleSignIn}
+              >
                 <Text style={styles.saveButtonText}>Continue with Google</Text>
               </Pressable>
             </>
@@ -269,9 +275,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Security</Text>
           <Text style={styles.securityNote}>
             All MyChart credentials and health data are stored locally in the
-            iOS Keychain. When signed in with Google, AI prompts pass through
-            our server so credit can be tracked. With your own API key, calls
-            go directly to the provider.
+            iOS Keychain. On the free tier, AI prompts pass through our server
+            so your included credit can be tracked. With your own API key,
+            calls go directly to the provider.
           </Text>
         </View>
 
