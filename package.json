@@ -14,7 +14,6 @@
     "test:unit:web": "cd web && bun test --isolate",
     "test:integration": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/",
     "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/",
-    "test:fake-mychart-terms": "bun test scrapers/myChart/__tests__/fake-mychart-terms/",
     "test:ci-integration": "bun test tests/integration/ci/",
     "deploy": "python3 node_modules/deploy/main.py --config web/deploy.yaml"
   },

@@ -17,6 +17,7 @@ import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser,
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
+import { getRequireTerms } from '@/lib/terms';
 
 import crypto from 'crypto';
 
@@ -275,12 +276,8 @@ function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
 }
 
-function requireTerms(): boolean {
-  return process.env.FAKE_MYCHART_REQUIRE_TERMS === 'true';
-}
-
 function requireTermsRedirect(request: NextRequest): NextResponse | null {
-  if (!requireTerms()) return null;
+  if (!getRequireTerms()) return null;
   const cookie = request.headers.get('cookie');
   if (hasAcceptedTerms(cookie)) return null;
   return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/TermsConditions`, publicBaseUrl(request)), 302);
@@ -637,7 +634,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
             pk.lastUsedInstant = new Date().toISOString();
           }
           const sessionId = createSession(matchedUser?.username ?? null);
-          const response = requireTerms()
+          const response = getRequireTerms()
             ? html(termsConditionsPage())
             : html(doLoginSuccess());
           response.headers.set('Set-Cookie', sessionCookieHeader(sessionId));
@@ -687,7 +684,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       // Successful login without 2FA — create session and set cookie
       const sessionId = createSession(validCreds.username);
       // If terms are required, return the T&C page instead of the home page
-      const response = requireTerms()
+      const response = getRequireTerms()
         ? html(termsConditionsPage())
         : html(doLoginSuccess());
       response.headers.set('Set-Cookie', sessionCookieHeader(sessionId));
