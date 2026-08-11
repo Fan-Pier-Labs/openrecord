@@ -27,6 +27,9 @@ You should see (at minimum):
 - `./claude-desktop-extension/package.json`
 - `./fake-mychart/package.json`
 - `./expo-app/package.json`
+- `./openrecord-splash/demo/package.json`
+- `./openrecord-demo-lambda/package.json`
+- `./newsletter-lambda/package.json`
 - `./tests/integration/ci/package.json`
 
 If `find` returns a file you don't recognize, include it anyway — never skip a package.json.

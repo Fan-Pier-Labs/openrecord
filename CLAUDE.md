@@ -18,6 +18,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - **Shared types** (`shared/`): Common types and enums shared across packages
 - **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI
 - **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
+- **Newsletter Lambda** (`newsletter-lambda/`): Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups and `console.log`s them to CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration. Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account blocks unauthenticated Lambda Function URLs. Deploy with `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com`. Read signups via CloudWatch Logs Insights: `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`. Hidden `company` honeypot field drops bots. See `newsletter-lambda/README.md`.
 - **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (no 2FA) or `marge`/`donuts123` (TOTP enabled — always requires the 2FA code `123456`). Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password. All state lives in RAM. Visit `/reset` (or `POST /reset`) to wipe all in-memory state — sessions, sent messages, emergency contacts, per-user TOTP/passkeys, booked appointments, active patient record, mount/discovery/proxy-discovery/terms modes — back to the seed. `POST /mode` sets the knobs: `{"mode":"prefixed"|"root"}` is where MyChart is mounted (under `/MyChart`, or at the domain root like Cleveland Clinic); `{"discovery":…}` is how `/` announces that — `redirect` (302 with a `Location`), `meta-refresh` (200 with an absolute `<meta http-equiv="refresh">`, Renown), `default-asp` (the multi-hop bounce through a bare relative `DefaultAsp` that only names the route on its last hop, adams.mychartcc.com), `script` (a `window.location` assignment, mydovetale.ca), `landing-page` (an affiliate chooser that redirects nowhere and only links at the mount, mychart.chihealth.com), or `moved-host` (the deployment now lives elsewhere, patients.mycslink.org → mycslink.cedars-sinai.org — pair it with `{"movedHost":"127.0.0.1:4000"}`); and `{"proxyDiscovery":"json"|"html"|"script"}` is which surface lists the patient records an account can access, and `{"requireTerms":true|false}` is whether login lands on the chart or bounces to Terms & Conditions until accepted (this replaced the `FAKE_MYCHART_REQUIRE_TERMS` env var, which needed a whole second server on another port, its own CI job and its own test directory to exercise). Omitted keys are left alone; all combinations work. Whichever mount is active serves MyChart from exactly one prefix — the other 404s, and a root-mounted instance 404s `/<anything>/Authentication/*` so a wrong prefix guess can't silently pass.
   - **Proxy (multi-patient) records**: `homer` has proxy access to his three kids (Bart, Lisa, Maggie), each with its own chart data — switching context changes what every endpoint returns, and a category a child has no data for comes back empty rather than falling through to Homer's. `marge` has none. **Every record, the account holder's included, carries a long opaque `WP-…` id; self is identified by `IsSelf`, never by a blank id** (confirmed on UCSF, Renown and Carson Tahoe — see PR #206). Served via `GET /ProxySwitch` and switched via `GET /inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=<id>`; the account holder's own `LinkUrl` is a bare `inside.asp`. The `proxyDiscovery` knob above selects the JSON endpoint, `.proxySubjectLink` anchors, or bare `proxySubjects.push(...)` script blocks, so all three scraper fallbacks are testable. Only the JSON surface has been verified against real instances; the HTML/script markup is inferred. See `fake-mychart/README.md`.
   - **Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a convenience mock. Always replicate the real API's response shapes, field names/casing, pagination (page sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules (e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the fake returns 10, and the fixture/test is sized around that. When you discover how a real endpoint behaves, update the fake to match it exactly.
@@ -70,16 +71,71 @@ Accounts with proxy access to several patients' charts (a parent reading a child
   - `cd fake-mychart && bun install && bun run deploy` (uses its own `deploy` dev dependency and `deploy.yaml`)
   - Domain: `fake-mychart.fanpierlabs.com` (its own ALB + ECS service `fake-mychart-service` in cluster `fake-mychart-cluster`)
 
+### Static splash page + interactive demo (primary public site)
+
+- **`openrecord.fanpierlabs.com` serves a static site.** See `openrecord-splash/`.
+  - Two halves on purpose: `index.html` is a hand-written self-contained splash with no build step, and `demo/` is a React + TypeScript app built with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site pattern (`people-monitor-tool`, `autoinsights`, …).
+  - Bucket `openrecord-fanpierlabs-com` (us-east-2, private) → CloudFront `EXUZ8GHUQ9ULF` (OAC `E1X3K4LP97988Z`, wildcard `*.fanpierlabs.com` cert). Deploy: `cd openrecord-splash && AWS_PROFILE=fanpierlabs ./deploy.sh` — it typechecks, builds the demo into `dist/`, then uploads `index.html`, `demo.html`, the hashed assets, and the icons/share card/manifest, setting content types explicitly (a `.js` served as `binary/octet-stream` is refused by the browser's module loader). Hashed assets get a one-year immutable cache; the HTML and the fixed-name assets are invalidated.
+  - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
+  - **The splash deliberately does not link to the demo.** `/demo.html` deploys with every push but is unadvertised, so it is reached by sharing the URL. Don't "fix" the missing CTA — putting the demo on the homepage is a product decision to make on purpose.
+  - **Share previews + PWA assets**: `og-image.png` (1200×630 card), `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`. The PNGs are generated but committed — run `cd openrecord-splash && ./generate-assets.sh` after editing `icon.svg` or `assets-src/og-image.html`. It renders the card with headless Chrome and the icons with `rsvg-convert` (`brew install librsvg`). `og:image` must be an **absolute** `https://` URL — iMessage and Slack will not resolve a relative path. `deploy.sh` uploads and invalidates every asset; `openrecord-splash/__tests__/metadata.test.ts` fails if one is referenced but not deployed.
+
+### Interactive demo (`openrecord-splash/demo/`)
+
+A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
+
+**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored). React and its types resolve from the **root** `package.json` — the demo's own manifest is script-only.
+
+Logic modules — framework-free and fully unit-tested:
+
+- `src/data.ts` — the fictional record, extended with multi-draw lab trends and a longer billing ledger. Payload shapes elsewhere are derived from it with `typeof` so they can't drift.
+- `src/types.ts` — shared types for the record, tool layer, and agent loop.
+- `src/tools.ts` — all 46 MyChart tools. **Write tools genuinely mutate session state** (refills decrement, booked slots leave the pool, sent messages appear in `get_messages`).
+- `src/agent.ts` — the agent loop, a faithful port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol (`{"tool": ..., "args": ...}`), read batching, exclusive write tools, `respond` terminator.
+- `src/stream.ts` — reveals a finished reply at the pace a model would have produced it. Uses `setTimeout`, **not** `requestAnimationFrame`: rAF is paused in background tabs, so a visitor who switches away mid-reply would return to a message frozen half-written.
+- `src/skills.ts` — the three skill playbooks plus the home-screen alert cards.
+- `src/markdown.ts` — parses assistant replies into a typed tree. Produces no HTML.
+
+Components:
+
+- `src/App.tsx` — shell: owns the session, surface switching, the shared tool-call activity panel. Both surfaces stay mounted (toggled with `hidden`) so switching clients preserves each conversation.
+- `src/components/IosSurface.tsx`, `DesktopSurface.tsx` — the two device surfaces.
+- `src/components/Markdown.tsx` — renders the parsed tree as React elements.
+- `src/components/Radiograph.tsx` — the chest X-ray, drawn procedurally on a canvas rather than shipped as a file, and labelled as simulated.
+- `src/config.ts` — `AI_ENDPOINT`, resolved from `?ai=<url>`, then `VITE_AI_ENDPOINT`, then the baked-in default.
+
+**Every reply is a real model call — there is deliberately no canned-response path.** An earlier version fell back to a keyword table when no model was reachable, and it produced confident non sequiturs the moment a visitor asked something it hadn't anticipated. A failed call now surfaces an honest error and the badge reads "Model unreachable". **The demo also starts on a connected account** — the onboarding and extension-setup flows belong to the product, not the demo.
+
+**Security:** model output is untrusted. `markdown.ts` parses it into a typed tree and `Markdown.tsx` renders that tree as React elements, so React escapes every text node. **There is no `dangerouslySetInnerHTML` in the demo and there must never be one** — see the project rule above. Tests assert that markup in model output stays text.
+
+Local dev: `cd openrecord-splash/demo && npx vite` (serves `/demo.html` with hot reload).
+
+### Demo AI Lambda (`openrecord-demo-lambda/`)
+
+Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and returns `{ text }` — a provider-neutral shape, so the demo's agent loop is a straight port of the mobile app's rather than a special case.
+
+- Model: **`gemini-2.5-flash` with `thinkingBudget: 0`**. Override with `DEMO_MODEL=... ./deploy.sh`. Was `flash-lite`; it completed 23/40 of the demo's own suggested prompts against flash's 40/40, and its failures were the bad kind ("I've listed your current medications" with no medications listed). See `openrecord-demo-lambda/README.md`.
+- Reuses the existing `GEMINI_API_KEY` secret, read at deploy time and set as a function env var (so the Lambda needs no Secrets Manager permissions and no AWS SDK).
+- Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
+- Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
+- Usage/cost: `fields @timestamp, @message | filter @message like /demo_ai_call/ | sort @timestamp desc` on `/aws/lambda/openrecord-demo-ai`.
+- **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model unreachable". The demo has no offline path by design.
+
 ## S3 Buckets (us-east-2)
 
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`)
   - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
+- **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`)
+  - Static splash page (`index.html`), interactive demo (`demo.html` + `demo/`) for `openrecord.fanpierlabs.com`. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). Source in `openrecord-splash/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 
 - **RESEND_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:RESEND_API_KEY-vKJonO`
   - Used by CLI for autonomous 2FA code retrieval via Resend inbound emails
   - Inbound email address: `healthapp@bocuedpo.resend.app`
+- **GEMINI_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:GEMINI_API_KEY-GPbdf6`
+  - Google Gemini API key used by the public demo's `openrecord-demo-ai` Lambda, which copies it into a function env var at deploy time.
 - **EXPO_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:EXPO_TOKEN-XYwf9T`
   - Expo access token for EAS CLI builds and TestFlight submissions. Used with `EXPO_TOKEN` env var.
 - **APPLE_CREDENTIALS**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:APPLE_CREDENTIALS-GZhHoo`

@@ -1,0 +1,11 @@
+{
+  "name": "openrecord-demo-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS Lambda proxying the public OpenRecord demo's chat turns to a fast, cheap model",
+  "type": "module",
+  "scripts": {
+    "test": "bun test src/__tests__/",
+    "deploy": "./deploy.sh"
+  }
+}
