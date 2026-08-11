@@ -29,7 +29,7 @@ API_NAME="openrecord-demo-ai-api"
 RUNTIME="nodejs22.x"
 HANDLER="handler.handler"
 SECRET_NAME="${SECRET_NAME:-GEMINI_API_KEY}"
-MODEL="${DEMO_MODEL:-gemini-2.5-flash-lite}"
+MODEL="${DEMO_MODEL:-gemini-2.5-flash}"
 
 # CORS is wide open. It doesn't protect anything here (curl ignores it), and
 # "*" lets the CloudFront-hosted demo and local checkouts both post.

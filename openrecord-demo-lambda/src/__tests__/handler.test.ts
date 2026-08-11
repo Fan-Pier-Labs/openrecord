@@ -198,7 +198,7 @@ describe('handler', () => {
 
     expect(res.statusCode).toBe(200);
     expect(parse(res).text).toBe('PONG');
-    expect(captured.url).toContain('gemini-2.5-flash-lite:generateContent');
+    expect(captured.url).toContain('gemini-2.5-flash:generateContent');
     expect(captured.body.contents[0].parts[0].text).toBe('ping');
   });
 

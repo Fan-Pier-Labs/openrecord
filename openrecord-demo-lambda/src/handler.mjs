@@ -16,7 +16,7 @@
 //   2. Per-IP token bucket, plus a per-container global cap.
 //   3. Hard caps on message count, message length, and output tokens.
 
-const MODEL = process.env.DEMO_MODEL || 'gemini-2.5-flash-lite';
+const MODEL = process.env.DEMO_MODEL || 'gemini-2.5-flash';
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const MAX_MESSAGES = 40;

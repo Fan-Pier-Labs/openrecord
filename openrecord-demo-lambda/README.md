@@ -14,7 +14,7 @@ POST /
 Content-Type: application/json
 
 { "system": "<system prompt>", "messages": [{ "role": "user", "content": "..." }] }
-→ 200 { "text": "<model output>", "model": "gemini-2.5-flash-lite" }
+→ 200 { "text": "<model output>", "model": "gemini-2.5-flash" }
 ```
 
 Deliberately the same provider-neutral shape the web app's `/api/ai` uses, so
@@ -29,10 +29,21 @@ whenever a visitor asked something it hadn't anticipated.
 
 ## Model
 
-`gemini-2.5-flash-lite` with `thinkingBudget: 0` — the cheapest and fastest tier
-available. The demo's agent loop is mechanical (emit JSON tool calls, read
-results, emit more), so reasoning depth buys much less here than latency does.
-Override per-deploy with `DEMO_MODEL=... ./deploy.sh`.
+`gemini-2.5-flash` with `thinkingBudget: 0`. Override per-deploy with
+`DEMO_MODEL=... ./deploy.sh`.
+
+This was `gemini-2.5-flash-lite`, on the theory that the agent loop is
+mechanical enough (emit JSON tool calls, read results, emit more) that
+reasoning depth buys less than latency. Measured against the demo's own
+suggested prompts, that was wrong: flash-lite completed 23/40 of them, flash
+40/40. The flash-lite failures were the bad kind — it would answer "I've listed
+your current medications" without listing any. A landing-page demo that
+mis-answers 4 questions in 10 costs more than the model does.
+
+Flash is ~3x the input price and ~6x the output price, but the demo's traffic
+is tiny and input-dominated (~26 input tokens per output token, because the
+system prompt carries 46 tool definitions), so the real difference is fractions
+of a cent per conversation. Flash also derails less, so it burns fewer retries.
 
 ## Abuse controls
 

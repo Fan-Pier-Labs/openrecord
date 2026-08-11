@@ -121,7 +121,7 @@ Local dev: `cd openrecord-splash/demo && npx vite` (serves `/demo.html` with hot
 
 Zero-dep Lambda backing the demo's chat turns. Takes `{ system, messages }` and returns `{ text }` — the same provider-neutral shape as the web app's `/api/ai`, so the demo's agent loop is a straight port rather than a special case.
 
-- Model: **`gemini-2.5-flash-lite` with `thinkingBudget: 0`** — the cheapest and fastest tier. Override with `DEMO_MODEL=... ./deploy.sh`.
+- Model: **`gemini-2.5-flash` with `thinkingBudget: 0`**. Override with `DEMO_MODEL=... ./deploy.sh`. Was `flash-lite`; it completed 23/40 of the demo's own suggested prompts against flash's 40/40, and its failures were the bad kind ("I've listed your current medications" with no medications listed). See `openrecord-demo-lambda/README.md`.
 - Reuses the existing `GEMINI_API_KEY` secret, read at deploy time and set as a function env var (so the Lambda needs no Secrets Manager permissions and no AWS SDK).
 - Public and unauthenticated, so it's treated as hostile input: a server-side guard preamble is prepended to whatever system prompt the client sends, plus per-IP rate limiting (40 req / 10 min), a per-container global cap, and hard size caps. Upstream error bodies are never forwarded (they can echo the key's project id).
 - Deploy: `cd openrecord-demo-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Creates/updates the `openrecord-demo-ai` Lambda and `openrecord-demo-ai-api` HTTP API, then prints the endpoint — paste it into `openrecord-splash/demo/config.js` and redeploy the splash site.
