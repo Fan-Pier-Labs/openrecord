@@ -16,10 +16,6 @@ export type RequestConfig = {
   headers?: Record<string, string>;
   cookies?: Record<string, string>;
   followRedirects?: boolean;
-
-  // How many redirects the chain leading to this request already followed.
-  // Set by makeRequest as it recurses; callers leave it alone.
-  redirectsFollowed?: number;
 }
 
 

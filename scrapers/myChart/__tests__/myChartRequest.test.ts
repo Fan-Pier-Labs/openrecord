@@ -332,6 +332,43 @@ describe('MyChartRequest', () => {
       }
     })
 
+    it('keeps cookies set by a redirect response and sends them on the next hop', async () => {
+      // Real instances set their load-balancer and bot-check cookies on the
+      // 302 itself (NetScaler's NSC_*, Cloudflare's __cf_bm), and expect them
+      // back on the hop that follows. The jar is wired into every response,
+      // redirects included — this pins that down.
+      // Deliberately does NOT replace fetchWithCookieJar: the jar wiring is the
+      // thing under test, so the stub goes underneath it at global fetch.
+      const req = new MyChartRequest('mychart.example.com')
+      const cookiesSeen: (string | undefined)[] = []
+      let calls = 0
+
+      const realFetch = globalThis.fetch
+      globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
+        cookiesSeen.push((init?.headers as Record<string, string>)?.['Cookie'])
+        if (++calls === 1) {
+          return new Response('', {
+            status: 302,
+            headers: {
+              'Location': 'https://mychart.example.com/MyChart/Authentication/Login',
+              'Set-Cookie': 'NSC_load_balancer=abc123; path=/',
+            },
+          })
+        }
+        return new Response('Login page', { status: 200 })
+      }) as typeof globalThis.fetch
+
+      try {
+        await req.makeRequest({ url: 'https://mychart.example.com/MyChart/' })
+      } finally {
+        globalThis.fetch = realFetch
+      }
+
+      expect(cookiesSeen[0]).toBeUndefined()
+      expect(cookiesSeen[1]).toBe('NSC_load_balancer=abc123')
+      expect(req.getCookieInfo().count).toBe(1)
+    })
+
     it('gives up on a URL that redirects to itself instead of recursing forever', async () => {
       // mychart.crossingrivers.org answers /CRH/ with a 301 to /CRH/. Without a
       // cap this recursion never terminates.

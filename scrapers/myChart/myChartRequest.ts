@@ -218,7 +218,10 @@ export class MyChartRequest {
 
   // Make a request with the given config.
   // Returns the raw response object.
-  async makeRequest(config: RequestConfig): Promise<Response> {
+  //
+  // `redirectsFollowed` is bookkeeping for the recursive redirect follow below;
+  // callers pass one argument and let it default.
+  async makeRequest(config: RequestConfig, redirectsFollowed = 0): Promise<Response> {
     if (config.method === undefined) {
       config.method = 'GET';
     }
@@ -285,11 +288,10 @@ export class MyChartRequest {
         throw new Error("302 didn't have a location header" + url)
       }
 
-      // Some instances redirect a URL to itself when a cookie it wants isn't
-      // there yet (mychart.crossingrivers.org does this on /MyChart/). Without
-      // a cap that recurses until the process runs out of stack.
-      const hopsSoFar = config.redirectsFollowed ?? 0;
-      if (hopsSoFar >= MAX_REDIRECTS) {
+      // Some instances redirect a URL straight back to itself and never stop —
+      // mychart.crossingrivers.org does this on /MyChart/, cookies and all.
+      // Without a cap this recurses until the process runs out of stack.
+      if (redirectsFollowed >= MAX_REDIRECTS) {
         logger.debug(`Giving up after ${MAX_REDIRECTS} redirects, last hop:`, url);
         return response;
       }
@@ -305,8 +307,7 @@ export class MyChartRequest {
         url: newLocation,
         method: preserveMethod ? config.method : 'GET',
         body: preserveMethod ? config.body : undefined,
-        redirectsFollowed: hopsSoFar + 1,
-      })
+      }, redirectsFollowed + 1)
     }
 
     return response;

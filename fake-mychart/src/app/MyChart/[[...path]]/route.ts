@@ -15,7 +15,7 @@ import {
 import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
-import { isRootMount, mountPrefix } from '@/lib/mount';
+import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 
 import crypto from 'crypto';
@@ -298,10 +298,31 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   const { path } = await params;
   const ds = activeDataset(request);
   if (!path || path.length === 0) {
+    // In `default-asp` discovery the mount doesn't name the login route either
+    // — it bounces through DefaultAsp first, and only that hop names the route.
+    // Real instances send a bare relative `DefaultAsp` from `/MyChart/`, which
+    // resolves to `/MyChart/DefaultAsp`. Next normalizes that trailing slash
+    // away (308 to `/MyChart`) before a route handler ever runs, so under a
+    // prefix the same relative form would resolve to `/DefaultAsp` instead —
+    // hence the absolute Location here. The root-mounted case below has no
+    // trailing slash to lose and does send the bare relative form, which is
+    // the shape that broke prefix parsing in the first place.
+    if (isDefaultAspDiscovery()) {
+      return new NextResponse(null, { status: 302, headers: { Location: `${mountPrefix()}/DefaultAsp` } });
+    }
     return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
   }
   const joined = joinPath(path);
   const lower = joined.toLowerCase();
+
+  // The last hop of the DefaultAsp bounce, and the only one that names the
+  // mount. The trailing `?` on the target is what real instances send.
+  if (lower === 'defaultasp') {
+    return new NextResponse(null, {
+      status: 302,
+      headers: { Location: `${mountPrefix()}/Authentication/Login?` },
+    });
+  }
 
   // ── Authentication ──────────────────────────────────────────────
   if (lower === 'authentication/login') {

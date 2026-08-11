@@ -11,6 +11,13 @@
  */
 export type MountMode = 'prefixed' | 'root';
 
+/**
+ * How `/` announces the mount. Every value is a shape observed on a real
+ * instance; see `fake-mychart/src/lib/mount.ts` for which instance each one
+ * came from.
+ */
+export type DiscoveryMode = 'redirect' | 'meta-refresh' | 'default-asp' | 'script' | 'landing-page' | 'moved-host';
+
 export async function setMountMode(host: string, mode: MountMode): Promise<void> {
   const res = await fetch(`http://${host}/mode`, {
     method: 'POST',
@@ -23,6 +30,33 @@ export async function setMountMode(host: string, mode: MountMode): Promise<void>
   const body = await res.json();
   if (body.mode !== mode) {
     throw new Error(`Server reported mode ${body.mode} after asking for ${mode}`);
+  }
+}
+
+/**
+ * Set how `/` announces the mount, and optionally where a `moved-host` instance
+ * sends the client. Leaves the mount mode alone — the two are independent, and
+ * a suite that wants a specific pair sets both.
+ */
+export async function setDiscoveryMode(
+  host: string,
+  discovery: DiscoveryMode,
+  opts?: { movedHost?: string | null },
+): Promise<void> {
+  const payload: Record<string, unknown> = { discovery };
+  if (opts && 'movedHost' in opts) payload.movedHost = opts.movedHost;
+
+  const res = await fetch(`http://${host}/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to set discovery mode to ${discovery} on ${host}: ${res.status} ${await res.text()}`);
+  }
+  const body = await res.json();
+  if (body.discovery !== discovery) {
+    throw new Error(`Server reported discovery ${body.discovery} after asking for ${discovery}`);
   }
 }
 
