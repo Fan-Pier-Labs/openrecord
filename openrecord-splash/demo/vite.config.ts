@@ -6,8 +6,8 @@ import react from '@vitejs/plugin-react';
  * Dev-only: serve the splash page from the parent directory at `/index.html`.
  *
  * In production both sit at the bucket root, so the demo's "back to OpenRecord"
- * link and the splash's "Try the demo" CTAs resolve. Vite's root is `demo/`, so
- * without this those links 404 locally and you cannot click between the two.
+ * link resolves. Vite's root is `demo/`, so without this that link 404s locally.
+ * The splash does not link back — the demo is deployed but unadvertised.
  */
 function splashPage(): Plugin {
   return {
