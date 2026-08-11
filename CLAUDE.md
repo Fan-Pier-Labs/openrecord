@@ -253,6 +253,7 @@ MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
 - Use a stable, kebab- or snake-case `testID` that describes what the element does, not where it sits. Examples: `get-started-button`, `onboarding-continue`, `skill-bill_itemization`, `chat-input`, `send-message`.
 - For lists of items (chats, insights, skills), include the row id in the `testID` (e.g. `chat-row-${chatId}`) so flows can target a specific row.
 - When you add a new screen or button as part of a feature, add the `testID` in the same diff. PRs that introduce new untargetable UI should be rejected at review.
+- This is enforced in CI: `expo-app/src/__tests__/testids.test.ts` scans every `.tsx` under `expo-app/src/app` and `expo-app/src/components` and fails on any `Pressable`/`TextInput`/`TouchableOpacity`/`Switch`/`Button` without a `testID`.
 
 ## Rules
 

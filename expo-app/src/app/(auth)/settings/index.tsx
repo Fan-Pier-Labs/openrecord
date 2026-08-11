@@ -131,7 +131,13 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable
+            testID="settings-back"
+            accessibilityLabel="Back"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            hitSlop={10}
+          >
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Settings</Text>
@@ -202,7 +208,12 @@ export default function SettingsScreen() {
                   )}
                 </View>
               </View>
-              <Pressable onPress={() => handleDeleteAccount(account)}>
+              <Pressable
+                testID={`account-remove-${account.id}`}
+                accessibilityLabel={`Remove account ${account.hostname}`}
+                accessibilityRole="button"
+                onPress={() => handleDeleteAccount(account)}
+              >
                 <Text style={styles.deleteText}>Remove</Text>
               </Pressable>
             </View>
@@ -211,6 +222,8 @@ export default function SettingsScreen() {
           {showAddAccount ? (
             <View style={styles.addForm}>
               <TextInput
+                testID="add-account-hostname"
+                accessibilityLabel="MyChart hostname"
                 style={styles.input}
                 placeholder="mychart.example.org"
                 placeholderTextColor="#999"
@@ -220,6 +233,8 @@ export default function SettingsScreen() {
                 autoCorrect={false}
               />
               <TextInput
+                testID="add-account-username"
+                accessibilityLabel="MyChart username"
                 style={styles.input}
                 placeholder="Username"
                 placeholderTextColor="#999"
@@ -229,6 +244,8 @@ export default function SettingsScreen() {
                 autoCorrect={false}
               />
               <TextInput
+                testID="add-account-password"
+                accessibilityLabel="MyChart password"
                 style={styles.input}
                 placeholder="Password"
                 placeholderTextColor="#999"
@@ -238,18 +255,30 @@ export default function SettingsScreen() {
               />
               <View style={styles.addFormButtons}>
                 <Pressable
+                  testID="add-account-cancel"
+                  accessibilityLabel="Cancel adding account"
+                  accessibilityRole="button"
                   style={styles.cancelButton}
                   onPress={() => setShowAddAccount(false)}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </Pressable>
-                <Pressable style={styles.saveButton} onPress={handleAddAccount}>
+                <Pressable
+                  testID="add-account-save"
+                  accessibilityLabel="Add account"
+                  accessibilityRole="button"
+                  style={styles.saveButton}
+                  onPress={handleAddAccount}
+                >
                   <Text style={styles.saveButtonText}>Add Account</Text>
                 </Pressable>
               </View>
             </View>
           ) : (
             <Pressable
+              testID="add-account"
+              accessibilityLabel="Add MyChart account"
+              accessibilityRole="button"
               style={styles.addButton}
               onPress={() => setShowAddAccount(true)}
             >
@@ -261,7 +290,13 @@ export default function SettingsScreen() {
         {/* AI Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>AI</Text>
-          <Pressable style={styles.navRow} onPress={() => router.push("/settings/ai")}>
+          <Pressable
+            testID="settings-ai-provider"
+            accessibilityLabel="AI provider settings"
+            accessibilityRole="button"
+            style={styles.navRow}
+            onPress={() => router.push("/settings/ai")}
+          >
             <View style={{ flex: 1 }}>
               <Text style={styles.navTitle}>AI Provider</Text>
               <Text style={styles.navSubtitle}>{providerLabel[aiProvider]}</Text>
