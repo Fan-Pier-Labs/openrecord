@@ -13,7 +13,7 @@
     "test:unit": "bun test --isolate scrapers/myChart/__tests__/*.test.ts scrapers/myChart/eunity/__tests__/*.test.ts shared/__tests__/*.test.ts npm-package/cli/__tests__/*.test.ts expo-app/src/lib/*/__tests__/*.test.ts claude-desktop-extension/src/__tests__/*.test.ts openrecord-splash/__tests__/*.test.ts",
     "test:unit:web": "cd web && bun test --isolate",
     "test:integration": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/",
-    "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/fake-mychart.test.ts",
+    "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/fake-mychart.test.ts scrapers/myChart/__tests__/fake-mychart/marge-and-reset.test.ts",
     "test:fake-mychart-terms": "bun test scrapers/myChart/__tests__/fake-mychart/terms-and-conditions.test.ts",
     "test:ci-integration": "bun test tests/integration/ci/",
     "deploy": "python3 node_modules/deploy/main.py --config web/deploy.yaml"
