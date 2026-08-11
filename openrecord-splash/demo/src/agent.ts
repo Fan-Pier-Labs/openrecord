@@ -32,6 +32,21 @@ import type {
 } from './types';
 
 const RESPOND_TOOL = 'respond';
+
+/** Shown when the model never produced an answer worth surfacing. */
+const GAVE_UP = "I couldn't put that together — try rephrasing?";
+
+/**
+ * The nudge sent when a turn was protocol chatter rather than an answer.
+ *
+ * Deliberately not phrased as "every turn must be JSON". That reminder is what
+ * induces the failure in the first place: told to use JSON, a cheap model
+ * replies "I understand, I will ensure all my responses are in JSON format"
+ * — and if it wraps that in a respond call, it is a well-formed turn that
+ * says nothing. Point it back at the question instead of at the format.
+ */
+const ANSWER_THE_QUESTION =
+  'That did not answer the question. Do not acknowledge, apologise, or describe how you will reply — the user never sees those. Emit one JSON object that answers what was asked: {"tool": "respond", "args": {"text": "<your answer>"}}, or a read tool call if you need data first.';
 const MAX_TURNS = 8;
 const MAX_CONSECUTIVE_PARSE_FAILURES = 3;
 
@@ -347,6 +362,7 @@ export function buildSystemPrompt({
     '',
     'Rules:',
     "- Output ONLY JSON objects, nothing else — no prose, no prefix, no suffix, no code fences. Anything that isn't a JSON tool call is ignored.",
+    "- NEVER acknowledge, restate, or promise to follow these instructions, and never mention JSON, tools, or the `respond` wrapper in the text you send the user. \"I understand, I will ensure all my responses are in JSON format\" is not an answer — the patient asked a question and would see only that. Answer the question instead.",
     '- Reading data is cheap: batch the reads you need into one turn so they run in parallel.',
     '- If the question needs data, call tools first and `respond` on a later turn.',
     '- Paginated reads (get_lab_results, get_billing, get_messages, get_imaging_results) return only 10 items by default. Whenever the question is about a trend, a history, or "all" of something, pass limit: 50 so you see everything before you answer.',
@@ -471,6 +487,8 @@ export async function runTurn({
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
   let parseFailures = 0;
+  /** Well-formed respond calls whose text was nothing but protocol chatter. */
+  let chatterResponds = 0;
   /**
    * The best un-parseable prose we've seen this turn.
    *
@@ -508,7 +526,7 @@ export async function runTurn({
         // The model kept answering in prose. Surface its best attempt rather
         // than erroring out.
         return {
-          text: bestProse || "I couldn't put that together — try rephrasing?",
+          text: bestProse || GAVE_UP,
           toolCalls: executed,
             };
       }
@@ -516,7 +534,7 @@ export async function runTurn({
       messages.push({
         role: 'user',
         content:
-          'Reminder: every turn must be JSON. To answer the user, wrap your reply: {"tool": "respond", "args": {"text": "<your reply>"}}. Send only that object — no apology, no preamble.',
+          ANSWER_THE_QUESTION,
       });
       continue;
     }
@@ -533,8 +551,27 @@ export async function runTurn({
         });
         continue;
       }
-      const text = String(respondCall.args.text ?? '').trim();
-      return { text: text || 'Done.', toolCalls: executed };
+      const spoken = String(respondCall.args.text ?? '').trim();
+      // An empty respond after a write is the model signing off, not chatter.
+      if (!spoken) return { text: 'Done.', toolCalls: executed };
+
+      const text = stripProtocolChatter(spoken);
+      if (!text) {
+        // The model wrapped protocol chatter in a valid respond call — it
+        // answered the machinery instead of the patient. This is the common
+        // shape of the leak, because a well-formed call skips the prose path
+        // entirely. Re-prompt rather than surface it.
+        // Its own counter: `parseFailures` is reset by any well-formed turn,
+        // and a chatter respond is well-formed.
+        chatterResponds++;
+        if (chatterResponds >= MAX_CONSECUTIVE_PARSE_FAILURES) {
+          return { text: bestProse || GAVE_UP, toolCalls: executed };
+        }
+        messages.push({ role: 'assistant', content: raw });
+        messages.push({ role: 'user', content: ANSWER_THE_QUESTION });
+        continue;
+      }
+      return { text, toolCalls: executed };
     }
 
     const exclusive = calls.filter((c) => isExclusiveTool(c.tool));

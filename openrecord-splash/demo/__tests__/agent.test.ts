@@ -384,6 +384,50 @@ describe('runTurn', () => {
     expect(result.text).toBe('Your A1c is 7.2%.');
   });
 
+  test('protocol chatter inside a respond call never reaches the user', async () => {
+    // The leak that survived the first fix. A well-formed respond call skips
+    // the prose path entirely, so the chatter filter has to run on it too.
+    const chatter =
+      'I understand. I will ensure all my responses are in JSON format, using the `respond` tool when I need to reply to you.';
+    const model = scriptedModel([respond(chatter), respond(chatter), respond(chatter)]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).not.toContain('JSON');
+    expect(result.text).not.toContain('respond');
+    expect(result.text).toBe("I couldn't put that together — try rephrasing?");
+  });
+
+  test('a chatter respond is re-prompted, and a real answer next turn wins', async () => {
+    const model = scriptedModel([
+      respond('Understood. I will use the correct JSON format from now on.'),
+      respond('You take four medications.'),
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).toBe('You take four medications.');
+    // The nudge must point at the question, not at the format — telling a weak
+    // model "every turn must be JSON" is what produces the chatter.
+    const nudge = model.seen[1].messages.at(-1).content;
+    expect(nudge).toContain('did not answer the question');
+    expect(nudge).not.toContain('every turn must be JSON');
+  });
+
+  test('chatter wrapped around a real answer keeps the answer', async () => {
+    const model = scriptedModel([
+      respond('I understand. I will ensure my responses are in JSON format. Your A1c is 7.2%.'),
+    ]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).toBe('Your A1c is 7.2%.');
+  });
+
+  test('an empty respond after a write is a sign-off, not chatter', async () => {
+    const model = scriptedModel([respond('')]);
+    const result = await runTurn({ ...base(), complete: model.complete });
+
+    expect(result.text).toBe('Done.');
+  });
+
   test('a write is put to the user and does not run until approved', async () => {
     // The reported failure: asked "what am i on?", the model fired a write.
     // The dialog must be shown the real payload and nothing may reach the
