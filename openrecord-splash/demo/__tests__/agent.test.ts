@@ -12,6 +12,7 @@ import {
   buildSystemPrompt,
   createProxyCompleter,
   describeWrite,
+  isDraftRequest,
   extractToolCalls,
   isExclusiveTool,
   runTurn,
@@ -178,9 +179,40 @@ describe('stripProtocolChatter', () => {
     }
   });
 
+  test('drops a promise about how it will answer, echoed from our own nudge', () => {
+    const raw = 'I will focus on answering your question directly.\n\nYour balance is $420.00.';
+    expect(stripProtocolChatter(raw)).toBe('Your balance is $420.00.');
+    expect(stripProtocolChatter('I will answer your question directly. You owe $420.')).toBe('You owe $420.');
+  });
+
   test('leaves ordinary replies untouched', () => {
     const raw = '## Medications\n\n**Atorvastatin 40mg** — 3 refills left';
     expect(stripProtocolChatter(raw)).toBe(raw);
+  });
+});
+
+describe('isDraftRequest', () => {
+  test('asking to see a message is not asking to send one', () => {
+    for (const t of [
+      'Draft a message asking billing for an itemized statement.',
+      'draft here',
+      'Write a message to Dr. Hibbert about my refill.',
+      'Compose a note to Patient Accounts.',
+      'Can you prepare a message for billing?',
+    ]) {
+      expect(isDraftRequest(t)).toBe(true);
+    }
+  });
+
+  test('an explicit send is not a draft request', () => {
+    for (const t of [
+      'Draft a message to billing and send it.',
+      'Write to Dr. Hibbert and submit it.',
+      'Send a message to billing asking for an itemized statement.',
+      'yes',
+    ]) {
+      expect(isDraftRequest(t)).toBe(false);
+    }
   });
 });
 
@@ -518,6 +550,85 @@ describe('runTurn', () => {
 
     expect(result.toolCalls).toHaveLength(0);
     expect(session.medications[0].refillsRemaining).toBe(3);
+  });
+
+  test('a draft request never sends, and never even offers to', async () => {
+    // Both models sent when asked to draft — partly our fault, the prompt used
+    // to say "draft a send_message". A sent message cannot be unsent, so the
+    // send is refused outright rather than put to a dialog.
+    const session = createSession();
+    const inboxBefore = session.messages.length;
+    const d = dialog(true);
+    const model = scriptedModel([
+      JSON.stringify({
+        tool: 'send_message',
+        args: {
+          recipient_name: 'Patient Accounts',
+          subject: 'Itemized statement',
+          message_body: 'Please send an itemized statement for my ER visit.',
+        },
+      }),
+      respond('Here is the draft — shall I send it?'),
+    ]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'Draft a message asking billing for an itemized statement.',
+      complete: model.complete,
+      callbacks: d,
+    });
+
+    expect(d.shown).toHaveLength(0); // not even a dialog
+    expect(result.toolCalls).toHaveLength(0);
+    expect(session.messages).toHaveLength(inboxBefore); // nothing new in the thread list
+    expect(result.text).toBe('Here is the draft — shall I send it?');
+
+    const fedBack = model.seen[1].messages.at(-1).content;
+    expect(fedBack).toContain('asked you to draft this, not to send it');
+  });
+
+  test('a draft-then-send request still sends', async () => {
+    const session = createSession();
+    const d = dialog(true);
+    const args = {
+      recipient_name: 'Patient Accounts',
+      subject: 'Itemized statement',
+      message_body: 'Please send an itemized statement.',
+    };
+    const model = scriptedModel([JSON.stringify({ tool: 'send_message', args }), respond('Sent.')]);
+    const result = await runTurn({
+      ...base(),
+      session,
+      userText: 'Draft a message to billing and send it.',
+      complete: model.complete,
+      callbacks: d,
+    });
+
+    expect(d.shown).toHaveLength(1);
+    expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['send_message']);
+  });
+
+  test('a draft request does not block non-sending writes', async () => {
+    // "Write down my daughter as an emergency contact" is a draft verb, but
+    // add_emergency_contact puts no message in front of a human.
+    const session = createSession();
+    const d = dialog(true);
+    const model = scriptedModel([
+      JSON.stringify({
+        tool: 'add_emergency_contact',
+        args: { name: 'Lisa Simpson', relationship_type: 'Daughter', phone_number: '(555) 636-7666' },
+      }),
+      respond('Added.'),
+    ]);
+    await runTurn({
+      ...base(),
+      session,
+      userText: 'Write down my daughter Lisa as an emergency contact at (555) 636-7666.',
+      complete: model.complete,
+      callbacks: d,
+    });
+
+    expect(d.shown.map((w: Any) => w.tool)).toEqual(['add_emergency_contact']);
   });
 
   test('reads are never gated', async () => {

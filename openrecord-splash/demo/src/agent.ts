@@ -160,6 +160,17 @@ const PROTOCOL_TOPIC =
 /** Vaguer, and only trustworthy after an apology. */
 const APOLOGY_TOPIC = /\b(again|error|mistake|careful|request)\b/i;
 
+/**
+ * Promises about how it will conduct itself, rather than an answer.
+ *
+ * These are echoes of our own nudge — told "that did not answer the
+ * question", a weak model replies "I will focus on answering your question
+ * directly." Matched as whole phrases, not loose keywords: "I understand your
+ * question about the cholesterol result" is a real reply and must survive.
+ */
+const META_PROMISE =
+  /\b(focus on (?:answering|your question)|answer(?:ing)? (?:you|your question|it) directly|be (?:more )?direct|get (?:straight|right) to|from now on|going forward|in future)\b/i;
+
 /** The stock promise that trails a format apology. */
 const FOLLOW_UP = /^(?:i\s+will|i'll)\s+be\s+more\s+careful\b/i;
 
@@ -175,6 +186,7 @@ function isChatterSentence(sentence: string): boolean {
   if (!apology && !ack) return false;
 
   if (PROTOCOL_TOPIC.test(s)) return true;
+  if (META_PROMISE.test(s)) return true;
   if (apology && APOLOGY_TOPIC.test(s)) return true;
 
   // A bare acknowledgement carries no topic at all — "Understood.", "Got it."
@@ -195,6 +207,26 @@ export function stripProtocolChatter(text: string): string {
 /* ------------------------------------------------------------------ *
  * Write confirmation
  * ------------------------------------------------------------------ */
+
+/** Tools that put a message in front of a human at the other end. */
+const SENDING_TOOLS = new Set(['send_message', 'send_reply']);
+
+const DRAFT_VERB = /\b(draft|compose|prepare|write(?:\s+up)?|put\s+together)\b/i;
+const SEND_VERB = /\b(send|submit|fire\s+off|deliver|email|mail\s+it|go\s+ahead\s+and\s+send)\b/i;
+
+/**
+ * Did the user ask to *see* a message rather than to send one?
+ *
+ * "Draft a message asking billing for an itemized statement" is a request for
+ * text on screen. Both models read it as an instruction to send, partly
+ * because the prompt used to say "draft a send_message" — and a sent message
+ * cannot be unsent. Asking for a draft and asking to send are separate steps,
+ * so when only the first is present the send is refused.
+ */
+export function isDraftRequest(userText: string): boolean {
+  const t = String(userText ?? '');
+  return DRAFT_VERB.test(t) && !SEND_VERB.test(t);
+}
 
 /**
  * Plain-language titles for the confirmation dialog, mirroring the real iOS
@@ -350,7 +382,8 @@ export function buildSystemPrompt({
     '- respond(text) — Send your final reply to the user. Must be called alone. This ends your turn.',
     '',
     'Handling common requests:',
-    '- Billing, charge, and insurance questions: you CAN help. Call get_message_recipients, pick the billing recipient ("Patient Accounts"), draft a send_message, and confirm with the user before sending.',
+    '- Billing, charge, and insurance questions: you CAN help. Call get_message_recipients, pick the billing recipient ("Patient Accounts"), write the message, and show it to the user before sending anything.',
+    '- "Draft", "write", "compose" and "prepare" mean SHOW ME THE TEXT. Put the whole message in your `respond` — recipient, subject, body — and ask whether to send it. Do NOT call send_message or send_reply for a draft; that is a different, later step the user asks for separately with "send it". Writing a message and sending it are not the same action, and a patient who asked to see a draft has not agreed to send anything.',
     '- Scheduling: call get_available_appointments, show the open slots, and call book_appointment once the user picks one.',
     '- Showing an X-ray picture: call get_imaging_results to pick the study, then get_xray_image with its 0-based index. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
     '- Refills: use request_refill. If a medication has no refills left, message the prescriber instead.',
@@ -486,6 +519,7 @@ export async function runTurn({
 
   const system = buildSystemPrompt({ memoryDigest, skillAddition, surface });
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }];
+  const draftOnly = isDraftRequest(userText);
   let parseFailures = 0;
   /** Well-formed respond calls whose text was nothing but protocol chatter. */
   let chatterResponds = 0;
@@ -590,6 +624,20 @@ export async function runTurn({
     // question. Put the real payload to the user and block until they answer.
     const writeCall = calls.find((c) => isWriteTool(c.tool));
     if (writeCall) {
+      // The user asked to see a draft. Don't even offer to send it — put the
+      // text back to them instead. Not a dialog: a dialog asks the wrong
+      // question when the answer to "send this?" was never solicited.
+      if (draftOnly && SENDING_TOOLS.has(writeCall.tool)) {
+        messages.push({ role: 'assistant', content: raw });
+        messages.push({
+          role: 'user',
+          content: JSON.stringify({
+            error: `The user asked you to draft this, not to send it. ${writeCall.tool} was not run. Show the full message — recipient, subject and body — in your \`respond\` text, then ask whether to send it.`,
+          }),
+        });
+        continue;
+      }
+
       const approved = await onConfirmWrite({ tool: writeCall.tool, args: writeCall.args });
       if (!approved) {
         // Same shape and wording as the real iOS client, so the model reacts
