@@ -84,7 +84,13 @@ export default function InsightsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          testID="insights-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          hitSlop={10}
+        >
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Insights</Text>
