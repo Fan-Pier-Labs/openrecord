@@ -71,9 +71,15 @@ const expoFetch: Transport | undefined = (() => {
  * Whether we're running inside a browser (the Expo web export, which the
  * Playwright E2E drives). React Native defines `navigator` but never
  * `document`, and neither Node nor Bun defines either.
+ *
+ * Read per call rather than captured at import, for the same reason
+ * `globalThis.fetch` is: it keeps the branch reachable from a test without
+ * re-importing the module into a second instance, which would leave the real
+ * one's browser path permanently uncovered.
  */
-const IS_BROWSER: boolean =
-  typeof document !== 'undefined' && typeof window !== 'undefined';
+function isBrowser(): boolean {
+  return typeof document !== 'undefined' && typeof window !== 'undefined';
+}
 
 /**
  * Whether the platform keeps its own cookie store.
@@ -96,7 +102,7 @@ const IS_BROWSER: boolean =
  */
 export const PLATFORM_OWNS_COOKIES: boolean =
   expoFetch !== undefined ||
-  IS_BROWSER ||
+  isBrowser() ||
   (typeof navigator !== 'undefined' &&
     (navigator as { product?: string }).product === 'ReactNative');
 
@@ -142,7 +148,7 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
   if (testTransport) return testTransport;
   if (override) return override;
   if (cookieJar && expoFetch) return expoFetch;
-  if (IS_BROWSER) {
+  if (isBrowser()) {
     return (url, init) => globalThis.fetch(url, { ...init, credentials: 'include' });
   }
   return (url, init) => globalThis.fetch(url, init);

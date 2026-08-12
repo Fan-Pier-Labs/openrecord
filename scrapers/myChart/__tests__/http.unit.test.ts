@@ -265,17 +265,33 @@ describe('scraperFetch', () => {
         return new Response('ok')
       }) as unknown as typeof globalThis.fetch
       try {
-        // Re-import so the module re-reads `document` at load time.
-        const fresh = await import(`../../http?browser=${Math.random()}`)
-        await fresh.scraperFetch('https://mychart.example.org/Home')
+        await scraperFetch('https://mychart.example.org/Home')
         expect(seen[0]?.credentials).toBe('include')
-        expect(fresh.PLATFORM_OWNS_COOKIES).toBe(true)
+        // The browser block still goes out underneath it.
+        expect((seen[0]?.headers as Record<string, string>)['User-Agent']).toBe(
+          BROWSER_HEADERS['User-Agent'],
+        )
       } finally {
         globalThis.fetch = realFetch
         if (realDocument === undefined) delete g.document
         else g.document = realDocument
         if (realWindow === undefined) delete g.window
         else g.window = realWindow
+      }
+    })
+
+    it('sends no credentials off-browser, where the jar is doing the work', async () => {
+      const seen: RequestInit[] = []
+      const realFetch = globalThis.fetch
+      globalThis.fetch = (async (_url: string, init: RequestInit) => {
+        seen.push(init)
+        return new Response('ok')
+      }) as unknown as typeof globalThis.fetch
+      try {
+        await scraperFetch('https://mychart.example.org/Home')
+        expect(seen[0]?.credentials).toBeUndefined()
+      } finally {
+        globalThis.fetch = realFetch
       }
     })
 
