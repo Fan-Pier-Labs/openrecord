@@ -21,13 +21,13 @@ function mockRequest(manageHtml: string, orgList: unknown) {
 
   const posts: { url: string; init: RequestInit }[] = []
 
-  req.fetchWithCookieJar = mock(async (url: string, init: RequestInit = {}) => {
+  req.transport = mock(async (url: string, init: RequestInit = {}) => {
     if (url.includes('/Community/Shared/LoadCommunityLinks')) {
       posts.push({ url, init })
       return new Response(JSON.stringify(orgList), { status: 200 })
     }
     return new Response(manageHtml, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
 
   return { req, posts }
 }

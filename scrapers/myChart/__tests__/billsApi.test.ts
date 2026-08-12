@@ -32,7 +32,7 @@ function mockRouted(routes: Array<[string, string | (() => Response)]>) {
   req.firstPathPart = 'MyChart'
   const calls: Call[] = []
 
-  req.fetchWithCookieJar = mock(async (url: string, init: RequestInit = {}) => {
+  req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
     for (const [fragment, body] of routes) {
       if (url.includes(fragment)) {
@@ -40,7 +40,7 @@ function mockRouted(routes: Array<[string, string | (() => Response)]>) {
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
 
   return { req, calls }
 }

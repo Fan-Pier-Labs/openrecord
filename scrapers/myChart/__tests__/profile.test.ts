@@ -154,14 +154,14 @@ function mockRedirectingRequest(status: number, location: string, destinationBod
   req.firstPathPart = 'MyChart'
   const urls: string[] = []
   let first = true
-  req.fetchWithCookieJar = mock(async (url: string) => {
+  req.transport = mock(async (url: string) => {
     urls.push(url)
     if (first) {
       first = false
       return new Response('', { status, headers: { location } })
     }
     return new Response(destinationBody, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return { req, urls }
 }
 
@@ -238,9 +238,9 @@ function mockSequence(bodies: string[]) {
   req.firstPathPart = 'MyChart'
   const calls: Array<{ url: string; init: RequestInit }> = []
   let i = 0
-  req.fetchWithCookieJar = mock(async (url: string, init: RequestInit = {}) => {
+  req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
     return new Response(bodies[i++] ?? '', { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return { req, calls }
 }
