@@ -26,6 +26,7 @@ import type {
   PendingWrite,
   Session,
   Surface,
+  ToolArgs,
   ToolRecord,
   TurnCallbacks,
   TurnResult,
@@ -292,19 +293,49 @@ function fieldLabel(key: string): string {
  * model's description of it — the point of the dialog is that the user sees
  * what will really run.
  */
-export function describeWrite({ tool, args }: PendingWrite): WriteConfirmation {
+export function describeWrite({ tool, args, details }: PendingWrite): WriteConfirmation {
   const meta = WRITE_TOOL_META[tool];
   return {
     title: meta?.title ?? tool,
     description: meta?.description ?? `Runs ${tool}.`,
     verb: meta?.verb ?? 'Confirm',
-    fields: Object.entries(args ?? {})
-      .filter(([key]) => key !== 'instance')
-      .map(([key, value]) => ({
-        label: fieldLabel(key),
-        value: typeof value === 'string' ? value : JSON.stringify(value),
-      })),
+    fields: [
+      ...Object.entries(args ?? {})
+        .filter(([key]) => key !== 'instance')
+        .map(([key, value]) => ({
+          label: fieldLabel(key),
+          value: typeof value === 'string' ? value : JSON.stringify(value),
+        })),
+      ...(details ?? []),
+    ],
   };
+}
+
+/**
+ * Rows the raw args can't provide, resolved from session state. A
+ * book_appointment payload is just `slot_id: slot-002` — the patient being
+ * asked to approve it deserves to see who, when and where that is. And when
+ * the model invents a slot id (observed: "56789"), saying so in the dialog
+ * lets the user decline instead of approving a call that must fail.
+ */
+export function resolveWriteDetails(
+  session: Session,
+  tool: string,
+  args: ToolArgs,
+): { label: string; value: string }[] {
+  if (tool !== 'book_appointment') return [];
+  const slotId = String(args.slot_id ?? '');
+  for (const offer of session.availableAppointments) {
+    const slot = offer.slots.find((s) => s.slotId === slotId);
+    if (!slot) continue;
+    return [
+      { label: 'Provider', value: offer.provider },
+      { label: 'Visit type', value: offer.visitType },
+      { label: 'When', value: `${slot.date} at ${slot.time}` },
+      { label: 'Location', value: offer.location },
+    ];
+  }
+  return [{ label: 'Warning', value: `"${slotId}" is not one of the open slot ids — this booking will fail.` }];
 }
 
 /* ------------------------------------------------------------------ *
@@ -638,7 +669,11 @@ export async function runTurn({
         continue;
       }
 
-      const approved = await onConfirmWrite({ tool: writeCall.tool, args: writeCall.args });
+      const approved = await onConfirmWrite({
+        tool: writeCall.tool,
+        args: writeCall.args,
+        details: resolveWriteDetails(session, writeCall.tool, writeCall.args),
+      });
       if (!approved) {
         // Same shape and wording as the real iOS client, so the model reacts
         // to a decline the same way in both.
