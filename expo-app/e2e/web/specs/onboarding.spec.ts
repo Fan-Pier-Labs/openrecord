@@ -37,7 +37,11 @@ test("full onboarding: connect homer to fake-mychart in the browser", async ({ p
   await page.getByTestId("google-dev-skip").click();
 
   await page.getByTestId("picker-manual").click();
-  await page.getByTestId("mychart-hostname").fill("localhost:4000");
+  // Manual entry lands on the account-choice hub, not straight on the sign-in
+  // form: the hostname is collected there so the activation-code, signup and
+  // recovery branches all have one before they start.
+  await page.getByTestId("choice-hostname").fill("localhost:4000");
+  await page.getByTestId("choice-sign-in").click();
   await page.getByTestId("mychart-username").fill("homer");
   await page.getByTestId("mychart-password").fill("donuts123");
   await page.getByTestId("mychart-signin").click();
@@ -57,7 +61,11 @@ test("chat answers a medications question end-to-end in the browser", async ({ p
   await page.getByTestId("welcome-get-started").click();
   await page.getByTestId("google-dev-skip").click();
   await page.getByTestId("picker-manual").click();
-  await page.getByTestId("mychart-hostname").fill("localhost:4000");
+  // Manual entry lands on the account-choice hub, not straight on the sign-in
+  // form: the hostname is collected there so the activation-code, signup and
+  // recovery branches all have one before they start.
+  await page.getByTestId("choice-hostname").fill("localhost:4000");
+  await page.getByTestId("choice-sign-in").click();
   await page.getByTestId("mychart-username").fill("homer");
   await page.getByTestId("mychart-password").fill("donuts123");
   await page.getByTestId("mychart-signin").click();

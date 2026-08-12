@@ -10,8 +10,12 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     // Mirror what onboarding writes (secure-store.web prefixes with secure_).
+    // The token key is `google_id_token`, not a generic session token: AI is
+    // gated behind Google sign-in across every provider, and getBackendSession
+    // reads exactly this key. Seeding the wrong one leaves the agent loop
+    // refusing to run at all.
     localStorage.setItem("secure_setup_complete", "true");
-    localStorage.setItem("secure_backend_session_token", "e2e-test-token");
+    localStorage.setItem("secure_google_id_token", "e2e-test-token");
     localStorage.setItem(
       "secure_backend_user",
       JSON.stringify({ id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" }),

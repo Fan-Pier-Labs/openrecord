@@ -28,13 +28,21 @@ appId: com.fanpierlabs.openrecord
 - assertVisible: "Find your provider"
 - tapOn:
     id: "picker-manual"
+# Manual entry lands on the account-choice hub, which collects the hostname so
+# the activation-code, signup and recovery branches all have one to start from.
 - extendedWaitUntil:
     visible:
-      id: "mychart-hostname"
+      id: "choice-hostname"
     timeout: 10000
 - tapOn:
-    id: "mychart-hostname"
+    id: "choice-hostname"
 - inputText: "localhost:4000"
+- tapOn:
+    id: "choice-sign-in"
+- extendedWaitUntil:
+    visible:
+      id: "mychart-username"
+    timeout: 10000
 - tapOn:
     id: "mychart-username"
 - inputText: "homer"
