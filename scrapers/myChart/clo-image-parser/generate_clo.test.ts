@@ -305,8 +305,10 @@ describe("encode → decode round-trip", () => {
   }, 30000);
 
   it("diagonal 510x510 (odd subbands) is lossless", () => {
-    // 510 halves to a 255x255 subband, so this exercises the odd-width /
-    // odd-height branches of the lift and unlift interleaving.
+    // 510 halves to a 255x255 subband, so the subband extents are odd even
+    // though the image extents are not. Note this does NOT make the even/odd
+    // column split unequal — see the note below the next case — so despite the
+    // name it is not the odd-extent test; "odd width and height" is.
     const result = roundTripTest(generateDiagonal(510, 510), 510, 510);
     expect(result.maxDiff).toBe(0);
     expect(result.exactPct).toBe(100);
