@@ -275,6 +275,52 @@ export {
   type EhiTemplate,
 } from '../../scrapers/myChart/ehiExport';
 
+// ─── Visit notes ─────────────────────────────────────────────────────────
+export {
+  getVisitNotes,
+  getNoteContent,
+  getVisitAVS,
+  type VisitNote,
+  type GetVisitNotesResult,
+  type NoteContent,
+} from '../../scrapers/myChart/notes/notes';
+
+// ─── Capability registry ─────────────────────────────────────────────────
+// The single source of truth for what OpenRecord can do with a MyChart
+// account. The CLI, the Claude Desktop extension and the mobile app all derive
+// their tool lists from it; exported here so consumers can build their own
+// tool layer against exactly the same set.
+export { resolveUnique, type ResolveUniqueOptions } from '../../shared/resolveUnique';
+export {
+  base64UrlEncode,
+  base64UrlDecode,
+} from '../../shared/base64url';
+export {
+  ACCOUNT_PARAM,
+  ACCOUNT_PARAM_NAMES,
+  PATIENT_PARAM,
+  readAccountArg,
+  acceptsPatientParam,
+  CAPABILITIES,
+  CAPABILITY_IDS,
+  AGENT_CAPABILITIES,
+  WRITE_CAPABILITY_IDS,
+  getCapability,
+  capabilitiesByGroup,
+  executeCapability,
+  describeCapability,
+  encodeImageId,
+  decodeImageId,
+  resolveRecipient,
+  resolveTopic,
+  type Capability,
+  type CapabilityArgs,
+  type CapabilityContext,
+  type CapabilityKind,
+  type CapabilityParam,
+  type StudyImagePayload,
+} from '../../shared/capabilities';
+
 // ─── High-level client ───────────────────────────────────────────────────
 export {
   MyChartClient,

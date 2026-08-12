@@ -242,7 +242,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 |----------|---------|----------|
 | **Profile** | `profile.ts` | Name, DOB, MRN, PCP, email |
 | **Health Summary** | `healthSummary.ts` | Age, blood type, vitals overview |
-| **Medications** | `medications.ts` | Duff Beer Extract 500mg, Donut Supplement, Lisinopril, Atorvastatin |
+| **Medications** | `medications.ts` | Duff Beer Extract 500mg, Donut Supplement, Lisinopril, Atorvastatin — each carries a `medicationKey` (`FAKE-MED-KEY-001`…`004`, and `101`/`102` for the kids), because real MyChart returns one and refill-by-name resolves the key from this list |
 | **Allergies** | `allergies.ts` | Vegetables (Severe), Exercise (Moderate) |
 | **Health Issues** | `healthIssues.ts` | Obesity, Hypertension, Hypercholesterolemia, Radiation exposure |
 | **Immunizations** | `immunizations.ts` | Flu, Tdap, COVID-19, Hep B |
@@ -360,10 +360,6 @@ Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo
 `claude-desktop-extension/src/imaging/__tests__/encode.test.ts` exercises the CLO fixtures directly, and the fake-mychart CI job runs the scraper suite (`bun run test:fake-mychart`) plus the desktop-extension and npm-package tests against a live instance of this server.
 
 ## What's NOT Implemented
-
-### Medication Refill
-
-`POST /api/medications/RequestRefill` is not implemented. The endpoint exists in the real MyChart for requesting prescription refills.
 
 ### Draft Persistence
 

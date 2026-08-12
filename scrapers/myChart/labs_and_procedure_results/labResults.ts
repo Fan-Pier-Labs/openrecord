@@ -284,10 +284,9 @@ async function test() {
 
   const labresults = await listLabResults(mychartRequest)
 
-  // const verificationtoken = await getRequestVerificationToken(mychartRequest)
-
-  // // const labresults = await getLabResult(mychartRequest, 'WP-249LQ11wkP8SwrVbZakPwK2g-3D-3D-24qwHst6DyZlk7obuDd6Gho16-2F3S-2BypDIGyTtp1dJYThc-3D', verificationtoken)
-  // const labresults = await getLabResult(mychartRequest, 'WP-24QvFqBxM5P2VEehMHXypjtA-3D-3D-24yYqau894Z-2F-2FzME-2F3wrC8wxS3mgP9ZzzELfC-2B2XJkcrg-3D', verificationtoken)
+  // To fetch a single result instead, pass its opaque record id:
+  //   const verificationtoken = await getRequestVerificationToken(mychartRequest)
+  //   const labresults = await getLabResult(mychartRequest, '<WP-… result id>', verificationtoken)
 
   logger.debug(JSON.stringify(labresults, null, 2))
 

@@ -653,8 +653,6 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
   let requestVerificationToken = getRequestVerificationTokenFromBody(loginPageHtml)
 
-  logger.debug('request verification token:', requestVerificationToken)
-
   const { navRequestMetrics, navRedirectMetrics, redirectChainIncludesLogin, currentPageLoadDescriptor, rttCaptureEnabled } =
     parseLoginPageFields(loginPageHtml);
 
@@ -693,7 +691,6 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
   logger.debug(`[login] DoLogin response: status=${res.status} url=${responseUrl}`);
   logger.debug(`[login] Page checks: has_secondaryvalidationcontroller=${secondaryAuthPage.includes('secondaryvalidationcontroller')} has_md_home_index=${secondaryAuthPage.toLowerCase().includes('md_home_index')} has_termsconditions=${responseUrl.toLowerCase().includes('termsconditions')}`);
-  logger.debug(`[login] Page snippet (first 300 chars):`, secondaryAuthPage.substring(0, 300));
 
   // If the user is required to set up 2fa but hasn't set up 2fa yet, there may be a message stating that they have to set up 2fa.
 
@@ -713,10 +710,8 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   if (secondaryAuthPage.includes('secondaryvalidationcontroller') || urlLower.includes('secondaryvalidation')) {
 
     requestVerificationToken = getRequestVerificationTokenFromBody(secondaryAuthPage)
-    logger.debug('new request verification token:', requestVerificationToken)
-
     if (!requestVerificationToken) {
-      logger.debug('could not find request verification token', secondaryAuthPage)
+      logger.debug('could not find request verification token on the 2FA page')
       return {state: 'error', error: 'could not find request verification token', mychartRequest}
     }
 
@@ -725,7 +720,6 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
     // Detect which 2FA delivery methods are available on the page
     const deliveryMethods = parse2faDeliveryMethods(secondaryAuthPage);
     logger.debug('2FA delivery methods:', JSON.stringify(deliveryMethods));
-    logger.debug('[login] 2FA page body (first 2000 chars):', secondaryAuthPage.substring(0, 2000));
 
     let twoFaDelivery: TwoFaDeliveryInfo | undefined;
 
@@ -759,7 +753,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
         });
         const respBody = await resp.text();
         const success = respBody.includes('"Success":true');
-        logger.debug(`[login] SendCode ${label}: status=${resp.status} body=${respBody.substring(0, 200)} success=${success}`);
+        logger.debug(`[login] SendCode ${label}: status=${resp.status} success=${success}`);
         return success;
       }
 
@@ -851,7 +845,6 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
   logger.debug('i am at some page, i dont know what to do!')
   logger.debug('Response URL:', responseUrl)
-  logger.debug('Page snippet (first 500 chars):', secondaryAuthPage.substring(0, 500))
 
   return {
     state: 'error',
@@ -891,7 +884,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
   const requestVerificationToken = getRequestVerificationTokenFromBody(secondaryAuthPage)
 
   if (!requestVerificationToken) { 
-    logger.debug('could not find request verification token', secondaryAuthPage)
+    logger.debug('could not find request verification token on the 2FA page')
     return {
       state: 'error',
       mychartRequest
@@ -899,12 +892,13 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
   }
 
 
-  logger.debug("Got 2fa sortedCodes from email:", sortedCodes)
+  // The codes themselves are live credentials — log how many arrived, not what they are.
+  logger.debug("Got 2fa codes from email:", sortedCodes.length, "candidate(s), scores:", sortedCodes.map(c => c.score))
 
   let invalidCode = false;
 
   for (const code of sortedCodes) {
-    logger.debug('Trying code', code.code)
+    logger.debug('Trying code with score', code.score)
     const resp = await mychartRequest.makeRequest({
       path: "/Authentication/SecondaryValidation/Validate?noCache=" + Math.random(),
       "headers": { 
@@ -947,7 +941,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
     if (respBody.TwoFactorCodeFailReason === 'codewrong') {
       // wrong code!
-      logger.debug('wrong code!', code.code, code.score)
+      logger.debug('wrong code! score:', code.score)
       invalidCode = true;
     }
   }
@@ -1036,7 +1030,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
 
   const getParamsResult = await getParamsResp.json();
   if (!getParamsResult.Success || !getParamsResult.PasskeyGetParams) {
-    logger.debug('  GetPasskeyGetParams unsuccessful:', JSON.stringify(getParamsResult));
+    logger.debug('  GetPasskeyGetParams unsuccessful. Success:', getParamsResult.Success);
     return { state: 'error', error: 'Passkey login not available on this instance', mychartRequest };
   }
 
@@ -1108,7 +1102,6 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
 
   logger.debug('  Passkey login ended on unexpected page');
   logger.debug('  Response URL:', responseUrl);
-  logger.debug('  Page snippet:', responseBody.substring(0, 500));
   return { state: 'error', error: 'Passkey login ended on unexpected page', mychartRequest };
 }
 
