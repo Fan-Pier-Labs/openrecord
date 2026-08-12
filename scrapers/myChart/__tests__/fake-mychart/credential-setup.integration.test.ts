@@ -4,7 +4,7 @@
  * deletePasskey.
  *
  * These call the scraper functions directly, so a break shows up here rather
- * than as a confusing CLI-output assertion. `tests/integration/ci/cli-passkey.test.ts`
+ * than as a confusing CLI-output assertion. `tests/integration/ci/cli-passkey.integration.test.ts`
  * covers the same ground one layer up, through the built CLI binary.
  *
  * The TOTP half is a real cryptographic round trip: fake-mychart mints a fresh
@@ -13,7 +13,7 @@
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  *
- * Run with: bun test scrapers/myChart/__tests__/fake-mychart/credential-setup.test.ts
+ * Run with: bun run test:fake-mychart
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
@@ -23,16 +23,11 @@ import { setupTotp, disableTotp } from '../../setupTotp'
 import { setupPasskey, listPasskeys, deletePasskey } from '../../setupPasskey'
 import { myChartPasskeyLogin } from '../../login'
 import { generateTotpCode } from '../../totp'
+import { resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
-const BASE = `http://${HOST}`
 const USER = 'homer'
 const PASS = 'donuts123'
-
-async function postReset(): Promise<void> {
-  const r = await fetch(`${BASE}/reset`, { method: 'POST' })
-  if (!r.ok) throw new Error(`/reset failed: ${r.status}`)
-}
 
 async function login(): Promise<MyChartRequest> {
   const result = await myChartUserPassLogin({
@@ -61,8 +56,8 @@ async function serverSaysTotpEnabled(req: MyChartRequest): Promise<boolean> {
 
 // Every test starts from the seed state; TOTP opt-in and registered passkeys
 // both persist in the server's memory otherwise.
-beforeEach(postReset)
-afterAll(postReset)
+beforeEach(async () => { await resetFakeMyChart(HOST) })
+afterAll(async () => { await resetFakeMyChart(HOST) })
 
 // ---------------------------------------------------------------------------
 // TOTP
@@ -114,7 +109,7 @@ describe('setupTotp against fake-mychart', () => {
 
   it('issues a different secret on each setup', async () => {
     const first = await setupTotp(await login(), PASS)
-    await postReset()
+    await resetFakeMyChart(HOST)
     const second = await setupTotp(await login(), PASS)
 
     expect(first.secret).toBeTruthy()

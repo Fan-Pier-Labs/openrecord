@@ -387,4 +387,4 @@ To add a new endpoint:
 1. Add fake data to `src/data/homer.ts`
 2. Add the URL pattern match in `src/app/MyChart/[...path]/route.ts`
 3. If it's an HTML page parsed by cheerio, add a template in `src/lib/html.ts`
-4. Add a test case in `scrapers/myChart/__tests__/fake-mychart/fake-mychart.test.ts`
+4. Add a test case in `scrapers/myChart/__tests__/fake-mychart/fake-mychart.integration.test.ts`

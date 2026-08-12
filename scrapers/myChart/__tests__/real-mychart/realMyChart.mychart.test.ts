@@ -5,7 +5,7 @@
  * They validate response structure (non-null, correct types, expected fields)
  * but do NOT assert specific values since patient data may change.
  *
- * Run with: bun test src/main/scrapers/myChart/__tests__/integration/
+ * Run with: bun run test:mychart
  *
  * Requirements:
  * - Valid Example Health MyChart session in .cookie-cache/ OR

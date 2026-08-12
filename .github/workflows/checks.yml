@@ -80,26 +80,35 @@ jobs:
           done
       - name: Run scrapers against fake-mychart
         run: bun run test:fake-mychart
+      # `bun run test`, not a bare `bun test`: the package script filters to the
+      # `.unit`/`.integration` suffixes, so a `.mychart` suite added under this
+      # package could never be picked up here and fired at a real chart.
       - name: Run Claude Desktop extension tests against fake-mychart
-        run: cd claude-desktop-extension && bun install && bun test
+        run: cd claude-desktop-extension && bun install && bun run test
         env:
           FAKE_MYCHART_HOST: localhost:4000
-      # The gate lives here, not in the `build` job, because it measures the unit
-      # suite AND the fake-mychart suite together. Splitting them would count
-      # every scraper that is only exercised end-to-end as uncovered, making the
-      # percentage an artifact of which suite happened to run. This job already
-      # has the server up and the extension's deps installed, so merging the two
-      # costs no extra setup.
-      - name: Check code coverage (Bun coverageThreshold, 75% per file)
-        run: bun run test:coverage
-        env:
-          FAKE_MYCHART_HOST: localhost:4000
+      # Before the coverage gate, not after it: the gate measures every
+      # `.unit.test.ts` and `.integration.test.ts` in the repo, and
+      # npm-package's integration suite imports the BUILT `dist/index.js`
+      # on purpose — it exists to test what consumers actually install.
       - name: Install npm-package deps
         run: cd npm-package && bun install
       - name: Build npm-package
         run: cd npm-package && bun run build
       - name: Run npm-package tests against local fake-mychart
         run: cd npm-package && bun run test
+        env:
+          FAKE_MYCHART_HOST: localhost:4000
+      # The gate lives here, not in the `build` job, because it measures the unit
+      # suite AND the integration suites together. Splitting them would count
+      # every scraper that is only exercised end-to-end as uncovered, making the
+      # percentage an artifact of which suite happened to run. This job already
+      # has the server up and every package's deps installed, so merging them
+      # costs no extra setup. The one exclusion is `tests/integration/ci/`, which
+      # needs Docker Compose and drives the CLI as a subprocess — nothing there
+      # is instrumented anyway.
+      - name: Check code coverage (Bun coverageThreshold, 75% per file)
+        run: bun run test:coverage
         env:
           FAKE_MYCHART_HOST: localhost:4000
 

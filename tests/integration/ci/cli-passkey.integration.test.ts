@@ -6,7 +6,7 @@
  *
  * Requires fake-mychart running on port 4000 (FAKE_MYCHART_ACCEPT_ANY=true).
  *
- * Run: bun test tests/integration/ci/cli-passkey.test.ts
+ * Run: bun run test:ci-integration
  */
 
 import { describe, it, expect, afterAll, beforeAll } from 'bun:test';
