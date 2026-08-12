@@ -85,23 +85,78 @@ const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
 
 // ==================== Convenience wrapper ====================
 
+/** Extensions `convertCloToJpg` knows how to write, for its error message. */
+const SUPPORTED_OUTPUT_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".avif",
+  ".tif",
+  ".tiff",
+] as const;
+
+/**
+ * Decode a CLO image and write it out in the format named by `outputPath`'s
+ * extension, or return a JPEG buffer when no path is given.
+ *
+ * **The extension decides the format.** This used to special-case `.webp` and
+ * send every other extension to the JPEG encoder, so `out.png` got JPEG bytes
+ * under a PNG name — a file that opens fine in every viewer (they sniff the
+ * magic, not the name) right up until something trusts the extension. It also
+ * meant the `.png`, `.avif` and `.tiff` exporters sitting next to this function
+ * were unreachable through it.
+ *
+ * An unrecognised extension now throws rather than guessing. Silently writing
+ * one format under another name is the bug being fixed here, and picking JPEG
+ * for `.gif` would just be the same bug with a smaller blast radius.
+ *
+ * JPEG and WebP keep going through the 8-bit `convertBitmapTo*` helpers, whose
+ * byte-for-byte output some callers depend on. The formats that can carry more
+ * than 8 bits decode straight to 16-bit and keep it — a PNG of a 16-bit medical
+ * image should not be quantised to 256 levels on the way out.
+ */
 export async function convertCloToJpg(opts: {
   pixelData: string | Buffer;
   wrapperData?: string | Buffer;
   outputPath?: string | null;
 }): Promise<Buffer | string> {
-  const bitmap = convertCloToBitmap(opts.pixelData, opts.wrapperData);
-
   const outputPath = opts.outputPath ?? null;
   if (outputPath === null) {
-    return await convertBitmapToJpg(bitmap);
+    return await convertBitmapToJpg(
+      convertCloToBitmap(opts.pixelData, opts.wrapperData),
+    );
   }
 
+  // Only one branch runs, so the file is decoded exactly once either way.
+  const decode8 = () => convertCloToBitmap(opts.pixelData, opts.wrapperData);
+  const decode16 = () => convertCloToBitmap16(opts.pixelData, opts.wrapperData);
+
   const ext = extname(outputPath).toLowerCase();
-  if (ext === ".webp") {
-    await convertBitmapToWebp(bitmap, outputPath);
-  } else {
-    await convertBitmapToJpg(bitmap, outputPath);
+  switch (ext) {
+    case ".jpg":
+    case ".jpeg":
+      await convertBitmapToJpg(decode8(), outputPath);
+      break;
+    case ".webp":
+      await convertBitmapToWebp(decode8(), outputPath);
+      break;
+    case ".png":
+      await convertBitmap16ToPng(decode16(), undefined, outputPath);
+      break;
+    case ".avif":
+      await convertBitmap16ToAvif(decode16(), undefined, outputPath);
+      break;
+    case ".tif":
+    case ".tiff":
+      await convertBitmap16ToTiff(decode16(), undefined, outputPath);
+      break;
+    default:
+      throw new Error(
+        `convertCloToJpg: unsupported output extension ${ext || "(none)"} for ${outputPath}. ` +
+          `Supported: ${SUPPORTED_OUTPUT_EXTENSIONS.join(", ")}. ` +
+          `Omit outputPath to get a JPEG buffer back instead.`,
+      );
   }
 
   return outputPath;

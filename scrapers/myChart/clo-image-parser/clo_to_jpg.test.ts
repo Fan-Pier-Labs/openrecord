@@ -441,6 +441,124 @@ describe("synthetic CLO round-trip", () => {
     expect(meta.height).toBe(h);
   }, 30000);
 
+  // convertCloToJpg used to send every extension except `.webp` to the JPEG
+  // encoder, so `out.png` was handed JPEG bytes. Viewers sniff the magic rather
+  // than the name, so it looked fine — these assert the format actually written,
+  // never just that a file appeared.
+  describe("convertCloToJpg writes the format the extension names", () => {
+    // 512x512 because encodePixelFile only produces wavelet levels above
+    // TILE_SIZE (256); anything smaller yields no levels and throws.
+    const w = 512, h = 512;
+
+    function sampleClo() {
+      const img = new Uint16Array(w * h);
+      // Curved content, so a format that quantises shows up as more than noise.
+      for (let r = 0; r < h; r++) {
+        for (let c = 0; c < w; c++) {
+          const dx = c - w / 2, dy = r - h / 2;
+          img[r * w + c] = Math.round(Math.sqrt(dx * dx + dy * dy) * 500) & 0xffff;
+        }
+      }
+      return makeClo(img, w, h);
+    }
+
+    const cases: [string, string][] = [
+      [".jpg", "jpeg"],
+      [".jpeg", "jpeg"],
+      [".png", "png"],
+      [".webp", "webp"],
+      [".tif", "tiff"],
+      [".tiff", "tiff"],
+      [".avif", "heif"], // sharp reports the AVIF container as heif
+    ];
+
+    for (const [ext, expectedFormat] of cases) {
+      it(`writes ${expectedFormat} for ${ext}`, async () => {
+        const { pixelBuffer, wrapperBuffer } = sampleClo();
+        const out = `/tmp/test_clo_ext_${ext.slice(1)}${ext}`;
+
+        const returned = await convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: out,
+        });
+        expect(returned).toBe(out);
+        expect(existsSync(out)).toBe(true);
+
+        // Read the file back and check what it actually is, not what it is called.
+        const meta = await sharp(out).metadata();
+        expect(meta.format).toBe(expectedFormat);
+        expect(meta.width).toBe(w);
+        expect(meta.height).toBe(h);
+
+        unlinkSync(out);
+      }, 30000);
+    }
+
+    it("keeps 16-bit depth for png rather than quantising to 8", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const out = "/tmp/test_clo_ext_depth.png";
+      await convertCloToJpg({
+        pixelData: pixelBuffer,
+        wrapperData: wrapperBuffer,
+        outputPath: out,
+      });
+      const meta = await sharp(out).metadata();
+      expect(meta.depth).toBe("ushort");
+      unlinkSync(out);
+    }, 30000);
+
+    // "the file was not written" is only meaningful if it was not there to
+    // begin with — otherwise a leftover from an earlier run fails the test for
+    // the wrong reason, which is exactly what happened while writing these.
+    function clearPath(p: string) {
+      if (existsSync(p)) unlinkSync(p);
+      expect(existsSync(p)).toBe(false);
+    }
+
+    it("throws on an unrecognised extension instead of writing a JPEG", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const out = "/tmp/test_clo_ext_bogus.gif";
+      clearPath(out);
+
+      await expect(
+        convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: out,
+        })
+      ).rejects.toThrow(/unsupported output extension \.gif/);
+
+      // and it must not have written the file anyway
+      expect(existsSync(out)).toBe(false);
+    }, 30000);
+
+    it("throws when the path has no extension at all", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const out = "/tmp/test_clo_ext_none";
+      clearPath(out);
+
+      await expect(
+        convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: out,
+        })
+      ).rejects.toThrow(/unsupported output extension/);
+      expect(existsSync(out)).toBe(false);
+    }, 30000);
+
+    it("still returns a JPEG buffer when no outputPath is given", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const result = await convertCloToJpg({
+        pixelData: pixelBuffer,
+        wrapperData: wrapperBuffer,
+      });
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect((await sharp(result as Buffer).metadata()).format).toBe("jpeg");
+    }, 30000);
+  });
+
   it("accepts Buffer inputs without wrapper", () => {
     const w = 512, h = 512;
     const img = new Uint16Array(w * h).fill(1000);
