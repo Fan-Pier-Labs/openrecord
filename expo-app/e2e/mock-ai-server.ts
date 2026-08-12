@@ -113,7 +113,10 @@ const server = Bun.serve({
       return Response.json({ status: "ok" }, { headers: cors });
     }
 
-    if (url.pathname === "/api/ai") {
+    // The real AI Lambda is fronted by an HTTP API whose *root* is the
+    // endpoint — the app POSTs to `backendUrl()` with no path at all, and GETs
+    // the same URL for the month's spend. `/api/ai` was never a route on it.
+    if (url.pathname === "/" || url.pathname === "/api/ai") {
       const auth = request.headers.get("authorization") ?? "";
       if (!auth.startsWith("Bearer ")) {
         return Response.json({ error: "unauthorized" }, { status: 401, headers: cors });
@@ -137,7 +140,9 @@ const server = Bun.serve({
         console.log(
           `[mock-ai] ${body.messages.length} msg(s) → ${content.slice(0, 100)}`,
         );
-        return Response.json({ content }, { headers: cors });
+        // Contract is `{ text }`, matching openrecord-demo-lambda. Returning
+        // `{ content }` leaves the agent loop with `undefined` to parse.
+        return Response.json({ text: content }, { headers: cors });
       }
     }
 

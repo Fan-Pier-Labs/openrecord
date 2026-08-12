@@ -12,6 +12,12 @@ export const GoogleSignin = {
   configure: () => {},
   hasPlayServices: async () => true,
   signIn: notSupported,
+  // Silent refresh is what `getFreshIdToken` reaches for when a stored token
+  // is near expiry. There is no browser equivalent, so it fails rather than
+  // being absent: an undefined method throws a TypeError that reads as a bug,
+  // where this reads as the platform limitation it is. E2E runs never get here
+  // — they sign in with a long-lived token (see E2E_ID_TOKEN).
+  signInSilently: notSupported,
   signOut: async () => {},
 };
 

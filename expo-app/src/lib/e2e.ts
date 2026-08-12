@@ -18,3 +18,21 @@ export const IS_E2E = process.env.EXPO_PUBLIC_E2E === "1";
 
 /** True in dev builds or E2E test builds — gates test-only UI. */
 export const DEV_OR_E2E = __DEV__ || IS_E2E;
+
+/**
+ * The stand-in Google ID token an E2E run signs in with.
+ *
+ * It has to be a real JWT shape with a future `exp`, not an opaque string:
+ * `getFreshIdToken` decodes the claims and, finding no expiry, treats the
+ * token as stale and tries to refresh it through the native Google SDK — which
+ * does not exist under Playwright. The whole AI path then fails with "Your
+ * Google sign-in expired" rather than reaching the mock server.
+ *
+ * Unsigned (`alg: none`) and expiring in 2100. Nothing verifies it: E2E runs
+ * point EXPO_PUBLIC_BACKEND_URL at the mock AI server, which checks that a
+ * bearer token is present and not what it says.
+ */
+export const E2E_ID_TOKEN =
+  "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0." +
+  "eyJzdWIiOiJlMmUtdXNlciIsImVtYWlsIjoiZGV2QG9wZW5yZWNvcmQubG9jYWwiLCJuYW1lIjoiRTJFIFRlc3RlciIsImV4cCI6NDEwMjQ0NDgwMH0." +
+  "e2e";

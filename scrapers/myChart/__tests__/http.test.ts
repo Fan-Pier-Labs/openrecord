@@ -242,6 +242,41 @@ describe('scraperFetch', () => {
       // Every other test in this file assumes the Node/Bun branch. If this
       // ever flips, the jar assertions above are testing nothing.
       expect(PLATFORM_OWNS_COOKIES).toBe(false)
+      // The browser branch is keyed on `document`, which Bun does not define —
+      // that is what keeps this false here while the web export takes the
+      // other path.
+      expect(typeof document).toBe('undefined')
+    })
+
+    it('opts a browser into its own cookie store, since a jar cannot work there', async () => {
+      // `Cookie` is a forbidden header in the fetch spec, so on the web export
+      // the jar is not just redundant, it is unusable: MyChart is cross-origin
+      // and the default `credentials: 'same-origin'` sends and stores nothing,
+      // which reads as a login that succeeds and then has no session.
+      const seen: RequestInit[] = []
+      const realFetch = globalThis.fetch
+      const g = globalThis as { document?: unknown; window?: unknown }
+      const realDocument = g.document
+      const realWindow = g.window
+      g.document = {}
+      g.window = g
+      globalThis.fetch = (async (_url: string, init: RequestInit) => {
+        seen.push(init)
+        return new Response('ok')
+      }) as unknown as typeof globalThis.fetch
+      try {
+        // Re-import so the module re-reads `document` at load time.
+        const fresh = await import(`../../http?browser=${Math.random()}`)
+        await fresh.scraperFetch('https://mychart.example.org/Home')
+        expect(seen[0]?.credentials).toBe('include')
+        expect(fresh.PLATFORM_OWNS_COOKIES).toBe(true)
+      } finally {
+        globalThis.fetch = realFetch
+        if (realDocument === undefined) delete g.document
+        else g.document = realDocument
+        if (realWindow === undefined) delete g.window
+        else g.window = realWindow
+      }
     })
 
     it('sends everything to the test transport once one is installed', async () => {

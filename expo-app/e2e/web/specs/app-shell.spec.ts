@@ -10,12 +10,23 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     // Mirror what onboarding writes (secure-store.web prefixes with secure_).
-    // The token key is `google_id_token`, not a generic session token: AI is
-    // gated behind Google sign-in across every provider, and getBackendSession
-    // reads exactly this key. Seeding the wrong one leaves the agent loop
-    // refusing to run at all.
+    // Two things have to be right here, and both bit this spec.
+    //
+    // The key is `google_id_token`, not a generic session token: AI is gated
+    // behind Google sign-in across every provider, and getBackendSession reads
+    // exactly this key. Seed the wrong one and the agent loop refuses to run.
+    //
+    // And the value has to be a real JWT with a future `exp` — the same token
+    // src/lib/e2e.ts hands the app when onboarding takes the E2E skip.
+    // getFreshIdToken decodes the claims, and an opaque string looks expired,
+    // so it tries a native silent re-sign-in that no browser can do.
     localStorage.setItem("secure_setup_complete", "true");
-    localStorage.setItem("secure_google_id_token", "e2e-test-token");
+    localStorage.setItem(
+      "secure_google_id_token",
+      "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0." +
+        "eyJzdWIiOiJlMmUtdXNlciIsImVtYWlsIjoiZGV2QG9wZW5yZWNvcmQubG9jYWwiLCJuYW1lIjoiRTJFIFRlc3RlciIsImV4cCI6NDEwMjQ0NDgwMH0." +
+        "e2e",
+    );
     localStorage.setItem(
       "secure_backend_user",
       JSON.stringify({ id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" }),
@@ -87,7 +98,9 @@ test("settings show the backend session and AI spend from the mock server", asyn
   await expect(page.getByText("dev@openrecord.local")).toBeVisible();
   // GET /api/ai on the mock server reports $1.23 of $50.00.
   await expect(page.getByText(/\$1\.23 of \$50\.00/)).toBeVisible();
-  await expect(page.getByText("Free tier")).toBeVisible();
+  // Target the row, not the words: the Security blurb below it also says
+  // "free tier", so a bare text match is ambiguous under strict mode.
+  await expect(page.getByTestId("settings-ai-provider")).toHaveText(/Free tier/);
 
   // AI provider sub-screen and back. (Stacked screens stay mounted but
   // hidden on web, so assert on content unique to the AI screen and use

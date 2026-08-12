@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
 import { signInWithGoogle } from "@/lib/backend/google-signin";
 import { setBackendSession } from "@/lib/backend/session";
-import { IS_E2E, DEV_OR_E2E } from "@/lib/e2e";
+import { IS_E2E, DEV_OR_E2E, E2E_ID_TOKEN } from "@/lib/e2e";
 import { StepLayout } from "../step-layout";
 import { styles } from "../styles";
 
@@ -36,7 +36,7 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
   async function handleDevSkip() {
     if (IS_E2E) {
       await setBackendSession({
-        idToken: "e2e-test-token",
+        idToken: E2E_ID_TOKEN,
         user: { id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" },
       });
     }
