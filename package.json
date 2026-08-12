@@ -7,12 +7,10 @@
     "lint": "eslint",
     "cli": "bun npm-package/cli/entry.ts",
     "test": "bun test --isolate .unit.test.ts",
+    "test:integration": "bun test --isolate .integration.test.ts",
+    "test:real-mychart": "NODE_ENV=development bun test --isolate .real-mychart.test.ts",
     "test:unit": "bun run test",
-    "test:coverage": "bun test --isolate --coverage --path-ignore-patterns='**/tests/integration/ci/**' .unit.test.ts .integration.test.ts",
-    "test:integration": "bun test .integration.test.ts",
-    "test:mychart": "NODE_ENV=development bun test .mychart.test.ts",
-    "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/",
-    "test:ci-integration": "bun test tests/integration/ci/"
+    "test:coverage": "bun test --isolate --coverage .unit.test.ts .integration.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",

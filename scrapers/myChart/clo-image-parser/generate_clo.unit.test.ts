@@ -1,18 +1,3 @@
-/**
- * DELIBERATELY NOT RUN — the only test file in the repo without a kind suffix.
- *
- * Two of the CLO encode→decode round-trip assertions below fail: the encoder is
- * off by one on curved and diagonal content. The file has never run in CI. The
- * `test` / `test:integration` / `test:mychart` scripts select purely by the
- * `.unit` / `.integration` / `.mychart` suffix, so having no suffix is what
- * keeps this out of every suite — there is no per-file exclusion anywhere to
- * find or forget.
- *
- * Run it by hand with `bun test scrapers/myChart/clo-image-parser/generate_clo`.
- * When the encoder is fixed, rename this to `generate_clo.unit.test.ts` and drop
- * it from `UNRUN` in `tests/suite-naming.unit.test.ts`. Do not make it green by
- * deleting the failing assertions.
- */
 import { describe, it, expect } from "bun:test";
 import { unlinkSync } from "fs";
 import sharp from "sharp";

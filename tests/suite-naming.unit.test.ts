@@ -2,9 +2,8 @@
  * Every test file in the repo must declare which kind of test it is, in its
  * filename.
  *
- * The `test` / `test:integration` / `test:mychart` scripts select by suffix and
- * nothing else — no script names a directory of tests, let alone an individual
- * file. That is what stops the root `test` script from drifting back into the
+ * The three `test` scripts select by suffix and nothing else — no script
+ * names a directory of tests, let alone an individual file. That is what stops the root `test` script from drifting back into the
  * hand-maintained list of per-package globs it used to be, and it is what keeps
  * the real-MyChart suite out of CI by construction rather than by remembering
  * not to glob it.
@@ -14,35 +13,23 @@
  * passes. This test is the backstop for that: an unsuffixed `*.test.ts` fails
  * here instead of quietly disappearing.
  *
- *   *.unit.test.ts        no network, no server, no credentials. Runs in CI.
- *   *.integration.test.ts needs fake-mychart (or Docker Compose). Runs in CI.
- *   *.mychart.test.ts     needs a REAL MyChart account. NEVER runs in CI.
+ *   *.unit.test.ts         no network, no server, no credentials. Runs in CI.
+ *   *.integration.test.ts  needs the fake-mychart server. Runs in CI.
+ *   *.real-mychart.test.ts needs a REAL MyChart account. NEVER runs in CI.
  */
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 
-const KINDS = [".unit.test.ts", ".integration.test.ts", ".mychart.test.ts"];
+const KINDS = [".unit.test.ts", ".integration.test.ts", ".real-mychart.test.ts"];
 
 /**
  * Directories bun's own test scanner skips or that hold no source of ours.
  * `dist`/`.next` are build output; `coverage` is this gate's own report.
  */
 const SKIP_DIRS = new Set(["node_modules", "dist", ".next", "coverage", ".git"]);
-
-/**
- * The one deliberately-unrun test file.
- *
- * `generate_clo.test.ts` has two failing assertions — the CLO encoder is off by
- * one when it round-trips curved and diagonal content. It has never run in CI.
- * Under the old per-directory globs it was excluded by naming its two healthy
- * neighbours individually; under suffix selection it is excluded by having no
- * kind. Fixing the encoder and renaming this to `generate_clo.unit.test.ts` is
- * tracked separately — do not silence it by deleting the assertions.
- */
-const UNRUN = ["scrapers/myChart/clo-image-parser/generate_clo.test.ts"];
 
 function testFiles(dir: string): string[] {
   const out: string[] = [];
@@ -64,19 +51,33 @@ describe("test suite naming", () => {
   });
 
   test("every test file declares its kind by suffix", () => {
-    const unclassified = files
-      .filter((f) => !KINDS.some((k) => f.endsWith(k)))
-      .filter((f) => !UNRUN.includes(f));
-
-    expect(unclassified).toEqual([]);
+    // No allowlist, deliberately. There was one — `generate_clo.test.ts`, whose
+    // CLO round-trip assertions failed — and the temptation with a file like
+    // that is to park it outside the suites and forget it. It was fixed in #231
+    // instead. Anything that genuinely cannot run belongs behind `it.skip`,
+    // where the reporter still counts it, not behind a filename that makes it
+    // invisible.
+    expect(files.filter((f) => !KINDS.some((k) => f.endsWith(k)))).toEqual([]);
   });
 
-  test("the deliberately-unrun files still exist, and are still unrun", () => {
-    // If `generate_clo.test.ts` is fixed and renamed, this list should shrink
-    // rather than sit here excusing a file that no longer needs it.
-    for (const f of UNRUN) {
-      expect(files).toContain(f);
-      expect(KINDS.some((k) => f.endsWith(k))).toBe(false);
+  test("exactly one kind applies to each file", () => {
+    // `.unit` and `.integration` are substrings of nothing else here, but a
+    // future kind that is a suffix of another would put a file in two suites.
+    for (const f of files) {
+      expect(KINDS.filter((k) => f.endsWith(k))).toHaveLength(1);
+    }
+  });
+
+  test("no CI workflow can reach the real-MyChart suite", () => {
+    // The whole point of the third kind. If a workflow ever globs it, a CI run
+    // starts firing at a live patient chart.
+    const workflows = readdirSync(join(REPO_ROOT, ".github/workflows"))
+      .filter((f) => /\.ya?ml$/.test(f))
+      .map((f) => readFileSync(join(REPO_ROOT, ".github/workflows", f), "utf8"));
+
+    expect(workflows.length).toBeGreaterThan(0);
+    for (const w of workflows) {
+      expect(w).not.toContain("real-mychart");
     }
   });
 });

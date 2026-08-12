@@ -12,7 +12,7 @@
  * afterAll — leaving it on would send every later suite to a T&C page it was
  * not written for.
  *
- * Run with: bun run test:fake-mychart
+ * Run with: bun run test:integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'

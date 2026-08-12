@@ -6,7 +6,7 @@
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  *
- * Run with: bun run test:fake-mychart
+ * Run with: bun run test:integration
  */
 
 import { describe, it, expect, beforeAll, afterEach } from 'bun:test'

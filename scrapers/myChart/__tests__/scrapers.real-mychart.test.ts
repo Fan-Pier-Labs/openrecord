@@ -1,11 +1,12 @@
 /**
- * Integration tests for MyChart scrapers.
+ * Every scraper, run against a REAL MyChart account.
  *
- * These tests make REAL HTTP requests to mychart.example.org.
+ * These tests make REAL HTTP requests to a live health system.
  * They validate response structure (non-null, correct types, expected fields)
  * but do NOT assert specific values since patient data may change.
  *
- * Run with: bun run test:mychart
+ * Run with: bun run test:real-mychart. NEVER runs in CI — the `.real-mychart`
+ * suffix is what keeps it out, and nothing in .github/workflows globs it.
  *
  * Requirements:
  * - Valid Example Health MyChart session in .cookie-cache/ OR
@@ -14,36 +15,36 @@
  */
 
 import { describe, it, expect, beforeAll } from 'bun:test'
-import { getTestSession } from '../testHelper'
-import { MyChartRequest } from '../../myChartRequest'
+import { getTestSession } from './testHelper'
+import { MyChartRequest } from '../myChartRequest'
 
 // Scrapers
-import { getMyChartProfile, getEmail } from '../../profile'
-import { getHealthSummary } from '../../healthSummary'
-import { getMedications } from '../../medications'
-import { getAllergies } from '../../allergies'
-import { getHealthIssues } from '../../healthIssues'
-import { getImmunizations } from '../../immunizations'
-import { getVitals } from '../../vitals'
-import { getInsurance } from '../../insurance'
-import { getCareTeam } from '../../careTeam'
-import { getReferrals } from '../../referrals'
-import { getMedicalHistory } from '../../medicalHistory'
-import { getPreventiveCare } from '../../preventiveCare'
-import { getLetters } from '../../letters'
-import { getEmergencyContacts } from '../../emergencyContacts'
-import { getGoals } from '../../goals'
-import { getDocuments } from '../../documents'
-import { getUpcomingOrders } from '../../upcomingOrders'
-import { getQuestionnaires } from '../../questionnaires'
-import { getCareJourneys } from '../../careJourneys'
-import { getActivityFeed } from '../../activityFeed'
-import { getEducationMaterials } from '../../educationMaterials'
-import { getEhiExportTemplates } from '../../ehiExport'
-import { upcomingVisits, pastVisits } from '../../visits/visits'
-import { listLabResults } from '../../labs_and_procedure_results/labResults'
-import { getBillingHistory } from '../../bills/bills'
-import { listConversations } from '../../messages/conversations'
+import { getMyChartProfile, getEmail } from '../profile'
+import { getHealthSummary } from '../healthSummary'
+import { getMedications } from '../medications'
+import { getAllergies } from '../allergies'
+import { getHealthIssues } from '../healthIssues'
+import { getImmunizations } from '../immunizations'
+import { getVitals } from '../vitals'
+import { getInsurance } from '../insurance'
+import { getCareTeam } from '../careTeam'
+import { getReferrals } from '../referrals'
+import { getMedicalHistory } from '../medicalHistory'
+import { getPreventiveCare } from '../preventiveCare'
+import { getLetters } from '../letters'
+import { getEmergencyContacts } from '../emergencyContacts'
+import { getGoals } from '../goals'
+import { getDocuments } from '../documents'
+import { getUpcomingOrders } from '../upcomingOrders'
+import { getQuestionnaires } from '../questionnaires'
+import { getCareJourneys } from '../careJourneys'
+import { getActivityFeed } from '../activityFeed'
+import { getEducationMaterials } from '../educationMaterials'
+import { getEhiExportTemplates } from '../ehiExport'
+import { upcomingVisits, pastVisits } from '../visits/visits'
+import { listLabResults } from '../labs_and_procedure_results/labResults'
+import { getBillingHistory } from '../bills/bills'
+import { listConversations } from '../messages/conversations'
 
 let session: MyChartRequest
 
