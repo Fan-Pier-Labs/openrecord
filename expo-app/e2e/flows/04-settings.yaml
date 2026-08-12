@@ -1,0 +1,46 @@
+# Settings: the connected MyChart account, the fake backend session from
+# the E2E skip, the AI spend readout served by the mock AI server, and
+# navigation into the AI provider screen.
+appId: com.fanpierlabs.openrecord
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "open-drawer"
+    timeout: 30000
+- tapOn:
+    id: "open-drawer"
+- extendedWaitUntil:
+    visible:
+      id: "drawer-settings"
+    timeout: 10000
+- tapOn:
+    id: "drawer-settings"
+- extendedWaitUntil:
+    visible: "MyChart Accounts"
+    timeout: 15000
+# Connected account from onboarding.
+- assertVisible: "localhost:4000"
+- assertVisible: "homer"
+# Backend session written by the E2E onboarding skip.
+- assertVisible: "dev@openrecord.local"
+# Spend info comes from the mock AI server's GET /api/ai.
+- assertVisible: '.*\$1\.23 of \$50\.00.*'
+- assertVisible: "Free tier"
+# AI provider sub-screen.
+- tapOn:
+    id: "settings-ai-provider"
+- extendedWaitUntil:
+    visible: "AI Provider"
+    timeout: 10000
+- tapOn:
+    id: "ai-settings-back"
+- extendedWaitUntil:
+    visible: "MyChart Accounts"
+    timeout: 10000
+- tapOn:
+    id: "settings-back"
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 10000

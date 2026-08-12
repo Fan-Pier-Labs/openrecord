@@ -1,0 +1,25 @@
+# Chat round-trip through the full tool loop: user asks about medications,
+# the scripted model (mock AI server) calls get_medications, the scraper
+# fetches Homer's real fixture data from fake-mychart on-device, and the
+# model's final reply lists the medication names.
+#
+# Depends on 01-onboarding.yaml having connected the homer account.
+appId: com.fanpierlabs.openrecord
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 30000
+- tapOn:
+    id: "chat-input"
+- inputText: "What medications am I on?"
+- tapOn:
+    id: "send-message"
+# The user bubble renders immediately.
+- assertVisible: "What medications am I on?"
+# Model turn 1 → get_medications scrape → model turn 2 → respond.
+- extendedWaitUntil:
+    visible: ".*Lisinopril.*"
+    timeout: 90000
+- assertVisible: ".*Your current medications are.*"

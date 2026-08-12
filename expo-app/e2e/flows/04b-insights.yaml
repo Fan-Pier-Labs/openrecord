@@ -1,0 +1,31 @@
+# Insights: the background memory build (kicked off after the first
+# connect, scripted by the mock AI server) produced a digest and one
+# insight by now. The screen renders both.
+appId: com.fanpierlabs.openrecord
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "open-drawer"
+    timeout: 30000
+- tapOn:
+    id: "open-drawer"
+- extendedWaitUntil:
+    visible:
+      id: "drawer-insights"
+    timeout: 10000
+- tapOn:
+    id: "drawer-insights"
+- extendedWaitUntil:
+    visible: "Insights"
+    timeout: 15000
+# Scripted memory digest + insight from the mock AI server.
+- extendedWaitUntil:
+    visible: ".*Patterns to consider.*"
+    timeout: 15000
+- assertVisible: "E2E mock insight"
+- tapOn: "‹ Back"
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 10000

@@ -1,0 +1,72 @@
+# Second onboarding variant: marge has TOTP 2FA enabled on fake-mychart
+# (the code is always 123456), so this walks the 2FA verification step,
+# then registers a real passkey on the fake-mychart account using the
+# on-device software authenticator.
+#
+# Runs last: it resets fake-mychart state and clears the app.
+appId: com.fanpierlabs.openrecord
+---
+- runScript: scripts/reset-fake-mychart.js
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "welcome-get-started"
+    timeout: 30000
+- tapOn:
+    id: "welcome-get-started"
+- tapOn:
+    id: "google-dev-skip"
+- extendedWaitUntil:
+    visible:
+      id: "picker-manual"
+    timeout: 15000
+- tapOn:
+    id: "picker-manual"
+- tapOn:
+    id: "mychart-hostname"
+- inputText: "localhost:4000"
+- tapOn:
+    id: "mychart-username"
+- inputText: "marge"
+- tapOn:
+    id: "mychart-password"
+- inputText: "donuts123"
+- hideKeyboard
+- tapOn:
+    id: "mychart-signin"
+# marge requires a 2FA code.
+- extendedWaitUntil:
+    visible:
+      id: "twofa-code"
+    timeout: 90000
+- assertVisible: "Verify it's you"
+- tapOn:
+    id: "twofa-code"
+- inputText: "123456"
+- hideKeyboard
+- tapOn:
+    id: "twofa-verify"
+- extendedWaitUntil:
+    visible:
+      id: "passkey-setup"
+    timeout: 60000
+# Real passkey registration against fake-mychart (software authenticator).
+- tapOn:
+    id: "passkey-setup"
+# On failure the app shows an alert with a Continue button; tolerate both.
+- tapOn:
+    text: "Continue"
+    optional: true
+- extendedWaitUntil:
+    visible: "Ask anything about your health data"
+    timeout: 60000
+# Passkey badge shows up in Settings when registration succeeded.
+- tapOn:
+    id: "open-drawer"
+- tapOn:
+    id: "drawer-settings"
+- extendedWaitUntil:
+    visible: "localhost:4000"
+    timeout: 15000
+- assertVisible: "marge"

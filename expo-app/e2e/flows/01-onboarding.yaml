@@ -1,0 +1,57 @@
+# Onboarding happy path: welcome → E2E skip past Google → manual hostname
+# entry → sign in to the local fake-mychart as homer (no 2FA) → skip
+# passkey setup → land on the chat home screen.
+#
+# Requires: fake-mychart on localhost:4000, mock AI server on the port the
+# app was built with (EXPO_PUBLIC_BACKEND_URL), app built with EXPO_PUBLIC_E2E=1.
+appId: com.fanpierlabs.openrecord
+---
+- runScript: scripts/reset-fake-mychart.js
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "welcome-get-started"
+    timeout: 30000
+- tapOn:
+    id: "welcome-get-started"
+- extendedWaitUntil:
+    visible:
+      id: "google-dev-skip"
+    timeout: 10000
+- tapOn:
+    id: "google-dev-skip"
+- extendedWaitUntil:
+    visible:
+      id: "picker-manual"
+    timeout: 15000
+- assertVisible: "Find your provider"
+- tapOn:
+    id: "picker-manual"
+- extendedWaitUntil:
+    visible:
+      id: "mychart-hostname"
+    timeout: 10000
+- tapOn:
+    id: "mychart-hostname"
+- inputText: "localhost:4000"
+- tapOn:
+    id: "mychart-username"
+- inputText: "homer"
+- tapOn:
+    id: "mychart-password"
+- inputText: "donuts123"
+- hideKeyboard
+- tapOn:
+    id: "mychart-signin"
+# Login + first-path-part discovery against fake-mychart.
+- extendedWaitUntil:
+    visible:
+      id: "passkey-skip"
+    timeout: 90000
+- assertVisible: "Skip the password forever"
+- tapOn:
+    id: "passkey-skip"
+- extendedWaitUntil:
+    visible: "Ask anything about your health data"
+    timeout: 30000

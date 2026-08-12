@@ -7,6 +7,7 @@
  * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
+import { Platform } from "react-native";
 import { MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
 import {
   myChartUserPassLogin,
@@ -341,7 +342,6 @@ function manageSession(entry: SessionEntry) {
       password: account.password,
       totpSecret: account.totpSecret,
       passkey,
-      fetchFn: nativeFetch,
       onPasskeyUsed: (credential) =>
         updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),
     };

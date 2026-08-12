@@ -19,6 +19,7 @@
     "date-fns": "^4.4.0",
     "events": "^3.3.0",
     "expo": "~57.0.12",
+    "expo-build-properties": "~57.0.10",
     "expo-constants": "~57.0.10",
     "expo-font": "~57.0.1",
     "expo-image-manipulator": "~57.0.9",

@@ -42,3 +42,9 @@ secrets.local.json
 # generated native folders
 /ios
 /android
+
+# E2E artifacts
+e2e/artifacts/
+e2e/web/test-results/
+e2e/web/results/
+e2e/web/playwright-report/
