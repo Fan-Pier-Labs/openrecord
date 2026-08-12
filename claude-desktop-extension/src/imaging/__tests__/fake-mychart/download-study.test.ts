@@ -7,13 +7,13 @@
  *
  * The fake-mychart server must be running on localhost:4000 first:
  *   cd fake-mychart && bun run dev
- * Run with: bun test src/imaging/__tests__/download-study.test.ts
+ * Run with: bun test src/imaging/__tests__/fake-mychart/download-study.test.ts
  */
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { myChartUserPassLogin } from '../../../../scrapers/myChart/login';
-import { getImagingResults } from '../../../../scrapers/myChart/labs_and_procedure_results/labResults';
-import type { MyChartRequest } from '../../../../scrapers/myChart/myChartRequest';
-import { downloadStudyJpegs } from '../download-study';
+import { myChartUserPassLogin } from '../../../../../scrapers/myChart/login';
+import { getImagingResults } from '../../../../../scrapers/myChart/labs_and_procedure_results/labResults';
+import type { MyChartRequest } from '../../../../../scrapers/myChart/myChartRequest';
+import { downloadStudyJpegs } from '../../download-study';
 
 // Assumes a fake-mychart server is running at FAKE_MYCHART_HOST (CI starts one;
 // locally run `cd fake-mychart && bun run dev`). Fails loudly if it isn't.

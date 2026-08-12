@@ -1,7 +1,7 @@
 /**
  * End-to-end integration test for the published `mychart-cli` package.
  *
- * Imports from the BUILT artifact (`../../dist/index.js`) so the test
+ * Imports from the BUILT artifact (`../../../dist/index.js`) so the test
  * exercises the same code consumers will run after `npm install`.
  *
  * By default targets the hosted fake-mychart at `fake-mychart.fanpierlabs.com`.
@@ -13,7 +13,7 @@
  */
 
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import type { MyChartClient as MyChartClientT, ConnectResult } from '../../dist/index.js';
+import type { MyChartClient as MyChartClientT, ConnectResult } from '../../../dist/index.js';
 
 // Resolve at runtime so we read whatever is in dist/.
 const {
@@ -21,7 +21,7 @@ const {
   MyChartRequest,
   getMedications,
   convertCloToJpg,
-} = await import('../../dist/index.js') as typeof import('../../dist/index.js');
+} = await import('../../../dist/index.js') as typeof import('../../../dist/index.js');
 
 const HOSTNAME = process.env.FAKE_MYCHART_HOST ?? 'fake-mychart.fanpierlabs.com';
 const USER = 'homer';

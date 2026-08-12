@@ -42,7 +42,9 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun run build
-      - run: bun run test
+      # test:unit, not test — `test` also runs test:integration, which needs
+      # real MyChart credentials. The integration tiers have their own jobs below.
+      - run: bun run test:unit
 
   fake-mychart:
     name: Fake MyChart integration tests
