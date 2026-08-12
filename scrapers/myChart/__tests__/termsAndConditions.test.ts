@@ -3,7 +3,7 @@ import { MyChartRequest } from '../myChartRequest'
 import { acceptTermsAndConditions } from '../termsAndConditions'
 
 /**
- * Helper to create a MyChartRequest with a mocked fetchWithCookieJar.
+ * Helper to create a MyChartRequest with a mocked transport.
  * The mock function receives the URL and config, so tests can assert
  * which URLs are called and return appropriate responses.
  */
@@ -38,7 +38,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       const calledUrls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string) => {
+      req.transport = mock(async (url: string) => {
         calledUrls.push(url)
         // First call: GET the T&C page (form with no action)
         if (calledUrls.length === 1) {
@@ -52,7 +52,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -66,7 +66,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       const calledUrls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string) => {
+      req.transport = mock(async (url: string) => {
         calledUrls.push(url)
         if (calledUrls.length === 1) {
           return new Response(buildTermsPage({ formAction: '#' }), {
@@ -78,7 +78,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -89,7 +89,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       const calledUrls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string) => {
+      req.transport = mock(async (url: string) => {
         calledUrls.push(url)
         if (calledUrls.length === 1) {
           // Form action from the real page already includes firstPathPart
@@ -102,7 +102,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -117,7 +117,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       let postBody = ''
 
-      req.fetchWithCookieJar = mock(async (_url: string, config: Record<string, string>) => {
+      req.transport = mock(async (_url: string, config: Record<string, string>) => {
         if (config?.method === 'POST') {
           postBody = config.body
         }
@@ -128,7 +128,7 @@ describe('acceptTermsAndConditions', () => {
           }), { status: 200 })
         }
         return new Response('<html><body>Home</body></html>', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await acceptTermsAndConditions(req)
       expect(postBody).toContain('__RequestVerificationToken=my-csrf-token')
@@ -140,11 +140,11 @@ describe('acceptTermsAndConditions', () => {
     it('returns false if page has no __RequestVerificationToken', async () => {
       const req = createMockRequest()
 
-      req.fetchWithCookieJar = mock(async () => {
+      req.transport = mock(async () => {
         return new Response('<html><body><h1>Terms</h1><form></form></body></html>', {
           status: 200,
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(false)
@@ -156,7 +156,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       let callCount = 0
 
-      req.fetchWithCookieJar = mock(async () => {
+      req.transport = mock(async () => {
         callCount++
         if (callCount === 1) {
           return new Response(buildTermsPage(), { status: 200 })
@@ -166,7 +166,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       expect(await acceptTermsAndConditions(req)).toBe(true)
     })
@@ -175,7 +175,7 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       let callCount = 0
 
-      req.fetchWithCookieJar = mock(async () => {
+      req.transport = mock(async () => {
         callCount++
         if (callCount === 1) {
           return new Response(buildTermsPage(), { status: 200 })
@@ -183,7 +183,7 @@ describe('acceptTermsAndConditions', () => {
         // POST response: still on T&C page (no accept links either)
         // Must include "termsconditions" (one word) since that's what the success check looks for
         return new Response('<html><body><h1>termsconditions</h1><p>You must accept.</p></body></html>', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       expect(await acceptTermsAndConditions(req)).toBe(false)
     })
@@ -195,7 +195,7 @@ describe('acceptTermsAndConditions', () => {
       let callCount = 0
       const calledUrls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (requestUrl: string) => {
+      req.transport = mock(async (requestUrl: string) => {
         callCount++
         calledUrls.push(requestUrl)
         if (callCount === 1) {
@@ -211,7 +211,7 @@ describe('acceptTermsAndConditions', () => {
         }
         // Following the accept link — success
         return new Response('<html><body>Welcome Home</body></html>', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       expect(await acceptTermsAndConditions(req)).toBe(true)
       expect(calledUrls.length).toBe(3)

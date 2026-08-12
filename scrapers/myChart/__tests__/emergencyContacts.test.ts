@@ -6,10 +6,10 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -105,7 +105,7 @@ describe('addEmergencyContact', () => {
     ])
     await addEmergencyContact(req, { name: 'Lisa', relationshipType: 'Child', phoneNumber: '555-2222' })
 
-    const fetchMock = req.fetchWithCookieJar as ReturnType<typeof mock>
+    const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
     const body = JSON.parse(secondCall[1]?.body as string)
     expect(body).toEqual({
@@ -140,7 +140,7 @@ describe('updateEmergencyContact', () => {
     ])
     await updateEmergencyContact(req, { id: 'EC-1', phoneNumber: '555-9999' })
 
-    const fetchMock = req.fetchWithCookieJar as ReturnType<typeof mock>
+    const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
     const body = JSON.parse(secondCall[1]?.body as string)
     expect(body).toEqual({
@@ -176,7 +176,7 @@ describe('removeEmergencyContact', () => {
     ])
     await removeEmergencyContact(req, 'EC-42')
 
-    const fetchMock = req.fetchWithCookieJar as ReturnType<typeof mock>
+    const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
     const body = JSON.parse(secondCall[1]?.body as string)
     expect(body).toEqual({ id: 'EC-42' })
