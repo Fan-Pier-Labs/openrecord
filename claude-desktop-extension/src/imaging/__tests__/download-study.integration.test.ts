@@ -7,7 +7,7 @@
  *
  * The fake-mychart server must be running on localhost:4000 first:
  *   cd fake-mychart && bun run dev
- * Run with: bun test src/imaging/__tests__/download-study.test.ts
+ * Run with: bun run test (from this package, with fake-mychart up)
  */
 import { describe, it, expect, beforeAll } from 'bun:test';
 import { myChartUserPassLogin } from '../../../../scrapers/myChart/login';

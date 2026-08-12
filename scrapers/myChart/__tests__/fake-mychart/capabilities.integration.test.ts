@@ -19,7 +19,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test'
 import { MyChartRequest } from '../../myChartRequest'
 import { myChartUserPassLogin } from '../../login'
-import { setMountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart } from './mountMode'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -37,6 +37,8 @@ describe('capability registry against fake-mychart', () => {
   let session: MyChartRequest
 
   beforeAll(async () => {
+    // Server state is global to the fake; don't inherit whatever ran last.
+    await resetFakeMyChart(HOST)
     await setMountMode(HOST, 'prefixed')
     const result = await myChartUserPassLogin({
       hostname: HOST,

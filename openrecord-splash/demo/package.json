@@ -9,6 +9,6 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test --isolate __tests__/"
+    "test": "bun test --isolate .unit.test.ts"
   }
 }

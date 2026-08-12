@@ -40,6 +40,12 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
 #                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
 #                        memfs.ts, mountMode.ts) were landing in the denominator.
+#   dist/              — build output, measured only because npm-package's
+#                        integration test imports the bundle on purpose (it
+#                        exists to catch bundling breakage — a dropped export, an
+#                        unbundled dep — that a source-level test can't see). The
+#                        sources are already measured under their own paths;
+#                        counting the bundle too would gate on tsup's output.
 #   dev-scripts/       — run-it-yourself demos. They live in their own folder
 #                        precisely so product modules don't carry
 #                        `if (import.meta.main)` blocks: those are unreachable
@@ -75,6 +81,7 @@ coveragePathIgnorePatterns = [
   "**/clo-image-parser/generate_clo.ts",
   "fake-mychart/**",
   "**/__tests__/**",
+  "**/dist/**",
   "dev-scripts/**",
 
   "claude-desktop-extension/src/imaging/**",

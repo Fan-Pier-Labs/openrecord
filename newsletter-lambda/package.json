@@ -5,7 +5,7 @@
   "description": "AWS Lambda Function URL that logs OpenRecord newsletter/waitlist signups to CloudWatch",
   "type": "module",
   "scripts": {
-    "test": "bun test src/__tests__/",
+    "test": "bun test --isolate .unit.test.ts",
     "deploy": "./deploy.sh"
   }
 }

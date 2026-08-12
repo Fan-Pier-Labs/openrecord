@@ -12,21 +12,30 @@
  * afterAll — leaving it on would send every later suite to a T&C page it was
  * not written for.
  *
- * Run with: bun run test:fake-mychart
+ * Run with: bun run test:integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../../login'
 import { getMyChartProfile } from '../../profile'
 import { setupTotp } from '../../setupTotp'
-import { setRequireTerms } from './mountMode'
+import { setRequireTerms, resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
 describe('terms-and-conditions auto-accept', () => {
 
-  beforeAll(async () => { await setRequireTerms(HOST, true) })
-  afterAll(async () => { await setRequireTerms(HOST, false) })
+  // The last test here enables TOTP on homer and the T&C knob is global, so
+  // reset on both sides: in, so this suite doesn't inherit a neighbour's state;
+  // out, so its own leftovers can't reach the suites that follow.
+  beforeAll(async () => {
+    await resetFakeMyChart(HOST)
+    await setRequireTerms(HOST, true)
+  })
+  afterAll(async () => {
+    await setRequireTerms(HOST, false)
+    await resetFakeMyChart(HOST)
+  })
 
   /**
    * Everything below asserts that login *survives* the T&C gate — and every one
