@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -41,7 +42,7 @@ type GetRelationshipsResponse = {
 };
 
 async function getToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/personal-information' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/personal-information' });
   const html = await pageResp.text();
   return getRequestVerificationTokenFromBody(html) ?? null;
 }
@@ -54,7 +55,7 @@ export async function getEmergencyContacts(mychartRequest: MyChartRequest): Prom
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/GetRelationships',
     method: 'POST',
     headers: {
@@ -85,7 +86,7 @@ export async function addEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/AddRelationship',
     method: 'POST',
     headers: {
@@ -118,7 +119,7 @@ export async function updateEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/UpdateRelationship',
     method: 'POST',
     headers: {
@@ -152,7 +153,7 @@ export async function removeEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/RemoveRelationship',
     method: 'POST',
     headers: {

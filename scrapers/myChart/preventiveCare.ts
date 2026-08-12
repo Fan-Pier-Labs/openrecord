@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import * as cheerio from 'cheerio';
 
@@ -11,7 +12,7 @@ export type PreventiveCareItem = {
 }
 
 export async function getPreventiveCare(mychartRequest: MyChartRequest): Promise<PreventiveCareItem[]> {
-  const resp = await mychartRequest.makeRequest({ path: '/HealthAdvisories' });
+  const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/HealthAdvisories' });
   const html = await resp.text();
   const $ = cheerio.load(html);
 

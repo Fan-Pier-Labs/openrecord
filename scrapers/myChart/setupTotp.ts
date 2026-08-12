@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { generateTotpCode } from './totp';
@@ -21,7 +22,7 @@ function logUnexpectedResponse(label: string, resp: Response) {
  *   - HTML page with a hidden __RequestVerificationToken input (fallback)
  */
 async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Home/CSRFToken?noCache=' + Math.random(),
   });
   logger.debug('  CSRFToken response status:', res.status);
@@ -57,7 +58,7 @@ async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | nu
   // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
   logger.debug('  CSRFToken endpoint returned no token (length:', body.length, '), trying /Home page fallback');
   try {
-    const homeRes = await mychartRequest.makeRequest({ path: '/Home' });
+    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
     const homeBody = await homeRes.text();
     const homeToken = getRequestVerificationTokenFromBody(homeBody);
     if (homeToken) {
@@ -103,7 +104,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   // Step 1: Check current 2FA settings
   logger.debug('  Checking current 2FA settings...');
-  const twoFactorInfoResp = await mychartRequest.makeRequest({
+  const twoFactorInfoResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/GetTwoFactorInfo',
     method: 'POST',
     headers: apiHeaders,
@@ -130,7 +131,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   // Step 2: Verify password
   logger.debug('  Verifying password...');
-  const verifyResp = await mychartRequest.makeRequest({
+  const verifyResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/VerifyPasswordAndUpdateContact',
     method: 'POST',
     headers: apiHeaders,
@@ -153,7 +154,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   // Step 3: Get QR code / TOTP secret
   logger.debug('  Requesting TOTP setup...');
-  const qrResp = await mychartRequest.makeRequest({
+  const qrResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/TotpQrCode',
     method: 'POST',
     headers: apiHeaders,
@@ -183,7 +184,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   const code = await generateTotpCode(secret);
   logger.debug('  Generated verification code:', code);
 
-  const verifyTotpResp = await mychartRequest.makeRequest({
+  const verifyTotpResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/VerifyCode',
     method: 'POST',
     headers: apiHeaders,
@@ -199,7 +200,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   // Step 5: Finalize the opt-in
   logger.debug('  Finalizing TOTP opt-in...');
-  const optInResp = await mychartRequest.makeRequest({
+  const optInResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/UpdateTwoFactorTotpOptInStatus',
     method: 'POST',
     headers: apiHeaders,
@@ -240,7 +241,7 @@ export async function disableTotp(mychartRequest: MyChartRequest, password: stri
 
   // Step 1: Verify password
   logger.debug('  Verifying password...');
-  const verifyResp = await mychartRequest.makeRequest({
+  const verifyResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/VerifyPasswordAndUpdateContact',
     method: 'POST',
     headers: apiHeaders,
@@ -259,7 +260,7 @@ export async function disableTotp(mychartRequest: MyChartRequest, password: stri
   const code = await generateTotpCode(totpSecret);
   logger.debug('  Generated code:', code);
 
-  const verifyCodeResp = await mychartRequest.makeRequest({
+  const verifyCodeResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/VerifyCode',
     method: 'POST',
     headers: apiHeaders,
@@ -273,7 +274,7 @@ export async function disableTotp(mychartRequest: MyChartRequest, password: stri
 
   // Step 3: Finalize opt-out
   logger.debug('  Disabling TOTP...');
-  const optOutResp = await mychartRequest.makeRequest({
+  const optOutResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/secondary-validation/UpdateTwoFactorTotpOptInStatus',
     method: 'POST',
     headers: apiHeaders,

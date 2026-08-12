@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -25,7 +26,7 @@ type LoadHealthIssuesResponse = {
 }
 
 export async function getHealthIssues(mychartRequest: MyChartRequest): Promise<HealthIssue[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Clinical/HealthIssues' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/HealthIssues' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -34,7 +35,7 @@ export async function getHealthIssues(mychartRequest: MyChartRequest): Promise<H
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/HealthIssues/LoadHealthIssuesData',
     method: 'POST',
     headers: {

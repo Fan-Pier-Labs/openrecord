@@ -70,6 +70,8 @@ import {
 } from "../../../../scrapers/myChart/softwareAuthenticator";
 import { setupPasskey } from "../../../../scrapers/myChart/setupPasskey";
 import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/passkeyLoginRetry";
+import { wireSilentReauthentication } from "../../../../scrapers/myChart/silentLogin";
+import { sessionStore } from "../../../../scrapers/myChart/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
 
 type SessionEntry = {
@@ -80,9 +82,6 @@ type SessionEntry = {
 
 // In-memory session store
 const sessions = new Map<string, SessionEntry>();
-
-// Keepalive interval references
-const keepaliveTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 // Track which accounts already kicked off an initial-memory build this
 // process lifetime, so we don't fire it twice if the account reconnects.
@@ -146,12 +145,13 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
       );
 
       if (result.state === "logged_in") {
-        sessions.set(account.id, {
+        const entry: SessionEntry = {
           account,
           request: result.mychartRequest,
           status: "logged_in",
-        });
-        startKeepalive(account.id);
+        };
+        sessions.set(account.id, entry);
+        manageSession(entry);
         // Persist the accepted (incremented) sign counter so the next login
         // starts from the right place and doesn't have to retry.
         await updateMyChartAccount(account.id, {
@@ -202,12 +202,13 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
         });
 
         if (twoFaResult.state === "logged_in") {
-          sessions.set(account.id, {
+          const entry: SessionEntry = {
             account,
             request: twoFaResult.mychartRequest,
             status: "logged_in",
-          });
-          startKeepalive(account.id);
+          };
+          sessions.set(account.id, entry);
+          manageSession(entry);
           maybeKickoffInitialMemory(account.id);
           return { state: "logged_in", accountId: account.id };
         }
@@ -229,12 +230,13 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
     }
 
     // Logged in directly (no 2FA)
-    sessions.set(account.id, {
+    const entry: SessionEntry = {
       account,
       request: result.mychartRequest,
       status: "logged_in",
-    });
-    startKeepalive(account.id);
+    };
+    sessions.set(account.id, entry);
+    manageSession(entry);
     maybeKickoffInitialMemory(account.id);
     return { state: "logged_in", accountId: account.id };
   } catch (err) {
@@ -262,7 +264,7 @@ export async function complete2fa(
   if (result.state === "logged_in") {
     entry.status = "logged_in";
     entry.request = result.mychartRequest;
-    startKeepalive(accountId);
+    manageSession(entry);
     maybeKickoffInitialMemory(accountId);
     return { state: "logged_in" };
   }
@@ -289,12 +291,9 @@ export async function registerPasskey(accountId: string): Promise<boolean> {
  * Disconnect an account and clear its session.
  */
 export function disconnectAccount(accountId: string) {
+  const entry = sessions.get(accountId);
+  if (entry) sessionStore.unregister(entry.request);
   sessions.delete(accountId);
-  const timer = keepaliveTimers.get(accountId);
-  if (timer) {
-    clearInterval(timer);
-    keepaliveTimers.delete(accountId);
-  }
 }
 
 /**
@@ -345,42 +344,40 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
 }
 
 /**
- * Start keepalive pings for a session (every 30 seconds).
+ * Make a logged-in session self-sustaining: wire the silent re-login hook
+ * (passkey with counter retry → password → TOTP secret, all with the native
+ * fetch so iOS keeps managing cookies) and enroll it in the shared 30-second
+ * keepalive heartbeat. From then on, expiry mid-scrape is renewed
+ * transparently by makeAuthenticatedRequest, and a heartbeat that finds the
+ * session dead renews it proactively through the same hook.
+ *
+ * Credentials are re-read from secure storage at renewal time so a passkey
+ * registered (or a password updated) after connect still counts.
  */
-function startKeepalive(accountId: string) {
-  // Clear existing timer
-  const existing = keepaliveTimers.get(accountId);
-  if (existing) clearInterval(existing);
-
-  const timer = setInterval(async () => {
-    const entry = sessions.get(accountId);
-    if (!entry || entry.status !== "logged_in") {
-      clearInterval(timer);
-      keepaliveTimers.delete(accountId);
-      return;
-    }
-
-    try {
-      const resp = await entry.request.makeRequest({
-        path: "/Home/KeepAlive",
-        followRedirects: false,
-      });
-      const text = await resp.text();
-      if (text.trim() === "0" || resp.status === 302) {
-        console.log(`Session expired for ${entry.account.hostname}`);
-        entry.status = "expired";
-        clearInterval(timer);
-        keepaliveTimers.delete(accountId);
-
-        // Auto-reconnect with passkey
-        connectAccount(entry.account).catch(() => {});
+function manageSession(entry: SessionEntry) {
+  wireSilentReauthentication(entry.request, async () => {
+    const accounts = await getMyChartAccounts();
+    const account = accounts.find((a) => a.id === entry.account.id) ?? entry.account;
+    let passkey = null;
+    if (account.passkeyCredential) {
+      try {
+        passkey = deserializeCredential(account.passkeyCredential);
+      } catch {
+        // Corrupt stored passkey — fall back to password.
       }
-    } catch {
-      // Network error — keep trying
     }
-  }, 30000);
-
-  keepaliveTimers.set(accountId, timer);
+    return {
+      hostname: account.hostname,
+      username: account.username,
+      password: account.password,
+      totpSecret: account.totpSecret,
+      passkey,
+      fetchFn: nativeFetch,
+      onPasskeyUsed: (credential) =>
+        updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),
+    };
+  });
+  sessionStore.registerForKeepalive(entry.request);
 }
 
 /**

@@ -15,7 +15,10 @@ A standalone Next.js server that faithfully mimics Epic MyChart's web API surfac
 | Homer   | `homer`  | `donuts123` | No                      |
 | Marge   | `marge`  | `donuts123` | Yes (TOTP enabled)      |
 
-The 2FA code is always `123456`.
+The 2FA code `123456` is always accepted. A live TOTP code generated from the
+seeded secret `JBSWY3DPEHPK3PXP` is accepted too, matching real MyChart's
+actual TOTP validation — that's what lets a client's silent re-login (stored
+TOTP secret → generated code) be tested end to end.
 
 - `homer` logs in directly.
 - `marge` exists for testing the 2FA path — her login always returns the secondary-validation page until you submit the code.
@@ -308,6 +311,16 @@ The fake server replicates the exact login flow that `scrapers/myChart/login.ts`
 
 - Login sets a `MyChartSession=<uuid>` cookie
 - `GET /MyChart/Home` returns 200 if session valid, 302 to login if not
+- **The entire post-login surface enforces the session the way real MyChart
+  does** — every page AND every `api/*` JSON endpoint answers an expired or
+  missing session with a 302 to `/Authentication/Login` (which a
+  redirect-following client experiences as a 200 HTML login page). Only
+  `Authentication/*` (the login flow itself), the root/`DefaultAsp` discovery
+  hops, and the keepalive endpoints stay open.
+- `Home/KeepAlive` and `keepalive.asp` answer `"1"` for a live session and
+  `"0"` without one, matching the contract MyChart's own JS relies on.
+- `POST /api/invalidate-sessions` (test-only, outside the mount) deletes every
+  session — how tests simulate mid-scrape expiry.
 - Sessions expire after 30 minutes of inactivity
 - Keepalive endpoint at `/MyChart/Home/KeepAlive` returns `"1"`
 

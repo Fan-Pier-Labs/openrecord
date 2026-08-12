@@ -52,6 +52,7 @@ import { myChartPasskeyLogin } from '../../scrapers/myChart/login';
 import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/passkeyLoginRetry';
+import { wireSilentReauthentication } from '../../scrapers/myChart/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
@@ -298,6 +299,25 @@ type LoginCredentials =
 
 // ─── Step 2: Login ───
 
+/**
+ * Wire automatic session renewal: when a scrape's session expires mid-run,
+ * makeAuthenticatedRequest calls this hook to silently log back in with
+ * whatever non-interactive credentials exist (passkey, password, saved TOTP
+ * secret) and refresh the cookie cache. Stores are re-read at renewal time so
+ * a passkey or TOTP secret saved after login still counts.
+ */
+function wireCliSessionRenewal(mychartRequest: MyChartRequest, creds: LoginCredentials) {
+  wireSilentReauthentication(mychartRequest, async () => ({
+    hostname: creds.hostname,
+    username: 'username' in creds ? creds.username : undefined,
+    password: 'password' in creds ? creds.password : undefined,
+    totpSecret: ('totp' in creds ? creds.totp : undefined) ?? await loadTotpSecret(creds.hostname),
+    passkey: 'passkey' in creds ? creds.passkey : await loadPasskeyCredential(creds.hostname),
+    protocol: cliArgs.local ? 'http' : undefined,
+    onPasskeyUsed: (credential) => savePasskeyCredential(creds.hostname, credential),
+  }), (renewed) => saveCachedSession(creds.hostname, renewed));
+}
+
 async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
   if (isBlockedInstance(creds.hostname)) {
     console.log(`\n  ✗ ${creds.hostname} is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.`);
@@ -311,6 +331,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     const cached = await tryLoadCachedSession(creds.hostname);
     if (cached) {
       console.log('  Using cached session (skipping login).');
+      wireCliSessionRenewal(cached, creds);
       return cached;
     }
   }
@@ -337,6 +358,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         // starts from the right place and doesn't have to retry.
         await savePasskeyCredential(creds.hostname, creds.passkey);
         await saveCachedSession(creds.hostname, passkeyResult.mychartRequest);
+        wireCliSessionRenewal(passkeyResult.mychartRequest, creds);
         return passkeyResult.mychartRequest;
       }
 
@@ -449,6 +471,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
 
     console.log('  Logged in successfully!');
     await saveCachedSession(creds.hostname, mychartRequest);
+    wireCliSessionRenewal(mychartRequest, creds);
     return mychartRequest;
   } catch (err) {
     console.error('  Login failed:', (err as Error).message);

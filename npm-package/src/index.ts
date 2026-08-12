@@ -33,6 +33,19 @@ export {
   type TwoFaDeliveryInfo,
 } from '../../scrapers/myChart/login';
 
+export {
+  makeAuthenticatedRequest,
+  renewMyChartSession,
+  SessionExpiredError,
+  type AuthenticatedRequestOptions,
+} from '../../scrapers/myChart/makeAuthenticatedRequest';
+export {
+  silentLogin,
+  wireSilentReauthentication,
+  type SilentLoginParams,
+  type SilentLoginOutcome,
+} from '../../scrapers/myChart/silentLogin';
+
 export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/totp';
 export {
   setupTotp,

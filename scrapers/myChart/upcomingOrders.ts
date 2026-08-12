@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -25,7 +26,7 @@ type GetUpcomingOrdersResponse = {
 }
 
 export async function getUpcomingOrders(mychartRequest: MyChartRequest): Promise<UpcomingOrder[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/upcoming-orders' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/upcoming-orders' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -34,7 +35,7 @@ export async function getUpcomingOrders(mychartRequest: MyChartRequest): Promise
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/upcoming-orders/GetUpcomingOrders',
     method: 'POST',
     headers: {

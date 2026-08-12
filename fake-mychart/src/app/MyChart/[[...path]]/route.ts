@@ -276,6 +276,27 @@ function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
 }
 
+/**
+ * Whether a submitted 2FA code is a live TOTP code for the seeded secret
+ * (homer.totpQrCode.encodedSecretKey). Real MyChart validates real TOTP codes,
+ * not a magic constant, so accepting a correctly generated code alongside the
+ * fixed test code '123456' keeps the fake faithful — it's what lets a client's
+ * silent re-login (stored TOTP secret → generated code) be exercised end to
+ * end. The previous and current 30-second steps are both accepted, matching
+ * the usual clock-skew tolerance.
+ */
+async function isValidSeededTotpCode(code: string): Promise<boolean> {
+  if (!/^\d{6}$/.test(code)) return false;
+  const secret = homer.totpQrCode.encodedSecretKey;
+  const { TOTP } = await import('totp-generator');
+  const now = Date.now();
+  for (const timestamp of [now, now - 30_000]) {
+    const { otp } = await TOTP.generate(secret, { timestamp });
+    if (otp === code) return true;
+  }
+  return false;
+}
+
 function requireTermsRedirect(request: NextRequest): NextResponse | null {
   if (!getRequireTerms()) return null;
   const cookie = request.headers.get('cookie');
@@ -342,6 +363,22 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
     return html(termsConditionsPage());
   }
 
+  // ── Session enforcement ─────────────────────────────────────────
+  // Everything below this point is post-login surface. Real MyChart guards all
+  // of it the same way: no live session → 302 to the login page (which a
+  // redirect-following client turns into a 200 HTML login page — that's what an
+  // expired-session API call actually looks like from the scraper's side). The
+  // keepalive endpoints are the one exception: they answer "0" instead of
+  // redirecting, which is the contract MyChart's own JS (and sessionStore's
+  // pinger) relies on.
+  if (lower === 'home/keepalive' || lower === 'keepalive.asp') {
+    return new NextResponse(validateSession(request.headers.get('cookie')) ? '1' : '0');
+  }
+  {
+    const redirect = requireSession(request);
+    if (redirect) return redirect;
+  }
+
   if (lower === 'inside.asp') {
     const termsRedirect = requireTermsRedirect(request);
     if (termsRedirect) return termsRedirect;
@@ -364,15 +401,12 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
     // included mode=self / ProxySwitch/SwitchContext hops"), not a verbatim
     // capture. What IS confirmed is that following the bare self LinkUrl
     // restores the account holder.
-    if (!mode && validateSession(cookie) && getActiveProxyId(cookie)) {
+    if (!mode && getActiveProxyId(cookie)) {
       return NextResponse.redirect(
         new URL(`${mountPrefix()}/inside.asp?mode=self`, publicBaseUrl(request)), 302);
     }
 
     if (mode === 'self' || mode === 'proxyswitch') {
-      if (!validateSession(cookie)) {
-        return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
-      }
       const user = currentUser(request);
       if (!user) return new NextResponse('Session is missing username', { status: 500 });
 
@@ -397,9 +431,6 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   // that 404 is what pushes the scraper onto its fallbacks.
   if (lower === 'proxyswitch') {
     const cookie = request.headers.get('cookie');
-    if (!validateSession(cookie)) {
-      return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
-    }
     if (!servesProxySwitchJson()) {
       return new NextResponse('Not Found', { status: 404 });
     }
@@ -412,9 +443,6 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   // ── Session / Home ─────────────────────────────────────────────
   if (lower === 'home') {
     const cookie = request.headers.get('cookie');
-    if (!validateSession(cookie)) {
-      return NextResponse.redirect(new URL(`${mountPrefix()}/Authentication/Login`, publicBaseUrl(request)), 302);
-    }
     const termsRedirect = requireTermsRedirect(request);
     if (termsRedirect) return termsRedirect;
     const user = currentUser(request);
@@ -436,38 +464,24 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
     return html(csrfTokenPage());
   }
 
-  if (lower === 'home/keepalive' || lower === 'keepalive.asp') {
-    return new NextResponse('1');
-  }
-
   // ── HTML pages parsed by cheerio ───────────────────────────────
   if (lower === 'clinical/careteam') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(careTeamPage(ds.careTeam));
   }
 
   if (lower === 'insurance') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(insurancePage(ds.insurance));
   }
 
   if (lower === 'healthadvisories') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(preventiveCarePage(ds.preventiveCare));
   }
 
   if (lower === 'billing/summary') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(billingSummaryPage(ds.billingSummary));
   }
 
   if (lower === 'billing/details') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(billingDetailsPage(ds.billingEncId));
   }
 
@@ -491,110 +505,74 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
 
   // ── Rich UI pages ────────────────────────────────────────────────
   if (lower === 'clinical/medications') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(medicationsPage());
   }
 
   if (lower === 'clinical/allergies') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(allergiesPage());
   }
 
   if (lower === 'clinical/healthissues') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(healthIssuesPage());
   }
 
   if (lower === 'clinical/immunizations') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(immunizationsPage());
   }
 
   if (lower === 'trackmyhealth') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(vitalsPage());
   }
 
   if (lower === 'medicalhistory') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(medicalHistoryPage());
   }
 
   if (lower === 'testresults') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(testResultsPage());
   }
 
   if (lower === 'messaging') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(messagesPage());
   }
 
   if (lower === 'visits') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(visitsPage());
   }
 
   if (lower === 'letters') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(lettersPage());
   }
 
   if (lower === 'goals') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(goalsPage());
   }
 
   if (lower === 'referrals') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(referralsPage());
   }
 
   if (lower === 'carejourneys') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(careJourneysPage());
   }
 
   if (lower === 'documents') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(documentsPage());
   }
 
   if (lower === 'education') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(educationPage());
   }
 
   if (lower === 'emergencycontacts') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(emergencyContactsPage());
   }
 
   if (lower === 'personalinformation') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     return html(profilePage());
   }
 
   if (lower === 'settings') {
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
     const user = currentUser(request);
     return html(settingsPage(user?.totpEnabled ?? false, user?.passkeys ?? []));
   }
@@ -616,6 +594,18 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   }
   const joined = joinPath(path);
   const lower = joined.toLowerCase();
+
+  // ── Session enforcement ─────────────────────────────────────────
+  // Real MyChart's entire POST surface outside the login flow requires a live
+  // session, api/* JSON endpoints included: an expired session 302s to the
+  // login page exactly like the HTML routes, which is why a scraper that blindly
+  // calls .json() on the follow-up sees login-page HTML, not a JSON error.
+  // Authentication/* stays open — DoLogin, 2FA, terms acceptance and the
+  // passkey challenge ARE the login flow.
+  if (!lower.startsWith('authentication/')) {
+    const redirect = requireSession(request);
+    if (redirect) return redirect;
+  }
 
   // ── Authentication ──────────────────────────────────────────────
   if (lower === 'authentication/login/dologin') {
@@ -736,7 +726,8 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   if (lower.startsWith('authentication/secondaryvalidation/validate')) {
     const body = await request.text();
-    if (body.includes('123456') || acceptAny()) {
+    const submittedCode = new URLSearchParams(body).get('TwoFactorCode') ?? '';
+    if (submittedCode === '123456' || acceptAny() || await isValidSeededTotpCode(submittedCode)) {
       // Preserve the username from the pending session so the post-2FA
       // session continues to know who's logged in (matters for per-user
       // TOTP/passkey state).

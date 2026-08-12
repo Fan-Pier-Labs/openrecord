@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { logger } from '../../../shared/logger';
@@ -96,7 +97,7 @@ type ThreadResponse = {
 export async function listConversationsWithFullHistory(
   mychartRequest: MyChartRequest
 ): Promise<ConversationsWithFullHistory> {
-  const communicationCenterRes = await mychartRequest.makeRequest({
+  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, {
     path: "/app/communication-center",
   });
   const requestVerificationToken = getRequestVerificationTokenFromBody(
@@ -109,7 +110,7 @@ export async function listConversationsWithFullHistory(
   }
 
   // Fetch conversation list — the API returns inline messages + user/viewer maps
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: "/api/conversations/GetConversationList",
     headers: {
       "Content-Type": "application/json; charset=utf-8",
@@ -223,7 +224,7 @@ export async function listConversationsWithFullHistory(
         batch.map(async (convo) => {
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-              const threadResp = await mychartRequest.makeRequest({
+              const threadResp = await makeAuthenticatedRequest(mychartRequest, {
                 path: "/api/conversations/GetConversationMessages",
                 method: "POST",
                 headers: {

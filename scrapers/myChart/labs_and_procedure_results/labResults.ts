@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
 import { LabResultsList } from "./labtypes";
 import { login_TEST } from "../login";
@@ -8,7 +9,7 @@ import { logger } from '../../../shared/logger';
 
 
 async function getReportContent(mychartRequest: MyChartRequest, reportDetails: ReportDetails, requestVerificationToken: string): Promise<ReportContent> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: `/api/report-content/LoadReportContent`,
     "headers": {
       "Content-Type": "application/json; charset=utf-8",
@@ -33,13 +34,13 @@ async function getReportContent(mychartRequest: MyChartRequest, reportDetails: R
 async function getRequestVerificationToken(mychartRequest: MyChartRequest) {
 
   // Go to the communication center
-  const communicationCenterRes = await mychartRequest.makeRequest({ path: '/app/test-results' })
+  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/app/test-results' })
   return getRequestVerificationTokenFromBody(await communicationCenterRes.text())
 }
 
 
 async function getLabResult(mychartRequest: MyChartRequest, key: string, requestVerificationToken: string): Promise<LabTestResult> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: `/api/test-results/GetDetails`,
     "headers": {
       "Content-Type": "application/json; charset=utf-8",
@@ -70,7 +71,7 @@ async function getHistoricalResults(
   requestVerificationToken: string
 ): Promise<HistoricalResultsResponse | null> {
   try {
-    const res = await mychartRequest.makeRequest({
+    const res = await makeAuthenticatedRequest(mychartRequest, {
       path: '/api/past-results/GetMultipleHistoricalResultComponents',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -111,7 +112,7 @@ export async function listLabResults(mychartRequest: MyChartRequest): Promise<La
   // Fetch all group types (0-3) to capture all test results including blood panels
   for (const groupType of [0, 1, 2, 3]) {
     try {
-      const messages = await mychartRequest.makeRequest({
+      const messages = await makeAuthenticatedRequest(mychartRequest, {
         path: '/api/test-results/GetList',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
@@ -163,7 +164,7 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
 
   for (const groupType of [0, 1, 2, 3]) {
     try {
-      const resp = await mychartRequest.makeRequest({
+      const resp = await makeAuthenticatedRequest(mychartRequest, {
         path: '/api/test-results/GetList',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
