@@ -18,9 +18,11 @@ describe('MyChartRequest', () => {
       expect(req.cookieJar).toBeDefined()
     })
 
-    it('creates a fetchWithCookieJar function', () => {
+    it('installs no transport override — the platform picks one per request', () => {
+      // A non-null transport here would mean production code had injected a
+      // fetch, which is the thing scrapers/http.ts exists to decide.
       const req = new MyChartRequest('mychart.example.com')
-      expect(typeof req.fetchWithCookieJar).toBe('function')
+      expect(req.transport).toBeNull()
     })
 
     it('strips https:// prefix from hostname', () => {
@@ -77,10 +79,10 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('MyChart')
 
       let capturedUrl = ''
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedUrl).toBe('https://mychart.example.com/MyChart/Home')
@@ -91,10 +93,10 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('MyChart')
 
       let capturedUrl = ''
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ url: 'https://other.com/custom/path' })
       expect(capturedUrl).toBe('https://other.com/custom/path')
@@ -104,10 +106,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedConfig: RequestInit | undefined
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedConfig?.method).toBe('GET')
@@ -117,10 +119,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedHeaders['User-Agent']).toContain('Chrome')
@@ -131,10 +133,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({
         path: '/Home',
@@ -149,10 +151,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({
         path: '/Home',
@@ -165,10 +167,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedConfig: RequestInit | undefined
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedConfig?.redirect).toBe('manual')
@@ -178,7 +180,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         calls.push(url.toString())
         if (calls.length === 1) {
           return new Response('', {
@@ -187,7 +189,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('Final page', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const resp = await req.makeRequest({ path: '/Login' })
       expect(calls).toHaveLength(2)
@@ -199,7 +201,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         calls.push(url.toString())
         if (calls.length === 1) {
           return new Response('', {
@@ -208,7 +210,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('Redirected', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/old' })
       expect(calls).toHaveLength(2)
@@ -218,13 +220,13 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         calls.push(url.toString())
         return new Response('', {
           status: 302,
           headers: { 'Location': '/somewhere' }
         })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const resp = await req.makeRequest({ path: '/test', followRedirects: false })
       expect(calls).toHaveLength(1)
@@ -234,9 +236,9 @@ describe('MyChartRequest', () => {
     it('throws when redirect has no Location header', async () => {
       const req = new MyChartRequest('mychart.example.com')
 
-      req.fetchWithCookieJar = mock(async () => {
+      req.transport = mock(async () => {
         return new Response('', { status: 302 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await expect(req.makeRequest({ path: '/test' })).rejects.toThrow(
         "302 didn't have a location header"
@@ -247,7 +249,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const capturedConfigs: RequestInit[] = []
 
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedConfigs.push(init!)
         if (capturedConfigs.length === 1) {
           return new Response('', {
@@ -256,7 +258,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('OK', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/submit', method: 'POST', body: 'data=123' })
       expect(capturedConfigs[0].method).toBe('POST')
@@ -269,10 +271,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/api', method: 'POST', body: '{"key":"val"}' })
       expect(capturedHeaders['Content-Type']).toBe('application/json')
@@ -282,10 +284,10 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({
         path: '/api',
@@ -300,13 +302,13 @@ describe('MyChartRequest', () => {
       for (const status of [303, 307, 308]) {
         const req = new MyChartRequest('mychart.example.com')
         const calls: string[] = []
-        req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+        req.transport = mock(async (url: string | URL | Request) => {
           calls.push(url.toString())
           if (calls.length === 1) {
             return new Response('', { status, headers: { 'Location': '/moved' } })
           }
           return new Response('Final', { status: 200 })
-        }) as typeof req.fetchWithCookieJar
+        }) as typeof req.transport
 
         const res = await req.makeRequest({ path: '/Home' })
         expect(res.status).toBe(200)
@@ -319,13 +321,13 @@ describe('MyChartRequest', () => {
         const req = new MyChartRequest('mychart.example.com')
         const methods: (string | undefined)[] = []
         let calls = 0
-        req.fetchWithCookieJar = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+        req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
           methods.push(init?.method)
           if (++calls === 1) {
             return new Response('', { status, headers: { 'Location': '/moved' } })
           }
           return new Response('Final', { status: 200 })
-        }) as typeof req.fetchWithCookieJar
+        }) as typeof req.transport
 
         await req.makeRequest({ path: '/DoLogin', method: 'POST', body: 'x=1' })
         expect(methods[1]).toBe(expectedMethod)
@@ -337,7 +339,7 @@ describe('MyChartRequest', () => {
       // 302 itself (NetScaler's NSC_*, Cloudflare's __cf_bm), and expect them
       // back on the hop that follows. The jar is wired into every response,
       // redirects included — this pins that down.
-      // Deliberately does NOT replace fetchWithCookieJar: the jar wiring is the
+      // Deliberately does NOT replace transport: the jar wiring is the
       // thing under test, so the stub goes underneath it at global fetch.
       const req = new MyChartRequest('mychart.example.com')
       const cookiesSeen: (string | undefined)[] = []
@@ -374,10 +376,10 @@ describe('MyChartRequest', () => {
       // cap this recursion never terminates.
       const req = new MyChartRequest('mychart.example.com')
       let calls = 0
-      req.fetchWithCookieJar = mock(async () => {
+      req.transport = mock(async () => {
         calls++
         return new Response('', { status: 301, headers: { 'Location': 'https://mychart.example.com/loop' } })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       const res = await req.makeRequest({ url: 'https://mychart.example.com/loop' })
       expect(res.status).toBe(301)
@@ -392,10 +394,10 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('mycslink')
 
       const calls: string[] = []
-      req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string | URL | Request) => {
         calls.push(url.toString())
         return new Response('ok', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
 
       await req.makeRequest({ path: '/Authentication/Login' })
       expect(calls[0]).toBe('https://mycslink.cedars-sinai.org/mycslink/Authentication/Login')
@@ -429,7 +431,7 @@ describe('MyChartRequest', () => {
       expect(restored).not.toBeNull()
       expect(restored!.hostname).toBe('test.example.com')
       expect(restored!.firstPathPart).toBe('MyChart-PRD')
-      expect(typeof restored!.fetchWithCookieJar).toBe('function')
+      expect(restored!.transport).toBeNull()
     })
   })
 })

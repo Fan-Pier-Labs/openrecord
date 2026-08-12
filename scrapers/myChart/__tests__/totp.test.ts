@@ -1,5 +1,9 @@
 import { describe, test, expect } from 'bun:test';
 import { generateTotpCode, parseTotpUri } from '../totp';
+import {
+  generateTotpCode as fakeServerGenerateTotpCode,
+  generateTotpSecret as fakeServerGenerateTotpSecret,
+} from '../../../fake-mychart/src/lib/totp';
 
 describe('generateTotpCode', () => {
   test('generates a 6-digit code from a Base32 secret', async () => {
@@ -28,6 +32,36 @@ describe('generateTotpCode', () => {
     const code2 = await generateTotpCode(secret, timestamp);
     expect(code1).toBe(code2);
   });
+});
+
+describe('agreement with fake-mychart’s server-side TOTP', () => {
+  // fake-mychart validates the codes this client produces during TOTP setup,
+  // so the two implementations have to agree exactly. If they drift, CI fails
+  // in the integration suite looking like a scraper bug — these cases name the
+  // real cause instead.
+  //
+  // The direction of the import matters: the check lives here, not under
+  // fake-mychart/, because nothing in that package may reach outside it (its
+  // Docker build context is that directory alone).
+  //
+  // Agreement alone isn't enough — both could be wrong together — so the
+  // fake's side is separately pinned to the published RFC 6238 vectors in
+  // fake-mychart/src/lib/__tests__/totp.test.ts.
+  const secrets = [
+    'JBSWY3DPEHPK3PXP',
+    'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', // RFC 6238's "12345678901234567890"
+    fakeServerGenerateTotpSecret(), // a freshly minted 160-bit secret
+  ];
+  const timestamps = [0, 59_000, 1_234_567_890_000, 1_700_000_000_000, 2_000_000_000_000];
+
+  for (const secret of secrets) {
+    for (const timestamp of timestamps) {
+      test(`matches for a ${secret.length}-char secret at t=${timestamp}`, async () => {
+        expect(await generateTotpCode(secret, timestamp))
+          .toBe(fakeServerGenerateTotpCode(secret, timestamp));
+      });
+    }
+  }
 });
 
 describe('parseTotpUri', () => {

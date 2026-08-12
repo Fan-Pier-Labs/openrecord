@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin } from '../login'
+import { setTestTransport } from '../../http'
 
 // Drives myChartUserPassLogin end to end against a scripted fake MyChart,
-// injected through the `fetchFn` seam. Covers the parts of the flow that only
+// installed with setTestTransport. Covers the parts of the flow that only
 // show up in the request the scraper actually sends: which credential field it
 // picks, how it encodes the credentials, and how it classifies the response.
 
@@ -57,7 +58,8 @@ function fakeMyChart(server: FakeServer) {
     }
     return new Response('', { status: 404 })
   }
-  return { fetchFn, calls }
+  setTestTransport(fetchFn)
+  return { calls }
 }
 
 /** Pull the decoded Credentials object back out of the posted DoLogin body. */
@@ -73,6 +75,11 @@ let previousTelemetrySetting: string | undefined
 beforeAll(() => {
   previousTelemetrySetting = process.env.MYCHART_CLI_TELEMETRY_DISABLED
   process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1'
+})
+
+afterEach(() => {
+  // Process-wide, so it has to come back off between tests.
+  setTestTransport(null)
 })
 
 afterAll(() => {
@@ -99,67 +106,67 @@ describe('myChartUserPassLogin argument validation', () => {
 
 describe('credential field detection', () => {
   it('defaults to LoginIdentifier when the page has no loginpagecontroller script', async () => {
-    const { fetchFn, calls } = fakeMyChart({})
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const { calls } = fakeMyChart({})
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(Object.keys(postedCredentials(calls))).toEqual(['LoginIdentifier', 'Password'])
     expect(calls.some((c) => c.url.includes('loginpagecontroller'))).toBe(false)
   })
 
   it('switches to Username when the controller JS uses Username only', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="/MyChart/scripts/loginpagecontroller.min.js?v=123"></script>`,
       controllerJs: 'Credentials: { Username: WP.Utils.b64EncodeUnicode(user), Password: WP.Utils.b64EncodeUnicode(pass) }',
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(Object.keys(postedCredentials(calls))).toEqual(['Username', 'Password'])
   })
 
   it('keeps LoginIdentifier when the controller JS uses LoginIdentifier', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="/MyChart/scripts/loginpagecontroller.min.js"></script>`,
       controllerJs: 'Credentials: { LoginIdentifier: encode(user), Password: encode(pass) }',
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(Object.keys(postedCredentials(calls))).toEqual(['LoginIdentifier', 'Password'])
   })
 
   it('keeps LoginIdentifier when the controller JS mentions both fields', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="/MyChart/scripts/loginpagecontroller.min.js"></script>`,
       controllerJs: 'Credentials: { LoginIdentifier: encode(user), Username: "deprecated", Password: encode(pass) }',
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(Object.keys(postedCredentials(calls))).toEqual(['LoginIdentifier', 'Password'])
   })
 
   it('keeps LoginIdentifier when the controller JS has no Credentials block', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="/MyChart/scripts/loginpagecontroller.min.js"></script>`,
       controllerJs: 'function doLogin() { /* minified, no credentials block */ }',
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(Object.keys(postedCredentials(calls))).toEqual(['LoginIdentifier', 'Password'])
   })
 
   it('resolves a relative controller script against the instance hostname', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="/MyChart/scripts/loginpagecontroller.min.js?v=abc"></script>`,
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(calls.map((c) => c.url)).toContain(`https://${HOST}/MyChart/scripts/loginpagecontroller.min.js?v=abc`)
   })
 
   it('uses an absolute controller script URL as-is', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       loginPage: `${TOKEN_INPUT}<script src="https://cdn.example.com/loginpagecontroller.min.js"></script>`,
     })
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     expect(calls.map((c) => c.url)).toContain('https://cdn.example.com/loginpagecontroller.min.js')
   })
@@ -167,8 +174,8 @@ describe('credential field detection', () => {
 
 describe('credential encoding', () => {
   it('base64-encodes the username and password', async () => {
-    const { fetchFn, calls } = fakeMyChart({})
-    await myChartUserPassLogin({ hostname: HOST, user: 'testuser', pass: 'testpass123!', fetchFn })
+    const { calls } = fakeMyChart({})
+    await myChartUserPassLogin({ hostname: HOST, user: 'testuser', pass: 'testpass123!' })
 
     const creds = postedCredentials(calls)
     expect(atob(creds.LoginIdentifier)).toBe('testuser')
@@ -176,8 +183,8 @@ describe('credential encoding', () => {
   })
 
   it('posts a StandardLogin payload with the CSRF token', async () => {
-    const { fetchFn, calls } = fakeMyChart({})
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const { calls } = fakeMyChart({})
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     const doLogin = calls.find((c) => c.url.includes('DoLogin'))!
     const params = new URLSearchParams(doLogin.body!)
@@ -188,8 +195,8 @@ describe('credential encoding', () => {
 
   it('round-trips passwords with special characters', async () => {
     const pass = 'p@$$w0rd!#%^&*()'
-    const { fetchFn, calls } = fakeMyChart({})
-    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass, fetchFn })
+    const { calls } = fakeMyChart({})
+    await myChartUserPassLogin({ hostname: HOST, user: 'u', pass })
 
     expect(atob(postedCredentials(calls).Password)).toBe(pass)
   })
@@ -197,8 +204,8 @@ describe('credential encoding', () => {
   it('encodes unicode credentials that plain btoa cannot handle', async () => {
     // b64EncodeUnicode percent-encodes first, so the decoded bytes are UTF-8.
     const user = 'user@例え.jp'
-    const { fetchFn, calls } = fakeMyChart({})
-    await myChartUserPassLogin({ hostname: HOST, user, pass: 'p', fetchFn })
+    const { calls } = fakeMyChart({})
+    await myChartUserPassLogin({ hostname: HOST, user, pass: 'p' })
 
     const encoded = postedCredentials(calls).LoginIdentifier
     expect(() => btoa(user)).toThrow()
@@ -208,53 +215,53 @@ describe('credential encoding', () => {
 
 describe('login response classification', () => {
   it('reports logged_in when the response is the MyChart home page', async () => {
-    const { fetchFn } = fakeMyChart({ doLogin: { body: HOME_PAGE } })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    fakeMyChart({ doLogin: { body: HOME_PAGE } })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('logged_in')
   })
 
   it('reports invalid_login on a "Login Failed" page', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: { body: '<html><body>Login Failed: Invalid username or password</body></html>' },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('invalid_login')
     expect(result.error).toBe('Username or password is incorrect')
   })
 
   it('reports invalid_login on a "login unsuccessful" page', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: { body: '<html><body>Your login unsuccessful. Please try again.</body></html>' },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('invalid_login')
   })
 
   it('reports invalid_login when only the response URL signals failure', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: { body: '<html><body>Try again</body></html>', url: `https://${HOST}/MyChart/Authentication/LoginFailed` },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('invalid_login')
   })
 
   it('does not false-positive on an ordinary logged-in page', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: { body: '<html><body>MD_HOME_INDEX<p>Secondary information about your account</p></body></html>' },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('logged_in')
   })
 
   it('reports an error when the login lands on an unrecognized page', async () => {
-    const { fetchFn } = fakeMyChart({ doLogin: { body: '<html><body>Something else entirely</body></html>' } })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    fakeMyChart({ doLogin: { body: '<html><body>Something else entirely</body></html>' } })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('error')
     expect(result.error).toBe('Login failed: ended up on an unexpected page')
   })
 
   it('requests 2FA when the response is the secondary validation page', async () => {
-    const { fetchFn, calls } = fakeMyChart({
+    const { calls } = fakeMyChart({
       doLogin: {
         body: `<html><body><div data-controller="secondaryvalidationcontroller">
           <input name="__RequestVerificationToken" value="2fa_token_123" />
@@ -262,7 +269,7 @@ describe('login response classification', () => {
         </div></body></html>`,
       },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('need_2fa')
     expect(result.twoFaDelivery?.method).toBe('email')
 
@@ -272,7 +279,7 @@ describe('login response classification', () => {
   })
 
   it('falls back to SMS delivery when the 2FA page only offers a text message', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: {
         body: `<html><body><div data-controller="secondaryvalidationcontroller">
           <input name="__RequestVerificationToken" value="2fa_token_123" />
@@ -281,17 +288,17 @@ describe('login response classification', () => {
         </div></body></html>`,
       },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('need_2fa')
     expect(result.twoFaDelivery?.method).toBe('sms')
     expect(result.twoFaDelivery?.contact).toBe('***-***-7204')
   })
 
   it('errors when the 2FA page has no CSRF token to continue with', async () => {
-    const { fetchFn } = fakeMyChart({
+    fakeMyChart({
       doLogin: { body: '<html><body>secondaryvalidationcontroller</body></html>' },
     })
-    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p', fetchFn })
+    const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('error')
     expect(result.error).toBe('could not find request verification token')
   })
