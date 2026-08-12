@@ -334,10 +334,18 @@ describe('scrapers have exactly one outbound path', () => {
   const SCRAPERS_DIR = path.resolve(import.meta.dir, '../..')
   const CHOKEPOINT = path.join(SCRAPERS_DIR, 'http.ts')
 
-  // A bare `fetch(...)` call, or a reference to a global/imported one. The
-  // lookbehind skips `.fetch(` and `prefetch(`; `scraperFetch(` and
-  // `platformFetch(` don't match either, since the capital F is load bearing.
-  const RAW_FETCH = /(?<![.\w$])fetch\s*\(|globalThis\.fetch|require\(['"]expo\/fetch['"]\)|from\s+['"]node-fetch['"]/
+  // What counts as making a network call. Four plain checks rather than one
+  // dense pattern: a guard nobody can read is a guard nobody will fix.
+  const NETWORK_CALLS = [
+    // A call to plain `fetch(...)`. The leading character class is what keeps
+    // `foo.fetch(` out; `prefetch(` and `scraperFetch(` don't match anyway.
+    /(^|[^.\w$])fetch\s*\(/,
+    /globalThis\.fetch/,
+    /require\(['"]expo\/fetch['"]\)/,
+    /from\s+['"]node-fetch['"]/,
+  ]
+
+  const isNetworkCall = (line: string) => NETWORK_CALLS.some((pattern) => pattern.test(line))
 
   function sourceFiles(dir: string): string[] {
     return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -356,7 +364,7 @@ describe('scrapers have exactly one outbound path', () => {
         .split('\n')
         .flatMap((line, i) =>
           // Comments describe the rule; only code breaks it.
-          RAW_FETCH.test(line) && !/^\s*(\/\/|\*|\/\*)/.test(line)
+          isNetworkCall(line) && !/^\s*(\/\/|\*|\/\*)/.test(line)
             ? [`${path.relative(SCRAPERS_DIR, file)}:${i + 1}: ${line.trim()}`]
             : [],
         ),
@@ -368,7 +376,7 @@ describe('scrapers have exactly one outbound path', () => {
   it('finds the network call it is meant to find', () => {
     // Guards the guard: if the pattern ever stops matching, the test above
     // passes vacuously and the invariant loses its only static protection.
-    expect(RAW_FETCH.test(fs.readFileSync(CHOKEPOINT, 'utf8'))).toBe(true)
+    expect(isNetworkCall(fs.readFileSync(CHOKEPOINT, 'utf8'))).toBe(true)
   })
 
   it('scans a meaningful number of files', () => {
