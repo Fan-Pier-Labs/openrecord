@@ -18,10 +18,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MyChartRequest } from '../myChartRequest';
 import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
-import { fetchWithCookies, abortAfter } from './fetch';
+import { abortAfter, scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
-
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 // ─── AMF3 Writer ───
 
@@ -833,14 +831,11 @@ async function initializeAmfSession(
 ): Promise<{ amfBuf: Buffer; effectiveServiceInstance: string } | null> {
   const amfReq = buildGetStudyListMetaRequest(accession, serviceInstance, patientId);
 
-  const res = await fetchWithCookies(cookieJar, `${baseUrl}/e/AmfServicesServlet`, {
+  const res = await scraperFetch(`${baseUrl}/e/AmfServicesServlet`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'User-Agent': UA,
-    },
+    headers: { 'Content-Type': 'application/octet-stream' },
     body: amfReq as unknown as BodyInit,
-  });
+  }, { cookieJar });
 
   if (!res.ok) {
     logger.debug(`      [AMF] Request failed: ${res.status}`);
@@ -868,14 +863,11 @@ async function initializeAmfSession(
 
     // Make a second AMF call with the real serviceInstance (like the browser does)
     const amfReq2 = buildGetStudyListMetaRequest(accession, realSI, patientId);
-    const res2 = await fetchWithCookies(cookieJar, `${baseUrl}/e/AmfServicesServlet`, {
+    const res2 = await scraperFetch(`${baseUrl}/e/AmfServicesServlet`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'User-Agent': UA,
-      },
+      headers: { 'Content-Type': 'application/octet-stream' },
       body: amfReq2 as unknown as BodyInit,
-    });
+    }, { cookieJar });
 
     if (res2.ok) {
       const amfBuf2 = Buffer.from(await res2.arrayBuffer());
@@ -1075,15 +1067,12 @@ async function downloadImage(
     level,
   }).toString();
 
-  const res = await fetchWithCookies(cookieJar, `${baseUrl}/e/CustomImageServlet`, {
+  const res = await scraperFetch(`${baseUrl}/e/CustomImageServlet`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'User-Agent': UA,
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
     body,
     signal: abortAfter(30_000),
-  });
+  }, { cookieJar });
 
   if (!res.ok) {
     throw new Error(`CustomImageServlet failed: ${res.status} ${res.statusText}`);
@@ -1169,13 +1158,12 @@ export async function probeDicomWeb(
 
   for (const urlPath of paths) {
     try {
-      const res = await fetchWithCookies(cookieJar, `${baseUrl}${urlPath}`, {
+      const res = await scraperFetch(`${baseUrl}${urlPath}`, {
         method: 'GET',
         headers: {
-          'User-Agent': UA,
           'Accept': 'multipart/related; type="application/dicom", application/dicom+json, application/json',
         },
-      });
+      }, { cookieJar });
 
       const ct = res.headers.get('content-type') || '';
 
