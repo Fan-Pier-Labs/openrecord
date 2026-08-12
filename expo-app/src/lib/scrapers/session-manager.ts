@@ -50,6 +50,11 @@ import {
 } from "../../../../scrapers/myChart/messages/sendMessage";
 import { sendReply } from "../../../../scrapers/myChart/messages/sendReply";
 import { requestMedicationRefill } from "../../../../scrapers/myChart/medicationRefill";
+import {
+  assertProxyReadContext,
+  runListProxyTargets,
+  runSwitchProxyTarget,
+} from "../../../../scrapers/myChart/proxyTools";
 import { downloadImagingStudyDirect } from "../../../../scrapers/myChart/eunity/imagingDirectDownload";
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
@@ -420,6 +425,26 @@ async function runScraper(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
+  // Proxy (family record) tools. list is read-only; switch is the ONLY tool
+  // that changes MyChart's server-side active patient.
+  if (toolName === "list_proxy_targets") {
+    return runListProxyTargets(request);
+  }
+  if (toolName === "switch_proxy_target") {
+    return runSwitchProxyTarget(request, String(input.patient ?? ""));
+  }
+
+  // Every other tool reads (or writes) whichever record is active on
+  // MyChart's server. Assert it is the one this call is about — the account
+  // holder unless `patient` says otherwise — so a session left on a child's
+  // chart can never silently serve it as the user's own. This also covers the
+  // background memory/alert jobs, which fail safe instead of mixing a family
+  // member's data into the account holder's caches.
+  await assertProxyReadContext(
+    request,
+    typeof input.patient === "string" ? input.patient : undefined,
+  );
+
   switch (toolName) {
     case "get_profile": {
       const profile = await getMyChartProfile(request);
