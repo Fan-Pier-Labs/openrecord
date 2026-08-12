@@ -71,6 +71,22 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
+#   expo-app/src/lib/backend/google-signin.ts (0%/12%), backend/client.ts (0%/27%)
+#     — the Google Sign-In wrapper and the fetch helper layered on it. Every
+#       function here calls into @react-native-google-signin, whose module pulls
+#       react-native's Flow-typed entry point; the tests that touch this path
+#       mock the package outright, so the real file is imported and never run.
+#       Exercising it for real needs a device.
+#   expo-app/src/lib/ai/claude-client.ts (84%/73%)
+#     — the agent loop. The tool-use loop, read batching, write gating and the
+#       respond terminator are covered; the uncovered remainder is the
+#       per-provider request/response shaping for OpenAI and Anthropic, which
+#       needs a scripted server per provider rather than the one this suite has.
+#
+# These three entered the report for the first time with the expo-app test
+# suite: before it there was no test importing them at all, so they were absent
+# from the denominator rather than measured. Waiving is not a regression against
+# what the gate previously enforced.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
@@ -88,4 +104,7 @@ coveragePathIgnorePatterns = [
   "npm-package/src/client.ts",
   "npm-package/cli/capabilityActions.ts",
   "openrecord-demo-lambda/src/spend.mjs",
+  "expo-app/src/lib/backend/google-signin.ts",
+  "expo-app/src/lib/backend/client.ts",
+  "expo-app/src/lib/ai/claude-client.ts",
 ]

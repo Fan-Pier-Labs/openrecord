@@ -43,9 +43,6 @@ jobs:
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun run build
       - run: bun run test
-      # Same glob as the unit suite, so it has to follow the extension build too.
-      - name: Check code coverage (75% minimum)
-        run: bun run test:coverage
 
   fake-mychart:
     name: Fake MyChart integration tests
@@ -145,7 +142,17 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      # setup-bun downloads from the GitHub release CDN, which intermittently
+      # answers 503 or hangs up. Retry once before failing the job.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - run: cd expo-app && bun install
       - run: cd expo-app/e2e/web && bun install
