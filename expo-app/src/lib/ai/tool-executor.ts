@@ -8,21 +8,21 @@
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
+import { CAPABILITIES } from "../../../../shared/capabilities";
 
-const WRITE_TOOLS: Record<string, { title: string; description: string }> = {
-  send_message: {
-    title: "Send Message",
-    description: "Sends a new message to a MyChart provider.",
-  },
-  send_reply: {
-    title: "Send Reply",
-    description: "Replies to an existing MyChart conversation.",
-  },
-  request_refill: {
-    title: "Request Refill",
-    description: "Submits a medication refill request to MyChart.",
-  },
-};
+/**
+ * Every capability that mutates the record, keyed by tool name.
+ *
+ * Derived from the shared registry rather than hand-listed, so a write tool
+ * added there is confirmation-gated here from the first build — the previous
+ * hand-written list covered three of the eight writes the other clients had.
+ */
+const WRITE_TOOLS: Record<string, { title: string; description: string }> = Object.fromEntries(
+  CAPABILITIES.filter((c) => c.kind === "write").map((c) => [
+    c.id,
+    { title: c.title, description: c.description },
+  ]),
+);
 
 function formatArgs(input: Record<string, unknown>): string {
   const entries = Object.entries(input).filter(([k]) => k !== "instance");

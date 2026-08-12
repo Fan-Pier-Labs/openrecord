@@ -21,6 +21,7 @@ export const medications = {
         prescriptions: [
           {
             name: 'Duff Beer Extract 500mg',
+            medicationKey: 'FAKE-MED-KEY-001',
             patientFriendlyName: { text: 'Duff Beer Extract' },
             sig: 'Take 1 tablet by mouth as needed for relaxation',
             dateToDisplay: '01/15/2026',
@@ -41,6 +42,7 @@ export const medications = {
           },
           {
             name: 'Donut Supplement 100mg',
+            medicationKey: 'FAKE-MED-KEY-002',
             patientFriendlyName: { text: 'Donut Supplement' },
             sig: 'Take 1 tablet by mouth daily with breakfast',
             dateToDisplay: '01/15/2026',
@@ -61,6 +63,7 @@ export const medications = {
           },
           {
             name: 'Lisinopril 10mg',
+            medicationKey: 'FAKE-MED-KEY-003',
             patientFriendlyName: { text: 'Lisinopril' },
             sig: 'Take 1 tablet by mouth daily for blood pressure',
             dateToDisplay: '06/01/2025',
@@ -81,6 +84,7 @@ export const medications = {
           },
           {
             name: 'Atorvastatin 20mg',
+            medicationKey: 'FAKE-MED-KEY-004',
             patientFriendlyName: { text: 'Atorvastatin' },
             sig: 'Take 1 tablet by mouth at bedtime for cholesterol',
             dateToDisplay: '06/01/2025',

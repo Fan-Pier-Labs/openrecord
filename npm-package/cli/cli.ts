@@ -56,6 +56,8 @@ import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthentic
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import { isBlockedInstance } from '../../scrapers/myChart/blockedInstances';
+import { CAPABILITIES, getCapability } from '../../shared/capabilities';
+import { renderCapabilityList, runCapabilityAction } from './capabilityActions';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -96,6 +98,14 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action list-proxies                 (list accessible patient records)
 //   npx tsx src/cli.ts --host <hostname> --patient "Bart Simpson"            (read a proxy patient's chart)
 //   npx tsx src/cli.ts --host <hostname> --switch "Bart Simpson"             (change MyChart's active patient)
+//   npx tsx src/cli.ts --list-capabilities                                   (every capability and its arguments)
+//   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
+//
+// `--action` accepts any id from the shared capability registry
+// (`shared/capabilities.ts`) and prints its result as JSON, with parameters
+// supplied by repeated `--arg name=value`. That is what keeps the CLI from
+// drifting behind the extension and the app: a capability added there is a CLI
+// command the same day, with no flag plumbing to remember.
 
 interface CliArgs {
   host?: string; user?: string; pass?: string; twofa?: string;
@@ -105,13 +115,30 @@ interface CliArgs {
   setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
   setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
   deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
+  listCapabilities?: boolean;
+  /** Repeated `--arg name=value` pairs, passed straight to the capability. */
+  capabilityArgs?: Record<string, string>;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const parsed: Record<string, string | boolean> = {};
+  const parsed: Record<string, string | boolean | Record<string, string>> = {};
+  const capabilityArgs: Record<string, string> = {};
+  parsed.capabilityArgs = capabilityArgs;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
+    if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
+    // `--arg name=value`, repeatable. Whatever the chosen capability declares
+    // in the shared registry is what this accepts — no per-flag plumbing.
+    else if (args[i] === '--arg' && args[i + 1]) {
+      const pair = args[++i];
+      const eq = pair.indexOf('=');
+      if (eq <= 0) {
+        console.error(`  --arg expects name=value, got "${pair}".`);
+        process.exit(1);
+      }
+      capabilityArgs[pair.slice(0, eq)] = pair.slice(eq + 1);
+    }
+    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
     else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i];
     else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i];
     else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i];
@@ -1271,6 +1298,13 @@ async function main() {
   const { version } = await import('../package.json');
   void checkForUpdate({ currentVersion: version, packageName: 'cli' });
 
+  // Listing what the CLI can do needs no account and no network.
+  if (cliArgs.listCapabilities) {
+    console.log(renderCapabilityList());
+    closeRL();
+    return;
+  }
+
   header('MyChart Scraper - Terminal');
 
   // ─── Resolve credentials from browser passwords ───
@@ -1414,7 +1448,13 @@ async function main() {
   // No --patient means the account holder, stated explicitly, because the CLI
   // resumes sessions from cached cookies and would otherwise inherit whichever
   // patient an earlier invocation left behind.
-  if (cliArgs.action !== 'list-proxies') {
+  // The patient-record commands are the exception: asserting "you must already
+  // be on patient X" before letting someone list the records or switch to one
+  // would make those commands unusable exactly when they are needed.
+  const actionIsAboutPatients =
+    cliArgs.action === 'list-proxies' || getCapability(cliArgs.action ?? '')?.group === 'Patients';
+
+  if (!actionIsAboutPatients) {
     for (const session of sessions) {
       let check;
       try {
@@ -1925,6 +1965,28 @@ async function main() {
     await sessionStore.runKeepalive();
     sessionStore.startKeepalive();
     return;
+  }
+
+  // Any capability from the shared registry, by id. Runs after the bespoke
+  // actions above so their nicer output is preserved, and before the default
+  // full scrape.
+  if (cliArgs.action) {
+    const capability = getCapability(cliArgs.action);
+    if (!capability) {
+      console.log(`\n  Unknown --action "${cliArgs.action}".`);
+      console.log(`  Capabilities: ${CAPABILITIES.map(c => c.id).join(', ')}`);
+      console.log('  Run  mychart-cli --list-capabilities  for the full list with arguments.');
+      closeRL();
+      process.exit(1);
+    }
+    let ok = true;
+    for (const session of sessions) {
+      const creds = credentialsList.find(c => c.hostname === session.hostname);
+      const password = creds && 'password' in creds ? creds.password : undefined;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}))) ok = false;
+    }
+    closeRL();
+    process.exit(ok ? 0 : 1);
   }
 
   for (const session of sessions) {

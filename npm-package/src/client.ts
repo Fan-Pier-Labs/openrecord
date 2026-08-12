@@ -83,6 +83,17 @@ import {
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/other_mycharts';
 import { getEhiExportTemplates } from '../../scrapers/myChart/ehiExport';
 
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/notes/notes';
+import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
+import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
+import {
+  CAPABILITIES,
+  executeCapability,
+  type Capability,
+  type CapabilityArgs,
+  type CapabilityContext,
+} from '../../shared/capabilities';
+
 const KEEPALIVE_INTERVAL_MS = 30 * 1000;
 
 /** Options accepted by every `MyChartClient.connect*` factory. */
@@ -286,6 +297,32 @@ export class MyChartClient {
     return generateTotpCode(secret);
   }
 
+  // ── Capability registry ─────────────────────────────────────────────────
+
+  /**
+   * Every capability OpenRecord supports, from the shared registry
+   * (`shared/capabilities.ts`) — the same list the CLI, the Claude Desktop
+   * extension and the mobile app derive their tools from. Useful for building
+   * a tool layer of your own without re-deriving what exists.
+   */
+  static capabilities(): readonly Capability[] {
+    return CAPABILITIES;
+  }
+
+  /**
+   * Run a capability by id against this session — `runCapability('get_visit_notes', { csn })`.
+   *
+   * The typed methods below are the ergonomic path and cover the same ground;
+   * this is the dynamic one, for callers dispatching on a name they were
+   * handed (a tool call, a CLI argument, a queue message).
+   *
+   * `ctx` is only consulted by the account-security capabilities, which need
+   * the account password and somewhere to persist a new secret.
+   */
+  runCapability(id: string, args: CapabilityArgs = {}, ctx?: CapabilityContext): Promise<unknown> {
+    return executeCapability(this.req(), id, args, ctx);
+  }
+
   // ── Profile ─────────────────────────────────────────────────────────────
   getProfile() { return getMyChartProfile(this.req()); }
   getEmail()   { return getEmail(this.req()); }
@@ -330,6 +367,13 @@ export class MyChartClient {
   upcomingVisits()                          { return upcomingVisits(this.req()); }
   pastVisits(oldestRenderedDate: Date)      { return pastVisits(this.req(), oldestRenderedDate); }
 
+  // ── Visit notes ─────────────────────────────────────────────────────────
+  getVisitNotes(csn: string)                { return getVisitNotes(this.req(), csn); }
+  getNoteContent(params: { csn: string; lrpId: string; hnoId: string; hnoDat: string }) {
+    return getNoteContent(this.req(), params);
+  }
+  getVisitAVS(csn: string)                  { return getVisitAVS(this.req(), csn); }
+
   // ── Messages ────────────────────────────────────────────────────────────
   listConversations()                                       { return listConversations(this.req()); }
   getConversationMessages(conversationId: string)           { return getConversationMessages(this.req(), conversationId); }
@@ -368,4 +412,16 @@ export class MyChartClient {
   // ── Linked accounts / EHI export ───────────────────────────────────────
   getLinkedMyChartAccounts() { return getLinkedMyChartAccounts(this.req()); }
   getEhiExportTemplates()    { return getEhiExportTemplates(this.req()); }
+
+  // ── Account security ───────────────────────────────────────────────────
+  // These change how the patient signs in. Persisting whatever they hand back
+  // (the passkey credential, the TOTP secret) is the caller's job — this
+  // library deliberately owns no credential store.
+  setupPasskey()                { return setupPasskey(this.req()); }
+  listPasskeys()                { return listPasskeys(this.req()); }
+  deletePasskey(rawId: string)  { return deletePasskey(this.req(), rawId); }
+  setupTotp(password: string)   { return setupTotp(this.req(), password); }
+  disableTotp(password: string, totpSecret: string) {
+    return disableTotp(this.req(), password, totpSecret);
+  }
 }

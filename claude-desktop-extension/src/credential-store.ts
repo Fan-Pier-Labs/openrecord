@@ -83,6 +83,23 @@ export function findAccount(hostname: string): AccountConfig | undefined {
   return readAccounts().find(a => normalizeHostname(a.hostname) === normalized);
 }
 
+/**
+ * Store the TOTP secret produced by the `setup_totp` capability, so later
+ * logins can generate their own codes instead of waiting on an emailed one.
+ * No-ops when the hostname has no saved account — there is nothing to attach
+ * the secret to, and inventing an account row here would leave a credential
+ * entry with no username or password.
+ */
+export function saveAccountTotpSecret(hostname: string, totpSecret: string): boolean {
+  const accounts = readAccounts();
+  const normalized = normalizeHostname(hostname);
+  const idx = accounts.findIndex(a => normalizeHostname(a.hostname) === normalized);
+  if (idx < 0) return false;
+  accounts[idx] = { ...accounts[idx], totpSecret };
+  saveAccounts(accounts);
+  return true;
+}
+
 // ── Passkeys ────────────────────────────────────────────────────────────────
 
 function passkeyPath(hostname: string): string {
