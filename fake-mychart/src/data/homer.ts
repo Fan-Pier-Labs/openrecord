@@ -1256,6 +1256,10 @@ export const totpInfo = {
   IsTotpEnabled: false,
 };
 
+// Shape of the TotpQrCode response. `encodedSecretKey` is a placeholder — the
+// route replaces it with a freshly minted secret per call, the way a real
+// instance does, and remembers it so VerifyCode can check the submitted code
+// against it.
 export const totpQrCode = {
   encodedSecretKey: 'JBSWY3DPEHPK3PXP', // standard base32 test secret
 };
