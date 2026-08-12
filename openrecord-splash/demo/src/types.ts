@@ -186,6 +186,13 @@ export type TurnCallbacks = {
 export type PendingWrite = {
   tool: string;
   args: ToolArgs;
+  /**
+   * Extra rows for the confirmation dialog, resolved by code from session
+   * state — e.g. what a bare slot_id actually means (provider, date, time).
+   * The dialog's contract is "the user sees what will really run", and an
+   * opaque id on its own doesn't meet it.
+   */
+  details?: { label: string; value: string }[];
 };
 
 export type TurnResult = {
