@@ -154,8 +154,8 @@ describe('discovery: moved host', () => {
 
     const requested: string[] = []
     const session = result.mychartRequest
-    const underlying = session.fetchWithCookieJar.bind(session)
-    session.fetchWithCookieJar = (url, init) => {
+    const underlying = session.transport.bind(session)
+    session.transport = (url, init) => {
       requested.push(String(url))
       return underlying(url, init)
     }

@@ -90,8 +90,8 @@ export function groupByHost(instances: { name: string; url: string }[]): HostEnt
 /** A request whose every fetch gives up rather than hanging the whole sweep. */
 function timeBoundedRequest(host: string): MyChartRequest {
   const req = new MyChartRequest(host);
-  const inner = req.fetchWithCookieJar.bind(req);
-  req.fetchWithCookieJar = (url, init) =>
+  const inner = req.transport.bind(req);
+  req.transport = (url, init) =>
     inner(url, { ...(init ?? {}), signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   return req;
 }

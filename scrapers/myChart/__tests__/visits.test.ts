@@ -6,10 +6,10 @@ function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -79,11 +79,11 @@ describe('upcomingVisits', () => {
       { body: JSON.stringify({}) },
     ]
 
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
       return new Response(r.body, { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await upcomingVisits(req)
 
@@ -153,11 +153,11 @@ describe('pastVisits', () => {
       { body: JSON.stringify({ List: {} }) },
     ]
 
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
       return new Response(r.body, { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const oldestDate = new Date('2023-06-15T00:00:00.000Z')
     await pastVisits(req, oldestDate)

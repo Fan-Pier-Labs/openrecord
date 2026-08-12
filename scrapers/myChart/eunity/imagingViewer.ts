@@ -3,7 +3,7 @@ import * as tough from 'tough-cookie';
 import { MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
 import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
-import { fetchWithCookies } from './fetch';
+import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
 export interface FdiContext {
@@ -137,18 +137,17 @@ export async function followSamlChain(
 ): Promise<{ viewerUrl: string; jsessionId: string; cookieJar: tough.CookieJar; viewerBody: string } | null> {
   const jar = new tough.CookieJar();
 
-  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-  // Helper: make a request with the cookie jar, manually follow redirects
+  // Helper: make a request against this chain's jar, manually following
+  // redirects. Headers and the per-host permit come from scraperFetch.
   async function req(url: string, opts: { method?: string; body?: string; contentType?: string } = {}) {
-    const headers: Record<string, string> = { 'User-Agent': UA };
+    const headers: Record<string, string> = {};
     if (opts.contentType) headers['Content-Type'] = opts.contentType;
-    return fetchWithCookies(jar, url, {
+    return scraperFetch(url, {
       method: opts.method || 'GET',
       redirect: 'manual',
       headers,
       body: opts.body,
-    });
+    }, { cookieJar: jar });
   }
 
   async function makeViewerResult(viewerUrl: string, viewerBody: string) {

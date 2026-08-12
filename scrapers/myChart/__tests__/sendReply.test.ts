@@ -8,10 +8,10 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -20,11 +20,11 @@ function mockRequestWithCapture(responses: Array<{ body: string; status?: number
   req.firstPathPart = 'MyChart'
   const calls: Array<{ url: string; init?: RequestInit }> = []
   let i = 0
-  req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+  req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: url.toString(), init })
     const r = responses[i++]
     return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return { req, calls }
 }
 

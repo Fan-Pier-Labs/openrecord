@@ -43,13 +43,13 @@ describe('makeRequest per-host concurrency', () => {
 
     const sessions = Array.from({ length: 4 }, () => {
       const req = new MyChartRequest('mychart.example.org')
-      req.fetchWithCookieJar = (async () => {
+      req.transport = (async () => {
         inFlight += 1
         peak = Math.max(peak, inFlight)
         await gate.promise
         inFlight -= 1
         return new Response('{}', { status: 200 })
-      }) as typeof req.fetchWithCookieJar
+      }) as typeof req.transport
       return req
     })
 
@@ -74,7 +74,7 @@ describe('makeRequest per-host concurrency', () => {
     const req = new MyChartRequest('mychart.example.org')
     const hops = 3
 
-    req.fetchWithCookieJar = (async (url: string | URL | Request) => {
+    req.transport = (async (url: string | URL | Request) => {
       const href = url.toString()
       const hop = Number(new URL(href).searchParams.get('hop') ?? '0')
       // Yield, so a naive implementation reliably saturates before any
@@ -87,7 +87,7 @@ describe('makeRequest per-host concurrency', () => {
         })
       }
       return new Response('{}', { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const concurrent = LIMIT * 2
     const responses = await Promise.all(
@@ -108,7 +108,7 @@ describe('makeRequest per-host concurrency', () => {
     // its own budget instead of spending the vanity hostname's.
     const req = new MyChartRequest('patients.mycslink.org')
 
-    req.fetchWithCookieJar = (async (url: string | URL | Request) => {
+    req.transport = (async (url: string | URL | Request) => {
       const href = url.toString()
       if (href.includes('patients.mycslink.org')) {
         return new Response('', {
@@ -117,7 +117,7 @@ describe('makeRequest per-host concurrency', () => {
         })
       }
       return new Response('{}', { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const resp = await req.makeRequest({ path: '/Home' })
     expect(resp.status).toBe(200)
@@ -131,9 +131,9 @@ describe('makeRequest per-host concurrency', () => {
 
   it('releases the permit when the underlying fetch rejects', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.fetchWithCookieJar = (async () => {
+    req.transport = (async () => {
       throw new Error('ECONNRESET')
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await expect(req.makeRequest({ path: '/Home' })).rejects.toThrow('ECONNRESET')
     expect(hostLimiterStats()['mychart.example.org']).toEqual({
@@ -145,8 +145,8 @@ describe('makeRequest per-host concurrency', () => {
 
   it('releases the permit when a redirect arrives with no Location header', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.fetchWithCookieJar = (async () =>
-      new Response('', { status: 302 })) as typeof req.fetchWithCookieJar
+    req.transport = (async () =>
+      new Response('', { status: 302 })) as typeof req.transport
 
     await expect(req.makeRequest({ path: '/Home' })).rejects.toThrow(
       "302 didn't have a location header",
@@ -158,11 +158,11 @@ describe('makeRequest per-host concurrency', () => {
     // mychart.crossingrivers.org redirects /MyChart/ to itself forever. The cap
     // must survive the 20-hop bailout without stranding permits.
     const req = new MyChartRequest('mychart.example.org')
-    req.fetchWithCookieJar = (async () =>
+    req.transport = (async () =>
       new Response('', {
         status: 302,
         headers: { Location: 'https://mychart.example.org/MyChart/' },
-      })) as typeof req.fetchWithCookieJar
+      })) as typeof req.transport
 
     const responses = await Promise.all(
       Array.from({ length: LIMIT + 5 }, () => req.makeRequest({ path: '/MyChart/' })),

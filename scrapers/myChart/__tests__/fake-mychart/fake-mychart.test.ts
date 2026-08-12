@@ -93,15 +93,15 @@ for (const mode of MOUNT_MODES) {
 
     it('builds URLs without a doubled route segment or a double slash', async () => {
       const requested: string[] = []
-      const underlying = session.fetchWithCookieJar.bind(session)
-      session.fetchWithCookieJar = (url, init) => {
+      const underlying = session.transport.bind(session)
+      session.transport = (url, init) => {
         requested.push(String(url))
         return underlying(url, init)
       }
       try {
         expect(await getMyChartProfile(session)).not.toBeNull()
       } finally {
-        session.fetchWithCookieJar = underlying
+        session.transport = underlying
       }
 
       expect(requested.length).toBeGreaterThan(0)
