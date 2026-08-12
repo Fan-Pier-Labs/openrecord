@@ -30,11 +30,6 @@ import {
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
-/**
- * On React Native, use raw fetch — iOS handles cookies natively.
- * This bypasses the tough-cookie layer entirely.
- */
-const nativeFetch = (url: string, init: RequestInit) => fetch(url, init);
 import {
   getMyChartAccounts,
   updateMyChartAccount,
@@ -115,7 +110,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
         (cred) => myChartPasskeyLogin({
           hostname: account.hostname,
           credential: cred,
-          fetchFn: nativeFetch,
         }),
         credential,
       );
@@ -152,7 +146,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
       user: account.username,
       pass: account.password,
       skipSendCode: hasTotpSecret,
-      fetchFn: nativeFetch,
     });
     console.log(`[session] Login result: state=${result.state} error=${result.error || 'none'}`);
 
@@ -321,9 +314,9 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
 
 /**
  * Make a logged-in session self-sustaining: wire the silent re-login hook
- * (passkey with counter retry → password → TOTP secret, all with the native
- * fetch so iOS keeps managing cookies) and enroll it in the shared 30-second
- * keepalive heartbeat. From then on, expiry mid-scrape is renewed
+ * (passkey with counter retry → password → TOTP secret; scrapers/http.ts
+ * picks the on-device transport so iOS keeps managing cookies) and enroll it
+ * in the shared 30-second keepalive heartbeat. From then on, expiry mid-scrape is renewed
  * transparently by makeAuthenticatedRequest, and a heartbeat that finds the
  * session dead renews it proactively through the same hook.
  *
@@ -348,7 +341,6 @@ function manageSession(entry: SessionEntry) {
       password: account.password,
       totpSecret: account.totpSecret,
       passkey,
-      fetchFn: nativeFetch,
       onPasskeyUsed: (credential) =>
         updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),
     };

@@ -32,12 +32,13 @@ export type SilentLoginParams = {
    * Locally stored passkey. Mutated in place — a login advances its WebAuthn
    * signature counter — so persist it from `onPasskeyUsed` or the next login
    * starts a counter-desync recovery dance.
+   *
+   * (No transport parameter: scrapers/http.ts picks the platform's transport —
+   * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
   passkey?: PasskeyCredential | null;
   /** 'http' for local fake-mychart; defaults to https. */
   protocol?: string;
-  /** Platform fetch override (e.g. raw fetch on iOS, where cookies are native). */
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   /** A passkey login succeeded — persist the bumped signature counter. */
   onPasskeyUsed?: (credential: PasskeyCredential) => void | Promise<void>;
   /** The passkey was rejected as invalid (not a network error) — safe to delete. */
@@ -49,13 +50,13 @@ export type SilentLoginOutcome =
   | { state: 'failed'; reason: string };
 
 export async function silentLogin(params: SilentLoginParams): Promise<SilentLoginOutcome> {
-  const { hostname, protocol, fetchFn } = params;
+  const { hostname, protocol } = params;
 
   if (params.passkey) {
     const credential = params.passkey;
     try {
       const result = await passkeyLoginWithCounterRetry(
-        (cred) => myChartPasskeyLogin({ hostname, credential: cred, protocol, fetchFn }),
+        (cred) => myChartPasskeyLogin({ hostname, credential: cred, protocol }),
         credential,
       );
       if (result.state === 'logged_in') {
@@ -84,7 +85,6 @@ export async function silentLogin(params: SilentLoginParams): Promise<SilentLogi
     pass: params.password,
     skipSendCode: !!params.totpSecret,
     protocol,
-    fetchFn,
   });
 
   if (userPass.state === 'logged_in') {

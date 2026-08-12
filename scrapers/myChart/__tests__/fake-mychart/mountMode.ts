@@ -12,6 +12,27 @@
 export type MountMode = 'prefixed' | 'root';
 
 /**
+ * Wipe the fake back to its seed state.
+ *
+ * **Every suite in this directory must call this in its own `beforeAll`.** All
+ * of the fake's state — TOTP opt-in, registered passkeys, sent messages, the
+ * mount/discovery/terms knobs — is global to the server process and shared by
+ * every suite pointed at it, and bun runs test files in directory-entry order,
+ * not alphabetically. A suite that inherits whatever ran last therefore passes
+ * or fails based on the order the filesystem happens to hand its neighbours
+ * back, which changes when a file is added or renamed. Resetting on the way in
+ * is what makes that order irrelevant; resetting only on the way out is not
+ * enough, because it leaves the first suite to run trusting the previous
+ * `bun test` invocation.
+ */
+export async function resetFakeMyChart(host: string): Promise<void> {
+  const res = await fetch(`http://${host}/reset`, { method: 'POST' });
+  if (!res.ok) {
+    throw new Error(`Failed to reset fake-mychart on ${host}: ${res.status} ${await res.text()}`);
+  }
+}
+
+/**
  * How `/` announces the mount. Every value is a shape observed on a real
  * instance; see `fake-mychart/src/lib/mount.ts` for which instance each one
  * came from.

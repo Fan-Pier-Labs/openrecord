@@ -175,6 +175,14 @@ export async function getMyChartProfile(
   if ([301, 302].includes(resp.status)) {
     const location = resp.headers.get('Location') || '';
     logger.debug(`[profile] /Home returned ${resp.status} → ${location}`);
+    // The wrapper only recognizes /Authentication/Login as a session bounce.
+    // Keep the historical looser check here too: an instance sending /Home to
+    // any login-ish URL means "not signed in", and following it would parse a
+    // login page into a bogus profile.
+    if (location.toLowerCase().includes('login')) {
+      logger.debug('[profile] Session expired — redirected to login page');
+      return null;
+    }
     // Non-login redirect: follow it and parse
     const followResp = await makeAuthenticatedRequest(mychartRequest, {url: new URL(location, mychartRequest.protocol + '://' + mychartRequest.hostname).href}, options);
     const body = await followResp.text();

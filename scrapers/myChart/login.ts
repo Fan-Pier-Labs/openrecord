@@ -611,7 +611,7 @@ export async function detectUsernameField(mychartRequest: MyChartRequest, loginP
   }
 }
 
-export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, fetchFn}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string, fetchFn?: (url: string, init: RequestInit) => Promise<Response>}): Promise<LoginResult> {
+export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
@@ -628,7 +628,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
   const hostnameWithoutPort = hostname.split(':')[0];
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
-  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol, fetchFn });
+  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {
     logger.debug('Using firstPathPart from user input:', firstPathPartFromInput);
@@ -973,11 +973,10 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
  * 3. Software authenticator signs the challenge
  * 4. POST /Authentication/Login/DoLogin with Type: "PasskeyLogin"
  */
-export async function myChartPasskeyLogin({hostname, credential, protocol, fetchFn}: {
+export async function myChartPasskeyLogin({hostname, credential, protocol}: {
   hostname: string,
   credential: PasskeyCredential,
   protocol?: string,
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>,
 }): Promise<LoginResult> {
   sendTelemetryEvent('scraper_passkey_login_started', { hostname }, 'scraper');
 
@@ -991,7 +990,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol, fetch
 
   const hostnameWithoutPort = hostname.split(':')[0];
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
-  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol, fetchFn });
+  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {
     logger.debug('Using firstPathPart from user input:', firstPathPartFromInput);

@@ -7,7 +7,7 @@
  * `DirectDownloadedImage.pixelData`.
  */
 
-import { MyChartRequest, type MyChartRequestOptions } from '../../scrapers/myChart/myChartRequest';
+import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
@@ -106,8 +106,6 @@ export interface MyChartClientOptions {
   hostname: string;
   /** Defaults to `'https'`, except auto-detected as `'http'` for localhost / hostnames without a dot. */
   protocol?: 'http' | 'https';
-  /** Custom fetch (e.g. raw `fetch` on iOS where the OS handles cookies natively). */
-  fetchFn?: MyChartRequestOptions['fetchFn'];
   /** Run a background keepalive ping every 30s. Default `true`. */
   keepalive?: boolean;
   /**
@@ -181,7 +179,6 @@ export class MyChartClient {
     const result = await myChartUserPassLogin({
       hostname: args.hostname,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
       user: args.user,
       pass: args.pass,
       skipSendCode: args.skipSendCode,
@@ -192,7 +189,6 @@ export class MyChartClient {
       password: args.pass,
       totpSecret: args.totpSecret,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
     }));
   }
 
@@ -203,7 +199,6 @@ export class MyChartClient {
     const result = await myChartPasskeyLogin({
       hostname: args.hostname,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
       credential: args.credential,
     });
     // A silent re-login mutates the credential's WebAuthn signature counter in
@@ -212,7 +207,6 @@ export class MyChartClient {
       hostname: args.hostname,
       passkey: args.credential,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
     }));
   }
 
@@ -222,14 +216,13 @@ export class MyChartClient {
    */
   static async fromSerialized(
     json: string,
-    opts?: { fetchFn?: MyChartRequestOptions['fetchFn']; keepalive?: boolean }
+    opts?: { keepalive?: boolean }
   ): Promise<MyChartClient | null> {
-    const req = await MyChartRequest.unserialize(json, opts);
+    const req = await MyChartRequest.unserialize(json);
     if (!req) return null;
     return new MyChartClient(req, {
       hostname: req.hostname,
       protocol: req.protocol === 'http' ? 'http' : 'https',
-      fetchFn: opts?.fetchFn,
       keepalive: opts?.keepalive,
     });
   }
