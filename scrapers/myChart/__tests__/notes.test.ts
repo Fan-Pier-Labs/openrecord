@@ -6,13 +6,13 @@ function mockRequest(responses: Array<{ body: string; contentType?: string; serv
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     const headers: Record<string, string> = {}
     if (r.contentType !== undefined) headers['content-type'] = r.contentType
     if (r.server !== undefined) headers['server'] = r.server
     return new Response(r.body, { status: 200, headers })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -81,11 +81,11 @@ describe('getVisitNotes', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({ noteList: [] }), contentType: 'application/json' },
     ]
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await getVisitNotes(req, 'WP-csn-test')
 
@@ -158,11 +158,11 @@ describe('getNoteContent', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({}), contentType: 'application/json' },
     ]
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await getNoteContent(req, {
       csn: 'WP-csn-X',
@@ -222,11 +222,11 @@ describe('getVisitAVS', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({}), contentType: 'application/json' },
     ]
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await getVisitAVS(req, 'WP-csn-avs')
 
