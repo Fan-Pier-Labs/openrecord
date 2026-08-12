@@ -40,6 +40,9 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
 #                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
 #                        memfs.ts, mountMode.ts) were landing in the denominator.
+#   *.config.ts        — build configuration (vite). It runs under the bundler,
+#                        not under the app, and the dev-server middleware in it
+#                        is only reachable by actually serving the site.
 #   dev-scripts/       — run-it-yourself demos. They live in their own folder
 #                        precisely so product modules don't carry
 #                        `if (import.meta.main)` blocks: those are unreachable
@@ -94,6 +97,7 @@ coveragePathIgnorePatterns = [
   "fake-mychart/**",
   "**/__tests__/**",
   "dev-scripts/**",
+  "**/vite.config.ts",
 
   "claude-desktop-extension/src/imaging/**",
   "claude-desktop-extension/src/tools.ts",
