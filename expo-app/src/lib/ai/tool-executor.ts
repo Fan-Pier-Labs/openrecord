@@ -8,21 +8,7 @@
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
-
-const WRITE_TOOLS: Record<string, { title: string; description: string }> = {
-  send_message: {
-    title: "Send Message",
-    description: "Sends a new message to a MyChart provider.",
-  },
-  send_reply: {
-    title: "Send Reply",
-    description: "Replies to an existing MyChart conversation.",
-  },
-  request_refill: {
-    title: "Request Refill",
-    description: "Submits a medication refill request to MyChart.",
-  },
-};
+import { WRITE_TOOL_META } from "./tool-catalog";
 
 function formatArgs(input: Record<string, unknown>): string {
   const entries = Object.entries(input).filter(([k]) => k !== "instance");
@@ -39,7 +25,7 @@ function confirmWrite(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<boolean> {
-  const meta = WRITE_TOOLS[toolName];
+  const meta = WRITE_TOOL_META[toolName];
   if (!meta) return Promise.resolve(true);
   const body = `${meta.description}\n\n${formatArgs(input)}`;
   return new Promise((resolve) => {
@@ -48,7 +34,7 @@ function confirmWrite(
       body,
       [
         { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-        { text: "Send", style: "destructive", onPress: () => resolve(true) },
+        { text: meta.confirmLabel ?? "Send", style: "destructive", onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     );
@@ -60,7 +46,7 @@ export async function executeLocalTool(
   input: Record<string, unknown>,
 ): Promise<string> {
   try {
-    if (WRITE_TOOLS[toolName]) {
+    if (WRITE_TOOL_META[toolName]) {
       const ok = await confirmWrite(toolName, input);
       if (!ok) {
         return JSON.stringify({

@@ -44,6 +44,14 @@ async function main(): Promise<void> {
         'list_accounts. If you do not already know which account to use, call list_accounts ' +
         'first. Multiple accounts can be active at once; just pass a different `account` per call.' +
         '\n\n' +
+        'Family records (proxy access): some MyChart accounts can also read family members\' charts ' +
+        '(e.g. a parent reading a child\'s). Data tools always read whichever patient record is ACTIVE ' +
+        'on MyChart\'s server. Call list_proxy_targets to see every accessible record and which is ' +
+        'active; call switch_proxy_target to change it before reading a family member\'s data, and ' +
+        'switch back to patient "me" when done. Data tools accept an optional `patient` parameter to ' +
+        'assert who a call is about — they refuse with instructions, rather than silently reading the ' +
+        'wrong person\'s chart, if the active record doesn\'t match.' +
+        '\n\n' +
         'CRITICAL: If list_accounts returns any entries, those accounts are ALREADY SET UP. ' +
         'Do NOT ask the user for hostname, username, or password again. Just call the relevant ' +
         'data tool (get_profile, get_medications, etc.) with `account: <hostname>` and the server ' +
