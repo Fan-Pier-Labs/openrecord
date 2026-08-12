@@ -1,17 +1,16 @@
 /**
- * Tests for fake-mychart's server-side TOTP.
+ * Tests for fake-mychart's server-side TOTP: real RFC 6238, checked against
+ * the published test vectors rather than against itself.
  *
- * Two things have to hold. First, the implementation must be real RFC 6238 —
- * checked against the published test vectors, not against itself. Second, it
- * must agree with the client the scrapers use (`totp-generator`), because the
- * whole point of validating codes in the fake is to catch a client that
- * derives them wrongly. An agreeing-but-wrong pair would be worse than no
- * check at all, which is why the RFC vectors come first.
+ * The other half of the contract — that this agrees with the `totp-generator`
+ * client the scrapers use — lives in `scrapers/myChart/__tests__/totp.test.ts`.
+ * It has to, because nothing under `fake-mychart/` may import from outside it:
+ * the Docker build context is this directory alone, so such an import resolves
+ * above the image root.
  */
 
 import { describe, it, expect } from 'bun:test'
 import { base32Decode, base32Encode, generateTotpSecret, generateTotpCode, verifyTotpCode } from '../totp'
-import { generateTotpCode as clientGenerateTotpCode } from '../../../../scrapers/myChart/totp'
 
 // RFC 6238 Appendix B: the SHA-1 vectors use the ASCII secret
 // "12345678901234567890", which is this in Base32.
@@ -68,21 +67,6 @@ describe('generateTotpCode', () => {
     expect(generateTotpCode(RFC_SECRET, stepStart)).toBe(generateTotpCode(RFC_SECRET, stepStart + 29_999))
     expect(generateTotpCode(RFC_SECRET, stepStart)).not.toBe(generateTotpCode(RFC_SECRET, stepStart + 30_000))
   })
-})
-
-describe('agreement with the client the scrapers use', () => {
-  // If these ever diverge, the fake would start rejecting codes the real
-  // scraper generates — a CI failure that looks like a scraper bug.
-  const secrets = ['JBSWY3DPEHPK3PXP', RFC_SECRET, generateTotpSecret()]
-  const timestamps = [0, 59_000, 1_234_567_890_000, 1_700_000_000_000, 2_000_000_000_000]
-
-  for (const secret of secrets) {
-    for (const timestamp of timestamps) {
-      it(`agrees for a ${secret.length}-char secret at t=${timestamp}`, async () => {
-        expect(generateTotpCode(secret, timestamp)).toBe(await clientGenerateTotpCode(secret, timestamp))
-      })
-    }
-  }
 })
 
 describe('verifyTotpCode', () => {
