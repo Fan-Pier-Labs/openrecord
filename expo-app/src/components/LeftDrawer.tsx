@@ -167,7 +167,12 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
         pointerEvents={backdropPointerEvents}
         style={[styles.backdrop, { opacity: backdropOpacity }]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          testID="drawer-backdrop"
+          accessibilityLabel="Close menu"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
       </Animated.View>
 
       {/* Drawer itself. Mounted always so gestures can drag it in/out smoothly. */}
@@ -188,6 +193,8 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             </Pressable>
 
             <TextInput
+              testID="drawer-search"
+              accessibilityLabel="Search chats"
               style={styles.search}
               placeholder="Search"
               placeholderTextColor="#999"
@@ -210,6 +217,9 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             }
             renderItem={({ item }) => (
               <Pressable
+                testID={`chat-row-${item.id}`}
+                accessibilityLabel={item.title}
+                accessibilityRole="button"
                 style={[
                   styles.chatRow,
                   item.id === currentChatId && styles.chatRowActive,
@@ -224,7 +234,13 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             )}
             ListFooterComponent={
               hiddenCount > 0 && !searchQuery ? (
-                <Pressable style={styles.seeMore} onPress={() => setShowAll(true)}>
+                <Pressable
+                  testID="drawer-see-more"
+                  accessibilityLabel="Show more chats"
+                  accessibilityRole="button"
+                  style={styles.seeMore}
+                  onPress={() => setShowAll(true)}
+                >
                   <Text style={styles.seeMoreText}>See more ({hiddenCount})</Text>
                 </Pressable>
               ) : null
