@@ -1,35 +1,25 @@
 /**
  * Tests for the extension's multi-account session manager.
  *
- * Like the credential-store tests, `os` is mocked before the dynamic import so
- * the on-disk store lands in a temp directory — `adoptSession` persists cookies,
- * and this must never write to a real ~/.openrecord-mcpb.
+ * `./tmpHome` redirects the on-disk store into a throwaway directory —
+ * `adoptSession` persists cookies, and this must never write to a real
+ * ~/.openrecord-mcpb.
  *
  * `adoptSession` also starts a 30s keepalive interval per session. Every test
  * that adopts must clear the session afterwards or the process will not exit.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import * as realOs from 'node:os'
-import path from 'node:path'
+import { rmSync } from 'node:fs'
 import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
-
-const FAKE_HOME = mkdtempSync(path.join(realOs.tmpdir(), 'openrecord-sessions-'))
-
-const fakeOs = { ...realOs, homedir: () => FAKE_HOME, default: { ...realOs, homedir: () => FAKE_HOME } }
-mock.module('os', () => fakeOs)
-mock.module('node:os', () => fakeOs)
+import { assertSandboxed } from './tmpHome'
 
 const store = await import('../credential-store')
 const sessionManager = await import('../session-manager')
 
-if (!store._paths.ROOT.startsWith(FAKE_HOME)) {
-  throw new Error(`Refusing to run: credential store resolved to ${store._paths.ROOT}`)
-}
+assertSandboxed(store._paths.ROOT)
 
 afterAll(() => {
   sessionManager.clearAllSessions()
-  rmSync(FAKE_HOME, { recursive: true, force: true })
 })
 
 beforeEach(() => {

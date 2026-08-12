@@ -1,33 +1,20 @@
 /**
  * Tests for the extension's on-disk credential store.
  *
- * `credential-store.ts` resolves ~/.openrecord-mcpb once, at module load, from
- * os.homedir(). Bun's os.homedir() does NOT follow $HOME, so redirecting the env
- * var is not enough — `os` itself is mocked BEFORE the dynamic import below, and
- * the resolved root is then asserted to sit inside the temp directory. That
- * assertion is a hard guard: this file must never touch a real credential store.
+ * `./tmpHome` redirects the store into a throwaway directory and must be
+ * imported before the store itself — see the comment there for why mocking `os`
+ * is required and why the temp home has to be shared across files.
+ * `assertSandboxed` is a hard guard: this file must never touch a real
+ * credential store.
  */
-import { describe, it, expect, beforeEach, afterAll, mock } from 'bun:test'
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
-import * as realOs from 'node:os'
+import { describe, it, expect, beforeEach } from 'bun:test'
+import { rmSync, existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-
-const FAKE_HOME = mkdtempSync(path.join(realOs.tmpdir(), 'openrecord-credstore-'))
-
-const fakeOs = { ...realOs, homedir: () => FAKE_HOME, default: { ...realOs, homedir: () => FAKE_HOME } }
-mock.module('os', () => fakeOs)
-mock.module('node:os', () => fakeOs)
+import { assertSandboxed } from './tmpHome'
 
 const store = await import('../credential-store')
 
-// Hard stop rather than writing to the real ~/.openrecord-mcpb.
-if (!store._paths.ROOT.startsWith(FAKE_HOME)) {
-  throw new Error(`Refusing to run: credential store resolved to ${store._paths.ROOT}`)
-}
-
-afterAll(() => {
-  rmSync(FAKE_HOME, { recursive: true, force: true })
-})
+assertSandboxed(store._paths.ROOT)
 
 beforeEach(() => {
   rmSync(store._paths.ROOT, { recursive: true, force: true })

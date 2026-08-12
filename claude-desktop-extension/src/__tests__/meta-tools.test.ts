@@ -3,36 +3,22 @@
  * the shared error path every scraper tool inherits.
  *
  * `proxy-tools.test.ts` asserts registration *shape*; this file actually invokes
- * handlers. `os` is mocked before the dynamic import so the credential store
- * lands in a temp directory — nothing here may touch a real
- * ~/.openrecord-mcpb.
+ * handlers. `./tmpHome` redirects the credential store into a throwaway
+ * directory — nothing here may touch a real ~/.openrecord-mcpb.
  *
  * Handlers that would reach MyChart over the network are exercised only through
  * their failure paths (no account configured), which is where the wrapper's
  * error handling lives.
  */
-import { describe, it, expect, beforeEach, afterAll, mock } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import * as realOs from 'node:os'
-import path from 'node:path'
+import { describe, it, expect, beforeEach } from 'bun:test'
+import { rmSync } from 'node:fs'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-
-const FAKE_HOME = mkdtempSync(path.join(realOs.tmpdir(), 'openrecord-metatools-'))
-
-const fakeOs = { ...realOs, homedir: () => FAKE_HOME, default: { ...realOs, homedir: () => FAKE_HOME } }
-mock.module('os', () => fakeOs)
-mock.module('node:os', () => fakeOs)
+import { assertSandboxed } from './tmpHome'
 
 const store = await import('../credential-store')
 const { registerAllTools } = await import('../tools')
 
-if (!store._paths.ROOT.startsWith(FAKE_HOME)) {
-  throw new Error(`Refusing to run: credential store resolved to ${store._paths.ROOT}`)
-}
-
-afterAll(() => {
-  rmSync(FAKE_HOME, { recursive: true, force: true })
-})
+assertSandboxed(store._paths.ROOT)
 
 interface ToolResult {
   content: Array<{ type: string; text: string }>
