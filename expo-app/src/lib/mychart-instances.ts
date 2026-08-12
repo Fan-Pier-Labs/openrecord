@@ -53,7 +53,7 @@ export async function prefetchInstances(): Promise<void> {
 /**
  * Extract the host (incl. port if non-default) from a MyChart instance URL
  * so the scraper can use it. Using `.host` instead of `.hostname` preserves
- * non-standard ports like the dev fake-mychart at localhost:4001.
+ * non-standard ports like the dev fake-mychart at localhost:4000.
  * The scraper auto-discovers `firstPathPart` via redirects.
  */
 export function hostnameFromInstance(instance: MyChartInstance): string {
