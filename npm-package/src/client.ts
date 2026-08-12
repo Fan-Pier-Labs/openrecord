@@ -189,7 +189,6 @@ export class MyChartClient {
       password: args.pass,
       totpSecret: args.totpSecret,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
     }));
   }
 
@@ -208,7 +207,6 @@ export class MyChartClient {
       hostname: args.hostname,
       passkey: args.credential,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
     }));
   }
 

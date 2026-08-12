@@ -17,11 +17,9 @@ import { logger } from '../../shared/logger';
 export async function createPreAuthRequest({
   hostname,
   protocol,
-  fetchFn,
 }: {
   hostname: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
 }): Promise<MyChartRequest | null> {
   if (!hostname) throw new Error('Missing hostname');
 
@@ -34,7 +32,7 @@ export async function createPreAuthRequest({
       ? 'http'
       : 'https');
 
-  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol, fetchFn });
+  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
 
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {

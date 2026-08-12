@@ -112,18 +112,16 @@ export async function submitSignupRequest({
   identity,
   recaptchaToken,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   identity: SignupIdentity;
   recaptchaToken?: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<SignupResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       state: 'error',
@@ -220,18 +218,16 @@ export async function verifyActivationCode({
   code,
   dateOfBirth,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   code: string;
   dateOfBirth?: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<ActivationCodeResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       state: 'error',

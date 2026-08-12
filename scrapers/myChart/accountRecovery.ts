@@ -68,17 +68,15 @@ export async function getAccountRecoverySettings({
   hostname,
   contactInfo,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   contactInfo: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<RecoverySettingsResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       settings: null,
