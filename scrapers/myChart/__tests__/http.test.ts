@@ -96,6 +96,22 @@ describe('scraperFetch', () => {
       await scraperFetch('https://mychart.example.org/Home', {}, { transport })
       expect(headersOf()['Content-Type']).toBeUndefined()
     })
+
+    it('claims the same Chrome version in Sec-Ch-Ua as in User-Agent', async () => {
+      // These drifted apart once already (Sec-Ch-Ua said 126 while the
+      // User-Agent said 131) — a combination no real browser sends, on every
+      // outbound request.
+      const uaVersion = BROWSER_HEADERS['User-Agent'].match(/Chrome\/(\d+)/)?.[1]
+      expect(uaVersion).toBeDefined()
+
+      const brands = [...BROWSER_HEADERS['Sec-Ch-Ua'].matchAll(/"([^"]+)";v="(\d+)"/g)]
+      const chromeBrands = brands.filter(([, brand]) => /Chrom/.test(brand))
+
+      expect(chromeBrands.length).toBeGreaterThan(0)
+      for (const [, brand, version] of chromeBrands) {
+        expect(`${brand}=${version}`).toBe(`${brand}=${uaVersion}`)
+      }
+    })
   })
 
   describe('cookie jar', () => {

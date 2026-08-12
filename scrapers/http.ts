@@ -21,6 +21,7 @@
  */
 
 import type { CookieJar } from 'tough-cookie';
+import { cookieHeaderFor, storeSetCookies } from './cookies';
 import { withHostLimit } from '../shared/hostConcurrency';
 
 /**
@@ -30,7 +31,11 @@ import { withHostLimit } from '../shared/hostConcurrency';
  */
 export const BROWSER_HEADERS: Readonly<Record<string, string>> = {
   'Cache-Control': 'max-age=0',
-  'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+  // Every version here has to match the one in User-Agent below. A request
+  // claiming Chrome 131 in one header and 126 in another is a fingerprint no
+  // real browser produces, and CLAUDE.md names request-shape mismatch as the
+  // first thing to suspect behind an unexplained 403.
+  'Sec-Ch-Ua': '"Not/A)Brand";v="24", "Chromium";v="131", "Google Chrome";v="131"',
   'Sec-Ch-Ua-Mobile': '?0',
   'Sec-Ch-Ua-Platform': 'macOS',
   'Sec-Fetch-Dest': 'document',
@@ -127,7 +132,15 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
  */
 export const platformFetch: Transport = (url, init) => resolveTransport(undefined, null)(url, init);
 
-/** `AbortSignal.timeout` polyfill for React Native / Hermes. */
+/**
+ * `AbortSignal.timeout` polyfill.
+ *
+ * React Native (0.86 at time of writing) polyfills `AbortSignal` with the
+ * `abort-controller` package, which implements the constructor and `abort()`
+ * but not the static `timeout()`. Calling it there throws, which would take
+ * out the 30s cap on eUnity image downloads — the one place we use it, and one
+ * that runs on device. Node and Bun both have the real thing and get it.
+ */
 export function abortAfter(ms: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function') {
     return (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(ms);
@@ -148,35 +161,6 @@ export type ScraperFetchOptions = {
   /** Override the network call for this session. See {@link resolveTransport}. */
   transport?: Transport;
 };
-
-/**
- * Extract `Set-Cookie` from a response into the jar.
- *
- * Node's undici exposes `getSetCookie()`; other runtimes fold the headers into
- * one comma-joined string, which has to be split back apart on the commas that
- * actually separate cookies rather than the ones inside `Expires` dates.
- */
-async function storeSetCookies(jar: CookieJar, url: string, response: Response): Promise<void> {
-  let setCookies: string[] = [];
-  const headers = response.headers as unknown as { getSetCookie?: () => string[] };
-  if (typeof headers.getSetCookie === 'function') {
-    setCookies = headers.getSetCookie();
-  } else {
-    const raw = response.headers.get('set-cookie');
-    if (raw) {
-      // Split on ", " only when a cookie name (token=) follows.
-      setCookies = raw.split(/,\s*(?=[A-Za-z0-9_-]+=)/);
-    }
-  }
-
-  for (const cookieStr of setCookies) {
-    try {
-      await jar.setCookie(cookieStr.trim(), url);
-    } catch {
-      // Skip invalid cookies
-    }
-  }
-}
 
 /**
  * Make one outbound scraper request.
@@ -206,10 +190,8 @@ export async function scraperFetch(
   }
 
   if (cookieJar) {
-    const cookieString = await cookieJar.getCookieString(url);
-    if (cookieString) {
-      headers['Cookie'] = cookieString;
-    }
+    const cookie = await cookieHeaderFor(cookieJar, url);
+    if (cookie) headers['Cookie'] = cookie;
   }
 
   const response = await withHostLimit(url, () => transport(url, { ...init, headers }));
