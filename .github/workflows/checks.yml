@@ -90,7 +90,7 @@ jobs:
       # percentage an artifact of which suite happened to run. This job already
       # has the server up and the extension's deps installed, so merging the two
       # costs no extra setup.
-      - name: Check code coverage (75% floor, ratcheted to coverage-baseline.json)
+      - name: Check code coverage (Bun coverageThreshold, 75% per file)
         run: bun run test:coverage
         env:
           FAKE_MYCHART_HOST: localhost:4000

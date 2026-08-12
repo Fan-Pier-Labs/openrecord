@@ -73,26 +73,17 @@ The `fake-mychart` CI job separately runs the scraper suite (`bun run test:fake-
 
 ## Code Coverage Gate
 
-`bun run test:coverage` measures the unit suite **and** the fake-mychart suite together and fails if overall line or function coverage slips. Currently ~86% lines / ~87% functions.
+`bun run test:coverage` runs the unit suite **and** the fake-mychart suite with coverage, enforced by **Bun's built-in `coverageThreshold`: every measured file must clear 75% lines and 75% functions on its own.**
 
-**It needs a fake-mychart on `:4000`**, so the CI step lives in the `fake-mychart` job, which already has one running — that job's server and extension deps are reused, so merging the suites costs no extra setup. Run it locally with `cd fake-mychart && bun run dev` first.
+**It needs a fake-mychart on `:4000`**, so the CI step lives in the `fake-mychart` job, which already has one running — that job's server and extension deps are reused, so merging the suites costs no extra setup. Run it locally with `cd fake-mychart && bun run dev` first. Measuring the unit suite alone counts every scraper that is only covered end-to-end as untested.
 
-Two thresholds, and a build must clear both:
+Three things to know before touching it:
 
-- **A 75% floor** (`MINIMUM_COVERAGE` in `scripts/check-coverage.ts`) that never moves down.
-- **A ratchet**: `coverage-baseline.json` records where coverage actually stands, and the gate demands that minus 0.5pp of slack for ordinary churn. A bare floor can only ever be met — without this, 86% could rot back to 75% with every build green. When coverage rises, the gate says so; run `bun scripts/check-coverage.ts coverage/lcov.info --update-baseline` and commit the file to hold the gain.
+- **The threshold is per file, not an aggregate.** No file can hide behind a healthy average — but a file nobody has tested must be covered or waived in `coveragePathIgnorePatterns`, because there is no overall number for it to be absorbed into.
+- **The keys must be plural** — `lines`, `functions`, `statements`. Bun's own docs show `line`/`function`; those spellings are parsed and then **silently ignored**, leaving the gate reading as configured while enforcing nothing. `bun test -c <file>` is ignored the same way, which is why the settings live in the repo-root `bunfig.toml`. They only activate under `--coverage`, so `bun run test`, `test:fake-mychart` and `test:ci-integration` are unaffected.
+- **`tests/coverage/allSources.test.ts`** imports every file under `scrapers/` and `shared/`. Bun only reports files some test imported, so without it an entirely untested module is *absent* from the report rather than measured — it would slip the gate by never being looked at. It also fails if any core file throws on import.
 
-Three pieces, and each exists to defeat a way the number can lie:
-
-- **`scripts/check-coverage.ts`** computes the aggregate from the lcov report and exits non-zero below `MINIMUM_COVERAGE`. Raise that constant as coverage improves; don't lower it to turn a red build green. Failure output lists the files with the most uncovered lines. It fails closed on a missing or empty report, so a broken coverage run can't pass as a clean one.
-- **`tests/coverage/allSources.test.ts`** imports every file under `scrapers/` and `shared/`. Bun only reports files some test imported, so without this an entirely untested module is *absent* from the report rather than counted as 0% — adding untested code would *raise* the reported percentage. The sweep is worth ~5 points of honesty (82% → 77%). It also fails if any core file throws on import.
-- **`bunfig.toml`** sets `coverageSkipTestFiles` and excludes non-product code from the denominator: `mock_data/` (fixtures), `scrapers/list-all-mycharts/` (dev diagnostics), and `clo-image-parser/generate_clo.ts` (the CLO *encoder*, imported only by tests — the decoder is product code and is measured).
-
-**Do not use Bun's built-in `coverageThreshold`.** Two traps, both verified against the CLI:
-- It is enforced **per file**, not on the aggregate, so one 0% file fails the run even at a 10% bar. That cannot express "75% overall", which is why the aggregate is computed in the script instead.
-- Its keys are **plural** (`lines`, `functions`, `statements`). Bun's own docs show `line`/`function`, and an unrecognised key is ignored **silently** — the gate switches off with no warning.
-
-Also note `bun test -c <file>` silently ignores the config path, so these settings have to live in the repo-root `bunfig.toml`. They only activate under `--coverage`, so `test:fake-mychart` and `test:ci-integration` are unaffected.
+`bunfig.toml` carries two kinds of exclusion, and the difference matters. Non-product code (fixtures, `fake-mychart/`, dev diagnostics, test helpers) is out permanently. Everything under **"Below the bar, waived for now"** is real product code that isn't tested yet — a waived file is *wholly unchecked*, so shortening that list is how this gate gets stronger.
 
 **Install the Claude Desktop extension's dependencies before measuring** (`cd claude-desktop-extension && bun install`), as CI does. Without them the extension's modules fail to import, drop out of the report entirely, and the number reads about 1.5 points higher than it really is.
 

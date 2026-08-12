@@ -1,4 +1,4 @@
-# Coverage settings for `bun run test:coverage`, enforced in CI.
+# Coverage gate for `bun run test:coverage`, enforced in CI.
 #
 # These only take effect when `--coverage` is passed, so the plain `bun run
 # test`, `test:fake-mychart` and `test:ci-integration` runs are unaffected.
@@ -6,39 +6,84 @@
 # SCOPE: the gate measures the unit suite AND the fake-mychart suite together —
 # it needs a fake-mychart on :4000, which is why the CI step lives in the
 # `fake-mychart` job. Measuring only the unit suite counted every scraper that is
-# covered end-to-end as untested and put the number ~10 points low, making "75%"
-# an artifact of which suite ran. `tests/integration/ci` is still excluded (it
-# drives the built CLI binary as a subprocess, so nothing is instrumented).
-#
-# Deliberately no `coverageThreshold` here: Bun enforces it PER FILE, so a single
-# 0%-covered file fails the run even when the repo as a whole sits well above the
-# bar. The overall 75% minimum is computed from the lcov report by
-# `scripts/check-coverage.ts` instead.
+# covered end-to-end as untested and put the number ~10 points low. Run it
+# locally with `cd fake-mychart && bun run dev` first.
+# `tests/integration/ci` stays out: it drives the built CLI binary as a
+# subprocess, so nothing there is instrumented.
 
 [test]
 coverageSkipTestFiles = true
 
-# Not product code, so not part of the denominator. The gate should measure what
-# ships to a patient; anything here is scaffolding, and holding it to a coverage
-# bar only invents busywork (nobody should be padding tests for the fake server).
+# ── The bar ──────────────────────────────────────────────────────────────────
+#
+# Bun enforces this PER FILE, not on the aggregate: every measured file must
+# clear 75% on its own. That is stricter than an overall average — no file can
+# hide behind the rest — but it also means a file nobody has tested has to be
+# covered or listed below, rather than being absorbed by a healthy average.
+#
+# The keys MUST be plural. Bun's own docs show `line`/`function`; those spellings
+# are parsed and then SILENTLY IGNORED, leaving the gate reading as configured
+# while enforcing nothing. Only `lines`, `functions` and `statements` are
+# honoured. (`bun test -c <file>` is likewise ignored, which is why this has to
+# live in the repo-root bunfig.)
+coverageThreshold = { lines = 0.75, functions = 0.75 }
+
+# ── Not product code ─────────────────────────────────────────────────────────
 #
 #   mock_data/         — test fixtures
 #   list-all-mycharts/ — dev diagnostics (the directory probe), never shipped
 #   generate_clo.ts    — the CLO *encoder*, which only exists to synthesise test
-#                        images. Nothing outside a .test.ts file imports it; the
-#                        CLO *decoder* (clo_to_bitmap.ts, clo_to_jpg.ts) is real
-#                        product code used by the CLI and the extension, and is
-#                        measured normally.
-#   fake-mychart/      — the stand-in MyChart server. It is dev/CI scaffolding,
-#                        and its fidelity is proven by the suites that run
-#                        against it, not by covering its own source.
+#                        images. Nothing outside a .test.ts file imports it.
+#   fake-mychart/      — the stand-in MyChart server. Its fidelity is proven by
+#                        the suites that run against it, not by covering its own
+#                        source.
 #   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
 #                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
 #                        memfs.ts, mountMode.ts) were landing in the denominator.
+#
+# ── Below the bar, waived for now ────────────────────────────────────────────
+#
+# Everything below is real product code that simply isn't tested yet. It is
+# waived so the per-file gate can be turned on today — NOT because it deserves
+# less coverage. A waived file is wholly unchecked: 500 untested lines can be
+# added to one without the gate noticing. Deleting entries from this list is how
+# the gate gets stronger. Percentages are lines/functions when waived.
+#
+#   imaging/** (voi-lut 4%/0%, jpeg-encoder 14%/0%, download-study 7%/0%),
+#   eunity/imagingViewer.ts (59%/79%), eunity/imagingDirectDownload.ts (72%/87%)
+#     — the imaging pipeline. Needs a live eUnity server or large binary
+#       fixtures. The CLO decoder underneath it is covered normally.
+#   clo-image-parser/clo_to_jpg.ts (31%/75%)
+#     — the uncovered half is the multi-format export path (avif/tiff/webp).
+#   claude-desktop-extension/src/tools.ts (47%/56%)
+#     — the per-tool handler bodies, each needing its scraper mocked.
+#       Registration shape and the shared error path are covered.
+#   claude-desktop-extension/src/session-manager.ts (31%/67%)
+#     — the login and keepalive paths. Lifecycle and resolution are covered.
+#   npm-package/src/client.ts (45%/1%), npm-package/cli/capabilityActions.ts (69%/71%)
+#     — the library surface and CLI dispatch.
+#   openrecord-demo-lambda/src/spend.mjs (41%/86%)
+#     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
+#       pure pricing and ledger logic is covered.
+#   shared/util.ts (68%/100%), bills/utils.ts (87%/67%)
+#     — both cover their real code and fall short only on the
+#       `if (import.meta.main)` demo blocks, which no test can reach.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
   "**/clo-image-parser/generate_clo.ts",
   "fake-mychart/**",
   "**/__tests__/**",
+
+  "claude-desktop-extension/src/imaging/**",
+  "claude-desktop-extension/src/tools.ts",
+  "claude-desktop-extension/src/session-manager.ts",
+  "scrapers/myChart/eunity/imagingViewer.ts",
+  "scrapers/myChart/eunity/imagingDirectDownload.ts",
+  "**/clo-image-parser/clo_to_jpg.ts",
+  "npm-package/src/client.ts",
+  "npm-package/cli/capabilityActions.ts",
+  "openrecord-demo-lambda/src/spend.mjs",
+  "shared/util.ts",
+  "scrapers/myChart/bills/utils.ts",
 ]
