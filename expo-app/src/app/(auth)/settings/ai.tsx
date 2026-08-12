@@ -69,7 +69,12 @@ export default function AiSettings() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          testID="ai-settings-back"
+          accessibilityLabel="Back to settings"
+          accessibilityRole="button"
+          onPress={() => router.back()}
+        >
           <Text style={styles.back}>‹ Settings</Text>
         </Pressable>
         <Text style={styles.headerTitle}>AI Provider</Text>
@@ -81,7 +86,13 @@ export default function AiSettings() {
           const selected = provider === opt.id;
           return (
             <View key={opt.id} style={styles.section}>
-              <Pressable style={styles.row} onPress={() => handlePick(opt.id)}>
+              <Pressable
+                testID={`ai-provider-${opt.id}`}
+                accessibilityLabel={opt.title}
+                accessibilityRole="radio"
+                style={styles.row}
+                onPress={() => handlePick(opt.id)}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.optTitle}>{opt.title}</Text>
                   <Text style={styles.optDesc}>{opt.description}</Text>
@@ -94,6 +105,8 @@ export default function AiSettings() {
               {opt.id !== "free" && (
                 <View style={styles.keyRow}>
                   <TextInput
+                    testID={`ai-key-input-${opt.id}`}
+                    accessibilityLabel={`${opt.title} API key`}
                     style={[styles.input, { flex: 1 }]}
                     placeholder={
                       opt.id === "openai"
@@ -116,12 +129,21 @@ export default function AiSettings() {
                     autoCorrect={false}
                   />
                   <Pressable
+                    testID={`ai-key-toggle-${opt.id}`}
+                    accessibilityLabel="Toggle API key visibility"
+                    accessibilityRole="button"
                     style={styles.eye}
                     onPress={() => setShow((s) => ({ ...s, [opt.id]: !s[opt.id] }))}
                   >
                     <Text style={{ color: "#007AFF" }}>{show[opt.id] ? "Hide" : "Show"}</Text>
                   </Pressable>
-                  <Pressable style={styles.save} onPress={() => handleSaveKey(opt.id as "openai" | "anthropic" | "gemini")}>
+                  <Pressable
+                    testID={`ai-key-save-${opt.id}`}
+                    accessibilityLabel="Save API key"
+                    accessibilityRole="button"
+                    style={styles.save}
+                    onPress={() => handleSaveKey(opt.id as "openai" | "anthropic" | "gemini")}
+                  >
                     <Text style={styles.saveText}>Save</Text>
                   </Pressable>
                 </View>

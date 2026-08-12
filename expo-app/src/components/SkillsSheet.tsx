@@ -24,8 +24,13 @@ export function SkillsSheet({ visible, onClose, onPick }: Props) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+      <Pressable
+        testID="skills-sheet-backdrop"
+        accessibilityLabel="Close skills sheet"
+        style={styles.backdrop}
+        onPress={onClose}
+      >
+        <Pressable testID="skills-sheet" style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <SafeAreaView edges={["bottom"]}>
             <View style={styles.handle} />
             <Text style={styles.title}>Run a skill</Text>
