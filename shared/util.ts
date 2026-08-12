@@ -24,15 +24,3 @@ export function changeDirToPackageRoot(): void {
   }
   process.chdir(currentDir);
 }
-
-// For testing purposes, you can call the function if this file is run directly.
-if (import.meta.main) {
-  try {
-    logger.debug('Current directory before change:', process.cwd());
-    changeDirToPackageRoot();
-    logger.debug('Changed directory to:', process.cwd());
-  } catch (error) {
-    logger.error(error);
-    process.exit(1);
-  }
-}

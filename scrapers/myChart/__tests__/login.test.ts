@@ -74,9 +74,9 @@ describe('areCookiesValid', () => {
   it('returns true when response is 200', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    req.fetchWithCookieJar = mock(async () => {
+    req.transport = mock(async () => {
       return new Response('Home page', { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     expect(await areCookiesValid(req)).toBe(true)
   })
@@ -84,12 +84,12 @@ describe('areCookiesValid', () => {
   it('returns false when response is 302 redirect', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    req.fetchWithCookieJar = mock(async () => {
+    req.transport = mock(async () => {
       return new Response('', {
         status: 302,
         headers: { 'Location': '/MyChart/Authentication/Login' }
       })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     expect(await areCookiesValid(req)).toBe(false)
   })
@@ -594,10 +594,10 @@ describe('determineFirstPathPart', () => {
     // The first hop is a bare relative `DefaultAsp`. Reading only that hop
     // yields the nonsense prefix "DefaultAsp"; the instance is root-mounted.
     const req = new MyChartRequest('adams.mychartcc.com')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://adams.mychartcc.com': { redirect: 'DefaultAsp' },
       'https://adams.mychartcc.com/DefaultAsp': { redirect: '/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe(null)
@@ -606,10 +606,10 @@ describe('determineFirstPathPart', () => {
 
   it('follows the DefaultAsp hop to find a prefixed instance (mychart.bsahs.org)', async () => {
     const req = new MyChartRequest('mychart.bsahs.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.bsahs.org': { redirect: 'DefaultAsp' },
       'https://mychart.bsahs.org/DefaultAsp': { redirect: '/bsa/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('bsa')
@@ -617,12 +617,12 @@ describe('determineFirstPathPart', () => {
 
   it('follows the full four-hop chain (/ → /MyChart/ → DefaultAsp → login)', async () => {
     const req = new MyChartRequest('mychart.conemaugh.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.conemaugh.org': { redirect: '/MyChart' },
       'https://mychart.conemaugh.org/MyChart': { redirect: 'https://mychart.conemaugh.org/MyChart/', status: 301 },
       'https://mychart.conemaugh.org/MyChart/': { redirect: 'DefaultAsp' },
       'https://mychart.conemaugh.org/MyChart/DefaultAsp': { redirect: '/MyChart/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('MyChart')
@@ -630,11 +630,11 @@ describe('determineFirstPathPart', () => {
 
   it('handles a ./Authentication/Login hop relative to the mount (mycslink)', async () => {
     const req = new MyChartRequest('mycslink.cedars-sinai.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mycslink.cedars-sinai.org': { redirect: 'https://mycslink.cedars-sinai.org/mycslink', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink': { redirect: 'https://mycslink.cedars-sinai.org/mycslink/', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink/': { redirect: './Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mycslink')
@@ -642,13 +642,13 @@ describe('determineFirstPathPart', () => {
 
   it('moves to the host a vanity domain redirects to (patients.mycslink.org)', async () => {
     const req = new MyChartRequest('patients.mycslink.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://patients.mycslink.org': { redirect: 'https://mycslink.cedars-sinai.org/', status: 301 },
       'https://mycslink.cedars-sinai.org/': { redirect: 'https://mycslink.cedars-sinai.org/mycslink', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink': { redirect: 'https://mycslink.cedars-sinai.org/mycslink/', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink/': { redirect: './Authentication/Login?' },
       'https://mycslink.cedars-sinai.org/mycslink/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.hostname).toBe('mycslink.cedars-sinai.org')
@@ -659,10 +659,10 @@ describe('determineFirstPathPart', () => {
     // A redirect out to a marketing site that happens to have an
     // /Authentication/ path must not capture the session.
     const req = new MyChartRequest('mychart.hospital.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.hospital.org': { redirect: 'https://ads.example.com/promo/Authentication/Login', status: 302 },
       'https://ads.example.com/promo/Authentication/Login': { body: '<html><body>Buy now</body></html>' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.hostname).toBe('mychart.hospital.org')
@@ -670,11 +670,11 @@ describe('determineFirstPathPart', () => {
 
   it('follows a scripted window.location redirect (mydovetale.ca)', async () => {
     const req = new MyChartRequest('mydovetale.ca')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mydovetale.ca': { body: `<script>window.location="https://mydovetale.ca/MyDovetale/";</script>` },
       'https://mydovetale.ca/MyDovetale/': { redirect: 'DefaultAsp' },
       'https://mydovetale.ca/MyDovetale/DefaultAsp': { redirect: '/MyDovetale/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('MyDovetale')
@@ -683,13 +683,13 @@ describe('determineFirstPathPart', () => {
   it('reads the mount off a landing page when the chain dead-ends', async () => {
     // mychart.chihealth.com answers 200 with a chooser page and no redirect.
     const req = new MyChartRequest('mychart.chihealth.com')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.chihealth.com': { body: `<html><body>
         <a href="https://mychart.chihealth.com/prd/">CHI</a>
         <a href="https://mychartsta.chihealth.com/staprd/">St Alexius</a>
       </body></html>` },
       'https://mychart.chihealth.com/prd/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('prd')
@@ -700,11 +700,11 @@ describe('determineFirstPathPart', () => {
     // F5 puts /my.policy in front of the instance. It is not a prefix, and
     // guessing it would 404 every subsequent request.
     const req = new MyChartRequest('mymsdh.umc.edu')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mymsdh.umc.edu': { redirect: '/my.policy' },
       'https://mymsdh.umc.edu/my.policy': { body: '<html><head><title>BIG-IP logout page</title></head></html>' },
       'https://mymsdh.umc.edu/MyChart/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).not.toBe('my.policy')
@@ -715,9 +715,9 @@ describe('determineFirstPathPart', () => {
 
   it('gives up rather than inventing a prefix when nothing announces the mount', async () => {
     const req = new MyChartRequest('mychart.adventhealth.com')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.adventhealth.com': { body: '<html><center> EP-MYC-PRD501 </center></html>' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe(null)
@@ -725,10 +725,10 @@ describe('determineFirstPathPart', () => {
 
   it('stops instead of looping when a URL redirects to itself', async () => {
     const req = new MyChartRequest('mychart.crossingrivers.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.crossingrivers.org': { redirect: 'https://mychart.crossingrivers.org/CRH/', status: 301 },
       'https://mychart.crossingrivers.org/CRH/': { redirect: 'https://mychart.crossingrivers.org/CRH/', status: 301 },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     // The loop is broken and discovery falls through; what matters is that it
@@ -739,7 +739,7 @@ describe('determineFirstPathPart', () => {
   it('keeps a prefix the caller already supplied', async () => {
     const req = new MyChartRequest('mychart.example.org')
     req.setFirstPathPart('CustomPrefix')
-    req.fetchWithCookieJar = mock(async () => { throw new Error('should not make any request') }) as typeof req.fetchWithCookieJar
+    req.transport = mock(async () => { throw new Error('should not make any request') }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('CustomPrefix')
@@ -748,10 +748,10 @@ describe('determineFirstPathPart', () => {
   it('still reads a plain single-hop redirect to the mount', async () => {
     // The common case, and the one the old single-hop reader got right.
     const req = new MyChartRequest('mychart.ochin.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.ochin.org': { redirect: 'https://mychart.ochin.org/mychart/' },
       'https://mychart.ochin.org/mychart/': { redirect: '/mychart/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mychart')
@@ -759,10 +759,10 @@ describe('determineFirstPathPart', () => {
 
   it('reads an absolute meta refresh, still (Renown)', async () => {
     const req = new MyChartRequest('mychart.renown.org')
-    req.fetchWithCookieJar = fakeInstance({
+    req.transport = fakeInstance({
       'https://mychart.renown.org': { body: `<html><head><meta http-equiv="REFRESH" content="1 ;url=https://mychart.renown.org/mychart"></head></html>` },
       'https://mychart.renown.org/mychart': { redirect: '/mychart/Authentication/Login?' },
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mychart')
@@ -822,10 +822,10 @@ describe('detectUsernameField', () => {
     const req = new MyChartRequest('patients.mycslink.org')
     req.setHostname('mycslink.cedars-sinai.org')
     const fetched: string[] = []
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string | URL | Request) => {
       fetched.push(url.toString())
       return new Response('Credentials: { Username: u, Password: p }', { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const field = await detectUsernameField(req, `<html><script src="/mycslink/scripts/loginpagecontroller.min.js"></script></html>`)
     expect(fetched[0]).toBe('https://mycslink.cedars-sinai.org/mycslink/scripts/loginpagecontroller.min.js')
@@ -834,13 +834,13 @@ describe('detectUsernameField', () => {
 
   it('defaults to LoginIdentifier when the page references no controller', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.fetchWithCookieJar = mock(async () => { throw new Error('should not fetch') }) as typeof req.fetchWithCookieJar
+    req.transport = mock(async () => { throw new Error('should not fetch') }) as typeof req.transport
     expect(await detectUsernameField(req, '<html></html>')).toBe('LoginIdentifier')
   })
 
   it('defaults to LoginIdentifier when the controller script cannot be fetched', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.fetchWithCookieJar = mock(async () => { throw new Error('Network error') }) as typeof req.fetchWithCookieJar
+    req.transport = mock(async () => { throw new Error('Network error') }) as typeof req.transport
     expect(await detectUsernameField(req, `<html><script src="/MyChart/loginpagecontroller.js"></script></html>`))
       .toBe('LoginIdentifier')
   })
@@ -849,7 +849,7 @@ describe('detectUsernameField', () => {
 describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
   it('recovers MyChart when marketing-page discovery fails', async () => {
     const req = new MyChartRequest('mychart.uchealth.org')
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string | URL | Request) => {
       const href = url.toString()
       if (href === 'https://mychart.uchealth.org/MyChart/Authentication/Login') {
         return new Response(`<html><body>
@@ -857,7 +857,7 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
         </body></html>`, { status: 200 })
       }
       return new Response('<html><body>Not found</body></html>', { status: 404 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const result = await probeFirstPathPartByTryingCommonLoginPaths(req)
     expect(result).toBe('MyChart')
@@ -865,9 +865,9 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
 
   it('returns null when common login paths do not work', async () => {
     const req = new MyChartRequest('mychart.example.com')
-    req.fetchWithCookieJar = mock(async () => {
+    req.transport = mock(async () => {
       return new Response('<html><body>Not found</body></html>', { status: 404 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     const result = await probeFirstPathPartByTryingCommonLoginPaths(req)
     expect(result).toBe(null)

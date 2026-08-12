@@ -18,7 +18,6 @@
  * @param dteNumber - The number of days since 1840-12-31
  * @returns A JavaScript Date object at local midnight
  */
-import { logger } from '../../../shared/logger';
 export function dte2date(dteNumber: number): Date {
   const baseDate = new Date(); // used to hold the Unix epoch at midnight
   baseDate.setUTCFullYear(1970, 0, 1);
@@ -52,19 +51,3 @@ export function date2dte(dateObj: Date): number {
   // Compute the difference in days from the custom epoch, then add 47117
   return (utcDate.valueOf() - baseDateEpoch.valueOf()) / 864e5 + 47117;
 }
-
-
-
-
-function test() {
-    logger.debug(dte2date(18600))
-    logger.debug(date2dte(new Date()))
-}
-
-
-if (import.meta.main) {
-    test()
-}
-
-
-

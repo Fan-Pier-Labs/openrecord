@@ -1,15 +1,15 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getLetters } from '../letters'
+import { getLetters, getLetterDetails } from '../letters'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -92,5 +92,58 @@ describe('getLetters', () => {
       { body: JSON.stringify({ users: {}, letters: [] }) },
     ])
     expect(await getLetters(req)).toEqual([])
+  })
+})
+
+/** Captures each request so the details POST body can be asserted. */
+function mockRequestRecording(responses: Array<{ body: string }>) {
+  const req = new MyChartRequest('mychart.example.com')
+  req.firstPathPart = 'MyChart'
+  const calls: Array<{ url: string; init: RequestInit }> = []
+  let i = 0
+  req.transport = mock(async (url: string, init: RequestInit = {}) => {
+    calls.push({ url, init })
+    return new Response(responses[i++].body, { status: 200 })
+  }) as typeof req.transport
+  return { req, calls }
+}
+
+describe('getLetterDetails', () => {
+  it('returns the letter body HTML', async () => {
+    const { req } = mockRequestRecording([
+      { body: '<input name="__RequestVerificationToken" value="t" />' },
+      { body: JSON.stringify({ bodyHTML: '<p>Your results are normal.</p>' }) },
+    ])
+
+    expect(await getLetterDetails(req, 'H1', 'C1')).toEqual({
+      bodyHTML: '<p>Your results are normal.</p>',
+    })
+  })
+
+  it('identifies the letter by both hnoId and csn', async () => {
+    // MyChart needs the encounter (csn) alongside the note id; sending only one
+    // returns someone else's letter or nothing at all.
+    const { req, calls } = mockRequestRecording([
+      { body: '<input name="__RequestVerificationToken" value="tok" />' },
+      { body: JSON.stringify({ bodyHTML: '' }) },
+    ])
+
+    await getLetterDetails(req, 'H9', 'C9')
+
+    const post = calls[1]
+    expect(post.url).toContain('/api/letters/GetLetterDetails')
+    expect(post.init.method).toBe('POST')
+    expect(JSON.parse(post.init.body as string)).toEqual({ hnoId: 'H9', csn: 'C9' })
+    expect((post.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
+  })
+
+  it('throws rather than returning an empty body when the token is missing', async () => {
+    // getLetters degrades to [] here, but a details call has a specific letter
+    // the caller is waiting on — failing silently would look like an empty note.
+    const { req } = mockRequestRecording([{ body: '<html></html>' }])
+
+    await expect(getLetterDetails(req, 'H1', 'C1')).rejects.toThrow(
+      'Could not find request verification token',
+    )
   })
 })
