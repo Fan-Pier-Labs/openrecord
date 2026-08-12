@@ -52,3 +52,8 @@ scrapers/list-all-mycharts/logos/
 
 # Vite build output for the OpenRecord splash demo
 openrecord-splash/dist/
+
+# Coverage reports written by `bun run test:coverage`.
+# Anchored: a bare `coverage` would also swallow tests/coverage/, the gate's own
+# test directory, and silently keep it out of the repo.
+/coverage

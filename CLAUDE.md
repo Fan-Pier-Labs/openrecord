@@ -42,6 +42,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `bun run lint` — Run ESLint
 - `bun run test` — Run all unit tests (scrapers, shared, CLI, expo-app libs, desktop extension). **Needs `cd claude-desktop-extension && bun install` first** — the capability-parity test imports the extension's real `registerAllTools`, so it needs `zod` and the MCP SDK from that package. Without them you get `Cannot find package 'zod'` and five failing parity tests.
 - `bun run test:unit` — Alias for `bun run test`
+- `bun run test:coverage` — Run the unit suite with coverage and enforce the 75% minimum (see Code Coverage Gate)
 - `bun run test:integration` — Run integration tests (requires credentials)
 - `bun run test:fake-mychart` — Run scraper tests against a running fake-mychart on port 4000
 - `bun run cli` — Run the CLI scraper (defaults to MyChart)
@@ -66,9 +67,33 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
 
 The `fake-mychart` CI job separately runs the scraper suite (`bun run test:fake-mychart`), the desktop-extension tests, and the npm-package tests against a locally built fake-mychart server. That suite includes `scrapers/myChart/__tests__/fake-mychart/credential-setup.test.ts`, which drives `setupTotp`/`disableTotp` and `setupPasskey`/`listPasskeys`/`deletePasskey` **directly** rather than through the CLI, so a scraper break reports as a scraper failure instead of a CLI-output assertion. It is the layer below `tests/integration/ci/cli-passkey.test.ts`, which covers the same ground through the built binary.
 
-**Credential-setup test coverage.** `setupTotp.ts` and `setupPasskey.ts` are covered at three levels, because no single one reaches everything: `scrapers/myChart/__tests__/setupTotp.test.ts` and `setupPasskey.test.ts` are unit tests over a mocked transport (`__tests__/mockMyChartRequest.ts` swaps `fetchWithCookieJar`, so real URL building, default headers and the host limiter still run) and are the **only** place the per-instance response variants are exercised — the four CSRF-token formats plus the empty-body `/Home` fallback, the eight names instances use for the TOTP secret field, Pascal- vs camel-cased passkey envelopes, and every error branch. They also assert the secret and password never reach the log sink. fake-mychart serves exactly one shape of each, so those branches are unreachable from an integration test.
+**Credential-setup test coverage.** `setupTotp.ts` and `setupPasskey.ts` are covered at three levels, because no single one reaches everything: `scrapers/myChart/__tests__/setupTotp.test.ts` and `setupPasskey.test.ts` are unit tests over a mocked transport (`__tests__/mockMyChartRequest.ts` swaps `transport`, so real URL building, default headers and the host limiter still run) and are the **only** place the per-instance response variants are exercised — the four CSRF-token formats plus the empty-body `/Home` fallback, the eight names instances use for the TOTP secret field, Pascal- vs camel-cased passkey envelopes, and every error branch. They also assert the secret and password never reach the log sink. fake-mychart serves exactly one shape of each, so those branches are unreachable from an integration test.
 
 **Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
+
+## Code Coverage Gate
+
+`bun run test:coverage` runs the unit suite **and** the fake-mychart suite with coverage, enforced by **Bun's built-in `coverageThreshold`: every measured file must clear 75% lines and 75% functions on its own.**
+
+**It needs a fake-mychart on `:4000`**, so the CI step lives in the `fake-mychart` job, which already has one running — that job's server and extension deps are reused, so merging the suites costs no extra setup. Run it locally with `cd fake-mychart && bun run dev` first. Measuring the unit suite alone counts every scraper that is only covered end-to-end as untested.
+
+Three things to know before touching it:
+
+- **The threshold is per file, not an aggregate.** No file can hide behind a healthy average — but a file nobody has tested must be covered or waived in `coveragePathIgnorePatterns`, because there is no overall number for it to be absorbed into.
+- **The keys must be plural** — `lines`, `functions`, `statements`. Bun's own docs show `line`/`function`; those spellings are parsed and then **silently ignored**, leaving the gate reading as configured while enforcing nothing. `bun test -c <file>` is ignored the same way, which is why the settings live in the repo-root `bunfig.toml`. They only activate under `--coverage`, so `bun run test`, `test:fake-mychart` and `test:ci-integration` are unaffected.
+- **Only files a test imports are measured.** A module nothing imports is *absent* from the report rather than counted as 0%, so it slips the gate by never being looked at. In practice the fake-mychart suite reaches nearly all of `scrapers/`, but a genuinely orphaned new module would need a test (or an import from one) before the gate sees it.
+
+`bunfig.toml` carries two kinds of exclusion, and the difference matters. Non-product code (fixtures, `fake-mychart/`, dev diagnostics, test helpers, `dev-scripts/`) is out permanently. Everything under **"Below the bar, waived for now"** is real product code that isn't tested yet — a waived file is *wholly unchecked*, so shortening that list is how this gate gets stronger.
+
+**Put run-it-yourself demos in `dev-scripts/`, never in an `if (import.meta.main)` block inside a product module.** Such a block is unreachable from a test, so under a per-file gate a few lines of demo code drag an otherwise fully-covered module under the bar, and the only outs are waiving the whole file or leaving CI red. The test globs don't reach `dev-scripts/` and coverage ignores it.
+
+**Install the Claude Desktop extension's dependencies before measuring** (`cd claude-desktop-extension && bun install`), as CI does. Without them the extension's modules fail to import, drop out of the report entirely, and the number reads about 1.5 points higher than it really is.
+
+**Testing anything that touches `~/.openrecord-mcpb`**: use the in-memory `fs` shim at `claude-desktop-extension/src/__tests__/memfs.ts` — import it before the store and the tests touch no disk at all. It intercepts only paths under the store root and delegates everything else to the real `fs`, because `bun test` runs the package's files in one process and the imaging suites read real fixtures. Do **not** reach for `$HOME`: Bun's `os.homedir()` does not follow it, so redirecting the env var silently leaves you pointed at the developer's real credentials.
+
+### Known coverage gaps
+
+Not blockers, but where to spend the next test-writing effort: `eunity/imagingDirectDownload.ts` and `eunity/imagingViewer.ts` (need a live eUnity server), `setupTotp.ts` / `setupPasskey.ts` (interactive flows), `login.ts`, and the scraper-tool handler bodies in `claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is covered today). `clo-image-parser/generate_clo.test.ts` is **not** wired into `bun run test` — two of its CLO encode→decode round-trip assertions fail on curved/diagonal content (off by one), and it has never run in CI; `clo_to_jpg.test.ts` and `exporters.test.ts` from that directory do run.
 
 ## Proxy (Multi-Patient) Support
 
