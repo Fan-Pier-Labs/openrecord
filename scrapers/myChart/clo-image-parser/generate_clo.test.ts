@@ -313,6 +313,76 @@ describe("encode → decode round-trip", () => {
   }, 30000);
 
   /**
+   * The cases above are all square, even, single-level and MONOCHROME2, which
+   * between them miss most of what a real radiograph exercises. Real eUnity
+   * studies arrive at sizes like 1803x1345 and 2337x2259 — odd, non-square,
+   * far past TILE_SIZE — and are MONOCHROME1, so the display pipeline inverts.
+   * The cases below cover those shapes with synthetic content, because real
+   * study files carry patient identifiers and cannot be committed.
+   *
+   * What an odd extent actually changes is the even/odd split in the
+   * de-interleave and interleave: at an odd width `nEvenCols` is one greater
+   * than `nOddCols`, where an even width keeps them equal. Every case above has
+   * them equal — 510x510 included, since it halves to 255x255 exactly — so none
+   * of them would notice that asymmetry being got wrong.
+   *
+   * The separate last-row / last-column duplication in inverseHaarLevel
+   * (`outH > actualH`) is NOT reached by any of this, and is not meant to be:
+   * subband extents are always `ceil(out / 2)`, so `inH * 2 >= outH` always
+   * holds. Verified unreached for these cases and for real study files alike —
+   * it is defensive padding for a malformed file, not part of the odd path.
+   */
+  it("odd width and height is lossless", () => {
+    // 601x457 -> 301x229 -> 151x115: an odd extent at every level, so the
+    // even/odd column and row split is unequal the whole way down.
+    const result = roundTripTest(generateDiagonal(601, 457), 601, 457);
+    expect(result.maxDiff).toBe(0);
+    expect(result.exactPct).toBe(100);
+  }, 30000);
+
+  it("subbands wider than one tile are lossless", () => {
+    // 600x600 halves to a 300x300 subband, past TILE_SIZE (256), so the encoder
+    // takes its tiled branch and the decoder has to reassemble 2x2 tiles per
+    // block. The single-tile cases above never touch that path.
+    const result = roundTripTest(generateCircle(600, 600), 600, 600);
+    expect(result.maxDiff).toBe(0);
+    expect(result.exactPct).toBe(100);
+  }, 30000);
+
+  it("MONOCHROME1 inverts without losing a level", () => {
+    // Real studies are MONOCHROME1. Inversion happens in to8bit, after the
+    // wavelet, so the codec must still be exact end to end with it applied.
+    const width = 601;
+    const height = 457;
+    const img = generateDiagonal(width, height);
+    const pixelData = encodePixelFile(img, width, height);
+    const wrapperData = encodeWrapperFile({
+      ...ROUND_TRIP_WRAPPER,
+      photometricInterpretation: "MONOCHROME1",
+    });
+
+    const bitmap = convertCloToBitmap(
+      Buffer.from(pixelData),
+      Buffer.from(wrapperData)
+    );
+
+    const expected = expected8bit(img, width, height);
+    for (let i = 0; i < expected.length; i++) expected[i] = 255 - expected[i];
+
+    const result = compare(bitmap.pixels, expected);
+    expect(result.maxDiff).toBe(0);
+    expect(result.exactPct).toBe(100);
+  }, 30000);
+
+  it("radiograph-shaped dimensions are lossless", () => {
+    // Matches the shape of a real study: large, non-square, odd height, many
+    // wavelet levels and many tiles per level.
+    const result = roundTripTest(generateCircle(1803, 1345), 1803, 1345);
+    expect(result.maxDiff).toBe(0);
+    expect(result.exactPct).toBe(100);
+  }, 60000);
+
+  /**
    * The same round-trip taken all the way through convertCloToJpg, which
    * encodes the decoded bitmap as JPEG (note: it only special-cases `.webp`,
    * so every other extension gets JPEG bytes regardless of its name).
