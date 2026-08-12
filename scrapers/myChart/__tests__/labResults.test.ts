@@ -8,11 +8,11 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.firstPathPart = 'MyChart'
   const captured: Array<{ url: string; body?: string }> = []
   let i = 0
-  req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+  req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
     captured.push({ url: String(url), body: init?.body ? String(init.body) : undefined })
     const r = responses[Math.min(i++, responses.length - 1)]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return { req, captured }
 }
 
@@ -69,7 +69,7 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   const routeCounters: Record<string, number> = {}
-  req.fetchWithCookieJar = mock(async (url: string | URL | Request) => {
+  req.transport = mock(async (url: string | URL | Request) => {
     const urlStr = url.toString()
     // Also check the body for API path when it's in the URL
     for (const pattern of Object.keys(routes)) {
@@ -82,7 +82,7 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
@@ -276,7 +276,7 @@ describe('listLabResults', () => {
     req.firstPathPart = 'MyChart'
     const calls: Array<{ url: string; init?: RequestInit }> = []
 
-    req.fetchWithCookieJar = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       const urlStr = url.toString()
       calls.push({ url: urlStr, init })
       if (urlStr.includes('/app/test-results')) {
@@ -292,7 +292,7 @@ describe('listLabResults', () => {
         return new Response(JSON.stringify(null), { status: 200 })
       }
       return new Response('', { status: 200 })
-    }) as typeof req.fetchWithCookieJar
+    }) as typeof req.transport
 
     await listLabResults(req)
 

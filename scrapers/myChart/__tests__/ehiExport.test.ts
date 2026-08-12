@@ -6,10 +6,10 @@ function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 

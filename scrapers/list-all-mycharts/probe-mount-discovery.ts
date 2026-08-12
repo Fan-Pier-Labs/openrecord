@@ -28,6 +28,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/login';
 import { MyChartRequest } from '../myChart/myChartRequest';
+import { platformFetch } from '../http';
 import { logger, setLogSink, silenceLogger } from '../../shared/logger';
 
 const INSTANCES_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
@@ -88,11 +89,10 @@ export function groupByHost(instances: { name: string; url: string }[]): HostEnt
 }
 
 /** A request whose every fetch gives up rather than hanging the whole sweep. */
-function timeBoundedRequest(host: string): MyChartRequest {
+export function timeBoundedRequest(host: string): MyChartRequest {
   const req = new MyChartRequest(host);
-  const inner = req.fetchWithCookieJar.bind(req);
-  req.fetchWithCookieJar = (url, init) =>
-    inner(url, { ...(init ?? {}), signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  req.transport = (url, init) =>
+    platformFetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   return req;
 }
 
