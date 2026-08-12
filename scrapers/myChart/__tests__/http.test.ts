@@ -334,10 +334,10 @@ describe('scrapers have exactly one outbound path', () => {
   const SCRAPERS_DIR = path.resolve(import.meta.dir, '../..')
   const CHOKEPOINT = path.join(SCRAPERS_DIR, 'http.ts')
 
-  // A bare `fetch(...)` call, or a reference to a global/imported one.
-  // `scraperFetch(` and `platformFetch(` don't match — the capital F is load
-  // bearing.
-  const RAW_FETCH = /(^|[^A-Za-z0-9_.$])fetch\s*\(|globalThis\.fetch|require\(['"]expo\/fetch['"]\)|from\s+['"]node-fetch['"]/
+  // A bare `fetch(...)` call, or a reference to a global/imported one. The
+  // lookbehind skips `.fetch(` and `prefetch(`; `scraperFetch(` and
+  // `platformFetch(` don't match either, since the capital F is load bearing.
+  const RAW_FETCH = /(?<![.\w$])fetch\s*\(|globalThis\.fetch|require\(['"]expo\/fetch['"]\)|from\s+['"]node-fetch['"]/
 
   function sourceFiles(dir: string): string[] {
     return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -363,5 +363,16 @@ describe('scrapers have exactly one outbound path', () => {
     )
 
     expect(offenders).toEqual([])
+  })
+
+  it('finds the network call it is meant to find', () => {
+    // Guards the guard: if the pattern ever stops matching, the test above
+    // passes vacuously and the invariant loses its only static protection.
+    expect(RAW_FETCH.test(fs.readFileSync(CHOKEPOINT, 'utf8'))).toBe(true)
+  })
+
+  it('scans a meaningful number of files', () => {
+    // A broken walk would also make the guard pass vacuously.
+    expect(sourceFiles(SCRAPERS_DIR).length).toBeGreaterThan(30)
   })
 })

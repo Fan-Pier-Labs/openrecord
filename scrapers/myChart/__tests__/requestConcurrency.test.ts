@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { readdirSync, readFileSync } from 'fs'
-import { join } from 'path'
 import { MyChartRequest } from '../myChartRequest'
 import { hostLimiterStats, resetHostLimiters } from '../../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../../shared/env'
@@ -180,51 +178,9 @@ describe('makeRequest per-host concurrency', () => {
 })
 
 /**
- * The cap only works if every outbound MyChart request actually goes through
- * makeRequest. A module that reaches for bare `fetch` gets no permit, so its
- * requests are invisible to the limiter and land on the hospital on top of the
- * ten already in flight.
- *
- * This is not hypothetical: `scrapers/request.ts` was exactly that — a
- * `rawRequest` helper wrapping `fetch` with browser headers, plus its own
- * redirect follower. Nothing imported it, but it read like the obvious thing to
- * reuse, and reusing it would have silently bypassed the cap. It was deleted
- * alongside this test.
- *
- * Bare `fetch` elsewhere in the repo is fine — the MyChart directory listing,
- * S3 logo pulls, telemetry and the GitHub release check don't touch a patient
- * portal. This guard covers `scrapers/myChart/` only, where every request is
- * aimed at someone's MyChart instance.
+ * The "does anything bypass the limiter" guard used to live here, scanning
+ * `scrapers/myChart/` for a bare `fetch(`. It moved to `http.test.ts` when the
+ * one permitted network call moved out of `myChartRequest.ts` and into
+ * `scrapers/http.ts`: the guard there scans all of `scrapers/`, not just the
+ * MyChart subtree, and catches `globalThis.fetch` and `expo/fetch` too.
  */
-describe('no module bypasses makeRequest', () => {
-  const MYCHART_DIR = join(import.meta.dir, '..')
-
-  // Skip `.fetch(`, `prefetch(` and the like — only an unqualified call counts.
-  const BARE_FETCH = /(?<![.\w$])fetch\s*\(/
-
-  function sourceFiles(dir: string): string[] {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-      const full = join(dir, entry.name)
-      if (entry.isDirectory()) {
-        return entry.name === '__tests__' ? [] : sourceFiles(full)
-      }
-      return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') ? [full] : []
-    })
-  }
-
-  it('routes every MyChart request through makeRequest', () => {
-    const offenders = sourceFiles(MYCHART_DIR)
-      // makeRequest itself is where the one permitted fetch lives.
-      .filter((file) => file !== join(MYCHART_DIR, 'myChartRequest.ts'))
-      .filter((file) => BARE_FETCH.test(readFileSync(file, 'utf8')))
-      .map((file) => file.slice(MYCHART_DIR.length + 1))
-
-    expect(offenders).toEqual([])
-  })
-
-  it('finds the fetch it is meant to find', () => {
-    // Guards the guard: if the regex ever stops matching, the test above passes
-    // vacuously and the cap loses its only static protection.
-    expect(BARE_FETCH.test(readFileSync(join(MYCHART_DIR, 'myChartRequest.ts'), 'utf8'))).toBe(true)
-  })
-})
