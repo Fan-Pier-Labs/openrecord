@@ -15,7 +15,17 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+      # setup-bun downloads from the GitHub release CDN, which intermittently
+      # answers 503 or hangs up. Retry once before failing the job.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - uses: actions/setup-node@v4
         with:
@@ -37,6 +47,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - name: Install fake-mychart deps
         run: cd fake-mychart && bun install
@@ -78,6 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - run: cd tests/integration/ci && bun install
       - name: Install Playwright browsers
