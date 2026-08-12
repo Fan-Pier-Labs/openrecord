@@ -85,36 +85,20 @@ const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
 
 // ==================== Convenience wrapper ====================
 
-/** Extensions `convertCloToJpg` knows how to write, for its error message. */
-const SUPPORTED_OUTPUT_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".avif",
-  ".tif",
-  ".tiff",
-] as const;
-
 /**
- * Decode a CLO image and write it out in the format named by `outputPath`'s
- * extension, or return a JPEG buffer when no path is given.
+ * Decode a CLO image to JPEG: written to `outputPath`, or returned as a buffer
+ * when no path is given.
  *
- * **The extension decides the format.** This used to special-case `.webp` and
- * send every other extension to the JPEG encoder, so `out.png` got JPEG bytes
- * under a PNG name — a file that opens fine in every viewer (they sniff the
- * magic, not the name) right up until something trusts the extension. It also
- * meant the `.png`, `.avif` and `.tiff` exporters sitting next to this function
- * were unreachable through it.
+ * **This writes JPEG and nothing else, and rejects a path that says otherwise.**
+ * It used to special-case `.webp` and send every other extension to the JPEG
+ * encoder, so `out.png` got JPEG bytes under a PNG name — a file that opens fine
+ * in every viewer, because they sniff the magic rather than the name, right up
+ * until something trusts the extension.
  *
- * An unrecognised extension now throws rather than guessing. Silently writing
- * one format under another name is the bug being fixed here, and picking JPEG
- * for `.gif` would just be the same bug with a smaller blast radius.
- *
- * JPEG and WebP keep going through the 8-bit `convertBitmapTo*` helpers, whose
- * byte-for-byte output some callers depend on. The formats that can carry more
- * than 8 bits decode straight to 16-bit and keep it — a PNG of a 16-bit medical
- * image should not be quantised to 256 levels on the way out.
+ * Teaching this function every format was the other option and is the wrong
+ * shape: `exporters/` already converts a decoded bitmap to PNG, WebP, AVIF and
+ * TIFF, so a second dispatch here would be a parallel list to keep in step. One
+ * function, one format, and a name that tells the truth about which.
  */
 export async function convertCloToJpg(opts: {
   pixelData: string | Buffer;
@@ -122,43 +106,24 @@ export async function convertCloToJpg(opts: {
   outputPath?: string | null;
 }): Promise<Buffer | string> {
   const outputPath = opts.outputPath ?? null;
-  if (outputPath === null) {
-    return await convertBitmapToJpg(
-      convertCloToBitmap(opts.pixelData, opts.wrapperData),
-    );
-  }
 
-  // Only one branch runs, so the file is decoded exactly once either way.
-  const decode8 = () => convertCloToBitmap(opts.pixelData, opts.wrapperData);
-  const decode16 = () => convertCloToBitmap16(opts.pixelData, opts.wrapperData);
-
-  const ext = extname(outputPath).toLowerCase();
-  switch (ext) {
-    case ".jpg":
-    case ".jpeg":
-      await convertBitmapToJpg(decode8(), outputPath);
-      break;
-    case ".webp":
-      await convertBitmapToWebp(decode8(), outputPath);
-      break;
-    case ".png":
-      await convertBitmap16ToPng(decode16(), undefined, outputPath);
-      break;
-    case ".avif":
-      await convertBitmap16ToAvif(decode16(), undefined, outputPath);
-      break;
-    case ".tif":
-    case ".tiff":
-      await convertBitmap16ToTiff(decode16(), undefined, outputPath);
-      break;
-    default:
+  if (outputPath !== null) {
+    const ext = extname(outputPath).toLowerCase();
+    if (ext !== ".jpg" && ext !== ".jpeg") {
       throw new Error(
-        `convertCloToJpg: unsupported output extension ${ext || "(none)"} for ${outputPath}. ` +
-          `Supported: ${SUPPORTED_OUTPUT_EXTENSIONS.join(", ")}. ` +
-          `Omit outputPath to get a JPEG buffer back instead.`,
+        `convertCloToJpg writes JPEG, so outputPath must end in .jpg or .jpeg — got ` +
+          `${ext || "no extension"} (${outputPath}). For another format, decode with ` +
+          `convertCloToBitmap16 and use the matching exporter (convertBitmap16ToPng / ` +
+          `ToWebp / ToAvif / ToTiff), or omit outputPath to get the JPEG buffer back.`,
       );
+    }
   }
 
+  const bitmap = convertCloToBitmap(opts.pixelData, opts.wrapperData);
+  if (outputPath === null) {
+    return await convertBitmapToJpg(bitmap);
+  }
+  await convertBitmapToJpg(bitmap, outputPath);
   return outputPath;
 }
 
