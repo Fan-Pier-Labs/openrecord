@@ -15,7 +15,8 @@
  *   • Read tools batch in parallel — emit N read calls in one turn and
  *     they all run via Promise.allSettled, with results fed back as a
  *     single user turn in emission order.
- *   • Write tools (see WRITE_TOOL_META in tool-catalog.ts) and
+ *   • Write tools (see WRITE_TOOL_META in tool-catalog.ts — derived from
+ *     the shared capability registry's `kind: 'write'` entries) and
  *     `respond` are exclusive: they must be called alone with no other
  *     tool calls in the same turn. Batched exclusive calls are rejected
  *     and the model is asked to retry.
@@ -35,7 +36,7 @@ import { backendUrl } from "@/lib/backend/client";
 import { getBackendSession } from "@/lib/backend/session";
 import { getFreshIdToken } from "@/lib/backend/google-signin";
 import { extractToolCalls } from "./tool-call-parser";
-import { TOOLS, WRITE_TOOLS, RESPOND_TOOL, isExclusiveTool } from "./tool-catalog";
+import { WRITE_TOOLS, RESPOND_TOOL, isExclusiveTool, renderToolList } from "./tool-catalog";
 
 export type ToolCall = {
   id: string;
@@ -48,17 +49,16 @@ export type ChatMessage = {
   content: string;
 };
 
-// TOOLS, WRITE_TOOLS, and the exclusivity rules live in ./tool-catalog so the
-// prompt-side declarations and tool-executor's confirmation gating cannot
-// drift apart.
+// TOOLS, WRITE_TOOLS, and the exclusivity rules live in ./tool-catalog, which
+// derives them from the shared capability registry — so the prompt-side
+// declarations, tool-executor's confirmation gating, and what the other three
+// clients support cannot drift apart.
 
 function buildSystemPrompt(
   memoryDigest?: string | null,
   skillAddition?: string | null,
 ): string {
-  const toolList = TOOLS.map(
-    (t) => `- ${t.name}(${Object.keys(t.args).join(", ")}) — ${t.description}`,
-  ).join("\n");
+  const toolList = renderToolList();
   const memorySection = memoryDigest && memoryDigest.trim()
     ? [
         "Patient digest from prior sessions and MyChart records (use this so you don't have to refetch obvious info; verify with tools when the user asks for current data):",
@@ -98,12 +98,12 @@ function buildSystemPrompt(
     "Handling common requests:",
     "- Insurance / billing updates, payment plans, charge questions: you CAN help by sending a message to the billing department. Call get_message_recipients to list available recipients, pick the one that looks like billing (e.g. 'Billing', 'Billing Department', 'Customer Service', 'Patient Accounts'), then draft a send_message and confirm with the user before sending.",
     "- Booking / scheduling / rescheduling / cancelling appointments: you CAN help by messaging the right provider. First call get_care_team (and if needed get_message_recipients) to find candidate providers. If the user already named a specialty or doctor, pick that one; otherwise ask the user which provider they want to see. Then draft a send_message to that provider describing what they're asking for (visit type, preferred dates/times, reason) and confirm before sending.",
-    "- Showing X-ray / imaging pictures: if the user asks to SEE an X-ray (not just the report), call get_imaging_results first to pick the right study, then call get_xray_image with its 0-based index. The tool returns { image_id, caption }. In your `respond` text, include the literal token [image:IMAGE_ID] on its own line where you want the picture to appear (the UI will swap it for the actual image).",
+    "- Showing X-ray / imaging pictures: if the user asks to SEE an X-ray (not just the report), call get_imaging_results first to pick the right study, then call download_imaging_study with its `image_id`. The tool returns { image_id, caption }. In your `respond` text, include the literal token [image:IMAGE_ID] on its own line where you want the picture to appear (the UI will swap it for the actual image).",
     "- Prescription refills: use request_refill.",
     "- Family members' records (proxy access): if the user asks about a child's or family member's chart, call list_proxy_targets to see which records this account can access and which is active, then switch_proxy_target to that patient (confirm with the user first — every data tool reads the newly active record afterwards). Data tools refuse, with instructions, if the active record doesn't match the patient they're about. Switch back with patient 'me' once the family member's request is done.",
     "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
     "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
-    "- For any write action (send_message, send_reply, request_refill), always show the user the exact payload and get explicit confirmation before calling the tool.",
+    `- For any write action (${[...WRITE_TOOLS].join(", ")}), always show the user the exact payload and get explicit confirmation before calling the tool.`,
     "",
     "Formatting (for the text inside `respond`):",
     "- Render on a narrow mobile screen — never use markdown tables. They wrap badly and become unreadable.",

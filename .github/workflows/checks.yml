@@ -27,17 +27,21 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install
+      # Before the unit suite, not after it: the root test glob reaches into
+      # claude-desktop-extension/src/__tests__, and the capability-parity test
+      # imports the extension's real registerAllTools to check it registers a
+      # tool per capability. Both need the extension's own dependencies (zod,
+      # the MCP SDK), so they have to be installed first.
+      - name: Install Claude Desktop extension deps
+        run: cd claude-desktop-extension && bun install
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-      # Before the unit suite: the root test glob includes
-      # claude-desktop-extension/src/__tests__, whose tool-registration tests
-      # import the extension's own dependencies (zod, MCP SDK).
       - name: Typecheck & build Claude Desktop extension
-        run: cd claude-desktop-extension && bun install && bun run build
+        run: cd claude-desktop-extension && bun run build
       - run: bun run test
 
   fake-mychart:
