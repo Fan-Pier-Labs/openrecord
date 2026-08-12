@@ -13,7 +13,8 @@ import {
   applyVoiLut,
   convertCloToBitmap,
 } from "./clo_to_bitmap";
-import { convertBitmapToJpg, convertBitmapToWebp, convertCloToJpg } from "./clo_to_jpg";
+import { convertBitmapToJpg } from "./exporters/to_jpg";
+import { convertBitmapToWebp } from "./exporters/to_webp";
 import { encodePixelFile, encodeWrapperFile } from "./generate_clo";
 import type { Bitmap } from "./clo_to_bitmap";
 
@@ -426,27 +427,13 @@ describe("synthetic CLO round-trip", () => {
     }
   }, 30000);
 
-  it("encodes and decodes to JPEG via convertCloToJpg", async () => {
-    const w = 512, h = 512;
-    const img = new Uint16Array(w * h);
-    for (let i = 0; i < w * h; i++) {
-      img[i] = (i * 13) & 0xffff;
-    }
-    const { pixelBuffer, wrapperBuffer } = makeClo(img, w, h);
-    const result = await convertCloToJpg({ pixelData: pixelBuffer, wrapperData: wrapperBuffer });
-    expect(Buffer.isBuffer(result)).toBe(true);
-    const meta = await sharp(result as Buffer).metadata();
-    expect(meta.format).toBe("jpeg");
-    expect(meta.width).toBe(w);
-    expect(meta.height).toBe(h);
-  }, 30000);
-
-  // convertCloToJpg used to send every extension except `.webp` to the JPEG
-  // encoder, so `out.png` was handed JPEG bytes. Viewers sniff the magic rather
-  // than the name, so it looked fine. It writes JPEG only now and refuses a path
-  // that claims otherwise; these read each file back to check what it actually
-  // is, never just that a file appeared — the old behaviour passed that.
-  describe("convertCloToJpg writes JPEG and refuses to mislabel it", () => {
+  // Encoding is two steps on purpose: decode the CLO to a bitmap, then hand the
+  // bitmap to an exporter. There is no one-shot CLO->JPEG helper any more — the
+  // one that existed sent every extension except `.webp` to the JPEG encoder, so
+  // `out.png` was handed JPEG bytes under a PNG name. Rather than teach one
+  // wrapper every format (a second dispatch list to keep in step with
+  // exporters/), the wrapper is gone and the caller names the exporter.
+  describe("decode then export", () => {
     // 512x512 because encodePixelFile only produces wavelet levels above
     // TILE_SIZE (256); anything smaller yields no levels and throws.
     const w = 512, h = 512;
@@ -462,92 +449,32 @@ describe("synthetic CLO round-trip", () => {
       return makeClo(img, w, h);
     }
 
-    // "the file was not written" is only meaningful if it was not there to
-    // begin with — otherwise a leftover from an earlier run fails the test for
-    // the wrong reason, which is exactly what happened while writing these.
-    function clearPath(p: string) {
-      if (existsSync(p)) unlinkSync(p);
-      expect(existsSync(p)).toBe(false);
-    }
-
-    for (const ext of [".jpg", ".jpeg", ".JPG"]) {
-      it(`writes a real JPEG for ${ext}`, async () => {
-        const { pixelBuffer, wrapperBuffer } = sampleClo();
-        const out = `/tmp/test_clo_ext_${ext.slice(1).toLowerCase()}_ok${ext}`;
-        clearPath(out);
-
-        const returned = await convertCloToJpg({
-          pixelData: pixelBuffer,
-          wrapperData: wrapperBuffer,
-          outputPath: out,
-        });
-        expect(returned).toBe(out);
-
-        // What it is, not what it is called.
-        const meta = await sharp(out).metadata();
-        expect(meta.format).toBe("jpeg");
-        expect(meta.width).toBe(w);
-        expect(meta.height).toBe(h);
-
-        unlinkSync(out);
-      }, 30000);
-    }
-
-    // The whole point: these used to succeed, writing JPEG bytes under a name
-    // that promised something else.
-    for (const ext of [".png", ".webp", ".tif", ".tiff", ".avif", ".gif"]) {
-      it(`refuses ${ext} instead of writing a mislabelled JPEG`, async () => {
-        const { pixelBuffer, wrapperBuffer } = sampleClo();
-        const out = `/tmp/test_clo_ext_bad_${ext.slice(1)}${ext}`;
-        clearPath(out);
-
-        await expect(
-          convertCloToJpg({
-            pixelData: pixelBuffer,
-            wrapperData: wrapperBuffer,
-            outputPath: out,
-          })
-        ).rejects.toThrow(/must end in \.jpg or \.jpeg/);
-
-        // and it must not have written the file anyway
-        expect(existsSync(out)).toBe(false);
-      }, 30000);
-    }
-
-    it("refuses a path with no extension at all", async () => {
+    it("produces a JPEG buffer via convertCloToBitmap -> convertBitmapToJpg", async () => {
       const { pixelBuffer, wrapperBuffer } = sampleClo();
-      const out = "/tmp/test_clo_ext_none";
-      clearPath(out);
+      const bitmap = convertCloToBitmap(pixelBuffer, wrapperBuffer);
+      const result = await convertBitmapToJpg(bitmap);
 
-      await expect(
-        convertCloToJpg({
-          pixelData: pixelBuffer,
-          wrapperData: wrapperBuffer,
-          outputPath: out,
-        })
-      ).rejects.toThrow(/must end in \.jpg or \.jpeg/);
-      expect(existsSync(out)).toBe(false);
-    }, 30000);
-
-    it("points at the exporters rather than just saying no", async () => {
-      const { pixelBuffer, wrapperBuffer } = sampleClo();
-      await expect(
-        convertCloToJpg({
-          pixelData: pixelBuffer,
-          wrapperData: wrapperBuffer,
-          outputPath: "/tmp/test_clo_ext_msg.png",
-        })
-      ).rejects.toThrow(/convertBitmap16ToPng/);
-    }, 30000);
-
-    it("still returns a JPEG buffer when no outputPath is given", async () => {
-      const { pixelBuffer, wrapperBuffer } = sampleClo();
-      const result = await convertCloToJpg({
-        pixelData: pixelBuffer,
-        wrapperData: wrapperBuffer,
-      });
       expect(Buffer.isBuffer(result)).toBe(true);
-      expect((await sharp(result as Buffer).metadata()).format).toBe("jpeg");
+      const meta = await sharp(result).metadata();
+      expect(meta.format).toBe("jpeg");
+      expect(meta.width).toBe(w);
+      expect(meta.height).toBe(h);
+    }, 30000);
+
+    it("writes whichever format the chosen exporter encodes, not whatever the name says", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const bitmap = convertCloToBitmap(pixelBuffer, wrapperBuffer);
+
+      // Deliberately a misleading name: the exporter decides the bytes, so this
+      // is a real WebP. Nothing infers a format from the extension any more.
+      const out = "/tmp/test_clo_two_step.png";
+      if (existsSync(out)) unlinkSync(out);
+
+      await convertBitmapToWebp(bitmap, out);
+
+      const meta = await sharp(out).metadata();
+      expect(meta.format).toBe("webp");
+      unlinkSync(out);
     }, 30000);
   });
 
