@@ -6,9 +6,9 @@
     "fix": "eslint --fix",
     "lint": "eslint",
     "cli": "bun npm-package/cli/entry.ts",
-    "test": "bun test --isolate scrapers/myChart/__tests__/*.test.ts scrapers/myChart/eunity/__tests__/*.test.ts scrapers/myChart/clo-image-parser/clo_to_jpg.test.ts scrapers/myChart/clo-image-parser/exporters.test.ts shared/__tests__/*.test.ts npm-package/cli/__tests__/*.test.ts expo-app/src/lib/*/__tests__/*.test.ts expo-app/src/__tests__/*.test.ts claude-desktop-extension/src/__tests__/*.test.ts openrecord-splash/__tests__/*.test.ts openrecord-splash/demo/__tests__/*.test.ts openrecord-demo-lambda/src/__tests__/*.test.ts newsletter-lambda/src/__tests__/*.test.ts fake-mychart/src/lib/__tests__/*.test.ts tests/coverage/coverageGate.test.ts",
+    "test": "bun test --isolate scrapers/myChart/__tests__/*.test.ts scrapers/myChart/eunity/__tests__/*.test.ts scrapers/myChart/clo-image-parser/clo_to_jpg.test.ts scrapers/myChart/clo-image-parser/exporters.test.ts shared/__tests__/*.test.ts npm-package/cli/__tests__/*.test.ts expo-app/src/lib/*/__tests__/*.test.ts expo-app/src/__tests__/*.test.ts claude-desktop-extension/src/__tests__/*.test.ts openrecord-splash/__tests__/*.test.ts openrecord-splash/demo/__tests__/*.test.ts openrecord-demo-lambda/src/__tests__/*.test.ts newsletter-lambda/src/__tests__/*.test.ts fake-mychart/src/lib/__tests__/*.test.ts tests/coverage/*.test.ts",
     "test:unit": "bun run test",
-    "test:coverage": "bun run test -- --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage tests/coverage/allSources.test.ts scrapers/myChart/__tests__/fake-mychart/ && bun scripts/check-coverage.ts coverage/lcov.info",
+    "test:coverage": "bun run test -- --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage scrapers/myChart/__tests__/fake-mychart/ && bun scripts/check-coverage.ts coverage/lcov.info",
     "test:integration": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/",
     "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/",
     "test:ci-integration": "bun test tests/integration/ci/"
