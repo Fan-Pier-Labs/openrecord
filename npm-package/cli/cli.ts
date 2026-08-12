@@ -415,7 +415,9 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
       if (useTotpSecret) {
         // Generate TOTP code locally — no email, no waiting
         const totpCode = await generateTotpCode(useTotpSecret);
-        console.log(`  Generated TOTP code: ${totpCode}`);
+        // The code is submitted programmatically — printing it only puts a
+        // live credential in the terminal scrollback.
+        console.log('  Generated TOTP code locally.');
         twofaCodeArray = [{ code: totpCode, score: 1 }];
       } else if (cliArgs.twofa) {
         console.log('  Using 2FA code from --2fa arg');
