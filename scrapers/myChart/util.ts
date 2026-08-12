@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { logger } from '../../shared/logger';
+import { redactBody } from '../../shared/redact';
 
 
 export function getRequestVerificationTokenFromBody(html: string): string | undefined {
@@ -10,7 +11,7 @@ export function getRequestVerificationTokenFromBody(html: string): string | unde
   const requestVerificationToken = tokenEle?.[0]?.attribs?.value
 
   if (!requestVerificationToken) {
-    logger.debug('could not find request verification token', html)
+    logger.debug('could not find request verification token', redactBody(html))
     return undefined;
   }
 

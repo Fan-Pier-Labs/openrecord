@@ -6,10 +6,11 @@ import {
   type PasskeyCredential,
 } from './softwareAuthenticator';
 import { logger } from '../../shared/logger';
+import { redactBody, redactHeaders, redactJson } from '../../shared/redact';
 
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-  logger.debug(`  ${label} response headers:`, Object.fromEntries(resp.headers.entries()));
+  logger.debug(`  ${label} response headers:`, redactHeaders(resp.headers));
 }
 
 /**
@@ -118,19 +119,19 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   if (createReqResp.status !== 200) {
     logUnexpectedResponse('GenerateCreateRequest', createReqResp);
     const body = await createReqResp.text();
-    logger.debug('  GenerateCreateRequest response body:', body);
+    logger.debug('  GenerateCreateRequest response body:', redactBody(body));
     return null;
   }
   const createReqResult = await createReqResp.json();
 
   if (!createReqResult.success && !createReqResult.Success) {
-    logger.debug('  GenerateCreateRequest failed:', JSON.stringify(createReqResult));
+    logger.debug('  GenerateCreateRequest failed:', redactJson(createReqResult));
     return null;
   }
 
   const creationOptions: MyChartCreationOptions = createReqResult.data || createReqResult.Data;
   if (!creationOptions || !creationOptions.challenge) {
-    logger.debug('  Invalid creation options:', JSON.stringify(createReqResult));
+    logger.debug('  Invalid creation options:', redactJson(createReqResult));
     return null;
   }
 
@@ -156,12 +157,12 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   if (createPasskeyResp.status !== 200) {
     logUnexpectedResponse('CreatePasskey', createPasskeyResp);
     const body = await createPasskeyResp.text();
-    logger.debug('  CreatePasskey response body:', body);
+    logger.debug('  CreatePasskey response body:', redactBody(body));
     return null;
   }
 
   const createPasskeyResult = await createPasskeyResp.json();
-  logger.debug('  CreatePasskey response:', JSON.stringify(createPasskeyResult));
+  logger.debug('  CreatePasskey response:', redactJson(createPasskeyResult));
 
   // Check for success — the response should contain passkey metadata
   if (createPasskeyResult.rawId || createPasskeyResult.RawId || createPasskeyResult.success || createPasskeyResult.Success) {
