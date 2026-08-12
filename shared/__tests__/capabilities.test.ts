@@ -73,6 +73,7 @@ describe('the registry itself', () => {
   it('resolves capabilities by id and by alias, and rejects unknown names', () => {
     expect(getCapability('get_profile')?.id).toBe('get_profile');
     expect(getCapability('get_xray_image')?.id).toBe('download_imaging_study');
+    expect(getCapability('switch_patient')?.id).toBe('switch_proxy_target');
     expect(getCapability('nope')).toBeUndefined();
   });
 
@@ -102,7 +103,7 @@ describe('the registry itself', () => {
     expect(WRITE_CAPABILITY_IDS).toContain('add_emergency_contact');
     expect(WRITE_CAPABILITY_IDS).toContain('update_emergency_contact');
     expect(WRITE_CAPABILITY_IDS).toContain('remove_emergency_contact');
-    expect(WRITE_CAPABILITY_IDS).toContain('switch_patient');
+    expect(WRITE_CAPABILITY_IDS).toContain('switch_proxy_target');
   });
 
   it('groups without losing or duplicating an entry', () => {

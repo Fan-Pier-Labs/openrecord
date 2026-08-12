@@ -15,12 +15,23 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+      # setup-bun downloads from the GitHub release CDN, which intermittently
+      # answers 503 or hangs up. Retry once before failing the job.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
-      # The capability-parity test imports the extension's real
-      # registerAllTools to check it registers a tool per capability, so the
-      # extension's own deps (zod, the MCP SDK) have to be present before
-      # `bun run test` — not just before the build step below.
+      # Before the unit suite, not after it: the root test glob reaches into
+      # claude-desktop-extension/src/__tests__, and the capability-parity test
+      # imports the extension's real registerAllTools to check it registers a
+      # tool per capability. Both need the extension's own dependencies (zod,
+      # the MCP SDK), so they have to be installed first.
       - name: Install Claude Desktop extension deps
         run: cd claude-desktop-extension && bun install
       - uses: actions/setup-node@v4
@@ -29,9 +40,9 @@ jobs:
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-      - run: bun run test
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun run build
+      - run: bun run test
 
   fake-mychart:
     name: Fake MyChart integration tests
@@ -40,6 +51,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - name: Install fake-mychart deps
         run: cd fake-mychart && bun install
@@ -81,6 +100,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
       - run: cd tests/integration/ci && bun install
       - name: Install Playwright browsers

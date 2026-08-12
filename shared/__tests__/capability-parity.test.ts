@@ -138,9 +138,22 @@ describe('mobile app', () => {
   });
 
   it('gates every write behind a confirmation prompt', async () => {
-    const { WRITE_TOOL_NAMES } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    const { WRITE_TOOLS, WRITE_TOOL_META } = await import('../../expo-app/src/lib/ai/tool-catalog');
     const writes = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id).sort();
-    expect([...WRITE_TOOL_NAMES].sort()).toEqual(writes);
+    expect([...WRITE_TOOLS].sort()).toEqual(writes);
+    // Every gated tool needs dialog copy, or the popup renders blank.
+    for (const id of writes) {
+      expect(WRITE_TOOL_META[id].title.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id].description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('offers a patient argument on every chart-touching tool', async () => {
+    const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    for (const capability of AGENT_CAPABILITIES.filter((c) => c.group !== 'Patients')) {
+      const tool = TOOLS.find((t) => t.name === capability.id)!;
+      expect(Object.keys(tool.args)).toContain('patient');
+    }
   });
 
   it('names every tool it lists in the rendered prompt', async () => {
@@ -281,9 +294,8 @@ describe('npm library', () => {
       update_emergency_contact: 'updateEmergencyContact',
       remove_emergency_contact: 'removeEmergencyContact',
       request_refill: 'requestMedicationRefill',
-      list_patients: 'discoverProxyTargets',
-      get_active_patient: 'verifyActiveProxyTarget',
-      switch_patient: 'switchProxyTarget',
+      list_proxy_targets: 'listProxyTargets',
+      switch_proxy_target: 'switchToPatient',
       register_passkey: 'setupPasskey',
       list_passkeys: 'listPasskeys',
       delete_passkey: 'deletePasskey',

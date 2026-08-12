@@ -249,38 +249,45 @@ describe('capability registry against fake-mychart', () => {
   // ── Patient records (proxy access) ────────────────────────────────────────
 
   it('lists the patients this account can reach and reports the active one', async () => {
-    const listed = (await executeCapability(session, 'list_patients')) as {
+    const listed = (await executeCapability(session, 'list_proxy_targets')) as {
       count: number
-      patients: Array<{ name: string; isSelf: boolean }>
+      patients: Array<{ name: string; is_self: boolean }>
+      active_patient: string | null
+      profile_name: string | null
     }
     // homer has proxy access to his three children.
     expect(listed.count).toBeGreaterThan(1)
-    expect(listed.patients.some((p) => p.isSelf)).toBe(true)
-
-    const active = (await executeCapability(session, 'get_active_patient')) as {
-      profileName: string | null
-    }
-    expect(active.profileName).toBeTruthy()
+    expect(listed.patients.some((p) => p.is_self)).toBe(true)
+    expect(listed.profile_name).toBeTruthy()
   }, 30_000)
 
   it('switches the active patient and switches back', async () => {
-    const listed = (await executeCapability(session, 'list_patients')) as {
-      patients: Array<{ name: string; isSelf: boolean }>
+    const listed = (await executeCapability(session, 'list_proxy_targets')) as {
+      patients: Array<{ name: string; is_self: boolean }>
     }
-    const child = listed.patients.find((p) => !p.isSelf)
+    const child = listed.patients.find((p) => !p.is_self)
     expect(child).toBeDefined()
 
-    const switched = (await executeCapability(session, 'switch_patient', {
+    const switched = (await executeCapability(session, 'switch_proxy_target', {
       patient: child!.name,
-    })) as { activePatient: { name: string }; verifiedProfileName: string | null }
-    expect(switched.activePatient.name).toBe(child!.name)
+    })) as { switched_to: string; is_self: boolean }
+    expect(switched.switched_to).toBe(child!.name)
+    expect(switched.is_self).toBe(false)
 
-    // The switch is server-side session state, so every later read is now
-    // about the child. Put it back before anything else runs.
-    const back = (await executeCapability(session, 'switch_patient', { patient: 'me' })) as {
-      activePatient: { isSelf: boolean }
+    // Every read is now about the child, and the guard in executeCapability
+    // proves it: asking for the account holder's own chart must be refused
+    // rather than quietly answered from the wrong record.
+    await expect(executeCapability(session, 'get_profile', { patient: 'me' })).rejects.toThrow(
+      /Refusing to read/,
+    )
+
+    // The switch is server-side session state. Put it back before anything
+    // else runs.
+    const back = (await executeCapability(session, 'switch_proxy_target', { patient: 'me' })) as {
+      is_self: boolean
     }
-    expect(back.activePatient.isSelf).toBe(true)
+    expect(back.is_self).toBe(true)
+    expect(await executeCapability(session, 'get_profile', { patient: 'me' })).toBeDefined()
   }, 60_000)
 
   // ── Account security ──────────────────────────────────────────────────────
@@ -345,7 +352,8 @@ describe('capability registry against fake-mychart', () => {
       'update_emergency_contact',
       'remove_emergency_contact',
       'request_refill',
-      'switch_patient',
+      'list_proxy_targets',
+      'switch_proxy_target',
       'register_passkey',
       'list_passkeys',
       'delete_passkey',

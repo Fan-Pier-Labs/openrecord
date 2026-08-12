@@ -16,6 +16,11 @@
  * hostname returned by list_accounts). Multiple accounts can be configured
  * and connected at once; there is no "active account" state.
  *
+ * There IS an "active patient" per account, but it lives on MyChart's server
+ * (proxy access — a parent reading a child's chart). Scraper tools take an
+ * optional `patient` and assert the active record before running; only
+ * switch_proxy_target changes it. See scrapers/myChart/proxyTools.ts.
+ *
  * Setup is a sequence of explicit tool calls (no MCP elicitation):
  *   list_accounts                                  // see what's already set up
  *   search_mycharts(query="uchealth")              // find the hostname for a new account
@@ -34,6 +39,9 @@ import { serializeCredential } from '../../scrapers/myChart/softwareAuthenticato
 
 import {
   CAPABILITIES,
+  PATIENT_PARAM,
+  acceptsPatientParam,
+  executeCapability,
   type Capability,
   type CapabilityContext,
   type CapabilityParam,
@@ -167,6 +175,11 @@ function contextFor(hostname: string): CapabilityContext {
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
   const shape: Record<string, ZodTypeAny> = { account: ACCOUNT_PARAM };
+  // Which patient the call is about, for accounts with proxy access to family
+  // members' charts. executeCapability asserts it — or the account holder,
+  // when omitted — before the capability runs, so a read refuses rather than
+  // silently returning the wrong family member's chart.
+  if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const annotations =
@@ -189,7 +202,9 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.id === 'download_imaging_study') {
           return await imagingResult(session, args);
         }
-        return jsonResult(await capability.run(session, args, contextFor(account)));
+        // executeCapability, not capability.run: the active-patient assertion
+        // lives there, so every client gets it without remembering to.
+        return jsonResult(await executeCapability(session, capability.id, args, contextFor(account)));
       } catch (err) {
         return errorResult((err as Error).message);
       }

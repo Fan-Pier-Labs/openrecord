@@ -77,6 +77,13 @@ the capability ignoring the request. Missing required arguments and
 out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
+Every chart-touching capability also accepts `--arg patient="<name>"`, the same
+assertion `--patient` applies to the rest of the CLI: the call refuses if
+MyChart is on a different record rather than reading the wrong chart. The
+patient-record capabilities themselves (`list_proxy_targets`,
+`switch_proxy_target`) are exempt, since they are how you inspect and change
+which record is active.
+
 Capabilities that mutate the account's sign-in settings (`register_passkey`,
 `list_passkeys`, `delete_passkey`, `setup_totp`, `disable_totp`) are also
 reachable this way; they are the same operations the dedicated flags below

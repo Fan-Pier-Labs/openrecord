@@ -84,11 +84,10 @@ import {
 } from '../scrapers/myChart/emergencyContacts';
 
 import {
-  discoverProxyTargets,
-  verifyActiveProxyTarget,
-  switchProxyTarget,
-  findProxyTarget,
-} from '../scrapers/myChart/proxyContext';
+  assertProxyReadContext,
+  runListProxyTargets,
+  runSwitchProxyTarget,
+} from '../scrapers/myChart/proxyTools';
 
 import { setupPasskey, listPasskeys, deletePasskey } from '../scrapers/myChart/setupPasskey';
 import { serializeCredential } from '../scrapers/myChart/softwareAuthenticator';
@@ -962,72 +961,42 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
 
-  // ── Patients (proxy access) ───────────────────────────────────────────────
+  // ── Patient records (proxy access) ────────────────────────────────────────
+  //
+  // Thin wrappers over `scrapers/myChart/proxyTools.ts`, which owns the
+  // semantics: reads assert which patient they are about and refuse on a
+  // mismatch, and only an explicit switch changes MyChart's server-side
+  // active patient. Everything below is exempt from that assertion — guarding
+  // "you must already be on patient X" in front of the tools that list and
+  // change X would make them unusable exactly when they are needed.
   {
-    id: 'list_patients',
-    title: 'List patient records',
+    id: 'list_proxy_targets',
+    aliases: ['list_patients', 'get_active_patient'],
+    title: 'List accessible patient records',
     description:
-      'Every patient record this account can read — the account holder plus anyone they have proxy access to (a child, a parent). Records other than the account holder are only readable after switch_patient.',
+      'List every patient record this MyChart account can access — the account holder plus any family members reachable via proxy access (a parent viewing a child\'s chart) — and which one is currently active. Data tools always read the ACTIVE record; use switch_proxy_target to change it. Accounts without proxy access return count: 0.',
     kind: 'read',
     group: 'Patients',
     params: [],
-    run: async (request) => {
-      const targets = await discoverProxyTargets(request);
-      return {
-        count: targets.length,
-        patients: targets.map((t) => ({
-          id: t.id,
-          name: t.displayName,
-          isSelf: t.isSelf,
-          isActive: t.selectionKnown ? t.isSelected : null,
-        })),
-      };
-    },
+    run: (request) => runListProxyTargets(request),
   },
   {
-    id: 'get_active_patient',
-    title: 'Active patient record',
-    description: 'Which patient record MyChart is currently showing. Every other read returns this patient’s chart.',
-    kind: 'read',
-    group: 'Patients',
-    params: [],
-    run: async (request) => {
-      const active = await verifyActiveProxyTarget(request);
-      return {
-        profileName: active.profileName,
-        profileDob: active.profileDob,
-        selectionKnown: active.selectionKnown,
-        activePatient: active.selectedTarget
-          ? { id: active.selectedTarget.id, name: active.selectedTarget.displayName, isSelf: active.selectedTarget.isSelf }
-          : null,
-      };
-    },
-  },
-  {
-    id: 'switch_patient',
-    title: 'Switch patient record',
+    id: 'switch_proxy_target',
+    aliases: ['switch_patient'],
+    title: 'Switch the active patient record',
     description:
-      'Change which patient record MyChart shows. The active patient is server-side session state, so this changes what EVERY other tool reads until it is switched back. Pass "me" to return to the account holder. The switch is verified against the profile page and fails rather than landing on the wrong chart.',
+      'Switch which patient\'s record MyChart is showing (e.g. from the account holder\'s own chart to a child\'s). This changes server-side MyChart state: EVERY data tool on this account reads the newly active record afterwards. The switch is verified against the profile page and fails rather than landing on the wrong patient. Pass patient: "me" to return to the account holder\'s own record when done.',
     kind: 'write',
     group: 'Patients',
     params: [
-      { name: 'patient', type: 'string', description: 'Patient name from list_patients, or "me" for the account holder.', required: true },
+      {
+        name: 'patient',
+        type: 'string',
+        description: 'Patient name from list_proxy_targets, or "me" for the account holder\'s own record.',
+        required: true,
+      },
     ],
-    run: async (request, args) => {
-      const targets = await discoverProxyTargets(request);
-      if (targets.length === 0) {
-        throw new Error('This account has access to only one patient record, so there is nothing to switch to.');
-      }
-      const wanted = findProxyTarget(targets, requireStr(args, 'patient'));
-      const result = await switchProxyTarget(request, wanted.isSelf ? { self: true } : { id: wanted.id }, {
-        discoveredTargets: targets,
-      });
-      return {
-        activePatient: { id: result.target.id, name: result.target.displayName, isSelf: result.target.isSelf },
-        verifiedProfileName: result.verifiedProfileName,
-        verifiedDob: result.verifiedDob,
-      };
-    },
+    run: (request, args) => runSwitchProxyTarget(request, requireStr(args, 'patient')),
   },
 
   // ── Account security ──────────────────────────────────────────────────────
@@ -1161,10 +1130,36 @@ export function capabilitiesByGroup(
 }
 
 /**
+ * Capabilities exempt from the active-patient assertion below.
+ *
+ * The `Patients` group is exempt because asserting "you must already be on
+ * patient X" in front of the very tools that list and change X would make them
+ * unusable exactly when they are needed. `account`-kind capabilities are exempt
+ * because they act on the MyChart login, not on any one patient's chart.
+ */
+function needsPatientAssertion(capability: Capability): boolean {
+  return capability.group !== 'Patients' && capability.kind !== 'account';
+}
+
+/**
  * Run a capability by id (or alias) against a logged-in session.
+ *
+ * Every chart-touching call first asserts which patient MyChart is on, via
+ * `assertProxyReadContext`. `args.patient` names the patient the call is
+ * about; omitting it means the account holder — explicitly, not "whoever the
+ * session happens to be pointed at", because sessions resume from cached
+ * cookies and would otherwise inherit whichever patient an earlier invocation
+ * left behind. A mismatch throws with the `switch_proxy_target` call that
+ * fixes it; reading never switches on its own.
+ *
+ * Doing this here rather than in each client's dispatch is the point of the
+ * registry: one guard, and no client can forget it. Discovery is cached per
+ * session inside `proxyTools`, so the assertion costs one request per session
+ * rather than one per call.
+ *
  * Throws a listing-friendly error for unknown names.
  */
-export function executeCapability(
+export async function executeCapability(
   request: MyChartRequest,
   idOrAlias: string,
   args: CapabilityArgs = {},
@@ -1172,9 +1167,32 @@ export function executeCapability(
 ): Promise<unknown> {
   const capability = getCapability(idOrAlias);
   if (!capability) {
-    return Promise.reject(new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`));
+    throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
+  }
+  if (needsPatientAssertion(capability)) {
+    await assertProxyReadContext(request, optStr(args, 'patient'));
   }
   return capability.run(request, args, ctx);
+}
+
+/**
+ * The patient parameter every chart-touching capability accepts on top of its
+ * own. Not declared per-capability — it is the same on all of them, and the
+ * assertion is applied by {@link executeCapability} rather than by any `run`.
+ */
+export const PATIENT_PARAM: CapabilityParam = {
+  name: 'patient',
+  type: 'string',
+  description:
+    "Which patient's record this call is about, for accounts with MyChart proxy access to family " +
+    "members' charts — a name from list_proxy_targets. Omit for the account holder's own record. " +
+    'If MyChart is currently on a different patient the call fails (with instructions) rather than ' +
+    'switching silently.',
+};
+
+/** Whether this capability accepts {@link PATIENT_PARAM} on top of its own. */
+export function acceptsPatientParam(capability: Capability): boolean {
+  return needsPatientAssertion(capability);
 }
 
 /** One `name(param, param) — description` line per capability, for prompts and help. */

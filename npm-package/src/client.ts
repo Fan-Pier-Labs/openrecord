@@ -26,6 +26,11 @@ import {
   switchProxyTarget,
   verifyActiveProxyTarget,
 } from '../../scrapers/myChart/proxyContext';
+import {
+  runListProxyTargets,
+  runSwitchProxyTarget,
+  assertProxyReadContext,
+} from '../../scrapers/myChart/proxyTools';
 import { getHealthSummary } from '../../scrapers/myChart/healthSummary';
 import { getVitals } from '../../scrapers/myChart/vitals';
 import { getMedications } from '../../scrapers/myChart/medications';
@@ -329,6 +334,18 @@ export class MyChartClient {
   discoverProxyTargets() { return discoverProxyTargets(this.req()); }
   switchProxyTarget(target: { id?: string; displayName?: string }) { return switchProxyTarget(this.req(), target); }
   verifyActiveProxyTarget() { return verifyActiveProxyTarget(this.req()); }
+
+  // ── Patient records (proxy access) ──────────────────────────────────────
+  // The client-facing pair the other three clients expose as tools. The three
+  // methods above are the lower-level primitives they are built on.
+  listProxyTargets() { return runListProxyTargets(this.req()); }
+  switchToPatient(patient: string) { return runSwitchProxyTarget(this.req(), patient); }
+  /**
+   * Assert MyChart is on the patient a call is about, without changing
+   * anything. Throws with the switch to run on a mismatch. `runCapability`
+   * does this for you; call it directly when driving the raw scrapers.
+   */
+  assertProxyReadContext(patient?: string) { return assertProxyReadContext(this.req(), patient); }
 
   // ── Health summary / vitals ─────────────────────────────────────────────
   getHealthSummary() { return getHealthSummary(this.req()); }
