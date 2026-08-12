@@ -92,6 +92,20 @@ jobs:
         run: bun run test:integration
         env:
           FAKE_MYCHART_HOST: localhost:4000
+      # The gate lives here, not in the `build` job, because it measures the unit
+      # suite AND the fake-mychart suite together. Splitting them would count
+      # every scraper that is only exercised end-to-end as uncovered, making the
+      # percentage an artifact of which suite happened to run. This job already
+      # has the server up and the extension's deps installed, so merging the two
+      # costs no extra setup.
+      #
+      # It leaves out npm-package's fake-mychart suite alone: that one imports
+      # the built dist/ bundle rather than source, so measuring it would drop a
+      # single bundled megafile into a per-file gate. Every other suite is in.
+      - name: Check code coverage (Bun coverageThreshold, 75% per file)
+        run: bun run test:coverage
+        env:
+          FAKE_MYCHART_HOST: localhost:4000
 
   integration:
     name: Integration tests (Docker Compose)
