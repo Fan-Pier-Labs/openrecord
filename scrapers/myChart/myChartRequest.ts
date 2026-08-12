@@ -118,7 +118,11 @@ export class MyChartRequest {
         }
         return request;
       } else {
-        logger.error('Invalid data for MyChartRequest unserialization:', data);
+        // `data` holds the serialized cookie jar — log its shape, never its contents.
+        logger.error(
+          'Invalid data for MyChartRequest unserialization. Fields present:',
+          data && typeof data === 'object' ? Object.keys(data).join(', ') : typeof data,
+        );
       }
     } catch (error) {
       logger.error('Error unserializing MyChartRequest:', error);
