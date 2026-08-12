@@ -19,11 +19,6 @@ import {
   type StudyImagePayload,
 } from '../../../shared/capabilities';
 
-// The image_id codec is shared with every other client — a token minted by the
-// CLI has to decode in the extension — so it lives in the registry and is
-// re-exported here for the callers that already import it from this module.
-export { encodeImageId, decodeImageId } from '../../../shared/capabilities';
-
 export interface StudyJpeg {
   index: number;
   seriesDescription: string;
@@ -110,7 +105,10 @@ export async function downloadStudyJpegs(
   opts: DownloadStudyJpegsOptions = {},
 ): Promise<DownloadStudyJpegsResult> {
   const maxImages = opts.maxImages ?? 3;
-  const capability = getCapability('download_imaging_study')!;
+  const capability = getCapability('download_imaging_study');
+  if (!capability?.rendersMedia) {
+    throw new Error('The imaging-download capability is missing from the registry.');
+  }
   const payload = (await capability.run(req, {
     image_id: encodeImageId(fdiContext),
     study_name: opts.studyName ?? 'imaging study',

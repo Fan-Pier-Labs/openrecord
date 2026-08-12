@@ -208,14 +208,24 @@ describe('topic resolution', () => {
   const topics = [{ displayName: 'Medical Question' }, { displayName: 'Billing' }] as any[];
 
   it('matches a topic by substring', () => {
-    expect(resolveTopic(topics, 'billing').displayName).toBe('Billing');
+    const { topic, substituted } = resolveTopic(topics, 'billing');
+    expect(topic.displayName).toBe('Billing');
+    expect(substituted).toBe(false);
   });
 
   it('falls back to the first topic rather than refusing to send', () => {
     // MyChart requires a topic on every message and the category is cosmetic —
     // failing the send over it would strand the patient's message.
-    expect(resolveTopic(topics, 'nonsense').displayName).toBe('Medical Question');
-    expect(resolveTopic(topics, undefined).displayName).toBe('Medical Question');
+    expect(resolveTopic(topics, 'nonsense').topic.displayName).toBe('Medical Question');
+    expect(resolveTopic(topics, undefined).topic.displayName).toBe('Medical Question');
+  });
+
+  it('reports the fallback, so the substitution is not silent', () => {
+    // An unmatched topic is a substitution the patient never asked for. The
+    // send still goes through, but send_message surfaces which topic it used.
+    expect(resolveTopic(topics, 'nonsense').substituted).toBe(true);
+    // Not supplying one at all is a default, not a substitution.
+    expect(resolveTopic(topics, undefined).substituted).toBe(false);
   });
 
   it('throws when the instance offers no topics at all', () => {

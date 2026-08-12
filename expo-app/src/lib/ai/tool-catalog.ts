@@ -25,8 +25,8 @@
  */
 
 import {
+  ACCOUNT_PARAM,
   AGENT_CAPABILITIES,
-  INSTANCE_NOTE,
   PATIENT_PARAM,
   acceptsPatientParam,
   CAPABILITIES,
@@ -47,7 +47,11 @@ export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
   name: capability.id,
   description: capability.description,
   args: {
-    instance: INSTANCE_NOTE,
+    // Declared by the registry, so the parity test can see it. This used to be
+    // spelled `instance` here and `account` in the extension — the one
+    // parameter on every tool in every client, and the only one that had
+    // already drifted. `instance` is still accepted at execution time.
+    [ACCOUNT_PARAM.name]: ACCOUNT_PARAM.description,
     // Which patient the call is about. The dispatch asserts it before running
     // and refuses on a mismatch, so the model has to be able to say it.
     ...(acceptsPatientParam(capability)

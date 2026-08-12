@@ -14,7 +14,13 @@
 
 import { describe, it, expect } from 'bun:test';
 
-import { CAPABILITIES, CAPABILITY_IDS, AGENT_CAPABILITIES } from '../capabilities';
+import {
+  ACCOUNT_PARAM,
+  ACCOUNT_PARAM_NAMES,
+  CAPABILITIES,
+  CAPABILITY_IDS,
+  AGENT_CAPABILITIES,
+} from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
 const AGENT_IDS = AGENT_CAPABILITIES.map((c) => c.id).sort();
@@ -73,7 +79,7 @@ describe('Claude Desktop extension', () => {
     }
   });
 
-  it('gives every capability tool an `account` parameter plus its own declared ones', async () => {
+  it('gives every capability tool the registry’s account parameter plus its own declared ones', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +89,7 @@ describe('Claude Desktop extension', () => {
       const tool = server.tools.find((t) => t.name === capability.id);
       expect(tool).toBeDefined();
       const shape = tool!.config.inputSchema as Record<string, unknown>;
-      expect(Object.keys(shape)).toContain('account');
+      expect(Object.keys(shape)).toContain(ACCOUNT_PARAM.name);
       for (const param of capability.params) {
         expect(Object.keys(shape)).toContain(param.name);
       }
@@ -126,11 +132,11 @@ describe('mobile app', () => {
     }
   });
 
-  it('tells the model about every parameter, plus which instance to use', async () => {
+  it('tells the model about every parameter, plus which account to use', async () => {
     const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
     for (const capability of AGENT_CAPABILITIES) {
       const tool = TOOLS.find((t) => t.name === capability.id)!;
-      expect(Object.keys(tool.args)).toContain('instance');
+      expect(Object.keys(tool.args)).toContain(ACCOUNT_PARAM.name);
       for (const param of capability.params) {
         expect(Object.keys(tool.args)).toContain(param.name);
       }
@@ -162,6 +168,66 @@ describe('mobile app', () => {
     for (const id of AGENT_IDS) {
       expect(prompt).toContain(`- ${id}(`);
     }
+  });
+});
+
+// ── The account selector, on every client ──────────────────────────────────
+
+describe('the account selector', () => {
+  // It is the one parameter every capability takes in every client, and it was
+  // the last one still hand-written per client — `account` in the extension,
+  // `instance` in the mobile app. That drift is the exact bug class this
+  // registry exists to kill, so the parity test now watches it too.
+
+  it('is spelled the same in the extension and the mobile app', async () => {
+    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    const server = recordingMcpServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    registerAllTools(server as any);
+
+    const extensionTool = server.tools.find((t) => t.name === 'get_profile')!;
+    const mobileTool = TOOLS.find((t) => t.name === 'get_profile')!;
+
+    const inExtension = Object.keys(extensionTool.config.inputSchema as Record<string, unknown>)
+      .filter((k) => ACCOUNT_PARAM_NAMES.includes(k));
+    const inMobile = Object.keys(mobileTool.args).filter((k) => ACCOUNT_PARAM_NAMES.includes(k));
+
+    expect(inExtension).toEqual([ACCOUNT_PARAM.name]);
+    expect(inMobile).toEqual([ACCOUNT_PARAM.name]);
+  });
+
+  it('is still read when a caller uses the old `instance` spelling', async () => {
+    const { readAccountArg } = await import('../capabilities');
+    expect(readAccountArg({ account: 'a.example.org' })).toBe('a.example.org');
+    expect(readAccountArg({ instance: 'b.example.org' })).toBe('b.example.org');
+    // `account` wins when a caller somehow sends both.
+    expect(readAccountArg({ account: 'a.example.org', instance: 'b.example.org' })).toBe('a.example.org');
+    expect(readAccountArg({})).toBeUndefined();
+    expect(readAccountArg({ account: '   ' })).toBeUndefined();
+  });
+});
+
+// ── Media capabilities are found by flag, never by id ──────────────────────
+
+describe('rendersMedia', () => {
+  it('is what the clients branch on, so a second media capability needs no edits', async () => {
+    const media = CAPABILITIES.filter((c) => c.rendersMedia);
+    expect(media.map((c) => c.id)).toEqual(['download_imaging_study']);
+
+    // The extension resolves its post-processing off the flag. If someone
+    // reintroduced an id check, flipping the flag off would stop mattering.
+    const source = await Bun.file(
+      new URL('../../claude-desktop-extension/src/tools.ts', import.meta.url).pathname,
+    ).text();
+    expect(source).toContain('capability.rendersMedia');
+    expect(source).not.toContain("capability.id === 'download_imaging_study'");
+
+    const mobile = await Bun.file(
+      new URL('../../expo-app/src/lib/scrapers/session-manager.ts', import.meta.url).pathname,
+    ).text();
+    expect(mobile).toContain('capability.rendersMedia');
+    expect(mobile).not.toContain('capability.id === "download_imaging_study"');
   });
 });
 

@@ -277,7 +277,17 @@ export {
 // account. The CLI, the Claude Desktop extension and the mobile app all derive
 // their tool lists from it; exported here so consumers can build their own
 // tool layer against exactly the same set.
+export { resolveUnique, type ResolveUniqueOptions } from '../../shared/resolveUnique';
 export {
+  base64UrlEncode,
+  base64UrlDecode,
+} from '../../shared/base64url';
+export {
+  ACCOUNT_PARAM,
+  ACCOUNT_PARAM_NAMES,
+  PATIENT_PARAM,
+  readAccountArg,
+  acceptsPatientParam,
   CAPABILITIES,
   CAPABILITY_IDS,
   AGENT_CAPABILITIES,

@@ -22,6 +22,8 @@ import {
 import {
   executeCapability,
   getCapability,
+  readAccountArg,
+  type Capability,
   type CapabilityContext,
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
@@ -386,7 +388,9 @@ export async function executeScraperTool(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
-  const hostname = input.instance as string | undefined;
+  // `account` is the registry's name; `instance` is what this app used to call
+  // it and what the alerts generator still passes.
+  const hostname = readAccountArg(input);
   const session = await requireSession(hostname);
   return runScraper(session.request, toolName, input, contextFor(session));
 }
@@ -459,8 +463,10 @@ async function runScraper(
   const capability = getCapability(toolName);
   if (!capability) return { error: `Unknown tool: ${toolName}` };
 
-  if (capability.id === "download_imaging_study") {
-    return downloadImagingStudyAsAttachment(request, input);
+  // The flag, not the id: a second media capability must not need this branch
+  // edited. `run` hands back raw CLO bytes; this client decodes them on-device.
+  if (capability.rendersMedia) {
+    return downloadImagingStudyAsAttachment(capability, request, input);
   }
 
   try {
@@ -478,12 +484,13 @@ async function runScraper(
  * the attachment store. Returns the token the model puts in its reply.
  */
 async function downloadImagingStudyAsAttachment(
+  capability: Capability,
   request: MyChartRequest,
   input: Record<string, unknown>,
 ): Promise<unknown> {
   let payload: StudyImagePayload;
   try {
-    payload = (await executeCapability(request, "download_imaging_study", {
+    payload = (await executeCapability(request, capability.id, {
       ...input,
       max_images: 1,
     })) as StudyImagePayload;

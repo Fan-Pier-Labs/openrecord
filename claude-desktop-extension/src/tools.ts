@@ -38,10 +38,12 @@ import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
 import { serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
 
 import {
+  ACCOUNT_PARAM,
   CAPABILITIES,
   PATIENT_PARAM,
   acceptsPatientParam,
   executeCapability,
+  readAccountArg,
   type Capability,
   type CapabilityContext,
   type CapabilityParam,
@@ -119,9 +121,14 @@ async function tryAutoRegisterPasskey(
 
 // ── Capability → MCP tool ──────────────────────────────────────────────────
 
-const ACCOUNT_PARAM = z
+/**
+ * The registry declares the account selector; this client makes it required.
+ * Several accounts can be connected at once and the MCPB has no notion of a
+ * "current" one, so every call has to name its account.
+ */
+const ACCOUNT_SCHEMA = z
   .string()
-  .describe('MyChart hostname (the "account" / "account_id" — get the exact value from list_accounts).');
+  .describe(`${ACCOUNT_PARAM.description} Get the exact value from list_accounts.`);
 
 /** Translate one registry parameter into its zod equivalent. */
 function zodForParam(param: CapabilityParam): ZodTypeAny {
@@ -174,7 +181,7 @@ function contextFor(hostname: string): CapabilityContext {
  * disconnect_account already is.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
-  const shape: Record<string, ZodTypeAny> = { account: ACCOUNT_PARAM };
+  const shape: Record<string, ZodTypeAny> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
   // Which patient the call is about, for accounts with proxy access to family
   // members' charts. executeCapability asserts it — or the account holder,
   // when omitted — before the capability runs, so a read refuses rather than
@@ -197,10 +204,12 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
     },
     async (args: Record<string, unknown>) => {
       try {
-        const account = typeof args.account === 'string' ? args.account : '';
+        const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
-        if (capability.id === 'download_imaging_study') {
-          return await imagingResult(session, args);
+        // The flag, not the id: a second media capability must not need this
+        // branch edited. `run` hands back raw bytes; this client encodes them.
+        if (capability.rendersMedia) {
+          return await imagingResult(capability, session, args);
         }
         // executeCapability, not capability.run: the active-patient assertion
         // lives there, so every client gets it without remembering to.
@@ -218,8 +227,11 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
  */
-async function imagingResult(session: MyChartRequest, args: Record<string, unknown>): Promise<ToolResult> {
-  const capability = CAPABILITIES.find((c) => c.id === 'download_imaging_study')!;
+async function imagingResult(
+  capability: Capability,
+  session: MyChartRequest,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
   const payload = (await capability.run(session, args)) as StudyImagePayload;
   const maxImages = typeof args.max_images === 'number' ? args.max_images : undefined;
   const jpegQuality = typeof args.jpeg_quality === 'number' ? args.jpeg_quality : undefined;

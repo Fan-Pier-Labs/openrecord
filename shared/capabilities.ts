@@ -28,6 +28,8 @@
  */
 
 import type { MyChartRequest } from '../scrapers/myChart/myChartRequest';
+import { base64UrlEncode, base64UrlDecode } from './base64url';
+import { resolveUnique } from './resolveUnique';
 
 import { getMyChartProfile, getEmail } from '../scrapers/myChart/profile';
 import { getHealthSummary } from '../scrapers/myChart/healthSummary';
@@ -188,90 +190,6 @@ function num(args: CapabilityArgs, name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// ── Portable base64url (no Buffer, no atob) ─────────────────────────────────
-//
-// `image_id` round-trips through the model, the CLI's argv and React Native's
-// Hermes runtime. Buffer exists in Node but not reliably on-device, and atob
-// is not in the Hermes standard library either, so encode it by hand.
-
-const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-
-function utf8Bytes(text: string): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < text.length; i++) {
-    let code = text.charCodeAt(i);
-    if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-      const next = text.charCodeAt(i + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        code = 0x10000 + ((code - 0xd800) << 10) + (next - 0xdc00);
-        i++;
-      }
-    }
-    if (code < 0x80) out.push(code);
-    else if (code < 0x800) out.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
-    else if (code < 0x10000) out.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-    else out.push(0xf0 | (code >> 18), 0x80 | ((code >> 12) & 0x3f), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-  }
-  return out;
-}
-
-function utf8String(bytes: number[]): string {
-  let out = '';
-  for (let i = 0; i < bytes.length; ) {
-    const b = bytes[i];
-    let code: number;
-    if (b < 0x80) { code = b; i += 1; }
-    else if (b < 0xe0) { code = ((b & 0x1f) << 6) | (bytes[i + 1] & 0x3f); i += 2; }
-    else if (b < 0xf0) { code = ((b & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f); i += 3; }
-    else {
-      code = ((b & 0x07) << 18) | ((bytes[i + 1] & 0x3f) << 12) | ((bytes[i + 2] & 0x3f) << 6) | (bytes[i + 3] & 0x3f);
-      i += 4;
-    }
-    if (code > 0xffff) {
-      code -= 0x10000;
-      out += String.fromCharCode(0xd800 + (code >> 10), 0xdc00 + (code & 0x3ff));
-    } else {
-      out += String.fromCharCode(code);
-    }
-  }
-  return out;
-}
-
-function base64UrlEncode(text: string): string {
-  const bytes = utf8Bytes(text);
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i];
-    const b1 = bytes[i + 1];
-    const b2 = bytes[i + 2];
-    out += B64_ALPHABET[b0 >> 2];
-    out += B64_ALPHABET[((b0 & 0x03) << 4) | ((b1 ?? 0) >> 4)];
-    if (b1 === undefined) break;
-    out += B64_ALPHABET[((b1 & 0x0f) << 2) | ((b2 ?? 0) >> 6)];
-    if (b2 === undefined) break;
-    out += B64_ALPHABET[b2 & 0x3f];
-  }
-  return out;
-}
-
-function base64UrlDecode(encoded: string): string {
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-  for (const ch of encoded) {
-    if (ch === '=' ) continue;
-    const value = B64_ALPHABET.indexOf(ch);
-    if (value < 0) throw new Error('not base64url');
-    buffer = (buffer << 6) | value;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-  return utf8String(bytes);
-}
-
 /**
  * Pack an {@link FdiContext} into one opaque `image_id` token.
  *
@@ -303,54 +221,37 @@ export function decodeImageId(imageId: string): FdiContext {
   return { fdi: (parsed as FdiContext).fdi, ord: (parsed as FdiContext).ord };
 }
 
-// ── Fuzzy resolution shared by every client ─────────────────────────────────
+// ── Name resolution ─────────────────────────────────────────────────────────
 //
-// Models are given display names, not opaque ids, so the name→object lookup
-// lives here rather than in one client's tool layer. Ambiguity is always an
-// error listing the candidates: picking a provider or a medication on the
-// patient's behalf is exactly the guess this codebase must never make.
-
-const TITLE_WORDS = new Set(['dr', 'dr.', 'mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'md', 'md.', 'do', 'do.', 'np', 'pa', 'rn']);
-
-function nameTokens(query: string): string[] {
-  const all = query.toLowerCase().split(/[\s,]+/).filter(Boolean);
-  const withoutTitles = all.filter((t) => !TITLE_WORDS.has(t));
-  // A query that is *nothing but* an honorific ("Dr") still narrows the list,
-  // and reporting "multiple providers match" beats claiming no name was given.
-  return withoutTitles.length > 0 ? withoutTitles : all;
-}
+// The shared `resolveUnique` does the work — exact match first, then a unique
+// partial, and an error listing the candidates otherwise. These wrappers exist
+// so the messaging capabilities read clearly and so consumers of the npm
+// package can reach the same logic.
 
 /** Resolve a provider name to exactly one recipient, or throw with the options. */
 export function resolveRecipient(recipients: MessageRecipient[], query: string): MessageRecipient {
-  const tokens = nameTokens(query);
-  if (tokens.length === 0) {
-    throw new Error(`No recipient name given. Available: ${recipients.map((r) => r.displayName).join(', ')}`);
-  }
-  const matched = recipients.filter((r) => {
-    const name = r.displayName.toLowerCase();
-    return tokens.every((t) => name.includes(t));
-  });
-  if (matched.length === 0) {
-    throw new Error(`No recipient matching "${query}". Available: ${recipients.map((r) => r.displayName).join(', ')}`);
-  }
-  if (matched.length > 1) {
-    throw new Error(
-      `Multiple recipients match "${query}": ${matched.map((r) => r.displayName).join(', ')}. Be more specific.`,
-    );
-  }
-  return matched[0];
+  return resolveUnique(recipients, query, { getName: (r) => r.displayName, label: 'recipient' });
 }
 
 /**
- * Resolve a topic name. Unlike recipients, an unmatched topic falls back to the
- * first available one — MyChart requires a topic on every message and the
- * category is cosmetic, so refusing to send over it would be pointless.
+ * Resolve a topic name, falling back to the first available topic.
+ *
+ * Unlike a recipient, an unmatched topic is not worth refusing over: MyChart
+ * requires a topic on every message and the category is cosmetic, so stranding
+ * the patient's message over it would help nobody. The fallback is *reported*
+ * rather than silent — `send_message` returns the topic it actually used, so
+ * the reply can say which one, instead of the substitution being invisible at
+ * the call site.
  */
-export function resolveTopic(topics: MessageTopic[], query: string | undefined): MessageTopic {
+export function resolveTopic(
+  topics: MessageTopic[],
+  query: string | undefined,
+): { topic: MessageTopic; substituted: boolean } {
   if (topics.length === 0) throw new Error('No message topics are available on this MyChart.');
   const wanted = (query ?? '').toLowerCase().trim();
-  if (!wanted) return topics[0];
-  return topics.find((t) => t.displayName.toLowerCase().includes(wanted)) ?? topics[0];
+  if (!wanted) return { topic: topics[0], substituted: false };
+  const match = topics.find((t) => t.displayName.toLowerCase().includes(wanted));
+  return match ? { topic: match, substituted: false } : { topic: topics[0], substituted: true };
 }
 
 // ── Small shared helpers ────────────────────────────────────────────────────
@@ -366,20 +267,21 @@ async function resolveMedicationKey(request: MyChartRequest, args: CapabilityArg
   const explicitKey = optStr(args, 'medication_key');
   if (explicitKey) return { key: explicitKey, name: optStr(args, 'medication_name') ?? explicitKey };
 
-  const query = str(args, 'medication_name').toLowerCase().trim();
+  const query = str(args, 'medication_name').trim();
   if (!query) throw new Error('Pass either medication_key (from get_medications) or medication_name.');
 
   const meds = (await getMedications(request)).medications;
-  const matched = meds.filter(
-    (m) => m.name.toLowerCase().includes(query) || m.commonName.toLowerCase().includes(query),
-  );
-  if (matched.length === 0) {
-    throw new Error(`No medication matching "${query}". Available: ${meds.map((m) => m.name).join(', ')}`);
-  }
-  if (matched.length > 1) {
-    throw new Error(`Multiple medications match "${query}": ${matched.map((m) => m.name).join(', ')}. Be more specific.`);
-  }
-  const med = matched[0];
+  // Match on the label the patient is most likely to use — "Lisinopril" as
+  // well as "Lisinopril 10mg" — but exact-first, so naming a medication
+  // precisely is never rejected for resembling another one.
+  const med = resolveUnique(meds, query, {
+    getName: (m) => m.name,
+    // Patients say "Lipitor" as often as "Atorvastatin 20mg".
+    getAlternateNames: (m) => (m.commonName ? [m.commonName] : []),
+    label: 'medication',
+    stripTitles: false,
+  });
+
   if (!med.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
   if (!med.medicationKey) throw new Error(`"${med.name}" has no medication key, so it cannot be refilled here.`);
   return { key: med.medicationKey, name: med.name };
@@ -404,7 +306,38 @@ export interface StudyImagePayload {
 
 // ── The registry ────────────────────────────────────────────────────────────
 
-const INSTANCE_NOTE = 'MyChart hostname. Optional when only one account is connected.';
+/**
+ * Which connected MyChart account the call is for.
+ *
+ * This is the one parameter every capability takes in every client, and it was
+ * the last one still hand-written per client — the extension called it
+ * `account` and required it, the mobile app called it `instance` and didn't.
+ * That is precisely the drift this registry exists to kill, so it is declared
+ * here and the parity test checks for it like any other parameter.
+ *
+ * `instance` stays an accepted alias: the mobile app's alerts generator and
+ * alert cards pass it programmatically, and a saved chat may contain it.
+ */
+export const ACCOUNT_PARAM: CapabilityParam = {
+  name: 'account',
+  type: 'string',
+  description:
+    'MyChart hostname identifying which connected account to use — the `account` value from the ' +
+    'client\'s account list. Optional when only one account is connected.',
+};
+
+/** Accepted spellings of {@link ACCOUNT_PARAM}, newest first. */
+export const ACCOUNT_PARAM_NAMES: readonly string[] = [ACCOUNT_PARAM.name, 'instance'];
+
+/** Read the account selector out of a client's arguments, whichever name it used. */
+export function readAccountArg(args: CapabilityArgs): string | undefined {
+  for (const name of ACCOUNT_PARAM_NAMES) {
+    const value = args[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
 
 export const CAPABILITIES: readonly Capability[] = [
   // ── Profile / overview ────────────────────────────────────────────────────
@@ -718,12 +651,25 @@ export const CAPABILITIES: readonly Capability[] = [
         getMessageRecipients(request, token),
         getMessageTopics(request, token),
       ]);
-      return sendNewMessage(request, {
-        recipient: resolveRecipient(recipients, requireStr(args, 'recipient_name')),
-        topic: resolveTopic(topics, optStr(args, 'topic')),
+      const recipient = resolveRecipient(recipients, requireStr(args, 'recipient_name'));
+      const { topic, substituted } = resolveTopic(topics, optStr(args, 'topic'));
+      const result = await sendNewMessage(request, {
+        recipient,
+        topic,
         subject: requireStr(args, 'subject'),
         messageBody: requireStr(args, 'message'),
       });
+      // Say who it went to and under which topic. The topic can be a
+      // substitution when the requested one doesn't exist on this instance,
+      // and a silent substitution is one the patient never gets told about.
+      return {
+        ...result,
+        sent_to: recipient.displayName,
+        topic_used: topic.displayName,
+        ...(substituted
+          ? { topic_substituted: `No topic matched "${optStr(args, 'topic')}"; used "${topic.displayName}" instead.` }
+          : {}),
+      };
     },
   },
   {
@@ -1200,5 +1146,3 @@ export function describeCapability(capability: Capability): string {
   const params = capability.params.map((p) => (p.required ? p.name : `${p.name}?`)).join(', ');
   return `${capability.id}(${params}) — ${capability.description}`;
 }
-
-export { INSTANCE_NOTE };

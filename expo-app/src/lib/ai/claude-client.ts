@@ -36,7 +36,7 @@ import { backendUrl } from "@/lib/backend/client";
 import { getBackendSession } from "@/lib/backend/session";
 import { getFreshIdToken } from "@/lib/backend/google-signin";
 import { extractToolCalls } from "./tool-call-parser";
-import { WRITE_TOOLS, isExclusiveTool, renderToolList } from "./tool-catalog";
+import { WRITE_TOOLS, RESPOND_TOOL, isExclusiveTool, renderToolList } from "./tool-catalog";
 
 export type ToolCall = {
   id: string;
@@ -103,8 +103,7 @@ function buildSystemPrompt(
     "- Family members' records (proxy access): if the user asks about a child's or family member's chart, call list_proxy_targets to see which records this account can access and which is active, then switch_proxy_target to that patient (confirm with the user first — every data tool reads the newly active record afterwards). Data tools refuse, with instructions, if the active record doesn't match the patient they're about. Switch back with patient 'me' once the family member's request is done.",
     "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
     "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
-    "- Reading a child's or dependant's chart: list_patients shows every record this account can reach and get_active_patient shows which one MyChart is on. switch_patient changes it — and it changes what EVERY other tool reads, so say whose chart you are reading and switch back with switch_patient(\"me\") when you're done.",
-    `- For any write action (${WRITE_CAPABILITY_IDS.join(", ")}), always show the user the exact payload and get explicit confirmation before calling the tool.`,
+    `- For any write action (${[...WRITE_TOOLS].join(", ")}), always show the user the exact payload and get explicit confirmation before calling the tool.`,
     "",
     "Formatting (for the text inside `respond`):",
     "- Render on a narrow mobile screen — never use markdown tables. They wrap badly and become unreadable.",
