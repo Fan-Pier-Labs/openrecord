@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { MyChartRequest } from '../../myChartRequest'
 import { platformFetch } from '../../../http'
-import { setMountMode, type MountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
 import { setupPasskey } from '../../setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../passkeyLoginRetry'
@@ -60,6 +60,8 @@ for (const mode of MOUNT_MODES) {
     let session: MyChartRequest
 
     beforeAll(async () => {
+      // Server state is global to the fake; don't inherit whatever ran last.
+      await resetFakeMyChart(HOST)
       await setMountMode(HOST, mode)
       const result = await myChartUserPassLogin({
         hostname: HOST,

@@ -23,11 +23,11 @@
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/discovery.test.ts
  */
 
-import { describe, it, expect, afterAll } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
 import { getMyChartProfile } from '../../profile'
 import { platformFetch } from '../../../http'
-import { setMountMode, setDiscoveryMode, type MountMode, type DiscoveryMode } from './mountMode'
+import { setMountMode, setDiscoveryMode, resetFakeMyChart, type MountMode, type DiscoveryMode } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
@@ -53,11 +53,11 @@ const CASES: { discovery: DiscoveryMode; mode: MountMode; prefix: string | null;
   { discovery: 'moved-host', mode: 'root', prefix: null, host: MOVED_HOST },
 ]
 
-afterAll(async () => {
-  // These settings are global to the fake's process, so leaving one set would
-  // silently change what every later suite is testing against.
-  await fetch(`http://${HOST}/reset`, { method: 'POST' })
-})
+// These settings are global to the fake's process, so leaving one set would
+// silently change what every later suite is testing against — and inheriting
+// one would silently change what this suite is testing against.
+beforeAll(async () => { await resetFakeMyChart(HOST) })
+afterAll(async () => { await resetFakeMyChart(HOST) })
 
 for (const { discovery, mode, prefix, host } of CASES) {
   describe(`discovery: ${discovery} (${mode} mount)`, () => {

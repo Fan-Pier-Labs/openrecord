@@ -47,7 +47,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "test": "bun test src/__tests__/",
+    "test": "bun test --isolate .unit.test.ts .integration.test.ts",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {

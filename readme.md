@@ -98,7 +98,7 @@ bun run cli                  # Run the CLI scraper
 
 # Tests
 bun run test                 # Unit tests
-bun run test:fake-mychart    # Fake MyChart integration tests
+bun run test:integration     # Integration tests (needs the compose fake-mychart)
 
 # Linting
 bun run lint                 # ESLint
