@@ -8,9 +8,9 @@
     "cli": "bun npm-package/cli/entry.ts",
     "test": "bun run test:unit && bun run test:integration",
     "test:unit": "bun test --isolate --path-ignore-patterns='**/__tests__/integration/**' --path-ignore-patterns='**/__tests__/fake-mychart/**' --path-ignore-patterns='tests/integration/ci/**'",
-    "test:integration": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/",
-    "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/",
-    "test:ci-integration": "bun test tests/integration/ci/"
+    "test:integration": "bun test __tests__/fake-mychart",
+    "test:ci-integration": "bun test tests/integration/ci/",
+    "test:real-mychart": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",

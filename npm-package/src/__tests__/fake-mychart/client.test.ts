@@ -4,9 +4,9 @@
  * Imports from the BUILT artifact (`../../../dist/index.js`) so the test
  * exercises the same code consumers will run after `npm install`.
  *
- * By default targets the hosted fake-mychart at `fake-mychart.fanpierlabs.com`.
- * Set `FAKE_MYCHART_HOST` to a different host (e.g. `localhost:4000`) to
- * point at a locally-spun-up fake-mychart — that's what CI does. The client
+ * Targets a locally-spun-up fake-mychart on `localhost:4000` by default, like
+ * every other `__tests__/fake-mychart` suite; set `FAKE_MYCHART_HOST` to point
+ * somewhere else (e.g. the hosted `fake-mychart.fanpierlabs.com`). The client
  * auto-detects http for hostnames without a dot.
  *
  * Credentials are the standard Homer Simpson test account from `fake-mychart`.
@@ -23,7 +23,10 @@ const {
   convertCloToJpg,
 } = await import('../../../dist/index.js') as typeof import('../../../dist/index.js');
 
-const HOSTNAME = process.env.FAKE_MYCHART_HOST ?? 'fake-mychart.fanpierlabs.com';
+// Defaults to the local fake, like every other __tests__/fake-mychart suite.
+// It used to default to the deployed instance, so running this file without the
+// env var set pointed a test at production.
+const HOSTNAME = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 const USER = 'homer';
 const PASS = 'donuts123';
 const TWO_FA_CODE = '123456';

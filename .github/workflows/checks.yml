@@ -42,8 +42,8 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun run build
-      # test:unit, not test — `test` also runs test:integration, which needs
-      # real MyChart credentials. The integration tiers have their own jobs below.
+      # test:unit, not test — `test` also runs test:integration, which needs a
+      # fake-mychart server this job does not start. That tier is the job below.
       - run: bun run test:unit
 
   fake-mychart:
@@ -80,18 +80,16 @@ jobs:
             echo "Waiting for server... ($i)"
             sleep 1
           done
-      - name: Run scrapers against fake-mychart
-        run: bun run test:fake-mychart
-      - name: Run Claude Desktop extension tests against fake-mychart
-        run: cd claude-desktop-extension && bun install && bun test
-        env:
-          FAKE_MYCHART_HOST: localhost:4000
-      - name: Install npm-package deps
-        run: cd npm-package && bun install
-      - name: Build npm-package
-        run: cd npm-package && bun run build
-      - name: Run npm-package tests against local fake-mychart
-        run: cd npm-package && bun run test
+      # The integration suites live in every package's own __tests__/fake-mychart
+      # folder, so one command covers scrapers, the Desktop extension and the
+      # npm package. Their deps still have to be present, and the npm suite
+      # imports the built artifact rather than source, hence the steps below.
+      - name: Install Claude Desktop extension deps
+        run: cd claude-desktop-extension && bun install
+      - name: Install & build npm-package
+        run: cd npm-package && bun install && bun run build
+      - name: Run integration tests against fake-mychart
+        run: bun run test:integration
         env:
           FAKE_MYCHART_HOST: localhost:4000
 
