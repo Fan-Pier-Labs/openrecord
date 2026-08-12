@@ -1,78 +1,99 @@
-import { describe, it, expect, afterEach } from 'bun:test'
-import { changeDirToPackageRoot } from '../util'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+/**
+ * Tests for `changeDirToPackageRoot`.
+ *
+ * No disk. `fs.existsSync` is mocked over an in-memory set of paths, and
+ * `process.cwd`/`process.chdir` are stubbed, so the walk up the tree is
+ * simulated entirely in memory — including the case where it runs off the top
+ * of the filesystem, which would otherwise depend on whatever happens to sit
+ * above the temp directory on the machine running the test.
+ */
+import { describe, it, expect, beforeEach, afterAll, mock } from 'bun:test'
+import * as realFs from 'node:fs'
 import path from 'node:path'
 
-const originalCwd = process.cwd()
-const tempRoots: string[] = []
+/** Absolute paths that "exist". Only package.json lookups are ever asked. */
+let present = new Set<string>()
+let cwd = '/'
 
-/** Builds a throwaway tree and returns its (symlink-resolved) path. */
-function scratchTree(): string {
-  // macOS puts tmpdir behind /var -> /private/var, and process.cwd() reports the
-  // resolved path — so resolve up front or every comparison below fails.
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'pkgroot-')))
-  tempRoots.push(root)
-  return root
+const realExistsSync = realFs.existsSync
+const fakeFs = {
+  ...realFs,
+  existsSync: (p: realFs.PathLike) =>
+    typeof p === 'string' && p.startsWith('/repo') ? present.has(p) : realExistsSync(p),
+  default: realFs,
+}
+mock.module('fs', () => fakeFs)
+mock.module('node:fs', () => fakeFs)
+
+const realCwd = process.cwd
+const realChdir = process.chdir
+process.cwd = () => cwd
+process.chdir = ((dir: string) => {
+  cwd = dir
+}) as typeof process.chdir
+
+afterAll(() => {
+  process.cwd = realCwd
+  process.chdir = realChdir
+})
+
+const { changeDirToPackageRoot } = await import('../util')
+
+/** Marks each directory as holding a package.json. */
+function packagesAt(...dirs: string[]) {
+  present = new Set(dirs.map((d) => path.join(d, 'package.json')))
 }
 
-afterEach(() => {
-  process.chdir(originalCwd)
-  for (const root of tempRoots.splice(0)) {
-    rmSync(root, { recursive: true, force: true })
-  }
+beforeEach(() => {
+  present = new Set()
+  cwd = '/'
 })
 
 describe('changeDirToPackageRoot', () => {
   it('walks up to the nearest ancestor holding a package.json', () => {
-    const root = scratchTree()
-    writeFileSync(path.join(root, 'package.json'), '{}')
-    const nested = path.join(root, 'a', 'b', 'c')
-    mkdirSync(nested, { recursive: true })
+    packagesAt('/repo')
+    cwd = '/repo/a/b/c'
 
-    process.chdir(nested)
     changeDirToPackageRoot()
 
-    expect(process.cwd()).toBe(root)
+    expect(process.cwd()).toBe('/repo')
   })
 
-  it('stays put when the current directory already has a package.json', () => {
-    const root = scratchTree()
-    writeFileSync(path.join(root, 'package.json'), '{}')
+  it('stays put when the current directory already has one', () => {
+    packagesAt('/repo')
+    cwd = '/repo'
 
-    process.chdir(root)
     changeDirToPackageRoot()
 
-    expect(process.cwd()).toBe(root)
+    expect(process.cwd()).toBe('/repo')
   })
 
-  it('stops at the nearest package.json, not the outermost one', () => {
-    const root = scratchTree()
-    writeFileSync(path.join(root, 'package.json'), '{}')
-    const inner = path.join(root, 'packages', 'inner')
-    mkdirSync(inner, { recursive: true })
-    writeFileSync(path.join(inner, 'package.json'), '{}')
-    const deep = path.join(inner, 'src')
-    mkdirSync(deep)
+  it('stops at the nearest package.json, not the outermost', () => {
+    // A workspace inside a monorepo must resolve to the inner package.
+    packagesAt('/repo', '/repo/packages/inner')
+    cwd = '/repo/packages/inner/src'
 
-    process.chdir(deep)
     changeDirToPackageRoot()
 
-    expect(process.cwd()).toBe(inner)
+    expect(process.cwd()).toBe('/repo/packages/inner')
   })
 
-  it('leaves the working directory alone when no package.json exists above', () => {
+  it('leaves the working directory alone when nothing above has one', () => {
     // Walking off the top of the tree must be a no-op, not a chdir to '/'.
-    const root = scratchTree()
-    const nested = path.join(root, 'x', 'y')
-    mkdirSync(nested, { recursive: true })
+    packagesAt()
+    cwd = '/repo/x/y'
 
-    process.chdir(nested)
     expect(() => changeDirToPackageRoot()).not.toThrow()
 
-    // The scratch tree lives under the system temp dir, which has no
-    // package.json anywhere above it, so the loop runs out at the filesystem
-    // root and returns without moving.
-    expect(process.cwd()).toBe(nested)
+    expect(process.cwd()).toBe('/repo/x/y')
+  })
+
+  it('climbs several levels in one call', () => {
+    packagesAt('/repo')
+    cwd = '/repo/a/b/c/d/e/f'
+
+    changeDirToPackageRoot()
+
+    expect(process.cwd()).toBe('/repo')
   })
 })

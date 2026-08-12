@@ -402,10 +402,10 @@ describe('scrapers have exactly one outbound path', () => {
 })
 
 /**
- * The 30s cap on eUnity image downloads is the one place `AbortSignal.timeout`
- * is used, and it runs on device — where React Native's `abort-controller`
- * polyfill has the constructor but not the static. Moved here from the eUnity
- * fetch module when every outbound path was consolidated into http.ts.
+ * The 30s cap on eUnity image downloads is the only caller of this, and it runs
+ * on device — where React Native's `abort-controller` polyfill provides the
+ * constructor but not the static `AbortSignal.timeout`, which is the whole
+ * reason the fallback exists.
  */
 describe('abortAfter', () => {
   it('returns a signal that is not yet aborted', () => {

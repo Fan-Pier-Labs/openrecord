@@ -1,29 +1,25 @@
 /**
  * Tests for the extension's multi-account session manager.
  *
- * `./tmpHome` redirects the on-disk store into a throwaway directory —
- * `adoptSession` persists cookies, and this must never write to a real
- * ~/.openrecord-mcpb.
+ * `./memfs` replaces `fs` with a Map for the credential store's paths, so
+ * `adoptSession` persisting cookies touches no disk.
  *
  * `adoptSession` also starts a 30s keepalive interval per session. Every test
  * that adopts must clear the session afterwards or the process will not exit.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
-import { rmSync } from 'node:fs'
 import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
-import { assertSandboxed } from './tmpHome'
+import * as memfs from './memfs'
 
 const store = await import('../credential-store')
 const sessionManager = await import('../session-manager')
-
-assertSandboxed(store._paths.ROOT)
 
 afterAll(() => {
   sessionManager.clearAllSessions()
 })
 
 beforeEach(() => {
-  rmSync(store._paths.ROOT, { recursive: true, force: true })
+  memfs.reset()
 })
 
 afterEach(() => {
@@ -34,7 +30,7 @@ afterEach(() => {
 function fakeSession(hostname = 'mychart.example.org') {
   const req = new MyChartRequest(hostname)
   req.firstPathPart = 'MyChart'
-  req.transport = mock(async () => new Response('1', { status: 200 }))
+  req.transport = mock(async () => new Response('1', { status: 200 })) as typeof req.transport
   return req
 }
 

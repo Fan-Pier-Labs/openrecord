@@ -1,13 +1,10 @@
 /**
  * A MyChartRequest whose network layer is a small path-keyed router.
  *
- * The mock is installed at the session's `transport` — the seam `scraperFetch`
- * consults before it reaches the network — not at `makeRequest`, so every test
+ * The mock is installed at `transport`, not at `makeRequest`, so every test
  * still exercises the real URL building (mount prefix, protocol), the real
- * default headers, and the real per-host concurrency limiter. Only the socket
- * is fake. Because it sits below `scraperFetch`, the headers a route sees are
- * the ones that would actually have gone out: the browser block, the caller's
- * own headers, and the cookie jar's `Cookie`.
+ * default headers, the real cookie jar and the real per-host concurrency
+ * limiter — all of which sit above the transport. Only the socket is fake.
  *
  * Routes are keyed by a path suffix — `'/api/passkey-management/CreatePasskey'`
  * matches `https://host/MyChart/api/passkey-management/CreatePasskey`. A `'*'`
@@ -69,7 +66,7 @@ export function createMockRequest(
 
   const calls: RecordedCall[] = []
 
-  req.transport = async (url: string, init: RequestInit) => {
+  req.transport = (async (url: string, init: RequestInit) => {
     const href = String(url)
     const path = new URL(href).pathname
     const body = typeof init?.body === 'string' ? init.body : undefined
@@ -92,7 +89,7 @@ export function createMockRequest(
       return new Response(`No mock route for ${path}`, { status: 404 })
     }
     return handler(call)
-  }
+  }) as typeof req.transport
 
   return {
     req,

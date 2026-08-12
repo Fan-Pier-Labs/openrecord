@@ -87,6 +87,16 @@ jobs:
         run: cd claude-desktop-extension && bun install && bun test
         env:
           FAKE_MYCHART_HOST: localhost:4000
+      # The gate lives here, not in the `build` job, because it measures the unit
+      # suite AND the fake-mychart suite together. Splitting them would count
+      # every scraper that is only exercised end-to-end as uncovered, making the
+      # percentage an artifact of which suite happened to run. This job already
+      # has the server up and the extension's deps installed, so merging the two
+      # costs no extra setup.
+      - name: Check code coverage (Bun coverageThreshold, 75% per file)
+        run: bun run test:coverage
+        env:
+          FAKE_MYCHART_HOST: localhost:4000
       - name: Install npm-package deps
         run: cd npm-package && bun install
       - name: Build npm-package

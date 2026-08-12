@@ -104,7 +104,7 @@ function mockRequestRecording(responses: Array<{ body: string }>) {
   req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
     return new Response(responses[i++].body, { status: 200 })
-  })
+  }) as typeof req.transport
   return { req, calls }
 }
 
