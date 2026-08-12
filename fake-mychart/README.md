@@ -15,14 +15,28 @@ A standalone Next.js server that faithfully mimics Epic MyChart's web API surfac
 | Homer   | `homer`  | `donuts123` | No                      |
 | Marge   | `marge`  | `donuts123` | Yes (TOTP enabled)      |
 
-The 2FA code `123456` is always accepted. A live TOTP code generated from the
-seeded secret `JBSWY3DPEHPK3PXP` is accepted too, matching real MyChart's
-actual TOTP validation — that's what lets a client's silent re-login (stored
-TOTP secret → generated code) be tested end to end.
+The **login-time** 2FA accepts the fixed code `123456`, or a live TOTP code
+for the account's stored secret (marge seeds `JBSWY3DPEHPK3PXP`) — real
+MyChart validates real codes, and this is what lets a client's silent
+re-login (stored TOTP secret → generated code) be tested end to end. The
+fixed code is unrelated to TOTP *setup*, below, which mints a fresh secret
+per enrollment and verifies against that.
 
 - `homer` logs in directly.
 - `marge` exists for testing the 2FA path — her login always returns the secondary-validation page until you submit the code.
 - Toggling TOTP via the settings UI (or the `UpdateTwoFactorTotpOptInStatus` endpoint) only affects the per-user UI flag (`IsTotpEnabled` returned by `GetTwoFactorInfo`). It does NOT change whether login requires 2FA — that's a fixed per-user behavior (off for homer, on for marge). The CLI's `--set-up-totp` / `--disable-totp` flow can therefore keep using username+password without ever needing a 2FA code. Use `POST /reset` to restore both users to their seed state.
+
+### TOTP setup is cryptographically real
+
+The authenticator-app setup flow is not stubbed:
+
+- `POST /api/secondary-validation/TotpQrCode` mints a **fresh 160-bit Base32 secret per call** and holds it pending on the user (real MyChart does the same — an abandoned setup leaves the account untouched).
+- `POST /api/secondary-validation/VerifyCode` validates the submitted code against that pending secret — or, during opt-out, against the account's committed secret — using RFC 6238 (`src/lib/totp.ts`: HMAC-SHA1, 6 digits, 30-second step, ±1 step of slack). A wrong code gets a 400.
+- `POST /api/secondary-validation/UpdateTwoFactorTotpOptInStatus` commits the pending secret on opt-in and clears it on opt-out.
+
+`FAKE_MYCHART_ACCEPT_ANY` **does not** bypass code validation. That knob loosens credential lookup; the code check is the one genuinely computational step in the setup flow, and waving it through would mean a client that fabricated six digits passed CI.
+
+`marge` is seeded with the standard test secret `JBSWY3DPEHPK3PXP`, since she starts with TOTP already enabled.
 
 Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password (treated as homer).
 Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) through the 2FA flow.
@@ -159,7 +173,7 @@ Because all state lives in RAM, mutations during a session (sent messages, delet
 - **Browser**: visit [`/reset`](http://localhost:4000/reset) and click the **Reset Fake MyChart RAM** button.
 - **HTTP**: `curl -X POST http://localhost:4000/reset` — returns `{"ok":true}`.
 
-Reset clears all sessions, restores the seeded conversations and emergency contacts, disables every user's TOTP, removes all passkeys, forgets booked appointments, and restores the default mount and proxy-discovery modes.
+Reset clears all sessions, restores the seeded conversations and emergency contacts, returns each user's TOTP to its seed state (off with no secret for homer, on with the seeded secret for marge — any secret minted during a setup is discarded), removes all passkeys, forgets booked appointments, and restores the default mount and proxy-discovery modes.
 
 ## Running
 

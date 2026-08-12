@@ -18,6 +18,7 @@ import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
+import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
 
 import crypto from 'crypto';
 
@@ -276,26 +277,6 @@ function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
 }
 
-/**
- * Whether a submitted 2FA code is a live TOTP code for the seeded secret
- * (homer.totpQrCode.encodedSecretKey). Real MyChart validates real TOTP codes,
- * not a magic constant, so accepting a correctly generated code alongside the
- * fixed test code '123456' keeps the fake faithful — it's what lets a client's
- * silent re-login (stored TOTP secret → generated code) be exercised end to
- * end. The previous and current 30-second steps are both accepted, matching
- * the usual clock-skew tolerance.
- */
-async function isValidSeededTotpCode(code: string): Promise<boolean> {
-  if (!/^\d{6}$/.test(code)) return false;
-  const secret = homer.totpQrCode.encodedSecretKey;
-  const { TOTP } = await import('totp-generator');
-  const now = Date.now();
-  for (const timestamp of [now, now - 30_000]) {
-    const { otp } = await TOTP.generate(secret, { timestamp });
-    if (otp === code) return true;
-  }
-  return false;
-}
 
 function requireTermsRedirect(request: NextRequest): NextResponse | null {
   if (!getRequireTerms()) return null;
@@ -727,7 +708,14 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower.startsWith('authentication/secondaryvalidation/validate')) {
     const body = await request.text();
     const submittedCode = new URLSearchParams(body).get('TwoFactorCode') ?? '';
-    if (submittedCode === '123456' || acceptAny() || await isValidSeededTotpCode(submittedCode)) {
+    // Real MyChart validates a real TOTP code against the account's enrolled
+    // secret, so a live code for the user's stored secret (marge seeds
+    // JBSWY3DPEHPK3PXP) is accepted alongside the fixed test code — that's
+    // what lets a client's silent re-login (stored TOTP secret → generated
+    // code) be exercised end to end.
+    const userSecret = currentUser(request)?.totpSecret ?? null;
+    const totpValid = !!userSecret && verifyTotpCode(userSecret, submittedCode);
+    if (submittedCode === '123456' || acceptAny() || totpValid) {
       // Preserve the username from the pending session so the post-2FA
       // session continues to know who's logged in (matters for per-user
       // TOTP/passkey state).
@@ -1138,25 +1126,47 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
   if (lower === 'api/secondary-validation/totpqrcode') {
-    return json(homer.totpQrCode);
+    // Real MyChart mints a fresh secret per call and holds it pending until a
+    // valid code proves the client stored it. Returning a constant here would
+    // let a client that ignores the response still "set up" TOTP.
+    const u = currentUser(request);
+    const secret = generateTotpSecret();
+    if (u) u.pendingTotpSecret = secret;
+    return json({ ...homer.totpQrCode, encodedSecretKey: secret });
   }
   if (lower === 'api/secondary-validation/verifycode') {
     try {
       const body = await request.json();
       const code = body.Code || body.code || '';
-      // Accept any 6-digit code, or the fixed test code
-      if (acceptAny() || code === '123456' || /^\d{6}$/.test(code)) {
+      const u = currentUser(request);
+      // Validate against the secret this account is actually setting up (or
+      // already using, for the opt-out flow). Deliberately NOT bypassed by
+      // FAKE_MYCHART_ACCEPT_ANY: that knob loosens credential lookup, not
+      // cryptography, and bypassing it here would make the one step of the
+      // setup flow that involves real computation untestable.
+      const secret = u?.pendingTotpSecret ?? u?.totpSecret ?? null;
+      if (secret && verifyTotpCode(secret, String(code))) {
         return json({ Success: true });
       }
-      return json({ Success: false });
+      return json({ Success: false }, 400);
     } catch {
-      return json({ Success: true });
+      return json({ Success: false }, 400);
     }
   }
   if (lower === 'api/secondary-validation/updatetwofactortotpoptinstatus') {
-    // Toggle TOTP status for the logged-in user
+    // Toggle TOTP status for the logged-in user. The scraper sends an empty
+    // body for both directions, so the endpoint infers which one is meant.
     const u = currentUser(request);
-    if (u) u.totpEnabled = !u.totpEnabled;
+    if (u) {
+      u.totpEnabled = !u.totpEnabled;
+      if (u.totpEnabled) {
+        // Commit the secret VerifyCode just validated.
+        u.totpSecret = u.pendingTotpSecret ?? u.totpSecret;
+      } else {
+        u.totpSecret = null;
+      }
+      u.pendingTotpSecret = null;
+    }
     return json({ Success: true });
   }
 
