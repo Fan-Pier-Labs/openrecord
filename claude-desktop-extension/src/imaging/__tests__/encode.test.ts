@@ -13,7 +13,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { convertCloToBitmap16 } from '../../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { encodeCloAsJpeg } from '../jpeg-encoder';
-import { encodeImageId, decodeImageId } from '../download-study';
+import { encodeImageId, decodeImageId } from '../../../../shared/capabilities';
 
 const CLO_DIR = join(__dirname, '../../../../fake-mychart/src/data/clo-images');
 
