@@ -26,6 +26,11 @@ import {
   switchProxyTarget,
   verifyActiveProxyTarget,
 } from '../../scrapers/myChart/proxyContext';
+import {
+  runListProxyTargets,
+  runSwitchProxyTarget,
+  assertProxyReadContext,
+} from '../../scrapers/myChart/proxyTools';
 import { getHealthSummary } from '../../scrapers/myChart/healthSummary';
 import { getVitals } from '../../scrapers/myChart/vitals';
 import { getMedications } from '../../scrapers/myChart/medications';
@@ -82,6 +87,17 @@ import {
 
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/other_mycharts';
 import { getEhiExportTemplates } from '../../scrapers/myChart/ehiExport';
+
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/notes/notes';
+import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
+import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
+import {
+  CAPABILITIES,
+  executeCapability,
+  type Capability,
+  type CapabilityArgs,
+  type CapabilityContext,
+} from '../../shared/capabilities';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 1000;
 
@@ -286,12 +302,50 @@ export class MyChartClient {
     return generateTotpCode(secret);
   }
 
+  // ── Capability registry ─────────────────────────────────────────────────
+
+  /**
+   * Every capability OpenRecord supports, from the shared registry
+   * (`shared/capabilities.ts`) — the same list the CLI, the Claude Desktop
+   * extension and the mobile app derive their tools from. Useful for building
+   * a tool layer of your own without re-deriving what exists.
+   */
+  static capabilities(): readonly Capability[] {
+    return CAPABILITIES;
+  }
+
+  /**
+   * Run a capability by id against this session — `runCapability('get_visit_notes', { csn })`.
+   *
+   * The typed methods below are the ergonomic path and cover the same ground;
+   * this is the dynamic one, for callers dispatching on a name they were
+   * handed (a tool call, a CLI argument, a queue message).
+   *
+   * `ctx` is only consulted by the account-security capabilities, which need
+   * the account password and somewhere to persist a new secret.
+   */
+  runCapability(id: string, args: CapabilityArgs = {}, ctx?: CapabilityContext): Promise<unknown> {
+    return executeCapability(this.req(), id, args, ctx);
+  }
+
   // ── Profile ─────────────────────────────────────────────────────────────
   getProfile() { return getMyChartProfile(this.req()); }
   getEmail()   { return getEmail(this.req()); }
   discoverProxyTargets() { return discoverProxyTargets(this.req()); }
   switchProxyTarget(target: { id?: string; displayName?: string }) { return switchProxyTarget(this.req(), target); }
   verifyActiveProxyTarget() { return verifyActiveProxyTarget(this.req()); }
+
+  // ── Patient records (proxy access) ──────────────────────────────────────
+  // The client-facing pair the other three clients expose as tools. The three
+  // methods above are the lower-level primitives they are built on.
+  listProxyTargets() { return runListProxyTargets(this.req()); }
+  switchToPatient(patient: string) { return runSwitchProxyTarget(this.req(), patient); }
+  /**
+   * Assert MyChart is on the patient a call is about, without changing
+   * anything. Throws with the switch to run on a mismatch. `runCapability`
+   * does this for you; call it directly when driving the raw scrapers.
+   */
+  assertProxyReadContext(patient?: string) { return assertProxyReadContext(this.req(), patient); }
 
   // ── Health summary / vitals ─────────────────────────────────────────────
   getHealthSummary() { return getHealthSummary(this.req()); }
@@ -329,6 +383,13 @@ export class MyChartClient {
   // ── Visits ──────────────────────────────────────────────────────────────
   upcomingVisits()                          { return upcomingVisits(this.req()); }
   pastVisits(oldestRenderedDate: Date)      { return pastVisits(this.req(), oldestRenderedDate); }
+
+  // ── Visit notes ─────────────────────────────────────────────────────────
+  getVisitNotes(csn: string)                { return getVisitNotes(this.req(), csn); }
+  getNoteContent(params: { csn: string; lrpId: string; hnoId: string; hnoDat: string }) {
+    return getNoteContent(this.req(), params);
+  }
+  getVisitAVS(csn: string)                  { return getVisitAVS(this.req(), csn); }
 
   // ── Messages ────────────────────────────────────────────────────────────
   listConversations()                                       { return listConversations(this.req()); }
@@ -368,4 +429,16 @@ export class MyChartClient {
   // ── Linked accounts / EHI export ───────────────────────────────────────
   getLinkedMyChartAccounts() { return getLinkedMyChartAccounts(this.req()); }
   getEhiExportTemplates()    { return getEhiExportTemplates(this.req()); }
+
+  // ── Account security ───────────────────────────────────────────────────
+  // These change how the patient signs in. Persisting whatever they hand back
+  // (the passkey credential, the TOTP secret) is the caller's job — this
+  // library deliberately owns no credential store.
+  setupPasskey()                { return setupPasskey(this.req()); }
+  listPasskeys()                { return listPasskeys(this.req()); }
+  deletePasskey(rawId: string)  { return deletePasskey(this.req(), rawId); }
+  setupTotp(password: string)   { return setupTotp(this.req(), password); }
+  disableTotp(password: string, totpSecret: string) {
+    return disableTotp(this.req(), password, totpSecret);
+  }
 }

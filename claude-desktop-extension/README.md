@@ -66,10 +66,32 @@ After setup, every data tool takes a required `account` parameter (the
 MyChart hostname returned by `list_accounts`). Multiple accounts can be
 active at the same time — just pass a different `account` per call.
 
+The data tools are not listed anywhere in this package. They are generated
+from the shared capability registry (`shared/capabilities.ts`), which is also
+what the CLI and the mobile app derive their surfaces from — so this extension
+cannot quietly support less than they do. `registerAllTools` hand-writes only
+the five account-management tools above, which manage credentials on this
+machine and have no counterpart in the other clients.
+
 > What's my next appointment at uchealth?
 > Refill my lisinopril (use my mass general account).
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
+
+### Family records (proxy access)
+
+Accounts with MyChart proxy access (a parent reading a child's chart) can list
+and switch the active patient. **`list_proxy_targets`** shows every record the
+account can reach and which is active; **`switch_proxy_target`** changes it —
+verified against the profile page, so a switch that lands on the wrong patient
+fails instead of returning the wrong chart. MyChart's active patient is
+server-side session state, so every data tool also takes an optional `patient`
+parameter and refuses (with instructions) rather than silently reading a
+different family member's record than the one the call is about.
+
+> Ask my uchealth account which records I can access.
+> Switch to Bart's record and show his immunizations.
+> Switch back to my own record.
 
 ## Architecture
 
@@ -93,7 +115,7 @@ claude-desktop-extension/
 ├── icon.png                # 256×256 extension icon
 └── src/
     ├── index.ts            # stdio entry
-    ├── tools.ts            # registers setup_account + all scraper tools
+    ├── tools.ts            # account meta tools + one tool per shared capability
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
