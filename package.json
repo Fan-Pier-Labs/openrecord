@@ -6,12 +6,11 @@
     "fix": "eslint --fix",
     "lint": "eslint",
     "cli": "bun npm-package/cli/entry.ts",
-    "test": "bun test --isolate scrapers/myChart/__tests__/*.test.ts scrapers/myChart/eunity/__tests__/*.test.ts scrapers/myChart/clo-image-parser/clo_to_jpg.test.ts scrapers/myChart/clo-image-parser/exporters.test.ts shared/__tests__/*.test.ts npm-package/cli/__tests__/*.test.ts expo-app/src/lib/*/__tests__/*.test.ts expo-app/src/__tests__/*.test.ts claude-desktop-extension/src/__tests__/*.test.ts openrecord-splash/__tests__/*.test.ts openrecord-splash/demo/__tests__/*.test.ts openrecord-demo-lambda/src/__tests__/*.test.ts newsletter-lambda/src/__tests__/*.test.ts fake-mychart/src/lib/__tests__/*.test.ts",
+    "test": "bun test --isolate .unit.test.ts",
+    "test:integration": "bun test --isolate .integration.test.ts",
+    "test:real-mychart": "NODE_ENV=development bun test --isolate .real-mychart.test.ts",
     "test:unit": "bun run test",
-    "test:coverage": "bun run test -- --coverage scrapers/myChart/__tests__/fake-mychart/",
-    "test:integration": "NODE_ENV=development bun test scrapers/myChart/__tests__/integration/",
-    "test:fake-mychart": "bun test scrapers/myChart/__tests__/fake-mychart/",
-    "test:ci-integration": "bun test tests/integration/ci/"
+    "test:coverage": "bun test --isolate --coverage .unit.test.ts .integration.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",

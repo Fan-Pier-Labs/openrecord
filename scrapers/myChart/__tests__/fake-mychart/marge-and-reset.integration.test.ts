@@ -6,20 +6,16 @@
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  *
- * Run with: bun test scrapers/myChart/__tests__/fake-mychart/marge-and-reset.test.ts
+ * Run with: bun run test:integration
  */
 
-import { describe, it, expect, afterEach } from 'bun:test'
+import { describe, it, expect, beforeAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../../login'
 import { getMyChartProfile } from '../../profile'
+import { resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 const BASE = `http://${HOST}`
-
-async function postReset(): Promise<void> {
-  const r = await fetch(`${BASE}/reset`, { method: 'POST' })
-  if (!r.ok) throw new Error(`/reset failed: ${r.status}`)
-}
 
 function buildLoginInfo(user: string, pass: string): string {
   return JSON.stringify({
@@ -41,9 +37,10 @@ async function rawDoLogin(user: string, pass: string): Promise<{ status: number;
 }
 
 describe('fake-mychart marge user + /reset', () => {
-  // Reset state after every test so order doesn't matter and TOTP toggles
-  // don't bleed between tests.
-  afterEach(postReset)
+  // Reset before the first test as well as after every one, so neither the
+  // order within this file nor the order of the files around it matters.
+  beforeAll(async () => { await resetFakeMyChart(HOST) })
+  afterEach(async () => { await resetFakeMyChart(HOST) })
 
   it('homer logs in directly without 2FA', async () => {
     const result = await myChartUserPassLogin({

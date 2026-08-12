@@ -4,9 +4,9 @@
  * Tests that the CLI can set up and remove passkeys on a fake-mychart
  * server running in Docker Compose (or locally).
  *
- * Requires fake-mychart running on port 4000 (FAKE_MYCHART_ACCEPT_ANY=true).
+ * Requires the docker-compose.ci.yaml fake-mychart on port 4000.
  *
- * Run: bun test tests/integration/ci/cli-passkey.test.ts
+ * Run: bun run test:integration
  */
 
 import { describe, it, expect, afterAll, beforeAll } from 'bun:test';
@@ -141,9 +141,16 @@ afterAll(() => {
 // ---------------------------------------------------------------------------
 
 describe('CLI passkey operations against fake-mychart', () => {
-  // Clean up any passkeys left over from a previous test run
+  // Start from the seed, not from whatever ran last. This suite now shares one
+  // fake-mychart with every other integration suite in the repo, and bun runs
+  // files in directory-entry order — which changes whenever a file is added or
+  // renamed. Deleting only the passkeys was enough when this directory had its
+  // own server; a full reset is what makes the order irrelevant.
   beforeAll(async () => {
-    try { await deleteAllPasskeysFromFakeMychart(); } catch { /* server may not be up yet */ }
+    try {
+      await fetch(`${FAKE_MYCHART_URL}/reset`, { method: 'POST' });
+      await deleteAllPasskeysFromFakeMychart();
+    } catch { /* server may not be up yet */ }
   });
 
   it('health check — fake-mychart is reachable', async () => {
