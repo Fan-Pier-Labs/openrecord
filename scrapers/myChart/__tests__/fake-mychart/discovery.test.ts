@@ -26,6 +26,7 @@
 import { describe, it, expect, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
 import { getMyChartProfile } from '../../profile'
+import { platformFetch } from '../../../http'
 import { setMountMode, setDiscoveryMode, type MountMode, type DiscoveryMode } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
@@ -154,10 +155,10 @@ describe('discovery: moved host', () => {
 
     const requested: string[] = []
     const session = result.mychartRequest
-    const underlying = session.fetchWithCookieJar.bind(session)
-    session.fetchWithCookieJar = (url, init) => {
-      requested.push(String(url))
-      return underlying(url, init)
+    // Spy on the URLs but still hit the real server.
+    session.transport = (url, init) => {
+      requested.push(url)
+      return platformFetch(url, init)
     }
 
     await getMyChartProfile(session)
