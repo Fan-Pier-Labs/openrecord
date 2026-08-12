@@ -49,6 +49,12 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Job-level, not per-step: every integration suite in the repo now runs in
+    # this one job, and the previous shape — the env var on the individual test
+    # steps — is exactly what broke when they merged. One suite defaulted to the
+    # hosted fake-mychart and went out to the public internet.
+    env:
+      FAKE_MYCHART_HOST: localhost:4000
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

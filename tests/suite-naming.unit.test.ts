@@ -31,6 +31,11 @@ const KINDS = [".unit.test.ts", ".integration.test.ts", ".real-mychart.test.ts"]
  */
 const SKIP_DIRS = new Set(["node_modules", "dist", ".next", "coverage", ".git"]);
 
+/** Comments may name the hosted instance; only code choosing it is a problem. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 function testFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -66,6 +71,19 @@ describe("test suite naming", () => {
     for (const f of files) {
       expect(KINDS.filter((k) => f.endsWith(k))).toHaveLength(1);
     }
+  });
+
+  test("no integration suite defaults to a host on the public internet", () => {
+    // An integration test names the fake-mychart it talks to, and the fallback
+    // when FAKE_MYCHART_HOST is unset has to be the local compose service. One
+    // file defaulted to the hosted instance instead, which was invisible while
+    // it had a CI step of its own setting the env var, and reached out to the
+    // internet the moment every integration suite started sharing one job.
+    const offenders = files
+      .filter((f) => f.endsWith(".integration.test.ts"))
+      .filter((f) => /\bfanpierlabs\.com/.test(stripComments(readFileSync(join(REPO_ROOT, f), "utf8"))));
+
+    expect(offenders).toEqual([]);
   });
 
   test("no CI workflow can reach the real-MyChart suite", () => {
