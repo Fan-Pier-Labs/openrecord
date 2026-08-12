@@ -6,7 +6,7 @@
  * precisely because real instances differ on both. The end-to-end happy path
  * is covered separately by
  * `scrapers/myChart/__tests__/fake-mychart/credential-setup.test.ts` and
- * `tests/integration/ci/cli-passkey.test.ts`.
+ * `tests/integration/ci/cli-passkey.integration.test.ts`.
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'

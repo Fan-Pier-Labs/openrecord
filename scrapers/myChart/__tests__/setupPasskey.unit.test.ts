@@ -5,7 +5,7 @@
  * variants and every failure branch are only reachable from here. The
  * end-to-end happy path is covered by
  * `scrapers/myChart/__tests__/fake-mychart/credential-setup.test.ts` and
- * `tests/integration/ci/cli-passkey.test.ts`.
+ * `tests/integration/ci/cli-passkey.integration.test.ts`.
  */
 
 import { describe, it, expect, afterAll, beforeAll } from 'bun:test'

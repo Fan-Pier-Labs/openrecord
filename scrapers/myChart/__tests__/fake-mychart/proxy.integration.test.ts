@@ -19,14 +19,9 @@ import {
   runListProxyTargets,
   runSwitchProxyTarget,
 } from '../../proxyTools'
-import { setMountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
-
-async function postReset(): Promise<void> {
-  const r = await fetch(`http://${HOST}/reset`, { method: 'POST' })
-  if (!r.ok) throw new Error(`/reset failed: ${r.status}`)
-}
 
 async function loginHomer(): Promise<MyChartRequest> {
   const result = await myChartUserPassLogin({
@@ -45,12 +40,12 @@ describe('proxy tools against fake-mychart', () => {
 
   beforeAll(async () => {
     // Server state is global to the fake; don't inherit whatever ran last.
-    await postReset()
+    await resetFakeMyChart(HOST)
     await setMountMode(HOST, 'prefixed')
     session = await loginHomer()
   }, 30_000)
 
-  afterAll(postReset)
+  afterAll(async () => { await resetFakeMyChart(HOST) })
 
   it('lists Homer plus his three kids, with Homer active after a fresh login', async () => {
     const result = await runListProxyTargets(session)
