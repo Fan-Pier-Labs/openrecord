@@ -3,7 +3,7 @@ import * as tough from 'tough-cookie';
 import { MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
 import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
-import { fetchWithCookies } from './fetch';
+import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
 export interface FdiContext {
@@ -125,11 +125,18 @@ export async function getImageViewerSamlUrl(
  * Chain: STS URL → HTML form with SAMLResponse → POST to redirect endpoint →
  *        meta-refresh to selfauth → 302 redirect chain → eUnity server
  *
- * Uses its own cookie jar so cross-domain cookies accumulate
- * properly without polluting the MyChart cookie jar.
+ * Uses its own cookie jar, and returns it alongside viewerUrl and jsessionId
+ * so callers can keep making authenticated requests to eUnity.
  *
- * Returns viewerUrl, jsessionId, AND the cookie jar so callers can make
- * authenticated requests to eUnity.
+ * TODO: this should be the session's jar, not a second one. The original
+ * reason given was to avoid "polluting" the MyChart jar, which doesn't hold —
+ * tough-cookie scopes every cookie to its domain, so eUnity's cookies could
+ * never have reached MyChart requests in the first place. The real difference
+ * is the other direction: starting empty means the first hop, which is on the
+ * MyChart host, goes out without the session cookies it would otherwise carry.
+ * It works today because the STS URL is itself an authenticated token, but
+ * unifying is a change to the live imaging path and wants a real-instance test
+ * rather than a drive-by.
  */
 export async function followSamlChain(
   _mychartRequest: MyChartRequest,
@@ -137,18 +144,17 @@ export async function followSamlChain(
 ): Promise<{ viewerUrl: string; jsessionId: string; cookieJar: tough.CookieJar; viewerBody: string } | null> {
   const jar = new tough.CookieJar();
 
-  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-  // Helper: make a request with the cookie jar, manually follow redirects
+  // Helper: make a request against this chain's jar, manually following
+  // redirects. Headers and the per-host permit come from scraperFetch.
   async function req(url: string, opts: { method?: string; body?: string; contentType?: string } = {}) {
-    const headers: Record<string, string> = { 'User-Agent': UA };
+    const headers: Record<string, string> = {};
     if (opts.contentType) headers['Content-Type'] = opts.contentType;
-    return fetchWithCookies(jar, url, {
+    return scraperFetch(url, {
       method: opts.method || 'GET',
       redirect: 'manual',
       headers,
       body: opts.body,
-    });
+    }, { cookieJar: jar });
   }
 
   async function makeViewerResult(viewerUrl: string, viewerBody: string) {

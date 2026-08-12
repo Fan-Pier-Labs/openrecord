@@ -5,9 +5,9 @@ import { MyChartRequest } from '../myChartRequest'
 function mockRequest(body: string) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
-  req.fetchWithCookieJar = mock(async () => {
+  req.transport = mock(async () => {
     return new Response(body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  }) as typeof req.transport
   return req
 }
 
