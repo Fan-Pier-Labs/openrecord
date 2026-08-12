@@ -62,7 +62,13 @@ export function PickerStep({ onPick, onManualEntry }: Props) {
             <Text style={styles.pickerEmptyText}>
               No MyChart sites match "{query}".
             </Text>
-            <Pressable style={styles.secondaryButton} onPress={onManualEntry}>
+            <Pressable
+              testID="picker-manual-empty"
+              accessibilityLabel="Enter hostname manually"
+              accessibilityRole="button"
+              style={styles.secondaryButton}
+              onPress={onManualEntry}
+            >
               <Text style={styles.secondaryButtonText}>Enter hostname manually</Text>
             </Pressable>
           </View>
