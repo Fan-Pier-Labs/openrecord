@@ -15,7 +15,7 @@
  *   • Read tools batch in parallel — emit N read calls in one turn and
  *     they all run via Promise.allSettled, with results fed back as a
  *     single user turn in emission order.
- *   • Write tools (send_message, send_reply, request_refill) and
+ *   • Write tools (see WRITE_TOOL_META in tool-catalog.ts) and
  *     `respond` are exclusive: they must be called alone with no other
  *     tool calls in the same turn. Batched exclusive calls are rejected
  *     and the model is asked to retry.
@@ -35,6 +35,7 @@ import { backendUrl } from "@/lib/backend/client";
 import { getBackendSession } from "@/lib/backend/session";
 import { getFreshIdToken } from "@/lib/backend/google-signin";
 import { extractToolCalls } from "./tool-call-parser";
+import { TOOLS, WRITE_TOOLS, RESPOND_TOOL, isExclusiveTool } from "./tool-catalog";
 
 export type ToolCall = {
   id: string;
@@ -47,38 +48,9 @@ export type ChatMessage = {
   content: string;
 };
 
-const TOOLS: { name: string; description: string; args: Record<string, string> }[] = [
-  { name: "get_profile", description: "Get the user's MyChart profile information", args: { instance: "MyChart hostname (optional if only one account)" } },
-  { name: "get_health_summary", description: "Get a summary of the user's health information", args: { instance: "optional" } },
-  { name: "get_medications", description: "Get current and past medications", args: { instance: "optional" } },
-  { name: "get_allergies", description: "Get allergy information", args: { instance: "optional" } },
-  { name: "get_health_issues", description: "Get health issues / problem list", args: { instance: "optional" } },
-  { name: "get_upcoming_visits", description: "Get upcoming appointments", args: { instance: "optional" } },
-  { name: "get_past_visits", description: "Get past visit history", args: { instance: "optional", years_back: "number, optional" } },
-  { name: "get_lab_results", description: "Get lab test results", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_messages", description: "Get MyChart messages/conversations with providers", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_billing", description: "Get billing history", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_care_team", description: "Get care team members", args: { instance: "optional" } },
-  { name: "get_insurance", description: "Get insurance information", args: { instance: "optional" } },
-  { name: "get_immunizations", description: "Get immunization records", args: { instance: "optional" } },
-  { name: "get_preventive_care", description: "Get preventive care recommendations", args: { instance: "optional" } },
-  { name: "get_vitals", description: "Get vital signs history", args: { instance: "optional" } },
-  { name: "get_documents", description: "Get medical documents", args: { instance: "optional" } },
-  { name: "get_imaging_results", description: "Get imaging/radiology results", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_xray_image", description: "Download the actual X-ray/imaging picture for an imaging result and attach it to the reply. Use the 0-based index from get_imaging_results.", args: { instance: "optional", imaging_index: "0-based index from get_imaging_results" } },
-  { name: "get_letters", description: "Get letters from providers", args: { instance: "optional" } },
-  { name: "get_referrals", description: "Get referral information", args: { instance: "optional" } },
-  { name: "get_medical_history", description: "Get medical history", args: { instance: "optional" } },
-  { name: "get_emergency_contacts", description: "Get emergency contacts", args: { instance: "optional" } },
-  { name: "get_activity_feed", description: "Get recent activity feed", args: { instance: "optional" } },
-  { name: "get_care_journeys", description: "Get care journey information", args: { instance: "optional" } },
-  { name: "get_goals", description: "Get health goals", args: { instance: "optional" } },
-  { name: "get_education_materials", description: "Get patient education materials", args: { instance: "optional" } },
-  { name: "get_message_recipients", description: "List available message recipients and topics (use before send_message if unsure who to message)", args: { instance: "optional" } },
-  { name: "send_message", description: "Send a new message to a MyChart provider. Confirm with the user before sending.", args: { instance: "optional", recipient_name: "provider name (fuzzy match)", topic: "topic (fuzzy match, e.g. 'Medical Question')", subject: "subject line", message_body: "message body" } },
-  { name: "send_reply", description: "Reply to an existing MyChart conversation. Confirm with the user before sending.", args: { instance: "optional", conversation_id: "conversation id from get_messages", message_body: "reply text" } },
-  { name: "request_refill", description: "Request a medication refill. Confirm with the user before submitting.", args: { instance: "optional", medication_name: "medication name (fuzzy match)" } },
-];
+// TOOLS, WRITE_TOOLS, and the exclusivity rules live in ./tool-catalog so the
+// prompt-side declarations and tool-executor's confirmation gating cannot
+// drift apart.
 
 function buildSystemPrompt(
   memoryDigest?: string | null,
@@ -114,7 +86,7 @@ function buildSystemPrompt(
     '  { "tool": "get_billing", "args": {} }',
     '  { "tool": "get_messages", "args": { "limit": 50 } }',
     "",
-    "Write tools (send_message, send_reply, request_refill) and `respond` are EXCLUSIVE — they must be the only tool call in the turn. Batching them with anything else will be rejected.",
+    `Write tools (${[...WRITE_TOOLS].join(", ")}) and \`respond\` are EXCLUSIVE — they must be the only tool call in the turn. Batching them with anything else will be rejected.`,
     "",
     "To reply to the user, call the `respond` tool — this is the ONLY way to surface text to the user and ends your turn:",
     '  { "tool": "respond", "args": { "text": "<your reply>" } }',
@@ -128,6 +100,7 @@ function buildSystemPrompt(
     "- Booking / scheduling / rescheduling / cancelling appointments: you CAN help by messaging the right provider. First call get_care_team (and if needed get_message_recipients) to find candidate providers. If the user already named a specialty or doctor, pick that one; otherwise ask the user which provider they want to see. Then draft a send_message to that provider describing what they're asking for (visit type, preferred dates/times, reason) and confirm before sending.",
     "- Showing X-ray / imaging pictures: if the user asks to SEE an X-ray (not just the report), call get_imaging_results first to pick the right study, then call get_xray_image with its 0-based index. The tool returns { image_id, caption }. In your `respond` text, include the literal token [image:IMAGE_ID] on its own line where you want the picture to appear (the UI will swap it for the actual image).",
     "- Prescription refills: use request_refill.",
+    "- Family members' records (proxy access): if the user asks about a child's or family member's chart, call list_proxy_targets to see which records this account can access and which is active, then switch_proxy_target to that patient (confirm with the user first — every data tool reads the newly active record afterwards). Data tools refuse, with instructions, if the active record doesn't match the patient they're about. Switch back with patient 'me' once the family member's request is done.",
     "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
     "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
     "- For any write action (send_message, send_reply, request_refill), always show the user the exact payload and get explicit confirmation before calling the tool.",
@@ -172,13 +145,6 @@ export type ToolExecutor = (toolName: string, input: Record<string, unknown>) =>
 
 const TOOL_LOOP_DEADLINE_MS = 10 * 60 * 1000;
 const MAX_CONSECUTIVE_PARSE_FAILURES = 3;
-
-const WRITE_TOOLS = new Set(["send_message", "send_reply", "request_refill"]);
-const RESPOND_TOOL = "respond";
-
-function isExclusiveTool(name: string): boolean {
-  return name === RESPOND_TOOL || WRITE_TOOLS.has(name);
-}
 
 type CompleteFn = (messages: ChatMessage[], system: string, model: string) => Promise<string>;
 
