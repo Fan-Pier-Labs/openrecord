@@ -180,10 +180,10 @@ export class MyChartRequest {
    * come along too, because discovery during the fresh login may legitimately
    * have followed a vanity-host move.
    *
-   * `fetchWithCookieJar` is deliberately NOT copied: the default implementation
-   * reads `this.cookieJar` at call time (so reassigning the jar is enough), and
-   * a custom fetchFn (iOS) manages cookies natively and must stay bound to the
-   * platform it was built for.
+   * `transport` is deliberately NOT copied: it is a per-session override (a
+   * test's scripted router), and a re-login should not silently inherit the
+   * old session's network layer. Production sessions leave it null and let
+   * `scraperFetch` pick from the platform on every call anyway.
    */
   adoptStateFrom(other: MyChartRequest) {
     this.cookieJar = other.cookieJar;

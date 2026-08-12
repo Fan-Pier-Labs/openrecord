@@ -101,10 +101,10 @@ function mockRequestRecording(responses: Array<{ body: string }>) {
   req.firstPathPart = 'MyChart'
   const calls: Array<{ url: string; init: RequestInit }> = []
   let i = 0
-  req.fetchWithCookieJar = mock(async (url: string, init: RequestInit = {}) => {
+  req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
     return new Response(responses[i++].body, { status: 200 })
-  }) as typeof req.fetchWithCookieJar
+  })
   return { req, calls }
 }
 

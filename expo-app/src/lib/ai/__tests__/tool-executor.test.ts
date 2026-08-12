@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, mock } from "bun:test";
+import { getCapability } from "../../../../../shared/capabilities";
 
 /**
  * Captured Alert.alert invocations. Tests choose which button to "press"
@@ -78,7 +79,10 @@ describe("write tools", () => {
     const result = await executeLocalTool("send_message", input);
 
     expect(alertCalls).toHaveLength(1);
-    expect(alertCalls[0].title).toBe("Confirm: Send Message");
+    // The dialog title comes from the capability registry, which is the one
+    // source of truth for every client's tool surface — assert against it
+    // rather than a copy that can drift out of step with it.
+    expect(alertCalls[0].title).toBe(`Confirm: ${getCapability("send_message")!.title}`);
     // The exact payload is shown to the user — minus the instance plumbing.
     expect(alertCalls[0].message).toContain("Please send an itemized statement.");
     expect(alertCalls[0].message).not.toContain("localhost:4000");

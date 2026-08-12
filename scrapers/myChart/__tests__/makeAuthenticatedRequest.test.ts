@@ -32,7 +32,7 @@ function fakeMyChart(routes?: Route) {
     loggedIn: false,
     fetchLog: [] as string[],
   };
-  request.fetchWithCookieJar = async (url, init) => {
+  request.transport = async (url, init) => {
     const urlStr = String(url);
     state.fetchLog.push(urlStr);
     const custom = routes?.(urlStr, init ?? {});

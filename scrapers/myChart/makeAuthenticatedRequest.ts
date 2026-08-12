@@ -56,7 +56,17 @@ export type AuthenticatedRequestOptions = {
   autoRenew?: boolean;
 };
 
-const LOGIN_URL_RE = /\/authentication\/login/i;
+/**
+ * URLs that mean "you are looking at the login page".
+ *
+ * `/Authentication/Login` is what every Epic instance we have seen actually
+ * bounces to. The bare `/login` alternative is anchored to the end of the path
+ * on purpose: a plain substring test for "login" also fires on innocent URLs
+ * that merely mention it (`/Home/Dashboard?src=lastLogin`), and treating a
+ * live session as expired is the more expensive mistake — it triggers a
+ * needless re-login on every request.
+ */
+const LOGIN_URL_RE = /\/authentication\/login|\/login(?:[/?#]|$)/i;
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 

@@ -4,10 +4,11 @@
  * Handles login, passkey auto-reconnect, session keepalive,
  * and exposes a tool executor for the AI client.
  *
- * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
- * via NSHTTPCookieStorage (no tough-cookie needed).
+ * The network transport is not chosen here: `scrapers/http.ts` picks it from
+ * the platform it finds itself on, so on iOS the scrapers already get the
+ * runtime's own fetch and let NSHTTPCookieStorage own the cookies. Injecting
+ * one from this side is what that consolidation removed.
  */
-import { Platform } from "react-native";
 import { MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
 import {
   myChartUserPassLogin,

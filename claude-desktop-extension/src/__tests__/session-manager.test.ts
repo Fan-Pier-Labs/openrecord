@@ -34,7 +34,7 @@ afterEach(() => {
 function fakeSession(hostname = 'mychart.example.org') {
   const req = new MyChartRequest(hostname)
   req.firstPathPart = 'MyChart'
-  req.fetchWithCookieJar = mock(async () => new Response('1', { status: 200 })) as typeof req.fetchWithCookieJar
+  req.transport = mock(async () => new Response('1', { status: 200 }))
   return req
 }
 

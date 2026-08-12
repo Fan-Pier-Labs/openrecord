@@ -37,8 +37,6 @@ import {
   type RecoverySettings,
 } from "../../../../scrapers/myChart/accountRecovery";
 
-const nativeFetch = (url: string, init: RequestInit) => fetch(url, init);
-
 type SignupFlow = {
   hostname: string;
   request: MyChartRequest;
@@ -79,7 +77,6 @@ export async function startSelfSignup(
     hostname,
     identity,
     recaptchaToken,
-    fetchFn: nativeFetch,
   });
   if (result.state === "need_contact_verification" && result.signupToken) {
     const flowId = newFlowId("signup");
@@ -92,6 +89,13 @@ export async function startSelfSignup(
     return { state: "need_contact_verification", flowId, deliveryMasked: result.deliveryMasked };
   }
   if (result.state === "account_exists") return { state: "account_exists" };
+  // A "need_contact_verification" with no token is a malformed response, not a
+  // usable flow: reporting it as success would send the UI to the code-entry
+  // screen with nothing to verify against, where every later call fails with
+  // "signup flow expired". Surface it as the error it is.
+  if (result.state === "need_contact_verification") {
+    return { state: "error", error: result.error ?? "signup did not return a token" };
+  }
   return { state: result.state, error: result.error };
 }
 
@@ -108,7 +112,7 @@ export async function startActivationCodeSignup(
   code: string,
   dateOfBirth?: string,
 ): Promise<StartActivationResult> {
-  const result = await verifyActivationCode({ hostname, code, dateOfBirth, fetchFn: nativeFetch });
+  const result = await verifyActivationCode({ hostname, code, dateOfBirth });
   if (result.state === "valid" && result.signupToken) {
     const flowId = newFlowId("signup");
     signupFlows.set(flowId, {
@@ -117,6 +121,11 @@ export async function startActivationCodeSignup(
       signupToken: result.signupToken,
     });
     return { state: "valid", flowId };
+  }
+  // Same as above: a "valid" activation code with no signup token gives the
+  // credentials screen nothing to submit against, so it is an error here.
+  if (result.state === "valid") {
+    return { state: "error", error: result.error ?? "activation did not return a token" };
   }
   return { state: result.state, error: result.error };
 }
@@ -169,7 +178,7 @@ export async function startRecovery(
   hostname: string,
   contactInfo: string,
 ): Promise<StartRecoveryResult> {
-  const result = await getAccountRecoverySettings({ hostname, contactInfo, fetchFn: nativeFetch });
+  const result = await getAccountRecoverySettings({ hostname, contactInfo });
   if (!result.settings) return { state: "error", error: result.error };
   const flowId = newFlowId("recovery");
   recoveryFlows.set(flowId, { hostname, request: result.mychartRequest, contactInfo });

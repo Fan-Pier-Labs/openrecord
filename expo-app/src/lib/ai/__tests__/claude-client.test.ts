@@ -7,6 +7,20 @@ import type { ChatMessage, ToolCall } from "@/lib/ai/claude-client";
  * stubbed to pop one scripted model turn per completion call.
  */
 
+// The free-tier auth path reaches @react-native-google-signin, which pulls in
+// react-native's Flow-typed entry point — unparseable outside Metro. Stub the
+// leaf so the import graph stops before it. Signing in is not what this file
+// tests: the provider is forced to gemini with a BYO key below.
+mock.module("@react-native-google-signin/google-signin", () => ({
+  GoogleSignin: {
+    configure: () => {},
+    signInSilently: async () => {
+      throw new Error("not signed in");
+    },
+  },
+  statusCodes: {},
+}));
+
 mock.module("expo-constants", () => ({
   default: { expoConfig: { extra: { backendUrl: "http://localhost:9999" } } },
 }));
@@ -18,8 +32,15 @@ mock.module("@/lib/storage/secure-store", () => ({
   getClaudeApiKey: async () => null,
 }));
 
+// AI is gated behind Google sign-in across every provider, BYO keys included,
+// so the loop needs a session to run at all. Hand it one.
 mock.module("@/lib/backend/session", () => ({
-  getBackendSession: async () => null,
+  getBackendSession: async () => ({
+    idToken: "test-id-token",
+    user: { id: "test-user", email: "test@example.com" },
+  }),
+  setBackendSession: async () => {},
+  clearBackendSession: async () => {},
 }));
 
 const { sendMessage, oneShotComplete } = await import("@/lib/ai/claude-client");

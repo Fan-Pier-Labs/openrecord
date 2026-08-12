@@ -36,7 +36,7 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
   async function handleDevSkip() {
     if (IS_E2E) {
       await setBackendSession({
-        token: "e2e-test-token",
+        idToken: "e2e-test-token",
         user: { id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" },
       });
     }
