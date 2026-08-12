@@ -71,6 +71,21 @@ active at the same time — just pass a different `account` per call.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
+### Family records (proxy access)
+
+Accounts with MyChart proxy access (a parent reading a child's chart) can list
+and switch the active patient. **`list_proxy_targets`** shows every record the
+account can reach and which is active; **`switch_proxy_target`** changes it —
+verified against the profile page, so a switch that lands on the wrong patient
+fails instead of returning the wrong chart. MyChart's active patient is
+server-side session state, so every data tool also takes an optional `patient`
+parameter and refuses (with instructions) rather than silently reading a
+different family member's record than the one the call is about.
+
+> Ask my uchealth account which records I can access.
+> Switch to Bart's record and show his immunizations.
+> Switch back to my own record.
+
 ## Architecture
 
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation

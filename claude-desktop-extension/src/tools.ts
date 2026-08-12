@@ -10,6 +10,11 @@
  * hostname returned by list_accounts). Multiple accounts can be configured
  * and connected at once; there is no "active account" state.
  *
+ * There IS an "active patient" per account, but it lives on MyChart's server
+ * (proxy access — a parent reading a child's chart). Scraper tools take an
+ * optional `patient` and assert the active record before running; only
+ * switch_proxy_target changes it. See scrapers/myChart/proxyTools.ts.
+ *
  * Setup is a sequence of explicit tool calls (no MCP elicitation):
  *   list_accounts                                  // see what's already set up
  *   search_mycharts(query="uchealth")              // find the hostname for a new account
@@ -69,6 +74,11 @@ import { getEducationMaterials } from '../../scrapers/myChart/educationMaterials
 import { getEhiExportTemplates } from '../../scrapers/myChart/ehiExport';
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/other_mycharts';
 import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
+import {
+  assertProxyReadContext,
+  runListProxyTargets,
+  runSwitchProxyTarget,
+} from '../../scrapers/myChart/proxyTools';
 
 import { searchInstances } from './instances';
 import {
@@ -143,10 +153,30 @@ async function tryAutoRegisterPasskey(
 type ScraperHandler<Args> = (req: MyChartRequest, args: Args) => Promise<unknown>;
 
 /**
+ * Optional on every scraper tool: which patient the call is about, for
+ * accounts with proxy access to family members' charts. The guard below
+ * asserts it (or the account holder, when omitted) before the handler runs.
+ */
+const patientParam = z
+  .string()
+  .optional()
+  .describe(
+    "Which patient's record this call is about, for accounts with MyChart proxy access to family " +
+      "members' charts — a name from list_proxy_targets. Omit for the account holder's own record. " +
+      'If MyChart is currently on a different patient the call fails (with instructions) rather than ' +
+      'switching silently.',
+  );
+
+/**
  * Registers a scraper tool that requires an `account` (MyChart hostname).
  * `kind` controls the MCP annotations Claude Desktop uses for grouping:
  *   - 'read'  → readOnlyHint: true
  *   - 'write' → readOnlyHint: false, destructiveHint: true (mutates MyChart)
+ *
+ * Every scraper tool also takes an optional `patient` and asserts the active
+ * patient before running — reads (and writes) refuse rather than touch the
+ * wrong family member's chart. Only switch_proxy_target changes the active
+ * patient.
  */
 function registerScraperTool<Shape extends ZodRawShape>(
   server: McpServer,
@@ -158,6 +188,7 @@ function registerScraperTool<Shape extends ZodRawShape>(
 ): void {
   const fullShape = {
     account: z.string().describe('MyChart hostname (the "account" / "account_id" — get the exact value from list_accounts).'),
+    patient: patientParam,
     ...inputShape,
   };
   const annotations =
@@ -176,6 +207,7 @@ function registerScraperTool<Shape extends ZodRawShape>(
       try {
         const acct = typeof args.account === 'string' ? args.account : '';
         const session = await resolveSession(acct);
+        await assertProxyReadContext(session, typeof args.patient === 'string' ? args.patient : undefined);
         const data = await handler(session, args as z.infer<z.ZodObject<Shape>> & { account: string });
         return jsonResult(data);
       } catch (err) {
@@ -453,6 +485,60 @@ export function registerAllTools(server: McpServer): void {
     },
   );
 
+  // ── Proxy (family member) records ─────────────────────────────────────────
+
+  server.registerTool(
+    'list_proxy_targets',
+    {
+      title: 'List accessible patient records',
+      description:
+        'List every patient record this MyChart account can access — the account holder plus any ' +
+        "family members reachable via proxy access (e.g. a parent viewing a child's chart) — and " +
+        'which one is currently active. Data tools always read the ACTIVE record; use ' +
+        'switch_proxy_target to change it. Accounts without proxy access return count: 0.',
+      inputSchema: {
+        account: z.string().describe('MyChart hostname (the account from list_accounts).'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ account }) => {
+      try {
+        const session = await resolveSession(account);
+        return jsonResult(await runListProxyTargets(session));
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
+    },
+  );
+
+  server.registerTool(
+    'switch_proxy_target',
+    {
+      title: 'Switch the active patient record',
+      description:
+        "Switch which patient's record MyChart is showing (e.g. from the account holder's own chart " +
+        "to a child's). This changes server-side MyChart state: EVERY data tool on this account reads " +
+        'the newly active record afterwards. The switch is verified against the profile page and fails ' +
+        'rather than landing on the wrong patient. Pass patient: "me" to return to the account ' +
+        "holder's own record when done.",
+      inputSchema: {
+        account: z.string().describe('MyChart hostname (the account from list_accounts).'),
+        patient: z
+          .string()
+          .describe('Patient to switch to: a name (or record id) from list_proxy_targets, or "me" / "self" for the account holder\'s own record.'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ account, patient }) => {
+      try {
+        const session = await resolveSession(account);
+        return jsonResult(await runSwitchProxyTarget(session, patient));
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
+    },
+  );
+
   // ── Profile / overview ────────────────────────────────────────────────────
 
   registerScraperTool(server, 'get_profile', 'Patient profile (name, DOB, MRN, PCP) + email address.', {}, async (req) => {
@@ -520,6 +606,7 @@ export function registerAllTools(server: McpServer): void {
         'Images are downloaded and encoded locally on the user’s machine (pure-JS CLO→JPEG, no native dependency).',
       inputSchema: {
         account: z.string().describe('MyChart hostname (the "account" / "account_id" — get the exact value from list_accounts).'),
+        patient: patientParam,
         image_id: z.string().describe('The `image_id` value from the chosen get_imaging_results entry. Copy it verbatim.'),
         study_name: z.string().optional().describe('Human-readable study name for labeling (e.g. the orderName). Optional.'),
         max_images: z.number().int().min(1).max(20).optional().describe('Maximum number of images to download and return (default 3).'),
@@ -537,6 +624,7 @@ export function registerAllTools(server: McpServer): void {
 
         const fdiContext = decodeImageId(imageId);
         const session = await resolveSession(account);
+        await assertProxyReadContext(session, typeof args.patient === 'string' ? args.patient : undefined);
         const result = await downloadStudyJpegs(session, fdiContext, {
           studyName,
           maxImages,

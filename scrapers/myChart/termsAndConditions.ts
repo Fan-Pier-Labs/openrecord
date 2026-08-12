@@ -44,7 +44,6 @@ export async function acceptTermsAndConditions(mychartRequest: MyChartRequest): 
 
   if (!csrfToken) {
     logger.debug('[terms] No CSRF token found on Terms & Conditions page');
-    logger.debug('[terms] Page HTML (first 2000 chars):', body.substring(0, 2000));
     return false;
   }
 
@@ -101,8 +100,6 @@ export async function acceptTermsAndConditions(mychartRequest: MyChartRequest): 
   // If still on T&C, try clicking accept links
   logger.debug('[terms] First POST did not clear T&C page');
   logger.debug('[terms] Response status:', acceptResp.status);
-  logger.debug('[terms] Response headers:', Object.fromEntries(acceptResp.headers.entries()));
-  logger.debug('[terms] Response body (first 1000 chars):', acceptBody.substring(0, 1000));
 
   // Look for accept buttons/links
   const $accept = cheerio.load(acceptBody);
@@ -139,6 +136,5 @@ export async function acceptTermsAndConditions(mychartRequest: MyChartRequest): 
   }
 
   logger.debug('[terms] Could not accept Terms & Conditions');
-  logger.debug('[terms] Page HTML (first 2000 chars):', body.substring(0, 2000));
   return false;
 }
