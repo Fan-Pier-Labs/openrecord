@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getMyChartProfile, parseProfileHtml } from '../profile'
+import { getMyChartProfile, getEmail, parseProfileHtml } from '../profile'
 import { MyChartRequest } from '../myChartRequest'
 
 function mockRequest(body: string) {
@@ -147,3 +147,100 @@ describe('parseProfileHtml', () => {
     })
   })
 })
+
+/** Serves a redirect first, then the destination body. */
+function mockRedirectingRequest(status: number, location: string, destinationBody: string) {
+  const req = new MyChartRequest('mychart.example.com')
+  req.firstPathPart = 'MyChart'
+  const urls: string[] = []
+  let first = true
+  req.fetchWithCookieJar = mock(async (url: string) => {
+    urls.push(url)
+    if (first) {
+      first = false
+      return new Response('', { status, headers: { location } })
+    }
+    return new Response(destinationBody, { status: 200 })
+  }) as typeof req.fetchWithCookieJar
+  return { req, urls }
+}
+
+const PROFILE_HTML = `<div class="printheader">Name: Jane Doe | DOB: 3/4/1988 | MRN: 998877 | PCP: Dr. Who</div>`
+
+describe('getMyChartProfile session handling', () => {
+  it('returns null when /Home redirects to the login page', async () => {
+    // A logged-out session serves the login page with a 200 body; parsing it
+    // would yield a bogus profile instead of signalling expiry.
+    const { req } = mockRedirectingRequest(302, '/MyChart/Authentication/Login', PROFILE_HTML)
+    expect(await getMyChartProfile(req)).toBeNull()
+  })
+
+  it('detects a login redirect regardless of casing', async () => {
+    const { req } = mockRedirectingRequest(302, '/MyChart/Authentication/LOGIN', PROFILE_HTML)
+    expect(await getMyChartProfile(req)).toBeNull()
+  })
+
+  it('treats a 301 to login as expiry too', async () => {
+    const { req } = mockRedirectingRequest(301, 'https://mychart.example.com/login', PROFILE_HTML)
+    expect(await getMyChartProfile(req)).toBeNull()
+  })
+
+  it('follows a non-login redirect and parses the destination', async () => {
+    const { req, urls } = mockRedirectingRequest(302, '/MyChart/Home/Dashboard', PROFILE_HTML)
+
+    const profile = await getMyChartProfile(req)
+    expect(profile?.name).toBe('Jane Doe')
+    expect(urls[1]).toContain('/MyChart/Home/Dashboard')
+  })
+
+  it('resolves a relative redirect against the instance host', async () => {
+    const { req, urls } = mockRedirectingRequest(302, '/elsewhere', PROFILE_HTML)
+    await getMyChartProfile(req)
+
+    expect(urls[1]).toBe('https://mychart.example.com/elsewhere')
+  })
+})
+
+describe('getEmail', () => {
+  it('returns the email from the contact information payload', async () => {
+    const req = mockSequence([
+      '<input name="__RequestVerificationToken" value="tok" />',
+      JSON.stringify({ SecureCommunicationInfo: { EmailAddress: 'patient@example.org' } }),
+    ])
+    expect(await getEmail(req.req)).toBe('patient@example.org')
+  })
+
+  it('returns null when the verification token is missing', async () => {
+    const req = mockSequence(['<html><body>no token here</body></html>'])
+    expect(await getEmail(req.req)).toBeNull()
+    // Without the token the POST must not be attempted at all.
+    expect(req.calls).toHaveLength(1)
+  })
+
+  it('sends the token and form body the endpoint requires', async () => {
+    const req = mockSequence([
+      '<input name="__RequestVerificationToken" value="tok" />',
+      JSON.stringify({ SecureCommunicationInfo: { EmailAddress: 'a@b.org' } }),
+    ])
+    await getEmail(req.req)
+
+    const post = req.calls[1]
+    expect(post.init.method).toBe('POST')
+    expect(post.init.body).toBe('useLoginUserEpt=false')
+    expect((post.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
+    expect(post.url).toContain('noCache=')
+  })
+})
+
+/** Returns the given bodies in order, recording each call. */
+function mockSequence(bodies: string[]) {
+  const req = new MyChartRequest('mychart.example.com')
+  req.firstPathPart = 'MyChart'
+  const calls: Array<{ url: string; init: RequestInit }> = []
+  let i = 0
+  req.fetchWithCookieJar = mock(async (url: string, init: RequestInit = {}) => {
+    calls.push({ url, init })
+    return new Response(bodies[i++] ?? '', { status: 200 })
+  }) as typeof req.fetchWithCookieJar
+  return { req, calls }
+}

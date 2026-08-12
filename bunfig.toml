@@ -1,0 +1,26 @@
+# Coverage settings for `bun run test:coverage`, enforced in CI.
+#
+# These only take effect when `--coverage` is passed, so the plain `bun run
+# test`, `test:fake-mychart` and `test:ci-integration` runs are unaffected.
+#
+# Deliberately no `coverageThreshold` here: Bun enforces it PER FILE, so a single
+# 0%-covered file fails the run even when the repo as a whole sits well above the
+# bar. The overall 75% minimum is computed from the lcov report by
+# `scripts/check-coverage.ts` instead.
+
+[test]
+coverageSkipTestFiles = true
+
+# Not product code, so not part of the denominator:
+#   mock_data/         — test fixtures
+#   list-all-mycharts/ — dev diagnostics (the directory probe), never shipped
+#   generate_clo.ts    — the CLO *encoder*, which only exists to synthesise test
+#                        images. Nothing outside a .test.ts file imports it; the
+#                        CLO *decoder* (clo_to_bitmap.ts, clo_to_jpg.ts) is real
+#                        product code used by the CLI and the extension, and is
+#                        measured normally.
+coveragePathIgnorePatterns = [
+  "**/mock_data/**",
+  "scrapers/list-all-mycharts/**",
+  "**/clo-image-parser/generate_clo.ts",
+]
