@@ -44,13 +44,14 @@ export const BROWSER_HEADERS: Readonly<Record<string, string>> = {
 
 /**
  * The network call itself — everything below the headers, the jar and the
- * permit. Swapped out on iOS (which handles cookies natively) and by tests.
+ * permit.
  */
 export type Transport = (url: string, init: RequestInit) => Promise<Response>;
 
 // expo/fetch when running inside an Expo app — its Swift-side
 // URLSessionDelegate honors redirect:"manual". Under Node/Bun the require
-// throws and we fall back to the global fetch.
+// throws (the module isn't resolvable outside the app) and this stays
+// undefined, which doubles as a runtime signal for where we're running.
 const expoFetch: Transport | undefined = (() => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -62,12 +63,69 @@ const expoFetch: Transport | undefined = (() => {
 })();
 
 /**
- * The default transport. Reads `globalThis.fetch` per call rather than
- * capturing it at import time, so a test that swaps the global still
- * intercepts.
+ * Whether the platform keeps its own cookie store.
+ *
+ * On React Native that's iOS's `HTTPCookieStorage`, wired into the fetch the
+ * runtime provides — so a tough-cookie jar there would be a second, empty
+ * store shadowing the real one. Everywhere else nothing manages cookies for
+ * us and the jar is the only thing keeping a session alive.
+ *
+ * Two signals, because getting this wrong on device is a silently broken
+ * session rather than a crash: React Native's own `navigator` marker, and the
+ * fact that `expo/fetch` resolved at all. Both hold in the app, neither holds
+ * under Node or Bun.
  */
-export const platformFetch: Transport = (url, init) =>
-  expoFetch ? expoFetch(url, init) : globalThis.fetch(url, init);
+export const PLATFORM_OWNS_COOKIES: boolean =
+  expoFetch !== undefined ||
+  (typeof navigator !== 'undefined' &&
+    (navigator as { product?: string }).product === 'ReactNative');
+
+/**
+ * Installed by tests to route every scraper request at a scripted server. See
+ * {@link setTestTransport} — production code never sets this.
+ */
+let testTransport: Transport | null = null;
+
+/**
+ * Send every subsequent scraper request to `fn`. Tests only; pass null to
+ * restore the real network.
+ *
+ * This exists so `myChartUserPassLogin` and friends don't have to carry a
+ * "pass me a fetch" parameter that only tests ever fill in. Set it in
+ * `beforeEach` and clear it in `afterEach` — it is process-wide.
+ */
+export function setTestTransport(fn: Transport | null): void {
+  testTransport = fn;
+}
+
+/**
+ * Pick the network call for this request. Three cases, in order:
+ *
+ *  1. **Tests** — a scripted transport, either process-wide
+ *     ({@link setTestTransport}) or per-session (`MyChartRequest.transport`).
+ *  2. **We own the cookies** — a jar was handed over, so we're driving the
+ *     redirect chain and the cookies ourselves. Prefer `expo/fetch` when it's
+ *     there, because it honors `redirect: 'manual'` where React Native's own
+ *     fetch quietly follows redirects and hides the hops from us.
+ *  3. **The platform owns the cookies** — use the runtime's own fetch, the one
+ *     its cookie store is actually attached to. Substituting a different
+ *     networking stack here would send every request out with no session.
+ *
+ * `globalThis.fetch` is read per call rather than captured at import, so a test
+ * that swaps the global still intercepts.
+ */
+function resolveTransport(override: Transport | undefined, cookieJar: CookieJar | null | undefined): Transport {
+  if (testTransport) return testTransport;
+  if (override) return override;
+  if (cookieJar && expoFetch) return expoFetch;
+  return (url, init) => globalThis.fetch(url, init);
+}
+
+/**
+ * The transport a request gets when nothing overrides it and no jar is in
+ * play. Exported for tests and diagnostics.
+ */
+export const platformFetch: Transport = (url, init) => resolveTransport(undefined, null)(url, init);
 
 /** `AbortSignal.timeout` polyfill for React Native / Hermes. */
 export function abortAfter(ms: number): AbortSignal {
@@ -81,13 +139,13 @@ export function abortAfter(ms: number): AbortSignal {
 
 export type ScraperFetchOptions = {
   /**
-   * Jar to read `Cookie` from and write `Set-Cookie` back into. Pass null on
-   * platforms that keep their own cookie store (iOS), where a second jar would
-   * only duplicate what the OS already did.
+   * Jar to read `Cookie` from and write `Set-Cookie` back into. Pass null when
+   * {@link PLATFORM_OWNS_COOKIES}, where a second jar would only shadow the
+   * store the OS is already keeping.
    */
   cookieJar?: CookieJar | null;
 
-  /** Override the network call. Defaults to {@link platformFetch}. */
+  /** Override the network call for this session. See {@link resolveTransport}. */
   transport?: Transport;
 };
 
@@ -135,7 +193,8 @@ export async function scraperFetch(
   init: RequestInit & { headers?: Record<string, string> } = {},
   options: ScraperFetchOptions = {},
 ): Promise<Response> {
-  const { cookieJar, transport = platformFetch } = options;
+  const { cookieJar } = options;
+  const transport = resolveTransport(options.transport, cookieJar);
 
   const headers: Record<string, string> = { ...BROWSER_HEADERS, ...init.headers };
 

@@ -54,11 +54,6 @@ import { downloadImagingStudyDirect } from "../../../../scrapers/myChart/eunity/
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
-/**
- * On React Native, use raw fetch — iOS handles cookies natively.
- * This bypasses the tough-cookie layer entirely.
- */
-const nativeFetch = (url: string, init: RequestInit) => fetch(url, init);
 import {
   getMyChartAccounts,
   updateMyChartAccount,
@@ -140,7 +135,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
         (cred) => myChartPasskeyLogin({
           hostname: account.hostname,
           credential: cred,
-          fetchFn: nativeFetch,
         }),
         credential,
       );
@@ -176,7 +170,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
       user: account.username,
       pass: account.password,
       skipSendCode: hasTotpSecret,
-      fetchFn: nativeFetch,
     });
     console.log(`[session] Login result: state=${result.state} error=${result.error || 'none'}`);
 

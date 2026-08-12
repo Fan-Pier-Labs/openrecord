@@ -18,9 +18,11 @@ describe('MyChartRequest', () => {
       expect(req.cookieJar).toBeDefined()
     })
 
-    it('creates a transport function', () => {
+    it('installs no transport override — the platform picks one per request', () => {
+      // A non-null transport here would mean production code had injected a
+      // fetch, which is the thing scrapers/http.ts exists to decide.
       const req = new MyChartRequest('mychart.example.com')
-      expect(typeof req.transport).toBe('function')
+      expect(req.transport).toBeNull()
     })
 
     it('strips https:// prefix from hostname', () => {
@@ -429,7 +431,7 @@ describe('MyChartRequest', () => {
       expect(restored).not.toBeNull()
       expect(restored!.hostname).toBe('test.example.com')
       expect(restored!.firstPathPart).toBe('MyChart-PRD')
-      expect(typeof restored!.transport).toBe('function')
+      expect(restored!.transport).toBeNull()
     })
   })
 })

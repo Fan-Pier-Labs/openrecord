@@ -4,17 +4,18 @@ import {mockRequest} from './mock_data/index'
 import { OPENRECORD_MOCK_DATA } from '../../shared/env';
 import { RequestConfig } from './types';
 import { logger } from '../../shared/logger';
-import { platformFetch, scraperFetch, type Transport } from '../http';
+import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../http';
 
 /**
  * Options for creating a MyChartRequest.
- * Pass a custom `fetchFn` to override how HTTP requests are made.
- * For example, on iOS, pass raw `fetch` to let the OS handle cookies natively.
+ *
+ * There is deliberately no "pass me a fetch" option: which network call to
+ * make, and whether to keep our own cookie jar, are platform questions that
+ * `scrapers/http.ts` answers at runtime. Callers say where they're going, not
+ * how to get there.
  */
 export type MyChartRequestOptions = {
   protocol?: string;
-  /** Custom fetch function. Defaults to the platform fetch for Node/Bun. */
-  fetchFn?: Transport;
 };
 
 // Redirect statuses worth following. 303/307/308 are rare on MyChart but do
@@ -34,14 +35,11 @@ export class MyChartRequest {
   // and is only used for getCookieInfo() / serialize() compatibility.
   cookieJar: CookieJar;
 
-  // The network call, and nothing else — the browser headers, the cookie jar
-  // and the per-host permit all live above it in scraperFetch. Tests replace
-  // this to intercept requests without losing any of the three.
-  transport: Transport;
-
-  // True when the platform keeps its own cookie store (iOS), in which case the
-  // jar above is bypassed rather than duplicating what the OS already did.
-  private readonly nativeCookies: boolean;
+  // Test seam. Null in production — scraperFetch picks the transport from the
+  // platform. Assigning a function here intercepts this session's requests
+  // without losing the headers, the jar or the per-host permit, all of which
+  // live above the transport.
+  transport: Transport | null = null;
 
   // The hostname of the MyChart site, eg. mychart.example.org
   hostname: string;
@@ -62,12 +60,6 @@ export class MyChartRequest {
       : (options ?? {});
 
     this.cookieJar = new CookieJar();
-
-    // A caller supplying its own fetch is doing so because the platform
-    // already handles cookies (iOS), so the jar steps aside there.
-    this.nativeCookies = opts.fetchFn !== undefined;
-    this.transport = opts.fetchFn ?? platformFetch;
-
     this.hostname = MyChartRequest.normalizeHostname(hostname);
     this.protocol = opts.protocol ?? 'https';
   }
@@ -205,8 +197,10 @@ export class MyChartRequest {
     }
     else {
       response = await scraperFetch(url, finalConfig, {
-        cookieJar: this.nativeCookies ? null : this.cookieJar,
-        transport: this.transport,
+        // Who keeps the cookies is a property of the runtime, not of the
+        // caller — see PLATFORM_OWNS_COOKIES.
+        cookieJar: PLATFORM_OWNS_COOKIES ? null : this.cookieJar,
+        transport: this.transport ?? undefined,
       })
       // Log each request and its status code.
       logger.debug(response.status, url)

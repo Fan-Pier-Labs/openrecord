@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import { BROWSER_HEADERS, platformFetch, scraperFetch } from '../../http'
+import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../../http'
 import { hostLimiterStats, resetHostLimiters } from '../../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../../shared/env'
 import { silenceLogger, resetLogSink } from '../../../shared/logger'
@@ -216,6 +216,72 @@ describe('scraperFetch', () => {
 
       await scraperFetch('https://mychart.example.org/Home', {}, { cookieJar: jar, transport })
       expect(hostLimiterStats()['mychart.example.org'].inFlight).toBe(0)
+    })
+  })
+
+  describe('transport resolution', () => {
+    afterEach(() => setTestTransport(null))
+
+    it('runs on a platform that does not own cookies, so the jar is live here', () => {
+      // Every other test in this file assumes the Node/Bun branch. If this
+      // ever flips, the jar assertions above are testing nothing.
+      expect(PLATFORM_OWNS_COOKIES).toBe(false)
+    })
+
+    it('sends everything to the test transport once one is installed', async () => {
+      // The seam that replaced `fetchFn` on myChartUserPassLogin: reachable
+      // without threading a fetch through the production signature.
+      const seen: string[] = []
+      setTestTransport(async (url) => {
+        seen.push(url)
+        return new Response('scripted', { status: 200 })
+      })
+
+      const res = await scraperFetch('https://mychart.example.org/Home')
+      expect(await res.text()).toBe('scripted')
+      expect(seen).toEqual(['https://mychart.example.org/Home'])
+    })
+
+    it('lets the test transport win over a per-session one', async () => {
+      setTestTransport(async () => new Response('global', { status: 200 }))
+      const res = await scraperFetch(
+        'https://mychart.example.org/Home',
+        {},
+        { transport: async () => new Response('session', { status: 200 }) },
+      )
+      expect(await res.text()).toBe('global')
+    })
+
+    it('restores the real network when cleared', async () => {
+      setTestTransport(async () => new Response('scripted', { status: 200 }))
+      setTestTransport(null)
+
+      const realFetch = globalThis.fetch
+      globalThis.fetch = mock(async () => new Response('real', { status: 200 })) as typeof globalThis.fetch
+      try {
+        const res = await scraperFetch('https://mychart.example.org/Home')
+        expect(await res.text()).toBe('real')
+      } finally {
+        globalThis.fetch = realFetch
+      }
+    })
+
+    it('still applies headers, jar and the permit underneath a test transport', async () => {
+      // The seam sits below all three, so installing it must not turn any of
+      // them off — otherwise tests would pass on requests production never sends.
+      const jar = new CookieJar()
+      await jar.setCookie('session=abc; path=/', 'https://mychart.example.org/')
+      let headers: Record<string, string> = {}
+
+      setTestTransport(async (_url, init) => {
+        headers = init.headers as Record<string, string>
+        return new Response('', { status: 200 })
+      })
+
+      await scraperFetch('https://mychart.example.org/Home', {}, { cookieJar: jar })
+      expect(headers['User-Agent']).toBe(BROWSER_HEADERS['User-Agent'])
+      expect(headers['Cookie']).toBe('session=abc')
+      expect(hostLimiterStats()['mychart.example.org'].limit).toBe(LIMIT)
     })
   })
 

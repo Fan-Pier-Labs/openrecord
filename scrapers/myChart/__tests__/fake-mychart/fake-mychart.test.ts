@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { MyChartRequest } from '../../myChartRequest'
+import { platformFetch } from '../../../http'
 import { setMountMode, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
 import { setupPasskey } from '../../setupPasskey'
@@ -93,15 +94,16 @@ for (const mode of MOUNT_MODES) {
 
     it('builds URLs without a doubled route segment or a double slash', async () => {
       const requested: string[] = []
-      const underlying = session.transport.bind(session)
+      // Spy on the URLs but still hit the real server: platformFetch is what
+      // this session would have resolved to anyway.
       session.transport = (url, init) => {
-        requested.push(String(url))
-        return underlying(url, init)
+        requested.push(url)
+        return platformFetch(url, init)
       }
       try {
         expect(await getMyChartProfile(session)).not.toBeNull()
       } finally {
-        session.transport = underlying
+        session.transport = null
       }
 
       expect(requested.length).toBeGreaterThan(0)
