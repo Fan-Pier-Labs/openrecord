@@ -15,8 +15,59 @@
  * Run via `bun run test:coverage`, which produces the lcov report first.
  */
 
-/** Overall line and function coverage the repo must hold. */
+/** Hard floor. The gate never drops below this, whatever the baseline says. */
 export const MINIMUM_COVERAGE = 0.75;
+
+/**
+ * Slack below the recorded baseline before the gate trips.
+ *
+ * A bare floor can only ever be met, never improved — coverage can rot from 86%
+ * back to 75% with every build green. The baseline in `coverage-baseline.json`
+ * ratchets the real bar up as coverage improves; this tolerance keeps ordinary
+ * churn (deleting a well-covered file, refactoring a branch away) from failing
+ * a build that did nothing wrong.
+ */
+export const RATCHET_TOLERANCE = 0.005;
+
+export const BASELINE_PATH = 'coverage-baseline.json';
+
+export interface Baseline {
+  lines: number;
+  functions: number;
+}
+
+export interface Thresholds {
+  lines: number;
+  functions: number;
+}
+
+/**
+ * The bar this run must clear: the hard floor, or just under the baseline —
+ * whichever is higher.
+ */
+export function effectiveThresholds(
+  baseline: Baseline | null,
+  minimum = MINIMUM_COVERAGE,
+  tolerance = RATCHET_TOLERANCE,
+): Thresholds {
+  return {
+    lines: Math.max(minimum, (baseline?.lines ?? 0) - tolerance),
+    functions: Math.max(minimum, (baseline?.functions ?? 0) - tolerance),
+  };
+}
+
+/** Parses a baseline file, treating anything malformed as "no baseline". */
+export function parseBaseline(raw: string): Baseline | null {
+  try {
+    const parsed = JSON.parse(raw);
+    const { lines, functions } = parsed ?? {};
+    if (typeof lines !== 'number' || typeof functions !== 'number') return null;
+    if (!Number.isFinite(lines) || !Number.isFinite(functions)) return null;
+    return { lines, functions };
+  } catch {
+    return null;
+  }
+}
 
 export interface FileCoverage {
   file: string;
@@ -98,25 +149,31 @@ export interface CoverageCheck {
   failures: string[];
 }
 
-export function checkCoverage(lcov: string, minimum = MINIMUM_COVERAGE): CoverageCheck {
+/** Accepts one number for both dimensions, or an explicit pair. */
+export function checkCoverage(
+  lcov: string,
+  thresholds: Thresholds | number = MINIMUM_COVERAGE,
+): CoverageCheck {
+  const bar: Thresholds =
+    typeof thresholds === 'number' ? { lines: thresholds, functions: thresholds } : thresholds;
+
   const summary = summarize(parseLcov(lcov));
   const failures: string[] = [];
 
   const pct = (rate: number) => `${(rate * 100).toFixed(2)}%`;
-  const required = pct(minimum);
 
   if (summary.linesFound === 0) {
     failures.push('No coverage data found — the report is empty.');
   } else {
-    if (summary.lineRate < minimum) {
+    if (summary.lineRate < bar.lines) {
       failures.push(
-        `Line coverage ${pct(summary.lineRate)} is below the required ${required} ` +
+        `Line coverage ${pct(summary.lineRate)} is below the required ${pct(bar.lines)} ` +
           `(${summary.linesHit}/${summary.linesFound} lines).`,
       );
     }
-    if (summary.functionRate < minimum) {
+    if (summary.functionRate < bar.functions) {
       failures.push(
-        `Function coverage ${pct(summary.functionRate)} is below the required ${required} ` +
+        `Function coverage ${pct(summary.functionRate)} is below the required ${pct(bar.functions)} ` +
           `(${summary.functionsHit}/${summary.functionsFound} functions).`,
       );
     }
@@ -134,7 +191,9 @@ export function worstOffenders(summary: CoverageSummary, limit = 10): FileCovera
 }
 
 if (import.meta.main) {
-  const lcovPath = process.argv[2] ?? 'coverage/lcov.info';
+  const args = process.argv.slice(2);
+  const updateBaseline = args.includes('--update-baseline');
+  const lcovPath = args.find((a) => !a.startsWith('--')) ?? 'coverage/lcov.info';
   const report = Bun.file(lcovPath);
 
   if (!(await report.exists())) {
@@ -145,20 +204,54 @@ if (import.meta.main) {
     process.exit(1);
   }
 
-  const result = checkCoverage(await report.text());
+  const baselineFile = Bun.file(BASELINE_PATH);
+  const baseline = (await baselineFile.exists()) ? parseBaseline(await baselineFile.text()) : null;
+  const bar = effectiveThresholds(baseline);
+
+  const result = checkCoverage(await report.text(), bar);
   const { summary } = result;
   const pct = (rate: number) => `${(rate * 100).toFixed(2)}%`;
 
   console.log('\n=== Coverage gate ===');
-  console.log(`  Minimum required: ${pct(MINIMUM_COVERAGE)}`);
+  console.log(`  Floor:     ${pct(MINIMUM_COVERAGE)}`);
+  console.log(
+    baseline
+      ? `  Baseline:  ${pct(baseline.lines)} lines / ${pct(baseline.functions)} functions ` +
+          `(${pct(RATCHET_TOLERANCE)} slack)`
+      : `  Baseline:  none recorded — floor applies`,
+  );
+  console.log(`  Required:  ${pct(bar.lines)} lines / ${pct(bar.functions)} functions`);
   console.log(`  Lines:     ${pct(summary.lineRate)} (${summary.linesHit}/${summary.linesFound})`);
   console.log(
     `  Functions: ${pct(summary.functionRate)} (${summary.functionsHit}/${summary.functionsFound})`,
   );
   console.log(`  Files measured: ${summary.files.length}`);
 
+  if (updateBaseline) {
+    const next: Baseline = {
+      lines: Number(summary.lineRate.toFixed(4)),
+      functions: Number(summary.functionRate.toFixed(4)),
+    };
+    await Bun.write(BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`);
+    console.log(`\nWrote ${BASELINE_PATH}: ${pct(next.lines)} lines / ${pct(next.functions)} functions\n`);
+    process.exit(0);
+  }
+
   if (result.passed) {
-    console.log('\nPASS — coverage is above the minimum.\n');
+    console.log('\nPASS — coverage is above the required level.');
+    const grew =
+      !baseline ||
+      summary.lineRate > baseline.lines + RATCHET_TOLERANCE ||
+      summary.functionRate > baseline.functions + RATCHET_TOLERANCE;
+    if (grew) {
+      // Locking in a rise is what stops the number sliding back later.
+      console.log(
+        `Coverage is above the recorded baseline — run ` +
+          `\`bun scripts/check-coverage.ts ${lcovPath} --update-baseline\` and commit ${BASELINE_PATH} ` +
+          `to hold the gain.`,
+      );
+    }
+    console.log('');
     process.exit(0);
   }
 

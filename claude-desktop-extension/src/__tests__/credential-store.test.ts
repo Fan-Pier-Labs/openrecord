@@ -1,23 +1,19 @@
 /**
- * Tests for the extension's on-disk credential store.
+ * Tests for the extension's credential store.
  *
- * `./tmpHome` redirects the store into a throwaway directory and must be
- * imported before the store itself — see the comment there for why mocking `os`
- * is required and why the temp home has to be shared across files.
- * `assertSandboxed` is a hard guard: this file must never touch a real
- * credential store.
+ * `./memfs` replaces `fs` with a Map for paths under the store root, so these
+ * touch no disk — import it before the store. Permissions and file layout are
+ * still asserted, because the shim records them; that is the part of this
+ * module's contract worth pinning down.
  */
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { rmSync, existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { assertSandboxed } from './tmpHome'
+import * as memfs from './memfs'
 
 const store = await import('../credential-store')
 
-assertSandboxed(store._paths.ROOT)
-
 beforeEach(() => {
-  rmSync(store._paths.ROOT, { recursive: true, force: true })
+  memfs.reset()
 })
 
 const account = (hostname: string, username = 'homer') => ({
@@ -100,20 +96,18 @@ describe('accounts', () => {
   })
 
   it('survives a corrupt accounts file instead of throwing', () => {
-    mkdirSync(store._paths.ROOT, { recursive: true })
-    writeFileSync(store._paths.ACCOUNTS_PATH, 'not json at all')
+    memfs.put(store._paths.ACCOUNTS_PATH, 'not json at all')
     expect(store.readAccounts()).toEqual([])
   })
 
   it('ignores an accounts file whose shape is wrong', () => {
-    mkdirSync(store._paths.ROOT, { recursive: true })
-    writeFileSync(store._paths.ACCOUNTS_PATH, JSON.stringify({ accounts: 'nope' }))
+    memfs.put(store._paths.ACCOUNTS_PATH, JSON.stringify({ accounts: 'nope' }))
     expect(store.readAccounts()).toEqual([])
   })
 
   it('writes credentials owner-only', () => {
     store.upsertAccount(account('mychart.example.org'))
-    expect(statSync(store._paths.ACCOUNTS_PATH).mode & 0o777).toBe(0o600)
+    expect(memfs.modeOf(store._paths.ACCOUNTS_PATH)).toBe(0o600)
   })
 })
 
@@ -134,7 +128,7 @@ describe('passkeys', () => {
 
   it('returns undefined for a corrupt passkey file', () => {
     store.saveAccountPasskey('mychart.example.org', 'x')
-    writeFileSync(path.join(store._paths.PASSKEYS_DIR, 'mychart.example.org.json'), '{{{')
+    memfs.put(path.join(store._paths.PASSKEYS_DIR, 'mychart.example.org.json'), '{{{')
     expect(store.readAccountPasskey('mychart.example.org')).toBeUndefined()
   })
 
@@ -145,7 +139,7 @@ describe('passkeys', () => {
   it('writes passkeys owner-only', () => {
     store.saveAccountPasskey('mychart.example.org', '{"cred":"abc"}')
     const p = path.join(store._paths.PASSKEYS_DIR, 'mychart.example.org.json')
-    expect(statSync(p).mode & 0o777).toBe(0o600)
+    expect(memfs.modeOf(p)).toBe(0o600)
   })
 })
 
@@ -168,7 +162,7 @@ describe('sessions', () => {
   it('writes sessions owner-only', () => {
     store.saveAccountSession('mychart.example.org', 'cookie-blob')
     const p = path.join(store._paths.SESSIONS_DIR, 'mychart.example.org.json')
-    expect(statSync(p).mode & 0o777).toBe(0o600)
+    expect(memfs.modeOf(p)).toBe(0o600)
   })
 })
 
@@ -206,16 +200,14 @@ describe('store location', () => {
   })
 
   it('does not create anything until something is saved', () => {
-    expect(existsSync(store._paths.ROOT)).toBe(false)
+    expect(memfs.writtenPaths()).toEqual([])
     store.upsertAccount(account('mychart.example.org'))
-    expect(existsSync(store._paths.ROOT)).toBe(true)
+    expect(memfs.exists(store._paths.ACCOUNTS_PATH)).toBe(true)
   })
 
   it('stores the totp secret when one is supplied', () => {
     store.upsertAccount({ ...account('mychart.example.org'), totpSecret: 'SEED' })
     expect(store.findAccount('mychart.example.org')?.totpSecret).toBe('SEED')
-    expect(JSON.parse(readFileSync(store._paths.ACCOUNTS_PATH, 'utf-8')).accounts[0].totpSecret).toBe(
-      'SEED',
-    )
+    expect(JSON.parse(memfs.read(store._paths.ACCOUNTS_PATH)!).accounts[0].totpSecret).toBe('SEED')
   })
 })

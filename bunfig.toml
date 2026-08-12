@@ -3,6 +3,13 @@
 # These only take effect when `--coverage` is passed, so the plain `bun run
 # test`, `test:fake-mychart` and `test:ci-integration` runs are unaffected.
 #
+# SCOPE: the gate measures the unit suite AND the fake-mychart suite together —
+# it needs a fake-mychart on :4000, which is why the CI step lives in the
+# `fake-mychart` job. Measuring only the unit suite counted every scraper that is
+# covered end-to-end as untested and put the number ~10 points low, making "75%"
+# an artifact of which suite ran. `tests/integration/ci` is still excluded (it
+# drives the built CLI binary as a subprocess, so nothing is instrumented).
+#
 # Deliberately no `coverageThreshold` here: Bun enforces it PER FILE, so a single
 # 0%-covered file fails the run even when the repo as a whole sits well above the
 # bar. The overall 75% minimum is computed from the lcov report by
@@ -11,7 +18,10 @@
 [test]
 coverageSkipTestFiles = true
 
-# Not product code, so not part of the denominator:
+# Not product code, so not part of the denominator. The gate should measure what
+# ships to a patient; anything here is scaffolding, and holding it to a coverage
+# bar only invents busywork (nobody should be padding tests for the fake server).
+#
 #   mock_data/         — test fixtures
 #   list-all-mycharts/ — dev diagnostics (the directory probe), never shipped
 #   generate_clo.ts    — the CLO *encoder*, which only exists to synthesise test
@@ -19,8 +29,16 @@ coverageSkipTestFiles = true
 #                        CLO *decoder* (clo_to_bitmap.ts, clo_to_jpg.ts) is real
 #                        product code used by the CLI and the extension, and is
 #                        measured normally.
+#   fake-mychart/      — the stand-in MyChart server. It is dev/CI scaffolding,
+#                        and its fidelity is proven by the suites that run
+#                        against it, not by covering its own source.
+#   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
+#                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
+#                        memfs.ts, mountMode.ts) were landing in the denominator.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
   "**/clo-image-parser/generate_clo.ts",
+  "fake-mychart/**",
+  "**/__tests__/**",
 ]

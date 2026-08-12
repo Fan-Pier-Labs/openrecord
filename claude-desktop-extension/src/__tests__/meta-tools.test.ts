@@ -3,22 +3,19 @@
  * the shared error path every scraper tool inherits.
  *
  * `proxy-tools.test.ts` asserts registration *shape*; this file actually invokes
- * handlers. `./tmpHome` redirects the credential store into a throwaway
- * directory — nothing here may touch a real ~/.openrecord-mcpb.
+ * handlers. `./memfs` replaces `fs` with a Map for the credential store's
+ * paths, so nothing here touches disk.
  *
  * Handlers that would reach MyChart over the network are exercised only through
  * their failure paths (no account configured), which is where the wrapper's
  * error handling lives.
  */
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { rmSync } from 'node:fs'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { assertSandboxed } from './tmpHome'
+import * as memfs from './memfs'
 
 const store = await import('../credential-store')
 const { registerAllTools } = await import('../tools')
-
-assertSandboxed(store._paths.ROOT)
 
 interface ToolResult {
   content: Array<{ type: string; text: string }>
@@ -50,7 +47,7 @@ const parse = (result: ToolResult) => JSON.parse(result.content[0].text)
 const text = (result: ToolResult) => result.content[0].text
 
 beforeEach(() => {
-  rmSync(store._paths.ROOT, { recursive: true, force: true })
+  memfs.reset()
 })
 
 describe('list_accounts', () => {

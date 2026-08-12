@@ -71,6 +71,7 @@ const bart: KidRecord = {
             prescriptions: [
               {
                 name: 'Albuterol Sulfate HFA 90mcg Inhaler',
+                medicationKey: 'FAKE-MED-KEY-101',
                 patientFriendlyName: { text: 'Albuterol Inhaler' },
                 sig: 'Inhale 2 puffs by mouth every 4 hours as needed for wheezing',
                 dateToDisplay: '02/03/2026',
@@ -87,6 +88,7 @@ const bart: KidRecord = {
               },
               {
                 name: 'Amoxicillin 250mg/5mL Suspension',
+                medicationKey: 'FAKE-MED-KEY-102',
                 patientFriendlyName: { text: 'Amoxicillin' },
                 sig: 'Take 5 mL by mouth three times daily for 10 days',
                 dateToDisplay: '01/22/2026',

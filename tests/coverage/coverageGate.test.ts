@@ -6,9 +6,12 @@
  * report, and coverage sitting just under the bar.
  */
 import { describe, expect, test } from 'bun:test';
+import path from 'node:path';
 import {
   MINIMUM_COVERAGE,
   checkCoverage,
+  effectiveThresholds,
+  parseBaseline,
   parseLcov,
   summarize,
   worstOffenders,
@@ -161,3 +164,100 @@ describe('the agreed minimum', () => {
     expect(MINIMUM_COVERAGE).toBeGreaterThanOrEqual(0.75);
   });
 });
+
+describe('effectiveThresholds', () => {
+  test('falls back to the floor when no baseline is recorded', () => {
+    expect(effectiveThresholds(null)).toEqual({
+      lines: MINIMUM_COVERAGE,
+      functions: MINIMUM_COVERAGE,
+    })
+  })
+
+  test('ratchets the bar up to just under the baseline', () => {
+    const bar = effectiveThresholds({ lines: 0.9, functions: 0.88 }, 0.75, 0.005)
+    expect(bar.lines).toBeCloseTo(0.895, 5)
+    expect(bar.functions).toBeCloseTo(0.875, 5)
+  })
+
+  test('never drops below the floor, even with a low baseline', () => {
+    // A baseline written while coverage was poor must not lower the gate.
+    expect(effectiveThresholds({ lines: 0.4, functions: 0.4 }, 0.75, 0.005)).toEqual({
+      lines: 0.75,
+      functions: 0.75,
+    })
+  })
+
+  test('gives each dimension its own bar', () => {
+    const bar = effectiveThresholds({ lines: 0.95, functions: 0.6 }, 0.75, 0.005)
+    expect(bar.lines).toBeCloseTo(0.945, 5)
+    expect(bar.functions).toBe(0.75)
+  })
+})
+
+describe('ratchet behaviour', () => {
+  const at = (linePct: number) => record('a.ts', { lf: 10000, lh: linePct * 100, fnf: 100, fnh: 100 })
+
+  test('a drop below the baseline fails even though it clears the floor', () => {
+    // The whole point: 86% must not be allowed to rot back to 76%.
+    const bar = effectiveThresholds({ lines: 0.86, functions: 0.86 })
+    const result = checkCoverage(at(76), bar)
+
+    expect(result.passed).toBe(false)
+    expect(result.failures[0]).toContain('Line coverage 76.00%')
+  })
+
+  test('a dip inside the tolerance is allowed', () => {
+    // Deleting a well-covered file shouldn't fail a build that did nothing wrong.
+    const bar = effectiveThresholds({ lines: 0.86, functions: 0.86 }, 0.75, 0.005)
+    expect(checkCoverage(at(85.7), bar).passed).toBe(true)
+  })
+
+  test('a dip past the tolerance is not', () => {
+    const bar = effectiveThresholds({ lines: 0.86, functions: 0.86 }, 0.75, 0.005)
+    expect(checkCoverage(at(85.0), bar).passed).toBe(false)
+  })
+
+  test('rising above the baseline still passes', () => {
+    const bar = effectiveThresholds({ lines: 0.86, functions: 0.86 })
+    expect(checkCoverage(at(92), bar).passed).toBe(true)
+  })
+})
+
+describe('parseBaseline', () => {
+  test('reads a well-formed baseline', () => {
+    expect(parseBaseline('{"lines":0.86,"functions":0.87}')).toEqual({
+      lines: 0.86,
+      functions: 0.87,
+    })
+  })
+
+  test('treats malformed JSON as no baseline rather than throwing', () => {
+    expect(parseBaseline('{{{')).toBeNull()
+  })
+
+  test('rejects a baseline missing a dimension', () => {
+    expect(parseBaseline('{"lines":0.86}')).toBeNull()
+  })
+
+  test('rejects non-numeric values', () => {
+    expect(parseBaseline('{"lines":"0.86","functions":0.87}')).toBeNull()
+  })
+
+  test('a missing baseline leaves the floor in charge, not a NaN bar', () => {
+    const bar = effectiveThresholds(parseBaseline('garbage'))
+    expect(bar.lines).toBe(MINIMUM_COVERAGE)
+    expect(Number.isNaN(bar.functions)).toBe(false)
+  })
+})
+
+describe('the committed baseline', () => {
+  test('is at or above the floor', async () => {
+    const file = Bun.file(path.resolve(import.meta.dir, '../../coverage-baseline.json'))
+    expect(await file.exists()).toBe(true)
+
+    const baseline = parseBaseline(await file.text())
+    expect(baseline).not.toBeNull()
+    expect(baseline!.lines).toBeGreaterThanOrEqual(MINIMUM_COVERAGE)
+    expect(baseline!.functions).toBeGreaterThanOrEqual(MINIMUM_COVERAGE)
+  })
+})
