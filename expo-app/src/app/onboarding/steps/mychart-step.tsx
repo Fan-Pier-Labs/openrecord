@@ -23,6 +23,8 @@ import { styles } from "../styles";
 type Props = {
   /** Provider chosen on the picker step. Null when the user opted to enter a hostname manually. */
   instance: MyChartInstance | null;
+  /** Pre-resolved hostname (e.g. typed at the account-choice hub) used to prefill manual entry. */
+  hostname?: string;
   /** Go back to the picker. */
   onChangeInstance: () => void;
   /** Sign-in succeeded with no 2FA. */
@@ -33,12 +35,13 @@ type Props = {
 
 export function MyChartStep({
   instance,
+  hostname: hostnameProp,
   onChangeInstance,
   onLoggedIn,
   onNeed2fa,
 }: Props) {
   const [hostname, setHostname] = useState(
-    instance ? hostnameFromInstance(instance) : "",
+    instance ? hostnameFromInstance(instance) : (hostnameProp ?? ""),
   );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
