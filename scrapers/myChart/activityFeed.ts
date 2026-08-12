@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -25,7 +26,7 @@ type FetchItemFeedResponse = {
 }
 
 export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<ActivityFeedItem[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/home' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/home' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -34,7 +35,7 @@ export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<A
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/item-feed/FetchItemFeed',
     method: 'POST',
     headers: {

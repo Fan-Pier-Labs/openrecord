@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -29,7 +30,7 @@ type LoadImmunizationsResponse = {
 }
 
 export async function getImmunizations(mychartRequest: MyChartRequest): Promise<Immunization[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Clinical/Immunizations' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/Immunizations' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -38,7 +39,7 @@ export async function getImmunizations(mychartRequest: MyChartRequest): Promise<
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/immunizations/LoadImmunizations',
     method: 'POST',
     headers: {

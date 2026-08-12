@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -23,7 +24,7 @@ type GetQuestionnaireListResponse = {
 }
 
 export async function getQuestionnaires(mychartRequest: MyChartRequest): Promise<Questionnaire[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Questionnaire' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Questionnaire' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -32,7 +33,7 @@ export async function getQuestionnaires(mychartRequest: MyChartRequest): Promise
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Questionnaire/GetQuestionnaireList',
     method: 'POST',
     headers: {

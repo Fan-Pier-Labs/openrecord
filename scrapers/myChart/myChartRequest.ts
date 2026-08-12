@@ -53,6 +53,36 @@ export class MyChartRequest {
   // (e.g. mychart.clevelandclinic.org), or that we haven't discovered one yet.
   firstPathPart: string | null = null;
 
+  /**
+   * Restore this session to a logged-in state, wired by each client after
+   * login (the CLI, the desktop extension and the mobile app each know where
+   * their own credentials live — this class deliberately doesn't).
+   *
+   * Called by `makeAuthenticatedRequest` when a request bounces to the login
+   * page. The hook must log back in and adopt the fresh state onto THIS
+   * instance (see `adoptStateFrom`), returning true on success and false when
+   * a silent re-login isn't possible (e.g. the account requires interactive
+   * 2FA). Left unset, an expired session surfaces as `SessionExpiredError`
+   * instead of being renewed.
+   */
+  reauthenticate?: () => Promise<boolean>;
+
+  /**
+   * Opt out of the automatic keepalive enrollment makeAuthenticatedRequest
+   * performs after successful requests. Set by clients that explicitly asked
+   * for no background pings (MyChartClient's `keepalive: false`).
+   */
+  disableAutoKeepalive?: boolean;
+
+  /**
+   * The patient record this session was last deliberately switched to,
+   * recorded by `switchProxyTarget`. Re-login resets MyChart's server-side
+   * proxy context to the account holder, so automatic session renewal consults
+   * this to put the context back before any caller retries — without it, a
+   * renewed session would silently read the wrong patient's chart.
+   */
+  activeProxyTarget?: { id: string; isSelf: boolean; displayName: string };
+
   constructor(hostname: string, options?: string | MyChartRequestOptions) {
     // Support old signature: new MyChartRequest(hostname, protocol?)
     const opts: MyChartRequestOptions = typeof options === 'string'
@@ -137,6 +167,29 @@ export class MyChartRequest {
    */
   setHostname(hostname: string) {
     this.hostname = MyChartRequest.normalizeHostname(hostname);
+  }
+
+  /**
+   * Adopt a freshly logged-in instance's session state onto this one, in
+   * place.
+   *
+   * The login functions construct and return a brand-new MyChartRequest, but
+   * everything holding a reference mid-scrape (in-flight scrapers, the session
+   * stores, the keepalive) points at the old object — so a re-login hook copies
+   * the new state across rather than swapping references. Hostname and mount
+   * come along too, because discovery during the fresh login may legitimately
+   * have followed a vanity-host move.
+   *
+   * `fetchWithCookieJar` is deliberately NOT copied: the default implementation
+   * reads `this.cookieJar` at call time (so reassigning the jar is enough), and
+   * a custom fetchFn (iOS) manages cookies natively and must stay bound to the
+   * platform it was built for.
+   */
+  adoptStateFrom(other: MyChartRequest) {
+    this.cookieJar = other.cookieJar;
+    this.hostname = other.hostname;
+    this.protocol = other.protocol;
+    this.firstPathPart = other.firstPathPart;
   }
 
 
