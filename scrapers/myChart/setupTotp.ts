@@ -8,9 +8,10 @@ export interface SetupTotpResult {
   error?: string;
 }
 
+// Deliberately status-only: the headers carry Set-Cookie and the bodies of
+// these endpoints carry the TOTP secret, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-  logger.debug(`  ${label} response headers:`, Object.fromEntries(resp.headers.entries()));
 }
 
 /**
@@ -111,15 +112,13 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (twoFactorInfoResp.status !== 200) {
     logUnexpectedResponse('GetTwoFactorInfo', twoFactorInfoResp);
-    const body = await twoFactorInfoResp.text();
-    logger.debug('  GetTwoFactorInfo unexpected response body:', body);
     if (twoFactorInfoResp.status === 500) {
       return fail('This MyChart instance does not support authenticator app setup. You can still use SMS/email 2FA codes.');
     }
     return fail(`Failed to check 2FA settings (HTTP ${twoFactorInfoResp.status}). The session may have expired.`);
   }
   const twoFactorInfo = await twoFactorInfoResp.json();
-  logger.debug('  2FA info:', JSON.stringify(twoFactorInfo));
+  logger.debug('  2FA info keys:', Object.keys(twoFactorInfo).join(', '));
 
   // Check if TOTP is already enabled
   if (twoFactorInfo.IsTotpEnabled || twoFactorInfo.isTotpEnabled) {
@@ -138,12 +137,10 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (verifyResp.status !== 200) {
     logUnexpectedResponse('VerifyPasswordAndUpdateContact', verifyResp);
-    const body = await verifyResp.text();
-    logger.debug('  VerifyPasswordAndUpdateContact unexpected response body:', body);
     return fail(`Password verification failed (HTTP ${verifyResp.status}).`);
   }
   const verifyResult = await verifyResp.json();
-  logger.debug('  VerifyPassword result:', JSON.stringify(verifyResult));
+  logger.debug('  VerifyPassword result. IsPasswordValid:', verifyResult.IsPasswordValid ?? verifyResult.isPasswordValid);
 
   if (verifyResult.IsPasswordValid === false || verifyResult.isPasswordValid === false) {
     logger.debug('  Password verification failed.');
@@ -161,8 +158,6 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (qrResp.status !== 200) {
     logUnexpectedResponse('TotpQrCode', qrResp);
-    const body = await qrResp.text();
-    logger.debug('  TotpQrCode unexpected response body:', body);
     return fail(`Failed to get TOTP QR code (HTTP ${qrResp.status}).`);
   }
   const qrResult = await qrResp.json();
@@ -172,7 +167,9 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   const secret = qrResult.encodedSecretKey || qrResult.EncodedSecretKey || qrResult.SecretKey || qrResult.secretKey || qrResult.Secret || qrResult.secret || qrResult.ManualEntryKey || qrResult.manualEntryKey;
 
   if (!secret) {
-    logger.debug('  Could not extract TOTP secret from response:', JSON.stringify(qrResult));
+    // Never log the response itself — this is the payload that carries the
+    // shared secret. The key list above is what a new field name shows up in.
+    logger.debug('  Could not extract TOTP secret from response (no recognized secret field).');
     return fail('Could not extract TOTP secret from server response.');
   }
 
@@ -181,7 +178,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   // Step 4: Verify the setup by generating and submitting a TOTP code
   logger.debug('  Verifying TOTP setup...');
   const code = await generateTotpCode(secret);
-  logger.debug('  Generated verification code:', code);
+  logger.debug('  Generated verification code.');
 
   const verifyTotpResp = await mychartRequest.makeRequest({
     path: '/api/secondary-validation/VerifyCode',
@@ -190,7 +187,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
     body: JSON.stringify({ Code: code }),
   });
   const verifyTotpText = await verifyTotpResp.text();
-  logger.debug('  VerifyCode response status:', verifyTotpResp.status, 'body:', verifyTotpText);
+  logger.debug('  VerifyCode response status:', verifyTotpResp.status, 'success:', verifyTotpText.includes('"Success":true'));
 
   if (verifyTotpResp.status !== 200) {
     logger.debug('  TOTP code verification failed.');
@@ -209,8 +206,6 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   if (optInResp.status !== 200) {
     logUnexpectedResponse('UpdateTwoFactorTotpOptInStatus', optInResp);
-    const body = await optInResp.text();
-    logger.debug('  UpdateTwoFactorTotpOptInStatus unexpected response body:', body);
     return fail(`Failed to finalize TOTP opt-in (HTTP ${optInResp.status}).`);
   }
 
@@ -257,7 +252,7 @@ export async function disableTotp(mychartRequest: MyChartRequest, password: stri
   // Step 2: Verify with current TOTP code
   logger.debug('  Generating TOTP code for verification...');
   const code = await generateTotpCode(totpSecret);
-  logger.debug('  Generated code:', code);
+  logger.debug('  Generated code.');
 
   const verifyCodeResp = await mychartRequest.makeRequest({
     path: '/api/secondary-validation/VerifyCode',

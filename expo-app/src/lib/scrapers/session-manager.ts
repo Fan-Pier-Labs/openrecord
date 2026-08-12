@@ -15,47 +15,18 @@ import {
   type TwoFaDeliveryInfo,
 } from "../../../../scrapers/myChart/login";
 
-// Static imports for all scrapers (Metro doesn't support dynamic import with template literals)
-import { getMyChartProfile, getEmail } from "../../../../scrapers/myChart/profile";
-import { getHealthSummary } from "../../../../scrapers/myChart/healthSummary";
-import { getMedications } from "../../../../scrapers/myChart/medications";
-import { getAllergies } from "../../../../scrapers/myChart/allergies";
-import { getHealthIssues } from "../../../../scrapers/myChart/healthIssues";
-import { upcomingVisits, pastVisits } from "../../../../scrapers/myChart/visits/visits";
-import { listLabResults } from "../../../../scrapers/myChart/labs_and_procedure_results/labResults";
-import { listConversations } from "../../../../scrapers/myChart/messages/conversations";
-import { getBillingHistory } from "../../../../scrapers/myChart/bills/bills";
-import { getCareTeam } from "../../../../scrapers/myChart/careTeam";
-import { getInsurance } from "../../../../scrapers/myChart/insurance";
-import { getImmunizations } from "../../../../scrapers/myChart/immunizations";
-import { getPreventiveCare } from "../../../../scrapers/myChart/preventiveCare";
-import { getVitals } from "../../../../scrapers/myChart/vitals";
-import { getDocuments } from "../../../../scrapers/myChart/documents";
-import { getImagingResults } from "../../../../scrapers/myChart/labs_and_procedure_results/labResults";
-import { getLetters } from "../../../../scrapers/myChart/letters";
-import { getReferrals } from "../../../../scrapers/myChart/referrals";
-import { getMedicalHistory } from "../../../../scrapers/myChart/medicalHistory";
-import { getEmergencyContacts } from "../../../../scrapers/myChart/emergencyContacts";
-import { getActivityFeed } from "../../../../scrapers/myChart/activityFeed";
-import { getCareJourneys } from "../../../../scrapers/myChart/careJourneys";
-import { getGoals } from "../../../../scrapers/myChart/goals";
-import { getEducationMaterials } from "../../../../scrapers/myChart/educationMaterials";
+// Every scraper this app can run comes from the shared capability registry —
+// see `shared/capabilities.ts`. It is a static import graph, which is what
+// Metro needs (no dynamic import with template literals), and it is the reason
+// this client can no longer fall behind the CLI or the desktop extension.
 import {
-  sendNewMessage,
-  getMessageTopics,
-  getMessageRecipients,
-  getVerificationToken,
-  type MessageRecipient,
-  type MessageTopic,
-} from "../../../../scrapers/myChart/messages/sendMessage";
-import { sendReply } from "../../../../scrapers/myChart/messages/sendReply";
-import { requestMedicationRefill } from "../../../../scrapers/myChart/medicationRefill";
-import {
-  assertProxyReadContext,
-  runListProxyTargets,
-  runSwitchProxyTarget,
-} from "../../../../scrapers/myChart/proxyTools";
-import { downloadImagingStudyDirect } from "../../../../scrapers/myChart/eunity/imagingDirectDownload";
+  executeCapability,
+  getCapability,
+  readAccountArg,
+  type Capability,
+  type CapabilityContext,
+  type StudyImagePayload,
+} from "../../../../shared/capabilities";
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
@@ -382,6 +353,27 @@ function startKeepalive(accountId: string) {
 }
 
 /**
+ * Per-account state the account-security capabilities need — the stored
+ * password and TOTP secret, plus the callbacks that persist new ones into
+ * expo-secure-store. Data capabilities ignore all of it.
+ */
+function contextFor(entry: SessionEntry): CapabilityContext {
+  const accountId = entry.account.id;
+  return {
+    password: entry.account.password,
+    totpSecret: entry.account.totpSecret,
+    saveTotpSecret: async (totpSecret: string) => {
+      await updateMyChartAccount(accountId, { totpSecret });
+      entry.account = { ...entry.account, totpSecret };
+    },
+    savePasskey: async (passkeyCredential: string) => {
+      await updateMyChartAccount(accountId, { passkeyCredential });
+      entry.account = { ...entry.account, passkeyCredential };
+    },
+  };
+}
+
+/**
  * Execute a scraper tool by name against a connected session.
  * This is called by the AI tool executor.
  */
@@ -389,239 +381,134 @@ export async function executeScraperTool(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
-  const hostname = input.instance as string | undefined;
-  const session = getSession(hostname);
-
-  if (!session) {
-    // Try auto-connecting
-    const results = await connectAll();
-    const connected = results.find((r) => r.state === "logged_in");
-    if (!connected) {
-      const needs2fa = results.find((r) => r.state === "need_2fa");
-      if (needs2fa) {
-        throw new Error(
-          `MyChart requires 2FA verification for ${needs2fa.accountId}. Go to Settings to complete the login.`,
-        );
-      }
-      const details = results.map((r) => `${r.accountId}=${r.state}${r.error ? ': ' + r.error : ''}`).join(', ');
-      throw new Error(`Failed to connect to MyChart. (${details})`);
-    }
-    const retrySession = getSession(hostname);
-    if (!retrySession) {
-      throw new Error("Failed to connect to MyChart.");
-    }
-    return runScraper(retrySession.request, toolName, input);
-  }
-
-  return runScraper(session.request, toolName, input);
+  // `account` is the registry's name; `instance` is what this app used to call
+  // it and what the alerts generator still passes.
+  const hostname = readAccountArg(input);
+  const session = await requireSession(hostname);
+  return runScraper(session.request, toolName, input, contextFor(session));
 }
 
 /**
- * Run a specific scraper against a MyChartRequest.
- * Uses static imports from the main repo's scraper modules.
+ * Run an `account`-kind capability (passkey registration, listing or deleting
+ * passkeys, turning the authenticator app on or off) against one account.
+ *
+ * These are deliberately not offered to the model — they change how the
+ * patient signs in — so they are driven from the settings screen instead.
+ */
+export async function executeAccountCapability(
+  accountId: string,
+  capabilityId: string,
+  args: Record<string, unknown> = {},
+): Promise<unknown> {
+  const entry = sessions.get(accountId);
+  if (!entry || entry.status !== "logged_in") {
+    throw new Error("That MyChart account is not connected. Connect it first, then try again.");
+  }
+  const capability = getCapability(capabilityId);
+  if (!capability) throw new Error(`Unknown capability "${capabilityId}".`);
+  if (capability.kind !== "account") {
+    throw new Error(`"${capabilityId}" is a data tool — run it through executeScraperTool.`);
+  }
+  return capability.run(entry.request, args, contextFor(entry));
+}
+
+/** Get a logged-in session, connecting on demand, or throw with the reason. */
+async function requireSession(hostname?: string): Promise<SessionEntry> {
+  const existing = getSession(hostname);
+  if (existing) return existing;
+
+  const results = await connectAll();
+  const connected = results.find((r) => r.state === "logged_in");
+  if (!connected) {
+    const needs2fa = results.find((r) => r.state === "need_2fa");
+    if (needs2fa) {
+      throw new Error(
+        `MyChart requires 2FA verification for ${needs2fa.accountId}. Go to Settings to complete the login.`,
+      );
+    }
+    const details = results.map((r) => `${r.accountId}=${r.state}${r.error ? ': ' + r.error : ''}`).join(', ');
+    throw new Error(`Failed to connect to MyChart. (${details})`);
+  }
+  const retry = getSession(hostname);
+  if (!retry) throw new Error("Failed to connect to MyChart.");
+  return retry;
+}
+
+/**
+ * Run one capability against a MyChartRequest.
+ *
+ * The dispatch used to be a hand-written switch, and it had drifted eight
+ * tools behind the other clients. Everything now routes through the shared
+ * registry (`shared/capabilities.ts`), so the app supports exactly what the
+ * CLI and the desktop extension support.
+ *
+ * The one thing that stays here is imaging: the registry hands back raw CLO
+ * bytes and each client decodes them its own way. On-device that means
+ * cloToJpegBase64 plus the attachment store, so the reply can carry an
+ * [image:ID] token the chat UI swaps for the picture.
  */
 async function runScraper(
   request: MyChartRequest,
   toolName: string,
   input: Record<string, unknown>,
+  ctx?: CapabilityContext,
 ): Promise<unknown> {
-  // Proxy (family record) tools. list is read-only; switch is the ONLY tool
-  // that changes MyChart's server-side active patient.
-  if (toolName === "list_proxy_targets") {
-    return runListProxyTargets(request);
-  }
-  if (toolName === "switch_proxy_target") {
-    return runSwitchProxyTarget(request, String(input.patient ?? ""));
+  const capability = getCapability(toolName);
+  if (!capability) return { error: `Unknown tool: ${toolName}` };
+
+  // The flag, not the id: a second media capability must not need this branch
+  // edited. `run` hands back raw CLO bytes; this client decodes them on-device.
+  if (capability.rendersMedia) {
+    return downloadImagingStudyAsAttachment(capability, request, input);
   }
 
-  // Every other tool reads (or writes) whichever record is active on
-  // MyChart's server. Assert it is the one this call is about — the account
-  // holder unless `patient` says otherwise — so a session left on a child's
-  // chart can never silently serve it as the user's own. This also covers the
-  // background memory/alert jobs, which fail safe instead of mixing a family
-  // member's data into the account holder's caches.
-  await assertProxyReadContext(
-    request,
-    typeof input.patient === "string" ? input.patient : undefined,
-  );
-
-  switch (toolName) {
-    case "get_profile": {
-      const profile = await getMyChartProfile(request);
-      const email = await getEmail(request);
-      return { ...profile, email };
-    }
-    case "get_health_summary":
-      return getHealthSummary(request);
-    case "get_medications":
-      return getMedications(request);
-    case "get_allergies":
-      return getAllergies(request);
-    case "get_health_issues":
-      return getHealthIssues(request);
-    case "get_upcoming_visits":
-      return upcomingVisits(request);
-    case "get_past_visits": {
-      const oldest = new Date();
-      oldest.setFullYear(oldest.getFullYear() - ((input.years_back as number) ?? 2));
-      return pastVisits(request, oldest);
-    }
-    case "get_lab_results":
-      return listLabResults(request);
-    case "get_messages":
-      return listConversations(request);
-    case "get_billing":
-      return getBillingHistory(request);
-    case "get_care_team":
-      return getCareTeam(request);
-    case "get_insurance":
-      return getInsurance(request);
-    case "get_immunizations":
-      return getImmunizations(request);
-    case "get_preventive_care":
-      return getPreventiveCare(request);
-    case "get_vitals":
-      return getVitals(request);
-    case "get_documents":
-      return getDocuments(request);
-    case "get_imaging_results":
-      return getImagingResults(request);
-    case "get_letters":
-      return getLetters(request);
-    case "get_referrals":
-      return getReferrals(request);
-    case "get_medical_history":
-      return getMedicalHistory(request);
-    case "get_emergency_contacts":
-      return getEmergencyContacts(request);
-    case "get_activity_feed":
-      return getActivityFeed(request);
-    case "get_care_journeys":
-      return getCareJourneys(request);
-    case "get_goals":
-      return getGoals(request);
-    case "get_education_materials":
-      return getEducationMaterials(request);
-    case "get_message_recipients": {
-      const token = await getVerificationToken(request);
-      if (!token) throw new Error("Could not get verification token");
-      const [recipients, topics] = await Promise.all([
-        getMessageRecipients(request, token),
-        getMessageTopics(request, token),
-      ]);
-      return { recipients, topics };
-    }
-    case "send_message": {
-      const token = await getVerificationToken(request);
-      if (!token) throw new Error("Could not get verification token");
-      const [recipients, topics] = await Promise.all([
-        getMessageRecipients(request, token),
-        getMessageTopics(request, token),
-      ]);
-      const titleWords = new Set(["dr", "dr.", "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "md", "md.", "do", "do.", "np", "pa", "rn"]);
-      const tokens = String(input.recipient_name ?? "")
-        .toLowerCase()
-        .split(/[\s,]+/)
-        .filter((t) => t && !titleWords.has(t));
-      const matchedRecipients = recipients.filter((r: MessageRecipient) => {
-        const name = r.displayName.toLowerCase();
-        return tokens.every((t) => name.includes(t));
-      });
-      if (matchedRecipients.length === 0) {
-        return {
-          error: `No recipient matching "${input.recipient_name}". Available: ${recipients
-            .map((r: MessageRecipient) => r.displayName)
-            .join(", ")}`,
-        };
-      }
-      if (matchedRecipients.length > 1) {
-        return {
-          error: `Multiple recipients match "${input.recipient_name}": ${matchedRecipients
-            .map((r: MessageRecipient) => r.displayName)
-            .join(", ")}. Please be more specific.`,
-        };
-      }
-      const topicQuery = String(input.topic ?? "").toLowerCase();
-      const matchedTopic =
-        topics.find((t: MessageTopic) => t.displayName.toLowerCase().includes(topicQuery)) ??
-        topics[0];
-      if (!matchedTopic) return { error: "No message topics available" };
-      return sendNewMessage(request, {
-        recipient: matchedRecipients[0],
-        topic: matchedTopic,
-        subject: String(input.subject ?? ""),
-        messageBody: String(input.message_body ?? ""),
-      });
-    }
-    case "send_reply":
-      return sendReply(request, {
-        conversationId: String(input.conversation_id ?? ""),
-        messageBody: String(input.message_body ?? ""),
-      });
-    case "request_refill": {
-      const medsResult = await getMedications(request);
-      const meds = medsResult.medications;
-      const query = String(input.medication_name ?? "").toLowerCase();
-      const matched = meds.filter(
-        (m) =>
-          m.name.toLowerCase().includes(query) ||
-          m.commonName.toLowerCase().includes(query),
-      );
-      if (matched.length === 0) {
-        return {
-          error: `No medication matching "${input.medication_name}". Available: ${meds
-            .map((m) => m.name)
-            .join(", ")}`,
-        };
-      }
-      if (matched.length > 1) {
-        return {
-          error: `Multiple medications match: ${matched.map((m) => m.name).join(", ")}. Be more specific.`,
-        };
-      }
-      const med = matched[0];
-      if (!med.isRefillable) return { error: `"${med.name}" is not refillable.` };
-      if (!med.medicationKey) return { error: `"${med.name}" has no medication key.` };
-      const refillResult = await requestMedicationRefill(request, med.medicationKey);
-      return { ...refillResult, medication: med.name };
-    }
-    case "get_xray_image": {
-      const idx = Number(input.imaging_index);
-      if (!Number.isFinite(idx) || idx < 0) {
-        return { error: "imaging_index must be a non-negative number (from get_imaging_results)." };
-      }
-      const results = await getImagingResults(request);
-      const study = results[idx];
-      if (!study) {
-        return { error: `No imaging result at index ${idx} (have ${results.length}).` };
-      }
-      if (!study.fdiContext) {
-        return { error: `Imaging result at index ${idx} has no viewer context (no attached image).` };
-      }
-      const dl = await downloadImagingStudyDirect(
-        request,
-        study.fdiContext,
-        study.orderName ?? `study_${idx}`,
-        "",
-        { skipFileWrite: true, maxImages: 1 },
-      );
-      const img = dl.images.find((i) => i.pixelData);
-      if (!img?.pixelData) {
-        const errMsg = dl.errors.length ? dl.errors.join("; ") : "No pixel data returned.";
-        return { error: `Could not download X-ray image: ${errMsg}` };
-      }
-      let base64: string, width: number, height: number;
-      try {
-        ({ base64, width, height } = cloToJpegBase64(img.pixelData, img.wrapperData));
-      } catch (err) {
-        return { error: `Failed to decode X-ray image: ${(err as Error).message}` };
-      }
-      const imageId = `xray_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const caption = img.seriesDescription || study.orderName || "X-ray";
-      putImageAttachment(imageId, `data:image/jpeg;base64,${base64}`, caption, width, height);
-      return { image_id: imageId, caption, width, height };
-    }
-    default:
-      return { error: `Unknown tool: ${toolName}` };
+  try {
+    return await executeCapability(request, toolName, input, ctx);
+  } catch (err) {
+    // The agent loop reads tool results as text, so a thrown "no medication
+    // matching X / here are the options" is far more useful to it as a
+    // structured error than as a crashed turn.
+    return { error: (err as Error).message };
   }
+}
+
+/**
+ * Download one imaging study, decode the first image on-device and stash it in
+ * the attachment store. Returns the token the model puts in its reply.
+ */
+async function downloadImagingStudyAsAttachment(
+  capability: Capability,
+  request: MyChartRequest,
+  input: Record<string, unknown>,
+): Promise<unknown> {
+  let payload: StudyImagePayload;
+  try {
+    payload = (await executeCapability(request, capability.id, {
+      ...input,
+      max_images: 1,
+    })) as StudyImagePayload;
+  } catch (err) {
+    return { error: `Could not download the image: ${(err as Error).message}` };
+  }
+
+  const img = payload.images.find((i) => i.pixelData);
+  if (!img?.pixelData) {
+    const why = payload.errors.length ? payload.errors.join("; ") : "No pixel data returned.";
+    return { error: `Could not download the image: ${why}` };
+  }
+
+  let base64: string, width: number, height: number;
+  try {
+    ({ base64, width, height } = cloToJpegBase64(
+      Buffer.from(img.pixelData),
+      img.wrapperData ? Buffer.from(img.wrapperData) : undefined,
+    ));
+  } catch (err) {
+    return { error: `Failed to decode the image: ${(err as Error).message}` };
+  }
+
+  const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const caption = img.seriesDescription || payload.studyName || "Imaging study";
+  putImageAttachment(imageId, `data:image/jpeg;base64,${base64}`, caption, width, height);
+  return { image_id: imageId, caption, width, height };
 }
