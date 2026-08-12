@@ -17,7 +17,13 @@ export function MemorySummaryCard({ summaryMd, generatedAt, refreshing, onRefres
 
   return (
     <View style={styles.card}>
-      <Pressable style={styles.header} onPress={() => setExpanded((v) => !v)}>
+      <Pressable
+        testID="digest-toggle"
+        accessibilityLabel="Toggle health digest"
+        accessibilityRole="button"
+        style={styles.header}
+        onPress={() => setExpanded((v) => !v)}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Health Digest</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
@@ -44,6 +50,9 @@ export function MemorySummaryCard({ summaryMd, generatedAt, refreshing, onRefres
           )}
 
           <Pressable
+            testID="digest-refresh"
+            accessibilityLabel="Refresh health digest"
+            accessibilityRole="button"
             style={[styles.refreshButton, refreshing && styles.refreshButtonDisabled]}
             onPress={onRefresh}
             disabled={refreshing}
