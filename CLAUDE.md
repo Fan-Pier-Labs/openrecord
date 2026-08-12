@@ -32,7 +32,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Key Commands
 
 - `bun run lint` — Run ESLint
-- `bun run test` — Run all unit tests (scrapers, shared, CLI, expo-app libs, desktop extension)
+- `bun run test` — Run all unit tests (scrapers, shared, CLI, expo-app libs, desktop extension). **Needs `cd claude-desktop-extension && bun install` first** — the capability-parity test imports the extension's real `registerAllTools`, so it needs `zod` and the MCP SDK from that package. Without them you get `Cannot find package 'zod'` and five failing parity tests.
 - `bun run test:unit` — Alias for `bun run test`
 - `bun run test:integration` — Run integration tests (requires credentials)
 - `bun run test:fake-mychart` — Run scraper tests against a running fake-mychart on port 4000
