@@ -90,6 +90,18 @@ export type FakeUser = {
   // What the settings UI and getTwoFactorInfo report. Mutable via the toggle
   // endpoint. Independent of requires2faAtLogin.
   totpEnabled: boolean;
+  /**
+   * The Base32 secret currently bound to this account, or null when TOTP is
+   * off. Set when the account opts in, cleared when it opts out. VerifyCode
+   * checks submitted codes against it, exactly as a real instance does.
+   */
+  totpSecret: string | null;
+  /**
+   * A secret issued by TotpQrCode but not yet opted into. Real MyChart mints a
+   * fresh secret on each call and only commits it once a valid code proves the
+   * client stored it, so an abandoned setup leaves the account untouched.
+   */
+  pendingTotpSecret: string | null;
   passkeys: Passkey[];
   /**
    * The opaque id of this account holder's OWN patient record.
@@ -122,6 +134,8 @@ function seedUsers(): Record<string, FakeUser> {
       },
       requires2faAtLogin: false,
       totpEnabled: false,
+      totpSecret: null,
+      pendingTotpSecret: null,
       passkeys: [],
       selfProxyId: HOMER_SELF_PROXY_ID,
       // Homer has proxy access to all three kids, so discover → switch →
@@ -147,6 +161,11 @@ function seedUsers(): Record<string, FakeUser> {
       },
       requires2faAtLogin: true,
       totpEnabled: true,
+      // Marge is seeded with TOTP already on, so she needs a secret to go with
+      // it — an "enabled" account with no secret could never verify a code.
+      // The standard RFC 4648 test vector, so a test can derive her codes.
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+      pendingTotpSecret: null,
       passkeys: [],
       // Marge has no proxy access — the single-record account. She still has
       // her own record id, because `/ProxySwitch` on such an account returns a

@@ -1,16 +1,23 @@
 /**
- * Download a single imaging study and encode its images as JPEGs.
+ * Encode a downloaded imaging study as JPEGs.
  *
- * Shared by the `download_imaging_study` MCP tool. Kept separate from tool
- * registration so it can be unit-tested against fake-mychart without standing
- * up an MCP server. Uses the pure-JS CLO→JPEG path (convertCloToBitmap16 +
- * jpeg-js) so the MCPB ships no native image dependency.
+ * The download itself is the shared `download_imaging_study` capability
+ * (`shared/capabilities.ts`), which returns raw CLO bytes — every client has to
+ * encode those itself, because the MCPB ships no native image dependency and
+ * uses the pure-JS CLO→JPEG path (convertCloToBitmap16 + jpeg-js) where the
+ * CLI uses sharp and the mobile app uses its own decoder. This module is that
+ * MCPB-specific encoding step, kept out of tool registration so it can be
+ * unit-tested against fake-mychart without standing up an MCP server.
  */
 import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
-import { downloadImagingStudyDirect } from '../../../scrapers/myChart/eunity/imagingDirectDownload';
 import { convertCloToBitmap16 } from '../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { encodeCloAsJpeg } from './jpeg-encoder';
+import {
+  encodeImageId,
+  getCapability,
+  type StudyImagePayload,
+} from '../../../shared/capabilities';
 
 export interface StudyJpeg {
   index: number;
@@ -33,36 +40,6 @@ export interface DownloadStudyJpegsResult {
   errors: string[];
 }
 
-/**
- * Pack an FdiContext into a single opaque `image_id` token (base64url of the
- * JSON). One copy-paste value is easier for the model to round-trip from
- * get_imaging_results into download_imaging_study than two separate fields,
- * and base64url avoids delimiter collisions — `fdi`/`ord` are arbitrary
- * URL-encoded tokens that could contain a colon, comma, etc.
- */
-export function encodeImageId(fdiContext: FdiContext): string {
-  return Buffer.from(JSON.stringify({ fdi: fdiContext.fdi, ord: fdiContext.ord }), 'utf8').toString('base64url');
-}
-
-/** Inverse of encodeImageId. Throws if the token is malformed. */
-export function decodeImageId(imageId: string): FdiContext {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(Buffer.from(imageId, 'base64url').toString('utf8'));
-  } catch {
-    throw new Error('Invalid image_id — expected the image_id value from a get_imaging_results entry.');
-  }
-  if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    typeof (parsed as FdiContext).fdi !== 'string' ||
-    typeof (parsed as FdiContext).ord !== 'string'
-  ) {
-    throw new Error('Invalid image_id — expected the image_id value from a get_imaging_results entry.');
-  }
-  return { fdi: (parsed as FdiContext).fdi, ord: (parsed as FdiContext).ord };
-}
-
 export interface DownloadStudyJpegsOptions {
   studyName?: string;
   /** Max images to download and encode (default 3). */
@@ -72,37 +49,25 @@ export interface DownloadStudyJpegsOptions {
 }
 
 /**
- * Resolve a fresh image-viewer session from `fdiContext`, download the study's
- * CLO image data over HTTP, and encode the first `maxImages` images as JPEGs.
- *
- * `fdiContext` ({ fdi, ord }) comes from an entry returned by
- * `getImagingResults` — it is durable report-identifier data, so a fresh
- * single-use SAML viewer URL is fetched internally on every call.
+ * Encode the raw CLO images the `download_imaging_study` capability returned
+ * as JPEGs. Pure — no network — so the tool handler can call the capability
+ * once and hand its payload straight here.
  */
-export async function downloadStudyJpegs(
-  req: MyChartRequest,
-  fdiContext: FdiContext,
-  opts: DownloadStudyJpegsOptions = {},
-): Promise<DownloadStudyJpegsResult> {
-  const studyName = opts.studyName ?? 'imaging study';
+export function encodeStudyJpegs(
+  payload: StudyImagePayload,
+  opts: { maxImages?: number; jpegQuality?: number } = {},
+): DownloadStudyJpegsResult {
   const maxImages = opts.maxImages ?? 3;
   const jpegQuality = opts.jpegQuality ?? 85;
 
-  // `outputDir` is unused because skipFileWrite keeps everything in memory —
-  // the MCPB never writes image files to the user's disk.
-  const downloaded = await downloadImagingStudyDirect(req, fdiContext, studyName, '', {
-    skipFileWrite: true,
-    maxImages,
-  });
-
-  const errors = [...downloaded.errors];
-  const withPixels = downloaded.images.filter((img) => img.pixelData && img.pixelData.length > 0);
+  const errors = [...payload.errors];
+  const withPixels = payload.images.filter((img) => img.pixelData && img.pixelData.length > 0);
   const images: StudyJpeg[] = [];
 
   for (let i = 0; i < Math.min(withPixels.length, maxImages); i++) {
     const img = withPixels[i];
     try {
-      const bitmap = convertCloToBitmap16(img.pixelData!, img.wrapperData);
+      const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       const encoded = encodeCloAsJpeg(bitmap, jpegQuality);
       images.push({
         index: i,
@@ -118,10 +83,37 @@ export async function downloadStudyJpegs(
   }
 
   return {
-    studyName: downloaded.studyName || studyName,
-    totalImages: downloaded.images.length,
+    studyName: payload.studyName || 'imaging study',
+    totalImages: payload.totalImages,
     returned: images.length,
-    images,
     errors,
+    images,
   };
+}
+
+/**
+ * Resolve a fresh image-viewer session from `fdiContext`, download the study's
+ * CLO image data over HTTP, and encode the first `maxImages` images as JPEGs.
+ *
+ * `fdiContext` ({ fdi, ord }) comes from an entry returned by
+ * `getImagingResults` — it is durable report-identifier data, so a fresh
+ * single-use SAML viewer URL is fetched internally on every call.
+ */
+export async function downloadStudyJpegs(
+  req: MyChartRequest,
+  fdiContext: FdiContext,
+  opts: DownloadStudyJpegsOptions = {},
+): Promise<DownloadStudyJpegsResult> {
+  const maxImages = opts.maxImages ?? 3;
+  const capability = getCapability('download_imaging_study');
+  if (!capability?.rendersMedia) {
+    throw new Error('The imaging-download capability is missing from the registry.');
+  }
+  const payload = (await capability.run(req, {
+    image_id: encodeImageId(fdiContext),
+    study_name: opts.studyName ?? 'imaging study',
+    max_images: maxImages,
+  })) as StudyImagePayload;
+
+  return encodeStudyJpegs(payload, { maxImages, jpegQuality: opts.jpegQuality });
 }

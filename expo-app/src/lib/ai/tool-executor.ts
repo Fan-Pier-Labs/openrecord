@@ -1,17 +1,20 @@
 /**
  * Local tool executor — runs MyChart scrapers on-device.
  *
- * Read-only scrapers run immediately. Write tools (send_message,
- * send_reply, request_refill, …) require a user confirmation popup
- * showing the exact payload before they execute, similar to the
- * Claude mobile app.
+ * Read-only scrapers run immediately. Write tools — every `kind: 'write'`
+ * entry in the shared capability registry, surfaced here as WRITE_TOOL_META —
+ * require a user confirmation popup showing the exact payload before they
+ * execute, similar to the Claude mobile app.
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
 import { WRITE_TOOL_META } from "./tool-catalog";
+import { ACCOUNT_PARAM_NAMES } from "../../../../shared/capabilities";
 
 function formatArgs(input: Record<string, unknown>): string {
-  const entries = Object.entries(input).filter(([k]) => k !== "instance");
+  // Which account it is going to is context, not payload — the patient is
+  // confirming the message, not the hostname. Both spellings are filtered.
+  const entries = Object.entries(input).filter(([k]) => !ACCOUNT_PARAM_NAMES.includes(k));
   if (entries.length === 0) return "(no arguments)";
   return entries
     .map(([k, v]) => {

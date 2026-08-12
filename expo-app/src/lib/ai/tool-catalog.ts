@@ -1,10 +1,36 @@
 /**
- * The agent-facing tool catalog, extracted so the prompt-side declarations
- * (claude-client.ts) and the execution-side write gating (tool-executor.ts)
- * share one source of truth — a write tool missing its confirmation dialog is
- * exactly the drift this file exists to prevent. Dependency-free on purpose:
- * it must stay importable from bun unit tests (no React Native imports).
+ * The agent-facing tool catalog.
+ *
+ * Two things live here, and they are deliberately in one file: the tool
+ * declarations that go into the system prompt (claude-client.ts) and the
+ * write-gating metadata the executor confirms against (tool-executor.ts). A
+ * write tool missing its confirmation dialog is exactly the drift this file
+ * exists to prevent.
+ *
+ * The list itself is *derived*, not written here — it comes from the shared
+ * capability registry (`shared/capabilities.ts`), which the CLI, the npm
+ * client and the Claude Desktop extension also derive from. The mobile list
+ * used to be hand-maintained and had fallen behind the other clients by eight
+ * tools: visit notes, note contents, the After Visit Summary, questionnaires,
+ * upcoming orders, EHI export templates, linked accounts, message threads and
+ * the whole emergency-contact write surface were simply absent on mobile, so
+ * the answer a patient got depended on which client they asked.
+ *
+ * Only read + write capabilities appear. `account`-kind capabilities change
+ * how the patient signs in to MyChart; those live on the settings screen,
+ * where a human drives them.
+ *
+ * Dependency-free on purpose: no React Native imports, so bun unit tests can
+ * read it directly.
  */
+
+import {
+  ACCOUNT_PARAM,
+  AGENT_CAPABILITIES,
+  PATIENT_PARAM,
+  acceptsPatientParam,
+  CAPABILITIES,
+} from "../../../../shared/capabilities";
 
 export type ToolSpec = {
   name: string;
@@ -13,40 +39,29 @@ export type ToolSpec = {
   args: Record<string, string>;
 };
 
-export const TOOLS: ToolSpec[] = [
-  { name: "get_profile", description: "Get the user's MyChart profile information", args: { instance: "MyChart hostname (optional if only one account)" } },
-  { name: "get_health_summary", description: "Get a summary of the user's health information", args: { instance: "optional" } },
-  { name: "get_medications", description: "Get current and past medications", args: { instance: "optional" } },
-  { name: "get_allergies", description: "Get allergy information", args: { instance: "optional" } },
-  { name: "get_health_issues", description: "Get health issues / problem list", args: { instance: "optional" } },
-  { name: "get_upcoming_visits", description: "Get upcoming appointments", args: { instance: "optional" } },
-  { name: "get_past_visits", description: "Get past visit history", args: { instance: "optional", years_back: "number, optional" } },
-  { name: "get_lab_results", description: "Get lab test results", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_messages", description: "Get MyChart messages/conversations with providers", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_billing", description: "Get billing history", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_care_team", description: "Get care team members", args: { instance: "optional" } },
-  { name: "get_insurance", description: "Get insurance information", args: { instance: "optional" } },
-  { name: "get_immunizations", description: "Get immunization records", args: { instance: "optional" } },
-  { name: "get_preventive_care", description: "Get preventive care recommendations", args: { instance: "optional" } },
-  { name: "get_vitals", description: "Get vital signs history", args: { instance: "optional" } },
-  { name: "get_documents", description: "Get medical documents", args: { instance: "optional" } },
-  { name: "get_imaging_results", description: "Get imaging/radiology results", args: { instance: "optional", limit: "number", offset: "number" } },
-  { name: "get_xray_image", description: "Download the actual X-ray/imaging picture for an imaging result and attach it to the reply. Use the 0-based index from get_imaging_results.", args: { instance: "optional", imaging_index: "0-based index from get_imaging_results" } },
-  { name: "get_letters", description: "Get letters from providers", args: { instance: "optional" } },
-  { name: "get_referrals", description: "Get referral information", args: { instance: "optional" } },
-  { name: "get_medical_history", description: "Get medical history", args: { instance: "optional" } },
-  { name: "get_emergency_contacts", description: "Get emergency contacts", args: { instance: "optional" } },
-  { name: "get_activity_feed", description: "Get recent activity feed", args: { instance: "optional" } },
-  { name: "get_care_journeys", description: "Get care journey information", args: { instance: "optional" } },
-  { name: "get_goals", description: "Get health goals", args: { instance: "optional" } },
-  { name: "get_education_materials", description: "Get patient education materials", args: { instance: "optional" } },
-  { name: "get_message_recipients", description: "List available message recipients and topics (use before send_message if unsure who to message)", args: { instance: "optional" } },
-  { name: "list_proxy_targets", description: "List every patient record this account can access — the user plus any family members via MyChart proxy access (e.g. a parent seeing a child's chart) — and which one is currently active", args: { instance: "optional" } },
-  { name: "switch_proxy_target", description: "Switch which patient's record MyChart is showing (e.g. to a child's chart). ALL data tools then read that patient's record until switched back. Confirm with the user before switching.", args: { instance: "optional", patient: "patient name from list_proxy_targets, or 'me' for the user's own record" } },
-  { name: "send_message", description: "Send a new message to a MyChart provider. Confirm with the user before sending.", args: { instance: "optional", recipient_name: "provider name (fuzzy match)", topic: "topic (fuzzy match, e.g. 'Medical Question')", subject: "subject line", message_body: "message body" } },
-  { name: "send_reply", description: "Reply to an existing MyChart conversation. Confirm with the user before sending.", args: { instance: "optional", conversation_id: "conversation id from get_messages", message_body: "reply text" } },
-  { name: "request_refill", description: "Request a medication refill. Confirm with the user before submitting.", args: { instance: "optional", medication_name: "medication name (fuzzy match)" } },
-];
+function argHint(type: string, required: boolean | undefined, description: string): string {
+  return `${type}${required ? "" : ", optional"} — ${description}`;
+}
+
+export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
+  name: capability.id,
+  description: capability.description,
+  args: {
+    // Declared by the registry, so the parity test can see it. This used to be
+    // spelled `instance` here and `account` in the extension — the one
+    // parameter on every tool in every client, and the only one that had
+    // already drifted. `instance` is still accepted at execution time.
+    [ACCOUNT_PARAM.name]: ACCOUNT_PARAM.description,
+    // Which patient the call is about. The dispatch asserts it before running
+    // and refuses on a mismatch, so the model has to be able to say it.
+    ...(acceptsPatientParam(capability)
+      ? { patient: argHint("string", false, PATIENT_PARAM.description) }
+      : {}),
+    ...Object.fromEntries(
+      capability.params.map((p) => [p.name, argHint(p.type, p.required, p.description)]),
+    ),
+  },
+}));
 
 export type WriteToolMeta = {
   /** Dialog title shown in the confirmation popup. */
@@ -57,31 +72,35 @@ export type WriteToolMeta = {
   confirmLabel?: string;
 };
 
+/** Confirm-button labels that read better than the default "Send". */
+const CONFIRM_LABELS: Record<string, string> = {
+  switch_proxy_target: "Switch",
+  request_refill: "Request",
+  delete_message: "Delete",
+  remove_emergency_contact: "Remove",
+  add_emergency_contact: "Add",
+  update_emergency_contact: "Update",
+};
+
 /**
  * Tools that mutate state — on MyChart's server or the session pointed at it.
  * Every entry gets a native confirmation dialog before executing and is
  * exclusive in the agent protocol (must be the only tool call in a turn).
+ *
+ * Derived from the registry's `kind`, so a write added there is
+ * confirmation-gated here from the first build. The previous hand-written map
+ * covered four of the eight writes the other clients already had.
  */
-export const WRITE_TOOL_META: Record<string, WriteToolMeta> = {
-  send_message: {
-    title: "Send Message",
-    description: "Sends a new message to a MyChart provider.",
-  },
-  send_reply: {
-    title: "Send Reply",
-    description: "Replies to an existing MyChart conversation.",
-  },
-  request_refill: {
-    title: "Request Refill",
-    description: "Submits a medication refill request to MyChart.",
-  },
-  switch_proxy_target: {
-    title: "Switch Patient Record",
-    description:
-      "Changes which patient's chart MyChart is showing. All data tools will read that patient's record until switched back.",
-    confirmLabel: "Switch",
-  },
-};
+export const WRITE_TOOL_META: Record<string, WriteToolMeta> = Object.fromEntries(
+  CAPABILITIES.filter((c) => c.kind === "write").map((c) => [
+    c.id,
+    {
+      title: c.title,
+      description: c.description,
+      ...(CONFIRM_LABELS[c.id] ? { confirmLabel: CONFIRM_LABELS[c.id] } : {}),
+    },
+  ]),
+);
 
 export const WRITE_TOOLS: ReadonlySet<string> = new Set(Object.keys(WRITE_TOOL_META));
 
@@ -89,4 +108,11 @@ export const RESPOND_TOOL = "respond";
 
 export function isExclusiveTool(name: string): boolean {
   return name === RESPOND_TOOL || WRITE_TOOLS.has(name);
+}
+
+/** The `- name(args) — description` block that goes into the system prompt. */
+export function renderToolList(): string {
+  return TOOLS.map(
+    (t) => `- ${t.name}(${Object.keys(t.args).join(", ")}) — ${t.description}`,
+  ).join("\n");
 }

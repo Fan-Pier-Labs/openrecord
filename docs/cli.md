@@ -43,6 +43,52 @@ By default (no `--action` flag), the CLI scrapes all 30+ data categories in para
 - `--action keep-alive-test` — Ping /Home every 5 minutes to keep session alive; runs forever, prints status each ping
 - `--action list-proxies` — List the patient records this account can reach (its own, plus any it has proxy access to)
 
+## Capabilities (`--action <capability-id>`)
+
+Beyond the hand-written actions above, `--action` accepts **any id from the
+shared capability registry** (`shared/capabilities.ts`) and prints the result as
+JSON. That registry is the single source of truth for what OpenRecord can do
+with a MyChart account — the Claude Desktop extension registers one MCP tool per
+entry, the mobile app offers one agent tool per entry, and the CLI gets one
+`--action` per entry. Nothing is hand-listed in any of the four clients, so a
+capability cannot exist in one and be missing from another.
+
+```bash
+mychart-cli --list-capabilities
+```
+
+Prints every capability grouped by area, with the arguments it takes. A `!`
+marks a command that changes something — a write to the chart, or the account's
+own sign-in settings.
+
+Arguments are supplied with repeated `--arg name=value`:
+
+```bash
+mychart-cli --host mychart.example.org --action get_visit_notes --arg csn=CSN-12345
+```
+
+```bash
+mychart-cli --host mychart.example.org --action get_past_visits --arg years_back=5
+```
+
+An unrecognized `--arg` is an error listing the ones the capability accepts,
+rather than a silent no-op — a typo'd parameter name would otherwise look like
+the capability ignoring the request. Missing required arguments and
+out-of-range numbers are rejected the same way. The process exits non-zero if
+the capability fails on any account.
+
+Every chart-touching capability also accepts `--arg patient="<name>"`, the same
+assertion `--patient` applies to the rest of the CLI: the call refuses if
+MyChart is on a different record rather than reading the wrong chart. The
+patient-record capabilities themselves (`list_proxy_targets`,
+`switch_proxy_target`) are exempt, since they are how you inspect and change
+which record is active.
+
+Capabilities that mutate the account's sign-in settings (`register_passkey`,
+`list_passkeys`, `delete_passkey`, `setup_totp`, `disable_totp`) are also
+reachable this way; they are the same operations the dedicated flags below
+perform, and they read and write the CLI's own TOTP and passkey stores.
+
 ## Proxy (Multi-Patient) Records
 
 Some MyChart accounts can see more than one patient's chart — a parent reading a

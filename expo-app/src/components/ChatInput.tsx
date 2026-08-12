@@ -21,6 +21,8 @@ export function ChatInput({ onSend, disabled }: Props) {
     <View style={styles.container}>
       <TextInput
         ref={inputRef}
+        testID="chat-input"
+        accessibilityLabel="Message input"
         style={styles.input}
         placeholder="Ask about your health data..."
         placeholderTextColor="#999"
@@ -32,6 +34,9 @@ export function ChatInput({ onSend, disabled }: Props) {
         editable={!disabled}
       />
       <Pressable
+        testID="send-message"
+        accessibilityLabel="Send message"
+        accessibilityRole="button"
         style={[styles.sendButton, (!text.trim() || disabled) && styles.sendButtonDisabled]}
         onPress={handleSend}
         disabled={!text.trim() || disabled}
