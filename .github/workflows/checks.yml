@@ -24,6 +24,8 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
       - run: bun run test
+      - name: Check code coverage (75% minimum)
+        run: bun run test:coverage
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun install && bun run build
 

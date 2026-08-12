@@ -52,3 +52,6 @@ scrapers/list-all-mycharts/logos/
 
 # Vite build output for the OpenRecord splash demo
 openrecord-splash/dist/
+
+# Coverage reports (bun run test:coverage)
+coverage

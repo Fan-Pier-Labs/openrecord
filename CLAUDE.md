@@ -29,6 +29,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 - `bun run lint` — Run ESLint
 - `bun run test` — Run all unit tests (scrapers, shared, CLI, expo-app libs, desktop extension)
 - `bun run test:unit` — Alias for `bun run test`
+- `bun run test:coverage` — Run the unit suite with coverage and enforce the 75% minimum (see Code Coverage Gate)
 - `bun run test:integration` — Run integration tests (requires credentials)
 - `bun run test:fake-mychart` — Run scraper tests against a running fake-mychart on port 4000
 - `bun run cli` — Run the CLI scraper (defaults to MyChart)
@@ -52,6 +53,26 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
 The `fake-mychart` CI job separately runs the scraper suite (`bun run test:fake-mychart`), the desktop-extension tests, and the npm-package tests against a locally built fake-mychart server.
 
 **Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
+
+## Code Coverage Gate
+
+`bun run test:coverage` runs the unit suite with coverage and fails if **overall line or function coverage drops below 75%**. It runs in the main CI job, so a PR that adds untested code goes red. Current standing is ~77% lines / ~91% functions.
+
+Three pieces, and each exists to defeat a way the number can lie:
+
+- **`scripts/check-coverage.ts`** computes the aggregate from the lcov report and exits non-zero below `MINIMUM_COVERAGE`. Raise that constant as coverage improves; don't lower it to turn a red build green. Failure output lists the files with the most uncovered lines. It fails closed on a missing or empty report, so a broken coverage run can't pass as a clean one.
+- **`tests/coverage/allSources.test.ts`** imports every file under `scrapers/` and `shared/`. Bun only reports files some test imported, so without this an entirely untested module is *absent* from the report rather than counted as 0% — adding untested code would *raise* the reported percentage. The sweep is worth ~5 points of honesty (82% → 77%). It also fails if any core file throws on import.
+- **`bunfig.toml`** sets `coverageSkipTestFiles` and excludes non-product code from the denominator: `mock_data/` (fixtures), `scrapers/list-all-mycharts/` (dev diagnostics), and `clo-image-parser/generate_clo.ts` (the CLO *encoder*, imported only by tests — the decoder is product code and is measured).
+
+**Do not use Bun's built-in `coverageThreshold`.** Two traps, both verified against the CLI:
+- It is enforced **per file**, not on the aggregate, so one 0% file fails the run even at a 10% bar. That cannot express "75% overall", which is why the aggregate is computed in the script instead.
+- Its keys are **plural** (`lines`, `functions`, `statements`). Bun's own docs show `line`/`function`, and an unrecognised key is ignored **silently** — the gate switches off with no warning.
+
+Also note `bun test -c <file>` silently ignores the config path, so these settings have to live in the repo-root `bunfig.toml`. They only activate under `--coverage`, so `test:fake-mychart` and `test:ci-integration` are unaffected.
+
+### Known coverage gaps
+
+Not blockers, but the places to spend the next test-writing effort: `eunity/imagingDirectDownload.ts` and `eunity/imagingViewer.ts` (need a live eUnity server), `setupTotp.ts` / `setupPasskey.ts` (interactive flows), and `login.ts`. Two files in `clo-image-parser/` have their own colocated tests (`generate_clo.test.ts`) that are **not** wired into `bun run test` because two of its CLO encode→decode round-trip assertions currently fail on curved/diagonal content (off by 1); `clo_to_jpg.test.ts` and `exporters.test.ts` from that directory do run. `messages/conversationsWithFullHistory.ts` has no importers at all.
 
 ## Proxy (Multi-Patient) Support
 
