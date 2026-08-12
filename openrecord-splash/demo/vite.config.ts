@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { SPLASH_ASSETS } from './splash-assets';
 
 /**
  * Dev-only: serve the splash page from the parent directory at `/index.html`.
@@ -9,21 +10,6 @@ import react from '@vitejs/plugin-react';
  * link resolves. Vite's root is `demo/`, so without this that link 404s locally.
  * The splash does not link back — the demo is deployed but unadvertised.
  */
-/**
- * Root-level static assets that live next to `index.html` in production.
- * Served here too so dev doesn't 404 on them (the browser always requests
- * `/favicon.ico`, which showed up as a console error on every page load).
- */
-export const SPLASH_ASSETS: Record<string, string> = {
-  '/favicon.ico': 'image/x-icon',
-  '/icon.svg': 'image/svg+xml',
-  '/apple-touch-icon.png': 'image/png',
-  '/icon-192.png': 'image/png',
-  '/icon-512.png': 'image/png',
-  '/og-image.png': 'image/png',
-  '/manifest.json': 'application/manifest+json',
-};
-
 function splashPage(): Plugin {
   return {
     name: 'openrecord-splash-page',
