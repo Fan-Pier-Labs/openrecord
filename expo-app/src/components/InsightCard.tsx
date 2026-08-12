@@ -26,7 +26,14 @@ export function InsightCard({ insight, expanded, onToggle, onAsk, onDismiss }: P
   const sev = SEVERITY_COLOR[insight.severity];
   return (
     <View style={styles.card}>
-      <Pressable onPress={onToggle} style={styles.header} hitSlop={4}>
+      <Pressable
+        testID={`insight-toggle-${insight.id}`}
+        accessibilityLabel={insight.title}
+        accessibilityRole="button"
+        onPress={onToggle}
+        style={styles.header}
+        hitSlop={4}
+      >
         <View style={styles.headerText}>
           <Text style={styles.title}>{insight.title}</Text>
           <View style={[styles.badge, { backgroundColor: sev.bg }]}>
@@ -57,11 +64,23 @@ export function InsightCard({ insight, expanded, onToggle, onAsk, onDismiss }: P
 
           <View style={styles.actions}>
             {insight.suggested_question ? (
-              <Pressable style={styles.askButton} onPress={() => onAsk(insight.suggested_question!)}>
+              <Pressable
+                testID={`insight-ask-${insight.id}`}
+                accessibilityLabel="Ask in chat"
+                accessibilityRole="button"
+                style={styles.askButton}
+                onPress={() => onAsk(insight.suggested_question!)}
+              >
                 <Text style={styles.askButtonText}>Ask in chat</Text>
               </Pressable>
             ) : null}
-            <Pressable style={styles.dismissButton} onPress={onDismiss}>
+            <Pressable
+              testID={`insight-dismiss-${insight.id}`}
+              accessibilityLabel="Dismiss insight"
+              accessibilityRole="button"
+              style={styles.dismissButton}
+              onPress={onDismiss}
+            >
               <Text style={styles.dismissButtonText}>Dismiss</Text>
             </Pressable>
           </View>
