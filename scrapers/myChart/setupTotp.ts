@@ -2,16 +2,16 @@ import { MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { generateTotpCode } from './totp';
 import { logger } from '../../shared/logger';
-import { redactBody, redactHeaders, redactJson } from '../../shared/redact';
 
 export interface SetupTotpResult {
   secret: string | null;
   error?: string;
 }
 
+// Deliberately status-only: the headers carry Set-Cookie and the bodies of
+// these endpoints carry the TOTP secret, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-  logger.debug(`  ${label} response headers:`, redactHeaders(resp.headers));
 }
 
 /**
@@ -112,15 +112,13 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (twoFactorInfoResp.status !== 200) {
     logUnexpectedResponse('GetTwoFactorInfo', twoFactorInfoResp);
-    const body = await twoFactorInfoResp.text();
-    logger.debug('  GetTwoFactorInfo unexpected response body:', redactBody(body));
     if (twoFactorInfoResp.status === 500) {
       return fail('This MyChart instance does not support authenticator app setup. You can still use SMS/email 2FA codes.');
     }
     return fail(`Failed to check 2FA settings (HTTP ${twoFactorInfoResp.status}). The session may have expired.`);
   }
   const twoFactorInfo = await twoFactorInfoResp.json();
-  logger.debug('  2FA info:', redactJson(twoFactorInfo));
+  logger.debug('  2FA info keys:', Object.keys(twoFactorInfo).join(', '));
 
   // Check if TOTP is already enabled
   if (twoFactorInfo.IsTotpEnabled || twoFactorInfo.isTotpEnabled) {
@@ -139,12 +137,10 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (verifyResp.status !== 200) {
     logUnexpectedResponse('VerifyPasswordAndUpdateContact', verifyResp);
-    const body = await verifyResp.text();
-    logger.debug('  VerifyPasswordAndUpdateContact unexpected response body:', redactBody(body));
     return fail(`Password verification failed (HTTP ${verifyResp.status}).`);
   }
   const verifyResult = await verifyResp.json();
-  logger.debug('  VerifyPassword result:', redactJson(verifyResult));
+  logger.debug('  VerifyPassword result. IsPasswordValid:', verifyResult.IsPasswordValid ?? verifyResult.isPasswordValid);
 
   if (verifyResult.IsPasswordValid === false || verifyResult.isPasswordValid === false) {
     logger.debug('  Password verification failed.');
@@ -162,8 +158,6 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
   });
   if (qrResp.status !== 200) {
     logUnexpectedResponse('TotpQrCode', qrResp);
-    const body = await qrResp.text();
-    logger.debug('  TotpQrCode unexpected response body:', redactBody(body));
     return fail(`Failed to get TOTP QR code (HTTP ${qrResp.status}).`);
   }
   const qrResult = await qrResp.json();
@@ -193,7 +187,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
     body: JSON.stringify({ Code: code }),
   });
   const verifyTotpText = await verifyTotpResp.text();
-  logger.debug('  VerifyCode response status:', verifyTotpResp.status, 'body:', redactBody(verifyTotpText));
+  logger.debug('  VerifyCode response status:', verifyTotpResp.status, 'success:', verifyTotpText.includes('"Success":true'));
 
   if (verifyTotpResp.status !== 200) {
     logger.debug('  TOTP code verification failed.');
@@ -212,8 +206,6 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
 
   if (optInResp.status !== 200) {
     logUnexpectedResponse('UpdateTwoFactorTotpOptInStatus', optInResp);
-    const body = await optInResp.text();
-    logger.debug('  UpdateTwoFactorTotpOptInStatus unexpected response body:', redactBody(body));
     return fail(`Failed to finalize TOTP opt-in (HTTP ${optInResp.status}).`);
   }
 

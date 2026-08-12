@@ -14,10 +14,9 @@ import { acceptTermsAndConditions } from '../termsAndConditions'
  * responses carrying known secrets and assert that no secret reaches the log
  * sink, whichever branch the flow takes.
  *
- * They are deliberately end-to-end over the real functions rather than unit
- * tests of the redaction helpers (those live in `shared/__tests__/redact.test.ts`)
- * — the failure mode being guarded against is a new `logger.debug(body)` added
- * to one of these files, which only a test that watches the sink will catch.
+ * They are deliberately end-to-end over the real functions: the failure mode
+ * being guarded against is a new `logger.debug(body)` or `logger.debug(token)`
+ * added to one of these files, which only a test that watches the sink catches.
  */
 
 const HOST = 'mychart.example.com'
@@ -135,7 +134,7 @@ describe('setupTotp never logs the shared secret', () => {
     expectNoSecrets(TOTP_SECRET, CSRF_TOKEN, PASSWORD)
   })
 
-  it('redacts error bodies and Set-Cookie headers on a non-200', async () => {
+  it('logs neither the error body nor the Set-Cookie header on a non-200', async () => {
     const req = mockedRequest((url) => {
       if (url.includes('/Home/CSRFToken')) return csrfJson()
       if (url.includes('GetTwoFactorInfo')) {
@@ -150,9 +149,10 @@ describe('setupTotp never logs the shared secret', () => {
     const result = await setupTotp(req, PASSWORD)
 
     expect(result.secret).toBeNull()
-    // The diagnostic content survives; the credentials do not.
+    // The status still gets logged — that is the diagnostic. The body and the
+    // headers do not, because both carry credentials on these endpoints.
     expect(loggedText()).toContain('503')
-    expect(loggedText()).toContain('boom')
+    expect(loggedText()).not.toContain('boom')
     expectNoSecrets(CSRF_TOKEN, 'EPICSESSION=abcdef0123456789')
   })
 
@@ -178,7 +178,7 @@ describe('setupTotp never logs the shared secret', () => {
 })
 
 describe('setupPasskey never logs the WebAuthn challenge', () => {
-  it('redacts the failed GenerateCreateRequest payload', async () => {
+  it('does not log the failed GenerateCreateRequest payload', async () => {
     const req = mockedRequest((url) => {
       if (url.includes('/Home/CSRFToken')) return csrfJson()
       if (url.includes('GenerateCreateRequest')) {
@@ -191,13 +191,16 @@ describe('setupPasskey never logs the WebAuthn challenge', () => {
     })
 
     expect(await setupPasskey(req)).toBeNull()
-    expect(loggedText()).toContain('not enrolled')
+    // Field names are logged so a changed response shape is still diagnosable;
+    // the values behind them are not.
+    expect(loggedText()).toContain('ErrorMessage')
+    expect(loggedText()).not.toContain('not enrolled')
     expectNoSecrets(PASSKEY_CHALLENGE, CSRF_TOKEN)
   })
 })
 
 describe('login never logs the request verification token or 2FA codes', () => {
-  it('redacts the CSRF token and the 2FA page dump', async () => {
+  it('logs neither the CSRF token nor the 2FA page', async () => {
     const tokenInput = `<input type="hidden" name="__RequestVerificationToken" value="${CSRF_TOKEN}" />`
     const twoFaPage = `<html><body>secondaryvalidationcontroller ${tokenInput}
       <div id="emailDelivery">Email to h***@example.com</div></body></html>`
@@ -225,16 +228,16 @@ describe('login never logs the request verification token or 2FA codes', () => {
 })
 
 describe('shared helpers never dump a page wholesale', () => {
-  it('redacts the page when the request verification token is missing', () => {
+  it('does not dump the page when the request verification token is missing', () => {
     const page = `<html><body><input type="hidden" name="SomeOtherToken" value="${CSRF_TOKEN}" />
       <p>Session expired</p></body></html>`
 
     expect(getRequestVerificationTokenFromBody(page)).toBeUndefined()
-    expect(loggedText()).toContain('Session expired')
+    expect(loggedText()).toContain('could not find request verification token')
     expectNoSecrets(CSRF_TOKEN)
   })
 
-  it('redacts the Terms & Conditions page when no CSRF token is found', async () => {
+  it('does not dump the Terms & Conditions page when no CSRF token is found', async () => {
     const req = mockedRequest(() => new Response(
       `<html><body>Terms and Conditions
         <input type="hidden" name="SomeOtherToken" value="${CSRF_TOKEN}" /></body></html>`,

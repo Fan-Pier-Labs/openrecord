@@ -6,11 +6,11 @@ import {
   type PasskeyCredential,
 } from './softwareAuthenticator';
 import { logger } from '../../shared/logger';
-import { redactBody, redactHeaders, redactJson } from '../../shared/redact';
 
+// Deliberately status-only: the headers carry Set-Cookie and the bodies of
+// these endpoints carry WebAuthn challenges, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-  logger.debug(`  ${label} response headers:`, redactHeaders(resp.headers));
 }
 
 /**
@@ -118,20 +118,18 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   });
   if (createReqResp.status !== 200) {
     logUnexpectedResponse('GenerateCreateRequest', createReqResp);
-    const body = await createReqResp.text();
-    logger.debug('  GenerateCreateRequest response body:', redactBody(body));
     return null;
   }
   const createReqResult = await createReqResp.json();
 
   if (!createReqResult.success && !createReqResult.Success) {
-    logger.debug('  GenerateCreateRequest failed:', redactJson(createReqResult));
+    logger.debug('  GenerateCreateRequest failed. Keys:', Object.keys(createReqResult).join(', '));
     return null;
   }
 
   const creationOptions: MyChartCreationOptions = createReqResult.data || createReqResult.Data;
   if (!creationOptions || !creationOptions.challenge) {
-    logger.debug('  Invalid creation options:', redactJson(createReqResult));
+    logger.debug('  Invalid creation options — no challenge in the response.');
     return null;
   }
 
@@ -156,13 +154,11 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   });
   if (createPasskeyResp.status !== 200) {
     logUnexpectedResponse('CreatePasskey', createPasskeyResp);
-    const body = await createPasskeyResp.text();
-    logger.debug('  CreatePasskey response body:', redactBody(body));
     return null;
   }
 
   const createPasskeyResult = await createPasskeyResp.json();
-  logger.debug('  CreatePasskey response:', redactJson(createPasskeyResult));
+  logger.debug('  CreatePasskey response keys:', Object.keys(createPasskeyResult).join(', '));
 
   // Check for success — the response should contain passkey metadata
   if (createPasskeyResult.rawId || createPasskeyResult.RawId || createPasskeyResult.success || createPasskeyResult.Success) {
