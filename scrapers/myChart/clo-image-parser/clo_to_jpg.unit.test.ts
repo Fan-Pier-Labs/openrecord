@@ -441,6 +441,116 @@ describe("synthetic CLO round-trip", () => {
     expect(meta.height).toBe(h);
   }, 30000);
 
+  // convertCloToJpg used to send every extension except `.webp` to the JPEG
+  // encoder, so `out.png` was handed JPEG bytes. Viewers sniff the magic rather
+  // than the name, so it looked fine. It writes JPEG only now and refuses a path
+  // that claims otherwise; these read each file back to check what it actually
+  // is, never just that a file appeared — the old behaviour passed that.
+  describe("convertCloToJpg writes JPEG and refuses to mislabel it", () => {
+    // 512x512 because encodePixelFile only produces wavelet levels above
+    // TILE_SIZE (256); anything smaller yields no levels and throws.
+    const w = 512, h = 512;
+
+    function sampleClo() {
+      const img = new Uint16Array(w * h);
+      for (let r = 0; r < h; r++) {
+        for (let c = 0; c < w; c++) {
+          const dx = c - w / 2, dy = r - h / 2;
+          img[r * w + c] = Math.round(Math.sqrt(dx * dx + dy * dy) * 500) & 0xffff;
+        }
+      }
+      return makeClo(img, w, h);
+    }
+
+    // "the file was not written" is only meaningful if it was not there to
+    // begin with — otherwise a leftover from an earlier run fails the test for
+    // the wrong reason, which is exactly what happened while writing these.
+    function clearPath(p: string) {
+      if (existsSync(p)) unlinkSync(p);
+      expect(existsSync(p)).toBe(false);
+    }
+
+    for (const ext of [".jpg", ".jpeg", ".JPG"]) {
+      it(`writes a real JPEG for ${ext}`, async () => {
+        const { pixelBuffer, wrapperBuffer } = sampleClo();
+        const out = `/tmp/test_clo_ext_${ext.slice(1).toLowerCase()}_ok${ext}`;
+        clearPath(out);
+
+        const returned = await convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: out,
+        });
+        expect(returned).toBe(out);
+
+        // What it is, not what it is called.
+        const meta = await sharp(out).metadata();
+        expect(meta.format).toBe("jpeg");
+        expect(meta.width).toBe(w);
+        expect(meta.height).toBe(h);
+
+        unlinkSync(out);
+      }, 30000);
+    }
+
+    // The whole point: these used to succeed, writing JPEG bytes under a name
+    // that promised something else.
+    for (const ext of [".png", ".webp", ".tif", ".tiff", ".avif", ".gif"]) {
+      it(`refuses ${ext} instead of writing a mislabelled JPEG`, async () => {
+        const { pixelBuffer, wrapperBuffer } = sampleClo();
+        const out = `/tmp/test_clo_ext_bad_${ext.slice(1)}${ext}`;
+        clearPath(out);
+
+        await expect(
+          convertCloToJpg({
+            pixelData: pixelBuffer,
+            wrapperData: wrapperBuffer,
+            outputPath: out,
+          })
+        ).rejects.toThrow(/must end in \.jpg or \.jpeg/);
+
+        // and it must not have written the file anyway
+        expect(existsSync(out)).toBe(false);
+      }, 30000);
+    }
+
+    it("refuses a path with no extension at all", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const out = "/tmp/test_clo_ext_none";
+      clearPath(out);
+
+      await expect(
+        convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: out,
+        })
+      ).rejects.toThrow(/must end in \.jpg or \.jpeg/);
+      expect(existsSync(out)).toBe(false);
+    }, 30000);
+
+    it("points at the exporters rather than just saying no", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      await expect(
+        convertCloToJpg({
+          pixelData: pixelBuffer,
+          wrapperData: wrapperBuffer,
+          outputPath: "/tmp/test_clo_ext_msg.png",
+        })
+      ).rejects.toThrow(/convertBitmap16ToPng/);
+    }, 30000);
+
+    it("still returns a JPEG buffer when no outputPath is given", async () => {
+      const { pixelBuffer, wrapperBuffer } = sampleClo();
+      const result = await convertCloToJpg({
+        pixelData: pixelBuffer,
+        wrapperData: wrapperBuffer,
+      });
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect((await sharp(result as Buffer).metadata()).format).toBe("jpeg");
+    }, 30000);
+  });
+
   it("accepts Buffer inputs without wrapper", () => {
     const w = 512, h = 512;
     const img = new Uint16Array(w * h).fill(1000);

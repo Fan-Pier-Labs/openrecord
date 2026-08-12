@@ -85,25 +85,45 @@ const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
 
 // ==================== Convenience wrapper ====================
 
+/**
+ * Decode a CLO image to JPEG: written to `outputPath`, or returned as a buffer
+ * when no path is given.
+ *
+ * **This writes JPEG and nothing else, and rejects a path that says otherwise.**
+ * It used to special-case `.webp` and send every other extension to the JPEG
+ * encoder, so `out.png` got JPEG bytes under a PNG name — a file that opens fine
+ * in every viewer, because they sniff the magic rather than the name, right up
+ * until something trusts the extension.
+ *
+ * Teaching this function every format was the other option and is the wrong
+ * shape: `exporters/` already converts a decoded bitmap to PNG, WebP, AVIF and
+ * TIFF, so a second dispatch here would be a parallel list to keep in step. One
+ * function, one format, and a name that tells the truth about which.
+ */
 export async function convertCloToJpg(opts: {
   pixelData: string | Buffer;
   wrapperData?: string | Buffer;
   outputPath?: string | null;
 }): Promise<Buffer | string> {
-  const bitmap = convertCloToBitmap(opts.pixelData, opts.wrapperData);
-
   const outputPath = opts.outputPath ?? null;
+
+  if (outputPath !== null) {
+    const ext = extname(outputPath).toLowerCase();
+    if (ext !== ".jpg" && ext !== ".jpeg") {
+      throw new Error(
+        `convertCloToJpg writes JPEG, so outputPath must end in .jpg or .jpeg — got ` +
+          `${ext || "no extension"} (${outputPath}). For another format, decode with ` +
+          `convertCloToBitmap16 and use the matching exporter (convertBitmap16ToPng / ` +
+          `ToWebp / ToAvif / ToTiff), or omit outputPath to get the JPEG buffer back.`,
+      );
+    }
+  }
+
+  const bitmap = convertCloToBitmap(opts.pixelData, opts.wrapperData);
   if (outputPath === null) {
     return await convertBitmapToJpg(bitmap);
   }
-
-  const ext = extname(outputPath).toLowerCase();
-  if (ext === ".webp") {
-    await convertBitmapToWebp(bitmap, outputPath);
-  } else {
-    await convertBitmapToJpg(bitmap, outputPath);
-  }
-
+  await convertBitmapToJpg(bitmap, outputPath);
   return outputPath;
 }
 
