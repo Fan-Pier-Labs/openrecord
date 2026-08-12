@@ -40,6 +40,12 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
 #                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
 #                        memfs.ts, mountMode.ts) were landing in the denominator.
+#   dev-scripts/       — run-it-yourself demos. They live in their own folder
+#                        precisely so product modules don't carry
+#                        `if (import.meta.main)` blocks: those are unreachable
+#                        from a test, and under a per-file gate a few lines of
+#                        demo code drag an otherwise well-covered module under
+#                        the bar. One folder ignored beats waiving real modules.
 #
 # ── Below the bar, waived for now ────────────────────────────────────────────
 #
@@ -65,15 +71,13 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
-#   shared/util.ts (68%/100%), bills/utils.ts (87%/67%)
-#     — both cover their real code and fall short only on the
-#       `if (import.meta.main)` demo blocks, which no test can reach.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
   "**/clo-image-parser/generate_clo.ts",
   "fake-mychart/**",
   "**/__tests__/**",
+  "dev-scripts/**",
 
   "claude-desktop-extension/src/imaging/**",
   "claude-desktop-extension/src/tools.ts",
@@ -84,6 +88,4 @@ coveragePathIgnorePatterns = [
   "npm-package/src/client.ts",
   "npm-package/cli/capabilityActions.ts",
   "openrecord-demo-lambda/src/spend.mjs",
-  "shared/util.ts",
-  "scrapers/myChart/bills/utils.ts",
 ]
