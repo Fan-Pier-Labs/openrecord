@@ -33,9 +33,12 @@ jobs:
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-      - run: bun run test
+      # Before the unit suite: the root test glob includes
+      # claude-desktop-extension/src/__tests__, whose tool-registration tests
+      # import the extension's own dependencies (zod, MCP SDK).
       - name: Typecheck & build Claude Desktop extension
         run: cd claude-desktop-extension && bun install && bun run build
+      - run: bun run test
 
   fake-mychart:
     name: Fake MyChart integration tests
