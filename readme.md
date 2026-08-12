@@ -97,10 +97,8 @@ cd fake-mychart && bun run dev   # Fake MyChart server on port 4000
 bun run cli                  # Run the CLI scraper
 
 # Tests
-bun run test                 # Unit + integration
-bun run test:unit            # Unit tests only — no server needed
-bun run test:integration     # Integration tests (needs fake-mychart on :4000)
-bun run test:real-mychart    # Against a real MyChart — needs real credentials
+bun run test                 # Unit tests
+bun run test:fake-mychart    # Fake MyChart integration tests
 
 # Linting
 bun run lint                 # ESLint

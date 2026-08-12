@@ -356,7 +356,7 @@ Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo
 
 ### Coverage in CI
 
-`claude-desktop-extension/src/imaging/__tests__/encode.test.ts` exercises the CLO fixtures directly, and the fake-mychart CI job runs the scraper suite (`bun run test:integration`) plus the desktop-extension and npm-package tests against a live instance of this server.
+`claude-desktop-extension/src/imaging/__tests__/encode.test.ts` exercises the CLO fixtures directly, and the fake-mychart CI job runs the scraper suite (`bun run test:fake-mychart`) plus the desktop-extension and npm-package tests against a live instance of this server.
 
 ## What's NOT Implemented
 
@@ -371,13 +371,13 @@ The GitHub Actions workflow (`.github/workflows/checks.yml`) has a `fake-mychart
 1. Builds the fake server (`bun run build`)
 2. Starts it in the background (`bun run start &`)
 3. Polls until the server responds with 302 on `GET /`
-4. Runs all 29 integration tests against it (`bun run test:integration`)
+4. Runs all 29 integration tests against it (`bun run test:fake-mychart`)
 
 ```bash
 # Run locally
 cd fake-mychart && bun run build && bun run start &
 # Wait for server...
-bun run test:integration
+bun run test:fake-mychart
 ```
 
 ## Adding New Endpoints

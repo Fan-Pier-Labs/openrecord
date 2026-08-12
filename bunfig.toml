@@ -1,7 +1,7 @@
 # Coverage gate for `bun run test:coverage`, enforced in CI.
 #
 # These only take effect when `--coverage` is passed, so the plain `bun run
-# test`, `test:integration` and `test:ci-integration` runs are unaffected.
+# test`, `test:fake-mychart` and `test:ci-integration` runs are unaffected.
 #
 # SCOPE: the gate measures the unit suite AND the fake-mychart suite together —
 # it needs a fake-mychart on :4000, which is why the CI step lives in the
