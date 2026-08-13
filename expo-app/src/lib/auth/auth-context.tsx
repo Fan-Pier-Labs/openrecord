@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkSetupAndAuth();
+    void checkSetupAndAuth();
   }, []);
 
   async function checkSetupAndAuth() {
