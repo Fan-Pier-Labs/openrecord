@@ -108,6 +108,32 @@ exactly one shape of each, so those branches are unreachable from an integration
 **Protocol detection**: hostnames without a dot (e.g. Docker service names like
 `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
 
+## Android emulator smoke test
+
+`.github/workflows/android-smoke.yml` — its own workflow, not a job in `checks.yml`, so it can carry
+a paths filter: it runs on PRs and pushes touching `expo-app/**` (or the workflow itself), plus a
+weekly cron and manual dispatch, because a ~30-60 minute emulator job has no business running on
+every scraper or docs PR. The cron catches drift from everything outside the filter — e.g. a scraper
+picking up a Node-only import that breaks the Metro bundle — within a week. It builds the Expo app
+for Android
+(`expo prebuild` + `gradlew assembleRelease`), boots a headless API 34 emulator (KVM-accelerated,
+AVD snapshot cached), installs the APK, and runs the Maestro flow `expo-app/e2e/android-smoke.yaml`:
+cold boot → onboarding welcome screen renders → tap Get Started → the Google sign-in step appears.
+It exists to prove the Android build compiles and boots at all — native modules (quick-crypto,
+nitro-modules, reanimated, screens, secure-store, sqlite) initialize, the embedded JS bundle loads,
+and expo-router navigates. The repo's only other mobile coverage is iOS-by-hand.
+
+**No AI/LLM call can happen in this job, by construction at three layers:** the flow stops at the
+Google sign-in gate and never opens a chat; the release build strips the `__DEV__`-only skip button,
+so nothing past that gate is even reachable; and the job bakes
+`EXPO_PUBLIC_BACKEND_URL=http://127.0.0.1:9` into the APK, so the build under test physically cannot
+reach the real AI Lambda. Keep all three when extending the flow — a deeper Android E2E that signs
+in or chats belongs in a new flow with its own guarantees, not in this one.
+
+The release variant is deliberate: it embeds the JS bundle so the emulator needs no Metro dev
+server. Maestro targets elements by `testID` (`welcome-get-started`, `google-continue`), which is
+why the testID rule matters on Android too.
+
 ## Code coverage gate
 
 `bun run test:coverage` runs **every `*.unit.test.ts` and `*.integration.test.ts`** with coverage,
