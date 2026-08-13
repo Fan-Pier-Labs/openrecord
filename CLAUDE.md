@@ -10,6 +10,8 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 
 ## Architecture
 
+**Diagrams live in [`docs/architecture/`](docs/architecture/README.md)** — the visual counterpart to this section, written for a human reading the codebase for the first time. Mermaid diagrams of the request stack, the session lifecycle, the capability fan-out and each client's runtime shape. **They must be kept in step with the code — see [Architecture Documentation](#architecture-documentation) below for exactly when a change obliges you to update them.**
+
 - **Scrapers** (`scrapers/`): Shared scraper code for MyChart — every client calls into these
 - **Authenticated requests & session expiry** (`scrapers/myChart/makeAuthenticatedRequest.ts`): **Every post-login scraper call goes through `makeAuthenticatedRequest(request, config)`, never raw `request.makeRequest`.** MyChart answers an expired session by bouncing the request to the login page, and the login page carries its own `__RequestVerificationToken` — so without central detection, an expired session either crashes `.json()` on login HTML or, worse, renders as an empty result ("this patient has no allergies"). The wrapper detects the bounce (final URL at `/Authentication/Login`, an unfollowed 302 there, or strict login-page markers via `looksLikeSignedOutPage` — the loose `looksLikeLoginPage` matches every post-login page and must not be used for expiry), silently re-logs-in through the `reauthenticate` hook the client wired onto the request (single-flight per request object — a 30-category scrape whose session dies triggers ONE re-login), restores the active proxy patient recorded in `request.activeProxyTarget` (re-login resets MyChart's server-side context to the account holder, and retrying on the wrong patient's chart is the one unforgivable failure), retries exactly once, and throws a typed `SessionExpiredError` when no silent path exists. Raw `makeRequest` remains the transport for the pre-login world: mount discovery, DoLogin, 2FA, terms, keepalive pings — which is also what makes renewal deadlock-free, since the renewal path itself only issues raw or `autoRenew: false` calls. It also auto-enrolls sessions in the shared keepalive (below); `request.disableAutoKeepalive` opts out.
 - **Silent login ladder** (`scrapers/myChart/silentLogin.ts`): the shared non-interactive login used by every client's `reauthenticate` hook — saved passkey (with WebAuthn signature-counter retry) → username/password → TOTP-secret 2FA; anything needing a human returns a failure instead of blocking. `wireSilentReauthentication(request, getParams, onRenewed?)` wires the hook; `getParams` runs at renewal time so credential stores are re-read fresh, and success adopts the fresh state onto the SAME request object via `MyChartRequest.adoptStateFrom` (login functions construct a new instance; everything holding a reference mid-scrape keeps working). Wired in all four clients: the CLI (`wireCliSessionRenewal` in `npm-package/cli/cli.ts`), the desktop extension (`manageSession` in `claude-desktop-extension/src/session-manager.ts`), the Expo app (`manageSession` in `expo-app/src/lib/scrapers/session-manager.ts`) and the npm library (`MyChartClient` wires it from connect args; `autoRenew: false` opts out).
@@ -131,8 +133,49 @@ Accounts with proxy access to several patients' charts (a parent reading a child
 
 **All three clients expose proxy support, with the CLI's semantics.** The Claude Desktop extension and the mobile app share `scrapers/myChart/proxyTools.ts`, a thin client layer over `proxyContext.ts`: `runListProxyTargets` / `runSwitchProxyTarget` back the `list_proxy_targets` / `switch_proxy_target` agent tools registered in both clients (extension: `claude-desktop-extension/src/tools.ts`; app: declared in `expo-app/src/lib/ai/tool-catalog.ts`, dispatched in `expo-app/src/lib/scrapers/session-manager.ts`), and `assertProxyReadContext` gates every other data tool: each call asserts the active patient (an optional `patient` arg names one; omitted means the account holder) and refuses with instructions rather than reading whichever record a previous switch left active. The guard caches one proxy discovery per session in a `WeakMap` keyed on the `MyChartRequest`, so a re-login (keepalive reconnect, process restart) can never inherit stale knowledge, and parallel reads (the app's memory builder) share a single discovery. In the app, `switch_proxy_target` is an exclusive write tool with a native confirmation dialog; the app's background memory/alert jobs run through the same guard, so they fail safe instead of mixing a family member's data into the account holder's caches. Note an account with no proxy access can still surface a single self-only entry on `/ProxySwitch` — a one-entry list is "nothing to switch", not an error. Tests: `scrapers/myChart/__tests__/proxyTools.unit.test.ts` (mocked), `scrapers/myChart/__tests__/fake-mychart/proxy.integration.test.ts` (end-to-end against fake-mychart), `claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape), `expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
+## Architecture Documentation
+
+**`docs/architecture/` is the human-readable map of this codebase, and it is expected to be correct.** A diagram that has drifted is worse than no diagram — someone will trust it. Seven files:
+
+| File | Covers |
+| --- | --- |
+| `README.md` | Index, the big-picture diagram, the layer boundaries, the four enforced rules |
+| `01-shared-core.md` | `scrapers/` + `shared/` — request stack, session lifecycle, rate limiting, proxy guard, imaging pipeline, test seams |
+| `02-capability-registry.md` | `shared/capabilities.ts` and the fan-out to all four clients |
+| `03-expo-app.md` | `expo-app/` — runtime shape, agent loop, AI providers, background jobs |
+| `04-desktop-extension.md` | `claude-desktop-extension/` — MCP server, tool registration, session resolution, setup flow |
+| `05-cli-and-npm-package.md` | `npm-package/` — CLI dispatch, `MyChartClient`, proxy semantics |
+| `06-supporting-services.md` | fake-mychart, test suites, CI, the coverage gate, AWS services |
+
+Diagrams are **Mermaid fenced blocks**, so GitHub renders them inline and a diff to a diagram reads as a diff. Do not introduce image files, `.drawio` sources, or any asset that needs regenerating.
+
+### When a change obliges you to update these
+
+Update the relevant file **in the same PR** as the change. Any of these is a trigger:
+
+- **A new top-level package, or a package's role changes** (a fifth client, a new Lambda, a service moving between packages) → `README.md` big-picture diagram + a new or revised file.
+- **A new layer or hop in the request path** — anything sitting between a capability's `run()` and the network, or a change to `resolveTransport`'s branches → `01-shared-core.md`.
+- **A change to how sessions are established, renewed, kept alive, or expire** — the silent-login ladder, the keepalive cadence, `adoptStateFrom`, `SessionExpiredError` → `01-shared-core.md`, plus the client file if that client wires it differently.
+- **A change to the capability contract** — a new field on `Capability`, a new `kind`, a new registry-owned convention (like `ACCOUNT_PARAM` or `rendersMedia`), or a change to what `executeCapability` does before `run()` → `02-capability-registry.md`.
+- **A change to how a client derives its surface** from the registry, or a new hand-written tool/command that is *not* registry-derived → that client's file. (Adding an ordinary capability entry does **not** require a doc change — that is the whole point of the registry. Update the count in `02` only if you were already touching it.)
+- **A change to the proxy / active-patient model** — where the guard runs, what it caches, what a mismatch does → `01-shared-core.md` and `05-cli-and-npm-package.md` (the CLI defines the semantics the others follow).
+- **A change to the test-suite taxonomy, the CI job layout, or the coverage gate** → `06-supporting-services.md`.
+- **A new fake-mychart mode knob**, or a change to what the existing knobs simulate → `06-supporting-services.md`.
+- **A directory listing in a doc goes stale** — files listed in the `Layout` blocks were added, removed or renamed.
+
+If a change touches none of the above, leave the docs alone. Routine feature work usually should not need to.
+
+### Writing rules for these docs
+
+- **Describe structure, not line numbers.** No `file.ts:142` references — they rot on the next edit. Name the module and the exported symbol.
+- **Say why, not just what.** Every constraint in this codebase exists because something broke. The diagram shows the shape; the prose next to it should say what failure the shape prevents.
+- **Don't duplicate this file.** Where a rule is already stated at length in `CLAUDE.md`, state it briefly and let the diagram carry the weight.
+- **Counts and inventories go stale — mark them.** Give the command that regenerates the number (`bun run cli --list-capabilities`) rather than presenting the count as fact.
+- **No PII, ever**, including in example data — same rule as everywhere else in the repo.
+
 ## Reference Docs
 
+- **[Architecture diagrams](docs/architecture/README.md)** — Visual map of the scraper core, capability registry, and all four clients
 - **[CLI reference](docs/cli.md)** — Cookie caching, credential resolution, 2FA, CLI actions
 - **[Imaging scraper](docs/imaging.md)** — eUnity protocol, AMF3, instance-specific notes
 - **[Scraping guide](docs/scraping.md)** — MyChart login, scraping tips, and tooling
@@ -337,6 +380,7 @@ MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
 - **NEVER upload PII to git or GitHub.** Before committing, review all staged changes to ensure no personally identifiable information (names, emails, phone numbers, addresses, dates of birth, medical record numbers, patient IDs, health data, credentials, API keys, or any other sensitive data) is included. If PII is found in code, test fixtures, logs, or output files, remove or redact it before committing. **Body parts, diagnoses, procedures, dates of medical events, and medical details extracted from real patient data also count as PII** — do not include specific body parts (e.g., "shoulder"), procedure names (e.g., "arthrogram"), series descriptions from real imaging studies, or when specific scans/procedures were performed (e.g., "MRI was done on 1/1") in commit messages, PR descriptions, documentation examples, or code comments. Use generic examples instead.
 - **NEVER use `dangerouslySetInnerHTML`.** All HTML from external sources (MyChart API responses, scraped content) must be sanitized (e.g. with DOMPurify) before rendering, or parsed into a typed tree and rendered as React elements so every text node is escaped. This is a health data app — XSS is unacceptable.
 - **Always update this CLAUDE.md when adding new features** — document new CLI flags, scrapers, configuration, or architectural changes so this file stays current.
+- **Always update `docs/architecture/` when a change alters the architecture** — a new package, a new hop in the request path, a change to the session/auth model, the capability contract, the proxy model, or how a client derives its surface. See [Architecture Documentation](#architecture-documentation) for the full trigger list. A stale diagram is worse than none, because someone will trust it.
 
 ## Workflow
 
