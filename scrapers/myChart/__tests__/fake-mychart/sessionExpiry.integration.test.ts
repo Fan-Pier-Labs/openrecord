@@ -15,15 +15,15 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { type MyChartRequest } from '../../myChartRequest';
-import { myChartUserPassLogin } from '../../login';
-import { makeAuthenticatedRequest, SessionExpiredError } from '../../makeAuthenticatedRequest';
-import { wireSilentReauthentication } from '../../silentLogin';
-import { sessionStore } from '../../sessionStore';
-import { getAllergies } from '../../allergies';
-import { getMedications } from '../../medications';
-import { getImmunizations } from '../../immunizations';
-import { switchProxyTarget, verifyActiveProxyTarget } from '../../proxyContext';
+import { type MyChartRequest } from '../../core/myChartRequest';
+import { myChartUserPassLogin } from '../../auth/login';
+import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
+import { wireSilentReauthentication } from '../../auth/silentLogin';
+import { sessionStore } from '../../core/sessionStore';
+import { getAllergies } from '../../chart/allergies';
+import { getMedications } from '../../chart/medications';
+import { getImmunizations } from '../../chart/immunizations';
+import { switchProxyTarget, verifyActiveProxyTarget } from '../../proxy/proxyContext';
 import { setMountMode } from './mountMode';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
@@ -195,7 +195,7 @@ describe('expired-session handling in the scrapers', () => {
   it('renews via wireSilentReauthentication with a TOTP secret (2FA account)', async () => {
     const login = await myChartUserPassLogin({ hostname: HOST, user: 'marge', pass: 'donuts123', protocol: 'http', skipSendCode: true });
     expect(login.state).toBe('need_2fa');
-    const { complete2faFlow } = await import('../../login');
+    const { complete2faFlow } = await import('../../auth/login');
     const twoFa = await complete2faFlow({ mychartRequest: login.mychartRequest, code: '123456', isTOTP: true });
     expect(twoFa.state).toBe('logged_in');
     const session = twoFa.mychartRequest;
