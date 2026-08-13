@@ -1,0 +1,127 @@
+{
+  "organizationOptionsByScreenId": {},
+  "countryData": {
+    "alpha_2_index": {
+      "US": {
+        "name": "United States",
+        "aliases": [
+          "USA"
+        ]
+      }
+    }
+  },
+  "stateData": {
+    "abbreviation_index": {
+      "CA": {
+        "name": "California",
+        "aliases": [],
+        "zips": [
+          "94016"
+        ]
+      }
+    }
+  },
+  "organizations": [
+    {
+      "slgId": "432-112",
+      "name": "AACI",
+      "logo": {
+        "imageId": "C7785A28-8697-454E-9FFD-23E143F9F672",
+        "fileName": "caba6e8737d0c70cdbfd2f92d373084a.png",
+        "subAreaName": "organizations"
+      },
+      "states": [
+        "CA"
+      ],
+      "countries": [
+        "US"
+      ],
+      "brandName": "MyChart",
+      "loginUrl": "https://mychart.ochin.org/MyChartAACI/",
+      "liveOnCentral": true,
+      "email": "",
+      "phone": "",
+      "faq": "",
+      "aliases": []
+    },
+    {
+      "slgId": "958",
+      "name": "Mayo Clinic",
+      "states": [
+        "AZ",
+        "FL",
+        "GA",
+        "IA",
+        "MN",
+        "WI"
+      ],
+      "countries": [
+        "US"
+      ],
+      "brandName": "Patient Online Services",
+      "loginUrl": "https://mayoclinichealthsystem.org/patient-online-services",
+      "liveOnCentral": false,
+      "email": "",
+      "phone": "",
+      "faq": "",
+      "aliases": []
+    },
+    {
+      "slgId": "920-1",
+      "name": "El Camino",
+      "states": [],
+      "countries": [],
+      "brandName": "",
+      "loginUrl": "https://mycare.elcaminohospital.org/ccmycare/",
+      "liveOnCentral": false,
+      "email": "",
+      "phone": "",
+      "faq": "",
+      "aliases": [
+        "Silicon Valley Sports Medicine"
+      ]
+    },
+    {
+      "slgId": "412-2",
+      "name": "Access Community Health Centers",
+      "logo": {
+        "imageId": "6BB8D9C9-6C62-4451-A5CF-274D71289206",
+        "fileName": "c005810a10777f6d8d97ff8f4c335a7b.png",
+        "subAreaName": "organizations"
+      },
+      "states": [
+        "WI"
+      ],
+      "countries": [
+        "US"
+      ],
+      "brandName": "MyChart",
+      "loginUrl": "https://accesshealthmychart.org/mychart/",
+      "liveOnCentral": true,
+      "email": "",
+      "phone": "",
+      "faq": "",
+      "aliases": [
+        "ACHC"
+      ]
+    },
+    {
+      "slgId": "999-9",
+      "name": "No Login URL Health",
+      "logo": null,
+      "states": [
+        "CA"
+      ],
+      "countries": [
+        "US"
+      ],
+      "brandName": "MyChart",
+      "loginUrl": "",
+      "liveOnCentral": true,
+      "email": "",
+      "phone": "",
+      "faq": "",
+      "aliases": []
+    }
+  ]
+}

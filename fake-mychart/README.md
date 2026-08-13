@@ -438,6 +438,21 @@ study stays clean so both shapes are covered.
 
 `claude-desktop-extension/src/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and npm-package included — against a live instance of this server.
 
+## The mychart.org Directory
+
+One surface in here is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
+every MyChart instance in the world. It lives on `mychart.org` rather than on an instance, and it is
+where every client's instance list comes from — so the fake serves it too, and the mobile app can
+point its first-boot refresh at localhost instead of Epic.
+
+- `?includeOrganizations=1` is required for the `organizations` key to appear at all, exactly as on
+  the real endpoint. Without it you get the country/state dictionaries and nothing else.
+- `loginUrl` points back at this server, in its current mount mode, so an entry can be picked out of
+  the directory and logged in to.
+- Logos stay on Epic's media host in the payload (that is what the real records resolve to). The
+  fake mirrors the media path at `/mychartdotorg/directus/<subArea>/<imageId>/<fileName>` for
+  fetching one directly; an unknown image 404s.
+
 ## What's NOT Implemented
 
 ### Draft Persistence
