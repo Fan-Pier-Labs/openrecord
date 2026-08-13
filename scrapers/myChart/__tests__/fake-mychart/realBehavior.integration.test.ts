@@ -21,7 +21,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { listLabResults } from '../../labs_and_procedure_results/labResults'
 import { getGoals } from '../../goals'
 import { getActivityFeed } from '../../activityFeed'
