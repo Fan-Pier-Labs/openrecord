@@ -14,7 +14,6 @@ import {
   generateDiagonal,
 } from "./generate_clo";
 import {
-  AMF3Reader,
   parsePixelHeader,
   parseWrapper,
   extractTiles,
@@ -22,29 +21,32 @@ import {
   zigzagDecode,
   convertCloToBitmap,
 } from "./clo_to_bitmap";
+import { Amf3Reader } from "../eunity/amf3Reader";
 import { convertBitmapToJpg } from "./exporters/to_jpg";
 
 // ==================== AMF3Writer ====================
 
+// The decode side of these round-trips is the strict production reader
+// (eunity/amf3Reader.ts) — the same one parseWrapper uses on real wrappers.
 describe("AMF3Writer", () => {
   it("writes and reads back integer", () => {
     const writer = new AMF3Writer();
     writer.writeValue(42);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe(42);
   });
 
   it("writes and reads back double", () => {
     const writer = new AMF3Writer();
     writer.writeValue(3.14);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBeCloseTo(3.14);
   });
 
   it("writes and reads back string", () => {
     const writer = new AMF3Writer();
     writer.writeValue("hello world");
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe("hello world");
   });
 
@@ -52,7 +54,7 @@ describe("AMF3Writer", () => {
     const writer = new AMF3Writer();
     writer.writeValue(true);
     writer.writeValue(false);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe(true);
     expect(reader.readValue()).toBe(false);
   });
@@ -60,7 +62,7 @@ describe("AMF3Writer", () => {
   it("writes and reads back null", () => {
     const writer = new AMF3Writer();
     writer.writeValue(null);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBeNull();
   });
 
@@ -72,9 +74,9 @@ describe("AMF3Writer", () => {
       count: 42,
       ratio: 1.5,
     });
-    const reader = new AMF3Reader(writer.getBuffer());
-    const result = reader.readValue();
-    expect(result._class).toBe("TestClass");
+    const reader = new Amf3Reader(writer.getBuffer());
+    const result = reader.readValue() as Record<string, unknown>;
+    expect(result.__class).toBe("TestClass");
     expect(result.name).toBe("test");
     expect(result.count).toBe(42);
     expect(result.ratio).toBe(1.5);
