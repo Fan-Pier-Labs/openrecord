@@ -166,7 +166,7 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
 - [CLI reference](docs/cli.md) — cookie caching, credential resolution, 2FA, actions, proxy flags
 - [Imaging scraper](docs/imaging.md) — eUnity protocol, AMF3, instance-specific notes
 - [Scraping guide](docs/scraping.md) — MyChart login, scraping tips, tooling
-- [MyChart features](docs/MYCHART_FEATURES.md) — full feature inventory and scraper coverage
+- [MyChart features](docs/MYCHART_FEATURES.md) — MyChart features we deliberately don't scrape
 - [MyChart TOTP](docs/mychart-totp.md) — authenticator-app 2FA setup, endpoints, CLI flags
 - Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,
   `openrecord-demo-lambda/`, `openrecord-splash/`
