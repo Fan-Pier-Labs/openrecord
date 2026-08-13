@@ -354,7 +354,7 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
 | `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response with study/series/instance UIDs. Required before `CustomImageServlet` returns image bytes. |
-| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID` |
+| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID`, with real content types (`application/clowrapper` / `application/clopixel`) |
 
 ### CLO image data
 
@@ -364,6 +364,19 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
 
 Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
+
+### SeriesSelector pseudo-instances
+
+Real eUnity servers emit a `SeriesSelector` pseudo-series at the head of a CT
+study's instance list — a viewer UI construct that appears in the AMF metadata
+like a real series (its UID derived from the study UID, three instances) but
+answers every `CustomImageServlet` request with HTTP 200 and a 226-byte
+`application/cloerror` payload (`CLOERROR#Z##` magic + zlib-deflated message).
+The CT study reproduces that shape (marked `cloError: true` in
+`src/data/homer.ts`), so clients are forced to handle a study whose first
+instances carry no image data: a download budget spent on attempts rather than
+successful downloads returns zero images on exactly this shape. The X-ray study
+stays clean so both shapes are covered.
 
 ### Origin handling
 

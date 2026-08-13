@@ -121,6 +121,8 @@ interface CliArgs {
   listCapabilities?: boolean;
   /** Repeated `--arg name=value` pairs, passed straight to the capability. */
   capabilityArgs?: Record<string, string>;
+  /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
+  output?: string;
 }
 
 function parseArgs(): CliArgs {
@@ -165,6 +167,8 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--delete-passkey') parsed.deletePasskey = true;
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
+    // Output directory for capabilities that produce images (rendersMedia).
+    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i];
   }
   return parsed as CliArgs;
 }
@@ -2019,7 +2023,7 @@ async function main() {
     for (const session of sessions) {
       const creds = credentialsList.find(c => c.hostname === session.hostname);
       const password = creds && 'password' in creds ? creds.password : undefined;
-      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}))) ok = false;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output))) ok = false;
     }
     closeRL();
     process.exit(ok ? 0 : 1);

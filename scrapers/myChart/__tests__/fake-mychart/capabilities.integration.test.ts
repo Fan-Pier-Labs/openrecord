@@ -159,6 +159,31 @@ describe('capability registry against fake-mychart', () => {
     expect(getCapability('get_xray_image')?.id).toBe('download_imaging_study')
   })
 
+  it('spends the default budget on real images when the study leads with SeriesSelector junk', async () => {
+    // The fake's CT study mirrors real eUnity: its instance list starts with
+    // three "SeriesSelector" pseudo-instances that answer CLOERROR. A budget
+    // counted in attempts rather than successes downloads exactly those and
+    // returns zero images — the regression this test pins down.
+    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
+      image_id?: string
+      orderName: string
+    }>
+    const ct = results.find((r) => r.image_id && r.orderName.includes('CT'))
+    expect(ct).toBeDefined()
+
+    // No max_images: the default (3) must survive the three junk instances.
+    const payload = (await executeCapability(session, 'download_imaging_study', {
+      image_id: ct!.image_id,
+    })) as StudyImagePayload
+
+    expect(payload.errors).toHaveLength(0)
+    expect(payload.images.length).toBe(3)
+    for (const image of payload.images) {
+      expect(image.seriesDescription).not.toBe('SeriesSelector')
+      expect(image.pixelData?.length ?? 0).toBeGreaterThan(0)
+    }
+  }, 60_000)
+
   // ── Writes ────────────────────────────────────────────────────────────────
 
   it('sends a message by provider name, resolving the recipient itself', async () => {
