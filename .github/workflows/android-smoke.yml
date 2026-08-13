@@ -1,10 +1,19 @@
 name: Android smoke
-# Its own workflow, not a job in checks.yml, so it can carry a paths filter:
-# the emulator job costs ~30-60 minutes and only proves the Android build
-# compiles and boots, so it runs when the app (or this workflow) changes, not
-# on every scraper or docs PR. The weekly cron catches drift from everything
-# else — a scraper picking up a Node-only import that breaks the Metro bundle,
-# dependency updates, emulator image changes — within a week instead of never.
+# Two tiers, split by cost:
+#
+#   bundle (~2-4 min)  — every PR/push touching expo-app: prebuild the Android
+#                        project (validates the config-plugin pipeline) and
+#                        compile the exact JS bundle gradle would embed, down
+#                        to Hermes bytecode. Catches Node-only imports, bad
+#                        platform resolution, bundling errors, and
+#                        Hermes-incompatible code — the breakage classes a PR
+#                        actually introduces.
+#   emulator (~15-40m) — weekly cron + manual dispatch only: full
+#                        assembleRelease, boot a real emulator, run the
+#                        Maestro flow. The only tier that proves native
+#                        modules initialize, and far too slow to gate PRs.
+#
+# Its own workflow, not a job in checks.yml, so it can carry the paths filter.
 on:
   push:
     branches: [main]
@@ -23,19 +32,53 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # Baked into the app config / APK at build time (app.config.ts reads it into
+  # `extra.backendUrl`). Points the app's AI backend at a dead localhost port
+  # so the build under test cannot reach the real AI Lambda — the emulator
+  # flow never gets past the Google sign-in gate anyway, but this makes "no
+  # real LLM calls from CI" a build-time guarantee rather than a property of
+  # the flow.
+  EXPO_PUBLIC_BACKEND_URL: http://127.0.0.1:9
+
 jobs:
-  android-emulator:
+  bundle:
+    name: Android prebuild + bundle check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
+      # expo export shells out to node for Metro.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Root deps too, not just expo-app's: Metro watches the repo root so the
+      # bundle reaches into scrapers/ and shared/, which resolve some packages
+      # from the root node_modules.
+      - run: bun install
+      - name: Install Expo app deps
+        run: cd expo-app && bun install
+      - name: Prebuild Android project
+        run: cd expo-app && bunx expo prebuild --platform android --no-install
+      - name: Bundle JS for Android (Metro + Hermes bytecode)
+        run: cd expo-app && bunx expo export --platform android --output-dir /tmp/android-export
+
+  emulator:
     name: Android emulator smoke test
+    # Cron and manual dispatch only — see the header comment. PRs get the
+    # bundle job above instead.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      # Baked into the APK at build time (app.config.ts reads it into
-      # `extra.backendUrl`). Points the app's AI backend at a dead localhost
-      # port so the build under test cannot reach the real AI Lambda — the
-      # smoke flow never gets past the Google sign-in gate anyway, but this
-      # makes "no real LLM calls from CI" a build-time guarantee rather than
-      # a property of the flow.
-      EXPO_PUBLIC_BACKEND_URL: http://127.0.0.1:9
     steps:
       - uses: actions/checkout@v4
       # Hardware acceleration for the emulator. ubuntu-latest runners expose
@@ -62,9 +105,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Root deps too, not just expo-app's: Metro watches the repo root so the
-      # bundle reaches into scrapers/ and shared/, which resolve some packages
-      # from the root node_modules.
       - run: bun install
       - name: Install Expo app deps
         run: cd expo-app && bun install
