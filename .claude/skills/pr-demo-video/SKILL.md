@@ -1,6 +1,6 @@
 ---
 name: pr-demo-video
-description: Record a narrated video demo of a pull request's changes — Playwright for web surfaces, the iOS simulator (maestro-cli + simctl screen recording) for expo-app changes — and post it to the PR as an embedded video comment. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
+description: Demo a pull request's changes on the PR itself — a recorded video for interactive surfaces (Playwright for web, the iOS simulator via maestro-cli + simctl for expo-app changes) posted as an embedded video comment, or a faithful terminal transcript for CLI/MCPB changes. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
 ---
 
 # PR Demo Video
@@ -45,7 +45,7 @@ Pick the demo surface:
 | --- | --- |
 | `scrapers/`, `fake-mychart/`, capabilities, auth/session flows | fake-mychart UI at `localhost:4000` (login `homer`/`donuts123`, TOTP user `marge`/`donuts123`, code `123456`) |
 | `openrecord-splash/` | the splash (`index.html`) or the interactive demo (`/demo.html` via `npx vite` in `openrecord-splash/demo`) |
-| CLI / npm package | run the CLI against fake-mychart; if there's nothing browser-visible, consider a browser demo of the fake-mychart pages the CLI hits |
+| CLI / npm package / `claude-desktop-extension/` | a terminal transcript, not a video — see "CLI and MCPB demos" below |
 | `expo-app/` | the real app in the iOS simulator, driven by maestro-cli and recorded with `simctl` — skip Steps 2–3 below and follow "iOS demos" instead |
 | Pure refactor / CI / docs | often still demoable as "the flow still works" — if genuinely nothing can be shown, tell the user instead of forcing a pointless video |
 
@@ -178,6 +178,43 @@ not involved.
    (output is portrait ~1206×2622 — fine as-is), frame-verify with Step 3's extraction,
    upload with Steps 5–6. When done, `xcrun simctl shutdown "$MAESTRO_UDID" && xcrun
    simctl delete "$MAESTRO_UDID"`.
+
+## CLI and MCPB demos (terminal transcripts, not video)
+
+When the PR's user-visible surface is the CLI (`npm-package/`) or the desktop extension
+(`claude-desktop-extension/`), a video would just show a wall of text. Post a terminal
+transcript instead: the real command and its real output in a `console` code block.
+It embeds better, it's searchable, and it's honest in a way a video can't be — anyone
+can rerun the command.
+
+- **CLI**: build it (`cd npm-package && bun run build`), start fake-mychart, then run
+  the actual command the PR affects, e.g.
+  `bun run cli --host localhost:4000 --action <capability-id> --arg name=value`.
+- **MCPB**: build it (`cd claude-desktop-extension && bun run pack`), then drive
+  `dist/server.cjs` over MCP stdio — send `initialize`, `tools/list`, `tools/call` as
+  JSON-RPC lines and capture the responses. Show the tool call and its result, not the
+  whole handshake.
+
+Rules: paste output **verbatim** — never touch it up, that's the whole point. Trim long
+JSON to the relevant part with a `…` and say it's trimmed. Fake-mychart credentials
+(`homer`/`donuts123`) are fine to show; nothing real must appear.
+
+Text needs no attachment upload, so post with plain `gh pr comment <N> --body "..."`
+(Steps 5–6 don't apply). Format:
+
+````markdown
+🎬 **Automated demo** — `<capability>` through the built CLI against fake-mychart
+
+```console
+$ mychart-cli --host localhost:4000 --action list_allergies
+[
+  { "allergen": "Penicillin", "reaction": "Hives", … }
+]
+```
+````
+
+A PR touching both a browser/app surface and the CLI can get both: record the video for
+the interactive surface and include the transcript in the same comment body.
 
 ## Step 4 — Convert to mp4
 
