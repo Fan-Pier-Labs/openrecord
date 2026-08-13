@@ -286,7 +286,7 @@ export class MyChartRequest {
       // 307/308 exist precisely to preserve the method and body; everything
       // else turns into a GET, which is what browsers do with a 302 too.
       const preserveMethod = response.status === 307 || response.status === 308;
-      return await this.makeRequest({
+      return this.makeRequest({
         ...config,
         url: newLocation,
         method: preserveMethod ? config.method : 'GET',
