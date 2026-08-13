@@ -22,7 +22,7 @@
  * doesn't need to know where they come from.
  */
 
-import { type MyChartRequest } from './myChartRequest';
+import type { MyChartRequest } from './myChartRequest';
 import { logger } from '../../../shared/logger';
 
 // Per-request-object renewal state. WeakMap rather than fields on the class so

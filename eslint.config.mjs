@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
@@ -90,6 +91,12 @@ export default [
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
       }],
+      // Companion to the rule above: when EVERY specifier is inline-`type`,
+      // `verbatimModuleSyntax` (on in all five projects) still emits a runtime
+      // `import "./x"`, keeping the module edge and its side effects alive for
+      // something that was only ever a type. Hoisting the marker to the
+      // statement drops the edge.
+      "@typescript-eslint/no-import-type-side-effects": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All
@@ -304,6 +311,23 @@ export default [
       "import-x/no-useless-path-segments": "error",
       "import-x/no-absolute-path": "error",
       "import-x/no-empty-named-blocks": "error",
+    },
+  },
+  // The two React clients (the Expo app and the splash demo) were linted by
+  // every rule above and by no React rule at all. rules-of-hooks is the one
+  // that matters most: a hook behind an `if` or inside a loop desynchronizes
+  // React's hook order and crashes at runtime, and nothing else in the
+  // toolchain — not tsc, not the tests — can see it. Zero violations today.
+  //
+  // exhaustive-deps is deliberately NOT enabled here. It has 7 real hits, and
+  // each one needs its own judgment call (adding a dep can turn a stale
+  // closure into a re-render loop), so it gets its own change rather than
+  // riding along with a zero-violation ratchet.
+  {
+    files: ["expo-app/**/*.ts", "expo-app/**/*.tsx", "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
     },
   },
   {rules: {

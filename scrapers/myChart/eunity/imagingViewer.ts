@@ -1,9 +1,9 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
-import { type MyChartRequest } from '../core/myChartRequest';
+import type { MyChartRequest } from '../core/myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../core/util';
-import { type ReportContent } from '../chart/labs/labtestresulttype';
+import type { ReportContent } from '../chart/labs/labtestresulttype';
 import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
