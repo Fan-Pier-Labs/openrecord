@@ -45,6 +45,11 @@ jobs:
         run: cd expo-app && bun install
       - name: Install npm-package deps
         run: cd npm-package && bun install
+      # tests/integration/ci is part of the ROOT tsconfig project (no separate
+      # tsconfig on purpose), so both eslint and `bun run typecheck` below need
+      # its playwright types resolvable.
+      - name: Install CI integration test deps
+        run: cd tests/integration/ci && bun install
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
@@ -116,10 +121,6 @@ jobs:
       # built dist/ bundle, so the typecheck needs it to exist.
       - name: Typecheck npm-package
         run: cd npm-package && bun run typecheck
-      # Own project (playwright resolves from this directory's node_modules,
-      # which only this job installs), so it typechecks here, not in `build`.
-      - name: Typecheck CI integration tests
-        run: cd tests/integration/ci && bunx tsc --noEmit
       # The backgrounded compose exit code is lost with its shell, so wait for
       # the process to finish, show its log, then re-run the same command in the
       # foreground: a no-op returning in seconds when the background run

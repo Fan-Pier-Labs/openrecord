@@ -35,6 +35,6 @@
     "newsletter-lambda/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
-    "tests/*.ts"
+    "tests/**/*.ts"
   ]
 }
