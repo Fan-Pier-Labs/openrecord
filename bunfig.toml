@@ -72,11 +72,14 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #       Registration shape and the shared error path are covered.
 #   claude-desktop-extension/src/session-manager.ts (31%/67%)
 #     — the login and keepalive paths. Lifecycle and resolution are covered.
-#   npm-package/src/client.ts (45%/1%), npm-package/cli/capabilityActions.ts (69%/71%)
-#     — the library surface and CLI dispatch.
+#   npm-package/src/client.ts (45%/1%)
+#     — the library surface.
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
+#
+# npm-package/cli/capabilityActions.ts came off this list at 82%/96%, once
+# `--action` dispatch grew tests of its own.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
@@ -91,6 +94,5 @@ coveragePathIgnorePatterns = [
   "scrapers/myChart/eunity/imagingViewer.ts",
   "scrapers/myChart/eunity/imagingDirectDownload.ts",
   "npm-package/src/client.ts",
-  "npm-package/cli/capabilityActions.ts",
   "openrecord-demo-lambda/src/spend.mjs",
 ]

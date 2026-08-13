@@ -233,6 +233,39 @@ describe('rendersMedia', () => {
   });
 });
 
+// ── No client dispatches around executeCapability ──────────────────────────
+
+/**
+ * `executeCapability` is where the active-patient assertion lives, so a client
+ * reaching `capability.run` itself has silently opted out of it. The extension
+ * and the CLI both did, for the one capability returning bytes instead of
+ * JSON — making `download_imaging_study` the single tool that would hand back
+ * a family member's images when the session was parked on their chart.
+ */
+describe('capability dispatch', () => {
+  const CLIENT_SOURCES = [
+    'claude-desktop-extension/src/tools.ts',
+    'expo-app/src/lib/scrapers/session-manager.ts',
+    'npm-package/cli/capabilityActions.ts',
+  ];
+
+  for (const relativePath of CLIENT_SOURCES) {
+    it(`${relativePath} runs capabilities through executeCapability, never capability.run`, async () => {
+      const source = await Bun.file(
+        new URL(`../../${relativePath}`, import.meta.url).pathname,
+      ).text();
+
+      // Strip comments so the prose explaining the rule doesn't trip it.
+      const code = source
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+
+      expect(code).toContain('executeCapability(');
+      expect(code).not.toMatch(/\bcapability\.run\s*\(/);
+    });
+  }
+});
+
 // ── 3. CLI ─────────────────────────────────────────────────────────────────
 
 describe('CLI', () => {

@@ -20,6 +20,7 @@ import {
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
+  executeCapability,
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
@@ -242,18 +243,33 @@ export async function writeStudyImages(
 }
 
 /** Run one capability against one session and print its JSON result. */
+/**
+ * Run one capability against one session and print its JSON result.
+ *
+ * Dispatch goes through `executeCapability`, never `capability.run` — that is
+ * where the active-patient assertion lives. `patient` is folded in after
+ * coercion, since `coerceCapabilityArgs` rejects any name a capability didn't
+ * declare and this one is declared by the registry.
+ */
 export async function runCapabilityAction(
   capability: Capability,
   session: { hostname: string; request: MyChartRequest },
   password: string | undefined,
   args: Record<string, string>,
   outputDir?: string,
+  patient?: string,
 ): Promise<boolean> {
   console.log(`\n${'='.repeat(60)}\n  ${capability.title}: ${session.hostname}\n${'='.repeat(60)}`);
   try {
     const ctx = await capabilityContext(session.hostname, password);
     const coerced = coerceCapabilityArgs(capability, args);
-    const result = await capability.run(session.request, coerced, ctx);
+    // `patient` is declared by the registry, not by each capability, so it is
+    // folded in AFTER coercion — coerceCapabilityArgs rejects any name the
+    // capability did not declare.
+    if (patient !== undefined) coerced.patient = patient;
+    // executeCapability, never capability.run: the active-patient assertion
+    // lives there, and it has to run for media capabilities too.
+    const result = await executeCapability(session.request, capability.id, coerced, ctx);
 
     if (capability.rendersMedia) {
       // Media payloads become files on disk, never bytes in the terminal.
