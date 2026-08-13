@@ -91,7 +91,7 @@ The scrapers are shared across all entry points. Each entry point handles auth a
 bun install
 
 # Fake MyChart (for development without real credentials)
-cd fake-mychart && bun run dev   # Fake MyChart server on port 4000
+bun run fake-mychart         # Fake MyChart server on a random port (4000-5000), printed at startup
 
 # CLI
 bun run cli                  # Run the CLI scraper
