@@ -42,7 +42,7 @@ import { getImagingResults } from '../../scrapers/myChart/labs_and_procedure_res
 import { downloadImagingStudyDirect } from '../../scrapers/myChart/eunity/imagingDirectDownload';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
-import { AMF3Reader } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
+import { decodeAmf3 } from '../../scrapers/myChart/eunity/amf3Reader';
 import { inflateSync } from 'zlib';
 import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
 import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
@@ -1837,8 +1837,12 @@ async function main() {
                         const wrapBuf = Buffer.isBuffer(img.wrapperData) ? img.wrapperData : Buffer.from(img.wrapperData);
                         if (wrapBuf.subarray(0, 12).toString() !== 'CLOHEADERZ01') { positions.push({ idx: i, x: 0, y: 0, z: 0 }); continue; }
                         const decompressed = inflateSync(wrapBuf.subarray(16));
-                        const reader = new AMF3Reader(decompressed);
-                        const meta = reader.readValue();
+                        // Strict decode; the catch below keeps download order when a wrapper doesn't parse.
+                        const meta = decodeAmf3(decompressed) as {
+                          calibration?: { orientation?: { positionPatient?: {
+                            position_x?: number; position_y?: number; position_z?: number;
+                          } } };
+                        } | null;
                         const pos = meta?.calibration?.orientation?.positionPatient;
                         if (pos) {
                           positions.push({ idx: i, x: pos.position_x ?? 0, y: pos.position_y ?? 0, z: pos.position_z ?? 0 });

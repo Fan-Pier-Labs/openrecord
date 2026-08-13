@@ -2,7 +2,6 @@ import { describe, it, expect } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import sharp from "sharp";
 import {
-  AMF3Reader,
   parsePixelHeader,
   parseWrapper,
   tileKey,
@@ -17,96 +16,6 @@ import { convertBitmapToJpg } from "./exporters/to_jpg";
 import { convertBitmapToWebp } from "./exporters/to_webp";
 import { encodePixelFile, encodeWrapperFile } from "./generate_clo";
 import type { Bitmap } from "./clo_to_bitmap";
-
-// ==================== AMF3Reader ====================
-
-describe("AMF3Reader", () => {
-  it("reads u8", () => {
-    const reader = new AMF3Reader(Buffer.from([0x42]));
-    expect(reader.readU8()).toBe(0x42);
-  });
-
-  it("reads u29 single byte", () => {
-    const reader = new AMF3Reader(Buffer.from([0x05]));
-    expect(reader.readU29()).toBe(5);
-  });
-
-  it("reads u29 two bytes", () => {
-    const reader = new AMF3Reader(Buffer.from([0x81, 0x00]));
-    expect(reader.readU29()).toBe(128);
-  });
-
-  it("reads u29 four bytes", () => {
-    const reader = new AMF3Reader(Buffer.from([0x80, 0x80, 0x80, 0x01]));
-    expect(reader.readU29()).toBe(1);
-  });
-
-  it("reads AMF3 integer value", () => {
-    const reader = new AMF3Reader(Buffer.from([0x04, 0x2a]));
-    expect(reader.readValue()).toBe(42);
-  });
-
-  it("reads AMF3 boolean values", () => {
-    const reader = new AMF3Reader(Buffer.from([0x02, 0x03]));
-    expect(reader.readValue()).toBe(false);
-    expect(reader.readValue()).toBe(true);
-  });
-
-  it("reads AMF3 null/undefined", () => {
-    const reader = new AMF3Reader(Buffer.from([0x00, 0x01]));
-    expect(reader.readValue()).toBeNull();
-    expect(reader.readValue()).toBeNull();
-  });
-
-  it("reads AMF3 double value", () => {
-    const buf = Buffer.alloc(9);
-    buf[0] = 0x05;
-    buf.writeDoubleBE(3.14, 1);
-    const reader = new AMF3Reader(buf);
-    expect(reader.readValue()).toBeCloseTo(3.14);
-  });
-
-  it("reads AMF3 inline string", () => {
-    const str = "hello";
-    const buf = Buffer.alloc(1 + 1 + str.length);
-    buf[0] = 0x06;
-    buf[1] = (str.length << 1) | 1; // inline string
-    buf.write(str, 2);
-    const reader = new AMF3Reader(buf);
-    expect(reader.readValue()).toBe("hello");
-  });
-
-  it("reads AMF3 string references", () => {
-    const buf = Buffer.from([
-      0x06, 0x05, 0x68, 0x69, // string "hi" (len=2, inline)
-      0x06, 0x00,             // string ref index 0
-    ]);
-    const reader = new AMF3Reader(buf);
-    expect(reader.readValue()).toBe("hi");
-    expect(reader.readValue()).toBe("hi");
-  });
-
-  it("reads AMF3 empty string", () => {
-    const reader = new AMF3Reader(Buffer.from([0x06, 0x01]));
-    expect(reader.readValue()).toBe("");
-  });
-
-  it("reads AMF3 byte array", () => {
-    const buf = Buffer.from([0x0c, 0x07, 0xaa, 0xbb, 0xcc]);
-    const reader = new AMF3Reader(buf);
-    const result = reader.readValue() as Buffer;
-    expect(Buffer.isBuffer(result)).toBe(true);
-    expect(result.length).toBe(3);
-    expect(result[0]).toBe(0xaa);
-    expect(result[1]).toBe(0xbb);
-    expect(result[2]).toBe(0xcc);
-  });
-
-  it("returns null for depth > 20", () => {
-    const reader = new AMF3Reader(Buffer.from([0x04, 0x01]));
-    expect(reader.readValue(21)).toBeNull();
-  });
-});
 
 // ==================== parsePixelHeader ====================
 
@@ -308,6 +217,37 @@ describe("parseWrapper", () => {
     unlinkSync(tmpPath);
   });
 
+  it("extracts a VOI LUT carried as an AMF3 byte array", () => {
+    // Real CT/MR wrappers carry the LUT as a nested voiLut object whose `lut`
+    // member is an AMF3 byte array (docs/clo-format.md) — the one wrapper
+    // shape the scalar-only cases above never reach.
+    const lut = Buffer.alloc(8);
+    for (let i = 0; i < 4; i++) lut.writeUInt16LE(1000 + i, i * 2);
+
+    const wrapper = encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME2",
+      voiLut: { lut, elements: 4, start: 100, bits: 16, lutIsLittleEndian: 1 },
+    });
+
+    const metadata = parseWrapper(Buffer.from(wrapper));
+    expect(metadata.photometric).toBe("MONOCHROME2");
+    expect(Array.from(metadata.voi_lut!)).toEqual([1000, 1001, 1002, 1003]);
+    expect(metadata.voi_lut_start).toBe(100);
+    expect(metadata.voi_lut_bits).toBe(16);
+  });
+
+  it("falls back to text-based photometric detection when the AMF3 body is malformed", () => {
+    // A wrapper whose body doesn't decode must still report the photometric —
+    // the strict decode throws, and parseWrapper's text scan recovers it.
+    const { deflateSync } = require("zlib") as typeof import("zlib");
+    const body = deflateSync(Buffer.from("\xff garbage MONOCHROME1 garbage", "latin1"));
+    const header = Buffer.alloc(16);
+    header.write("CLOHEADERZ01", 0);
+
+    const metadata = parseWrapper(Buffer.concat([header, body]));
+    expect(metadata.photometric).toBe("MONOCHROME1");
+    expect(metadata.window_center).toBeUndefined();
+  });
 });
 
 // ==================== convertBitmapToJpg ====================

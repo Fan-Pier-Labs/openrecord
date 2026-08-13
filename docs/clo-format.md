@@ -200,10 +200,10 @@ Class: `com.clientoutlook.data.ImagePhaseInfo`
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `inStackPositionNumber` | number | Slice index within a stack (536870911 = undefined) |
+| `inStackPositionNumber` | number | Slice index within a stack (-1 = undefined) |
 | `stackID` | string | Stack identifier ("-1" = no stack) |
-| `temporalPositionIdentifier` | number | Position in time series (536870911 = undefined) |
-| `numberOfTemporalPositions` | number | Total temporal positions (536870911 = undefined) |
+| `temporalPositionIdentifier` | number | Position in time series (-1 = undefined) |
+| `numberOfTemporalPositions` | number | Total temporal positions (-1 = undefined) |
 
 #### Patient Orientation (`patientOrientation`)
 
@@ -328,7 +328,7 @@ Request/response use AMF3 binary serialization with typed objects:
 
 | File | Purpose |
 |------|---------|
-| `scrapers/myChart/clo-image-parser/clo_to_bitmap.ts` | Core CLO decoder + AMF3Reader |
+| `scrapers/myChart/clo-image-parser/clo_to_bitmap.ts` | Core CLO decoder (AMF3 decoding via `scrapers/myChart/eunity/amf3Reader.ts`) |
 | `scrapers/myChart/clo-image-parser/generate_clo.ts` | CLO encoder for testing |
 | `scrapers/myChart/clo-image-parser/exporters/` | Format-specific exporters (JPEG, PNG, AVIF, TIFF, WebP) — step two, after decoding to a bitmap |
 | `dev-scripts/clo-to-jpg.ts` | Terminal wrapper wiring both steps together |

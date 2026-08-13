@@ -68,6 +68,10 @@ export class AMF3Writer {
   writeValue(v: any) {
     if (v === null || v === undefined) {
       this.writeU8(0x01); // undefined
+    } else if (Buffer.isBuffer(v)) {
+      this.writeU8(0x0c); // byte array
+      this.writeU29((v.length << 1) | 1);
+      this.parts.push(v);
     } else if (typeof v === "boolean") {
       this.writeU8(v ? 0x03 : 0x02);
     } else if (typeof v === "number") {
@@ -484,6 +488,14 @@ export interface WrapperMetadata {
   isSigned?: number;
   rescaleSlope?: number;
   rescaleIntercept?: number;
+  /** Mirrors the voiLut object real wrappers carry (see docs/clo-format.md). */
+  voiLut?: {
+    lut: Buffer;
+    elements: number;
+    start: number;
+    bits: number;
+    lutIsLittleEndian: number;
+  };
 }
 
 export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
@@ -511,6 +523,9 @@ export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
   }
   if (metadata.rescaleIntercept !== undefined) {
     obj.rescaleIntercept = metadata.rescaleIntercept;
+  }
+  if (metadata.voiLut !== undefined) {
+    obj.voiLut = { ...metadata.voiLut };
   }
 
   const writer = new AMF3Writer();

@@ -6,6 +6,7 @@ import {
   extractServiceInstanceFromAmf,
   buildGetStudyListMetaRequest,
 } from '../imagingDirectDownload';
+import { Amf3Reader } from '../amf3Reader';
 
 // ─── Helper: build a fake AMF binary with UIDs laid out like a real response ───
 
@@ -351,140 +352,14 @@ describe('buildGetStudyListMetaRequest', () => {
 // ─── AMF3 frame integrity ───
 
 /**
- * A minimal AMF3 reader, deliberately written here as an *independent* oracle
- * for the writer in `imagingDirectDownload.ts` rather than imported from it.
- *
- * A product decoder does exist (`../amf3Reader.ts`, used for the
- * getStudyListMeta *response*), but it is deliberately not used here:
- * deriving this oracle from the AMF3 spec instead of from anything in the
- * codebase is what makes the round-trip below evidence of anything. An
- * encoder checked against its own mirror image — or against a decoder that
- * grew up next to it — would agree with any shared misreading of the spec.
- *
- * Covers exactly the subset the writer emits — sealed and externalizable typed
- * objects, dense arrays, strings with the reference table, null, true, and
- * integers. Anything outside that subset throws, so a change that reaches for a
- * new AMF construct fails loudly here instead of silently.
+ * The frames below are decoded with the production `Amf3Reader` — the same
+ * decoder that parses getStudyListMeta responses. An encoder round-tripped
+ * through a decoder that grew up next to it would agree with any shared
+ * misreading of the AMF3 spec, so the round-trip alone is not the evidence
+ * here: `GOLDEN_FRAME_HEX` is. It pins the writer byte-for-byte to a frame a
+ * real eUnity server accepted, and no shared writer/reader bug survives that.
+ * The structural decodes then say *which* field moved when the bytes change.
  */
-class Amf3Reader {
-  private pos = 0;
-  private readonly stringTable: string[] = [];
-  /** Strings that arrived as a back-reference rather than an inline copy. */
-  readonly resolvedReferences: string[] = [];
-
-  constructor(private readonly buf: Buffer) {}
-
-  get bytesRead(): number { return this.pos; }
-
-  private u29(): number {
-    let b = this.byte();
-    if (b < 0x80) return b;
-    let result = (b & 0x7f) << 7;
-    b = this.byte();
-    if (b < 0x80) return result | b;
-    result = (result | (b & 0x7f)) << 7;
-    b = this.byte();
-    if (b < 0x80) return result | b;
-    result = (result | (b & 0x7f)) << 8;
-    return result | this.byte();
-  }
-
-  private byte(): number {
-    const b = this.buf[this.pos];
-    if (b === undefined) throw new Error(`AMF3 frame truncated at offset ${this.pos}`);
-    this.pos++;
-    return b;
-  }
-
-  /** A string *value* (U29S), i.e. without the 0x06 marker. */
-  private stringValue(): string {
-    const header = this.u29();
-    if ((header & 1) === 0) {
-      const ref = this.stringTable[header >> 1];
-      if (ref === undefined) throw new Error(`AMF3 string reference ${header >> 1} is out of range`);
-      this.resolvedReferences.push(ref);
-      return ref;
-    }
-    const byteLength = header >> 1;
-    // The empty string is always inline and never enters the reference table;
-    // if it did, every later index would shift and the frame would decode as
-    // the wrong fields.
-    if (byteLength === 0) return '';
-    const str = this.buf.subarray(this.pos, this.pos + byteLength).toString('utf-8');
-    if (str.length === 0) throw new Error(`AMF3 frame truncated inside a string at offset ${this.pos}`);
-    this.pos += byteLength;
-    this.stringTable.push(str);
-    return str;
-  }
-
-  value(): unknown {
-    const marker = this.byte();
-    switch (marker) {
-      case 0x01: return null;
-      case 0x02: return false;
-      case 0x03: return true;
-      case 0x04: return this.u29();
-      case 0x06: return this.stringValue();
-      case 0x09: return this.array();
-      case 0x0a: return this.object();
-      default:
-        throw new Error(`unsupported AMF3 marker 0x${marker.toString(16)} at offset ${this.pos - 1}`);
-    }
-  }
-
-  private array(): unknown[] {
-    const header = this.u29();
-    if ((header & 1) === 0) throw new Error('AMF3 array references are not part of the emitted subset');
-    const count = header >> 1;
-    const associativeKey = this.stringValue();
-    if (associativeKey !== '') {
-      throw new Error(`AMF3 array carried an associative entry (${associativeKey}); the writer emits dense arrays only`);
-    }
-    return Array.from({ length: count }, () => this.value());
-  }
-
-  private object(): Record<string, unknown> {
-    const traits = this.u29();
-    if ((traits & 0x01) === 0) throw new Error('AMF3 object references are not part of the emitted subset');
-    if ((traits & 0x02) === 0) throw new Error('AMF3 traits references are not part of the emitted subset');
-    const externalizable = (traits & 0x04) !== 0;
-    const dynamic = (traits & 0x08) !== 0;
-    const memberCount = traits >> 4;
-    const className = this.stringValue();
-
-    if (externalizable) return { $class: className, $external: this.externalizableBody(className) };
-    // eUnity's viewer sends the anonymous payload object as plain sealed
-    // traits. A dynamic object would serialize differently on the wire.
-    if (dynamic) throw new Error(`AMF3 object ${className || '<anonymous>'} was written as dynamic; the writer emits sealed traits`);
-
-    const memberNames = Array.from({ length: memberCount }, () => this.stringValue());
-    const out: Record<string, unknown> = { $class: className };
-    for (const name of memberNames) out[name] = this.value();
-    return out;
-  }
-
-  private externalizableBody(className: string): unknown {
-    switch (className) {
-      case 'com.clientoutlook.web.metaservices.StudyListRequest':
-        return {
-          header: this.be32(),
-          qualifier: this.value(),
-          version: this.value(),
-          payload: this.value(),
-        };
-      case 'flex.messaging.io.ArrayCollection':
-        return this.value();
-      default:
-        throw new Error(`no externalizable decoder for ${className}`);
-    }
-  }
-
-  private be32(): number {
-    const value = this.buf.readUInt32BE(this.pos);
-    this.pos += 4;
-    return value;
-  }
-}
 
 /**
  * Walk a decoded frame down to its single RequestedPHI object — the leaf that
@@ -493,10 +368,10 @@ class Amf3Reader {
 function requestedPhiOf(decoded: unknown): Record<string, unknown> {
   const frame = decoded as {
     body: {
-      parameters: { $external: { payload: { requestedPHI: { $external: Record<string, unknown>[] } } } }[];
+      parameters: { value: { payload: { requestedPHI: { value: Record<string, unknown>[] } } } }[];
     };
   };
-  const phi = frame.body?.parameters?.[0]?.$external?.payload?.requestedPHI?.$external?.[0];
+  const phi = frame.body?.parameters?.[0]?.value?.payload?.requestedPHI?.value?.[0];
   if (!phi) throw new Error('decoded frame carried no RequestedPHI');
   return phi;
 }
@@ -547,30 +422,32 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
   it('decodes to the exact structure the eUnity protocol expects', () => {
     const reader = new Amf3Reader(buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID));
 
-    expect(reader.value()).toEqual({
-      $class: 'com.clientoutlook.web.metaservices.AmfServicesMessage',
+    expect(reader.readValue()).toEqual({
+      __class: 'com.clientoutlook.web.metaservices.AmfServicesMessage',
       // Member order is load-bearing for sealed traits: messageID before messageType.
       messageID: 'HTTPSimpleLoader_1',
       messageType: 'call',
       body: {
-        $class: 'com.clientoutlook.web.metaservices.AmfServicesRequest',
+        __class: 'com.clientoutlook.web.metaservices.AmfServicesRequest',
         service: 'StudyService',
         method: 'getStudyListMeta',
         parameters: [
           {
-            $class: 'com.clientoutlook.web.metaservices.StudyListRequest',
-            $external: {
+            __class: 'com.clientoutlook.web.metaservices.StudyListRequest',
+            __externalizable: true,
+            value: {
               header: 2,
               qualifier: 'getStudyList',
               version: '1.2.0',
               payload: {
-                $class: '', // anonymous
+                __class: '', // anonymous
                 notUsed: true,
                 requestedPHI: {
-                  $class: 'flex.messaging.io.ArrayCollection',
-                  $external: [
+                  __class: 'flex.messaging.io.ArrayCollection',
+                  __externalizable: true,
+                  value: [
                     {
-                      $class: 'com.clientoutlook.data.RequestedPHI',
+                      __class: 'com.clientoutlook.data.RequestedPHI',
                       patientId: PATIENT_ID,
                       studyUID: null,
                       accessionNumber: ACCESSION,
@@ -583,7 +460,7 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
                   ],
                 },
                 environment: {
-                  $class: 'com.clientoutlook.data.hangingprotocol.Environment',
+                  __class: 'com.clientoutlook.data.hangingprotocol.Environment',
                   levelValue: null,
                   level: 0,
                   user: null,
@@ -602,8 +479,8 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
   it('emits a frame with no trailing or missing bytes', () => {
     const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
     const reader = new Amf3Reader(buf);
-    reader.value();
-    expect(reader.bytesRead).toBe(buf.length);
+    reader.readValue();
+    expect(reader.offset).toBe(buf.length);
   });
 
   it('writes every nested value through one shared writer', () => {
@@ -613,14 +490,15 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
     // one would restart the table and shift every later index.
     //
     // `serviceInstance` is the observable. It appears twice in RequestedPHI, so
-    // a shared table encodes the second as a back-reference. A broken writer
-    // chain inlines it a second time instead — same decoded value, different
-    // bytes, and every subsequent reference index off by one.
+    // a shared table encodes the second as a back-reference — the string
+    // occurs exactly once in the raw bytes. A broken writer chain inlines it a
+    // second time instead — same decoded value, different bytes, and every
+    // subsequent reference index off by one.
     const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
-    const reader = new Amf3Reader(buf);
-    reader.value();
+    const phi = requestedPhiOf(new Amf3Reader(buf).readValue());
 
-    expect(reader.resolvedReferences).toEqual([SERVICE_INSTANCE]);
+    expect(phi.serviceInstance).toBe(SERVICE_INSTANCE);
+    expect(phi.originalServiceInstance).toBe(SERVICE_INSTANCE);
 
     const occurrences = buf.toString('latin1').split(SERVICE_INSTANCE).length - 1;
     expect(occurrences).toBe(1);
@@ -638,7 +516,7 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
     expect(accession.length).not.toBe(Buffer.byteLength(accession, 'utf-8'));
 
     const reader = new Amf3Reader(buildGetStudyListMetaRequest(accession, SERVICE_INSTANCE, PATIENT_ID));
-    expect(requestedPhiOf(reader.value()).accessionNumber).toBe(accession);
+    expect(requestedPhiOf(reader.readValue()).accessionNumber).toBe(accession);
   });
 
   it('encodes string lengths across every U29 width the fields can reach', () => {
@@ -647,20 +525,21 @@ describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
     for (const length of [10, 100, 9000]) {
       const accession = 'A'.repeat(length);
       const reader = new Amf3Reader(buildGetStudyListMetaRequest(accession, SERVICE_INSTANCE, PATIENT_ID));
-      expect(requestedPhiOf(reader.value()).accessionNumber).toBe(accession);
+      expect(requestedPhiOf(reader.readValue()).accessionNumber).toBe(accession);
     }
   });
 
   it('keeps empty strings inline and out of the reference table', () => {
-    // Both empty members must stay inline. If the empty string were added to
-    // the reference table, every index after it would shift by one and the
-    // frame would decode as the wrong fields.
-    const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
-    const reader = new Amf3Reader(buf);
-    const phi = requestedPhiOf(reader.value());
+    // Both empty members must stay inline. If the writer added the empty
+    // string to its reference table, every index after it would shift by one
+    // and the spec-correct reader (which never tables the empty string) would
+    // decode later fields as the wrong strings — these assertions and the
+    // structure test above would both fail.
+    const phi = requestedPhiOf(
+      new Amf3Reader(buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID)).readValue(),
+    );
 
     expect(phi.serviceInstanceParameter).toBe('');
     expect(phi.originalServiceInstanceParameter).toBe('');
-    expect(reader.resolvedReferences).not.toContain('');
   });
 });
