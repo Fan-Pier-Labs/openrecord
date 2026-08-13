@@ -1,7 +1,7 @@
 
 import fs from 'fs';
 import * as cheerio from 'cheerio';
-import { Conversation, InputFormat, Message, User } from '../types';
+import { type Conversation, type InputFormat, type Message, type User } from '../types';
 import { logger } from '../../../shared/logger';
 
 

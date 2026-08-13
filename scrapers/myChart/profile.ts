@@ -1,5 +1,5 @@
 import { login_TEST } from "./login";
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from "./makeAuthenticatedRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';

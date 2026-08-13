@@ -43,6 +43,16 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Type-only imports vanish at compile time; marking them keeps a
+      // bundler/transpiler from pulling a module in (or keeping a side-effect
+      // edge) for something that was only ever a type. `inline-type-imports`
+      // merges into one statement instead of splitting every import in two.
+      // `disallowTypeAnnotations: false` keeps `typeof import(...)` legal —
+      // npm-package's built-bundle test types a runtime dynamic import with it.
+      "@typescript-eslint/consistent-type-imports": ["error", {
+        fixStyle: "inline-type-imports",
+        disallowTypeAnnotations: false,
+      }],
       "@typescript-eslint/no-floating-promises": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
