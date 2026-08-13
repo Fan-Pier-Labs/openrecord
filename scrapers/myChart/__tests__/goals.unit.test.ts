@@ -22,8 +22,8 @@ describe('getGoals', () => {
   it('parses goals from API response', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ goals: [{ name: 'Lower BP', description: 'Reduce to 120/80', status: 'active', startDate: '2024-01-01', targetDate: '2024-06-01' }] }) },
-      { body: JSON.stringify({ goals: [{ name: 'Walk daily', description: '30 min walk', status: 'in_progress', startDate: '2024-02-01', targetDate: '2024-12-31' }] }) },
+      { body: JSON.stringify({ careTeamGoals: [{ name: 'Lower BP', description: 'Reduce to 120/80', status: 'active', startDate: '2024-01-01', targetDate: '2024-06-01' }] }) },
+      { body: JSON.stringify({ patientGoals: [{ name: 'Walk daily', description: '30 min walk', status: 'in_progress', startDate: '2024-02-01', targetDate: '2024-12-31' }] }) },
     ])
 
     const result = await getGoals(req)
@@ -43,8 +43,8 @@ describe('getGoals', () => {
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ goals: [{}] }) },
-      { body: JSON.stringify({ goals: [] }) },
+      { body: JSON.stringify({ careTeamGoals: [{}] }) },
+      { body: JSON.stringify({ patientGoals: [] }) },
     ])
 
     const result = await getGoals(req)
