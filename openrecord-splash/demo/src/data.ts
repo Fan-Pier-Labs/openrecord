@@ -705,6 +705,19 @@ export const availableAppointments: AppointmentOffer[] = [
       { date: '2026-04-03', time: '8:30 AM', slotId: 'slot-010' },
     ],
   },
+  // The home-screen "Colonoscopy overdue" card promises open slots — without a
+  // Colonoscopy visit type in the pool, that flow dead-ends every time.
+  {
+    provider: 'Springfield Endoscopy Center',
+    department: 'Gastroenterology',
+    location: 'Springfield General Hospital, Suite 310',
+    visitType: 'Colonoscopy',
+    slots: [
+      { date: '2026-04-09', time: '8:00 AM', slotId: 'slot-011' },
+      { date: '2026-04-16', time: '9:30 AM', slotId: 'slot-012' },
+      { date: '2026-04-23', time: '8:00 AM', slotId: 'slot-013' },
+    ],
+  },
 ];
 
 /**

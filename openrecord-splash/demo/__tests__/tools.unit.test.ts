@@ -246,6 +246,21 @@ describe('appointments', () => {
     const dates = run(session, 'get_upcoming_visits').map((v: Result) => v.date);
     expect([...dates].sort()).toEqual(dates);
   });
+
+  test('the colonoscopy alert card can actually be fulfilled', () => {
+    // The home-screen card says "Show me what appointment slots are open and
+    // help me get one booked" — that promise needs a Colonoscopy visit type in
+    // the pool, or the flow dead-ends on every run.
+    const session = createSession();
+    const offers = run(session, 'get_available_appointments', { visit_type: 'Colonoscopy' });
+    expect(offers.error).toBeUndefined();
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offers[0].slots.length).toBeGreaterThan(0);
+
+    const booked = run(session, 'book_appointment', { slot_id: offers[0].slots[0].slotId, reason: 'Overdue screening' });
+    expect(booked.success).toBe(true);
+    expect(booked.visitType).toBe('Colonoscopy');
+  });
 });
 
 describe('emergency contacts', () => {
