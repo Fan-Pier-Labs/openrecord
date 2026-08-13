@@ -1,0 +1,122 @@
+name: Android smoke
+# Its own workflow, not a job in checks.yml, so it can carry a paths filter:
+# the emulator job costs ~30-60 minutes and only proves the Android build
+# compiles and boots, so it runs when the app (or this workflow) changes, not
+# on every scraper or docs PR. The weekly cron catches drift from everything
+# else — a scraper picking up a Node-only import that breaks the Metro bundle,
+# dependency updates, emulator image changes — within a week instead of never.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "expo-app/**"
+      - ".github/workflows/android-smoke.yml"
+  pull_request:
+    paths:
+      - "expo-app/**"
+      - ".github/workflows/android-smoke.yml"
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-emulator:
+    name: Android emulator smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Baked into the APK at build time (app.config.ts reads it into
+      # `extra.backendUrl`). Points the app's AI backend at a dead localhost
+      # port so the build under test cannot reach the real AI Lambda — the
+      # smoke flow never gets past the Google sign-in gate anyway, but this
+      # makes "no real LLM calls from CI" a build-time guarantee rather than
+      # a property of the flow.
+      EXPO_PUBLIC_BACKEND_URL: http://127.0.0.1:9
+    steps:
+      - uses: actions/checkout@v4
+      # Hardware acceleration for the emulator. ubuntu-latest runners expose
+      # /dev/kvm, but it is root-only until this rule opens it up.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      # Gradle shells out to node to bundle the JS (expo export:embed).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Root deps too, not just expo-app's: Metro watches the repo root so the
+      # bundle reaches into scrapers/ and shared/, which resolve some packages
+      # from the root node_modules.
+      - run: bun install
+      - name: Install Expo app deps
+        run: cd expo-app && bun install
+      - name: Prebuild Android project
+        run: cd expo-app && bunx expo prebuild --platform android --no-install
+      - uses: gradle/actions/setup-gradle@v4
+      # Release variant on purpose: it embeds the JS bundle, so the emulator
+      # needs no Metro dev server, and it strips the __DEV__-only onboarding
+      # skip button the smoke flow relies on NOT being able to pass.
+      - name: Build release APK
+        run: cd expo-app/android && ./gradlew assembleRelease
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34
+      - name: Create AVD snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+      - name: Run smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install expo-app/android/app/build/outputs/apk/release/app-release.apk
+            cd expo-app && maestro test e2e/android-smoke.yaml
+      - name: Upload Maestro artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-smoke-artifacts
+          path: |
+            expo-app/e2e-*.png
+            ~/.maestro/tests/
+          if-no-files-found: ignore
