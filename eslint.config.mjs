@@ -29,6 +29,8 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `indexOf(...) !== -1` and single-token regex tests read clearer as `.includes(...)`.
+      "@typescript-eslint/prefer-includes": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",
