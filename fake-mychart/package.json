@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p ${PORT:-$(bun -e 'console.log(4000 + Math.floor(Math.random() * 1001))')}",
+    "dev": "next dev -p ${PORT:-$((4000 + RANDOM % 1001))}",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
