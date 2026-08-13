@@ -8,6 +8,8 @@
     "types": ["vite/client", "bun"],
 
     "strict": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,

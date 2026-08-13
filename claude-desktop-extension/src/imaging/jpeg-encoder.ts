@@ -20,10 +20,11 @@ export interface CloBitmapInput {
 }
 
 /**
- * Encode a CLO-parsed bitmap as a single-channel JPEG. Accepts 8-bit or
- * 16-bit input; 16-bit is auto-windowed via min/max to 8-bit grayscale.
+ * Encode a CLO-parsed bitmap as a single-channel JPEG at quality 100 —
+ * medical images, no knob to degrade them. Accepts 8-bit or 16-bit input;
+ * 16-bit is auto-windowed via min/max to 8-bit grayscale.
  */
-export function encodeCloAsJpeg(bitmap: CloBitmapInput, quality = 85): EncodedJpeg {
+export function encodeCloAsJpeg(bitmap: CloBitmapInput, quality = 100): EncodedJpeg {
   const gray8 = bitmap.pixels instanceof Uint16Array ? to8bit(bitmap.pixels) : bitmap.pixels;
   const rgba = grayscaleToRgba(gray8);
   const encoded = jpegJs.encode(
