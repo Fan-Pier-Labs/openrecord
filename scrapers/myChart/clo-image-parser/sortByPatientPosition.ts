@@ -1,17 +1,29 @@
 /**
- * Anatomical ordering for multi-slice series (CT/MRI).
+ * Anatomical ordering for multi-slice imaging series (CT and MRI stacks).
  *
- * eUnity returns one CLOWRAPPER per instance, and cross-sectional wrappers
- * carry `calibration.orientation.positionPatient` — the DICOM Image Position
- * (Patient) of the slice in millimetres. Download order is not anatomical
- * order (instances download in parallel, and instance numbers can run
- * opposite to the scan axis), so slices are sorted by the position axis with
- * the most variation across the series.
+ * eUnity hands back one image per (series, instance) pair, and
+ * `downloadImagingStudyDirect` fetches them in parallel batches — so the raw
+ * image list arrives in whatever order the image server answered, which is not
+ * even download order, let alone scan order. Each image's CLO wrapper carries
+ * the DICOM patient position (`calibration.orientation.positionPatient`), so a
+ * stack can be re-ordered the way the scanner swept it: pick the axis the
+ * series actually travels along and sort by it.
+ *
+ * This used to live in the CLI's hand-written `get-imaging` handler, which
+ * made the CLI the only client whose CT stacks read head-to-foot. It runs in
+ * the shared download path now so every client gets a readable stack.
  */
-import { inflateSync } from "zlib";
-import { AMF3Reader } from "./clo_to_bitmap";
 
-const CLOHEADERZ01_MAGIC = "CLOHEADERZ01";
+import { inflateSync } from 'zlib';
+import { Amf3Reader } from '../eunity/amf3Reader';
+
+const CLOHEADERZ01_MAGIC = Buffer.from('CLOHEADERZ01');
+
+/**
+ * Below this much variation (in mm) across a series, the positions are noise
+ * or absent, and the original order is kept.
+ */
+const MIN_AXIS_RANGE_MM = 0.1;
 
 export interface PatientPosition {
   x: number;
@@ -20,67 +32,73 @@ export interface PatientPosition {
 }
 
 /**
- * Read `calibration.orientation.positionPatient` out of a CLOHEADERZ01
- * wrapper. Returns null for anything that isn't a parseable wrapper or
- * doesn't carry a position (e.g. X-rays and other projection images).
+ * Read `calibration.orientation.positionPatient` out of a CLO wrapper.
+ * Returns null for anything that is not a parsable wrapper with a position —
+ * a missing position must never break an image download.
  */
-export function readPatientPosition(wrapperData: Buffer | Uint8Array): PatientPosition | null {
+export function readPatientPosition(wrapperData: Uint8Array): PatientPosition | null {
   try {
     const buf = Buffer.isBuffer(wrapperData) ? wrapperData : Buffer.from(wrapperData);
-    if (buf.subarray(0, 12).toString() !== CLOHEADERZ01_MAGIC) return null;
-    const reader = new AMF3Reader(inflateSync(buf.subarray(16)));
-    const meta = reader.readValue();
+    if (buf.length < 16 || !buf.subarray(0, 12).equals(CLOHEADERZ01_MAGIC)) return null;
+    // Strict decode (eunity/amf3Reader.ts — the repo's one AMF3 reader). A
+    // wrapper it can't parse throws, the catch below returns null, and the
+    // series keeps the server's order rather than being sorted on garbage.
+    const meta = new Amf3Reader(inflateSync(buf.subarray(16))).readValue() as
+      | { calibration?: { orientation?: { positionPatient?: Record<string, unknown> } } }
+      | undefined;
     const pos = meta?.calibration?.orientation?.positionPatient;
-    if (!pos || typeof pos !== "object") return null;
-    return { x: pos.position_x ?? 0, y: pos.position_y ?? 0, z: pos.position_z ?? 0 };
+    if (!pos || typeof pos !== 'object') return null;
+    return {
+      x: Number(pos.position_x ?? 0),
+      y: Number(pos.position_y ?? 0),
+      z: Number(pos.position_z ?? 0),
+    };
   } catch {
     return null;
   }
 }
 
-export interface SortByPatientPositionResult<T> {
-  /** The slices in anatomical order (ascending along `sortedBy`). */
-  images: T[];
-  /**
-   * The axis the slices were sorted on, or null when the series carried no
-   * usable positions (all missing, or under 0.1mm of spread on every axis) —
-   * in that case `images` is the input order, untouched.
-   */
-  sortedBy: "x" | "y" | "z" | null;
-  /** Millimetre spread along the axis with the most variation. */
-  rangeMm: number;
-}
-
 /**
- * Sort a multi-slice series by patient position. Never throws: slices whose
- * wrapper is missing or unparseable sort as position (0, 0, 0), and a series
- * with no positional spread comes back in its original order (`sortedBy:
- * null`). The sort is stable, so ties keep download order.
+ * Re-order each multi-slice series by patient position along its dominant
+ * axis. Series stay grouped in first-appearance order; single-image series,
+ * images without a wrapper, and series whose positions don't vary are left
+ * exactly where they were. The sort is stable, so unparsable slices keep
+ * their relative order.
  */
-export function sortByPatientPosition<T extends { wrapperData?: Buffer | Uint8Array }>(
-  images: T[],
-): SortByPatientPositionResult<T> {
-  const positions = images.map((img) =>
-    (img.wrapperData && readPatientPosition(img.wrapperData)) || { x: 0, y: 0, z: 0 },
-  );
-
-  const range = (axis: keyof PatientPosition) => {
-    const values = positions.map((p) => p[axis]);
-    return values.length > 0 ? Math.max(...values) - Math.min(...values) : 0;
-  };
-  const rx = range("x");
-  const ry = range("y");
-  const rz = range("z");
-
-  if (rx <= 0.1 && ry <= 0.1 && rz <= 0.1) {
-    return { images: [...images], sortedBy: null, rangeMm: 0 };
+export function sortImagesByPatientPosition<T extends { seriesUID: string; wrapperData?: Uint8Array }>(
+  images: readonly T[],
+): T[] {
+  const groups = new Map<string, T[]>();
+  for (const image of images) {
+    let group = groups.get(image.seriesUID);
+    if (!group) groups.set(image.seriesUID, (group = []));
+    group.push(image);
   }
 
-  const sortedBy = rx >= ry && rx >= rz ? "x" : ry >= rz ? "y" : "z";
-  const sorted = images
-    .map((img, idx) => ({ img, key: positions[idx]![sortedBy] })) // positions is images.map'd, same length
-    .sort((a, b) => a.key - b.key)
-    .map((entry) => entry.img);
-
-  return { images: sorted, sortedBy, rangeMm: Math.max(rx, ry, rz) };
+  const out: T[] = [];
+  for (const group of groups.values()) {
+    if (group.length > 1) {
+      const positioned = group.map((image) => ({
+        image,
+        // Missing/unparsable positions sort as the origin, like the rest of
+        // the CLO pipeline treats absent metadata.
+        pos: (image.wrapperData && readPatientPosition(image.wrapperData)) || { x: 0, y: 0, z: 0 },
+      }));
+      const range = (axis: keyof PatientPosition) => {
+        const values = positioned.map((p) => p.pos[axis]);
+        return Math.max(...values) - Math.min(...values);
+      };
+      const rx = range('x');
+      const ry = range('y');
+      const rz = range('z');
+      if (Math.max(rx, ry, rz) > MIN_AXIS_RANGE_MM) {
+        const axis: keyof PatientPosition = rx >= ry && rx >= rz ? 'x' : ry >= rz ? 'y' : 'z';
+        positioned.sort((a, b) => a.pos[axis] - b.pos[axis]);
+        out.push(...positioned.map((p) => p.image));
+        continue;
+      }
+    }
+    out.push(...group);
+  }
+  return out;
 }

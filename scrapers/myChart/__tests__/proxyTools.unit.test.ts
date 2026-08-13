@@ -377,7 +377,7 @@ describe('executeCapability applies the guard to every capability', () => {
     // Past the guard, so the failure is now the capability's own — proof the
     // assertion ran and passed rather than never having been reached.
     const error = await executeCapability(req, 'download_imaging_study', { patient: 'Bart' })
-      .then(() => null, (err: Error) => err)
+      .then(() => null, (err: unknown) => err as Error)
 
     expect(error).toBeInstanceOf(Error)
     expect(error!.message).not.toContain('Refusing to read')

@@ -229,6 +229,8 @@ interface CloSeries {
   cloError?: boolean;
   cloPrefix?: string;
   slicePositions?: Array<{ x: number; y: number; z: number }>;
+  /** Emit the byte-array VOI LUT, -1 ImagePhaseInfo sentinels and overlays. */
+  richWrapperMetadata?: boolean;
 }
 
 const cloStudies: Array<{ studyUID: string; series: CloSeries[] }> = [homer.imaging, homer.ctImaging];
@@ -253,7 +255,14 @@ for (const study of cloStudies) {
         if (!positionPatient) return;
         instanceCloWrappers.set(
           `${s.seriesUID}\n${objectUID}`,
-          Buffer.concat([buildCloWrapper({ positionPatient, frameOfReferenceUID }), pixelBuf]),
+          Buffer.concat([
+            buildCloWrapper({
+              positionPatient,
+              frameOfReferenceUID,
+              includeRichMetadata: s.richWrapperMetadata,
+            }),
+            pixelBuf,
+          ]),
         );
       });
     }

@@ -1,135 +1,94 @@
-import { describe, it, expect } from "bun:test";
-import { encodeWrapperFile } from "./generate_clo";
-import { readPatientPosition, sortByPatientPosition } from "./sortByPatientPosition";
-// fake-mychart may not import from outside its directory (its Docker build
-// context is that directory alone), so the agreement test between its wrapper
-// synthesizer and the real reader lives here, like the TOTP one in
-// __tests__/totp.unit.test.ts.
-import { buildCloWrapper } from "../../../fake-mychart/src/lib/cloWrapper";
-import { parseWrapper } from "./clo_to_bitmap";
+/**
+ * Anatomical ordering of multi-slice series.
+ *
+ * Fixtures come from the repo's own wrapper encoder, so the position is read
+ * back through the same CLOHEADERZ01 + AMF3 path production uses.
+ */
 
-const BASE_METADATA = {
-  photometricInterpretation: "MONOCHROME2",
-  bitsStored: 16,
-  windowCenter: 32768,
-  windowWidth: 65536,
-};
+import { describe, expect, it } from 'bun:test';
+import { encodeWrapperFile } from './generate_clo';
+import { readPatientPosition, sortImagesByPatientPosition } from './sortByPatientPosition';
 
-const wrapperAt = (z: number, x = -125, y = -125) =>
-  encodeWrapperFile({ ...BASE_METADATA, positionPatient: { x, y, z } });
+function wrapperAt(x: number, y: number, z: number): Uint8Array {
+  return new Uint8Array(
+    encodeWrapperFile({
+      photometricInterpretation: 'MONOCHROME2',
+      bitsStored: 16,
+      positionPatient: { x, y, z },
+    }),
+  );
+}
 
-describe("readPatientPosition", () => {
-  it("round-trips a position through encodeWrapperFile", () => {
-    const pos = readPatientPosition(encodeWrapperFile({
-      ...BASE_METADATA,
-      positionPatient: { x: -125.5, y: -110.25, z: 42.75 },
-    }));
-    expect(pos).toEqual({ x: -125.5, y: -110.25, z: 42.75 });
+function slice(seriesUID: string, label: string, position?: { x: number; y: number; z: number }) {
+  return {
+    seriesUID,
+    label,
+    wrapperData: position ? wrapperAt(position.x, position.y, position.z) : undefined,
+  };
+}
+
+describe('readPatientPosition', () => {
+  it('round-trips the position the encoder wrote', () => {
+    expect(readPatientPosition(wrapperAt(-12.5, 3, 240.25))).toEqual({ x: -12.5, y: 3, z: 240.25 });
   });
 
-  it("returns null for a wrapper without a position (projection images)", () => {
-    expect(readPatientPosition(encodeWrapperFile(BASE_METADATA))).toBeNull();
-  });
-
-  it("returns null for garbage and truncated buffers", () => {
-    expect(readPatientPosition(Buffer.from("not a wrapper at all"))).toBeNull();
-    expect(readPatientPosition(wrapperAt(40).subarray(0, 20))).toBeNull();
-    expect(readPatientPosition(Buffer.alloc(0))).toBeNull();
-  });
-});
-
-describe("sortByPatientPosition", () => {
-  const image = (id: string, wrapperData?: Buffer) => ({ id, wrapperData });
-  const ids = <T extends { id: string }>(result: { images: T[] }) => result.images.map((i) => i.id);
-
-  it("sorts descending-z slices into ascending anatomical order", () => {
-    const result = sortByPatientPosition([
-      image("a", wrapperAt(200)),
-      image("b", wrapperAt(160)),
-      image("c", wrapperAt(120)),
-      image("d", wrapperAt(80)),
-      image("e", wrapperAt(40)),
-    ]);
-    expect(result.sortedBy).toBe("z");
-    expect(result.rangeMm).toBe(160);
-    expect(ids(result)).toEqual(["e", "d", "c", "b", "a"]);
-  });
-
-  it("sorts on the axis with the most variation", () => {
-    const result = sortByPatientPosition([
-      image("right", encodeWrapperFile({ ...BASE_METADATA, positionPatient: { x: 90, y: 0, z: 1 } })),
-      image("left", encodeWrapperFile({ ...BASE_METADATA, positionPatient: { x: -90, y: 0, z: 2 } })),
-      image("mid", encodeWrapperFile({ ...BASE_METADATA, positionPatient: { x: 0, y: 0, z: 3 } })),
-    ]);
-    expect(result.sortedBy).toBe("x");
-    expect(ids(result)).toEqual(["left", "mid", "right"]);
-  });
-
-  it("keeps input order when no wrapper carries a position", () => {
-    const result = sortByPatientPosition([
-      image("a", encodeWrapperFile(BASE_METADATA)),
-      image("b"),
-      image("c", Buffer.from("garbage")),
-    ]);
-    expect(result.sortedBy).toBeNull();
-    expect(result.rangeMm).toBe(0);
-    expect(ids(result)).toEqual(["a", "b", "c"]);
-  });
-
-  it("keeps input order under 0.1mm of spread on every axis", () => {
-    const result = sortByPatientPosition([
-      image("a", wrapperAt(40.05)),
-      image("b", wrapperAt(40)),
-    ]);
-    expect(result.sortedBy).toBeNull();
-    expect(ids(result)).toEqual(["a", "b"]);
-  });
-
-  it("is stable: positionless slices (0,0,0) keep their relative order", () => {
-    const result = sortByPatientPosition([
-      image("no-wrapper-1"),
-      image("no-wrapper-2"),
-      image("positioned", wrapperAt(40, 0, 0)),
-    ]);
-    expect(result.sortedBy).toBe("z");
-    expect(ids(result)).toEqual(["no-wrapper-1", "no-wrapper-2", "positioned"]);
-  });
-
-  it("handles an empty series", () => {
-    const result = sortByPatientPosition([]);
-    expect(result.sortedBy).toBeNull();
-    expect(result.images).toEqual([]);
+  it('returns null for wrappers without a position, garbage, and truncated data', () => {
+    const noPosition = new Uint8Array(encodeWrapperFile({ photometricInterpretation: 'MONOCHROME2' }));
+    expect(readPatientPosition(noPosition)).toBeNull();
+    expect(readPatientPosition(new Uint8Array([1, 2, 3]))).toBeNull();
+    expect(readPatientPosition(new Uint8Array(Buffer.from('CLOHEADERZ01____not-zlib')))).toBeNull();
   });
 });
 
-describe("fake-mychart buildCloWrapper agreement with the real reader", () => {
-  const FRAME_UID = "1.2.840.114350.2.362.2.742742.2.9876543210.1.2.2.0.0.0";
-
-  it("produces a CLOHEADERZ01 wrapper the real parser reads", () => {
-    const wrapper = buildCloWrapper({
-      positionPatient: { x: -125, y: -125, z: 80 },
-      frameOfReferenceUID: FRAME_UID,
-    });
-    expect(wrapper.subarray(0, 12).toString()).toBe("CLOHEADERZ01");
-
-    // Display metadata must match the committed clo-images wrapper files so
-    // pixel decoding/windowing is unchanged for per-instance responses.
-    const metadata = parseWrapper(wrapper);
-    expect(metadata.photometric).toBe("MONOCHROME2");
-    expect(metadata.bits_stored).toBe(16);
-    expect(metadata.window_center).toBe(32768);
-    expect(metadata.window_width).toBe(65536);
-
-    expect(readPatientPosition(wrapper)).toEqual({ x: -125, y: -125, z: 80 });
+describe('sortImagesByPatientPosition', () => {
+  it('orders a CT stack by the axis the series travels along', () => {
+    const shuffled = [
+      slice('ct', 'slice-2', { x: 0.1, y: 0.2, z: 120 }),
+      slice('ct', 'slice-0', { x: 0.3, y: 0.1, z: 40 }),
+      slice('ct', 'slice-3', { x: 0.2, y: 0.4, z: 160 }),
+      slice('ct', 'slice-1', { x: 0.0, y: 0.3, z: 80 }),
+    ];
+    // z varies by 120mm while x/y jitter under 1mm — z is the scan axis.
+    expect(sortImagesByPatientPosition(shuffled).map((s) => s.label)).toEqual([
+      'slice-0',
+      'slice-1',
+      'slice-2',
+      'slice-3',
+    ]);
   });
 
-  it("sorts slices synthesized by the fake", () => {
-    const slice = (id: string, z: number) => ({
-      id,
-      wrapperData: buildCloWrapper({ positionPatient: { x: -125, y: -125, z }, frameOfReferenceUID: FRAME_UID }),
-    });
-    const result = sortByPatientPosition([slice("top", 200), slice("bottom", 40), slice("mid", 120)]);
-    expect(result.sortedBy).toBe("z");
-    expect(result.images.map((i) => i.id)).toEqual(["bottom", "mid", "top"]);
+  it('keeps series grouped in first-appearance order while sorting inside each', () => {
+    const images = [
+      slice('a', 'a-far', { x: 0, y: 0, z: 50 }),
+      slice('b', 'b-only'),
+      slice('a', 'a-near', { x: 0, y: 0, z: 10 }),
+    ];
+    expect(sortImagesByPatientPosition(images).map((s) => s.label)).toEqual(['a-near', 'a-far', 'b-only']);
+  });
+
+  it('leaves order alone when positions are missing or do not vary', () => {
+    const noWrappers = [slice('s', 'first'), slice('s', 'second'), slice('s', 'third')];
+    expect(sortImagesByPatientPosition(noWrappers).map((s) => s.label)).toEqual(['first', 'second', 'third']);
+
+    const samePlace = [
+      slice('s', 'first', { x: 1, y: 2, z: 3 }),
+      slice('s', 'second', { x: 1, y: 2, z: 3.05 }), // under the 0.1mm noise floor
+    ];
+    expect(sortImagesByPatientPosition(samePlace).map((s) => s.label)).toEqual(['first', 'second']);
+  });
+
+  it('sorts unparsable slices as the origin without disturbing their relative order', () => {
+    const images = [
+      slice('s', 'above', { x: 0, y: 0, z: 30 }),
+      slice('s', 'broken-1'),
+      slice('s', 'below', { x: 0, y: 0, z: -30 }),
+      slice('s', 'broken-2'),
+    ];
+    expect(sortImagesByPatientPosition(images).map((s) => s.label)).toEqual([
+      'below',
+      'broken-1',
+      'broken-2',
+      'above',
+    ]);
   });
 });

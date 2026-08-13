@@ -1976,6 +1976,12 @@ export const ctImaging = {
         { x: -125, y: -125, z: 80 },
         { x: -125, y: -125, z: 40 },
       ],
+      // These wrappers additionally carry the constructs a flat scalar object
+      // never reaches, each a distinct AMF3 decode path: a VOI LUT whose table
+      // is a byte array, annotation overlays inside externalizable
+      // ArrayCollection nodes, and ImagePhaseInfo -1 sentinels (negative
+      // integers, which only a sign-extending reader gets right).
+      richWrapperMetadata: true,
     },
     {
       seriesUID: '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333',

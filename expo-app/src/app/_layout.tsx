@@ -46,8 +46,11 @@ function RootLayoutNav() {
         const { refreshMemory } = await import("@/lib/memory/builder");
         for (const a of due) {
           lastRefreshAt.current.set(a.id, now);
-          refreshMemory(a.id).catch((err) =>
-            console.warn(`[memory] refresh failed for ${a.id}:`, err.message),
+          refreshMemory(a.id).catch((err: unknown) =>
+            console.warn(
+              `[memory] refresh failed for ${a.id}:`,
+              err instanceof Error ? err.message : err,
+            ),
           );
         }
       } catch (err) {
@@ -79,7 +82,7 @@ export default function RootLayout() {
     // with no trace of why.
     initDatabase()
       .then(() => setDbReady(true))
-      .catch((err) => console.error("[db] initDatabase failed:", err));
+      .catch((err: unknown) => console.error("[db] initDatabase failed:", err));
   }, []);
 
   if (!dbReady) return null;

@@ -16,27 +16,28 @@
  * arrays, byte arrays, vectors and dictionaries. Externalizable classes
  * carry custom binary bodies that cannot be skipped generically, so only the
  * ones eUnity actually sends are supported (flex.messaging.io.ArrayCollection
- * and ObjectProxy wrap a single AMF3 value; StudyListResponse has its own
- * layout, below); an unknown externalizable class throws, and callers fall
- * back to the heuristic parser.
+ * and ObjectProxy wrap a single AMF3 value; StudyListRequest and
+ * StudyListResponse have their own layouts, below); an unknown externalizable
+ * class throws, and callers fall back to their own recovery path.
  *
- * This is one of THREE AMF3 readers in the repo, and each exists for a reason
- * — do not dedupe them without reading the other two first:
+ * This is the repo's ONLY AMF3 reader, and every caller decodes strictly —
+ * there is no lenient mode. Resilience belongs at the call site, where each
+ * caller knows what a failed decode should cost:
  *
- * - clo-image-parser/clo_to_bitmap.ts has a *lenient* reader for CLO wrapper
- *   metadata: it swallows malformed tails so a truncated wrapper still yields
- *   windowing metadata, treats every externalizable as wrapping one value,
- *   and doesn't sign-extend integers. Those failure semantics are right for
- *   pixel metadata and wrong here, where a misdecoded UID must surface as an
- *   error (→ heuristic fallback), never as a plausible-but-wrong download
- *   request. (Folding that one into this one behind a `lenient` option is a
- *   reasonable future unification; the third reader is different.)
- * - __tests__/imagingDirectDownload.unit.test.ts has an *independent oracle*
- *   reader, derived from the AMF3 spec rather than from any code in this
- *   repo, that pins the request writer's bytes. Replacing it with this class
- *   would silently destroy the property that makes it evidence: an encoder
- *   checked against a decoder that grew up next to it agrees with any shared
- *   misreading of the spec.
+ * - getStudyListMeta responses (imagingDirectDownload.ts): a throw falls back
+ *   to the heuristic UID scan. A misdecoded UID must surface as an error,
+ *   never as a plausible-but-wrong download request.
+ * - CLO wrapper metadata (clo-image-parser/clo_to_bitmap.ts parseWrapper and
+ *   sortByPatientPosition.ts): a throw falls back to text-based photometric
+ *   detection / the server's image order. The image still renders; only
+ *   windowing or slice order degrades, and the fallback logs itself.
+ *
+ * The writer test (__tests__/imagingDirectDownload.unit.test.ts) also decodes
+ * frames with this class. What keeps that from being an encoder checked
+ * against its own mirror image is the pinned GOLDEN_FRAME_HEX fixture there:
+ * the exact bytes of a frame a real eUnity server accepted. A shared
+ * misreading of the AMF3 spec between writer and reader cannot survive a
+ * byte-for-byte comparison against a server-verified capture.
  */
 
 /** A decoded AMF3 typed object. Sealed and dynamic members become plain properties. */
@@ -70,6 +71,17 @@ const EXTERNALIZABLE_READERS: Record<string, (r: Amf3Reader) => unknown> = {
   // ArrayCollection and ObjectProxy both externalize as exactly one wrapped AMF3 value.
   'flex.messaging.io.ArrayCollection': (r) => r.readValue(),
   'flex.messaging.io.ObjectProxy': (r) => r.readValue(),
+  // StudyListRequest externalizes as: a 4-byte big-endian format header
+  // (value 2), a method-qualifier string ("getStudyList"), a version string
+  // ("1.2.0"), then the payload object. Mirrors the layout the AMF3Writer in
+  // imagingDirectDownload.ts emits; the writer test decodes its frames back
+  // through this reader.
+  'com.clientoutlook.web.metaservices.StudyListRequest': (r) => ({
+    header: r.readBE32(),
+    qualifier: r.readValue(),
+    version: r.readValue(),
+    payload: r.readValue(),
+  }),
   // StudyListResponse externalizes as: a 4-byte big-endian format header
   // (observed value 2, matching the StudyListRequest the writer builds), a
   // DataRequestStatus value, a version string ("1.0.0"), a second 4-byte
