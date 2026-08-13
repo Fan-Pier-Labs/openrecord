@@ -7,7 +7,7 @@ function mockRequest(body: string) {
   req.firstPathPart = 'MyChart'
   req.transport = mock(async () => {
     return new Response(body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -161,7 +161,7 @@ function mockRedirectingRequest(status: number, location: string, destinationBod
       return new Response('', { status, headers: { location } })
     }
     return new Response(destinationBody, { status: 200 })
-  }) as typeof req.transport
+  })
   return { req, urls }
 }
 
@@ -241,6 +241,6 @@ function mockSequence(bodies: string[]) {
   req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
     return new Response(bodies[i++] ?? '', { status: 200 })
-  }) as typeof req.transport
+  })
   return { req, calls }
 }

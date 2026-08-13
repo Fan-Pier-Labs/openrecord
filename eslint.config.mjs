@@ -28,6 +28,7 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect

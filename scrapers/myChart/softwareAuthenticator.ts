@@ -322,8 +322,8 @@ export function createCredential(
     publicKeyEncoding: { type: 'spki', format: 'der' },
     privateKeyEncoding: { type: 'pkcs8', format: 'der' },
   });
-  const publicKeyBuf = toBuffer(publicKey as unknown as Buffer | ArrayBuffer);
-  const privateKeyBuf = toBuffer(privateKey as unknown as Buffer | ArrayBuffer);
+  const publicKeyBuf = toBuffer(publicKey);
+  const privateKeyBuf = toBuffer(privateKey);
 
   // Generate a random credential ID (32 bytes)
   const credentialId = crypto.randomBytes(32);

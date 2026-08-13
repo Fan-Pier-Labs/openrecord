@@ -35,7 +35,7 @@ afterEach(() => {
 function fakeSession(hostname = 'mychart.example.org') {
   const req = new MyChartRequest(hostname)
   req.firstPathPart = 'MyChart'
-  req.transport = mock(async () => new Response('1', { status: 200 })) as typeof req.transport
+  req.transport = mock(async () => new Response('1', { status: 200 }))
   return req
 }
 
@@ -123,7 +123,7 @@ describe('persistSession', () => {
     const req = fakeSession()
     req.serialize = (async () => {
       throw new Error('boom')
-    }) as typeof req.serialize
+    })
 
     await expect(
       sessionManager.persistSession('mychart.example.org', 'homer', req),
