@@ -83,26 +83,73 @@ describe('list_accounts', () => {
 
     expect(parse(await call('list_accounts')).accounts).toHaveLength(2)
   })
+
+  it('lists two logins on one hostname as separate accounts with qualified ids', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'y' })
+
+    const accounts = parse(await call('list_accounts')).accounts
+    expect(accounts.map((a: { account: string }) => a.account).sort()).toEqual([
+      'homer@mychart.example.org',
+      'marge@mychart.example.org',
+    ])
+  })
+
+  it('reports hasPasskey per login, not per hostname', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'y' })
+    store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"homers"}')
+
+    const accounts = parse(await call('list_accounts')).accounts
+    const byUser = Object.fromEntries(
+      accounts.map((a: { username: string; hasPasskey: boolean }) => [a.username, a.hasPasskey]),
+    )
+    expect(byUser).toEqual({ homer: true, marge: false })
+  })
 })
 
 describe('disconnect_account', () => {
-  it('removes a configured account', async () => {
+  it('removes a configured account by bare hostname when unambiguous', async () => {
     store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
 
     await call('disconnect_account', { account: 'mychart.example.org' })
 
-    expect(store.findAccount('mychart.example.org')).toBeUndefined()
+    expect(store.findAccount('mychart.example.org', 'homer')).toBeUndefined()
   })
 
   it('takes the stored passkey and session with it', async () => {
     store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
-    store.saveAccountPasskey('mychart.example.org', '{"cred":"abc"}')
-    store.saveAccountSession('mychart.example.org', 'cookies')
+    store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"abc"}')
+    store.saveAccountSession('mychart.example.org', 'homer', 'cookies')
 
     await call('disconnect_account', { account: 'mychart.example.org' })
 
-    expect(store.readAccountPasskey('mychart.example.org')).toBeUndefined()
-    expect(store.readAccountSession('mychart.example.org')).toBeUndefined()
+    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBeUndefined()
+    expect(store.readAccountSession('mychart.example.org', 'homer')).toBeUndefined()
+  })
+
+  it('forgets only the named login, leaving the hostname\'s other login intact', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'y' })
+    store.saveAccountPasskey('mychart.example.org', 'marge', '{"cred":"marges"}')
+
+    await call('disconnect_account', { account: 'homer@mychart.example.org' })
+
+    expect(store.findAccount('mychart.example.org', 'homer')).toBeUndefined()
+    expect(store.findAccount('mychart.example.org', 'marge')).toBeDefined()
+    expect(store.readAccountPasskey('mychart.example.org', 'marge')).toBe('{"cred":"marges"}')
+  })
+
+  it('refuses a bare hostname shared by several logins, naming the candidates', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'y' })
+
+    const result = await call('disconnect_account', { account: 'mychart.example.org' })
+
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('homer@mychart.example.org')
+    expect(text(result)).toContain('marge@mychart.example.org')
+    expect(store.readAccounts()).toHaveLength(2)
   })
 
   it('is not an error to disconnect something that was never connected', async () => {

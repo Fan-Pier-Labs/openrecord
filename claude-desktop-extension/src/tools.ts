@@ -58,6 +58,8 @@ import {
   adoptSession,
 } from './session-manager';
 import {
+  accountId,
+  lookupAccount,
   readAccounts,
   readAccountPasskey,
   removeAccount,
@@ -65,7 +67,6 @@ import {
   saveAccountPasskey,
   saveAccountTotpSecret,
   normalizeHostname,
-  findAccount,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { encodeStudyJpegs } from './imaging/download-study';
@@ -101,10 +102,13 @@ function errorResult(message: string): ToolResult {
  */
 async function tryAutoRegisterPasskey(
   hostname: string,
+  username: string,
   session: MyChartRequest,
 ): Promise<{ registered: boolean; reason?: string }> {
   const key = normalizeHostname(hostname);
-  if (readAccountPasskey(key)) {
+  // Passkeys are per (hostname, username): another user's passkey on the same
+  // hostname must not suppress this one's registration.
+  if (readAccountPasskey(key, username)) {
     return { registered: false, reason: 'already_saved' };
   }
   try {
@@ -112,7 +116,7 @@ async function tryAutoRegisterPasskey(
     if (!credential) {
       return { registered: false, reason: 'instance_returned_no_credential' };
     }
-    saveAccountPasskey(key, serializeCredential(credential));
+    saveAccountPasskey(key, username, serializeCredential(credential));
     return { registered: true };
   } catch (err) {
     return { registered: false, reason: `error: ${(err as Error).message}` };
@@ -159,14 +163,15 @@ function zodForParam(param: CapabilityParam): ZodTypeAny {
  * (TOTP setup/disable, passkey registration). Reads the MCPB's own credential
  * store; the registry never knows where any of it lives.
  */
-function contextFor(hostname: string): CapabilityContext {
-  const key = normalizeHostname(hostname);
-  const account = findAccount(key);
+function contextFor(ref: string): CapabilityContext {
+  const lookup = lookupAccount(ref);
+  if (lookup.state !== 'found') return {};
+  const { hostname, username } = lookup.account;
   return {
-    password: account?.password,
-    totpSecret: account?.totpSecret,
-    saveTotpSecret: (secret: string) => { saveAccountTotpSecret(key, secret); },
-    savePasskey: (serialized: string) => saveAccountPasskey(key, serialized),
+    password: lookup.account.password,
+    totpSecret: lookup.account.totpSecret,
+    saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
+    savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
   };
 }
 
@@ -280,19 +285,19 @@ export function registerAllTools(server: McpServer): void {
     'list_accounts',
     {
       title: 'List configured accounts',
-      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `hostname` as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
+      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool; a bare hostname also works when only one login is saved for it. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
       inputSchema: {} as ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {
       const accounts = readAccounts();
       const accountList = accounts.map(a => ({
-        account: a.hostname,
+        account: accountId(a),
         hostname: a.hostname,
         username: a.username,
         configured: true,
-        sessionActive: isConnected(a.hostname),
-        hasPasskey: !!readAccountPasskey(a.hostname),
+        sessionActive: isConnected(accountId(a)),
+        hasPasskey: !!readAccountPasskey(a.hostname, a.username),
         hasTotpSecret: !!a.totpSecret,
       }));
 
@@ -315,7 +320,7 @@ export function registerAllTools(server: McpServer): void {
           type: 'text',
           text:
             '\nThese accounts are already configured — credentials are stored on disk. ' +
-            'Call data tools directly with `account: <hostname>`; login + 2FA happen automatically via the saved passkey or password. ' +
+            'Call data tools directly with `account: <the account id above>`; login + 2FA happen automatically via the saved passkey or password. ' +
             'DO NOT re-prompt the user for username, password, or hostname. ' +
             '`sessionActive: false` just means no in-memory session yet; the next tool call will create one transparently.',
         });
@@ -383,11 +388,11 @@ export function registerAllTools(server: McpServer): void {
 
         if (result.state === 'logged_in') {
           upsertAccount({ hostname: normalizeHostname(hostname), username, password });
-          await adoptSession(hostname, result.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(hostname, result.mychartRequest);
+          await adoptSession(hostname, username, result.mychartRequest);
+          const passkey = await tryAutoRegisterPasskey(hostname, username, result.mychartRequest);
           return jsonResult({
             state: 'logged_in',
-            account: normalizeHostname(hostname),
+            account: accountId({ hostname, username }),
             passkey_registered: passkey.registered,
             passkey_reason: passkey.reason ?? null,
             message: passkey.registered
@@ -457,11 +462,11 @@ export function registerAllTools(server: McpServer): void {
         });
         if (twoFa.state === 'logged_in') {
           upsertAccount({ hostname: pending.hostname, username: pending.username, password: pending.password });
-          await adoptSession(pending.hostname, twoFa.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(pending.hostname, twoFa.mychartRequest);
+          await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
+          const passkey = await tryAutoRegisterPasskey(pending.hostname, pending.username, twoFa.mychartRequest);
           return jsonResult({
             state: 'logged_in',
-            account: pending.hostname,
+            account: accountId(pending),
             passkey_registered: passkey.registered,
             passkey_reason: passkey.reason ?? null,
             message: passkey.registered
@@ -503,18 +508,24 @@ export function registerAllTools(server: McpServer): void {
     'disconnect_account',
     {
       title: 'Forget a MyChart account',
-      description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this hostname.',
+      description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this login only — other usernames saved for the same hostname are untouched.',
       inputSchema: {
-        account: z.string().describe('MyChart hostname (the account from list_accounts).'),
+        account: z.string().describe('Account id from list_accounts (`username@hostname`; a bare hostname works when only one login is saved for it).'),
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     async ({ account }) => {
-      clearSession(account);
-      const removed = removeAccount(account);
-      const known = findAccount(account);
-      if (!removed && !known) return textResult(`No saved account for ${account}.`);
-      return textResult(`Forgot ${normalizeHostname(account)}. Credentials, passkey, and session cache have been deleted from disk.`);
+      const lookup = lookupAccount(account);
+      if (lookup.state === 'ambiguous') {
+        return errorResult(
+          `"${account}" matches several saved logins: ${lookup.candidates.join(', ')}. Pass the one to forget.`,
+        );
+      }
+      if (lookup.state === 'not_found') return textResult(`No saved account for ${account}.`);
+      const id = accountId(lookup.account);
+      clearSession(id);
+      removeAccount(lookup.account.hostname, lookup.account.username);
+      return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
     },
   );
 

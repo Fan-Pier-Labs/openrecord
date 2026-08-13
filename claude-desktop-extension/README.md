@@ -63,8 +63,12 @@ same setup sequence using ordinary tool calls:
    skip the password and 2FA prompts entirely.
 
 After setup, every data tool takes a required `account` parameter (the
-MyChart hostname returned by `list_accounts`). Multiple accounts can be
-active at the same time — just pass a different `account` per call.
+account id returned by `list_accounts` — `username@hostname`; a bare hostname
+also works while only one login is saved for it). Multiple accounts can be
+active at the same time — just pass a different `account` per call. That
+includes several logins on the *same* hostname (a household sharing one
+health system): each keeps its own credentials, passkey, and session, and a
+hostname shared by several logins must be qualified rather than guessed at.
 
 The data tools are not listed anywhere in this package. They are generated
 from the shared capability registry (`shared/capabilities.ts`), which is also
@@ -100,10 +104,14 @@ different family member's record than the one the call is about.
   on the user's machine.
 - **Pure JS** — no `sharp`, no `keytar`, no `sqlite3`. CLO → JPEG imaging
   conversion uses [`jpeg-js`](https://www.npmjs.com/package/jpeg-js).
-- **Local storage** — credentials and sessions live at `~/.openrecord-mcpb/`:
-  - `accounts.json` — username/password (file mode 0600)
-  - `passkeys/<hostname>.json` — WebAuthn credentials
-  - `sessions/<hostname>.json` — serialized cookie jars for fast resume
+- **Local storage** — credentials and sessions live at `~/.openrecord-mcpb/`,
+  keyed by (hostname, username) so several logins on one hostname never share
+  or overwrite each other's identity:
+  - `accounts.json` — username/password rows (file mode 0600)
+  - `passkeys/<hostname>/<username>.json` — WebAuthn credentials
+  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast resume
+  - flat `passkeys/<hostname>.json` / `sessions/<hostname>.json` files from
+    older versions are migrated to the per-login layout automatically
 
 ## File layout
 
