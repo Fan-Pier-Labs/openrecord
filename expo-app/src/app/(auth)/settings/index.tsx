@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   getMyChartAccounts,
   removeMyChartAccount,
@@ -38,7 +39,7 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadSettings();
+      fireAndForget(loadSettings(), "settings:load");
     }, [])
   );
 

@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChatBubble, ToolCallIndicator } from "@/components/ChatBubble";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import { ChatInput } from "@/components/ChatInput";
 import { LeftDrawer } from "@/components/LeftDrawer";
 import { sendMessage, type ChatMessage } from "@/lib/ai/claude-client";
@@ -46,10 +47,13 @@ export default function ChatDetailScreen() {
 
   useEffect(() => {
     if (chatId) {
-      void loadMessages();
-      void getChat(chatId).then((c) => {
-        titleSetRef.current = !!c && c.title !== "New Chat";
-      });
+      fireAndForget(loadMessages(), "chat:loadMessages");
+      fireAndForget(
+        getChat(chatId).then((c) => {
+          titleSetRef.current = !!c && c.title !== "New Chat";
+        }),
+        "chat:getChat",
+      );
     }
   }, [chatId]);
 

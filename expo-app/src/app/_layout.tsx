@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { initDatabase } from "@/lib/storage/database";
@@ -54,9 +55,9 @@ function RootLayoutNav() {
     }
 
     // Run once on mount (covers cold start) and on every transition to active.
-    void maybeRefreshAll();
+    fireAndForget(maybeRefreshAll(), "memory:refresh");
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") void maybeRefreshAll();
+      if (state === "active") fireAndForget(maybeRefreshAll(), "memory:refresh");
     });
     return () => sub.remove();
   }, [isAuthenticated]);

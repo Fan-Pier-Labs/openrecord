@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   setSecureValue,
   getClaudeApiKey,
@@ -38,7 +39,7 @@ export default function OnboardingScreen() {
   // Dev shortcut: BYO Claude key + Google session → straight to chat.
   // Also pre-warm the MyChart instance list so the picker is instant.
   useEffect(() => {
-    void (async () => {
+    fireAndForget((async () => {
       const [byoKey, session] = await Promise.all([
         getClaudeApiKey(),
         getBackendSession(),
@@ -50,7 +51,7 @@ export default function OnboardingScreen() {
         return;
       }
       prefetchInstances().catch(() => undefined);
-    })();
+    })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
 
   async function finishSetup() {
