@@ -258,7 +258,15 @@ The intermediate bitmap is also where you apply your own VOI LUT / windowing.
   `setup_account`, `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
   with the parameter list translated to zod. Includes an interactive setup widget with a tool-call
-  fallback for non-widget clients. Credentials live in `~/.openrecord-mcpb/`. Ships a built-in
+  fallback for non-widget clients. Credentials live in `~/.openrecord-mcpb/`, **keyed by (hostname,
+  username), never by hostname alone** — one hostname routinely carries several logins (a household
+  sharing a health system), and each keeps its own `accounts.json` row, passkey file
+  (`passkeys/<hostname>/<username>.json`) and session file. Setting up a second username never
+  replaces or deletes the first one's login data: a hostname-keyed passkey would hand the previous
+  user's WebAuthn credential to whoever registered last, and silent login would then read the wrong
+  patient's chart. The account id tools accept is `username@hostname`, resolved by `lookupAccount`
+  in `src/credential-store.ts` on a perfect hostname + username match or not at all — no
+  hostname-only or fuzzy fallback. Ships a built-in
   **Springfield General Hospital (test)** instance pointing at `fake-mychart.fanpierlabs.com`. See
   `claude-desktop-extension/README.md`.
 - **Mobile app** (`expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the

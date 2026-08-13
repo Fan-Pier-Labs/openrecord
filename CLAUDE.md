@@ -56,7 +56,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 
 | Command | What it does |
 | --- | --- |
-| `bun run lint` | ESLint |
+| `bun run lint` | ESLint — **type-aware**, so every package's deps must be installed first or the rules silently stop seeing typed imports. See [`docs/testing.md`](docs/testing.md#lint) |
 | `bun run typecheck` | Typecheck the shared core (strict). CI also runs `expo-app` and `npm-package` (the latter needs `bun run build` first) |
 | `bun run test` | Every `*.unit.test.ts`. **Needs `cd claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
@@ -65,7 +65,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run cli mychart [flags]` | Run the CLI scraper |
 | `bun run cli --list-capabilities` | Every capability and the arguments it takes |
 | `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
-| `cd fake-mychart && bun run dev` | Fake MyChart on port 4000 (`homer`/`donuts123`; `marge` for 2FA) |
+| `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |

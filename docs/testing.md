@@ -1,5 +1,19 @@
 # Testing
 
+## Lint
+
+`bun run lint` is **type-aware** (typescript-eslint `projectService`): each file is resolved against
+its package's tsconfig, so every package's deps must be installed first (`expo-app`, `npm-package`,
+`claude-desktop-extension`). A missing `node_modules` degrades imports to `any` and the type-aware
+rules silently stop seeing them — lint passes while checking less.
+
+Files no tsconfig includes (build configs, `dev-scripts/`, excluded test dirs) are listed in
+`allowDefaultProject` in `eslint.config.mjs`; a new stray file fails lint with a "not found by the
+project service" error until it's added there or to a tsconfig.
+
+`@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
+`.rejects`/`.resolves` matchers as `void`, but awaiting them is load-bearing at runtime.
+
 ## Test suites
 
 **A test file's *filename* decides which suite it belongs to, not its folder.** Every test file in

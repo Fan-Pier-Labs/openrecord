@@ -7,7 +7,7 @@
 # it needs a fake-mychart on :4000, which is why the CI step lives in the
 # `fake-mychart` job. Measuring only the unit suite counted every scraper that is
 # covered end-to-end as untested and put the number ~10 points low. Run it
-# locally with `cd fake-mychart && bun run dev` first.
+# locally with `cd fake-mychart && PORT=4000 bun run dev` first.
 # `tests/integration/ci` stays out: it drives the built CLI binary as a
 # subprocess, so nothing there is instrumented.
 
