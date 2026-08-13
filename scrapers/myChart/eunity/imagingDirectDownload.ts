@@ -13,11 +13,11 @@
  *
  * Protocol reverse-engineered from eUnity's Dart/WASM viewer network traffic.
  */
-import * as tough from 'tough-cookie';
+import type * as tough from 'tough-cookie';
 import * as fs from 'fs';
 import * as path from 'path';
-import { MyChartRequest } from '../myChartRequest';
-import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
+import { type MyChartRequest } from '../myChartRequest';
+import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 

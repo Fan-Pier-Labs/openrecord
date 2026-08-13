@@ -1,6 +1,6 @@
 
 
-import { MockData } from "./types";
+import { type MockData } from "./types";
 
 
 // This should be the full HTML page of the test results page.

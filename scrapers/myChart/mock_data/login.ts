@@ -1,8 +1,8 @@
 
 
 
-import { RequestConfig } from "../types";
-import { MockData } from "./types";
+import { type RequestConfig } from "../types";
+import { type MockData } from "./types";
 
 
 // TODO: In the future we could add checks to make sure the credentials are correct and return a different response if they're not correct.

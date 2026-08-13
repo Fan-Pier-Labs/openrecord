@@ -31,7 +31,7 @@
 
 import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import { type MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
 import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
