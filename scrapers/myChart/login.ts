@@ -898,15 +898,15 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
   let invalidCode = false;
 
-  for (const code of sortedCodes) {
-    logger.debug('Trying code with score', code.score)
+  for (const candidate of sortedCodes) {
+    logger.debug('Trying code with score', candidate.score)
     const resp = await mychartRequest.makeRequest({
       path: "/Authentication/SecondaryValidation/Validate?noCache=" + Math.random(),
       "headers": { 
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         '__RequestVerificationToken': requestVerificationToken,
       },
-      "body": "TwoFactorCode=" + code.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
+      "body": "TwoFactorCode=" + candidate.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
       "method": "POST",
     });
 
@@ -942,7 +942,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
     if (respBody.TwoFactorCodeFailReason === 'codewrong') {
       // wrong code!
-      logger.debug('wrong code! score:', code.score)
+      logger.debug('wrong code! score:', candidate.score)
       invalidCode = true;
     }
   }
