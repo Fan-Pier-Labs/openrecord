@@ -39,7 +39,7 @@ export async function generateChatTitle(messages: ChatMessage[]): Promise<string
   if (!cleaned) return null;
   if (/^skip$/i.test(cleaned)) return null;
 
-  const firstLine = cleaned.split("\n")[0].trim();
+  const firstLine = (cleaned.split("\n")[0] ?? "").trim();
   const words = firstLine.split(/\s+/).slice(0, MAX_TITLE_WORDS);
   const title = words.join(" ").replace(/[.!?]+$/, "");
   if (!title || /^skip$/i.test(title)) return null;
