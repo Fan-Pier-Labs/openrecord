@@ -27,7 +27,7 @@ async function getReportContent(mychartRequest: MyChartRequest, reportDetails: R
     "method": "POST",
   });
 
-  return await res.json();
+  return res.json();
 }
 
 async function getRequestVerificationToken(mychartRequest: MyChartRequest) {

@@ -145,8 +145,8 @@ simulator rules — one-shot commands, never multi-step YAML, never the macOS mo
 **`xcrun simctl io recordVideo` records the screen** natively to h264. Playwright is
 not involved.
 
-1. **Own a fresh simulator** — follow the "Starting a sim session" recipe in CLAUDE.md
-   exactly (create `claude-<date>-<random>`, boot, `open -a Simulator`, export
+1. **Own a fresh simulator** — follow the "Starting a sim session" recipe in
+   `docs/ios-simulator.md` exactly (create `claude-<date>-<random>`, boot, `open -a Simulator`, export
    `MAESTRO_UDID`). Never record or drive another session's sim.
 
 2. **Build the PR's app onto it** from the PR worktree:

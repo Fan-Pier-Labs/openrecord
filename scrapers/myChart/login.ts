@@ -1106,8 +1106,8 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
 
 export async function areCookiesValid(mychartRequest: MyChartRequest): Promise<boolean> {
   const res = await mychartRequest.makeRequest({path: '/Home', followRedirects: false})
-  logger.debug("are cookies valid?", res.status == 200, res.headers.get('Location'))
-  return res.status == 200
+  logger.debug("are cookies valid?", res.status === 200, res.headers.get('Location'))
+  return res.status === 200
 }
 
 async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, user: string, pass: string}): Promise<MyChartRequest> {
@@ -1129,7 +1129,7 @@ async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, u
 
 export async function login_TEST(hostname: string): Promise<MyChartRequest> {
   const { changeDirToPackageRoot } = await import("../../shared/util");
-  await changeDirToPackageRoot()
+  changeDirToPackageRoot()
 
 
   let mychartRequest = new MyChartRequest(hostname);
