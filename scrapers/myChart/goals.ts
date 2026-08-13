@@ -25,8 +25,13 @@ type GoalResponse = {
   targetDate?: string;
 };
 
+// Real MyChart keys each endpoint's list by its own name — `careTeamGoals`
+// from LoadCareTeamGoals and `patientGoals` from LoadPatientGoals. (An earlier
+// version read a `goals` key that only the fake served, so this scraper
+// returned nothing against every real instance.)
 type LoadGoalsResponse = {
-  goals?: GoalResponse[];
+  careTeamGoals?: GoalResponse[];
+  patientGoals?: GoalResponse[];
 };
 
 function mapGoals(goals: GoalResponse[], source: 'care_team' | 'patient'): Goal[] {
@@ -75,7 +80,7 @@ export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsRes
   const patientJson: LoadGoalsResponse = await patientResp.json();
 
   return {
-    careTeamGoals: mapGoals(careTeamJson.goals || [], 'care_team'),
-    patientGoals: mapGoals(patientJson.goals || [], 'patient'),
+    careTeamGoals: mapGoals(careTeamJson.careTeamGoals || [], 'care_team'),
+    patientGoals: mapGoals(patientJson.patientGoals || [], 'patient'),
   };
 }

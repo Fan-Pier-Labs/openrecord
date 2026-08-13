@@ -24,8 +24,8 @@ describe('getEhiExportTemplates', () => {
       { body: '<input name="__RequestVerificationToken" value="t" />' },
       {
         body: JSON.stringify({
-          templates: [
-            { id: 'T1', name: 'Full Health Record', description: 'Complete EHI export', format: 'FHIR' },
+          ehieTemplates: [
+            { id: 'T1', name: 'Full Health Record', description: 'Complete EHI export', hideAdditionalComments: false },
           ],
         }),
       },
@@ -37,23 +37,22 @@ describe('getEhiExportTemplates', () => {
       id: 'T1',
       name: 'Full Health Record',
       description: 'Complete EHI export',
-      format: 'FHIR',
     })
   })
 
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ templates: [{}] }) },
+      { body: JSON.stringify({ ehieTemplates: [{}] }) },
     ])
     const result = await getEhiExportTemplates(req)
-    expect(result[0]).toEqual({ id: '', name: '', description: '', format: '' })
+    expect(result[0]).toEqual({ id: '', name: '', description: '' })
   })
 
   it('handles empty list', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ templates: [] }) },
+      { body: JSON.stringify({ ehieTemplates: [] }) },
     ])
     expect(await getEhiExportTemplates(req)).toEqual([])
   })
