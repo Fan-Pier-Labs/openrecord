@@ -7,7 +7,7 @@ function mockRequest(body: string) {
   req.firstPathPart = 'MyChart'
   req.transport = mock(async () => {
     return new Response(body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
