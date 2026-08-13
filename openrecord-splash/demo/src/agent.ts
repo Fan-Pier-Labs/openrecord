@@ -324,11 +324,11 @@ export function resolveWriteDetails(
   args: ToolArgs,
 ): { label: string; value: string }[] {
   if (tool !== 'book_appointment') return [];
-  // A non-string slot_id can't match any slot, but the warning row below
-  // quotes it back — JSON shows the patient what the model actually sent,
-  // where String() would have shown "[object Object]".
-  const raw = args.slot_id;
-  const slotId = typeof raw === 'string' ? raw : raw == null ? '' : JSON.stringify(raw);
+  // args is ToolArgs (Record<string, unknown>) — model-emitted JSON, so the
+  // type is unknown by construction. A non-string slot_id matches no slot;
+  // treating it as absent is the same outcome without a String() coercion
+  // that would render "[object Object]" into the confirmation row.
+  const slotId = typeof args.slot_id === 'string' ? args.slot_id : '';
   for (const offer of session.availableAppointments) {
     const slot = offer.slots.find((s) => s.slotId === slotId);
     if (!slot) continue;

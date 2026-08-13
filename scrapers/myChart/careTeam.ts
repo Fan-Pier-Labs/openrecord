@@ -67,13 +67,12 @@ export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareT
          wrapper?.providers ?? wrapper?.ProviderList ?? wrapper?.providerList);
     const list: unknown[] = Array.isArray(unwrapped) ? unwrapped : [];
 
-    // Only a primitive is a usable field value — a nested object here used to
-    // stringify as "[object Object]" and land in the record as a provider name.
-    const field = (v: unknown): string => {
-      if (typeof v === 'string') return v.trim();
-      if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
-      return '';
-    };
+    // Every value here is `unknown`: the response shape varies per instance
+    // (see the six wrapper keys above), so `r` is a bag of unknowns rather
+    // than a typed row. A nested object used to stringify as "[object Object]"
+    // and land in the chart as the provider's NAME; anything but a string is
+    // now treated as no value, and a member with no name is skipped entirely.
+    const field = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
     for (const item of list) {
       const r = item as Record<string, unknown>;

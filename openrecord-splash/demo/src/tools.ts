@@ -194,16 +194,21 @@ export function getToolSpec(name: string): ToolSpec | undefined {
 
 /* ── Argument helpers ───────────────────────────────────────────────── */
 
+/**
+ * Read a string argument out of a model-emitted tool call.
+ *
+ * `ToolArgs` is `Record<string, unknown>` — these come from the model as JSON,
+ * so the type genuinely isn't known here. Bare `String(value)` is what this
+ * replaces: on an object it yields the literal `"[object Object]"`, which the
+ * demo then stored and displayed as if the model had typed it. Numbers and
+ * booleans still coerce (a model answering `5` for a numeric-looking field is
+ * ordinary); anything else is treated as absent.
+ */
 function str(args: ToolArgs, key: string): string {
   const value = args[key];
-  if (value === undefined || value === null) return '';
   if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-    return String(value);
-  }
-  // Model args are untyped; JSON keeps what the model actually sent where
-  // String() on an object would have stored "[object Object]".
-  return JSON.stringify(value) ?? '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
 }
 
 function num(args: ToolArgs, key: string, fallback: number): number {
