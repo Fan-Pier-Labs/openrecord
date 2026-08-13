@@ -11,7 +11,7 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -24,7 +24,7 @@ function mockRequestWithCapture(responses: Array<{ body: string; status?: number
     calls.push({ url: url.toString(), init })
     const r = responses[i++]
     return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.transport
+  })
   return { req, calls }
 }
 

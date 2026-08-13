@@ -45,6 +45,12 @@ jobs:
         run: cd expo-app && bun install
       - name: Install npm-package deps
         run: cd npm-package && bun install
+      # Built before eslint on purpose: npm-package's bundle test imports
+      # dist/index.js, and without it the import degrades to `any` — the
+      # type-aware rules then misjudge that file (e.g. flagging non-null
+      # assertions as vacuous because everything is already `any`).
+      - name: Build npm-package (lint needs dist types)
+        run: cd npm-package && bun run build
       # tests/integration/ci is part of the ROOT tsconfig project (no separate
       # tsconfig on purpose), so both eslint and `bun run typecheck` below need
       # its playwright types resolvable.

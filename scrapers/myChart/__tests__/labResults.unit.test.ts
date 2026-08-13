@@ -13,7 +13,7 @@ function mockRequest(responses: Array<{ body: string }>) {
     captured.push({ url: String(url), body: init?.body ? String(init.body) : undefined })
     const r = responses[Math.min(i++, responses.length - 1)]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+  })
   return { req, captured }
 }
 
@@ -83,7 +83,7 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -404,7 +404,7 @@ describe('listLabResults', () => {
         return new Response(JSON.stringify(null), { status: 200 })
       }
       return new Response('', { status: 200 })
-    }) as typeof req.transport
+    })
 
     await listLabResults(req)
 
