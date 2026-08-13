@@ -137,7 +137,9 @@ function buildSystemPrompt(
 export type StreamCallbacks = {
   onText: (text: string) => void;
   onToolCall: (toolCall: ToolCall) => void;
-  onDone: (fullText: string, toolCalls: ToolCall[]) => void;
+  // May be async: callers persist the finished turn. The loop fires it and
+  // returns without awaiting — completion handlers own their errors.
+  onDone: (fullText: string, toolCalls: ToolCall[]) => void | Promise<void>;
   onError: (error: Error) => void;
 };
 
@@ -404,7 +406,7 @@ export async function sendMessage(
         }
       }
       callbacks.onText(finalText);
-      callbacks.onDone(finalText, toolCalls);
+      void callbacks.onDone(finalText, toolCalls);
       return;
     }
 
