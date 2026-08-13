@@ -179,6 +179,7 @@ async function doRenew(mychartRequest: MyChartRequest): Promise<boolean> {
   if (target && !target.isSelf) {
     try {
       // Dynamic import: proxyContext uses this module for its own requests.
+      // eslint-disable-next-line no-restricted-syntax -- cycle breaker: proxyContext imports this module
       const { switchProxyTarget } = await import('./proxyContext');
       await switchProxyTarget(mychartRequest, { id: target.id }, { autoRenew: false });
     } catch (error) {
