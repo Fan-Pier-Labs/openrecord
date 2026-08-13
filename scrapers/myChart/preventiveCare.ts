@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import * as cheerio from 'cheerio';
 
 export type PreventiveCareItem = {
@@ -11,7 +12,7 @@ export type PreventiveCareItem = {
 }
 
 export async function getPreventiveCare(mychartRequest: MyChartRequest): Promise<PreventiveCareItem[]> {
-  const resp = await mychartRequest.makeRequest({ path: '/HealthAdvisories' });
+  const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/HealthAdvisories' });
   const html = await resp.text();
   const $ = cheerio.load(html);
 
@@ -28,7 +29,7 @@ export async function getPreventiveCare(mychartRequest: MyChartRequest): Promise
   let currentStatus: 'overdue' | 'not_due' | 'completed' | 'unknown' = 'unknown';
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i]!; // loop condition guarantees i < lines.length
 
     if (line === 'Overdue') {
       currentStatus = 'overdue';
@@ -55,29 +56,29 @@ export async function getPreventiveCare(mychartRequest: MyChartRequest): Promise
       const previouslyDone: string[] = [];
 
       if (overdueSinceMatch) {
-        overdueSince = overdueSinceMatch[1];
+        overdueSince = overdueSinceMatch[1]!;
         currentStatus = 'overdue';
       }
       if (overdueMatch) {
         currentStatus = 'overdue';
       }
       if (notDueUntilMatch) {
-        notDueUntil = notDueUntilMatch[1];
+        notDueUntil = notDueUntilMatch[1]!;
         currentStatus = 'not_due';
       }
       if (notDueMatch) {
         currentStatus = 'not_due';
       }
       if (completedMatch) {
-        completedDate = completedMatch[1];
+        completedDate = completedMatch[1]!;
         currentStatus = 'completed';
       }
 
       // Look ahead for "Previously done:" lines
       for (let j = i + 2; j < Math.min(i + 6, lines.length); j++) {
-        const prevMatch = lines[j].match(/Previously done: (.+)/);
+        const prevMatch = /Previously done: (.+)/.exec((lines[j]!)); // j < lines.length per loop bound
         if (prevMatch) {
-          previouslyDone.push(...prevMatch[1].split(',').map(d => d.trim()));
+          previouslyDone.push(...prevMatch[1]!.split(',').map(d => d.trim()));
           break;
         }
       }

@@ -1,4 +1,5 @@
-// CLI entry point with subcommand dispatch.
+// CLI entry point with subcommand dispatch. This is what the published binary
+// is built from (see tsup.config.ts).
 // Usage:
 //   bun run cli mychart [flags]   — MyChart scraper (default if no subcommand)
 
@@ -9,4 +10,5 @@ const subcommand = process.argv[2];
 if (subcommand === 'mychart') {
   process.argv.splice(2, 1);
 }
-import('./cli');
+// eslint-disable-next-line no-restricted-syntax -- must stay dynamic: cli.ts parses argv at import time, and the argv splice above has to happen first (a static import would hoist past it)
+void import('./cli').then(({ runCli }) => runCli());

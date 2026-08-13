@@ -121,15 +121,17 @@ Do NOT move on to documentation until the CLI scrape works end-to-end.
    - Login/2FA flow
    - File structure
 
-2. **Update `CLAUDE.md`**:
-   - Add the scraper to the project overview
-   - Add CLI usage to Key Commands
-   - Add docs link to Reference Docs
+2. **Update the docs**:
+   - Write the scraper's detail into `docs/<scraper>.md` and link it from CLAUDE.md's
+     Reference Docs list
+   - `CLAUDE.md` itself gets only what a session must know up front — the repo-map row and
+     the CLI command. Anything longer belongs in the doc; see "Keeping this file small"
+     there, and delete or shorten something if you add a line
    - Update `npm-package/cli/entry.ts` subcommand docs
 
 ## Critical Rules
 
-- **Headers must match the browser EXACTLY** — including lowercase casing, `origin`, `user-agent` version strings, and any custom headers. Use Playwright MCP to capture the exact headers. See CLAUDE.md "Scraping Tips".
+- **Headers must match the browser EXACTLY** — including lowercase casing, `origin`, `user-agent` version strings, and any custom headers. Use Playwright MCP to capture the exact headers. See "Scraping Tips" in `docs/scraping.md`.
 - **Always use Playwright MCP** for browser investigation — never write one-off Playwright scripts
 - **Type everything** — no `any` types
 - **Run tests** before committing: `bun test scrapers/<scraper_name>/__tests__/`

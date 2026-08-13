@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -8,24 +9,38 @@ export type ActivityFeedItem = {
   description: string;
   date: string;
   type: string;
-  isRead: boolean;
+  link: string;
 }
 
+// Real FetchItemFeed responses group items per patient tab under
+// `singleItemFeedViewModels`, each with `feedItems` (newer instances split
+// some into `todayItems`/`forYouItems`). The item's text is `displayText` and
+// its timestamp is the epoch-milliseconds `priorityInstant`. (An earlier
+// version read a flat `items` key that only the fake served, so this scraper
+// returned nothing against every real instance.)
 type FeedItemResponse = {
-  id?: string;
-  title?: string;
-  description?: string;
-  date?: string;
+  identifier?: string;
+  displayText?: string;
+  titleDisplayText?: string;
+  announcementBody?: string;
   type?: string;
-  isRead?: boolean;
+  priorityInstant?: number;
+  primaryAction?: { uri?: string };
+}
+
+type FeedViewModelResponse = {
+  displayName?: string;
+  feedItems?: FeedItemResponse[];
+  todayItems?: FeedItemResponse[];
+  forYouItems?: FeedItemResponse[];
 }
 
 type FetchItemFeedResponse = {
-  items?: FeedItemResponse[];
+  singleItemFeedViewModels?: FeedViewModelResponse[];
 }
 
 export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<ActivityFeedItem[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/home' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/home' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -34,7 +49,7 @@ export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<A
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/item-feed/FetchItemFeed',
     method: 'POST',
     headers: {
@@ -46,12 +61,18 @@ export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<A
 
   const json: FetchItemFeedResponse = await resp.json();
 
-  return (json.items || []).map((item: FeedItemResponse) => ({
-    id: item.id || '',
-    title: item.title || '',
-    description: item.description || '',
-    date: item.date || '',
+  const items = (json.singleItemFeedViewModels || []).flatMap((vm) => [
+    ...(vm.feedItems || []),
+    ...(vm.todayItems || []),
+    ...(vm.forYouItems || []),
+  ]);
+
+  return items.map((item: FeedItemResponse) => ({
+    id: item.identifier || '',
+    title: item.titleDisplayText || item.displayText || '',
+    description: item.announcementBody || '',
+    date: item.priorityInstant ? new Date(item.priorityInstant).toISOString() : '',
     type: item.type || '',
-    isRead: item.isRead || false,
+    link: item.primaryAction?.uri || '',
   }));
 }

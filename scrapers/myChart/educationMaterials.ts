@@ -1,29 +1,31 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
 export type EducationMaterial = {
   id: string;
   title: string;
-  category: string;
   assignedDate: string;
-  providerName: string;
+  numTopics: number;
 }
 
+// Real GetPatEducationTitles responses are a bare ARRAY of titles whose text
+// lives in `displayName` and whose id is `elementId`/`eduKey`. (An earlier
+// version read an `educationTitles` wrapper that only the fake served, so
+// this scraper returned nothing against every real instance.)
 type EducationResponse = {
-  id?: string;
-  title?: string;
-  category?: string;
+  elementId?: string;
+  eduKey?: string;
+  displayName?: string;
   assignedDate?: string;
-  providerName?: string;
+  numTopics?: number;
 }
 
-type GetEducationResponse = {
-  educationTitles?: EducationResponse[];
-}
+type GetEducationResponse = EducationResponse[];
 
 export async function getEducationMaterials(mychartRequest: MyChartRequest): Promise<EducationMaterial[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/education' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/education' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -32,7 +34,7 @@ export async function getEducationMaterials(mychartRequest: MyChartRequest): Pro
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/education/GetPatEducationTitles',
     method: 'POST',
     headers: {
@@ -44,11 +46,10 @@ export async function getEducationMaterials(mychartRequest: MyChartRequest): Pro
 
   const json: GetEducationResponse = await resp.json();
 
-  return (json.educationTitles || []).map((ed: EducationResponse) => ({
-    id: ed.id || '',
-    title: ed.title || '',
-    category: ed.category || '',
+  return (Array.isArray(json) ? json : []).map((ed: EducationResponse) => ({
+    id: ed.elementId || ed.eduKey || '',
+    title: ed.displayName || '',
     assignedDate: ed.assignedDate || '',
-    providerName: ed.providerName || '',
+    numTopics: ed.numTopics ?? 0,
   }));
 }

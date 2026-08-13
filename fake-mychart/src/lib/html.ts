@@ -1,6 +1,35 @@
 import { generateCsrfToken } from './csrf';
 
-const FIRST_PATH = 'MyChart';
+import { mountPrefix } from './mount';
+import { rendersProxyAnchors } from './proxy';
+
+// Path prefix for every MyChart URL emitted in this HTML: '/MyChart' normally,
+// '' for a root-mounted instance. Templates read `${MP()}/Foo`, so the leading
+// slash comes from the prefix when there is one and from the route otherwise.
+const MP = mountPrefix;
+
+// The fake now enforces __RequestVerificationToken on every /api/* POST, the
+// way real instances do. Real MyChart's own page JS attaches the token to its
+// API calls; this wrapper does the same for every fetch these pages issue, so
+// each inline script doesn't have to repeat the header plumbing.
+const CSRF_FETCH_SNIPPET = `<script>
+  (function () {
+    var originalFetch = window.fetch;
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      if ((opts.method || 'GET').toUpperCase() === 'POST') {
+        var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');
+        if (el) {
+          opts.headers = opts.headers || {};
+          if (!opts.headers['__RequestVerificationToken']) {
+            opts.headers['__RequestVerificationToken'] = el.value;
+          }
+        }
+      }
+      return originalFetch.call(this, url, opts);
+    };
+  })();
+</script>`;
 
 // ─── CSS ──────────────────────────────────────────────────────────────
 const PORTAL_CSS = `
@@ -94,6 +123,18 @@ tr:hover td { background: #fafbfc; }
 .loading { text-align: center; padding: 40px; color: #888; }
 
 /* Print header (scraper compat) */
+.proxy-switcher { position: relative; }
+.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }
+.proxy-switcher > summary::-webkit-details-marker { display: none; }
+.proxy-switcher > summary:hover { background: #17527a; }
+.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }
+.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }
+.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }
+.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }
+.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }
+.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }
+.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }
 .printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }
 
 /* Letter detail */
@@ -148,7 +189,7 @@ function buildNav(activePath: string): string {
     <div class="nav-group">
       <div class="nav-group-title">${group.group}</div>
       ${group.items.map(item => `
-        <a href="/${FIRST_PATH}/${item.path}" class="${activePath === item.path ? 'active' : ''}">
+        <a href="${MP()}/${item.path}" class="${activePath === item.path ? 'active' : ''}">
           <span class="nav-icon">${item.icon}</span>${item.label}
         </a>
       `).join('')}
@@ -169,11 +210,12 @@ function portalLayout(title: string, activePath: string, bodyContent: string): s
 </head>
 <body>
   <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
+  ${CSRF_FETCH_SNIPPET}
   <header class="mc-header">
     <div class="logo">My<span>Chart</span></div>
     <div class="user-info">
-      <span>Homer Simpson</span>
-      <a href="/${FIRST_PATH}/Authentication/Login">Sign out</a>
+      ${PROXY_SELECTOR_PLACEHOLDER}
+      <a href="${MP()}/Authentication/Login">Sign out</a>
     </div>
   </header>
   <div class="mc-layout">
@@ -195,6 +237,7 @@ function basePageShell(title: string, bodyContent: string): string {
 </head>
 <body>
   <div class='hidden' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
+  ${CSRF_FETCH_SNIPPET}
   ${bodyContent}
 </body>
 </html>`;
@@ -227,7 +270,7 @@ export function loginPage(): string {
     .demo-creds .demo-note { margin-top: 8px; font-size: 12px; color: #666; }
     .noscript-meta { display: none; }
   </style>
-  <noscript><meta class="noscript-meta" http-equiv="refresh" content="0;url=/${FIRST_PATH}/nojs.asp" /></noscript>
+  <noscript><meta class="noscript-meta" http-equiv="refresh" content="0;url=${MP()}/nojs.asp" /></noscript>
 </head>
 <body class="loginPage isPrelogin">
   <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
@@ -251,7 +294,7 @@ export function loginPage(): string {
     <div style="text-align:center; margin: 14px 0 0 0; color:#888; font-size:12px;">— or —</div>
     <button id="passkeyBtn" type="button" style="width:100%; padding:11px; margin-top:10px; background:#fff; color:#1a5276; border:1px solid #1a5276; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer;">Sign in with Passkey</button>
     <div id="passkeyStatus" style="margin-top:10px; font-size:13px; color:#c0392b; display:none;"></div>
-    <form class="hidden" style="display:none" action="/${FIRST_PATH}/Authentication/Login/DoLogin" autocomplete="off" id="actualLogin" method="post">
+    <form class="hidden" style="display:none" action="${MP()}/Authentication/Login/DoLogin" autocomplete="off" id="actualLogin" method="post">
       <input name="__RequestVerificationToken" type="hidden" value="${token}" />
     </form>
   </div>
@@ -262,7 +305,7 @@ export function loginPage(): string {
     <input name='__CurrentPageLoadDescriptor' value='' type='hidden' autocomplete='off' />
     <input name='__RttCaptureEnabled' value='1' type='hidden' autocomplete='off' />
   </div>
-  <script src="/${FIRST_PATH}/areas/authentication/scripts/controllers/loginpagecontroller.min.js" type="text/javascript"></script>
+  <script src="${MP()}/areas/authentication/scripts/controllers/loginpagecontroller.min.js" type="text/javascript"></script>
   <script>
     function b64ToBytes(b64) {
       b64 = String(b64).replace(/-/g, '+').replace(/_/g, '/');
@@ -281,9 +324,9 @@ export function loginPage(): string {
 
     function routeAfterLogin(html) {
       if (html.indexOf('md_home_index') !== -1) {
-        window.location.href = '/${FIRST_PATH}/Home';
+        window.location.href = '${MP()}/Home';
       } else if (html.indexOf('secondaryvalidationcontroller') !== -1) {
-        window.location.href = '/${FIRST_PATH}/Authentication/SecondaryValidation';
+        window.location.href = '${MP()}/Authentication/SecondaryValidation';
       } else {
         return false;
       }
@@ -297,7 +340,7 @@ export function loginPage(): string {
       var token = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]').value;
       var loginInfo = JSON.stringify({ Credentials: { Username: btoa(user), Password: btoa(pass) } });
       var body = '__RequestVerificationToken=' + encodeURIComponent(token) + '&LoginInfo=' + encodeURIComponent(loginInfo);
-      fetch('/${FIRST_PATH}/Authentication/Login/DoLogin', {
+      fetch('${MP()}/Authentication/Login/DoLogin', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body, credentials: 'same-origin'
       }).then(function(r) { return r.text(); }).then(function(html) {
@@ -317,7 +360,7 @@ export function loginPage(): string {
         return;
       }
       try {
-        var paramsResp = await fetch('/${FIRST_PATH}/Authentication/Login/GetPasskeyGetParams?force=true&noCache=' + Math.random(), {
+        var paramsResp = await fetch('${MP()}/Authentication/Login/GetPasskeyGetParams?force=true&noCache=' + Math.random(), {
           method: 'POST', credentials: 'same-origin', body: ''
         }).then(function(r) { return r.json(); });
         if (!paramsResp.Success || !paramsResp.PasskeyGetParams) {
@@ -362,7 +405,7 @@ export function loginPage(): string {
         });
         var token = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]').value;
         var body = '__RequestVerificationToken=' + encodeURIComponent(token) + '&LoginInfo=' + encodeURIComponent(loginInfo);
-        var html = await fetch('/${FIRST_PATH}/Authentication/Login/DoLogin', {
+        var html = await fetch('${MP()}/Authentication/Login/DoLogin', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: body
@@ -481,7 +524,7 @@ export function secondaryValidationPage(): string {
         var method = btn.getAttribute('data-method');
         var isEmail = method === 'email';
         var contact = isEmail ? maskedEmail : maskedPhone;
-        fetch('/${FIRST_PATH}/Authentication/SecondaryValidation/SendCode', {
+        fetch('${MP()}/Authentication/SecondaryValidation/SendCode', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'deliveryMethodEmail=' + isEmail + '&resendCode=false&workflow=1',
@@ -497,16 +540,117 @@ export function secondaryValidationPage(): string {
     document.getElementById('verifyForm').addEventListener('submit', function(e) {
       e.preventDefault();
       var code = document.getElementById('code').value;
-      fetch('/${FIRST_PATH}/Authentication/SecondaryValidation/Validate', {
+      fetch('${MP()}/Authentication/SecondaryValidation/Validate', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'code=' + encodeURIComponent(code), credentials: 'same-origin'
       }).then(function(r) { return r.json(); }).then(function(data) {
-        if (data.Success) { window.location.href = '/${FIRST_PATH}/Home'; }
+        if (data.Success) { window.location.href = '${MP()}/Home'; }
         else { alert('Invalid code. Try 123456.'); }
       });
     });
   </script>
 </body></html>`;
+}
+
+// ─── Proxy (multi-patient) selector ───────────────────────────────────
+export type ProxySelectorEntry = { id: string; displayName: string };
+
+export type ProxySelectorModel = {
+  /**
+   * The account holder's own record. Carries a real opaque `WP-…` id just like
+   * a proxy record does — it is distinguished by being self, not by a blank id.
+   */
+  self: ProxySelectorEntry;
+  /** Other patients this account can switch into. */
+  subjects: ProxySelectorEntry[];
+  /** Currently active record id. */
+  activeId: string;
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Escape for embedding inside a double-quoted JS string in a <script> block. */
+function escapeJsString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\u003c');
+}
+
+/**
+ * Anchor href for a record. Mirrors the `LinkUrl` values confirmed in the
+ * `/ProxySwitch` payload: proxies carry the full switchcontext query, the
+ * account holder's own record is a bare un-queried `inside.asp`.
+ */
+function proxySwitchHref(id: string, isSelf: boolean): string {
+  return isSelf
+    ? `${MP()}/inside.asp`
+    : `${MP()}/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=${encodeURIComponent(id)}`;
+}
+
+/**
+ * Marker the header leaves for the per-request proxy selector. The route
+ * replaces it after a page is rendered, which is how every page gets the
+ * selector without threading the model through ~25 page functions.
+ */
+export const PROXY_SELECTOR_PLACEHOLDER = '<!--PROXY_SELECTOR-->';
+
+/**
+ * The proxy-record selector MyChart renders in the header — on every page, not
+ * just Home, which is where real instances put it.
+ *
+ * The `<details>` wrapper and styling are ours; the anchors inside are the part
+ * that matters for fidelity and are what the scraper's HTML fallback parses:
+ * `.proxySubjectLink`, `.proxySelectorDropDownNameEllipsis`, `currentContext`
+ * on the active record, a `data-id`, and an href that carries the
+ * switchcontext query for proxies but not for the account holder.
+ *
+ * In `script` discovery mode there are no anchors at all — only the React
+ * personalization payload — so the control is a plain label. That's the shape
+ * where a portal lists the records but never says which is active.
+ *
+ * ⚠️ UNVERIFIED. Unlike the `/ProxySwitch` JSON, none of this markup has been
+ * captured from a live instance; the class names and payload shape are inferred
+ * from the original PR's guesses. Agreement between this and the scraper is
+ * self-consistency, not evidence about real MyChart.
+ */
+export function renderProxySelector(model: ProxySelectorModel | null): string {
+  if (!model) return '';
+  const entries: Array<ProxySelectorEntry & { isSelf: boolean }> = [
+    { ...model.self, isSelf: true },
+    ...model.subjects.map(s => ({ ...s, isSelf: false })),
+  ];
+  const activeName = (entries.find(e => e.id === model.activeId) ?? entries[0]!).displayName; // entries always contains the self record
+
+  if (rendersProxyAnchors()) {
+    const anchors = entries.map(entry => {
+      const selected = entry.id === model.activeId ? ' currentContext' : '';
+      const label = entry.isSelf ? 'Access your record' : `Access ${entry.displayName}'s record`;
+      // Every record carries its real id, self included — the account holder is
+      // not identified by a missing one.
+      return `        <a class="proxySubjectLink${selected}" data-id="${escapeHtml(entry.id)}" href="${proxySwitchHref(entry.id, entry.isSelf)}" aria-label="${escapeHtml(label)}">` +
+        `<span class="proxySelectorDropDownNameEllipsis">${escapeHtml(entry.displayName)}</span></a>`;
+    }).join('\n');
+    return `<details class="proxy-switcher">
+      <summary><span class="proxy-switcher-label">Viewing</span><strong>${escapeHtml(activeName)}</strong><span class="proxy-switcher-caret">\u25BE</span></summary>
+      <div class="proxySelectorDropDown">
+        <div class="proxy-switcher-heading">Switch patient record</div>
+${anchors}
+      </div>
+    </details>`;
+  }
+
+  // `script` mode: minified personalization pushes with no selection flag.
+  // Self carries an id like everyone else, so it's marked with an explicit
+  // isSelf flag rather than by the absence of one.
+  const pushes = entries.map(entry => {
+    const selfPart = entry.isSelf ? ',isSelf:!0' : '';
+    return `EpicPx.ReactContext.personalizations.proxySubjects.push({displayName:"${escapeJsString(entry.displayName)}",id:{type:"INTERNAL",value:"${escapeJsString(entry.id)}"}${selfPart}});`;
+  }).join('');
+  return `<span class="proxy-switcher-label">Viewing ${escapeHtml(activeName)}</span><script>${pushes}</script>`;
 }
 
 // ─── Home / Dashboard ──────────────────────────────────────────────────
@@ -539,27 +683,27 @@ export function homePage(name: string, dob: string, mrn: string, pcp: string): s
 
     <h2>Quick Links</h2>
     <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <a href="/${FIRST_PATH}/Messaging" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/Messaging" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F4AC} Messages</h3>
         <div class="detail">View and send messages to your care team</div>
       </a>
-      <a href="/${FIRST_PATH}/TestResults" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/TestResults" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F9EA} Test Results</h3>
         <div class="detail">View your lab and imaging results</div>
       </a>
-      <a href="/${FIRST_PATH}/Visits" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/Visits" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F4C5} Visits</h3>
         <div class="detail">Upcoming and past appointments</div>
       </a>
-      <a href="/${FIRST_PATH}/Clinical/Medications" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/Clinical/Medications" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F48A} Medications</h3>
         <div class="detail">Current prescriptions and refills</div>
       </a>
-      <a href="/${FIRST_PATH}/Billing/Summary" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/Billing/Summary" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F4B3} Billing</h3>
         <div class="detail">View and pay your bills</div>
       </a>
-      <a href="/${FIRST_PATH}/Clinical/CareTeam" class="card" style="text-decoration:none; color:inherit;">
+      <a href="${MP()}/Clinical/CareTeam" class="card" style="text-decoration:none; color:inherit;">
         <h3>\u{1F468}\u200D\u2695\uFE0F Care Team</h3>
         <div class="detail">Your doctors and providers</div>
       </a>
@@ -573,7 +717,7 @@ export function medicationsPage(): string {
     <h1>Medications</h1>
     <div id="content"><div class="loading">Loading medications...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/medications/loadmedicationspage', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/medications/loadmedicationspage', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var meds = (data.communityMembers && data.communityMembers[0] && data.communityMembers[0].prescriptionList) ? data.communityMembers[0].prescriptionList.prescriptions : [];
           document.getElementById('content').innerHTML = meds.length === 0 ? '<p>No medications found.</p>' :
@@ -595,7 +739,7 @@ export function allergiesPage(): string {
     <h1>Allergies</h1>
     <div id="content"><div class="loading">Loading allergies...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/allergies/loadallergies', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/allergies/loadallergies', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var items = data.dataList || [];
           document.getElementById('content').innerHTML = items.length === 0 ? '<p>No allergies on file.</p>' :
@@ -616,7 +760,7 @@ export function healthIssuesPage(): string {
     <h1>Health Issues</h1>
     <div id="content"><div class="loading">Loading health issues...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/healthissues/loadhealthissuesdata', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/healthissues/loadhealthissuesdata', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var items = data.dataList || [];
           document.getElementById('content').innerHTML = items.length === 0 ? '<p>No health issues on file.</p>' :
@@ -633,7 +777,7 @@ export function immunizationsPage(): string {
     <h1>Immunizations</h1>
     <div id="content"><div class="loading">Loading immunizations...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/immunizations/loadimmunizations', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/immunizations/loadimmunizations', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var orgs = data.organizationImmunizationList || [];
           document.getElementById('content').innerHTML = orgs.map(org =>
@@ -654,7 +798,7 @@ export function vitalsPage(): string {
     <h1>Vitals</h1>
     <div id="content"><div class="loading">Loading vitals...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/track-my-health/getflowsheets', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/track-my-health/getflowsheets', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var sheets = data.flowsheets || [];
           document.getElementById('content').innerHTML = sheets.map(fs =>
@@ -675,7 +819,7 @@ export function medicalHistoryPage(): string {
     <h1>Medical History</h1>
     <div id="content"><div class="loading">Loading medical history...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/histories/loadhistoriesviewmodel', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/histories/loadhistoriesviewmodel', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var html = '';
           if (data.medicalHistory) {
@@ -713,7 +857,7 @@ export function testResultsPage(): string {
         if (tabEl) tabEl.classList.add('active');
         document.getElementById('detail').classList.remove('visible');
         document.getElementById('detail').innerHTML = '';
-        fetch('/${FIRST_PATH}/api/test-results/getlist', {
+        fetch('${MP()}/api/test-results/getlist', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ groupType: groupType })
@@ -739,7 +883,7 @@ export function testResultsPage(): string {
         });
       }
       function loadDetail(orderKey) {
-        fetch('/${FIRST_PATH}/api/test-results/getdetails', {
+        fetch('${MP()}/api/test-results/getdetails', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderKey: orderKey })
@@ -825,7 +969,7 @@ export function messagesPage(): string {
 
       // Load conversation list
       function loadConversations() {
-        fetch('/${FIRST_PATH}/api/conversations/getconversationlist', { method: 'POST', credentials: 'same-origin' })
+        fetch('${MP()}/api/conversations/getconversationlist', { method: 'POST', credentials: 'same-origin' })
           .then(r => r.json()).then(data => {
             var convs = data.conversations || [];
             if (convs.length === 0) {
@@ -844,7 +988,7 @@ export function messagesPage(): string {
       // Load a thread and show reply box
       function loadThread(convId) {
         currentConvId = convId;
-        fetch('/${FIRST_PATH}/api/conversations/getconversationmessages', {
+        fetch('${MP()}/api/conversations/getconversationmessages', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ conversationId: convId })
@@ -884,7 +1028,7 @@ export function messagesPage(): string {
       function sendReply() {
         var body = document.getElementById('replyBody').value.trim();
         if (!body) { alert('Please enter a reply.'); return; }
-        fetch('/${FIRST_PATH}/api/conversations/sendreply', {
+        fetch('${MP()}/api/conversations/sendreply', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ conversationId: currentConvId, messageBody: body })
@@ -898,7 +1042,7 @@ export function messagesPage(): string {
       function showCompose() {
         document.getElementById('compose').classList.add('visible');
         // Load recipients
-        fetch('/${FIRST_PATH}/api/medicaladvicerequests/getmedicaladvicerequestrecipients', { method: 'POST', credentials: 'same-origin' })
+        fetch('${MP()}/api/medicaladvicerequests/getmedicaladvicerequestrecipients', { method: 'POST', credentials: 'same-origin' })
           .then(r => r.json()).then(data => {
             var recipients = Array.isArray(data) ? data : [];
             var sel = document.getElementById('composeRecipient');
@@ -906,7 +1050,7 @@ export function messagesPage(): string {
               recipients.map(r => '<option value="' + r.id + '" data-name="' + r.name + '">' + r.name + ' (' + r.specialty + ')</option>').join('');
           });
         // Load topics
-        fetch('/${FIRST_PATH}/api/medicaladvicerequests/getsubtopics', { method: 'POST', credentials: 'same-origin' })
+        fetch('${MP()}/api/medicaladvicerequests/getsubtopics', { method: 'POST', credentials: 'same-origin' })
           .then(r => r.json()).then(data => {
             var topics = data.topicList || [];
             var sel = document.getElementById('composeTopic');
@@ -932,10 +1076,10 @@ export function messagesPage(): string {
         if (!body) { alert('Please enter a message.'); return; }
 
         // Get compose ID first
-        fetch('/${FIRST_PATH}/api/conversations/getcomposeid', { method: 'POST', credentials: 'same-origin' })
+        fetch('${MP()}/api/conversations/getcomposeid', { method: 'POST', credentials: 'same-origin' })
           .then(r => r.json()).then(composeId => {
             // Send the message
-            return fetch('/${FIRST_PATH}/api/medicaladvicerequests/sendmedicaladvicerequest', {
+            return fetch('${MP()}/api/medicaladvicerequests/sendmedicaladvicerequest', {
               method: 'POST', credentials: 'same-origin',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipientId: recipientId, recipientName: recipientName, subject: subject, messageBody: body, composeId: composeId })
@@ -943,7 +1087,7 @@ export function messagesPage(): string {
           })
           .then(r => r.json()).then(() => {
             // Clean up compose ID
-            fetch('/${FIRST_PATH}/api/conversations/removecomposeid', { method: 'POST', credentials: 'same-origin' });
+            fetch('${MP()}/api/conversations/removecomposeid', { method: 'POST', credentials: 'same-origin' });
             hideCompose();
             loadConversations();
           });
@@ -989,10 +1133,10 @@ export function visitsPage(): string {
         }).join('');
       }
       Promise.all([
-        fetch('/${FIRST_PATH}/Visits/VisitsList/LoadUpcoming', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
-        fetch('/${FIRST_PATH}/Visits/VisitsList/LoadPast', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/Visits/VisitsList/LoadUpcoming', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/Visits/VisitsList/LoadPast', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
       ]).then(([up, past]) => {
-        visitData.upcoming = (up.LaterVisitsList || []).concat(up.EarlierVisitsList || []);
+        visitData.upcoming = (up.InProgressVisits || []).concat(up.NextNDaysVisits || [], up.LaterVisitsList || []);
         // LoadPast now returns the real MyChart shape: visits live under
         // List[orgId].List (one page). Flatten across orgs for the demo view.
         visitData.past = Object.values(past.List || {}).flatMap(o => o.List || []);
@@ -1061,7 +1205,7 @@ export function billingSummaryPage(accounts: Array<{
       </div>
       <div class="meta ba_card_status_due_label">Amount Due</div>
       <p class="meta ba_card_status_recentPaymentLabel">
-        <a href="/${FIRST_PATH}/Billing/Details?ID=${a.detailsId}&Context=${a.detailsContext}&tab=3" title="View payment history">${a.lastPaid}</a>
+        <a href="${MP()}/Billing/Details?ID=${a.detailsId}&Context=${a.detailsContext}&tab=3" title="View payment history">${a.lastPaid}</a>
       </p>
       <div class="meta" style="margin-top:8px;">
         <span class="ba_card_header_saLabel ba_card_header_saLabel_saName">Springfield Nuclear Power Plant</span>
@@ -1083,7 +1227,7 @@ export function billingDetailsPage(encId: string): string {
       accountDetailsController.Initialize({ "ID": "742", "EncID": "${encId}", "EncCID": "" });
     </script>
     <script>
-      fetch('/${FIRST_PATH}/Billing/Details/GetVisits', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/Billing/Details/GetVisits', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var visits = (data.Data && data.Data.InformationalVisitList) || [];
           document.getElementById('content').innerHTML = visits.map(v =>
@@ -1112,7 +1256,7 @@ export function lettersPage(): string {
     <div id="content"><div class="loading">Loading letters...</div></div>
     <div id="letterDetail" class="msg-thread"></div>
     <script>
-      fetch('/${FIRST_PATH}/api/letters/getletterslist', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/letters/getletterslist', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var letters = data.letters || [];
           var users = data.users || {};
@@ -1128,7 +1272,7 @@ export function lettersPage(): string {
             }).join('');
         });
       function loadLetter(hnoId) {
-        fetch('/${FIRST_PATH}/api/letters/getletterdetails', {
+        fetch('${MP()}/api/letters/getletterdetails', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hnoId: hnoId })
@@ -1150,17 +1294,17 @@ export function goalsPage(): string {
     <div id="content"><div class="loading">Loading goals...</div></div>
     <script>
       Promise.all([
-        fetch('/${FIRST_PATH}/api/goals/loadcareteamgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
-        fetch('/${FIRST_PATH}/api/goals/loadpatientgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/api/goals/loadcareteamgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/api/goals/loadpatientgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
       ]).then(([ct, pt]) => {
         var html = '<h2>Care Team Goals</h2>';
-        var ctGoals = ct.goals || [];
+        var ctGoals = ct.careTeamGoals || [];
         html += ctGoals.map(g => {
           var badge = g.status === 'In Progress' ? 'badge-blue' : g.status === 'Completed' ? 'badge-green' : 'badge-gray';
           return '<div class="card"><h3>' + g.name + '</h3><div class="detail">' + g.description + '</div><div class="meta"><span class="badge ' + badge + '">' + g.status + '</span> | Target: ' + g.targetDate + '</div></div>';
         }).join('');
         html += '<h2>My Goals</h2>';
-        var ptGoals = pt.goals || [];
+        var ptGoals = pt.patientGoals || [];
         html += ptGoals.map(g => {
           var badge = g.status === 'In Progress' ? 'badge-blue' : g.status === 'Completed' ? 'badge-green' : 'badge-gray';
           return '<div class="card"><h3>' + g.name + '</h3><div class="detail">' + g.description + '</div><div class="meta"><span class="badge ' + badge + '">' + g.status + '</span> | Target: ' + g.targetDate + '</div></div>';
@@ -1177,7 +1321,7 @@ export function referralsPage(): string {
     <h1>Referrals</h1>
     <div id="content"><div class="loading">Loading referrals...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/referrals/listreferrals', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/referrals/listreferrals', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var refs = data.referralList || [];
           document.getElementById('content').innerHTML = refs.length === 0 ? '<p>No referrals.</p>' :
@@ -1198,7 +1342,7 @@ export function careJourneysPage(): string {
     <h1>Care Journeys</h1>
     <div id="content"><div class="loading">Loading care journeys...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/care-journeys/getcarejourneys', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/care-journeys/getcarejourneys', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var cjs = data.careJourneys || [];
           document.getElementById('content').innerHTML = cjs.length === 0 ? '<p>No care journeys.</p>' :
@@ -1218,7 +1362,7 @@ export function documentsPage(): string {
     <h1>Documents</h1>
     <div id="content"><div class="loading">Loading documents...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/documents/viewer/loadotherdocuments', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/documents/viewer/loadotherdocuments', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
           var docs = data.documents || [];
           document.getElementById('content').innerHTML = docs.length === 0 ? '<p>No documents.</p>' :
@@ -1235,13 +1379,13 @@ export function educationPage(): string {
     <h1>Education Materials</h1>
     <div id="content"><div class="loading">Loading education materials...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/education/getpateducationtitles', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/education/getpateducationtitles', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
-          var titles = data.educationTitles || [];
+          var titles = Array.isArray(data) ? data : [];
           document.getElementById('content').innerHTML = titles.length === 0 ? '<p>No education materials.</p>' :
             titles.map(t => '<div class="card">' +
-              '<h3>' + t.title + '</h3>' +
-              '<div class="meta"><span class="badge badge-blue">' + t.category + '</span> | Assigned: ' + t.assignedDate + ' | ' + t.providerName + '</div>' +
+              '<h3>' + t.displayName + '</h3>' +
+              '<div class="meta">Assigned: ' + t.assignedDate + ' | ' + t.numTopics + ' topics</div>' +
             '</div>').join('');
         });
     </script>
@@ -1254,14 +1398,14 @@ export function emergencyContactsPage(): string {
     <h1>Emergency Contacts</h1>
     <div id="content"><div class="loading">Loading contacts...</div></div>
     <script>
-      fetch('/${FIRST_PATH}/api/personalinformation/getrelationships', { method: 'POST', credentials: 'same-origin' })
+      fetch('${MP()}/api/personalinformation/getrelationships', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
-          var contacts = data.relationships || [];
+          var contacts = data.contacts || [];
           document.getElementById('content').innerHTML = contacts.length === 0 ? '<p>No emergency contacts.</p>' :
             '<div class="card-grid">' + contacts.map(c => '<div class="card">' +
-              '<h3>' + c.name + '</h3>' +
-              '<div class="detail">' + c.relationshipType + '</div>' +
-              '<div class="meta">\u{1F4DE} ' + c.phoneNumber + '</div>' +
+              '<h3>' + c.formattedName + '</h3>' +
+              '<div class="detail">' + ((c.relationToPatient || {}).name || '') + '</div>' +
+              '<div class="meta">\u{1F4DE} ' + ((((c.contactInformation || {}).phoneNumbers || [])[0] || {}).phoneNumber || '') + '</div>' +
             '</div>').join('') + '</div>';
         });
     </script>
@@ -1275,8 +1419,8 @@ export function profilePage(): string {
     <div id="content"><div class="loading">Loading profile...</div></div>
     <script>
       Promise.all([
-        fetch('/${FIRST_PATH}/PersonalInformation/GetContactInformation', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
-        fetch('/${FIRST_PATH}/api/health-summary/fetchhealthsummary', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/PersonalInformation/GetContactInformation', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
+        fetch('${MP()}/api/health-summary/fetchhealthsummary', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
       ]).then(([contact, summary]) => {
         var email = contact.SecureCommunicationInfo ? contact.SecureCommunicationInfo.EmailAddress : 'N/A';
         var h = summary.header || {};
@@ -1347,13 +1491,13 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
         var area = document.getElementById('totp-setup-area');
         area.style.display = 'block';
         area.innerHTML = '<p>Verifying password...</p>';
-        fetch('/${FIRST_PATH}/api/secondary-validation/VerifyPasswordAndUpdateContact', {
+        fetch('${MP()}/api/secondary-validation/VerifyPasswordAndUpdateContact', {
           method: 'POST', credentials: 'same-origin', headers: headers,
           body: JSON.stringify({ Password: '' })
         }).then(function(r) { return r.json(); }).then(function(data) {
           if (!data.IsPasswordValid) { area.innerHTML = '<p style="color:red;">Invalid password.</p>'; return; }
           area.innerHTML = '<p>Fetching QR code...</p>';
-          return fetch('/${FIRST_PATH}/api/secondary-validation/TotpQrCode', {
+          return fetch('${MP()}/api/secondary-validation/TotpQrCode', {
             method: 'POST', credentials: 'same-origin', headers: headers, body: '{}'
           }).then(function(r) { return r.json(); }).then(function(qr) {
             var secret = qr.encodedSecretKey || qr.EncodedSecretKey || '';
@@ -1366,12 +1510,12 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
 
       function verifyTotp() {
         var code = document.getElementById('totp-code').value;
-        fetch('/${FIRST_PATH}/api/secondary-validation/VerifyCode', {
+        fetch('${MP()}/api/secondary-validation/VerifyCode', {
           method: 'POST', credentials: 'same-origin', headers: headers,
           body: JSON.stringify({ Code: code })
         }).then(function(r) { return r.json(); }).then(function(data) {
           if (!data.Success) { alert('Invalid code'); return; }
-          return fetch('/${FIRST_PATH}/api/secondary-validation/UpdateTwoFactorTotpOptInStatus', {
+          return fetch('${MP()}/api/secondary-validation/UpdateTwoFactorTotpOptInStatus', {
             method: 'POST', credentials: 'same-origin', headers: headers, body: '{}'
           }).then(function() { location.reload(); });
         });
@@ -1379,7 +1523,7 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
 
       function disableTotp() {
         if (!confirm('Disable TOTP?')) return;
-        fetch('/${FIRST_PATH}/api/secondary-validation/UpdateTwoFactorTotpOptInStatus', {
+        fetch('${MP()}/api/secondary-validation/UpdateTwoFactorTotpOptInStatus', {
           method: 'POST', credentials: 'same-origin', headers: headers, body: '{}'
         }).then(function() { location.reload(); });
       }
@@ -1409,7 +1553,7 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
           return;
         }
         try {
-          var optsResp = await fetch('/${FIRST_PATH}/api/passkey-management/GenerateCreateRequest', {
+          var optsResp = await fetch('${MP()}/api/passkey-management/GenerateCreateRequest', {
             method: 'POST', credentials: 'same-origin', headers: headers, body: '{}'
           }).then(function(r) { return r.json(); });
           if (!optsResp.success && !optsResp.Success) {
@@ -1442,7 +1586,7 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
             clientDataJSON: bytesToB64(cred.response.clientDataJSON),
             indexForDefaultName: (opts.excludeCredentials || []).length + 1
           };
-          var saveResp = await fetch('/${FIRST_PATH}/api/passkey-management/CreatePasskey', {
+          var saveResp = await fetch('${MP()}/api/passkey-management/CreatePasskey', {
             method: 'POST', credentials: 'same-origin', headers: headers,
             body: JSON.stringify(payload)
           }).then(function(r) { return r.json(); });
@@ -1458,7 +1602,7 @@ export function settingsPage(isTotpEnabled: boolean, passkeys: Array<{ rawId: st
 
       function deletePasskey(rawId) {
         if (!confirm('Remove this passkey?')) return;
-        fetch('/${FIRST_PATH}/api/passkey-management/DeletePasskey', {
+        fetch('${MP()}/api/passkey-management/DeletePasskey', {
           method: 'POST', credentials: 'same-origin', headers: headers,
           body: JSON.stringify({ rawId: rawId })
         }).then(function(r) { return r.json(); }).then(function(data) {
@@ -1479,7 +1623,7 @@ export function termsConditionsPage(): string {
 <body>
   <div>Terms and Conditions</div>
   <p>Please review and accept the MyChart Terms and Conditions to continue.</p>
-  <form method="POST" action="/${FIRST_PATH}/Authentication/TermsConditions">
+  <form method="POST" action="${MP()}/Authentication/TermsConditions">
     <input name="__RequestVerificationToken" type="hidden" value="${token}" />
     <p>By clicking Accept, you agree to the MyChart Terms of Use and Privacy Policy.</p>
     <button type="submit">I Accept</button>

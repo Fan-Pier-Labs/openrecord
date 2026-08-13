@@ -1,4 +1,5 @@
-import { MyChartRequest } from "../myChartRequest";
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 
 /**
@@ -58,7 +59,7 @@ export type NoteContent = {
  * sibling visits scraper.
  */
 async function fetchVisitToken(mychartRequest: MyChartRequest): Promise<string> {
-  const pageResp = await mychartRequest.makeRequest({
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Visits/VisitsList?noCache=' + Math.random(),
   });
   const html = await pageResp.text();
@@ -104,7 +105,7 @@ export async function getVisitNotes(
 ): Promise<GetVisitNotesResult> {
   const token = await fetchVisitToken(mychartRequest);
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/visit-notes/GetVisitNotes',
     method: 'POST',
     headers: {
@@ -114,10 +115,15 @@ export async function getVisitNotes(
     body: JSON.stringify({ CSN: csn, FromPvdPage: true }),
   });
 
-  const json = await parseJsonOrWafError<GetVisitNotesApiResponse>(
+  const json = await parseJsonOrWafError<GetVisitNotesApiResponse | null>(
     resp,
     '/api/visit-notes/GetVisitNotes'
   );
+
+  // Real instances answer an unknown CSN with a literal JSON null body.
+  if (json === null) {
+    return { csn, lrpId: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, notes: [] };
+  }
 
   const notes: VisitNote[] = (json.noteList || []).map((n) => ({
     hnoId: n.hnoID || '',
@@ -149,7 +155,7 @@ export async function getNoteContent(
 ): Promise<NoteContent> {
   const token = await fetchVisitToken(mychartRequest);
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/report-content/LoadReportContent',
     method: 'POST',
     headers: {
@@ -190,7 +196,7 @@ export async function getVisitAVS(
 ): Promise<NoteContent> {
   const token = await fetchVisitToken(mychartRequest);
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/report-content/LoadReportContent',
     method: 'POST',
     headers: {

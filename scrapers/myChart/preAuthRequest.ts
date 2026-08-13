@@ -13,28 +13,30 @@ import { logger } from '../../shared/logger';
  * Mirrors the protocol/firstPathPart bootstrap at the top of
  * `myChartUserPassLogin` so signup/recovery hit the exact same URLs the
  * browser does. Returns `null` if the instance's path can't be resolved.
+ *
+ * There is deliberately no `fetchFn` here, as everywhere else in the scrapers:
+ * `resolveTransport` in `scrapers/http.ts` picks the transport from the runtime,
+ * which is the only place that knows whether the platform owns the cookie jar.
  */
 export async function createPreAuthRequest({
   hostname,
   protocol,
-  fetchFn,
 }: {
   hostname: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
 }): Promise<MyChartRequest | null> {
   if (!hostname) throw new Error('Missing hostname');
 
   // Use HTTP for localhost and dot-less hostnames (Docker service names like
   // "fake-mychart:3000"), matching the login bootstrap exactly.
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol =
     protocol ??
     (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.')
       ? 'http'
       : 'https');
 
-  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol, fetchFn });
+  const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
 
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {

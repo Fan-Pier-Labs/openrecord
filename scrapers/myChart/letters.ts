@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody, parseMyChartDate, sortNewestFirstByDate } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -33,7 +34,7 @@ type GetLettersListResponse = {
 }
 
 export async function getLetters(mychartRequest: MyChartRequest): Promise<Letter[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/letters' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/letters' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -42,7 +43,7 @@ export async function getLetters(mychartRequest: MyChartRequest): Promise<Letter
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/letters/GetLettersList',
     method: 'POST',
     headers: {
@@ -78,7 +79,7 @@ export type LetterDetailsResponse = {
 }
 
 export async function getLetterDetails(mychartRequest: MyChartRequest, hnoId: string, csn: string): Promise<LetterDetailsResponse> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/letters' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/letters' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -86,7 +87,7 @@ export async function getLetterDetails(mychartRequest: MyChartRequest, hnoId: st
     throw new Error('Could not find request verification token for letter details');
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/letters/GetLetterDetails',
     method: 'POST',
     headers: {
@@ -96,6 +97,7 @@ export async function getLetterDetails(mychartRequest: MyChartRequest, hnoId: st
     body: JSON.stringify({ hnoId, csn }),
   });
 
-  const json: LetterDetailsResponse = await resp.json();
-  return json;
+  const json: LetterDetailsResponse | null = await resp.json();
+  // Real instances answer an unknown hnoId with a literal JSON null body.
+  return json ?? { bodyHTML: '' };
 }

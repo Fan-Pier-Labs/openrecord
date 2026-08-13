@@ -1,13 +1,13 @@
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
-import { PastVisitsContainer, Visit, VisitListContainer } from "./types";
+import { type PastVisitsContainer, type Visit, type VisitListContainer, type VisitsScrapeError } from "./types";
 import { logger } from '../../../shared/logger';
 
 
-export async function upcomingVisits(myChartRequest: MyChartRequest) {
+export async function upcomingVisits(myChartRequest: MyChartRequest): Promise<VisitListContainer | VisitsScrapeError> {
 
-  const res = await myChartRequest.makeRequest({ path: '/Visits/VisitsList?noCache=' + Math.random() })
+  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
   const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
 
@@ -17,7 +17,7 @@ export async function upcomingVisits(myChartRequest: MyChartRequest) {
   }
 
 
-  const result = await myChartRequest.makeRequest({
+  const result = await makeAuthenticatedRequest(myChartRequest, {
     path: '/Visits/VisitsList/LoadUpcoming?timeZone=America%2FNew_York&ComponentNumber=5&noCache=' + Math.random(),
     "headers": {
       __requestverificationtoken: requestVerificationToken
@@ -65,7 +65,7 @@ async function loadPastVisitsPage(
   // 'Content-Type: text/plain;charset=UTF-8'. Omitting body sends no
   // Content-Type at all on both Bun and Node, which is the shape the WAF
   // accepts and matches what upcomingVisits has always done.
-  const result = await myChartRequest.makeRequest({
+  const result = await makeAuthenticatedRequest(myChartRequest, {
     path,
     "headers": {
       __requestverificationtoken: requestVerificationToken,
@@ -81,7 +81,7 @@ async function loadPastVisitsPage(
 // null when neither yields a usable date so callers can keep paginating
 // rather than stop on an unparseable row.
 function visitTimestamp(visit: Visit): number | null {
-  const instant = visit.Instant?.match(/\/Date\((\d+)\)\//);
+  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
   if (instant) return Number(instant[1]);
   if (visit.PrimaryDate) {
     const t = Date.parse(visit.PrimaryDate);
@@ -110,9 +110,9 @@ function visitTimestamp(visit: Visit): number | null {
  * shape; `HasMoreData` on the merged result reflects whether visits older than
  * the requested window remain.
  */
-export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date) {
+export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date): Promise<PastVisitsContainer | VisitsScrapeError> {
 
-  const res = await myChartRequest.makeRequest({ path: '/Visits/VisitsList?noCache=' + Math.random() })
+  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
   const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
 
@@ -126,7 +126,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
 
   // Defensive: a non-container response (e.g. a WAF/login interstitial) has no
   // List — return it untouched so existing error handling stays intact.
-  if (!firstPage || !firstPage.List) return firstPage;
+  if (!firstPage?.List) return firstPage;
 
   // Accumulate visits per organization across pages. `latestPage` is the most
   // recently fetched page; the stop conditions look at it (not the merged
@@ -154,7 +154,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
     if (!serializedIndex) break;
 
     const nextPage = await loadPastVisitsPage(myChartRequest, requestVerificationToken, oldestRenderedDate, serializedIndex);
-    if (!nextPage || !nextPage.List) break;
+    if (!nextPage?.List) break;
     if (nextPage.SerializedIndex === serializedIndex) break; // guard against a stuck cursor
 
     // Merge each org's visits into the accumulator.
@@ -181,13 +181,4 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
   }
 
   return merged;
-}
-
-
-
-if (import.meta.main) {
-  (async () => {
-    const mychartRequest = await login_TEST('mychart.example.org')
-    await pastVisits(mychartRequest, new Date('2025-01-01T00:30:50.183Z'))
-  })()
 }

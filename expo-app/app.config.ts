@@ -2,9 +2,8 @@ import type { ExpoConfig } from "expo/config";
 
 // Google OAuth client IDs. These are not secrets — iOS bakes the reversed
 // client ID into its Info.plist URL schemes and ships it in every IPA, and
-// the web client ID is used client-side too. Stored in AWS Secrets Manager
-// under GOOGLE_OAUTH_CREDENTIALS for server parity; kept here as defaults
-// so local builds work without a Secrets Manager lookup.
+// the web client ID is used client-side too. The AI Lambda accepts both as
+// valid ID-token audiences (see openrecord-demo-lambda/deploy.sh).
 const GOOGLE_WEB_CLIENT_ID =
   "810533222194-p2dod0idou95jlh70qi07m84uscb4170.apps.googleusercontent.com";
 const GOOGLE_IOS_CLIENT_ID =
@@ -29,12 +28,6 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   scheme: "openrecord",
-  newArchEnabled: true,
-  splash: {
-    image: "./assets/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
-  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.fanpierlabs.openrecord",
@@ -48,11 +41,20 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    edgeToEdgeEnabled: true,
     package: "com.fanpierlabs.openrecord",
   },
   plugins: [
     "expo-router",
+    // SDK 57 dropped the top-level `splash` key; the splash screen is
+    // configured through the expo-splash-screen plugin instead.
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/splash-icon.png",
+        resizeMode: "contain",
+        backgroundColor: "#ffffff",
+      },
+    ],
     "expo-secure-store",
     "expo-sqlite",
     "expo-font",
@@ -66,9 +68,12 @@ const config: ExpoConfig = {
     eas: {
       projectId: "6ed85fb8-688f-44c3-8ecb-e8019524f524",
     },
+    // The OpenRecord AI endpoint (openrecord-demo-lambda) backing the free
+    // tier. Requests carry the user's Google ID token; the Lambda verifies
+    // it server-side and meters the included credit.
     backendUrl:
       process.env.EXPO_PUBLIC_BACKEND_URL ??
-      "https://openrecord.fanpierlabs.com",
+      "https://dur15eh31e.execute-api.us-east-2.amazonaws.com",
     googleWebClientId:
       process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? GOOGLE_WEB_CLIENT_ID,
     googleIosClientId:

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   getMemorySummary,
   listInsights,
@@ -48,7 +49,7 @@ export default function InsightsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      fireAndForget(load(), "insights:load");
     }, [load]),
   );
 
@@ -72,7 +73,7 @@ export default function InsightsScreen() {
     }
   }
 
-  async function handleAsk(question: string) {
+  function handleAsk(question: string) {
     router.push({ pathname: "/(auth)", params: { ask: question } });
   }
 
@@ -84,7 +85,13 @@ export default function InsightsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          testID="insights-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          hitSlop={10}
+        >
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Insights</Text>

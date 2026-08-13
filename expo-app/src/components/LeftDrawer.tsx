@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { getChats, deleteChat, searchChats, type Chat } from "@/lib/storage/database";
+import { fireAndForget } from "@/lib/fire-and-forget";
 
 const DRAWER_WIDTH = Math.min(320, Dimensions.get("window").width * 0.82);
 const INITIAL_VISIBLE = 8;
@@ -42,12 +43,12 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
   }, [searchQuery]);
 
   useEffect(() => {
-    if (visible) loadChats();
+    if (visible) fireAndForget(loadChats(), "drawer:loadChats");
   }, [visible, loadChats]);
 
   useFocusEffect(
     useCallback(() => {
-      loadChats();
+      fireAndForget(loadChats(), "drawer:loadChats");
     }, [loadChats])
   );
 
@@ -135,9 +136,11 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          await deleteChat(chat.id);
-          await loadChats();
+        onPress: () => {
+          void (async () => {
+            await deleteChat(chat.id);
+            await loadChats();
+          })();
         },
       },
     ]);
@@ -167,7 +170,12 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
         pointerEvents={backdropPointerEvents}
         style={[styles.backdrop, { opacity: backdropOpacity }]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          testID="drawer-backdrop"
+          accessibilityLabel="Close menu"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
       </Animated.View>
 
       {/* Drawer itself. Mounted always so gestures can drag it in/out smoothly. */}
@@ -188,6 +196,8 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             </Pressable>
 
             <TextInput
+              testID="drawer-search"
+              accessibilityLabel="Search chats"
               style={styles.search}
               placeholder="Search"
               placeholderTextColor="#999"
@@ -210,6 +220,9 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             }
             renderItem={({ item }) => (
               <Pressable
+                testID={`chat-row-${item.id}`}
+                accessibilityLabel={item.title}
+                accessibilityRole="button"
                 style={[
                   styles.chatRow,
                   item.id === currentChatId && styles.chatRowActive,
@@ -224,7 +237,13 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
             )}
             ListFooterComponent={
               hiddenCount > 0 && !searchQuery ? (
-                <Pressable style={styles.seeMore} onPress={() => setShowAll(true)}>
+                <Pressable
+                  testID="drawer-see-more"
+                  accessibilityLabel="Show more chats"
+                  accessibilityRole="button"
+                  style={styles.seeMore}
+                  onPress={() => setShowAll(true)}
+                >
                   <Text style={styles.seeMoreText}>See more ({hiddenCount})</Text>
                 </Pressable>
               ) : null
@@ -255,7 +274,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
     zIndex: 20,
   },

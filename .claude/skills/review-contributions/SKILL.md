@@ -213,13 +213,16 @@ Post the verdict as an issue comment (Step 5 covers tone/format).
 A technically-perfect PR that takes the product somewhere we don't want is **not** a good PR.
 Decide direction **first**; if it's wrong, quality is moot.
 
-Ground yourself in the actual vision before judging — read `CLAUDE.md`, `README.md`, `LICENSE`,
-`MYCHART_FEATURES.md`, and `SELF_HOSTING.md`. In short, this product is:
+Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, and
+`LICENSE`. For what the product covers, the capability registry (`shared/capabilities.ts`) is the
+single source of truth; `docs/MYCHART_FEATURES.md` lists only the features we deliberately don't
+scrape. In short, this product is:
 
 - A **patient-controlled health-data aggregator** for Epic MyChart portals: scrape and consolidate
   a person's *own* medical records across 30+ categories.
-- **Local-first / self-hostable and agent-accessible** — a headless CLI, a self-contained OpenClaw
-  plugin that needs **no server**, an MCP server for Claude, a Next.js demo, and an Expo app.
+- **Local-first and agent-accessible** — a headless CLI (`mychart-cli`), a Claude Desktop
+  extension (`.mcpb`) that needs **no server**, and an Expo mobile app, all running the same
+  scrapers locally.
 - Under a **proprietary, source-available license**: viewing and personal/educational use only —
   **no commercial use, no redistribution, no SaaS, no competing products**; modifications must be
   contributed back.
@@ -262,8 +265,9 @@ Look for:
   or read `gh pr checks`. 
 - **Consistency** — does it match existing patterns, naming, and structure? Security
   (sanitization/`SafeHtml`, no XSS), no committed secrets/PII, no needless heavy dependencies.
-- **Docs** — did it update `CLAUDE.md`/relevant docs when it added flags/scrapers/config (repo
-  convention)?
+- **Docs** — did it document new flags/scrapers/config in the right place (repo convention)?
+  Detail belongs in `docs/` or the package README; `CLAUDE.md` takes only a one-line rule plus a
+  pointer, and should not grow with every PR.
 
 ### 4c. The fix-it-vs-ask decision
 

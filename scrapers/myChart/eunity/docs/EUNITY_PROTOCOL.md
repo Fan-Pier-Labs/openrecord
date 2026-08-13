@@ -204,6 +204,31 @@ parameters = [
 | `Environment` | `com.clientoutlook.data.hangingprotocol` | Sealed (6) | levelValue, level, user, roles, device, numberOfScreens |
 | `ArrayCollection` | `flex.messaging.io` | Externalizable | Wraps standard AMF3 array |
 
+#### getStudyListMeta Response Structure (verified on a real instance, 2026-08)
+
+The response is one AMF3 value, decodable with `../amf3Reader.ts`:
+
+```
+AmfServicesMessage { messageType: "response", messageID, body }        // Sealed (3)
+  body: AmfServicesResponse { code: 0, response }                      // Sealed (2)
+    response: StudyListResponse                                        // Externalizable
+      custom body:
+        BE32 header (observed 2 — same format version as StudyListRequest)
+        DataRequestStatus value                                        // Sealed (8): requestDebugDetails, requestDetails, localeDetailKey, retryOnError, localeDetailParams, localeDebugKey, statusCode, localeDebugParams
+        version string ("1.0.0")
+        BE32 word (opaque; observed 0xEB)
+        payload: anonymous object { studySelectors, seriesSelectors, studyList, hangingProtocols, relevantStudyList }
+          studyList: ArrayCollection[ Study ]                          // Sealed (40): description, accessionNumber, uid, serviceInstance, series, patient, …
+            series: ArrayCollection[ Series ]                          // Sealed (31): uid, description, modality, sopClassUID, seriesNumber, frameOfReferenceUID, images, nonImages, …
+              images: ArrayCollection[ Image ]                         // Sealed (30): uid, instanceNumber, rows, columns, frameOfReferenceUID, …
+```
+
+Key facts for downloads:
+
+- `Series.uid` and each `Image.uid` are the exact `seriesUID`/`objectUID` `CustomImageServlet` expects; `Study.uid` is the `studyUID`.
+- Each `Series`/`Image` also carries a `frameOfReferenceUID` (Siemens style ends `.0.0.0`). Never send it as a series or instance UID — the server answers `CLOERROR` with `Failed to find image in any supplied providers.`, an HTTP 200.
+- `relevantStudyList` can hold prior studies; match `Study.accessionNumber` against the accession from the viewer URL.
+
 ### Session Initialization Flow
 
 1. Follow SAML chain → get `JSESSIONID` on `eunity.example.org`
@@ -310,6 +335,3 @@ Available methods on `window.VIEWER`:
 - `src/main/scrapers/myChart/myChartRequest.ts` — `async serialize()`
 - `src/cli.ts` — `await mychartRequest.serialize()`
 - `src/main/storage/storage.ts` — `await mychartRequest.serialize()` + `Promise.all` for map
-- `web/src/lib/mychart/myChartRequest.ts` — same fix
-- `web/src/lib/mcp/keepalive.ts` — two call sites
-- `web/src/app/api/mcp-session/route.ts` — one call site

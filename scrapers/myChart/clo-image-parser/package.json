@@ -1,9 +1,0 @@
-{
-  "name": "@mychart-scrapers/clo-image-parser",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "fzstd": "^0.1.1",
-    "sharp": "^0.34.5"
-  }
-}

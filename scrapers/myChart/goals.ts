@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -24,8 +25,13 @@ type GoalResponse = {
   targetDate?: string;
 };
 
+// Real MyChart keys each endpoint's list by its own name — `careTeamGoals`
+// from LoadCareTeamGoals and `patientGoals` from LoadPatientGoals. (An earlier
+// version read a `goals` key that only the fake served, so this scraper
+// returned nothing against every real instance.)
 type LoadGoalsResponse = {
-  goals?: GoalResponse[];
+  careTeamGoals?: GoalResponse[];
+  patientGoals?: GoalResponse[];
 };
 
 function mapGoals(goals: GoalResponse[], source: 'care_team' | 'patient'): Goal[] {
@@ -40,7 +46,7 @@ function mapGoals(goals: GoalResponse[], source: 'care_team' | 'patient'): Goal[
 }
 
 export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsResult> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/goals' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/goals' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -50,7 +56,7 @@ export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsRes
   }
 
   const [careTeamResp, patientResp] = await Promise.all([
-    mychartRequest.makeRequest({
+    makeAuthenticatedRequest(mychartRequest, {
       path: '/api/goals/LoadCareTeamGoals',
       method: 'POST',
       headers: {
@@ -59,7 +65,7 @@ export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsRes
       },
       body: JSON.stringify({}),
     }),
-    mychartRequest.makeRequest({
+    makeAuthenticatedRequest(mychartRequest, {
       path: '/api/goals/LoadPatientGoals',
       method: 'POST',
       headers: {
@@ -74,7 +80,7 @@ export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsRes
   const patientJson: LoadGoalsResponse = await patientResp.json();
 
   return {
-    careTeamGoals: mapGoals(careTeamJson.goals || [], 'care_team'),
-    patientGoals: mapGoals(patientJson.goals || [], 'patient'),
+    careTeamGoals: mapGoals(careTeamJson.careTeamGoals || [], 'care_team'),
+    patientGoals: mapGoals(patientJson.patientGoals || [], 'patient'),
   };
 }

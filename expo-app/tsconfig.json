@@ -2,9 +2,14 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ]
     }
   },
@@ -13,7 +18,6 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules",
-    "**/__tests__/**"
+    "node_modules"
   ]
 }

@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -28,20 +29,29 @@ export type EmergencyContactResult = {
   error?: string;
 };
 
+// Real GetRelationships responses key the list as `contacts`, with the name
+// under `formattedName`, the relationship under `relationToPatient` and the
+// phone numbers under `contactInformation.phoneNumbers`. (An earlier version
+// read a flat `relationships` array that only the fake served, so this
+// scraper returned nothing against every real instance.) `isEmergencyContact`
+// itself appears on only some instances; contacts listed here without it are
+// treated as emergency contacts, which is what the page is for.
 type RelationshipResponse = {
-  name?: string;
-  relationshipType?: string;
-  phoneNumber?: string;
-  isEmergencyContact?: boolean;
   id?: string;
+  formattedName?: string;
+  relationToPatient?: { name?: string };
+  contactInformation?: {
+    phoneNumbers?: Array<{ phoneNumber?: string; type?: string }>;
+  };
+  isEmergencyContact?: boolean;
 };
 
 type GetRelationshipsResponse = {
-  relationships?: RelationshipResponse[];
+  contacts?: RelationshipResponse[];
 };
 
 async function getToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/personal-information' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/personal-information' });
   const html = await pageResp.text();
   return getRequestVerificationTokenFromBody(html) ?? null;
 }
@@ -54,7 +64,7 @@ export async function getEmergencyContacts(mychartRequest: MyChartRequest): Prom
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/GetRelationships',
     method: 'POST',
     headers: {
@@ -66,12 +76,12 @@ export async function getEmergencyContacts(mychartRequest: MyChartRequest): Prom
 
   const json: GetRelationshipsResponse = await resp.json();
 
-  return (json.relationships || []).map((rel: RelationshipResponse) => ({
+  return (json.contacts || []).map((rel: RelationshipResponse) => ({
     ...(rel.id && { id: rel.id }),
-    name: rel.name || '',
-    relationshipType: rel.relationshipType || '',
-    phoneNumber: rel.phoneNumber || '',
-    isEmergencyContact: rel.isEmergencyContact || false,
+    name: rel.formattedName || '',
+    relationshipType: rel.relationToPatient?.name || '',
+    phoneNumber: rel.contactInformation?.phoneNumbers?.[0]?.phoneNumber || '',
+    isEmergencyContact: rel.isEmergencyContact ?? true,
   }));
 }
 
@@ -85,7 +95,7 @@ export async function addEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/AddRelationship',
     method: 'POST',
     headers: {
@@ -118,7 +128,7 @@ export async function updateEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/UpdateRelationship',
     method: 'POST',
     headers: {
@@ -152,7 +162,7 @@ export async function removeEmergencyContact(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/personalInformation/RemoveRelationship',
     method: 'POST',
     headers: {

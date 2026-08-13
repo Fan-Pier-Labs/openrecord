@@ -18,14 +18,13 @@ scraper. Construct it via one of three factories.
 class MyChartClient {
   static connect(args: ConnectArgs): Promise<ConnectResult>;
   static connectWithPasskey(args: MyChartClientOptions & { credential: PasskeyCredential }): Promise<ConnectResult>;
-  static fromSerialized(json: string, opts?: { fetchFn?, keepalive?: boolean }): Promise<MyChartClient | null>;
+  static fromSerialized(json: string, opts?: { keepalive?: boolean }): Promise<MyChartClient | null>;
   static totpCode(secret: string): Promise<string>;
 }
 
 interface MyChartClientOptions {
   hostname: string;
   protocol?: 'http' | 'https';                                    // default: 'https' (auto-'http' for hosts without a dot)
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   keepalive?: boolean;                                            // default: true
 }
 
@@ -225,7 +224,9 @@ import {
   complete2faFlow,
   areCookiesValid,
   parse2faDeliveryMethods,
-  getMyChartProfile, getEmail, getHealthSummary, getVitals,
+  getMyChartProfile, getEmail,
+  discoverProxyTargets, switchProxyTarget, verifyActiveProxyTarget,
+  getHealthSummary, getVitals,
   getMedications, requestMedicationRefill,
   getAllergies, getHealthIssues, getMedicalHistory, getImmunizations,
   listLabResults, getImagingResults, downloadImagingStudyDirect,
@@ -248,6 +249,43 @@ if (result.state === 'logged_in') {
   const meds = await getMedications(result.mychartRequest);
 }
 ```
+
+## Proxy account context
+
+Some MyChart accounts can reach more than one patient's chart — a parent reading
+a child's record. Switching changes the session, so every scraper called
+afterwards reads the record you switched to.
+
+```ts
+const targets = await discoverProxyTargets(result.mychartRequest);
+const child = targets.find((target) => !target.isSelf);
+if (child) {
+  await switchProxyTarget(result.mychartRequest, { id: child.id });
+  const childMeds = await getMedications(result.mychartRequest); // the child's chart
+}
+
+// Going back. Use `self` rather than an id: proxy ids are opaque and differ
+// between organizations, and `isSelf` is the portal's own marker for
+// "the account holder".
+await switchProxyTarget(result.mychartRequest, { self: true });
+
+const active = await verifyActiveProxyTarget(result.mychartRequest);
+```
+
+`switchProxyTarget` confirms the switch against the profile page before
+returning, and throws rather than handing back a different patient's chart. It
+returns `verifiedProfileName` / `verifiedDob` so callers can assert further.
+
+Three details worth knowing about `ProxyTarget`:
+
+- `id` is a long opaque `WP-…` string, unique to one organization and
+  meaningless elsewhere. Never parse or construct one.
+- **The account holder's record is `isSelf`, not a blank id.** It carries a real
+  id like every other record. Confirmed against UCSF, Renown and Carson Tahoe.
+- `selectionKnown` says whether `isSelected` came from the portal or is just a
+  default. Some instances expose the record list without saying which one is
+  active; treat `isSelected === false` as meaningful only when
+  `selectionKnown` is `true`.
 
 Login result shape:
 

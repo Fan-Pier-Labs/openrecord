@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -42,7 +43,7 @@ type LoadAllergiesResponse = {
 }
 
 export async function getAllergies(mychartRequest: MyChartRequest): Promise<AllergiesResult> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Clinical/Allergies' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/Allergies' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -51,7 +52,7 @@ export async function getAllergies(mychartRequest: MyChartRequest): Promise<Alle
     return { allergies: [], allergiesStatus: -1 };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/allergies/LoadAllergies',
     method: 'POST',
     headers: {

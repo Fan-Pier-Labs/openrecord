@@ -87,7 +87,9 @@ scripts/clo_to_jpg/
 │   ├── image_1*.jpg/png   # R_GRID_AXILLARY
 │   ├── image_2*.jpg/png   # R_EXT_ROTATION_TABLE
 │   └── image_3*.jpg/png   # R_INT_ROTATION_TABLE
-└── wasm/                  # eUnity viewer JS/WASM (for reverse engineering)
+└── files-pulled-from-mychart/  # eUnity's OWN viewer, downloaded verbatim from a
+    │                           # real instance. Reference material only — nothing
+    │                           # imports it and none of it ships. See its README.
     ├── eunityviewer.dart.js         # Main viewer (Dart compiled to JS, 5.9MB)
     ├── eunity_viewer_worker_wasm.dart.js  # Worker thread
     ├── LookupWrapperJSW512MB.wasm   # WASM lookup module

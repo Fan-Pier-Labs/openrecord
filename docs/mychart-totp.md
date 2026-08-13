@@ -96,7 +96,6 @@ const code = authenticator.generate(base32Secret);
 
 ### Secret Storage
 - **CLI:** Plain text in `.totp-secrets/<hostname>.txt` (gitignored)
-- **Web/MCP:** Should use `web/src/lib/mcp/encryption.ts` (AES-256-GCM) for encrypted storage
 
 ### Trust Device Cookie
 MyChart's "Trust this device" checkbox (sent as `RememberMe=checked` in the Validate request) stores a cookie that skips 2FA for 30-90 days depending on the MyChart instance. Combined with TOTP, this means:

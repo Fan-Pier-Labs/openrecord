@@ -1,5 +1,5 @@
-import { login_TEST } from "./login";
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from "./makeAuthenticatedRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
 import { logger } from '../../shared/logger';
@@ -122,27 +122,29 @@ export function parseProfileHtml(body: string): ProfileData | null {
 
   // Full format: Name | DOB | MRN | PCP (most MyChart instances)
   const fullRegex = /Name: (.+) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4}) \| MRN: (\d+) \| PCP: (.*)/;
-  const fullMatch = printheaderDiv.match(fullRegex)
+  const fullMatch = fullRegex.exec(printheaderDiv)
   if (fullMatch) {
     return {
-      name: fullMatch[1].trim(),
-      dob: fullMatch[2],
-      mrn: fullMatch[3],
-      pcp: fullMatch[4].trim(),
+      // All four capture groups are non-optional, so they exist on any match.
+      name: fullMatch[1]!.trim(),
+      dob: fullMatch[2]!,
+      mrn: fullMatch[3]!,
+      pcp: fullMatch[4]!.trim(),
     }
   }
 
   // Partial format: Name | DOB only (e.g. MyChart Central at central.mychart.org)
   const partialRegex = /Name: (.+?) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4})/;
-  const partialMatch = printheaderDiv.match(partialRegex)
+  const partialMatch = partialRegex.exec(printheaderDiv)
   if (partialMatch) {
     // Try to pick up MRN and PCP if present after DOB with different formats
-    const afterDob = printheaderDiv.slice(partialMatch.index! + partialMatch[0].length)
-    const mrnMatch = afterDob.match(/MRN:\s*(\d+)/)
-    const pcpMatch = afterDob.match(/PCP:\s*(.*)/)
+    const afterDob = printheaderDiv.slice(partialMatch.index + partialMatch[0].length)
+    const mrnMatch = /MRN:\s*(\d+)/.exec(afterDob)
+    const pcpMatch = /PCP:\s*(.*)/.exec(afterDob)
     return {
-      name: partialMatch[1].trim(),
-      dob: partialMatch[2],
+      // Both capture groups are non-optional, so they exist on any match.
+      name: partialMatch[1]!.trim(),
+      dob: partialMatch[2]!,
       mrn: mrnMatch?.[1] || '',
       pcp: pcpMatch?.[1]?.trim() || '',
     }
@@ -152,20 +154,38 @@ export function parseProfileHtml(body: string): ProfileData | null {
   return null;
 }
 
-export async function getMyChartProfile(mychartRequest: MyChartRequest): Promise<ProfileData | null> {
-  // Use followRedirects: false so we can detect a redirect to the Login page
-  // (which means the session has expired) instead of blindly parsing the login HTML.
-  const resp = await mychartRequest.makeRequest({path: '/Home', followRedirects: false})
+export async function getMyChartProfile(
+  mychartRequest: MyChartRequest,
+  options?: AuthenticatedRequestOptions,
+): Promise<ProfileData | null> {
+  // followRedirects: false so a redirect to somewhere other than the login
+  // page (some instances bounce /Home through a landing route) can be followed
+  // and parsed explicitly. A login redirect is handled by the wrapper — renewed
+  // when possible, otherwise surfaced here as the historical `null`.
+  let resp: Response;
+  try {
+    resp = await makeAuthenticatedRequest(mychartRequest, {path: '/Home', followRedirects: false}, options)
+  } catch (error) {
+    if (error instanceof SessionExpiredError) {
+      logger.debug('[profile] Session expired and could not be renewed');
+      return null;
+    }
+    throw error;
+  }
 
   if ([301, 302].includes(resp.status)) {
     const location = resp.headers.get('Location') || '';
     logger.debug(`[profile] /Home returned ${resp.status} → ${location}`);
+    // The wrapper only recognizes /Authentication/Login as a session bounce.
+    // Keep the historical looser check here too: an instance sending /Home to
+    // any login-ish URL means "not signed in", and following it would parse a
+    // login page into a bogus profile.
     if (location.toLowerCase().includes('login')) {
       logger.debug('[profile] Session expired — redirected to login page');
       return null;
     }
     // Non-login redirect: follow it and parse
-    const followResp = await mychartRequest.makeRequest({url: new URL(location, mychartRequest.protocol + '://' + mychartRequest.hostname).href});
+    const followResp = await makeAuthenticatedRequest(mychartRequest, {url: new URL(location, mychartRequest.protocol + '://' + mychartRequest.hostname).href}, options);
     const body = await followResp.text();
     logger.debug(`[profile] Followed redirect to ${location}, response URL: ${followResp.url}, status: ${followResp.status}`);
     return parseProfileHtml(body);
@@ -179,7 +199,7 @@ export async function getMyChartProfile(mychartRequest: MyChartRequest): Promise
 
 export async function getEmail(mychartRequest: MyChartRequest): Promise<string | null> {
 
-  let resp = await mychartRequest.makeRequest({path: '/PersonalInformation'})
+  let resp = await makeAuthenticatedRequest(mychartRequest, {path: '/PersonalInformation'})
 
   const body = await resp.text()
 
@@ -191,7 +211,7 @@ export async function getEmail(mychartRequest: MyChartRequest): Promise<string |
   }
 
 
-  resp = await mychartRequest.makeRequest({
+  resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/PersonalInformation/GetContactInformation?noCache=' + Math.random(),
     "headers": { 
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -205,18 +225,4 @@ export async function getEmail(mychartRequest: MyChartRequest): Promise<string |
 
   return json.SecureCommunicationInfo.EmailAddress;
 
-}
-
-
-async function test() {
-  const mychartRequest = await login_TEST('mychart.example.org');
-  
-  const profile = await getMyChartProfile(mychartRequest)
-
-  logger.debug('getMedicalRecordNumber is', profile)
-}
-
-
-if (import.meta.main) {
-  test();
 }

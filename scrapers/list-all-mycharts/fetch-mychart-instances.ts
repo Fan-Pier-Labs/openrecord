@@ -15,6 +15,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from '../../shared/logger';
+import { scraperFetch } from '../http';
 
 const S3_BUCKET = "mychart-connector";
 const S3_LOGO_PREFIX = "mychart-logos/";
@@ -26,6 +27,9 @@ const OUTPUT_FILE = path.join(
 );
 const MYCHART_DIRECTORY_URL = "https://www.mychart.org/LoginSignup";
 const MYCHART_BASE_URL = "https://www.mychart.org";
+// Batch size for the download/upload loops. Logo downloads all land on one
+// host, so scraperFetch's per-host permit is the real limit there; this only
+// caps how many S3 uploads are in flight.
 const CONCURRENCY = 20;
 
 interface MyChartCustomer {
@@ -52,17 +56,10 @@ interface MyChartInstance {
 
 async function fetchDirectory(): Promise<MyChartCustomer[]> {
   logger.debug("Fetching MyChart directory from", MYCHART_DIRECTORY_URL);
-  const response = await fetch(MYCHART_DIRECTORY_URL, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    },
-  });
+  const response = await scraperFetch(MYCHART_DIRECTORY_URL);
   const html = await response.text();
 
-  const match = html.match(
-    /window\.PageContext\s*=\s*\{\s*Directory:\s*JSON\.parse\('(.+?)'\)/
-  );
+  const match = /window\.PageContext\s*=\s*\{\s*Directory:\s*JSON\.parse\('(.+?)'\)/.exec(html);
   if (!match) {
     throw new Error(
       "Could not find PageContext.Directory in page HTML. The page structure may have changed."
@@ -70,7 +67,7 @@ async function fetchDirectory(): Promise<MyChartCustomer[]> {
   }
 
   // The JSON is single-quote escaped inside a JS string
-  const jsonStr = match[1].replace(/\\'/g, "'").replace(/\\"/g, '"');
+  const jsonStr = match[1]!.replace(/\\'/g, "'").replace(/\\"/g, '"'); // the one capture group is non-optional
   const directory = JSON.parse(jsonStr);
   const customers: MyChartCustomer[] = directory.Customers;
   logger.debug(`Found ${customers.length} MyChart instances`);
@@ -117,7 +114,7 @@ async function downloadLogo(
   }
 
   try {
-    const response = await fetch(fullImageUrl);
+    const response = await scraperFetch(fullImageUrl);
     if (!response.ok) {
       logger.warn(
         `  Failed to download logo for ${customer.Name}: ${response.status}`
@@ -247,7 +244,7 @@ async function main() {
   logger.debug("Done!");
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   logger.error(err);
   process.exit(1);
 });

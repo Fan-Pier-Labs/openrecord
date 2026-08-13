@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "es2022",
     "lib": [
       "dom",
       "dom.iterable",
@@ -12,35 +12,33 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "moduleResolution": "Node",
-    "module": "commonjs",
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "module": "preserve",
+    "types": ["bun", "node"],
+    "strict": true,
     "noImplicitReturns": true,
-    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "sourceMap": false,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noFallthroughCasesInSwitch": true,
-    "strictNullChecks": true,
     "noUnusedParameters": true,
-    "noUnusedLocals": true,
-    "paths": {
-      "@/*": ["web/src/*"],
-      "@/components/*": ["web/src/components/*"],
-      "@/ui/*": ["web/src/components/ui*"],
-      "@/lib/*": ["web/src/lib/*"],
-      "@/hooks/*": ["web/src/hooks/*"],
-      "@/pages/*": ["web/src/pages/*"]
-    }
+    "noUnusedLocals": true
   },
   "include": [
-    "index.d.ts",
     "scrapers/**/*.ts",
     "npm-package/cli/**/*.ts",
     "shared/**/*.ts",
-    "web/src/**/*.ts",
-    "web/src/**/*.tsx",
-    "read-local-passwords/**/*.ts"
+    "read-local-passwords/**/*.ts",
+    "dev-scripts/**/*.ts",
+    "openrecord-demo-lambda/**/*.ts",
+    "openrecord-splash/__tests__/**/*.ts",
+    "tests/**/*.ts"
   ]
 }

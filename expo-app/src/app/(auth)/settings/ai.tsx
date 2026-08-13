@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   getAiProvider,
   setAiProvider,
@@ -21,7 +22,6 @@ import {
   setGeminiApiKey,
   type AiProvider,
 } from "@/lib/storage/secure-store";
-import { getBackendSession } from "@/lib/backend/session";
 
 type ProviderOption = {
   id: AiProvider;
@@ -30,7 +30,7 @@ type ProviderOption = {
 };
 
 const OPTIONS: ProviderOption[] = [
-  { id: "free", title: "Free tier (our server)", description: "Uses the $50/month of included AI credit via Google sign-in. No API key needed." },
+  { id: "free", title: "Free tier (our server)", description: "Uses the $50/month of included AI credit that comes with your Google sign-in. No API key needed." },
   { id: "openai", title: "OpenAI API key", description: "Your own OpenAI key (gpt-4o). Calls go directly to OpenAI." },
   { id: "anthropic", title: "Anthropic API key", description: "Your own Anthropic key (Claude Sonnet 4.6). Calls go directly to Anthropic." },
   { id: "gemini", title: "Gemini API key", description: "Your own Google Gemini key (2.5 Flash). Calls go directly to Google." },
@@ -42,26 +42,20 @@ export default function AiSettings() {
   const [openaiKey, setOpenaiKeyLocal] = useState("");
   const [anthropicKey, setAnthropicKeyLocal] = useState("");
   const [geminiKey, setGeminiKeyLocal] = useState("");
-  const [hasSession, setHasSession] = useState(false);
   const [show, setShow] = useState<Record<string, boolean>>({});
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
+      fireAndForget((async () => {
         setProvider(await getAiProvider());
         setOpenaiKeyLocal((await getOpenAiApiKey()) || "");
         setAnthropicKeyLocal((await getClaudeApiKey()) || "");
         setGeminiKeyLocal((await getGeminiApiKey()) || "");
-        setHasSession(!!(await getBackendSession()));
-      })();
+      })(), "settings:loadAiKeys");
     }, []),
   );
 
   async function handlePick(p: AiProvider) {
-    if (p === "free" && !hasSession) {
-      Alert.alert("Sign in required", "Sign in with Google from the Settings screen to use the free tier.");
-      return;
-    }
     setProvider(p);
     await setAiProvider(p);
   }
@@ -76,7 +70,12 @@ export default function AiSettings() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          testID="ai-settings-back"
+          accessibilityLabel="Back to settings"
+          accessibilityRole="button"
+          onPress={() => router.back()}
+        >
           <Text style={styles.back}>‹ Settings</Text>
         </Pressable>
         <Text style={styles.headerTitle}>AI Provider</Text>
@@ -88,7 +87,13 @@ export default function AiSettings() {
           const selected = provider === opt.id;
           return (
             <View key={opt.id} style={styles.section}>
-              <Pressable style={styles.row} onPress={() => handlePick(opt.id)}>
+              <Pressable
+                testID={`ai-provider-${opt.id}`}
+                accessibilityLabel={opt.title}
+                accessibilityRole="radio"
+                style={styles.row}
+                onPress={() => handlePick(opt.id)}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.optTitle}>{opt.title}</Text>
                   <Text style={styles.optDesc}>{opt.description}</Text>
@@ -101,6 +106,8 @@ export default function AiSettings() {
               {opt.id !== "free" && (
                 <View style={styles.keyRow}>
                   <TextInput
+                    testID={`ai-key-input-${opt.id}`}
+                    accessibilityLabel={`${opt.title} API key`}
                     style={[styles.input, { flex: 1 }]}
                     placeholder={
                       opt.id === "openai"
@@ -123,12 +130,21 @@ export default function AiSettings() {
                     autoCorrect={false}
                   />
                   <Pressable
+                    testID={`ai-key-toggle-${opt.id}`}
+                    accessibilityLabel="Toggle API key visibility"
+                    accessibilityRole="button"
                     style={styles.eye}
                     onPress={() => setShow((s) => ({ ...s, [opt.id]: !s[opt.id] }))}
                   >
                     <Text style={{ color: "#007AFF" }}>{show[opt.id] ? "Hide" : "Show"}</Text>
                   </Pressable>
-                  <Pressable style={styles.save} onPress={() => handleSaveKey(opt.id as "openai" | "anthropic" | "gemini")}>
+                  <Pressable
+                    testID={`ai-key-save-${opt.id}`}
+                    accessibilityLabel="Save API key"
+                    accessibilityRole="button"
+                    style={styles.save}
+                    onPress={() => handleSaveKey(opt.id as "openai" | "anthropic" | "gemini")}
+                  >
                     <Text style={styles.saveText}>Save</Text>
                   </Pressable>
                 </View>

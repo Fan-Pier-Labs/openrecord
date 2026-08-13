@@ -1,9 +1,10 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
-import { MyChartRequest } from '../myChartRequest';
+import { type MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
-import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
-import { fetchWithCookies } from './fetch';
+import { type ReportContent } from '../labs_and_procedure_results/labtestresulttype';
+import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
 export interface FdiContext {
@@ -44,6 +45,26 @@ export function extractFdiContext(reportContentHtml: string): FdiContext | null 
 }
 
 /**
+ * Extract the fdi/ord pair from a result's `fdiLink.redirectUrl`.
+ *
+ * Some instances (observed on Mass General Brigham) never embed a
+ * `data-fdi-context` attribute in the report HTML — instead each result
+ * carries a structured `fdiLink` whose redirectUrl is
+ * `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`, the same pair the
+ * FdiData API takes. The tokens are MyChart's own `WP-…` encoding and contain
+ * no `%` escapes, so URLSearchParams returns them verbatim.
+ */
+export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | null {
+  const queryStart = redirectUrl.indexOf('?');
+  if (queryStart < 0) return null;
+  const params = new URLSearchParams(redirectUrl.slice(queryStart + 1));
+  const fdi = params.get('fdi');
+  const ord = params.get('ord');
+  if (!fdi || !ord) return null;
+  return { fdi, ord };
+}
+
+/**
  * Extract `data-copy-context` from report content HTML.
  * Format: "|||| Z15696837|54254.98||" - contains internal order/study IDs.
  */
@@ -60,7 +81,7 @@ export function extractCopyContext(reportContentHtml: string): string | null {
  * so we fall back to extracting the token from the /Home page HTML.
  */
 async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Home/CSRFToken?noCache=' + Math.random(),
   });
   const html = await res.text();
@@ -69,7 +90,7 @@ async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | nu
 
   // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
   try {
-    const homeRes = await mychartRequest.makeRequest({ path: '/Home' });
+    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
     const homeBody = await homeRes.text();
     return getRequestVerificationTokenFromBody(homeBody) ?? null;
   } catch {
@@ -92,7 +113,7 @@ export async function getImageViewerSamlUrl(
     return null;
   }
 
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: `/Extensibility/Redirection/FdiData?fdi=${encodeURIComponent(fdiContext.fdi)}&ord=${encodeURIComponent(fdiContext.ord)}&patientIndex=undefined&noCache=${Math.random()}`,
     method: 'POST',
     headers: {
@@ -125,11 +146,18 @@ export async function getImageViewerSamlUrl(
  * Chain: STS URL → HTML form with SAMLResponse → POST to redirect endpoint →
  *        meta-refresh to selfauth → 302 redirect chain → eUnity server
  *
- * Uses its own cookie jar so cross-domain cookies accumulate
- * properly without polluting the MyChart cookie jar.
+ * Uses its own cookie jar, and returns it alongside viewerUrl and jsessionId
+ * so callers can keep making authenticated requests to eUnity.
  *
- * Returns viewerUrl, jsessionId, AND the cookie jar so callers can make
- * authenticated requests to eUnity.
+ * TODO: this should be the session's jar, not a second one. The original
+ * reason given was to avoid "polluting" the MyChart jar, which doesn't hold —
+ * tough-cookie scopes every cookie to its domain, so eUnity's cookies could
+ * never have reached MyChart requests in the first place. The real difference
+ * is the other direction: starting empty means the first hop, which is on the
+ * MyChart host, goes out without the session cookies it would otherwise carry.
+ * It works today because the STS URL is itself an authenticated token, but
+ * unifying is a change to the live imaging path and wants a real-instance test
+ * rather than a drive-by.
  */
 export async function followSamlChain(
   _mychartRequest: MyChartRequest,
@@ -137,18 +165,17 @@ export async function followSamlChain(
 ): Promise<{ viewerUrl: string; jsessionId: string; cookieJar: tough.CookieJar; viewerBody: string } | null> {
   const jar = new tough.CookieJar();
 
-  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-  // Helper: make a request with the cookie jar, manually follow redirects
+  // Helper: make a request against this chain's jar, manually following
+  // redirects. Headers and the per-host permit come from scraperFetch.
   async function req(url: string, opts: { method?: string; body?: string; contentType?: string } = {}) {
-    const headers: Record<string, string> = { 'User-Agent': UA };
+    const headers: Record<string, string> = {};
     if (opts.contentType) headers['Content-Type'] = opts.contentType;
-    return fetchWithCookies(jar, url, {
+    return scraperFetch(url, {
       method: opts.method || 'GET',
       redirect: 'manual',
       headers,
       body: opts.body,
-    });
+    }, { cookieJar: jar });
   }
 
   async function makeViewerResult(viewerUrl: string, viewerBody: string) {
@@ -182,7 +209,7 @@ export async function followSamlChain(
         // Check if we've reached eUnity (detected by /e/viewer path)
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
           const viewerRes = await req(url);
-          return makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
+          return await makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
         }
         continue;
       }
@@ -194,10 +221,10 @@ export async function followSamlChain(
         if (html.length < 3000) logger.debug(`  [SAML] Body: ${html.substring(0, 2000)}`);
 
         // Check for meta-refresh: <meta http-equiv="refresh" content="0;URL='https://...'">
-        const metaMatch = html.match(/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i) ||
-                          html.match(/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i);
+        const metaMatch = (/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i.exec(html)) ||
+                          (/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i.exec(html));
         if (metaMatch) {
-          url = new URL(metaMatch[1], url).href;
+          url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess
           method = 'GET';
           body = undefined;
           contentType = undefined;
@@ -206,15 +233,15 @@ export async function followSamlChain(
 
         // Check for JavaScript redirect (e.g. window.location.href = '...')
         // The redirecttoviewer page uses JS to redirect to eUnity
-        const jsRedirectMatch = html.match(/(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i);
+        const jsRedirectMatch = /(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i.exec(html);
         if (jsRedirectMatch) {
           // If it's a variable reference (url2, url3), extract the URL from the var declaration
           let targetUrl = jsRedirectMatch[1] || jsRedirectMatch[2];
           if (!targetUrl) {
             // Variable reference — look for the var declaration
-            const varMatch = html.match(/var\s+url\s*=\s*'([^']+)'/);
+            const varMatch = /var\s+url\s*=\s*'([^']+)'/.exec(html);
             if (varMatch) {
-              targetUrl = varMatch[1].replace(/&amp;/g, '&');
+              targetUrl = varMatch[1]!.replace(/&amp;/g, '&'); // pattern has one mandatory capture group; noUncheckedIndexedAccess
             }
           }
           if (targetUrl) {
@@ -248,7 +275,7 @@ export async function followSamlChain(
         }
 
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
-          return makeViewerResult(url, html);
+          return await makeViewerResult(url, html);
         }
 
         // Reached a page that's not eUnity and has no redirect
@@ -280,7 +307,7 @@ export async function getReportContentForImaging(
   requestVerificationToken: string
 ): Promise<ReportContent | null> {
   try {
-    const res = await mychartRequest.makeRequest({
+    const res = await makeAuthenticatedRequest(mychartRequest, {
       path: '/api/report-content/LoadReportContent',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',

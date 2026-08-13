@@ -1,20 +1,28 @@
 import { CookieJar } from 'tough-cookie'
 import fs from 'fs';
-import {mockRequest} from './mock_data/index'
-import { OPENRECORD_MOCK_DATA } from '../../shared/env';
-import { RequestConfig } from './types';
+import { type RequestConfig } from './types';
 import { logger } from '../../shared/logger';
+import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../http';
 
 /**
  * Options for creating a MyChartRequest.
- * Pass a custom `fetchFn` to override how HTTP requests are made.
- * For example, on iOS, pass raw `fetch` to let the OS handle cookies natively.
+ *
+ * There is deliberately no "pass me a fetch" option: which network call to
+ * make, and whether to keep our own cookie jar, are platform questions that
+ * `scrapers/http.ts` answers at runtime. Callers say where they're going, not
+ * how to get there.
  */
 export type MyChartRequestOptions = {
   protocol?: string;
-  /** Custom fetch function. Defaults to tough-cookie-wrapped fetch for Node/Bun. */
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
 };
+
+// Redirect statuses worth following. 303/307/308 are rare on MyChart but do
+// show up in front of it (SSO stops, load balancers), and dropping them turns
+// a working instance into an unexplained blank response.
+const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
+
+// Matches what browsers allow before declaring a redirect loop.
+const MAX_REDIRECTS = 20;
 
 // Class to keep track of variables used when making requests
 // to MyChart's Site.
@@ -25,10 +33,11 @@ export class MyChartRequest {
   // and is only used for getCookieInfo() / serialize() compatibility.
   cookieJar: CookieJar;
 
-  // Mockable fetch function. Tests can replace this to intercept requests.
-  // Default implementation injects/extracts cookies via the CookieJar.
-  // On iOS, this is set to raw fetch (iOS handles cookies natively).
-  fetchWithCookieJar: (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
+  // Test seam. Null in production — scraperFetch picks the transport from the
+  // platform. Assigning a function here intercepts this session's requests
+  // without losing the headers, the jar or the per-host permit, all of which
+  // live above the transport.
+  transport: Transport | null = null;
 
   // The hostname of the MyChart site, eg. mychart.example.org
   hostname: string;
@@ -36,8 +45,52 @@ export class MyChartRequest {
   // Protocol to use for requests. Defaults to 'https'. Set to 'http' for local fake-mychart server.
   protocol: string;
 
-  // the first part of the path. For some instances, it is /MyChart-PRD. For others, it is /MyChart.
-  firstPathPart: string = '';
+  // The deployment prefix every MyChart route sits under: '/MyChart' for most
+  // instances, '/MyChart-PRD' or '/UCSFMyChart' for others. null means the
+  // instance is mounted at the domain root and there is no prefix at all
+  // (e.g. mychart.clevelandclinic.org), or that we haven't discovered one yet.
+  firstPathPart: string | null = null;
+
+  /**
+   * Restore this session to a logged-in state, wired by each client after
+   * login (the CLI, the desktop extension and the mobile app each know where
+   * their own credentials live — this class deliberately doesn't).
+   *
+   * Called by `makeAuthenticatedRequest` when a request bounces to the login
+   * page. The hook must log back in and adopt the fresh state onto THIS
+   * instance (see `adoptStateFrom`), returning true on success and false when
+   * a silent re-login isn't possible (e.g. the account requires interactive
+   * 2FA). Left unset, an expired session surfaces as `SessionExpiredError`
+   * instead of being renewed.
+   */
+  reauthenticate?: () => Promise<boolean>;
+
+  /**
+   * Opt out of the automatic keepalive enrollment makeAuthenticatedRequest
+   * performs after successful requests. Set by clients that explicitly asked
+   * for no background pings (MyChartClient's `keepalive: false`).
+   */
+  disableAutoKeepalive?: boolean;
+
+  /**
+   * The patient record this session was last deliberately switched to,
+   * recorded by `switchProxyTarget`. Re-login resets MyChart's server-side
+   * proxy context to the account holder, so automatic session renewal consults
+   * this to put the context back before any caller retries — without it, a
+   * renewed session would silently read the wrong patient's chart.
+   */
+  activeProxyTarget?: { id: string; isSelf: boolean; displayName: string };
+
+  /**
+   * Re-runs the verified proxy switch that produced `activeProxyTarget`,
+   * with autoRenew: false. Armed by proxyContext together with
+   * `activeProxyTarget`; called by session renewal (`sessionRenewal.ts`)
+   * after a silent re-login, which resets MyChart's server-side context to
+   * the account holder. A closure on the request — rather than an import of
+   * proxyContext from the renewal path — so the renewal module stays a leaf
+   * and the module graph stays acyclic.
+   */
+  restoreProxyContext?: () => Promise<void>;
 
   constructor(hostname: string, options?: string | MyChartRequestOptions) {
     // Support old signature: new MyChartRequest(hostname, protocol?)
@@ -46,15 +99,6 @@ export class MyChartRequest {
       : (options ?? {});
 
     this.cookieJar = new CookieJar();
-
-    if (opts.fetchFn) {
-      // Custom fetch function provided (e.g. raw fetch on iOS)
-      this.fetchWithCookieJar = (url, init) => opts.fetchFn!(String(url), init ?? {});
-    } else {
-      // Default: tough-cookie-wrapped fetch for Node/Bun
-      this.fetchWithCookieJar = (url, init) => this.fetchWithCookies(String(url), init ?? {});
-    }
-
     this.hostname = MyChartRequest.normalizeHostname(hostname);
     this.protocol = opts.protocol ?? 'https';
   }
@@ -84,36 +128,77 @@ export class MyChartRequest {
     };
   }
 
-  async serialize(): Promise<string> {
-    return JSON.stringify({
+  // Promise-typed for API stability (npm-package exposes it); the work is synchronous.
+  serialize(): Promise<string> {
+    return Promise.resolve(JSON.stringify({
       firstPathPart: this.firstPathPart,
       hostname: this.hostname,
       protocol: this.protocol,
       cookies: this.cookieJar.serializeSync()
-    })
+    }))
   }
 
-  static async unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
+  static unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
     try {
       const data = JSON.parse(serializedData);
-      if (data && data.hostname && data.firstPathPart && data.cookies) {
+      // firstPathPart is null for root-mounted instances, so check for presence
+      // rather than truthiness.
+      if (data?.hostname && data.firstPathPart !== undefined && data.cookies) {
         const request = new MyChartRequest(data.hostname, { ...options, protocol: data.protocol });
         request.firstPathPart = data.firstPathPart;
         if (Object.keys(data.cookies).length > 0) {
           request.cookieJar = CookieJar.deserializeSync(data.cookies);
         }
-        return request;
+        return Promise.resolve(request);
       } else {
-        logger.error('Invalid data for MyChartRequest unserialization:', data);
+        // `data` holds the serialized cookie jar — log its shape, never its contents.
+        logger.error(
+          'Invalid data for MyChartRequest unserialization. Fields present:',
+          data && typeof data === 'object' ? Object.keys(data).join(', ') : typeof data,
+        );
       }
     } catch (error) {
       logger.error('Error unserializing MyChartRequest:', error);
     }
-    return null;
+    return Promise.resolve(null);
   }
 
-  setFirstPathPart(firstPathPart: string) {
+  setFirstPathPart(firstPathPart: string | null) {
     this.firstPathPart = firstPathPart;
+  }
+
+  /**
+   * Point every subsequent request at a different host.
+   *
+   * Vanity hostnames outlive the deployments behind them — `login.wellspan.org`
+   * redirects to `my.wellspan.org`, `patients.mycslink.org` to
+   * `mycslink.cedars-sinai.org`. Discovery follows those moves so the rest of
+   * the session talks to the host that actually serves the chart.
+   */
+  setHostname(hostname: string) {
+    this.hostname = MyChartRequest.normalizeHostname(hostname);
+  }
+
+  /**
+   * Adopt a freshly logged-in instance's session state onto this one, in
+   * place.
+   *
+   * The login functions construct and return a brand-new MyChartRequest, but
+   * everything holding a reference mid-scrape (in-flight scrapers, the session
+   * stores, the keepalive) points at the old object — so a re-login hook copies
+   * the new state across rather than swapping references. Hostname and mount
+   * come along too, because discovery during the fresh login may legitimately
+   * have followed a vanity-host move.
+   *
+   * `transport` is deliberately NOT copied: it's a per-instance test seam, and
+   * production requests read `this.cookieJar` at call time anyway — reassigning
+   * the jar is enough.
+   */
+  adoptStateFrom(other: MyChartRequest) {
+    this.cookieJar = other.cookieJar;
+    this.hostname = other.hostname;
+    this.protocol = other.protocol;
+    this.firstPathPart = other.firstPathPart;
   }
 
 
@@ -141,59 +226,12 @@ export class MyChartRequest {
     this.cookieJar = CookieJar.deserializeSync(serializedJar);
   }
 
-  /**
-   * Fetch with manual cookie jar integration.
-   * Injects cookies from the jar into the request headers, and stores
-   * Set-Cookie headers from the response back into the jar.
-   *
-   * This is the default fetch strategy for Node/Bun environments.
-   * On platforms with native cookie handling (iOS), the constructor
-   * is given a custom fetchFn that bypasses this method entirely.
-   */
-  private async fetchWithCookies(url: string, init: RequestInit): Promise<Response> {
-    // Get cookies for this URL and inject them
-    const cookieString = await this.cookieJar.getCookieString(url);
-    const headers: Record<string, string> = {};
-    // Copy existing headers
-    if (init.headers) {
-      const h = init.headers as Record<string, string>;
-      for (const key of Object.keys(h)) {
-        headers[key] = h[key];
-      }
-    }
-    if (cookieString) {
-      headers['Cookie'] = cookieString;
-    }
-
-    const response = await fetch(url, { ...init, headers });
-
-    // Extract Set-Cookie headers and store them in the jar.
-    // Node's undici exposes getSetCookie(); fall back to get('set-cookie') for other runtimes.
-    let setCookies: string[] = [];
-    if (typeof (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie === 'function') {
-      setCookies = (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie();
-    } else {
-      const raw = response.headers.get('set-cookie');
-      if (raw) {
-        // Comma-separated cookies: split on ", " followed by a cookie name (token=)
-        setCookies = raw.split(/,\s*(?=[A-Za-z0-9_-]+=)/);
-      }
-    }
-
-    for (const cookieStr of setCookies) {
-      try {
-        await this.cookieJar.setCookie(cookieStr.trim(), url);
-      } catch {
-        // Skip invalid cookies
-      }
-    }
-
-    return response;
-  }
-
   // Make a request with the given config.
   // Returns the raw response object.
-  async makeRequest(config: RequestConfig): Promise<Response> {
+  //
+  // `redirectsFollowed` is bookkeeping for the recursive redirect follow below;
+  // callers pass one argument and let it default.
+  async makeRequest(config: RequestConfig, redirectsFollowed = 0): Promise<Response> {
     if (config.method === undefined) {
       config.method = 'GET';
     }
@@ -202,53 +240,32 @@ export class MyChartRequest {
       throw new Error("Either url or path must be defined in the config object.");
     }
 
-    // Pretend that we are making requests as Google Chrome on MacOS.
-    // Add a number of headers that Google Chrome typically sends with requests.
-    const finalHeaders: Record<string, string> = {
-      'Cache-Control': 'max-age=0',
-      'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': "macOS",
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'same-origin',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-      'Dnt': '1',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      ...config.headers,
-    }
-
-
-    // Default to application/json to all POST requests that have a body.
-    if (config.method === 'POST' && config.body && !finalHeaders['Content-Type']) {
-      finalHeaders['Content-Type'] = 'application/json'
-    }
-
+    // The Chrome header block, the cookie jar and the per-host permit are all
+    // scraperFetch's job; this only says what MyChart is being asked for.
     const finalConfig = {
       method: config.method ?? 'GET',
       redirect: "manual" as const,
       body: config.body,
-      headers: finalHeaders
+      headers: config.headers ?? {},
     }
 
-    const url = config.url ?? (this.protocol + '://' + this.hostname + '/' + this.firstPathPart + config.path);
+    // No prefix (root-mounted instance) means nothing goes in front of the
+    // path — not even the separating slash, which would leave a double slash
+    // that some servers redirect on.
+    const mountPath = this.firstPathPart ? '/' + this.firstPathPart : '';
+    const url = config.url ?? (this.protocol + '://' + this.hostname + mountPath + config.path);
 
-    let response ;
-
-    if (OPENRECORD_MOCK_DATA) {
-      response = await mockRequest(url, finalConfig)
-      logger.debug('MOCK:', response.status, url)
-    }
-    else {
-      response = await this.fetchWithCookieJar(url, finalConfig)
-      // Log each request and its status code.
-      logger.debug(response.status, url)
-    }
-
+    const response = await scraperFetch(url, finalConfig, {
+      // Who keeps the cookies is a property of the runtime, not of the
+      // caller — see PLATFORM_OWNS_COOKIES.
+      cookieJar: PLATFORM_OWNS_COOKIES ? null : this.cookieJar,
+      transport: this.transport ?? undefined,
+    })
+    // Log each request and its status code.
+    logger.debug(response.status, url)
 
     // Follow redirects, if necessary.
-    if ([301, 302].includes(response.status) && config.followRedirects !== false) {
+    if (REDIRECT_STATUSES.includes(response.status) && config.followRedirects !== false) {
 
       let newLocation = response.headers.get('Location');
 
@@ -256,11 +273,26 @@ export class MyChartRequest {
         throw new Error("302 didn't have a location header" + url)
       }
 
+      // Some instances redirect a URL straight back to itself and never stop —
+      // mychart.crossingrivers.org does this on /MyChart/, cookies and all.
+      // Without a cap this recurses until the process runs out of stack.
+      if (redirectsFollowed >= MAX_REDIRECTS) {
+        logger.debug(`Giving up after ${MAX_REDIRECTS} redirects, last hop:`, url);
+        return response;
+      }
+
       // If the Location header returned doesn't isn't absolute, make it absolute.
       newLocation = new URL(newLocation, url).href
 
-      // Following 302 should always be a GET
-      return await this.makeRequest({ ...config, url: newLocation, method: 'GET', body: undefined })
+      // 307/308 exist precisely to preserve the method and body; everything
+      // else turns into a GET, which is what browsers do with a 302 too.
+      const preserveMethod = response.status === 307 || response.status === 308;
+      return this.makeRequest({
+        ...config,
+        url: newLocation,
+        method: preserveMethod ? config.method : 'GET',
+        body: preserveMethod ? config.body : undefined,
+      }, redirectsFollowed + 1)
     }
 
     return response;

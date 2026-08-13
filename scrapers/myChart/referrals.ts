@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -33,7 +34,7 @@ type ListReferralsResponse = {
 }
 
 export async function getReferrals(mychartRequest: MyChartRequest): Promise<Referral[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/referrals' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/referrals' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -42,7 +43,7 @@ export async function getReferrals(mychartRequest: MyChartRequest): Promise<Refe
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/referrals/listReferrals',
     method: 'POST',
     headers: {

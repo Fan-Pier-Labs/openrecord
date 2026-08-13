@@ -16,7 +16,7 @@
  * and verified against fake-mychart — flag for byte-level verification when
  * real access is available.
  */
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { createPreAuthRequest } from './preAuthRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { logger } from '../../shared/logger';
@@ -30,6 +30,19 @@ export type RecoverySettings = {
     callToAction: string;
   };
 };
+
+/**
+ * Fetch the recovery SPA shell and pull its `__RequestVerificationToken`.
+ *
+ * Every `/api/*` POST needs one — this is the pre-auth surface, but it is not
+ * the CSRF-exempt surface, and a call without the header is rejected before the
+ * server ever looks at the body. Done per call rather than cached on the request
+ * object, matching how every other scraper in `scrapers/myChart/` gets a token.
+ */
+async function recoveryCsrfToken(mychartRequest: MyChartRequest): Promise<string> {
+  const pageResp = await mychartRequest.makeRequest({ path: '/app/account-recovery' });
+  return getRequestVerificationTokenFromBody(await pageResp.text()) ?? '';
+}
 
 export type RecoverySettingsResult = {
   settings: RecoverySettings | null;
@@ -68,29 +81,26 @@ export async function getAccountRecoverySettings({
   hostname,
   contactInfo,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   contactInfo: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<RecoverySettingsResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       settings: null,
-      mychartRequest: existingRequest as MyChartRequest,
+      mychartRequest: existingRequest!,
       error: 'could not determine MyChart path for ' + hostname,
     };
   }
 
   // Grab a CSRF token from the recovery SPA shell first (the real portal sends
   // it as a __RequestVerificationToken header on the JSON call).
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/account-recovery' });
-  const token = getRequestVerificationTokenFromBody(await pageResp.text()) ?? '';
+  const token = await recoveryCsrfToken(mychartRequest);
 
   try {
     const resp = await mychartRequest.makeRequest({
@@ -121,7 +131,10 @@ export async function sendAccountRecoveryCode({
     const resp = await mychartRequest.makeRequest({
       path: '/api/account-recovery/SendCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        __RequestVerificationToken: await recoveryCsrfToken(mychartRequest),
+      },
       body: JSON.stringify({ contactInfo: contactInfo.trim(), useSMS: !!useSMS }),
     });
     const data = (await resp.json()) as { Success?: boolean; DeliveryMasked?: string };
@@ -152,7 +165,10 @@ export async function verifyAccountRecoveryCode({
     const resp = await mychartRequest.makeRequest({
       path: '/api/account-recovery/VerifyCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        __RequestVerificationToken: await recoveryCsrfToken(mychartRequest),
+      },
       body: JSON.stringify({ contactInfo: contactInfo.trim(), code: code.trim() }),
     });
     const data = (await resp.json()) as {
@@ -188,7 +204,10 @@ export async function resetAccountPassword({
     const resp = await mychartRequest.makeRequest({
       path: '/api/account-recovery/ResetPassword',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        __RequestVerificationToken: await recoveryCsrfToken(mychartRequest),
+      },
       body: JSON.stringify({ recoveryToken, newPassword }),
     });
     const data = (await resp.json()) as { Success?: boolean; ErrorCode?: string };

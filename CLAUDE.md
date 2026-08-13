@@ -1,365 +1,185 @@
 # CLAUDE.md
 
-## Project Overview
-
-Health data aggregation platform that connects to Epic MyChart portals to scrape and consolidate a patient's medical records. Supports 30+ data categories. Ships a headless CLI mode, a Next.js web demo on AWS Fargate, and an MCP server for Claude AI integration.
-
-## License
-
-Proprietary source-available license (see `LICENSE`). Viewing and personal/educational use permitted; no commercial use, redistribution, SaaS offerings, or competing products without written permission from Fan Pier Labs. Modifications must be contributed back via PR.
-
-## Architecture
-
-- **Scrapers** (`scrapers/`): Shared scraper code for MyChart
-- **CLI** (`npm-package/cli/cli.ts`): Headless CLI entry point — bundled into the published `mychart-cli` npm package as the `mychart-cli` bin. `npm i -g mychart-cli` puts `mychart-cli` on PATH. Great for Claude code to use for testing changes in the cli or scrapers.
-- **Shared types** (`shared/`): Common types and enums shared across packages
-- **Read local passwords** (`read-local-passwords/`): Browser password store extraction (Chrome, Arc, Firefox)
-- **CLO image parser** (`scrapers/myChart/clo-image-parser/`): eUnity CLO image format decoder and encoder
-- **Web app** (`web/`): Next.js demo app deployed to AWS Fargate. Includes an mcp server. Uses BetterAuth for user authentication (email+password, Google OAuth) and PostgreSQL for storing encrypted MyChart credentials.
-- **OpenRecord plugin** (`openclaw-plugin/`): Self-contained OpenClaw plugin (package name: `openrecord`) that bundles all MyChart scrapers locally. No server dependency.
-- **Newsletter Lambda** (`newsletter-lambda/`): Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups from the login page and `console.log`s them to CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration. Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account blocks unauthenticated Lambda Function URLs. Deploy with `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com` (frontend reads `NEXT_PUBLIC_NEWSLETTER_ENDPOINT`, falling back to this URL). Read signups via CloudWatch Logs Insights: `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`. Hidden `company` honeypot field drops bots. See `newsletter-lambda/README.md`.
-- **Fake MyChart** (`fake-mychart/`): Standalone Next.js app that mimics MyChart's API surface with Homer Simpson fake data. Used for development without real MyChart access and CI integration tests. Run with `cd fake-mychart && bun run dev` (port 4000). Credentials: `homer`/`donuts123` (no 2FA) or `marge`/`donuts123` (TOTP enabled — always requires the 2FA code `123456`). Set `FAKE_MYCHART_ACCEPT_ANY=true` to accept any username/password. All state lives in RAM. Visit `/reset` (or `POST /reset`) to wipe all in-memory state — sessions, sent messages, emergency contacts, per-user TOTP/passkeys, booked appointments, **pending signups/recoveries and created accounts** — back to the seed.
-  - **Signup & account-recovery endpoints** (added for the no-account onboarding branch): self-signup posts `POST /MyChart/Signup/Standalone/SubmitActivationRequest` (urlencoded demographic form; returns `{Success, SignupToken, DeliveryMasked}` or `{Success:false, ErrorCode:'AccountAlreadyExists'}`); activation-code signup is `POST /MyChart/api/signup/VerifyActivationCode` (seeded valid code `ABCDE-FGHIJ-KLMNO`), then `VerifyContactCode` + `CreateAccount`. Unified recovery is `POST /MyChart/api/account-recovery/{GetAccountRecoverySettings,SendCode,VerifyCode,ResetPassword}`. The one-time signup/recovery code is the fixed `123456` (like the 2FA code), or any 6-digit code under `FAKE_MYCHART_ACCEPT_ANY`. Seed users `homer`/`marge` have recovery contacts (`homer@springfield.net` / `555-555-7890`). These mirror the live Denver Health (Epic) contract reverse-engineered in `claude-memory/mychart-signup-recovery-api.md`; note real Epic gates **self-signup** behind reCAPTCHA Enterprise (the fake has none).
-  - **Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a convenience mock. Always replicate the real API's response shapes, field names/casing, pagination (page sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules (e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the fake returns 10, and the fixture/test is sized around that. When you discover how a real endpoint behaves, update the fake to match it exactly.
-
-## Key Commands
-
-- `bun run lint` — Run ESLint
-- `bun run test` — Run unit tests + web tests
-- `bun run test:unit` — Run scraper unit tests only
-- `bun run test:integration` — Run integration tests (requires credentials)
-- `bun run cli` — Run the CLI scraper (defaults to MyChart)
-- `bun run cli mychart [flags]` — MyChart scraper
-- `cd fake-mychart && bun run dev` — Run fake MyChart server on port 4000
-- `cd fake-mychart && bun run build` — Build fake MyChart for production
-- `bun run web/scripts/migrate.ts` — Run database migrations (BetterAuth tables + mychart_instances)
-- `bun run test:ci-integration` — Run CI integration tests (requires Docker Compose services running)
-- `docker compose -f docker-compose.ci.yaml up -d --build --wait` — Start CI services (PostgreSQL 18, fake-mychart, web app)
-- `docker compose -f docker-compose.ci.yaml down -v` — Tear down CI services
-
-## CI Integration Tests
-
-End-to-end tests in `tests/integration/ci/` that exercise the full user journey against Docker Compose services. Uses `docker-compose.ci.yaml` to spin up PostgreSQL 18, fake-mychart, and the web app.
-
-**Single test file** (`tests/integration/ci/integration.test.ts`) runs all scenarios sequentially to maintain shared state (session cookies, instance IDs). Covers:
-1. Health check canary
-2. Sign up, sign in, sign out
-3. MyChart instance CRUD, connect, login flow
-4. Full 30-category data scrape with Homer Simpson spot-checks
-5. MCP API key generate/revoke lifecycle
-6. Notification preference CRUD
-7. App-level TOTP 2FA enable/verify/sign-in/disable
-8. Password reset request, token validation, password change, old password rejection
-9. Passkey setup on MyChart instance and passkey auto-login
-10. MyChart instance deletion and cleanup
-
-**Protocol detection**: Hostnames without a dot (e.g. Docker service names like `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
-
-**Database access**: PostgreSQL is exposed on host port 5433 (mapped from container port 5432) so integration tests can query the DB directly (e.g., to extract password reset tokens from the `verification` table). Connection string: `postgresql://testuser:testpass@localhost:5433/mychart_test` (override with `CI_DATABASE_URL` env var).
-
-## Reference Docs
-
-- **[CLI reference](docs/cli.md)** — Cookie caching, credential resolution, 2FA, CLI actions
-- **[Imaging scraper](docs/imaging.md)** — eUnity protocol, AMF3, instance-specific notes
-- **[Scraping guide](docs/scraping.md)** — MyChart login, scraping tips, and tooling
-- **[OpenRecord plugin](docs/openclaw.md)** — Build, install, setup, and tool registration
-- **[Deployment details](docs/deployment.md)** — Additional infrastructure notes
-- **[MyChart features](MYCHART_FEATURES.md)** — Full inventory of MyChart features and scraper coverage
-- **[MyChart TOTP](docs/mychart-totp.md)** — TOTP authenticator app 2FA setup, API endpoints, CLI flags
-- **[Self-hosting](SELF_HOSTING.md)** — Run locally with PostgreSQL, ngrok/Cloudflare Tunnel, and env-var config
-
-## Deployment
-
-The web app supports two deployment modes, auto-detected via the `DATABASE_URL` env var:
-
-- **If `DATABASE_URL` is set** → env-var mode (Railway / self-hosted). All config comes from env vars.
-- **If `DATABASE_URL` is not set** → AWS mode (Fargate). Config comes from AWS Secrets Manager.
-
-### AWS Fargate (primary)
-
-- **AWS account**: fanpierlabs (`aws --profile fanpierlabs`)
-- **Web app** (`web/`): Next.js app deployed to AWS Fargate via `bun run deploy` (from repo root, uses `web/deploy.yaml`)
-  - Uses the `deploy` package (dev dependency) which builds a Docker image, pushes to ECR, and deploys to ECS Fargate
-  - Config: `web/deploy.yaml`
-  - Domain: `openrecord.fanpierlabs.com` (CloudFront + ALB + Route53). Old domain `mychart.fanpierlabs.com` redirects via next.config.ts.
-  - Region: `us-east-2`
-- **Fake MyChart** (`fake-mychart/`): Separate Fargate app deployed independently from the web app. **Run the deploy script from inside `fake-mychart/`** so the relative `Dockerfile` path resolves to `fake-mychart/Dockerfile` (not the repo-root web app Dockerfile):
-  - `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml`
-  - Config: `fake-mychart/deploy.yaml`
-  - Domain: `fake-mychart.fanpierlabs.com` (its own ALB + ECS service `fake-mychart-service` in cluster `fake-mychart-cluster`)
-  - Region: `us-east-2`
-
-### Railway / Self-Hosted
-
-- Config: `railway.toml` (Dockerfile-based build)
-- Required env vars: `DATABASE_URL` (auto from Postgres plugin), `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`
-- Railway deployments work zero-config: `*.up.railway.app` is always trusted. Set `BETTER_AUTH_URL` only if using a custom domain.
-- Optional env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google OAuth disabled without them)
-- SSL is enabled by default for all Postgres connections (Railway and AWS). Set `DB_SSL=false` only for local dev with a plain Postgres container. AWS RDS uses full certificate verification (`rejectUnauthorized: true`) with the committed CA bundle at `web/certs/rds-global-bundle.pem`. Railway uses `rejectUnauthorized: false` (self-signed certs).
-
-## S3 Buckets (us-east-2)
-
-- **mychart-connector** (`arn:aws:s3:::mychart-connector`)
-  - `mychart-logos/` — logos for all MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`
-  - Served via `GET /api/mychart-logo?name=<filename>`
-
-## Secrets (AWS Secrets Manager, us-east-2)
-
-- **RESEND_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:RESEND_API_KEY-vKJonO`
-  - Used by CLI for autonomous 2FA code retrieval via Resend inbound emails
-  - Inbound email address: `healthapp@bocuedpo.resend.app`
-- **BETTER_AUTH_SECRET**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:BETTER_AUTH_SECRET-ViBKHZ`
-  - BetterAuth session signing secret, loaded automatically from Secrets Manager
-- **BETTER_AUTH_URL**: Base URL for BetterAuth (defaults to `RAILWAY_PUBLIC_DOMAIN` or `http://localhost:3000`)
-- **GOOGLE_CLIENT_ID** / **GOOGLE_CLIENT_SECRET**: Google OAuth credentials (optional, Google sign-in disabled without them)
-- **SENTRY_AUTH_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:mychart-connector-sentry-auth-token-UputCa`
-  - Sentry auth token for error monitoring and source map uploads
-- **GEMINI_API_KEY**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:GEMINI_API_KEY-GPbdf6`
-  - Google Gemini API key for the AI proxy. Can also be set via `GEMINI_API_KEY` env var in env-var mode.
-- **EXPO_TOKEN**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:EXPO_TOKEN-XYwf9T`
-  - Expo access token for EAS CLI builds and TestFlight submissions. Used with `EXPO_TOKEN` env var.
-- **APPLE_CREDENTIALS**: `arn:aws:secretsmanager:us-east-2:555985150976:secret:APPLE_CREDENTIALS-GZhHoo`
-  - Apple Developer credentials (appleId, appleTeamId) for iOS builds and App Store submissions.
-- **APPLE_APP_SPECIFIC_PASSWORD** (ryanhughes624): `arn:aws:secretsmanager:us-east-2:066949051862:secret:APPLE_APP_SPECIFIC_PASSWORD-fZNTNC`
-  - Apple app-specific password for App Store Connect / TestFlight CLI uploads (ryan@fanpierlabs.com).
-
-## App Authentication & 2FA
-
-BetterAuth handles email+password and Google OAuth sign-in. Two additional auth methods are supported:
-
-- **Passkeys (WebAuthn)**: Users can register passkeys (Touch ID, Face ID, security keys) from the Security card on the home page. Sign-in with passkey is available on the login page.
-- **TOTP 2FA (Authenticator App)**: Users can enable TOTP-based two-factor authentication from the Security card. When enabled, sign-in with email+password requires a 6-digit code from an authenticator app. Backup codes are provided during setup.
-- **Password Reset**: Users can reset their password via email. The flow: `/forgot-password` (enter email) → receive reset email via Resend → `/reset-password?token=...` (enter new password). Uses BetterAuth's built-in `forgetPassword`/`resetPassword` APIs.
-
-Key files:
-- `web/src/lib/auth.ts` — Server config with `twoFactor()` and `passkey()` plugins, `sendResetPassword` email handler
-- `web/src/lib/auth-client.ts` — Client config with `twoFactorClient()` and `passkeyClient()` plugins
-- `web/src/lib/email.ts` — Shared transactional email utility (Resend). Supports both AWS Secrets Manager and `RESEND_API_KEY` env var
-- `web/src/app/login/page.tsx` — Passkey sign-in button + TOTP verification step + "Forgot password?" link
-- `web/src/app/forgot-password/page.tsx` — Request password reset email
-- `web/src/app/reset-password/page.tsx` — Set new password with reset token
-- `web/src/app/home/page.tsx` — Security settings card (enable/disable TOTP, manage passkeys)
-
-Database tables (`twoFactor`, `passkey`) are auto-created by `runMigrations()`.
-
-Note: This is separate from MyChart portal TOTP (used for auto-connecting to health portals).
-
-## MCP Server
-
-The web app exposes a per-user MCP server at `/api/mcp?key={apiKey}` for Claude AI integration. Users generate a long-lived API key (SHA-256 hash stored in `user.mcp_api_key_hash`) via `POST /api/mcp-key`. One MCP URL works for all of a user's MyChart accounts — tools accept an optional `instance` parameter to target a specific hostname when multiple accounts are connected. Auto-connects TOTP-enabled instances on first tool call.
-
-Write tools include `send_message`, `send_reply`, `request_refill`, `book_appointment`, `get_available_appointments`, and emergency contact management (`add_emergency_contact`, `update_emergency_contact`, `remove_emergency_contact`). Appointment booking (`get_available_appointments`, `book_appointment`) is a placeholder in production (returns "coming soon" error) but fully functional in the demo server.
-
-A public demo MCP endpoint at `/api/mcp/demo` requires no authentication and returns fictional Homer Simpson data. The demo server mirrors all production tools exactly with fake responses.
-
-Key files:
-- `web/src/lib/mcp/server.ts` — MCP server creation, tool registration (per-user)
-- `web/src/lib/mcp/demo-server.ts` — Demo MCP server with fake Homer Simpson data
-- `web/src/lib/mcp/demo-data.ts` — All fictional demo data (profile, meds, appointments, etc.)
-- `web/src/lib/mcp/api-keys.ts` — API key generate/validate/revoke
-- `web/src/lib/mcp/auto-connect.ts` — shared login+TOTP auto-connect logic
-- `web/src/app/api/mcp/route.ts` — HTTP transport handler (authenticates via API key)
-- `web/src/app/api/mcp/demo/route.ts` — Demo MCP endpoint (no auth required)
-- `web/src/app/api/mcp-key/route.ts` — API key management endpoint
-
-## AI Proxy
-
-Server-side AI proxy at `POST /api/ai` that forwards requests to Gemini (currently Gemini 2.5 Flash). Designed with a provider abstraction (`AiProvider` interface) so the backend can be swapped without changing the API contract.
-
-- **Per-user spending limit**: $50/month tracked via `ai_spend_cents` and `ai_spend_period` columns on the `user` table. Period resets automatically on calendar month boundaries.
-- **Usage endpoint**: `GET /api/ai` returns current spend info (spentCents, limitCents, remainingCents, period).
-- **Auth**: Session-based (same as other protected routes via `requireAuth`).
-
-Key files:
-- `web/src/lib/ai/types.ts` — Provider-agnostic types (`AiProvider`, `AiMessage`, `AiRequest`, `AiResponse`)
-- `web/src/lib/ai/gemini.ts` — Gemini provider implementation (swap this to change providers)
-- `web/src/lib/ai/usage.ts` — Per-user spending tracking and limit enforcement
-- `web/src/app/api/ai/route.ts` — API route (POST for chat, GET for spend info)
-
-## Notification System
-
-Daily email notifications when MyChart account changes are detected. Users opt in via the home page UI.
-
-- **Preferences**: Per-user `notifications_enabled` and `notifications_include_content` columns on the `user` table
-- **Tracking**: `notifications_last_checked_at` on `mychart_instances` — timestamp of last check per instance
-- **Change detection**: Checks 10 categories (messages, lab results, imaging, medications, letters, visits, activity feed, documents, allergies, health issues) using timestamp comparison
-- **Email modes**: Summary (category counts + login link) or detailed (actual medical content + X-ray JPEGs as attachments)
-- **Imaging pipeline**: Downloads CLO images via `downloadImagingStudyDirect()`, converts to JPEG via `convertCloToJpg()`, attaches to email (max 5)
-- **Orchestration**: `startNotificationChecker()` in `instrumentation.ts` runs on server startup, then every 24 hours
-- **First run**: When `notifications_last_checked_at` is NULL, sets baseline without sending email
-
-Key files:
-- `web/src/lib/notifications/change-detector.ts` — Timestamp-based change detection across 10 scrapers
-- `web/src/lib/notifications/check.ts` — Orchestrator (checkAllUsers, startNotificationChecker)
-- `web/src/lib/notifications/email.ts` — Resend email sending
-- `web/src/lib/notifications/imaging.ts` — X-ray CLO→JPEG for email attachments
-- `web/src/lib/notifications/templates.ts` — HTML email templates (summary + detailed)
-- `web/src/app/api/notifications/preferences/route.ts` — GET/PUT user preferences
-
-## Memory
-
-You maintain persistent memory in markdown files at `claude-memory/` in the repo root. This replaces the built-in auto-memory feature (which is disabled for this project).
-
-### How it works
-- **`claude-memory/MEMORY.md`** is your main memory file — read it at the start of every conversation to build on prior context.
-- Create separate topic files (e.g., `claude-memory/debugging.md`, `claude-memory/patterns.md`) for detailed notes and reference them from MEMORY.md.
-- Use Edit/Write tools to update memory files as you learn new things.
-
-### When to save
-- Stable patterns and conventions confirmed across multiple interactions
-- Key architectural decisions, important file paths, and project structure changes
-- User preferences for workflow, tools, and communication style
-- Solutions to recurring problems and debugging insights
-- When the user explicitly asks you to remember something
-
-### When NOT to save
-- **NEVER save PII** (personally identifiable information) — no names, emails, phone numbers, addresses, dates of birth, medical record numbers, patient IDs, health data, or credentials
-- Session-specific context (current task details, in-progress work, temporary state)
-- Information that might be incomplete — verify before writing
-- Anything that duplicates existing CLAUDE.md content
-- Speculative or unverified conclusions from reading a single file
-
-### Rules
-- Always check existing memory files before writing to avoid duplicates
-- Update or remove memories that turn out to be wrong or outdated
-- Keep MEMORY.md concise — use separate files for detailed notes
-- Organize by topic, not chronologically
-
-## iOS Simulator Debugging & UI Automation
-
-Use **`maestro-cli`** (already installed at `~/.local/bin/maestro-cli`) for every interaction with the iOS simulator. It's a one-shot wrapper around Maestro (mobile.dev) designed for agent loops — each invocation does one action and writes a screenshot to `/tmp/maestro-last.png` so the next step can read it.
-
-**Hard rules (no exceptions):**
-- **NEVER take over the user's mouse.** Do not use `cliclick`, `osascript ... click at`, AppleScript mouse events, AppKit/CGEvent, or any other tool that moves the cursor or steals focus. The user may be using their computer.
-- **NEVER click on the simulator by computing pixel coordinates against the simulator window position.** It's brittle, focus-races with whatever the user is doing, and breaks on every window move or sim resize. Use `maestro-cli` instead — it talks to the simulator through iOS's native automation hooks, not the macOS cursor.
-- **Do not install a separate Maestro.** The brew `maestro` cask is a different product (runmaestro.ai). The mobile.dev Maestro CLI is what `maestro-cli` wraps and it's already on PATH.
-
-### Starting a sim session (do this exactly once per Claude session)
-
-Every Claude session that touches the simulator must own a fresh, dedicated sim — never share one with another running Claude. The recipe:
-
-```bash
-# 1. Create a new simulator. simctl assigns a UDID and prints it.
-UDID=$(xcrun simctl create "claude-$(date +%Y%m%d)-$(openssl rand -hex 3)" \
-  "iPhone 17" \
-  "com.apple.CoreSimulator.SimRuntime.iOS-26-1")
-
-# 2. Boot it and surface the Simulator.app window so the user can watch.
-xcrun simctl boot "$UDID"
-open -a Simulator
-
-# 3. Pin the UDID for the rest of the session. The Bash tool's shell state
-#    persists across tool calls, so this one export is enough — every later
-#    maestro-cli invocation picks it up automatically.
-export MAESTRO_UDID="$UDID"
-
-# 4. Build + install + launch the Expo app on this exact sim.
-cd expo-app && bunx expo run:ios --device "$UDID" --port 8083 &
-```
-
-Notes:
-- The UDID is CoreSimulator-assigned, not Claude-generated. Capture it from `simctl create`'s stdout.
-- Naming pattern `claude-<date>-<random>` makes orphaned sims easy to spot and bulk-delete: `xcrun simctl delete $(xcrun simctl list devices | grep -E 'claude-[0-9]{8}-' | grep -oE '[A-F0-9-]{36}')`.
-- Use a port other than 8081 if other Claude instances are running their own Metro on the default port. Pick deterministically (8082, 8083, …) and pass `--port` to `expo run:ios`.
-- At end of session: `xcrun simctl shutdown "$MAESTRO_UDID" && xcrun simctl delete "$MAESTRO_UDID"`. Leave it running only if the user explicitly wants to keep it.
-
-**Common commands** (full reference: `maestro-cli --help`):
-
-```
-maestro-cli tap "Get Started"         # tap by visible text or regex
-maestro-cli tap-id run-skill-button   # tap by testID — preferred when set
-maestro-cli type "homer"              # type into focused field
-maestro-cli fill "Username" "homer"   # tap a field by label, then type
-maestro-cli press Enter               # hardware/keyboard key
-maestro-cli scroll down               # screen scroll
-maestro-cli wait "Run a skill"        # block until text appears
-maestro-cli assert-visible "Insights" # fail if missing
-maestro-cli screenshot [path]         # /tmp/maestro-last.png by default
-maestro-cli hierarchy                 # dump a11y tree (great for finding testIDs)
-maestro-cli launch / stop             # relaunch / terminate app
-maestro-cli reset-keychain            # wipe sim keychain (forgets logins/setup_complete)
-```
-
-Env vars:
-- `MAESTRO_APP_ID` — bundle id (default `com.fanpierlabs.openrecord`).
-- `MAESTRO_UDID` — **REQUIRED.** iOS simulator UDID. `maestro-cli` will exit non-zero immediately if this is unset. There's no fallback, on purpose — multiple Claude sessions run in parallel and a default would let one agent silently drive another agent's sim.
-
-Find UDIDs with `xcrun simctl list devices booted`. Then either:
-
-```
-export MAESTRO_UDID=4C4A3949-7F06-4335-BFE4-DBBB8B183DFD  # session-wide
-maestro-cli tap "Get Started"
-```
-
-or pass per-command:
-
-```
-MAESTRO_UDID=4C4A3949-… maestro-cli tap "Get Started"
-```
-
-**Every interactive element in the Expo app MUST have a testID so `maestro-cli tap-id` works deterministically.**
-
-- React Native: set `testID` AND `accessibilityLabel` on every `Pressable`, `Button`, `TextInput`, `Switch`, and tappable `View`. `testID` is the primary handle for Maestro; `accessibilityLabel` is what VoiceOver reads (also a fallback for `maestro-cli tap` by text).
-- Use a stable, kebab- or snake-case `testID` that describes what the element does, not where it sits. Examples: `get-started-button`, `onboarding-continue`, `skill-bill_itemization`, `chat-input`, `send-message`.
-- For lists of items (chats, insights, skills), include the row id in the `testID` (e.g. `chat-row-${chatId}`) so flows can target a specific row.
-- When you add a new screen or button as part of a feature, add the `testID` in the same diff. PRs that introduce new untargetable UI should be rejected at review.
+Health data platform that connects to Epic MyChart portals to scrape and consolidate a patient's
+medical records (30+ data categories). Four clients on one shared scraper core: a Claude Desktop
+extension (`.mcpb`), an Expo/React Native iOS app, a headless CLI published as the `mychart-cli` npm
+package, and that package's importable library.
+
+Proprietary source-available license (see `LICENSE`) — personal/educational use only; no commercial
+use, redistribution, or SaaS offerings without written permission from Fan Pier Labs.
+
+**This file is an index of invariants, not a changelog.** It loads on every session, so keep it
+short and put detail in `docs/`. See [Keeping this file small](#keeping-this-file-small).
+
+## Repo map
+
+| Path | What it is |
+| --- | --- |
+| `scrapers/` | Shared MyChart + eUnity scraper core — every client calls into this |
+| `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
+| `npm-package/` | The `mychart-cli` CLI and importable library |
+| `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
+| `expo-app/` | Expo/React Native iOS app (scrapers run on-device, plus an agent loop) |
+| `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
+| `openrecord-splash/` | Static splash site + the browser demo |
+| `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
+| `read-local-passwords/` | Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI |
+| `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
+
+## Invariants
+
+Break one of these and it fails silently, in production, on someone's medical record. Rationale and
+detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
+
+- **Every post-login call goes through `makeAuthenticatedRequest`**, never raw `request.makeRequest`.
+  It is what detects an expired session, silently re-logs-in, restores the active proxy patient, and
+  retries once. Raw `makeRequest` is only for the pre-login world (discovery, DoLogin, 2FA, terms,
+  keepalive).
+- **Every outbound request leaves through `scraperFetch` (`scrapers/http.ts`)** — it owns the browser
+  headers, the cookie jar, and the per-host permit. A second fetch path silently loses all three;
+  `http.unit.test.ts` fails the build if one appears. **There is no injectable `fetchFn`** — the
+  platform picks the transport. Tests use `setTestTransport` / `req.transport`.
+- **At most 10 in-flight requests per MyChart host, process-wide** (`shared/hostConcurrency.ts`).
+  The permit wraps the individual fetch only, never the redirect recursion.
+- **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
+  client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
+  everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
+- **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
+  session state, so every chart-touching capability asserts the patient before running and refuses
+  with the fix rather than returning the wrong family member's record.
+- **fake-mychart must behave EXACTLY like real MyChart** — response shapes, field casing, pagination
+  sizes, status codes, server-side enforcement. It is a faithful stand-in, not a convenience mock.
+  Never simplify a contract to make a test easier; size the fixture around the real behavior.
+  Response shapes are held to skeletons generated from live captures (`realShapes.ts` +
+  `conformToShape`), every `/api/*` POST requires a CSRF token, and a `/mode` knob switches the
+  instance between the two captured Epic releases (November 2025 / August 2025). See `fake-mychart/README.md`.
+
+## Key commands
+
+| Command | What it does |
+| --- | --- |
+| `bun run lint` | ESLint — **type-aware**, so every package's deps must be installed first or the rules silently stop seeing typed imports. See [`docs/testing.md`](docs/testing.md#lint) |
+| `bun run typecheck` | Typecheck the shared core (strict). CI also runs `expo-app` and `npm-package` (the latter needs `bun run build` first) |
+| `bun run test` | Every `*.unit.test.ts`. **Needs `cd claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
+| `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
+| `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
+| `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
+| `bun run cli mychart [flags]` | Run the CLI scraper |
+| `bun run cli --help [--show-all]` | Usage, every flag, and the capability listing |
+| `bun run cli --list-capabilities [--show-all]` | The commonly-used capabilities and their arguments; `--show-all` adds the less-frequently-used ones |
+| `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
+| `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
+| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
+| `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
+| `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
+| `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery; sends no credentials |
+
+All five packages are on TypeScript 6 — `moduleResolution: "Node"`, `baseUrl`, and paths without a
+leading `./` no longer parse, so don't reintroduce them.
+
+## Tests
+
+**A test file's *filename* decides which suite it runs in, not its folder.** Every `test*` script
+selects on the suffix and nothing else.
+
+| Suffix | Needs | Runs in CI |
+| --- | --- | --- |
+| `*.unit.test.ts` | nothing — no network, no server, no credentials | yes |
+| `*.integration.test.ts` | the fake-mychart server from `docker-compose.ci.yaml` | yes |
+| `*.real-mychart.test.ts` | credentials for a **real** MyChart account | **never** |
+
+- **A file that forgets its suffix never runs**, which looks exactly like passing.
+  `tests/suite-naming.unit.test.ts` fails the build on any unsuffixed `*.test.ts`. No allowlist —
+  a suite that can't run belongs behind `it.skip`.
+- **Every integration suite shares one server and must reset it in its own `beforeAll`**
+  (`resetFakeMyChart`), because Bun runs files in directory-entry order, not alphabetically.
+- **Scraper tests live under `scrapers/myChart/__tests__/` only** — next to the implementation, not
+  in a client package that re-exports it.
+- **Never assert against logic pasted into the test file.** Import the real function; if a module
+  isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
+
+- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
+  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
+  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
+  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
+
+Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 
 ## Rules
 
-- **NEVER modify or delete anything from the macOS Keychain or the browser keychain.** Read-only access is OK.
-- **NEVER make changes in AWS without explicit user direction.** No `aws ... create-*`, `delete-*`, `update-*`, `put-*`, ECS service updates, ALB/target-group/listener changes, IAM edits, Secrets Manager writes, RDS modifications, S3 deletes, CloudFront invalidations, etc. Read-only AWS calls (`describe-*`, `list-*`, `get-*`, `sts get-caller-identity`) are fine. Running the official deploy scripts (`bun run deploy` for the web app, `cd fake-mychart && python3 ../node_modules/deploy/main.py --config deploy.yaml` for fake-mychart) is also fine when the user has asked you to deploy. If a deploy script fails partway and leaves orphan/inconsistent AWS resources, **stop and ask** before cleaning them up.
-- **NEVER use `git stash`.** If you're considering stashing changes, stop and ask the user first.
-- **NEVER upload PII to git or GitHub.** Before committing, review all staged changes to ensure no personally identifiable information (names, emails, phone numbers, addresses, dates of birth, medical record numbers, patient IDs, health data, credentials, API keys, or any other sensitive data) is included. If PII is found in code, test fixtures, logs, or output files, remove or redact it before committing. **Body parts, diagnoses, procedures, dates of medical events, and medical details extracted from real patient data also count as PII** — do not include specific body parts (e.g., "shoulder"), procedure names (e.g., "arthrogram"), series descriptions from real imaging studies, or when specific scans/procedures were performed (e.g., "MRI was done on 1/1") in commit messages, PR descriptions, documentation examples, or code comments. Use generic examples instead.
-- **NEVER use `dangerouslySetInnerHTML`.** All HTML from external sources (MyChart API responses, scraped content) must be sanitized with DOMPurify before rendering. Use the `SafeHtml` component from `web/src/components/SafeHtml.tsx` which wraps the `sanitizeHtml()` utility. This is a health data app — XSS is unacceptable.
-- **Always update this CLAUDE.md when adding new features** — document new CLI flags, scrapers, configuration, or architectural changes so this file stays current.
+- **NEVER modify or delete anything from the macOS Keychain or a browser keychain.** Read-only is OK.
+- **NEVER make changes in AWS without explicit user direction.** No `create-*`/`delete-*`/`update-*`/
+  `put-*`, ECS/ALB/IAM/Secrets/RDS/S3/CloudFront writes. Read-only calls (`describe-*`, `list-*`,
+  `get-*`) are fine, as is running an official deploy script when asked to deploy. If a deploy fails
+  partway and leaves orphan resources, **stop and ask** before cleaning up.
+- **NEVER use `git stash`.** Ask first.
+- **NEVER upload PII to git or GitHub.** Review staged changes before committing. Names, emails,
+  phone numbers, addresses, dates of birth, record numbers, patient ids, credentials — and also
+  **body parts, diagnoses, procedure names, series descriptions, and dates of medical events** taken
+  from real patient data. That applies to commit messages, PR descriptions, docs, and code comments,
+  not just code. Use generic examples.
+- **NEVER use `dangerouslySetInnerHTML`.** External HTML must be sanitized (DOMPurify) or parsed into
+  a typed tree and rendered as React elements. This is a health data app — XSS is unacceptable.
+- **NEVER take over the user's mouse** to drive the simulator — see
+  [`docs/ios-simulator.md`](docs/ios-simulator.md).
 
 ## Workflow
 
-- Always create a PR for new features — never push directly to `main`
-- CI must pass (lint, tests, build) before merging
-- **NEVER merge pull requests or enable auto merge without the user's explicit permission.** Wait for the user to explicitly tell you to do so.
-- **Always write tests for all changes.** Unit tests for scraper/utility logic, and integration tests (in `tests/integration/ci/integration.test.ts`) for web app features and API endpoints. No PR should be submitted without corresponding test coverage.
-- **Run the web app for the user to test.** When web app changes are ready for review, start the dev server on a random local port (use `python3 -c "import random; print(random.randint(3100, 3999))"` to pick the port, then `cd web && PORT=<port> bun run dev`). Share the URL so the user can test in the browser.
-
-### Creating / Updating PRs
-
-- `gh pr edit` fails due to a GitHub Projects Classic deprecation error. Use the GitHub API directly instead:
+- **When the user asks for a code change, open a PR by default once the change is made** — commit,
+  push the branch, and create the PR without waiting to be asked a second time. Never push directly
+  to `main`; CI (lint, tests, build) must pass.
+- **NEVER merge a PR or enable auto-merge without the user's explicit permission.**
+- **Test what's reasonable, not everything.** Scraper and utility logic, parsing, anything with edge
+  cases or a failure mode that would be silent — write the test. Docs, comments, config tweaks, and
+  changes whose only assertion would restate the diff — don't. Name the file for the kind of test it
+  is.
+- **Every interactive element in the Expo app needs a `testID`**, added in the same diff — enforced
+  by `expo-app/src/__tests__/testids.unit.test.ts`.
+- `gh pr edit` fails on a GitHub Projects Classic deprecation error. Update PRs with the API instead:
   ```bash
-  gh api repos/Fan-Pier-Labs/ryans-health-app/pulls/<PR_NUMBER> -X PATCH \
-    -f title="PR title" \
-    -f body="PR body"
+  gh api repos/Fan-Pier-Labs/ryans-health-app/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
   ```
-- To create a PR, use `gh pr create` as normal. If a PR already exists for the branch, update it with the API method above.
+  `gh pr create` works normally.
 
-### Maestro UI automation (one-step pattern)
+### Keeping this file small
 
-When driving the iOS simulator (or any device) with Maestro, **do NOT write multi-step YAML files** that try to script the entire flow up front. Each rerun replays every prior step from the beginning, which is slow, error-prone, and bad at recovering when the UI is in an unexpected state.
+Every session pays for this file in context, so length is a real cost. **Maintaining it means
+adding, editing, *and deleting* — a PR that only ever appends is how it got out of hand.**
 
-**Use `maestro-cli` (one-shot wrapper).** A small bash wrapper at `~/.local/bin/maestro-cli` does one Maestro action per call, so each step is a single shell command — no YAML file to write or read. After every action it auto-saves a screenshot to `/tmp/maestro-last.png` so the next prompt can read the result with the `Read` tool.
+- **Leave it the same size or smaller.** If a change genuinely belongs here, look for something to
+  shorten or delete in the same PR. It got to 65KB by only ever being appended to.
+- **Write a line here only if getting it wrong breaks something and the code wouldn't tell you.**
+  Everything else is discoverable by reading the repo.
+- **Detail belongs in `docs/` or the package's README**; this file gets the one-line rule and the
+  pointer. Rationale, history ("this replaced X"), endpoint lists, per-file inventories, and
+  exhaustive flag lists all go there.
+- **Prune on sight.** Stale, duplicated, or now-documented-elsewhere lines get deleted in whatever
+  PR you're already writing — no permission needed.
+- **Don't restate the code.** No signatures, no file-by-file listings, no enumerating tests by name.
 
-```bash
-maestro-cli tap "Get Started"                       # tap by visible text / accessibilityLabel
-maestro-cli tap-id "google-continue"                # tap by accessibilityIdentifier (RN testID), regex
-maestro-cli tap-id ".*Springfield.*"                # regex match on testID
-maestro-cli tap-xy 200 480                          # tap at pixel coordinates
-maestro-cli fill "Username" "homer"                 # tap a field then type
-maestro-cli type "homer"                            # type into focused field
-maestro-cli hide-keyboard                           # dismiss soft keyboard
-maestro-cli press Enter                             # press a hardware/keyboard key
-maestro-cli back                                    # system back / swipe-back
-maestro-cli swipe-up   |  maestro-cli swipe-down    # gestures
-maestro-cli wait "Welcome"                          # extendedWaitUntil (default 10s)
-maestro-cli assert-visible "Find your provider"
-maestro-cli launch  |  maestro-cli stop             # relaunch / kill the app
-maestro-cli screenshot [/path/out.png]              # explicit screenshot
-maestro-cli hierarchy                               # dump accessibility tree (find testIDs)
-maestro-cli reset-keychain                          # wipe sim keychain (forgets all logins)
-```
+## Reference docs
 
-After each command the screenshot lives at `/tmp/maestro-last.png`. Read it with the `Read` tool to evaluate the new state, then decide the next action.
+- [Architecture](docs/architecture.md) — the invariants above, with the reasoning
+- [Testing](docs/testing.md) — suites, CI integration, the coverage gate
+- [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
+- [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
+- [CLI reference](docs/cli.md) — cookie caching, credential resolution, 2FA, actions, proxy flags
+- [Imaging scraper](docs/imaging.md) — eUnity protocol, AMF3, instance-specific notes
+- [Scraping guide](docs/scraping.md) — MyChart login, scraping tips, tooling
+- [MyChart features](docs/MYCHART_FEATURES.md) — MyChart features we deliberately don't scrape
+- [MyChart TOTP](docs/mychart-totp.md) — authenticator-app 2FA setup, endpoints, CLI flags
+- Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,
+  `openrecord-demo-lambda/`, `openrecord-splash/`
 
-Env knobs: `MAESTRO_APP_ID` (default `com.fanpierlabs.openrecord`), `MAESTRO_UDID` (default the dev sim), `MAESTRO_QUIET=1` (silence Maestro output), `MAESTRO_NO_SCREENSHOT=1` (skip auto-screenshot), `MAESTRO_SCREENSHOT=/path` (override path).
+## Memory
 
-**Add `testID` props to interactive elements.** All `Pressable`, `Button`, and `TextInput` components in onboarding/settings/chat should carry a stable `testID` so Maestro can target them by ID even when the visible text changes. Use kebab-case names (`google-continue`, `mychart-signin`, `picker-item-${name}`). Maestro's `tap-id` selector is a regex over `accessibilityIdentifier` (which is what RN's `testID` maps to on iOS), so values containing regex metacharacters (parens, brackets) need either escaping or a wildcard match (`.*Springfield.*`).
+Persistent memory lives in markdown at `claude-memory/` (this replaces the built-in auto-memory,
+which is disabled here). Read `claude-memory/MEMORY.md` at the start of a conversation; keep it
+concise and put detail in topic files it references.
 
-The simulator UDID for this machine is currently `3276F6D9-0713-48EC-91A0-E34FBB27F0C8` (iOS 26.4).
+- **Save**: stable patterns confirmed across interactions, architectural decisions, user workflow
+  preferences, solutions to recurring problems.
+- **Never save**: PII of any kind, session-specific state, unverified conclusions, or anything that
+  duplicates this file.
+- Check existing files before writing, fix memories that turn out wrong, organize by topic rather
+  than chronologically.

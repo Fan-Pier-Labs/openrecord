@@ -12,8 +12,10 @@
  * hand only that id to the UI — the same pattern session-manager uses for live
  * sessions.
  *
- * Like session-manager, scrapers are given raw `fetch` so iOS handles cookies
- * natively (NSHTTPCookieStorage), bypassing tough-cookie.
+ * Nothing here picks a networking stack: `resolveTransport` in `scrapers/http.ts`
+ * does, and on device it hands back the runtime's own `fetch` so iOS keeps
+ * owning the cookies (NSHTTPCookieStorage). Passing one in from here is exactly
+ * the mistake that invariant exists to prevent.
  *
  * ⚠️ Real Epic gates self-signup behind reCAPTCHA Enterprise (see
  * claude-memory/mychart-signup-recovery-api.md). On a real portal the
@@ -21,7 +23,7 @@
  * threads it through. fake-mychart has no bot protection, so the simulator /
  * CI exercise the full flow without it.
  */
-import { MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
+import { type MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
 import {
   submitSignupRequest,
   verifyActivationCode,
@@ -36,8 +38,6 @@ import {
   resetAccountPassword,
   type RecoverySettings,
 } from "../../../../scrapers/myChart/accountRecovery";
-
-const nativeFetch = (url: string, init: RequestInit) => fetch(url, init);
 
 type SignupFlow = {
   hostname: string;
@@ -79,9 +79,14 @@ export async function startSelfSignup(
     hostname,
     identity,
     recaptchaToken,
-    fetchFn: nativeFetch,
   });
-  if (result.state === "need_contact_verification" && result.signupToken) {
+  if (result.state === "need_contact_verification") {
+    // A success with no token is not a success: there would be nothing to
+    // thread into the verify/create steps, so treat it as a failed submission
+    // rather than advancing the UI to a code prompt that can never resolve.
+    if (!result.signupToken) {
+      return { state: "error", error: "signup accepted but returned no token" };
+    }
     const flowId = newFlowId("signup");
     signupFlows.set(flowId, {
       hostname,
@@ -108,8 +113,13 @@ export async function startActivationCodeSignup(
   code: string,
   dateOfBirth?: string,
 ): Promise<StartActivationResult> {
-  const result = await verifyActivationCode({ hostname, code, dateOfBirth, fetchFn: nativeFetch });
-  if (result.state === "valid" && result.signupToken) {
+  const result = await verifyActivationCode({ hostname, code, dateOfBirth });
+  if (result.state === "valid") {
+    // Same rule as self-signup: a valid code that yields no token can't be
+    // carried into the create-account step, so it fails here rather than later.
+    if (!result.signupToken) {
+      return { state: "error", error: "activation code accepted but returned no token" };
+    }
     const flowId = newFlowId("signup");
     signupFlows.set(flowId, {
       hostname,
@@ -169,7 +179,7 @@ export async function startRecovery(
   hostname: string,
   contactInfo: string,
 ): Promise<StartRecoveryResult> {
-  const result = await getAccountRecoverySettings({ hostname, contactInfo, fetchFn: nativeFetch });
+  const result = await getAccountRecoverySettings({ hostname, contactInfo });
   if (!result.settings) return { state: "error", error: result.error };
   const flowId = newFlowId("recovery");
   recoveryFlows.set(flowId, { hostname, request: result.mychartRequest, contactInfo });
@@ -223,7 +233,7 @@ export async function finishRecovery(
   | { state: "invalid" | "error"; error?: string }
 > {
   const flow = recoveryFlows.get(flowId);
-  if (!flow || !flow.recoveryToken || !flow.username) {
+  if (!flow?.recoveryToken || !flow.username) {
     return { state: "error", error: "recovery flow expired" };
   }
   const result = await resetAccountPassword({

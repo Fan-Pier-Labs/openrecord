@@ -1,14 +1,13 @@
 
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from "../myChartRequest";
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
 import { date2dte } from "./utils";
 // import '../../../util'
-import { BillingAccount, BillingDetails, BillingVisit, PaymentListResponse, StatementItem, StatementListResponse } from "./types";
+import { type BillingAccount, type BillingDetails, type BillingVisit, type PaymentListResponse, type StatementItem, type StatementListResponse } from "./types";
 import { mkdirp } from 'mkdirp';
-import { OPENRECORD_MOCK_DATA } from '../../../shared/env';
 import { logger } from '../../../shared/logger';
 
 
@@ -21,10 +20,10 @@ import { logger } from '../../../shared/logger';
 
 export function parsePaymentUrl(html: string): { id: string, context: string } | null {
   const regex = /"URLMakePayment":\s*"([^"]+)"/;
-  const match = html.match(regex);
+  const match = regex.exec(html);
   if (match) {
     // Remove the leading '~/'
-    const urlStr = match[1].replace(/^~\//, '');
+    const urlStr = match[1]!.replace(/^~\//, ''); // the one capture group is non-optional
     // Split into path and query string
     let [, queryString] = urlStr.split('?');
     if (!queryString) {
@@ -53,8 +52,8 @@ export function parseBillingAccountsHtml(html: string, hostname: string): Billin
 
   for (const billing_account of billing_accounts.toArray()) {
     const guarantorText = $('p.ba_card_header_account_idAndType', billing_account).text().trim();
-    const guarantorNumber = guarantorText.match(/Guarantor #(\d+)/)?.[1] || 'unknown';
-    const patientName = guarantorText.match(/\((.*)\)/)?.[1] || 'unknown';
+    const guarantorNumber = (/Guarantor #(\d+)/.exec(guarantorText))?.[1] || 'unknown';
+    const patientName = (/\((.*)\)/.exec(guarantorText))?.[1] || 'unknown';
     const amountdue = $('p.ba_card_status_due_amount', billing_account).text().trim()
     let amountDueNum: number | undefined;
     if (amountdue) amountDueNum = parseFloat(amountdue.replace('$', ''))
@@ -87,7 +86,7 @@ export function parseBillingAccountsHtml(html: string, hostname: string): Billin
 }
 
 async function listBillingAccounts(mychartRequest: MyChartRequest): Promise<BillingAccount[]> {
-  const communicationCenterRes = await mychartRequest.makeRequest({ path: '/Billing/Summary' })
+  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Billing/Summary' })
   const html = await communicationCenterRes.text()
   return parseBillingAccountsHtml(html, mychartRequest.hostname);
 }
@@ -100,7 +99,7 @@ async function getBillingAccountDetails(mychartRequest: MyChartRequest, billingA
   logger.debug('100 years ago:', date100YearsAgo);
   logger.debug('1 year from now:', date1YearFromNow);
 
-  const results = await mychartRequest.makeRequest({ path: `/Billing/Details/GetVisits?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&filterOption=1&searchStartDTE=${date2dte(date100YearsAgo)}&searchStopDTE=${date2dte(date1YearFromNow)}&cid=` })
+  const results = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/GetVisits?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&filterOption=1&searchStartDTE=${date2dte(date100YearsAgo)}&searchStopDTE=${date2dte(date1YearFromNow)}&cid=` })
 
   const json = await results.json() as BillingDetails
 
@@ -111,7 +110,7 @@ async function getBillingAccountDetails(mychartRequest: MyChartRequest, billingA
 
 export async function getPaymentList(mychartRequest: MyChartRequest, billingAccount: BillingAccount): Promise<PaymentListResponse> {
 
-  const paymentListResponse = await mychartRequest.makeRequest({ path: `/Billing/Details/LoadPaymentList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&searchStartDTE=&searchEndDTE=&cid=` })
+  const paymentListResponse = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/LoadPaymentList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&searchStartDTE=&searchEndDTE=&cid=` })
 
   const paymentList = await paymentListResponse.json() as PaymentListResponse;
 
@@ -120,7 +119,7 @@ export async function getPaymentList(mychartRequest: MyChartRequest, billingAcco
 
 export async function getStatementList(mychartRequest: MyChartRequest, billingAccount: BillingAccount): Promise<StatementListResponse> {
 
-  const statementsResponse = await mychartRequest.makeRequest({ path: `/Billing/Details/GetStatementList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&cid=` })
+  const statementsResponse = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/GetStatementList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&cid=` })
 
   const statements = await statementsResponse.json() as StatementListResponse;
 
@@ -132,11 +131,11 @@ export async function getEncBillingId(mychartRequest: MyChartRequest, billingAcc
 
   const path = `/Billing/Details?ID=${billingAccount.id}&Context=${billingAccount.context}`
 
-  const res = await mychartRequest.makeRequest({ path })
+  const res = await makeAuthenticatedRequest(mychartRequest, { path })
 
   const body = await res.text()
 
-  const match = body.match(/EncID"\s*:\s*"([^"]*)"/)
+  const match = /EncID"\s*:\s*"([^"]*)"/.exec(body)
 
   if (!match) {
     logger.debug('unable to find end id')
@@ -149,7 +148,7 @@ export async function saveStatementPdf(mychartRequest: MyChartRequest, encId: st
 
   const path = `/Billing/Details/DownloadFromBlob/?type=1&id=${statement.RecordID}&earId=${encId}&billSys=${statement.EncBillingSystem}&fileKey=${statement.ImagePath}&token=${encodeURIComponent(statement.Token)}&fileName=Statement_${statement.DateDisplay}&DocExt=PDF&PesId=&cid=`
 
-  const statementPdf = await mychartRequest.makeRequest({ path: path })
+  const statementPdf = await makeAuthenticatedRequest(mychartRequest, { path: path })
 
   const pdfArrayBuffer = await statementPdf.arrayBuffer()
 
@@ -210,31 +209,7 @@ export async function getBillingStatementPDFs(mychartRequest: MyChartRequest, bi
 
     // Write the buffer to a file
     await mkdirp('pdfs')
-    if (OPENRECORD_MOCK_DATA) {
-      logger.debug("not saving xlxs", name, " to disk b/c its mock data mode")
-    }
-    else {
-      await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
-      logger.debug('Saved', name)
-    }
+    await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
+    logger.debug('Saved', name)
   }
-}
-
-
-
-
-async function test() {
-
-  const mychartRequest = await login_TEST('mychart.example.org')
-
-  const results = await getBillingHistory(mychartRequest)
-
-  logger.debug(results)
-}
-
-
-if (import.meta.main) {
-  // This script is being run directly
-  // We will call the main function
-  test()
 }

@@ -1,4 +1,5 @@
-import { MyChartRequest } from './myChartRequest';
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { logger } from '../../shared/logger';
 
@@ -8,7 +9,7 @@ export type RefillRequestResult = {
 }
 
 export async function requestMedicationRefill(mychartRequest: MyChartRequest, medicationKey: string): Promise<RefillRequestResult> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Clinical/Medications' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/Medications' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -17,7 +18,7 @@ export async function requestMedicationRefill(mychartRequest: MyChartRequest, me
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/medications/RequestRefill',
     method: 'POST',
     headers: {

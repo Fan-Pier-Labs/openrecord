@@ -1,4 +1,5 @@
-import { MyChartRequest } from "../myChartRequest";
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { logger } from '../../../shared/logger';
 
@@ -14,7 +15,7 @@ interface OrgListResponse {
 
 export async function getLinkedMyChartAccounts(mychartRequest: MyChartRequest): Promise<LinkedMyChart[]> {
 
-  const res = await mychartRequest.makeRequest({ path: '/Community/Manage' })
+  const res = await makeAuthenticatedRequest(mychartRequest, { path: '/Community/Manage' })
 
   const html = await res.text()
 
@@ -25,7 +26,7 @@ export async function getLinkedMyChartAccounts(mychartRequest: MyChartRequest): 
     return [];
   }
 
-  const res2 = await mychartRequest.makeRequest({
+  const res2 = await makeAuthenticatedRequest(mychartRequest, {
     path: `/Community/Shared/LoadCommunityLinks?noCache=` + Math.random(),
     "headers": {
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",

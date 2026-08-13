@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   setSecureValue,
   getClaudeApiKey,
@@ -37,10 +38,14 @@ type Step =
  * step owns its own UI-local state (form fields, in-flight flags) and reports
  * back through callbacks.
  *
+ * Google sign-in is required: AI (including BYO keys) is gated behind it,
+ * and it is what unlocks the $50/month included AI credit — the Lambda
+ * verifies the Google ID token server-side.
+ *
  * After picking a provider, the account-choice hub branches into the existing
- * sign-in flow or the no-account / forgot-login flows (Vision Implementation
- * plan §7): activation code, self-signup, and account recovery. All branches
- * converge on a connected account → passkey setup → done.
+ * sign-in flow or the no-account / forgot-login flows: activation code,
+ * self-signup, and account recovery. All branches converge on a connected
+ * account → passkey setup → done.
  */
 export default function OnboardingScreen() {
   const { setSetupComplete } = useAuth();
@@ -51,10 +56,10 @@ export default function OnboardingScreen() {
   const [account, setAccount] = useState<StoredMyChartAccount | null>(null);
   const [twoFaDelivery, setTwoFaDelivery] = useState<string>("your inbox");
 
-  // Dev shortcut: BYO Claude key + backend session → straight to chat.
+  // Dev shortcut: BYO Claude key + Google session → straight to chat.
   // Also pre-warm the MyChart instance list so the picker is instant.
   useEffect(() => {
-    (async () => {
+    fireAndForget((async () => {
       const [byoKey, session] = await Promise.all([
         getClaudeApiKey(),
         getBackendSession(),
@@ -66,7 +71,7 @@ export default function OnboardingScreen() {
         return;
       }
       prefetchInstances().catch(() => undefined);
-    })();
+    })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
 
   async function finishSetup() {

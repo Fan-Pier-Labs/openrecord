@@ -1,4 +1,5 @@
-import { MyChartRequest } from '../myChartRequest';
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
 import { logger } from '../../../shared/logger';
 
@@ -8,7 +9,7 @@ export type DraftResult = {
 }
 
 async function getToken(mychartRequest: MyChartRequest): Promise<string | undefined> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/communication-center' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
   const html = await pageResp.text();
   return getRequestVerificationTokenFromBody(html);
 }
@@ -24,7 +25,7 @@ export async function saveReplyDraft(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/conversations/SaveReplyDraft',
     method: 'POST',
     headers: {
@@ -50,7 +51,7 @@ export async function saveNewMessageDraft(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/medicaladvicerequests/SaveMedicalAdviceRequestDraft',
     method: 'POST',
     headers: {
@@ -75,7 +76,7 @@ export async function deleteDraft(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/conversations/DeleteDraft',
     method: 'POST',
     headers: {

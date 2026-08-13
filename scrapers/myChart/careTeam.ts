@@ -1,4 +1,5 @@
-import { MyChartRequest } from "./myChartRequest";
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
 
@@ -9,7 +10,7 @@ export type CareTeamMember = {
 }
 
 export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareTeamMember[]> {
-  const resp = await mychartRequest.makeRequest({ path: '/Clinical/CareTeam' });
+  const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/CareTeam' });
   const html = await resp.text();
   const $ = cheerio.load(html);
 
@@ -32,37 +33,49 @@ export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareT
   // above yields nothing. The recipients endpoint reliably returns providers.
   const token = getRequestVerificationTokenFromBody(html);
   if (token) {
+    // "This instance doesn't serve the endpoint" stays non-fatal, but it is a
+    // non-ok status or a non-JSON body — both checked explicitly below. The
+    // bare `catch {}` this replaced also caught a dead session and reported it
+    // as "this patient has no care team".
+    const apiResp = await makeAuthenticatedRequest(mychartRequest, {
+      path: '/api/medicaladvicerequests/GetMedicalAdviceRequestRecipients',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        '__RequestVerificationToken': token,
+      },
+      body: JSON.stringify({ organizationId: '' }),
+    });
+
+    if (!apiResp.ok) return members;
+
+    const text = await apiResp.text();
+    let json: unknown;
     try {
-      const apiResp = await mychartRequest.makeRequest({
-        path: '/api/medicaladvicerequests/GetMedicalAdviceRequestRecipients',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          '__RequestVerificationToken': token,
-        },
-        body: JSON.stringify({ organizationId: '' }),
-      });
-      const text = await apiResp.text();
-      const json = JSON.parse(text);
-
-      // Different instances wrap the list differently
-      const list: unknown[] = Array.isArray(json)
-        ? json
-        : (json?.recipients ?? json?.recipientList ?? json?.Providers ??
-           json?.providers ?? json?.ProviderList ?? json?.providerList ?? []);
-
-      for (const item of list) {
-        const r = item as Record<string, unknown>;
-        const name = String(r.displayName ?? r.DisplayName ?? r.name ?? r.Name ?? '').trim();
-        if (!name) continue;
-        members.push({
-          name,
-          role: String(r.pcpTypeDisplayName ?? r.PcpTypeDisplayName ?? r.role ?? r.Role ?? '').trim(),
-          specialty: String(r.specialty ?? r.Specialty ?? '').trim(),
-        });
-      }
+      json = JSON.parse(text);
     } catch {
-      // API not available on this instance — return empty
+      // Not a JSON endpoint on this instance (some serve an HTML page here).
+      return members;
+    }
+
+    // Different instances wrap the list differently; a shape we don't know is
+    // no care team, not an error.
+    const wrapper = json as Record<string, unknown> | null;
+    const unwrapped = Array.isArray(json)
+      ? json
+      : (wrapper?.recipients ?? wrapper?.recipientList ?? wrapper?.Providers ??
+         wrapper?.providers ?? wrapper?.ProviderList ?? wrapper?.providerList);
+    const list: unknown[] = Array.isArray(unwrapped) ? unwrapped : [];
+
+    for (const item of list) {
+      const r = item as Record<string, unknown>;
+      const name = String(r.displayName ?? r.DisplayName ?? r.name ?? r.Name ?? '').trim();
+      if (!name) continue;
+      members.push({
+        name,
+        role: String(r.pcpTypeDisplayName ?? r.PcpTypeDisplayName ?? r.role ?? r.Role ?? '').trim(),
+        specialty: String(r.specialty ?? r.Specialty ?? '').trim(),
+      });
     }
   }
 

@@ -9,7 +9,8 @@
  * 5. RemoveComposeId - cleanup
  */
 
-import { MyChartRequest } from '../myChartRequest';
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { type MyChartRequest } from '../myChartRequest';
 import { getVerificationToken } from './sendMessage';
 
 export type SendReplyParams = {
@@ -34,7 +35,7 @@ async function makeApiRequest(
   body: unknown,
   token: string,
 ): Promise<{ status: number; json: unknown }> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path,
     method: 'POST',
     headers: {

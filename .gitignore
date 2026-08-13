@@ -40,8 +40,13 @@ typescript
 .claude/worktrees/
 
 # PII: these files are important for reverse engineering but contain real patient data
-scrapers/myChart/clo-to-jpg-converter/wasm/viewer.html
-scrapers/myChart/clo-to-jpg-converter/input_study_one/amf_metadata.bin
+# (MRN, DOB, physician name). Matched by BASENAME, not by path, deliberately —
+# these were pinned to scrapers/myChart/clo-to-jpg-converter/, a directory that
+# has since been renamed twice, so the guard silently stopped matching anything
+# while still reading as if it protected something. A slightly broad PII rule is
+# the right failure direction; re-pull the files under any name and they stay out.
+**/viewer.html
+**/amf_metadata.bin
 *.clo
 # Allow synthetic (non-PII) CLO test images for fake-mychart
 !fake-mychart/src/data/clo-images/*.clo
@@ -49,3 +54,21 @@ scrapers/myChart/clo-to-jpg-converter/input_study_one/amf_metadata.bin
 # Downloaded MyChart logos (large, stored in S3)
 scrapers/list-all-mycharts/logos/
 .next/
+
+# Vite build output for the OpenRecord splash demo
+openrecord-splash/dist/
+
+# Coverage reports written by `bun run test:coverage`.
+# Anchored: a bare `coverage` would also swallow tests/coverage/, the gate's own
+# test directory, and silently keep it out of the repo.
+/coverage
+
+# TLS keys/certs, env files with secrets, and TS build caches must never be
+# committed from anywhere in the tree. Basename rules on purpose: five PRs in
+# a row picked up a stray web/ directory carrying a localhost key and a Sentry
+# auth token, each fixed by re-cutting the branch — which cleans the symptom
+# and leaves the files on disk for the next branch. `.env` alone (line above)
+# misses variants like `.env.sentry-build-plugin`.
+*.pem
+.env.*
+*.tsbuildinfo

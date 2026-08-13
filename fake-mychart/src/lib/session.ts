@@ -5,6 +5,13 @@ type Session = {
   lastAccess: number;
   termsAccepted: boolean;
   username: string | null;
+  /**
+   * Which patient record this session is currently viewing. Empty string means
+   * the account holder's own record, matching the id MyChart uses for "self".
+   * Proxy context is per-session server-side state in real MyChart too — it is
+   * not carried in the URL of every subsequent request.
+   */
+  activeProxyId: string;
 };
 
 // In-memory session store. Sessions expire after 30 minutes of inactivity.
@@ -16,14 +23,14 @@ const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 export function createSession(username: string | null = null): string {
   const id = uuidv4();
   const now = Date.now();
-  sessions.set(id, { createdAt: now, lastAccess: now, termsAccepted: false, username });
+  sessions.set(id, { createdAt: now, lastAccess: now, termsAccepted: false, username, activeProxyId: '' });
   return id;
 }
 
 function getSessionId(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
   const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 export function validateSession(cookieHeader: string | null): boolean {
@@ -43,6 +50,23 @@ export function getSessionUsername(cookieHeader: string | null): string | null {
   const id = getSessionId(cookieHeader);
   if (!id) return null;
   return sessions.get(id)?.username ?? null;
+}
+
+/** The patient record this session is viewing. '' = the account holder's own. */
+export function getActiveProxyId(cookieHeader: string | null): string {
+  const id = getSessionId(cookieHeader);
+  if (!id) return '';
+  return sessions.get(id)?.activeProxyId ?? '';
+}
+
+/** Returns false when there is no live session to switch. */
+export function setActiveProxyId(cookieHeader: string | null, proxyId: string): boolean {
+  const id = getSessionId(cookieHeader);
+  if (!id) return false;
+  const session = sessions.get(id);
+  if (!session) return false;
+  session.activeProxyId = proxyId;
+  return true;
 }
 
 export function sessionCookieHeader(sessionId: string): string {

@@ -30,10 +30,23 @@
  * shapes here are modeled to Epic conventions and verified against
  * fake-mychart; flag for byte-level verification when real access is available.
  */
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { createPreAuthRequest } from './preAuthRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { logger } from '../../shared/logger';
+
+/**
+ * Fetch the signup SPA shell and pull its `__RequestVerificationToken`.
+ *
+ * Every `/api/*` POST needs one — signup is the pre-auth surface, but it is not
+ * the CSRF-exempt surface, and a call without the header is rejected before the
+ * server ever looks at the body. Done per call rather than cached on the request
+ * object, matching how every other scraper in `scrapers/myChart/` gets a token.
+ */
+async function signupCsrfToken(mychartRequest: MyChartRequest): Promise<string> {
+  const pageResp = await mychartRequest.makeRequest({ path: '/app/activation' });
+  return getRequestVerificationTokenFromBody(await pageResp.text()) ?? '';
+}
 
 export type SignupGender = 'Female' | 'Male' | 'Unknown';
 
@@ -112,23 +125,21 @@ export async function submitSignupRequest({
   identity,
   recaptchaToken,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   identity: SignupIdentity;
   recaptchaToken?: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<SignupResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       state: 'error',
       error: 'could not determine MyChart path for ' + hostname,
-      mychartRequest: existingRequest as MyChartRequest,
+      mychartRequest: existingRequest!,
     };
   }
 
@@ -220,23 +231,21 @@ export async function verifyActivationCode({
   code,
   dateOfBirth,
   protocol,
-  fetchFn,
   mychartRequest: existingRequest,
 }: {
   hostname: string;
   code: string;
   dateOfBirth?: string;
   protocol?: string;
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   mychartRequest?: MyChartRequest;
 }): Promise<ActivationCodeResult> {
   const mychartRequest =
-    existingRequest ?? (await createPreAuthRequest({ hostname, protocol, fetchFn }));
+    existingRequest ?? (await createPreAuthRequest({ hostname, protocol }));
   if (!mychartRequest) {
     return {
       state: 'error',
       error: 'could not determine MyChart path for ' + hostname,
-      mychartRequest: existingRequest as MyChartRequest,
+      mychartRequest: existingRequest!,
     };
   }
 
@@ -278,7 +287,10 @@ export async function verifySignupContactCode({
     const resp = await mychartRequest.makeRequest({
       path: '/api/signup/VerifyContactCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        __RequestVerificationToken: await signupCsrfToken(mychartRequest),
+      },
       body: JSON.stringify({ signupToken, code: code.trim() }),
     });
     const data = (await resp.json()) as { Success?: boolean };
@@ -308,7 +320,10 @@ export async function createSignupCredentials({
     const resp = await mychartRequest.makeRequest({
       path: '/api/signup/CreateAccount',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        __RequestVerificationToken: await signupCsrfToken(mychartRequest),
+      },
       body: JSON.stringify({ signupToken, username: username.trim(), password }),
     });
     const data = (await resp.json()) as { Success?: boolean; ErrorCode?: string };

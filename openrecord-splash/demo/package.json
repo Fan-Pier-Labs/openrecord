@@ -1,0 +1,14 @@
+{
+  "name": "openrecord-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "React + TypeScript interactive demo for the OpenRecord splash site",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test --isolate .unit.test.ts"
+  }
+}

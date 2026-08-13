@@ -7,7 +7,7 @@
  * `DirectDownloadedImage.pixelData`.
  */
 
-import { MyChartRequest, type MyChartRequestOptions } from '../../scrapers/myChart/myChartRequest';
+import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
@@ -18,9 +18,21 @@ import {
   type TwoFaDeliveryInfo,
 } from '../../scrapers/myChart/login';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
+import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/silentLogin';
+import { sessionStore } from '../../scrapers/myChart/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
+import {
+  discoverProxyTargets,
+  switchProxyTarget,
+  verifyActiveProxyTarget,
+} from '../../scrapers/myChart/proxyContext';
+import {
+  runListProxyTargets,
+  runSwitchProxyTarget,
+  assertProxyReadContext,
+} from '../../scrapers/myChart/proxyTools';
 import { getHealthSummary } from '../../scrapers/myChart/healthSummary';
 import { getVitals } from '../../scrapers/myChart/vitals';
 import { getMedications } from '../../scrapers/myChart/medications';
@@ -78,17 +90,31 @@ import {
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/other_mycharts';
 import { getEhiExportTemplates } from '../../scrapers/myChart/ehiExport';
 
-const KEEPALIVE_INTERVAL_MS = 30 * 1000;
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/notes/notes';
+import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
+import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
+import {
+  CAPABILITIES,
+  executeCapability,
+  type Capability,
+  type CapabilityArgs,
+  type CapabilityContext,
+} from '../../shared/capabilities';
 
 /** Options accepted by every `MyChartClient.connect*` factory. */
 export interface MyChartClientOptions {
   hostname: string;
   /** Defaults to `'https'`, except auto-detected as `'http'` for localhost / hostnames without a dot. */
   protocol?: 'http' | 'https';
-  /** Custom fetch (e.g. raw `fetch` on iOS where the OS handles cookies natively). */
-  fetchFn?: MyChartRequestOptions['fetchFn'];
   /** Run a background keepalive ping every 30s. Default `true`. */
   keepalive?: boolean;
+  /**
+   * When the session expires mid-call, silently re-login with the connect
+   * credentials and retry. Default `true`. With it off (or after
+   * `fromSerialized`, which has no credentials to renew with), an expired
+   * session surfaces as a `SessionExpiredError`.
+   */
+  autoRenew?: boolean;
 }
 
 export interface ConnectArgs extends MyChartClientOptions {
@@ -96,12 +122,19 @@ export interface ConnectArgs extends MyChartClientOptions {
   pass: string;
   /** If true, skip MyChart's "send 2FA code" step (used when the consumer wants to drive delivery itself). */
   skipSendCode?: boolean;
+  /** TOTP secret used to auto-complete 2FA during a silent re-login. */
+  totpSecret?: string;
 }
 
+// Every member carries a UNIT discriminant on purpose: with a combined
+// `state: 'invalid_login' | 'error'` member, TypeScript cannot remove it when
+// a caller negates the checks (`if (invalid || error) return;`), and the
+// examples' narrowing silently stops working.
 export type ConnectResult =
   | { state: 'connected'; client: MyChartClient }
   | PendingTwoFa
-  | { state: 'invalid_login' | 'error'; error?: string };
+  | { state: 'invalid_login'; error?: string }
+  | { state: 'error'; error?: string };
 
 export interface PendingTwoFa {
   state: 'need_2fa';
@@ -126,14 +159,15 @@ export class MyChartClient {
   /** The underlying request/session. Public for power users; usually you don't need it. */
   readonly request: MyChartRequest;
 
-  private readonly opts: MyChartClientOptions;
-  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
   private constructor(request: MyChartRequest, opts: MyChartClientOptions) {
     this.request = request;
-    this.opts = opts;
-    if (opts.keepalive !== false) {
+    if (opts.keepalive === false) {
+      // The shared keepalive would otherwise enroll this session on its first
+      // authenticated request; honor the opt-out at the source.
+      request.disableAutoKeepalive = true;
+    } else {
       this.startKeepalive();
     }
   }
@@ -150,12 +184,17 @@ export class MyChartClient {
     const result = await myChartUserPassLogin({
       hostname: args.hostname,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
       user: args.user,
       pass: args.pass,
       skipSendCode: args.skipSendCode,
     });
-    return MyChartClient.wrapLoginResult(result, args);
+    return MyChartClient.wrapLoginResult(result, args, () => ({
+      hostname: args.hostname,
+      username: args.user,
+      password: args.pass,
+      totpSecret: args.totpSecret,
+      protocol: args.protocol,
+    }));
   }
 
   /**
@@ -165,10 +204,15 @@ export class MyChartClient {
     const result = await myChartPasskeyLogin({
       hostname: args.hostname,
       protocol: args.protocol,
-      fetchFn: args.fetchFn,
       credential: args.credential,
     });
-    return MyChartClient.wrapLoginResult(result, args);
+    // A silent re-login mutates the credential's WebAuthn signature counter in
+    // place; the caller already owns the object and its persistence.
+    return MyChartClient.wrapLoginResult(result, args, () => ({
+      hostname: args.hostname,
+      passkey: args.credential,
+      protocol: args.protocol,
+    }));
   }
 
   /**
@@ -177,21 +221,31 @@ export class MyChartClient {
    */
   static async fromSerialized(
     json: string,
-    opts?: { fetchFn?: MyChartRequestOptions['fetchFn']; keepalive?: boolean }
+    opts?: { keepalive?: boolean }
   ): Promise<MyChartClient | null> {
-    const req = await MyChartRequest.unserialize(json, opts);
+    const req = await MyChartRequest.unserialize(json);
     if (!req) return null;
     return new MyChartClient(req, {
       hostname: req.hostname,
       protocol: req.protocol === 'http' ? 'http' : 'https',
-      fetchFn: opts?.fetchFn,
       keepalive: opts?.keepalive,
     });
   }
 
-  private static wrapLoginResult(result: LoginResult, opts: MyChartClientOptions): ConnectResult {
+  private static wrapLoginResult(
+    result: LoginResult,
+    opts: MyChartClientOptions,
+    renewParams?: () => SilentLoginParams,
+  ): ConnectResult {
+    const wireRenewal = (client: MyChartClient) => {
+      if (opts.autoRenew === false || !renewParams) return;
+      wireSilentReauthentication(client.request, renewParams);
+    };
+
     if (result.state === 'logged_in') {
-      return { state: 'connected', client: new MyChartClient(result.mychartRequest, opts) };
+      const client = new MyChartClient(result.mychartRequest, opts);
+      wireRenewal(client);
+      return { state: 'connected', client };
     }
     if (result.state === 'need_2fa') {
       // Don't start keepalive on a pending session — only after 2FA completes.
@@ -209,8 +263,12 @@ export class MyChartClient {
           if (r.state !== 'logged_in') {
             throw new Error(`2FA failed: state=${r.state}`);
           }
-          // Promote: start keepalive now that we're authenticated.
-          if (opts.keepalive !== false) pendingClient.startKeepalive();
+          // Promote: start keepalive + renewal now that we're authenticated.
+          if (opts.keepalive !== false) {
+            pendingClient.request.disableAutoKeepalive = false;
+            pendingClient.startKeepalive();
+          }
+          wireRenewal(pendingClient);
           return pendingClient;
         },
       };
@@ -231,42 +289,22 @@ export class MyChartClient {
     return areCookiesValid(this.request);
   }
 
-  /** Stop the keepalive timer and prevent further method calls. Idempotent. */
+  /** Stop the keepalive pings and prevent further method calls. Idempotent. */
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    if (this.keepaliveTimer) {
-      clearInterval(this.keepaliveTimer);
-      this.keepaliveTimer = null;
-    }
-  }
-
-  private startKeepalive() {
-    if (this.keepaliveTimer || this.closed) return;
-    this.keepaliveTimer = setInterval(() => {
-      // Don't await — we don't want the timer to drift. If a ping fails, the
-      // next call will surface the auth failure.
-      this.runKeepalivePing().catch(() => {});
-    }, KEEPALIVE_INTERVAL_MS);
-    // Don't keep the event loop alive just because of the keepalive timer.
-    if (typeof this.keepaliveTimer === 'object' && this.keepaliveTimer && 'unref' in this.keepaliveTimer) {
-      (this.keepaliveTimer as { unref: () => void }).unref();
-    }
+    sessionStore.unregister(this.request);
   }
 
   /**
-   * Pings MyChart's two keepalive endpoints. Mirrors the official client's
-   * 30s interval so server-side session timers stay armed.
+   * Enroll in the shared keepalive: MyChart's two keepalive endpoints pinged
+   * on the official client's 30s cadence, with automatic renewal when a
+   * heartbeat finds the session dead (if renewal credentials are wired). The
+   * shared interval is unref'd, so it never holds the event loop open.
    */
-  private async runKeepalivePing(): Promise<void> {
-    try {
-      await Promise.all([
-        this.request.makeRequest({ path: '/Home/KeepAlive', followRedirects: false }),
-        this.request.makeRequest({ path: '/keepalive.asp', followRedirects: false }),
-      ]);
-    } catch {
-      // Swallow — next user-driven request will surface real auth issues.
-    }
+  private startKeepalive() {
+    if (this.closed) return;
+    sessionStore.registerForKeepalive(this.request);
   }
 
   private req(): MyChartRequest {
@@ -281,9 +319,50 @@ export class MyChartClient {
     return generateTotpCode(secret);
   }
 
+  // ── Capability registry ─────────────────────────────────────────────────
+
+  /**
+   * Every capability OpenRecord supports, from the shared registry
+   * (`shared/capabilities.ts`) — the same list the CLI, the Claude Desktop
+   * extension and the mobile app derive their tools from. Useful for building
+   * a tool layer of your own without re-deriving what exists.
+   */
+  static capabilities(): readonly Capability[] {
+    return CAPABILITIES;
+  }
+
+  /**
+   * Run a capability by id against this session — `runCapability('get_visit_notes', { csn })`.
+   *
+   * The typed methods below are the ergonomic path and cover the same ground;
+   * this is the dynamic one, for callers dispatching on a name they were
+   * handed (a tool call, a CLI argument, a queue message).
+   *
+   * `ctx` is only consulted by the account-security capabilities, which need
+   * the account password and somewhere to persist a new secret.
+   */
+  runCapability(id: string, args: CapabilityArgs = {}, ctx?: CapabilityContext): Promise<unknown> {
+    return executeCapability(this.req(), id, args, ctx);
+  }
+
   // ── Profile ─────────────────────────────────────────────────────────────
   getProfile() { return getMyChartProfile(this.req()); }
   getEmail()   { return getEmail(this.req()); }
+  discoverProxyTargets() { return discoverProxyTargets(this.req()); }
+  switchProxyTarget(target: { id?: string; displayName?: string }) { return switchProxyTarget(this.req(), target); }
+  verifyActiveProxyTarget() { return verifyActiveProxyTarget(this.req()); }
+
+  // ── Patient records (proxy access) ──────────────────────────────────────
+  // The client-facing pair the other three clients expose as tools. The three
+  // methods above are the lower-level primitives they are built on.
+  listProxyTargets() { return runListProxyTargets(this.req()); }
+  switchToPatient(patient: string) { return runSwitchProxyTarget(this.req(), patient); }
+  /**
+   * Assert MyChart is on the patient a call is about, without changing
+   * anything. Throws with the switch to run on a mismatch. `runCapability`
+   * does this for you; call it directly when driving the raw scrapers.
+   */
+  assertProxyReadContext(patient?: string) { return assertProxyReadContext(this.req(), patient); }
 
   // ── Health summary / vitals ─────────────────────────────────────────────
   getHealthSummary() { return getHealthSummary(this.req()); }
@@ -321,6 +400,13 @@ export class MyChartClient {
   // ── Visits ──────────────────────────────────────────────────────────────
   upcomingVisits()                          { return upcomingVisits(this.req()); }
   pastVisits(oldestRenderedDate: Date)      { return pastVisits(this.req(), oldestRenderedDate); }
+
+  // ── Visit notes ─────────────────────────────────────────────────────────
+  getVisitNotes(csn: string)                { return getVisitNotes(this.req(), csn); }
+  getNoteContent(params: { csn: string; lrpId: string; hnoId: string; hnoDat: string }) {
+    return getNoteContent(this.req(), params);
+  }
+  getVisitAVS(csn: string)                  { return getVisitAVS(this.req(), csn); }
 
   // ── Messages ────────────────────────────────────────────────────────────
   listConversations()                                       { return listConversations(this.req()); }
@@ -360,4 +446,16 @@ export class MyChartClient {
   // ── Linked accounts / EHI export ───────────────────────────────────────
   getLinkedMyChartAccounts() { return getLinkedMyChartAccounts(this.req()); }
   getEhiExportTemplates()    { return getEhiExportTemplates(this.req()); }
+
+  // ── Account security ───────────────────────────────────────────────────
+  // These change how the patient signs in. Persisting whatever they hand back
+  // (the passkey credential, the TOTP secret) is the caller's job — this
+  // library deliberately owns no credential store.
+  setupPasskey()                { return setupPasskey(this.req()); }
+  listPasskeys()                { return listPasskeys(this.req()); }
+  deletePasskey(rawId: string)  { return deletePasskey(this.req(), rawId); }
+  setupTotp(password: string)   { return setupTotp(this.req(), password); }
+  disableTotp(password: string, totpSecret: string) {
+    return disableTotp(this.req(), password, totpSecret);
+  }
 }
