@@ -19,6 +19,7 @@ import * as path from 'path';
 import { type MyChartRequest } from '../myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
+import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';
 import { logger } from '../../../shared/logger';
 import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
 
@@ -452,19 +453,19 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
   if ((!accession || !serviceInstance || !patientId) && viewerBody) {
     // Extract accessionNumber from JSON: "accessionNumber":"E48330984"
     if (!accession) {
-      const accMatch = viewerBody.match(/"accessionNumber"\s*:\s*"([^"]+)"/);
+      const accMatch = /"accessionNumber"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (accMatch) accession = accMatch[1]!;
     }
 
     // Extract serviceInstance from JSON: "serviceInstance":"EXAMPLEstudystrategy"
     if (!serviceInstance) {
-      const siMatch = viewerBody.match(/"serviceInstance"\s*:\s*"([^"]+)"/);
+      const siMatch = /"serviceInstance"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (siMatch) serviceInstance = siMatch[1]!;
     }
 
     // Extract patientId from JSON: "patientId":"<MRN>$$$<site>"
     if (!patientId) {
-      const pidMatch = viewerBody.match(/"patientId"\s*:\s*"([^"]+)"/);
+      const pidMatch = /"patientId"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (pidMatch) patientId = pidMatch[1]!;
     }
   }
@@ -1655,6 +1656,12 @@ export async function downloadImagingStudyDirect(
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);
   }
+
+  // The parallel batches above complete in whatever order the image server
+  // answers, so this list is not even download order. Re-order each
+  // multi-slice series anatomically so every client hands back a stack that
+  // reads the way the scanner swept it.
+  result.images = sortImagesByPatientPosition(result.images);
 
   return result;
 }

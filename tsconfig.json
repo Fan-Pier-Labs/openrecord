@@ -19,6 +19,8 @@
     "strict": true,
     "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "sourceMap": false,

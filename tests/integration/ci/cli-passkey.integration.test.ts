@@ -195,7 +195,9 @@ describe('CLI passkey operations against fake-mychart', () => {
     ], 60_000);
 
     const output = result.stdout + result.stderr;
-    expect(output).toContain('1 passkey');
+    // The flag now routes through the list_passkeys capability, which prints
+    // its JSON result: { "count": 1, "passkeys": [...] }.
+    expect(output).toContain('"count": 1');
     expect(result.code).toBe(0);
   }, 60_000);
 
@@ -210,7 +212,9 @@ describe('CLI passkey operations against fake-mychart', () => {
     ], 60_000);
 
     const output = result.stdout + result.stderr;
-    expect(output).toContain('Deleted passkey');
+    // JSON from the delete_passkey capability: { "deleted": [...], "failed": [] }.
+    expect(output).toContain('"deleted"');
+    expect(output).toContain('"failed": []');
     expect(result.code).toBe(0);
   }, 60_000);
 

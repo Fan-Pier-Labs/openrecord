@@ -10,6 +10,8 @@
     "skipLibCheck": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,

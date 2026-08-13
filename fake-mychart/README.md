@@ -402,7 +402,7 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
 | `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built by `src/lib/amf3.ts`. |
-| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID`, with real content types (`application/clowrapper` / `application/clopixel`) |
+| `/e/CustomImageServlet` | POST | Returns CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) with real content types (`application/clowrapper` / `application/clopixel`). `CLOWRAPPER` is keyed per `(seriesUID, objectUID)` like a real server: multi-slice series answer a per-instance wrapper carrying that slice's `calibration.orientation.positionPatient` (synthesized at startup by `src/lib/cloWrapper.ts` from `slicePositions` in `src/data/homer.ts`), which is what lets clients sort slices into anatomical order. Other series share one pre-generated wrapper per series. |
 
 The two imaging studies deliberately advertise their viewer differently, matching the two shapes seen on real instances: the X-ray's report HTML embeds `data-fdi-context`, while the CT result carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`) and its report HTML has no fdi markup at all — the Mass General Brigham shape. Both scraper discovery paths stay covered.
 
@@ -414,6 +414,8 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
 
 Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
+
+The CT study's multi-slice series (`AXIAL`, `BONE RECON`) carry per-slice patient positions (`slicePositions` in `src/data/homer.ts`) — the AXIAL z values run *descending* against instance number on purpose, so anatomical order is the reverse of download order and a client that skips position sorting is observably wrong. `SCOUT` keeps a position-free wrapper, covering projection images.
 
 ### SeriesSelector pseudo-instances
 
