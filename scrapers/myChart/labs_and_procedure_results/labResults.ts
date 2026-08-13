@@ -1,7 +1,7 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
-import { LabResultsList } from "./labtypes";
-import { MyChartRequest } from "../myChartRequest";
+import { type HistoricalResultsResponse, type ImagingResult, type LabTestResult, type LabTestResultWithHistory, type ReportContent, type ReportDetails } from "./labtestresulttype";
+import { type LabResultsList } from "./labtypes";
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { extractFdiContext, getImageViewerSamlUrl, followSamlChain } from "../eunity/imagingViewer";
 import { logger } from '../../../shared/logger';

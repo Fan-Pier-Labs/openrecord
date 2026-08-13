@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test'
 import { upcomingVisits, pastVisits } from '../visits/visits'
-import { isVisitsScrapeError, VisitsScrapeError } from '../visits/types'
+import { isVisitsScrapeError, type VisitsScrapeError } from '../visits/types'
 import { MyChartRequest } from '../myChartRequest'
 
 // Narrow a visits result to its container shape, failing the test on the error branch.
