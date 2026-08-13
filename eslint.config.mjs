@@ -44,6 +44,13 @@ export default [
     rules: {
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/no-floating-promises": "error",
+      // `attributes: false` allows the idiomatic async JSX handler
+      // (onPress={handleSave}) — React ignores the returned promise, and the
+      // alternative is wrapping every handler in `() => void f()` noise. All
+      // other void positions (callbacks, setInterval, spreads) stay checked.
+      "@typescript-eslint/no-misused-promises": ["error", {
+        checksVoidReturn: { attributes: false },
+      }],
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",

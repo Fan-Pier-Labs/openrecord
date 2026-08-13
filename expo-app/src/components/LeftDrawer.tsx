@@ -135,9 +135,11 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          await deleteChat(chat.id);
-          await loadChats();
+        onPress: () => {
+          void (async () => {
+            await deleteChat(chat.id);
+            await loadChats();
+          })();
         },
       },
     ]);
