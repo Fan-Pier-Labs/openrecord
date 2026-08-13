@@ -2,6 +2,7 @@ import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
+import { logger } from '../../shared/logger';
 
 export type CareTeamMember = {
   name: string;
@@ -58,23 +59,41 @@ export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareT
       return members;
     }
 
-    // Different instances wrap the list differently; a shape we don't know is
-    // no care team, not an error.
+    // Only the two shapes we have actually observed: a bare array, or a
+    // `recipients` wrapper. Everything else logs and returns no care team.
+    //
+    // This deliberately does NOT guess at other spellings. It used to accept
+    // five more wrapper keys and eleven more field spellings
+    // (`ProviderList`, `DisplayName`, `Role`, …), none of which came from a
+    // capture — they were plausible-looking inventions, so a hit would have
+    // been luck and a miss was indistinguishable from "no care team". When a
+    // real instance turns up serving a different shape, the log line below
+    // names it and it gets added with a fixture.
     const wrapper = json as Record<string, unknown> | null;
-    const unwrapped = Array.isArray(json)
-      ? json
-      : (wrapper?.recipients ?? wrapper?.recipientList ?? wrapper?.Providers ??
-         wrapper?.providers ?? wrapper?.ProviderList ?? wrapper?.providerList);
+    const unwrapped = Array.isArray(json) ? json : wrapper?.recipients;
     const list: unknown[] = Array.isArray(unwrapped) ? unwrapped : [];
+
+    if (!Array.isArray(unwrapped)) {
+      // Loud, because an unrecognised shape and a genuinely empty care team
+      // both render as "no care team" to the patient.
+      logger.debug(
+        'careTeam: no recognised list in the response; top-level keys were',
+        wrapper && typeof wrapper === 'object' ? Object.keys(wrapper) : typeof json,
+      );
+    }
 
     for (const item of list) {
       const r = item as Record<string, unknown>;
-      const name = String(r.displayName ?? r.DisplayName ?? r.name ?? r.Name ?? '').trim();
+      // Every value is `unknown` here; a non-string was never a real name,
+      // role or specialty — a nested object used to land in the chart as the
+      // provider's name via String()'s "[object Object]".
+      const field = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+      const name = field(r.displayName);
       if (!name) continue;
       members.push({
         name,
-        role: String(r.pcpTypeDisplayName ?? r.PcpTypeDisplayName ?? r.role ?? r.Role ?? '').trim(),
-        specialty: String(r.specialty ?? r.Specialty ?? '').trim(),
+        role: field(r.pcpTypeDisplayName),
+        specialty: field(r.specialty),
       });
     }
   }
