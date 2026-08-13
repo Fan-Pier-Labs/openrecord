@@ -161,7 +161,7 @@ async function resolveCredsFromBrowsers(host: string): Promise<{ user: string; p
         return new URL(a.url).hostname === host;
       } catch { return false; }
     });
-    if (match && match.user && match.pass) {
+    if (match?.user && match.pass) {
       console.log(`  Found credentials for ${host} in browser passwords (user: ${match.user})`);
       return { user: match.user, pass: match.pass };
     }
@@ -515,8 +515,7 @@ async function scrapeAll(
   }
 
   if (failures > 0) {
-    console.log(`
-  ${failures} of ${FULL_SCRAPE_CAPABILITIES.length} categories failed on ${session.hostname}; see above.`);
+    console.log(`\n  ${failures} of ${FULL_SCRAPE_CAPABILITIES.length} categories failed on ${session.hostname}; see above.`);
   }
   return failures === 0;
 }
@@ -697,7 +696,7 @@ async function main() {
       const match = accounts.find(a => {
         try { return new URL(a.url).hostname === cliArgs.host; } catch { return false; }
       });
-      if (match && match.user && match.pass) {
+      if (match?.user && match.pass) {
         console.log(`  Found credentials for ${cliArgs.host} (user: ${match.user})`);
         cliArgs.user = match.user;
         cliArgs.pass = match.pass;

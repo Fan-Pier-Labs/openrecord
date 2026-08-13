@@ -950,11 +950,14 @@ async function initializeAmfSession(
   const amfBuf = Buffer.from(await res.arrayBuffer());
   const parsed = parseAmfResponse(amfBuf);
 
+  // Deliberately NOT `parsed?.code !== 0`: with no parse, `undefined !== 0` is
+  // true and would flip this into the error branch. "No parse" must stay
+  // "no error" here; only a parsed non-zero code is an upstream error.
   if (parsed && parsed.code !== 0) {
     logger.debug(`      [AMF] Error code=${parsed.code}: ${parsed.response ?? '(null)'}`);
   }
 
-  if (parsed && parsed.code === 0) {
+  if (parsed?.code === 0) {
     logger.debug(`      [AMF] Session initialized successfully (${amfBuf.length} bytes)`);
   }
 
