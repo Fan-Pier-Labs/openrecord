@@ -194,7 +194,7 @@ async function resolveCredsFromBrowsers(host: string): Promise<{ user: string; p
         return new URL(a.url).hostname === host;
       } catch { return false; }
     });
-    if (match && match.user && match.pass) {
+    if (match?.user && match.pass) {
       console.log(`  Found credentials for ${host} in browser passwords (user: ${match.user})`);
       return { user: match.user, pass: match.pass };
     }
@@ -765,7 +765,7 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
   subheader('Messages');
   try {
     const conversations = await listConversations(mychartRequest);
-    if (conversations && conversations.threads && conversations.threads.length > 0) {
+    if (conversations?.threads && conversations.threads.length > 0) {
       for (const thread of conversations.threads.slice(0, 10)) {
         console.log(`\n      Subject: ${thread.subject || 'No subject'}`);
         if (thread.senderName) item('  From', thread.senderName);
@@ -1364,7 +1364,7 @@ async function main() {
       const match = accounts.find(a => {
         try { return new URL(a.url).hostname === cliArgs.host; } catch { return false; }
       });
-      if (match && match.user && match.pass) {
+      if (match?.user && match.pass) {
         console.log(`  Found credentials for ${cliArgs.host} (user: ${match.user})`);
         cliArgs.user = match.user;
         cliArgs.pass = match.pass;
