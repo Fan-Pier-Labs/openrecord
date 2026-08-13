@@ -27,7 +27,6 @@ import { getHealthIssues } from '../healthIssues'
 import { getImmunizations } from '../immunizations'
 import { getVitals } from '../vitals'
 import { getInsurance } from '../insurance'
-import { getCareTeam } from '../careTeam'
 import { getReferrals } from '../referrals'
 import { getMedicalHistory } from '../medicalHistory'
 import { getPreventiveCare } from '../preventiveCare'
@@ -109,11 +108,6 @@ describe('integration', () => {
     expect(result).toBeDefined()
     expect(Array.isArray(result.coverages)).toBe(true)
     expect(typeof result.hasCoverages).toBe('boolean')
-  }, 30_000)
-
-  it('getCareTeam returns an array', async () => {
-    const result = await getCareTeam(session)
-    expect(Array.isArray(result)).toBe(true)
   }, 30_000)
 
   it('getReferrals returns an array', async () => {

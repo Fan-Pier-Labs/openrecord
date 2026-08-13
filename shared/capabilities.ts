@@ -66,7 +66,6 @@ import { deleteMessage } from '../scrapers/myChart/messages/deleteMessage';
 import { getBillingHistory } from '../scrapers/myChart/bills/bills';
 import { getInsurance } from '../scrapers/myChart/insurance';
 
-import { getCareTeam } from '../scrapers/myChart/careTeam';
 import { getReferrals } from '../scrapers/myChart/referrals';
 import { getLetters, getLetterDetails } from '../scrapers/myChart/letters';
 import { getDocuments } from '../scrapers/myChart/documents';
@@ -169,6 +168,22 @@ export interface Capability {
    * {@link COMMON_CAPABILITIES}.
    */
   lessFrequentlyUsed?: boolean;
+  /**
+   * Declared, listed everywhere, and deliberately NOT implemented yet.
+   *
+   * Unlike {@link lessFrequentlyUsed}, this is a capability flag, not a
+   * presentation one: `run` returns the coming-soon notice without touching
+   * the portal. It exists so a feature we cannot yet implement *honestly* is
+   * visible as "not yet" in every client at once, rather than quietly missing
+   * from some and half-working in others.
+   *
+   * The bar for clearing this flag is a capture from a real instance. Shipping
+   * a parser built on guessed field names is worse than shipping nothing,
+   * because a guess that misses is indistinguishable from an empty record —
+   * the patient is told they have no data instead of being told we can't read
+   * it yet.
+   */
+  comingSoon?: boolean;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to
@@ -773,13 +788,34 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
 
   // ── Care coordination ─────────────────────────────────────────────────────
   {
+    // TODO(care-team): reinstate once a real instance's care-team response is
+    // captured. What's needed: the HTML served at /Clinical/CareTeam on an
+    // instance that renders it server-side, or — if every instance renders it
+    // client-side — whichever JSON endpoint the page actually calls, with the
+    // real field names. Then rebuild the parser against a fixture generated
+    // from that capture (fake-mychart/src/data/realShapes.ts), not from
+    // plausible-looking guesses.
+    //
+    // The previous implementation was withdrawn rather than fixed: it tried
+    // six wrapper keys and four spellings per field, none from a capture, and
+    // read the message-recipients endpoint as a stand-in for the care team —
+    // an assumption nobody had checked. Every wrong guess renders to the
+    // patient as "you have no care team", which is the one failure mode this
+    // codebase treats as unacceptable.
     id: 'get_care_team',
     title: 'Care team',
-    description: 'Members of the care team.',
+    description: 'Members of the care team. COMING SOON — not supported yet; this returns a notice, not chart data.',
     kind: 'read',
     group: 'Care',
+    comingSoon: true,
     params: [],
-    run: (request) => getCareTeam(request),
+    run: () => Promise.resolve({
+      supported: false,
+      message:
+        'Care team is not supported yet. The previous version guessed at the response shape, ' +
+        'so it could report "no care team" for a patient who has one — we withdrew it rather ' +
+        'than keep guessing. Support returns once the real response is captured.',
+    }),
   },
   {
     id: 'get_referrals',
