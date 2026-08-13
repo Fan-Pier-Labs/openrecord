@@ -63,7 +63,7 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
         <Pressable
           testID="google-continue"
           style={[styles.primaryButton, signingIn && styles.disabled]}
-          onPress={alreadySignedIn ? () => onSignedIn(initialEmail!) : handleSignIn}
+          onPress={alreadySignedIn ? () => onSignedIn(initialEmail) : handleSignIn}
           disabled={signingIn}
         >
           {signingIn ? (

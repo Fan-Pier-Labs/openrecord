@@ -17,7 +17,7 @@ function createMockRequest(hostname = 'ucsfmychart.ucsfmedicalcenter.org', first
 function buildTermsPage({
   formAction = '',
   csrfToken = 'test-csrf-token',
-  extraHiddenFields = {} as Record<string, string>,
+  extraHiddenFields = {},
 } = {}) {
   const hiddenFields = Object.entries({ __RequestVerificationToken: csrfToken, ...extraHiddenFields })
     .map(([name, value]) => `<input type="hidden" name="${name}" value="${value}" />`)
@@ -52,7 +52,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.transport
+      })
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -78,7 +78,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.transport
+      })
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -102,7 +102,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.transport
+      })
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(true)
@@ -128,7 +128,7 @@ describe('acceptTermsAndConditions', () => {
           }), { status: 200 })
         }
         return new Response('<html><body>Home</body></html>', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await acceptTermsAndConditions(req)
       expect(postBody).toContain('__RequestVerificationToken=my-csrf-token')
@@ -144,7 +144,7 @@ describe('acceptTermsAndConditions', () => {
         return new Response('<html><body><h1>Terms</h1><form></form></body></html>', {
           status: 200,
         })
-      }) as typeof req.transport
+      })
 
       const result = await acceptTermsAndConditions(req)
       expect(result).toBe(false)
@@ -166,7 +166,7 @@ describe('acceptTermsAndConditions', () => {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
-      }) as typeof req.transport
+      })
 
       expect(await acceptTermsAndConditions(req)).toBe(true)
     })
@@ -183,7 +183,7 @@ describe('acceptTermsAndConditions', () => {
         // POST response: still on T&C page (no accept links either)
         // Must include "termsconditions" (one word) since that's what the success check looks for
         return new Response('<html><body><h1>termsconditions</h1><p>You must accept.</p></body></html>', { status: 200 })
-      }) as typeof req.transport
+      })
 
       expect(await acceptTermsAndConditions(req)).toBe(false)
     })
@@ -211,7 +211,7 @@ describe('acceptTermsAndConditions', () => {
         }
         // Following the accept link — success
         return new Response('<html><body>Welcome Home</body></html>', { status: 200 })
-      }) as typeof req.transport
+      })
 
       expect(await acceptTermsAndConditions(req)).toBe(true)
       expect(calledUrls.length).toBe(3)

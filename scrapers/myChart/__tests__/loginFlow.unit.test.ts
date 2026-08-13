@@ -29,7 +29,7 @@ function fakeMyChart(server: FakeServer) {
   const fetchFn = async (url: string, init: RequestInit): Promise<Response> => {
     calls.push({
       url,
-      method: (init.method ?? 'GET') as string,
+      method: (init.method ?? 'GET'),
       body: init.body ? String(init.body) : undefined,
     })
 
@@ -187,7 +187,7 @@ describe('credential encoding', () => {
     await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     const doLogin = calls.find((c) => c.url.includes('DoLogin'))!
-    const params = new URLSearchParams(doLogin.body!)
+    const params = new URLSearchParams(doLogin.body)
     expect(doLogin.method).toBe('POST')
     expect(params.get('__RequestVerificationToken')).toBe('tok123')
     expect(JSON.parse(params.get('LoginInfo')!).Type).toBe('StandardLogin')

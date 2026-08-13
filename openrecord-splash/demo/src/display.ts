@@ -30,7 +30,7 @@ export function describeResult(result: ToolResult): ResultSummary {
 /** The error message from a failed tool result, if there is one. */
 export function resultError(result: ToolResult): string | null {
   if (result && typeof result === 'object' && 'error' in result) {
-    return String((result as { error: unknown }).error);
+    return String((result).error);
   }
   return null;
 }

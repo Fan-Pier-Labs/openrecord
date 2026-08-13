@@ -49,7 +49,7 @@ describe('makeRequest per-host concurrency', () => {
         await gate.promise
         inFlight -= 1
         return new Response('{}', { status: 200 })
-      }) as typeof req.transport
+      })
       return req
     })
 
@@ -87,7 +87,7 @@ describe('makeRequest per-host concurrency', () => {
         })
       }
       return new Response('{}', { status: 200 })
-    }) as typeof req.transport
+    })
 
     const concurrent = LIMIT * 2
     const responses = await Promise.all(
@@ -117,7 +117,7 @@ describe('makeRequest per-host concurrency', () => {
         })
       }
       return new Response('{}', { status: 200 })
-    }) as typeof req.transport
+    })
 
     const resp = await req.makeRequest({ path: '/Home' })
     expect(resp.status).toBe(200)
@@ -133,7 +133,7 @@ describe('makeRequest per-host concurrency', () => {
     const req = new MyChartRequest('mychart.example.org')
     req.transport = (async () => {
       throw new Error('ECONNRESET')
-    }) as typeof req.transport
+    })
 
     await expect(req.makeRequest({ path: '/Home' })).rejects.toThrow('ECONNRESET')
     expect(hostLimiterStats()['mychart.example.org']).toEqual({
@@ -146,7 +146,7 @@ describe('makeRequest per-host concurrency', () => {
   it('releases the permit when a redirect arrives with no Location header', async () => {
     const req = new MyChartRequest('mychart.example.org')
     req.transport = (async () =>
-      new Response('', { status: 302 })) as typeof req.transport
+      new Response('', { status: 302 }))
 
     await expect(req.makeRequest({ path: '/Home' })).rejects.toThrow(
       "302 didn't have a location header",
@@ -162,7 +162,7 @@ describe('makeRequest per-host concurrency', () => {
       new Response('', {
         status: 302,
         headers: { Location: 'https://mychart.example.org/MyChart/' },
-      })) as typeof req.transport
+      }))
 
     const responses = await Promise.all(
       Array.from({ length: LIMIT + 5 }, () => req.makeRequest({ path: '/MyChart/' })),

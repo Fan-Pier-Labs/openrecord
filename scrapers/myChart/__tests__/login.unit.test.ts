@@ -76,7 +76,7 @@ describe('areCookiesValid', () => {
     req.firstPathPart = 'MyChart'
     req.transport = mock(async () => {
       return new Response('Home page', { status: 200 })
-    }) as typeof req.transport
+    })
 
     expect(await areCookiesValid(req)).toBe(true)
   })
@@ -89,7 +89,7 @@ describe('areCookiesValid', () => {
         status: 302,
         headers: { 'Location': '/MyChart/Authentication/Login' }
       })
-    }) as typeof req.transport
+    })
 
     expect(await areCookiesValid(req)).toBe(false)
   })
@@ -597,7 +597,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://adams.mychartcc.com': { redirect: 'DefaultAsp' },
       'https://adams.mychartcc.com/DefaultAsp': { redirect: '/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe(null)
@@ -609,7 +609,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://mychart.bsahs.org': { redirect: 'DefaultAsp' },
       'https://mychart.bsahs.org/DefaultAsp': { redirect: '/bsa/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('bsa')
@@ -622,7 +622,7 @@ describe('determineFirstPathPart', () => {
       'https://mychart.conemaugh.org/MyChart': { redirect: 'https://mychart.conemaugh.org/MyChart/', status: 301 },
       'https://mychart.conemaugh.org/MyChart/': { redirect: 'DefaultAsp' },
       'https://mychart.conemaugh.org/MyChart/DefaultAsp': { redirect: '/MyChart/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('MyChart')
@@ -634,7 +634,7 @@ describe('determineFirstPathPart', () => {
       'https://mycslink.cedars-sinai.org': { redirect: 'https://mycslink.cedars-sinai.org/mycslink', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink': { redirect: 'https://mycslink.cedars-sinai.org/mycslink/', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink/': { redirect: './Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mycslink')
@@ -648,7 +648,7 @@ describe('determineFirstPathPart', () => {
       'https://mycslink.cedars-sinai.org/mycslink': { redirect: 'https://mycslink.cedars-sinai.org/mycslink/', status: 301 },
       'https://mycslink.cedars-sinai.org/mycslink/': { redirect: './Authentication/Login?' },
       'https://mycslink.cedars-sinai.org/mycslink/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.hostname).toBe('mycslink.cedars-sinai.org')
@@ -662,7 +662,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://mychart.hospital.org': { redirect: 'https://ads.example.com/promo/Authentication/Login', status: 302 },
       'https://ads.example.com/promo/Authentication/Login': { body: '<html><body>Buy now</body></html>' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.hostname).toBe('mychart.hospital.org')
@@ -674,7 +674,7 @@ describe('determineFirstPathPart', () => {
       'https://mydovetale.ca': { body: `<script>window.location="https://mydovetale.ca/MyDovetale/";</script>` },
       'https://mydovetale.ca/MyDovetale/': { redirect: 'DefaultAsp' },
       'https://mydovetale.ca/MyDovetale/DefaultAsp': { redirect: '/MyDovetale/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('MyDovetale')
@@ -689,7 +689,7 @@ describe('determineFirstPathPart', () => {
         <a href="https://mychartsta.chihealth.com/staprd/">St Alexius</a>
       </body></html>` },
       'https://mychart.chihealth.com/prd/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('prd')
@@ -704,7 +704,7 @@ describe('determineFirstPathPart', () => {
       'https://mymsdh.umc.edu': { redirect: '/my.policy' },
       'https://mymsdh.umc.edu/my.policy': { body: '<html><head><title>BIG-IP logout page</title></head></html>' },
       'https://mymsdh.umc.edu/MyChart/Authentication/Login': { body: LOGIN_PAGE },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).not.toBe('my.policy')
@@ -717,7 +717,7 @@ describe('determineFirstPathPart', () => {
     const req = new MyChartRequest('mychart.adventhealth.com')
     req.transport = fakeInstance({
       'https://mychart.adventhealth.com': { body: '<html><center> EP-MYC-PRD501 </center></html>' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe(null)
@@ -728,7 +728,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://mychart.crossingrivers.org': { redirect: 'https://mychart.crossingrivers.org/CRH/', status: 301 },
       'https://mychart.crossingrivers.org/CRH/': { redirect: 'https://mychart.crossingrivers.org/CRH/', status: 301 },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     // The loop is broken and discovery falls through; what matters is that it
@@ -739,7 +739,7 @@ describe('determineFirstPathPart', () => {
   it('keeps a prefix the caller already supplied', async () => {
     const req = new MyChartRequest('mychart.example.org')
     req.setFirstPathPart('CustomPrefix')
-    req.transport = mock(async () => { throw new Error('should not make any request') }) as typeof req.transport
+    req.transport = mock(async () => { throw new Error('should not make any request') })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('CustomPrefix')
@@ -751,7 +751,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://mychart.ochin.org': { redirect: 'https://mychart.ochin.org/mychart/' },
       'https://mychart.ochin.org/mychart/': { redirect: '/mychart/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mychart')
@@ -762,7 +762,7 @@ describe('determineFirstPathPart', () => {
     req.transport = fakeInstance({
       'https://mychart.renown.org': { body: `<html><head><meta http-equiv="REFRESH" content="1 ;url=https://mychart.renown.org/mychart"></head></html>` },
       'https://mychart.renown.org/mychart': { redirect: '/mychart/Authentication/Login?' },
-    }) as typeof req.transport
+    })
 
     await determineFirstPathPart(req)
     expect(req.firstPathPart).toBe('mychart')
@@ -825,7 +825,7 @@ describe('detectUsernameField', () => {
     req.transport = mock(async (url: string | URL | Request) => {
       fetched.push(url.toString())
       return new Response('Credentials: { Username: u, Password: p }', { status: 200 })
-    }) as typeof req.transport
+    })
 
     const field = await detectUsernameField(req, `<html><script src="/mycslink/scripts/loginpagecontroller.min.js"></script></html>`)
     expect(fetched[0]).toBe('https://mycslink.cedars-sinai.org/mycslink/scripts/loginpagecontroller.min.js')
@@ -834,13 +834,13 @@ describe('detectUsernameField', () => {
 
   it('defaults to LoginIdentifier when the page references no controller', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.transport = mock(async () => { throw new Error('should not fetch') }) as typeof req.transport
+    req.transport = mock(async () => { throw new Error('should not fetch') })
     expect(await detectUsernameField(req, '<html></html>')).toBe('LoginIdentifier')
   })
 
   it('defaults to LoginIdentifier when the controller script cannot be fetched', async () => {
     const req = new MyChartRequest('mychart.example.org')
-    req.transport = mock(async () => { throw new Error('Network error') }) as typeof req.transport
+    req.transport = mock(async () => { throw new Error('Network error') })
     expect(await detectUsernameField(req, `<html><script src="/MyChart/loginpagecontroller.js"></script></html>`))
       .toBe('LoginIdentifier')
   })
@@ -857,7 +857,7 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
         </body></html>`, { status: 200 })
       }
       return new Response('<html><body>Not found</body></html>', { status: 404 })
-    }) as typeof req.transport
+    })
 
     const result = await probeFirstPathPartByTryingCommonLoginPaths(req)
     expect(result).toBe('MyChart')
@@ -867,7 +867,7 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
     const req = new MyChartRequest('mychart.example.com')
     req.transport = mock(async () => {
       return new Response('<html><body>Not found</body></html>', { status: 404 })
-    }) as typeof req.transport
+    })
 
     const result = await probeFirstPathPartByTryingCommonLoginPaths(req)
     expect(result).toBe(null)
