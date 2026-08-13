@@ -15,7 +15,10 @@ import { silenceLogger, resetLogSink } from '../../shared/logger'
  * looking like a browser or stops being rate limited.
  */
 
-const tick = () => new Promise((r) => setTimeout(r, 0))
+const tick = () =>
+  new Promise((r) => {
+    setTimeout(r, 0)
+  })
 
 function deferred<T = void>() {
   let resolve!: (value: T) => void
