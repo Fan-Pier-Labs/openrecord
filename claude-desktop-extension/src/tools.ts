@@ -31,11 +31,11 @@
 
 import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import { type MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 
-import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
-import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
-import { serializeCredential } from '../../scrapers/myChart/softwareAuthenticator';
+import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/auth/login';
+import { setupPasskey } from '../../scrapers/myChart/auth/setupPasskey';
+import { serializeCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 import {
   ACCOUNT_PARAM,

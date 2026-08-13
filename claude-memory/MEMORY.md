@@ -48,7 +48,7 @@ MyChart has TWO separate timeout mechanisms:
 
 For our scraper: only the server-side keepalive matters. The client-side timer is browser JS only. Fixed in PR #59 — sessionStore now calls both `/Home/KeepAlive` and `/keepalive.asp` every 30s.
 
-The globalThis singleton pattern is required for the sessionStore in Next.js — each API route is bundled separately, so module-level singletons create separate instances. See `scrapers/myChart/sessionStore.ts`.
+The globalThis singleton pattern is required for the sessionStore in Next.js — each API route is bundled separately, so module-level singletons create separate instances. See `scrapers/myChart/core/sessionStore.ts`.
 
 ## Playwright Virtual Authenticator for Passkey Login
 
