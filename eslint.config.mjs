@@ -55,6 +55,8 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // `.filter(p)[0]` builds a whole array to keep one element — `.find(p)`.
+      "@typescript-eslint/prefer-find": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect
