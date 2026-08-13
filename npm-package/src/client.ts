@@ -7,7 +7,7 @@
  * `DirectDownloadedImage.pixelData`.
  */
 
-import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
@@ -16,66 +16,66 @@ import {
   type LoginResult,
   type TwoFaResult,
   type TwoFaDeliveryInfo,
-} from '../../scrapers/myChart/login';
-import { generateTotpCode } from '../../scrapers/myChart/totp';
-import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/silentLogin';
-import { sessionStore } from '../../scrapers/myChart/sessionStore';
-import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
+} from '../../scrapers/myChart/auth/login';
+import { generateTotpCode } from '../../scrapers/myChart/auth/totp';
+import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
+import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
+import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
-import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
+import { getMyChartProfile, getEmail } from '../../scrapers/myChart/chart/profile';
 import {
   discoverProxyTargets,
   switchProxyTarget,
   verifyActiveProxyTarget,
-} from '../../scrapers/myChart/proxyContext';
+} from '../../scrapers/myChart/proxy/proxyContext';
 import {
   runListProxyTargets,
   runSwitchProxyTarget,
   assertProxyReadContext,
-} from '../../scrapers/myChart/proxyTools';
-import { getHealthSummary } from '../../scrapers/myChart/healthSummary';
-import { getVitals } from '../../scrapers/myChart/vitals';
-import { getMedications } from '../../scrapers/myChart/medications';
-import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
-import { getAllergies } from '../../scrapers/myChart/allergies';
-import { getHealthIssues } from '../../scrapers/myChart/healthIssues';
-import { getMedicalHistory } from '../../scrapers/myChart/medicalHistory';
-import { getImmunizations } from '../../scrapers/myChart/immunizations';
+} from '../../scrapers/myChart/proxy/proxyTools';
+import { getHealthSummary } from '../../scrapers/myChart/chart/healthSummary';
+import { getVitals } from '../../scrapers/myChart/chart/vitals';
+import { getMedications } from '../../scrapers/myChart/chart/medications';
+import { requestMedicationRefill } from '../../scrapers/myChart/chart/medicationRefill';
+import { getAllergies } from '../../scrapers/myChart/chart/allergies';
+import { getHealthIssues } from '../../scrapers/myChart/chart/healthIssues';
+import { getMedicalHistory } from '../../scrapers/myChart/chart/medicalHistory';
+import { getImmunizations } from '../../scrapers/myChart/chart/immunizations';
 
-import { listLabResults, getImagingResults } from '../../scrapers/myChart/labs_and_procedure_results/labResults';
+import { listLabResults, getImagingResults } from '../../scrapers/myChart/chart/labs/labResults';
 import {
   downloadImagingStudyDirect,
   type DirectDownloadOptions,
   type DirectDownloadResult,
 } from '../../scrapers/myChart/eunity/imagingDirectDownload';
 
-import { upcomingVisits, pastVisits } from '../../scrapers/myChart/visits/visits';
+import { upcomingVisits, pastVisits } from '../../scrapers/myChart/chart/visits/visits';
 
-import { listConversations } from '../../scrapers/myChart/messages/conversations';
-import { getConversationMessages } from '../../scrapers/myChart/messages/messageThreads';
+import { listConversations } from '../../scrapers/myChart/chart/messages/conversations';
+import { getConversationMessages } from '../../scrapers/myChart/chart/messages/messageThreads';
 import {
   sendNewMessage,
   getMessageRecipients,
   getMessageTopics,
   type SendNewMessageParams,
   type SendNewMessageResult,
-} from '../../scrapers/myChart/messages/sendMessage';
-import { sendReply, type SendReplyParams, type SendReplyResult } from '../../scrapers/myChart/messages/sendReply';
-import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
+} from '../../scrapers/myChart/chart/messages/sendMessage';
+import { sendReply, type SendReplyParams, type SendReplyResult } from '../../scrapers/myChart/chart/messages/sendReply';
+import { deleteMessage } from '../../scrapers/myChart/chart/messages/deleteMessage';
 
-import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
+import { getBillingHistory } from '../../scrapers/myChart/chart/bills/bills';
 
-import { getReferrals } from '../../scrapers/myChart/referrals';
-import { getInsurance } from '../../scrapers/myChart/insurance';
-import { getDocuments } from '../../scrapers/myChart/documents';
-import { getGoals } from '../../scrapers/myChart/goals';
-import { getCareJourneys } from '../../scrapers/myChart/careJourneys';
-import { getUpcomingOrders } from '../../scrapers/myChart/upcomingOrders';
-import { getPreventiveCare } from '../../scrapers/myChart/preventiveCare';
-import { getEducationMaterials } from '../../scrapers/myChart/educationMaterials';
-import { getQuestionnaires } from '../../scrapers/myChart/questionnaires';
-import { getActivityFeed } from '../../scrapers/myChart/activityFeed';
-import { getLetters, getLetterDetails } from '../../scrapers/myChart/letters';
+import { getReferrals } from '../../scrapers/myChart/chart/referrals';
+import { getInsurance } from '../../scrapers/myChart/chart/insurance';
+import { getDocuments } from '../../scrapers/myChart/chart/documents';
+import { getGoals } from '../../scrapers/myChart/chart/goals';
+import { getCareJourneys } from '../../scrapers/myChart/chart/careJourneys';
+import { getUpcomingOrders } from '../../scrapers/myChart/chart/upcomingOrders';
+import { getPreventiveCare } from '../../scrapers/myChart/chart/preventiveCare';
+import { getEducationMaterials } from '../../scrapers/myChart/chart/educationMaterials';
+import { getQuestionnaires } from '../../scrapers/myChart/chart/questionnaires';
+import { getActivityFeed } from '../../scrapers/myChart/chart/activityFeed';
+import { getLetters, getLetterDetails } from '../../scrapers/myChart/chart/letters';
 
 import {
   getEmergencyContacts,
@@ -84,14 +84,14 @@ import {
   removeEmergencyContact,
   type EmergencyContactInput,
   type EmergencyContactUpdateInput,
-} from '../../scrapers/myChart/emergencyContacts';
+} from '../../scrapers/myChart/chart/emergencyContacts';
 
-import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/other_mycharts';
-import { getEhiExportTemplates } from '../../scrapers/myChart/ehiExport';
+import { getLinkedMyChartAccounts } from '../../scrapers/myChart/chart/otherMyCharts';
+import { getEhiExportTemplates } from '../../scrapers/myChart/chart/ehiExport';
 
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/notes/notes';
-import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
-import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/chart/notes';
+import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/auth/setupPasskey';
+import { setupTotp, disableTotp } from '../../scrapers/myChart/auth/setupTotp';
 import {
   CAPABILITIES,
   executeCapability,
