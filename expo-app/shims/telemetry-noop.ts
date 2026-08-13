@@ -9,6 +9,6 @@ export function sendTelemetryEvent(
   _eventProperties?: Record<string, unknown>,
   _source?: string,
 ): void {}
-export async function gatherEnvInfo(): Promise<Record<string, unknown>> {
-  return {};
+export function gatherEnvInfo(): Promise<Record<string, unknown>> {
+  return Promise.resolve({});
 }

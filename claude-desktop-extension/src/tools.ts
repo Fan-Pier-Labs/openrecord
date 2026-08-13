@@ -292,7 +292,7 @@ export function registerAllTools(server: McpServer): void {
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
+    () => {
       const accounts = readAccounts();
       const accountList = accounts.map(a => ({
         account: accountId(a),
@@ -342,7 +342,7 @@ export function registerAllTools(server: McpServer): void {
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
     },
-    async () => ({
+    () => ({
       content: [
         {
           type: 'text',
@@ -363,7 +363,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ query, limit }) => {
+    ({ query, limit }) => {
       const matches = searchInstances(query, limit ?? 10);
       return jsonResult({
         query,
@@ -517,7 +517,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
-    async ({ account }) => {
+    ({ account }) => {
       const match = lookupAccount(account);
       if (!match) return textResult(`No saved account for ${account}.`);
       const id = accountId(match);
