@@ -32,8 +32,6 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #
 #   mock_data/         — test fixtures
 #   list-all-mycharts/ — dev diagnostics (the directory probe), never shipped
-#   generate_clo.ts    — the CLO *encoder*, which only exists to synthesise test
-#                        images. Nothing outside a .test.ts file imports it.
 #   fake-mychart/      — the stand-in MyChart server. Its fidelity is proven by
 #                        the suites that run against it, not by covering its own
 #                        source.
@@ -65,6 +63,10 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   eunity/imagingViewer.ts (59%/79%), eunity/imagingDirectDownload.ts (72%/87%)
 #     — the imaging pipeline. Needs a live eUnity server or large binary
 #       fixtures. The CLO decoder underneath it is covered normally.
+#       Most of imagingDirectDownload.ts's gap is a superseded copy of the
+#       download loop that no caller reaches; deleting it takes the file to
+#       93%/93%. Parked until the live path can be checked against a real
+#       eUnity instance — see #245.
 #   claude-desktop-extension/src/tools.ts (47%/56%)
 #     — the per-tool handler bodies, each needing its scraper mocked.
 #       Registration shape and the shared error path are covered.
@@ -78,7 +80,6 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
-  "**/clo-image-parser/generate_clo.ts",
   "fake-mychart/**",
   "**/__tests__/**",
   "**/dist/**",

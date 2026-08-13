@@ -101,7 +101,7 @@ MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Remov
 - `npm-package/` — `mychart-cli` npm package (CLI entry at `npm-package/cli/cli.ts`) + resend 2FA
 - `claude-desktop-extension/` — Claude Desktop `.mcpb` extension
 - `expo-app/` — Expo/React Native mobile app
-- `shared/` — common types (AccountStatus, CommonMyChartAccount)
+- `shared/` — the capability registry, logger, host concurrency limiter and other cross-package helpers
 - `read-local-passwords/` — browser keystore extraction
 - `scrapers/myChart/clo-image-parser/` — eUnity CLO image parser
 - `fake-mychart/` — fake MyChart server for dev/CI
