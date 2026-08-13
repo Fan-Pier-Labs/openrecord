@@ -27,6 +27,11 @@ function textOf(blocks: Block[]): string {
         case 'image':
           return `[image:${b.name}]`;
       }
+      // Unreachable while the switch names every `Block` kind — which
+      // switch-exhaustiveness-check enforces, since there is no `default`. It
+      // is here so every path of the callback produces a string: a fall-through
+      // would put `undefined` in the joined text and read as a parse bug.
+      throw new Error(`textOf: unhandled block ${JSON.stringify(b)}`);
     })
     .join('\n');
 }
