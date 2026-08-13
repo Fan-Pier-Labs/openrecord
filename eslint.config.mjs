@@ -29,6 +29,10 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `str.match(re)` and `re.exec(str)` are identical for non-global
+      // regexes, and exec is the clearer read; the rule declines to convert
+      // /g patterns, where the two genuinely differ.
+      "@typescript-eslint/prefer-regexp-exec": "error",
       // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
       // semantics are preserved, and downgrades to a suggestion when the
       // expression VALUE changes (null/'' vs undefined) — those were
