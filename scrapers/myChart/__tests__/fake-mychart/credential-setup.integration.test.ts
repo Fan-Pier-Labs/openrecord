@@ -17,12 +17,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
-import { myChartUserPassLogin } from '../../login'
-import { type MyChartRequest } from '../../myChartRequest'
-import { setupTotp, disableTotp } from '../../setupTotp'
-import { setupPasskey, listPasskeys, deletePasskey } from '../../setupPasskey'
-import { myChartPasskeyLogin } from '../../login'
-import { generateTotpCode } from '../../totp'
+import { myChartUserPassLogin } from '../../auth/login'
+import { type MyChartRequest } from '../../core/myChartRequest'
+import { setupTotp, disableTotp } from '../../auth/setupTotp'
+import { setupPasskey, listPasskeys, deletePasskey } from '../../auth/setupPasskey'
+import { myChartPasskeyLogin } from '../../auth/login'
+import { generateTotpCode } from '../../auth/totp'
 import { resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'

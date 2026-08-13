@@ -16,7 +16,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import {
   CAPABILITIES,
   acceptsPatientParam,
@@ -34,7 +34,7 @@ import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
-import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
+import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 /**
  * Dashed action names the CLI accepted back when each had a hand-written
