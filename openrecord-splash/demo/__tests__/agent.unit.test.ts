@@ -37,6 +37,16 @@ function scriptedModel(turns: string[]) {
 
 const respond = (text: string) => JSON.stringify({ tool: 'respond', args: { text } });
 
+/**
+ * The loop's cosmetic tool latency, turned off.
+ *
+ * `runTurn` sleeps for `toolLatencyMs(tool)` before each call so the demo's
+ * activity panel is visible long enough to read; nothing here is testing that.
+ * Left on, this suite spends ~11 real seconds asleep — and every test added
+ * makes it worse — waiting out a delay whose only job is to be seen by a human.
+ */
+const noLatency = () => 0;
+
 /** Answers the write-confirmation dialog. Records what it was shown. */
 function dialog(answer: boolean) {
   const shown: Any[] = [];
@@ -329,7 +339,12 @@ describe('buildSystemPrompt', () => {
 });
 
 describe('runTurn', () => {
-  const base = () => ({ session: createSession(), userText: 'what are my meds?', history: [] });
+  const base = () => ({
+    session: createSession(),
+    userText: 'what are my meds?',
+    history: [],
+    toolLatency: noLatency,
+  });
 
   test('a respond-only turn returns its text with no tool calls', async () => {
     const model = scriptedModel([respond('Here you go.')]);
@@ -760,6 +775,7 @@ describe('a failing model surfaces an error rather than inventing an answer', ()
         session: createSession(),
         userText: 'show me my lab results',
         history: [],
+        toolLatency: noLatency,
         complete: dead,
         callbacks: { onError: (err: Error) => (notified = err) },
       }),
@@ -783,6 +799,7 @@ describe('a failing model surfaces an error rather than inventing an answer', ()
         session: createSession(),
         userText: 'meds?',
         history: [],
+        toolLatency: noLatency,
         complete: flaky,
         callbacks: { onToolEnd: (r: Any) => records.push(r.tool) },
       }),

@@ -106,22 +106,38 @@ describe('makeAuthenticatedRequest', () => {
   });
 
   it('single-flights the renewal when many requests hit an expired session at once', async () => {
-    const { request, state } = fakeMyChart();
+    const CONCURRENT = 8;
+
+    // The renewal is held open until every caller has been bounced by the
+    // expired session, so they genuinely pile up on one in-flight renewal.
+    // Sleeping in the hook instead only made that *likely* — and the pile-up
+    // is the whole point of the test, so a slow CI box could quietly turn this
+    // green while proving nothing. Counting arrivals makes it certain, and
+    // costs no wall-clock time.
+    let openTheGate!: () => void;
+    const gate = new Promise<void>((resolve) => { openTheGate = resolve; });
+    let bounced = 0;
+
+    const { request, state } = fakeMyChart((url) => {
+      if (!state.loggedIn && url.includes('/api/') && ++bounced === CONCURRENT) openTheGate();
+      return null; // fall through to the default router
+    });
+
     let hookCalls = 0;
     request.reauthenticate = async () => {
       hookCalls++;
-      // Yield so all concurrent callers pile up on the same in-flight renewal.
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await gate;
       state.loggedIn = true;
       return true;
     };
 
     const results = await Promise.all(
-      Array.from({ length: 8 }, () =>
+      Array.from({ length: CONCURRENT }, () =>
         makeAuthenticatedRequest(request, { path: '/api/allergies/LoadAllergies', method: 'POST', body: '{}' })
           .then((r) => r.json())),
     );
-    expect(results).toHaveLength(8);
+    expect(results).toHaveLength(CONCURRENT);
+    expect(bounced).toBe(CONCURRENT);
     expect(hookCalls).toBe(1);
     cleanup(request);
   });

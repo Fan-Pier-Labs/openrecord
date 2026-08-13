@@ -27,7 +27,7 @@ describe('timeBoundedRequest', () => {
     globalThis.fetch = mock(async (url: string | URL | Request) => {
       seen.push(url.toString())
       return new Response('<html>login</html>', { status: 200 })
-    }) as typeof globalThis.fetch
+    }) as unknown as typeof globalThis.fetch
 
     const req = timeBoundedRequest('mychart.example.org')
     const res = await req.makeRequest({ url: 'https://mychart.example.org/Authentication/Login' })
@@ -41,7 +41,7 @@ describe('timeBoundedRequest', () => {
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       signals.push(init?.signal)
       return new Response('', { status: 200 })
-    }) as typeof globalThis.fetch
+    }) as unknown as typeof globalThis.fetch
 
     const req = timeBoundedRequest('mychart.example.org')
     await req.makeRequest({ url: 'https://mychart.example.org/Authentication/Login' })
@@ -55,7 +55,7 @@ describe('timeBoundedRequest', () => {
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       headers = init?.headers as Record<string, string>
       return new Response('', { status: 200 })
-    }) as typeof globalThis.fetch
+    }) as unknown as typeof globalThis.fetch
 
     await timeBoundedRequest('mychart.example.org').makeRequest({
       url: 'https://mychart.example.org/Authentication/Login',

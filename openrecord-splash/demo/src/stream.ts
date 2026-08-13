@@ -100,8 +100,10 @@ export function streamText(
     const started = now();
     let shown = 0;
     let frame = 0;
+    let stopped = false;
 
     const stop = () => {
+      stopped = true;
       cancelFrame(frame);
       signal?.removeEventListener('abort', onAbort);
     };
@@ -125,6 +127,11 @@ export function streamText(
         resolve();
         return;
       }
+      // An abort raised from inside `onUpdate` lands here, mid-tick, after
+      // `cancelFrame` has already had its chance at the handle that fired.
+      // Without this check the reveal would schedule itself a fresh frame and
+      // run on, invisibly, past its own cancellation.
+      if (stopped) return;
       frame = scheduleFrame(tick);
     };
 

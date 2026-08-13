@@ -346,7 +346,7 @@ describe('MyChartRequest', () => {
       let calls = 0
 
       const realFetch = globalThis.fetch
-      globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
+      globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         cookiesSeen.push((init?.headers as Record<string, string>)?.['Cookie'])
         if (++calls === 1) {
           return new Response('', {
@@ -358,7 +358,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('Login page', { status: 200 })
-      }) as typeof globalThis.fetch
+      }) as unknown as typeof globalThis.fetch
 
       try {
         await req.makeRequest({ url: 'https://mychart.example.com/MyChart/' })
