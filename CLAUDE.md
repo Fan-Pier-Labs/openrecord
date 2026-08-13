@@ -53,7 +53,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   Never simplify a contract to make a test easier; size the fixture around the real behavior.
   Response shapes are held to skeletons generated from live captures (`realShapes.ts` +
   `conformToShape`), every `/api/*` POST requires a CSRF token, and a `/mode` knob switches the
-  instance between the two captured Epic release generations. See `fake-mychart/README.md`.
+  instance between the two captured Epic releases (November 2025 / August 2025). See `fake-mychart/README.md`.
 
 ## Key commands
 

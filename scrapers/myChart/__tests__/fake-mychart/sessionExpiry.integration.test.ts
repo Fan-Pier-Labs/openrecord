@@ -81,7 +81,7 @@ describe('fake-mychart session enforcement (fidelity)', () => {
   });
 
   it('rejects an API POST with no CSRF token via the FiveHundred dance, before auth', async () => {
-    // Observed on the two modern instances: a token-less API POST — even a
+    // Observed on the two November 2025 instances: a token-less API POST — even a
     // fully unauthenticated one — is bounced to /Home/FiveHundred, NOT to the
     // login page. Only token-carrying requests reach the auth check.
     const res = await fetch(`http://${HOST}/MyChart/api/allergies/LoadAllergies`, {

@@ -1,7 +1,7 @@
 /**
  * Fidelity tests for behaviors captured on real MyChart instances (three live
- * captures: one legacy-generation deployment, two modern) and now modelled by
- * fake-mychart:
+ * captures: one on Epic's August 2025 release, two behaving as November 2025)
+ * and now modelled by fake-mychart:
  *
  *  - GetList accepts only groupType 0/1 (one combined list of labs+imaging);
  *    anything else is a 500 with ASP.NET Web API's {"Message": ...} body.
@@ -12,7 +12,7 @@
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
  *  - GetMultipleHistoricalResultComponents returns a map keyed by component id.
- *  - The epicVersion knob switches the error surface and the modern-only
+ *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
@@ -35,7 +35,7 @@ import { resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
-async function setEpicVersion(version: 'modern' | 'legacy'): Promise<void> {
+async function setEpicVersion(version: 'November 2025' | 'August 2025'): Promise<void> {
   const res = await fetch(`http://${HOST}/mode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -127,7 +127,7 @@ describe('test-results fidelity', () => {
     expect(comp.referenceRange.high).toBe(200)
     expect(comp.referenceRange.lowerBoundExclusive).toBe(false)
     expect(comp.abnormalFlagCategoryValue).toBe('Unknown')
-    // Modern-generation instances add this per result; the default is modern.
+    // November 2025 instances add this per result; that release is the default.
     expect(r.canGenerateLLMSummary).toBe(false)
   })
 
@@ -221,23 +221,23 @@ describe('conformToShape fills the full real field set', () => {
 })
 
 describe('epicVersion knob', () => {
-  afterAll(async () => { await setEpicVersion('modern') })
+  afterAll(async () => { await setEpicVersion('November 2025') })
 
-  it('keepalives: text/html; keepalive.asp answers "0" on modern even when alive', async () => {
+  it('keepalives: text/html; keepalive.asp answers "0" on November 2025 even when alive', async () => {
     const dotNet = await session.makeRequest({ path: '/Home/KeepAlive', followRedirects: false })
     expect(dotNet.headers.get('content-type') ?? '').toContain('text/html')
     expect((await dotNet.text()).trim()).toBe('1')
     const asp = await session.makeRequest({ path: '/keepalive.asp', followRedirects: false })
     expect((await asp.text()).trim()).toBe('0')
 
-    await setEpicVersion('legacy')
+    await setEpicVersion('August 2025')
     const aspLegacy = await session.makeRequest({ path: '/keepalive.asp', followRedirects: false })
     expect((await aspLegacy.text()).trim()).toBe('1')
-    await setEpicVersion('modern')
+    await setEpicVersion('November 2025')
   })
 
-  it('legacy answers unknown paths and token-less POSTs with a bare 500, no redirect', async () => {
-    await setEpicVersion('legacy')
+  it('August 2025 answers unknown paths and token-less POSTs with a bare 500, no redirect', async () => {
+    await setEpicVersion('August 2025')
     const unknown = await session.makeRequest({ path: '/api/this-endpoint-does-not-exist', followRedirects: false })
     expect(unknown.status).toBe(500)
     expect(unknown.headers.get('content-type') ?? '').toContain('text/html')
@@ -250,17 +250,17 @@ describe('epicVersion knob', () => {
       followRedirects: false,
     })
     expect(noToken.status).toBe(500)
-    await setEpicVersion('modern')
+    await setEpicVersion('November 2025')
   })
 
-  it('legacy drops the modern-only result fields', async () => {
-    await setEpicVersion('legacy')
+  it('August 2025 drops the November-2025-only result fields', async () => {
+    await setEpicVersion('August 2025')
     const res = await api('/api/test-results/GetDetails', { orderKey: 'GRP-LIPID', organizationID: '', PageNonce: '' })
     const body = await res.json() as { results: Array<Record<string, unknown>> }
     expect(body.results[0]).not.toHaveProperty('canGenerateLLMSummary')
     expect(body.results[0]).not.toHaveProperty('isBedsideTablet')
 
-    await setEpicVersion('modern')
+    await setEpicVersion('November 2025')
     const modern = await api('/api/test-results/GetDetails', { orderKey: 'GRP-LIPID', organizationID: '', PageNonce: '' })
     const modernBody = await modern.json() as { results: Array<Record<string, unknown>> }
     expect(modernBody.results[0]).toHaveProperty('canGenerateLLMSummary')

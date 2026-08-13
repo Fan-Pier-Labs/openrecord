@@ -141,8 +141,8 @@ curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"moved-host","movedHost":"127.0.0.1:4000"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"requireTerms":true}'
-curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"epicVersion":"legacy"}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"modern"}
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"epicVersion":"August 2025"}'
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025"}
 ```
 
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
@@ -156,7 +156,7 @@ curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","m
 - `movedHost` — **where `moved-host` sends the client.** Point it at another name for this same server — `127.0.0.1:4000` when the client came in on `localhost:4000` — to exercise the move without running a second server. Setting `discovery: "moved-host"` without it is a 400.
 - `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 - `requireTerms` — **whether login lands on the chart or on Terms & Conditions.** `false` (default) or `true`, which bounces every un-accepted session to `/Authentication/TermsConditions`. Wants a fresh login, since it gates sessions that haven't accepted yet. This was the `FAKE_MYCHART_REQUIRE_TERMS` environment variable, which needed a second server on another port to exercise.
-- `epicVersion` — **which Epic release generation the instance behaves like.** `modern` (default) or `legacy`, both captured live. On `modern`, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On `legacy`, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. No re-login needed.
+- `epicVersion` — **which Epic release the instance behaves like.** `"November 2025"` (default) or `"August 2025"` — real Epic release names, read from the captured organizations' public FHIR `metadata` endpoints (`software.version`; Epic names releases by month). On November 2025, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On August 2025, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. (Of the three captured instances, the August 2025 one reports that release directly; one November 2025 instance reports it directly and the third's release number wasn't readable, but its behavior is byte-compatible with November 2025.) No re-login needed.
 
 `mode` and `discovery` are orthogonal — every combination works, and whichever
 mount is active serves MyChart from exactly one prefix while the other 404s. A
@@ -171,7 +171,7 @@ the defaults.
 ## Response Shapes and Error Behavior (captured live)
 
 The JSON the fake serves is held to the field set observed on three real
-instances (one legacy-generation, two modern), via two pieces:
+instances (one on Epic's August 2025 release, two behaving as November 2025), via two pieces:
 
 - **`src/data/realShapes.ts`** — GENERATED skeletons of real responses, one per
   endpoint, every leaf a neutral default (`''`/`0`/`false`/`null`). Structure
@@ -201,7 +201,7 @@ Behavioral contract, all verified against the same captures and enforced by
   id, plus `orderedComponentIDs`/`reportID`.
 - **Every `/api/*` POST requires a `__RequestVerificationToken` header.** A
   token-less POST is rejected before authentication (the FiveHundred dance on
-  `modern`, a bare 500 on `legacy`) — even unauthenticated. Only
+  November 2025, a bare 500 on August 2025) — even unauthenticated. Only
   token-carrying requests fall through to the login redirect that
   `makeAuthenticatedRequest`'s expiry detection relies on. The fake's own page
   scripts attach the token through a shared `fetch` wrapper in `html.ts`.

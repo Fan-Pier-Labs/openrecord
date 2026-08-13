@@ -18,7 +18,7 @@ import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
-import { getEpicVersion } from '@/lib/epicVersion';
+import { isLegacyEpicVersion } from '@/lib/epicVersion';
 import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
@@ -288,12 +288,12 @@ function requireSession(request: NextRequest): NextResponse | null {
  *
  * A request the server can't route or refuses (unknown `/api/*` path, an API
  * POST missing its `__RequestVerificationToken`) does NOT get a tidy JSON
- * error. On modern instances (two of three) it gets ASP.NET's classic redirect
+ * error. On November 2025 instances (two of three) it gets ASP.NET's classic redirect
  * dance: 302 to `/Home/FourOhFour?aspxerrorpath=<path>` (unknown path) or
  * `/Home/FiveHundred?aspxerrorpath=<path>` (server error), each of which 302s
  * on to `/Home/Error?code=14`, which renders a 200 HTML error page. On the
- * legacy instance the same failures answer a bare 500 HTML error page with no
- * redirect. `POST /mode {"epicVersion":"legacy"}` selects the second shape.
+ * August 2025 instance the same failures answer a bare 500 HTML error page with no
+ * redirect. `POST /mode {"epicVersion":"August 2025"}` selects the second shape.
  */
 const ERROR_PAGE_HTML = `<!DOCTYPE html><html><head><title>Error</title></head><body>
 <h1>An error has occurred.</h1>
@@ -301,7 +301,7 @@ const ERROR_PAGE_HTML = `<!DOCTYPE html><html><head><title>Error</title></head><
 </body></html>`;
 
 function aspNetFailure(request: NextRequest, kind: 'fourohfour' | 'fivehundred', failedPath: string): NextResponse {
-  if (getEpicVersion() === 'legacy') {
+  if (isLegacyEpicVersion()) {
     return html(ERROR_PAGE_HTML, 500);
   }
   const page = kind === 'fourohfour' ? 'FourOhFour' : 'FiveHundred';
@@ -310,13 +310,14 @@ function aspNetFailure(request: NextRequest, kind: 'fourohfour' | 'fivehundred',
 }
 
 /**
- * Newer Epic releases (two of the three captured instances) attach three extra
- * fields to every test result: `canGenerateLLMSummary`, `feedbackSubmitted`
- * and `isBedsideTablet`. The legacy release omits them entirely, so they ride
- * on the epicVersion knob rather than living in the shape templates.
+ * The November 2025 release (two of the three captured instances) attaches
+ * three extra fields to every test result: `canGenerateLLMSummary`,
+ * `feedbackSubmitted` and `isBedsideTablet`. August 2025 omits them entirely,
+ * so they ride on the epicVersion knob rather than living in the shape
+ * templates.
  */
 function withModernResultFields(payload: unknown): unknown {
-  if (getEpicVersion() === 'legacy') return payload;
+  if (isLegacyEpicVersion()) return payload;
   const trio = { canGenerateLLMSummary: false, feedbackSubmitted: false, isBedsideTablet: false };
   const p = payload as Record<string, unknown>;
   if (Array.isArray(p?.results)) {
@@ -410,7 +411,7 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   // redirecting, which is the contract MyChart's own JS (and sessionStore's
   // pinger) relies on.
   // Real instances serve both keepalives as text/html (not text/plain). On
-  // modern instances keepalive.asp answers "0" even for a live session — only
+  // November 2025 instances keepalive.asp answers "0" even for a live session —
   // /Home/KeepAlive tells the truth, which sessionStore.ts already knows.
   if (lower === 'home/keepalive') {
     return new NextResponse(validateSession(request.headers.get('cookie')) ? '1' : '0', {
@@ -419,7 +420,7 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   }
   if (lower === 'keepalive.asp') {
     const alive = validateSession(request.headers.get('cookie'));
-    const body = getEpicVersion() === 'legacy' ? (alive ? '1' : '0') : '0';
+    const body = isLegacyEpicVersion() ? (alive ? '1' : '0') : '0';
     return new NextResponse(body, { headers: { 'Content-Type': 'text/html' } });
   }
 
@@ -641,7 +642,7 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   }
 
   // An unknown /api/* path is an error on real instances, never a page:
-  // ASP.NET's FourOhFour dance on modern ones, a bare 500 on legacy.
+  // ASP.NET's FourOhFour dance on November 2025 instances, a bare 500 on August 2025.
   if (lower.startsWith('api/')) {
     return aspNetFailure(request, 'fourohfour', joined);
   }
@@ -669,8 +670,8 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (!lower.startsWith('authentication/')) {
     // CSRF before authentication, exactly as observed live: an /api/* POST
     // with no __RequestVerificationToken header is rejected with the ASP.NET
-    // error surface (FiveHundred redirect on modern instances, bare 500 on
-    // legacy) even when no session was presented at all. Only a request that
+    // error surface (FiveHundred redirect on November 2025
+    // instances, bare 500 on August 2025) even when no session was presented at all. Only a request that
     // clears the token check falls through to the login-redirect the
     // expired-session detector in makeAuthenticatedRequest.ts relies on.
     if (lower.startsWith('api/') && !request.headers.get('__requestverificationtoken')) {
