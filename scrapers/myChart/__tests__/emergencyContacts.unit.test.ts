@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
+    return new Response(r!.body, { status: r!.status ?? 200 })
   })
   return req
 }
@@ -107,7 +107,7 @@ describe('addEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({
       name: 'Lisa',
       relationshipType: 'Child',
@@ -142,7 +142,7 @@ describe('updateEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({
       id: 'EC-1',
       phoneNumber: '555-9999',
@@ -178,7 +178,7 @@ describe('removeEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({ id: 'EC-42' })
   })
 

@@ -103,9 +103,9 @@ export function Radiograph({ width = 300, height = 340 }: { width?: number; heig
     const grain = ctx.getImageData(0, 0, canvas.width, canvas.height);
     for (let i = 0; i < grain.data.length; i += 4) {
       const n = (Math.random() - 0.5) * 16;
-      grain.data[i] = Math.max(0, Math.min(255, grain.data[i] + n));
-      grain.data[i + 1] = Math.max(0, Math.min(255, grain.data[i + 1] + n));
-      grain.data[i + 2] = Math.max(0, Math.min(255, grain.data[i + 2] + n));
+      grain.data[i] = Math.max(0, Math.min(255, grain.data[i]! + n));
+      grain.data[i + 1] = Math.max(0, Math.min(255, grain.data[i + 1]! + n));
+      grain.data[i + 2] = Math.max(0, Math.min(255, grain.data[i + 2]! + n));
     }
     ctx.putImageData(grain, 0, 0);
 

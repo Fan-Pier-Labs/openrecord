@@ -9,7 +9,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -51,10 +51,10 @@ describe('getImagingResults', () => {
 
     const result = await getImagingResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].orderName).toBe('Chest X-Ray')
+    expect(result[0]!.orderName).toBe('Chest X-Ray')
     // Scrapers version stores narrative/impression in reportText
-    expect(result[0].reportText).toContain('Lungs are clear')
-    expect(result[0].reportText).toContain('Normal chest X-ray')
+    expect(result[0]!.reportText).toContain('Lungs are clear')
+    expect(result[0]!.reportText).toContain('Normal chest X-ray')
   })
 
   it('filters out non-imaging results', async () => {
@@ -124,8 +124,8 @@ describe('getImagingResults', () => {
 
     const result = await getImagingResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].fdiContext).toEqual({ fdi, ord })
-    expect(result[0].samlUrl).toBe('https://sts.example.org/SamlResponseHtml?o=1')
+    expect(result[0]!.fdiContext).toEqual({ fdi, ord })
+    expect(result[0]!.samlUrl).toBe('https://sts.example.org/SamlResponseHtml?o=1')
   })
 })
 

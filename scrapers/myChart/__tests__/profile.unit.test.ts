@@ -225,10 +225,10 @@ describe('getEmail', () => {
     await getEmail(req.req)
 
     const post = req.calls[1]
-    expect(post.init.method).toBe('POST')
-    expect(post.init.body).toBe('useLoginUserEpt=false')
-    expect((post.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
-    expect(post.url).toContain('noCache=')
+    expect(post!.init.method).toBe('POST')
+    expect(post!.init.body).toBe('useLoginUserEpt=false')
+    expect((post!.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
+    expect(post!.url).toContain('noCache=')
   })
 })
 

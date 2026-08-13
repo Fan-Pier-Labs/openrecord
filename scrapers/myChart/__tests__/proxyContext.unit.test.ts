@@ -145,8 +145,8 @@ describe('proxyContext', () => {
 
     // firstPathPart is null for instances mounted at the domain root. A naive
     // template would emit '/null/inside.asp'.
-    expect(targets[0].linkUrl).toBe('/inside.asp')
-    expect(targets[1].linkUrl).toBe(`/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`)
+    expect(targets[0]!.linkUrl).toBe('/inside.asp')
+    expect(targets[1]!.linkUrl).toBe(`/inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`)
   })
 
   it('falls back to Home HTML proxy links when ProxySwitch JSON is unavailable', async () => {
@@ -273,8 +273,8 @@ describe('proxyContext', () => {
     })
 
     const targets = await discoverProxyTargets(req)
-    expect(targets[0].isSelf).toBe(true)
-    expect(targets[0].id).toBe(SELF_ID)
+    expect(targets[0]!.isSelf).toBe(true)
+    expect(targets[0]!.id).toBe(SELF_ID)
   })
 
   it('switches proxy context and verifies the selected target', async () => {
@@ -722,7 +722,7 @@ describe('withProxyTarget', () => {
         })
       }
       if (config.url?.includes('switchcontext')) {
-        state.activeId = decodeURIComponent(config.url.split('eid=')[1])
+        state.activeId = decodeURIComponent(config.url.split('eid=')[1]!)
         return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
       }
       if (config.url?.endsWith('/MyChart/inside.asp')) {

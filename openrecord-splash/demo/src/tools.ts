@@ -377,7 +377,8 @@ const HANDLERS: Record<string, Handler> = {
     const body = str(args, 'message_body');
     if (!subject || !body) return fail('Both subject and message_body are required.');
 
-    const recipient = matched[0].displayName;
+    // The two guards above leave exactly one match.
+    const recipient = matched[0]!.displayName;
     const id = `msg-sent-${s.messages.length + 1}`;
     const thread: Conversation = {
       id,
@@ -415,7 +416,8 @@ const HANDLERS: Record<string, Handler> = {
     if (matched.length > 1) {
       return fail(`Multiple medications match "${query}": ${matched.map((m) => m.name).join(', ')}. Please be more specific.`);
     }
-    const med = matched[0];
+    // The two guards above leave exactly one match.
+    const med = matched[0]!;
     if (med.refillsRemaining <= 0) {
       return fail(
         `"${med.name}" has no refills remaining. Your provider has to authorize a new prescription — message them instead.`,
@@ -458,7 +460,8 @@ const HANDLERS: Record<string, Handler> = {
     for (const provider of s.availableAppointments) {
       const idx = provider.slots.findIndex((slot) => slot.slotId === slotId);
       if (idx === -1) continue;
-      const [slot] = provider.slots.splice(idx, 1);
+      // idx !== -1, so splice removes exactly one slot.
+      const slot = provider.slots.splice(idx, 1)[0]!;
       s.upcomingVisits.push({
         type: provider.visitType,
         provider: provider.provider,
@@ -522,7 +525,8 @@ const HANDLERS: Record<string, Handler> = {
     const id = str(args, 'id');
     const idx = s.emergencyContacts.findIndex((c) => c.id === id);
     if (idx === -1) return fail(`No emergency contact with id "${id}". Call get_emergency_contacts for valid ids.`);
-    const [removed] = s.emergencyContacts.splice(idx, 1);
+    // idx !== -1, so splice removes exactly one contact.
+    const removed = s.emergencyContacts.splice(idx, 1)[0]!;
     logActivity(s, 'contact', `Removed emergency contact ${removed.name}`);
     return { success: true, message: `Emergency contact ${removed.name} removed.` };
   },

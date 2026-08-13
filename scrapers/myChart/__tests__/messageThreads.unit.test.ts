@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -38,8 +38,8 @@ describe('getConversationMessages', () => {
     const result = await getConversationMessages(req, 'conv-1')
     expect(result.subject).toBe('Question about medication')
     expect(result.messages).toHaveLength(2)
-    expect(result.messages[0].senderName).toBe('Dr. Smith')
-    expect(result.messages[1].isFromPatient).toBe(true)
+    expect(result.messages[0]!.senderName).toBe('Dr. Smith')
+    expect(result.messages[1]!.isFromPatient).toBe(true)
   })
 
   it('handles missing fields with defaults', async () => {

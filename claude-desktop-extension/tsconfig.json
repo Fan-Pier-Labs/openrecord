@@ -8,6 +8,7 @@
     "outDir": "./dist",
     "rootDir": "..",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "strictNullChecks": true,

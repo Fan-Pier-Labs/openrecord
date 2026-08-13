@@ -96,10 +96,10 @@ describe('decodeAmf3 — reference tables', () => {
       0x0a, 0x01, 0x04, 0x02, // traits-ref → {__class: 'T', a: 2}
     ]);
     const arr = decodeAmf3(buf) as Amf3Object[];
-    expect(arr[0].__class).toBe('T');
-    expect(arr[0].a).toBe(1);
-    expect(arr[1].__class).toBe('T');
-    expect(arr[1].a).toBe(2);
+    expect(arr[0]!.__class).toBe('T');
+    expect(arr[0]!.a).toBe(1);
+    expect(arr[1]!.__class).toBe('T');
+    expect(arr[1]!.a).toBe(2);
   });
 
   it('resolves object references (same object appearing twice)', () => {

@@ -98,8 +98,8 @@ describe('test-results fidelity', () => {
     expect(body.orderName).toBe('')
     expect(body.key).toBe('')
     expect(body.results).toHaveLength(1)
-    expect(body.results[0].name).toBe('')
-    expect(body.results[0].resultComponents).toEqual([])
+    expect(body.results[0]!.name).toBe('')
+    expect(body.results[0]!.resultComponents).toEqual([])
   })
 
   it('carries the full real field set on details: numeric components, instants, string enums', async () => {
@@ -116,19 +116,19 @@ describe('test-results fidelity', () => {
     }
     expect(typeof body.isEnhancedAskAQuestionActive).toBe('boolean')
     const r = body.results[0]
-    expect(typeof r.baseSingleMessageUrl).toBe('string')
-    expect(Array.isArray(r.relatedConversationIds)).toBe(true)
-    expect(r.orderMetadata.read).toBe('Read')
-    expect(r.orderMetadata.resultType).toBe('LAB')
-    expect(r.orderMetadata.latestUpdateInstantISO).not.toBe(undefined)
-    const comp = r.resultComponents[0].componentResultInfo
+    expect(typeof r!.baseSingleMessageUrl).toBe('string')
+    expect(Array.isArray(r!.relatedConversationIds)).toBe(true)
+    expect(r!.orderMetadata.read).toBe('Read')
+    expect(r!.orderMetadata.resultType).toBe('LAB')
+    expect(r!.orderMetadata.latestUpdateInstantISO).not.toBe(undefined)
+    const comp = r!.resultComponents[0]!.componentResultInfo
     expect(comp.numericValue).toBe(280)
     expect(comp.referenceRange.low).toBe(125)
     expect(comp.referenceRange.high).toBe(200)
     expect(comp.referenceRange.lowerBoundExclusive).toBe(false)
     expect(comp.abnormalFlagCategoryValue).toBe('Unknown')
     // November 2025 instances add this per result; that release is the default.
-    expect(r.canGenerateLLMSummary).toBe(false)
+    expect(r!.canGenerateLLMSummary).toBe(false)
   })
 
   it('returns historical trends as a map keyed by component id', async () => {
@@ -140,7 +140,7 @@ describe('test-results fidelity', () => {
     const body = await res.json() as { historicalResults: Record<string, { historicalResultData: unknown[] }>; orderedComponentIDs: string[] }
     expect(Array.isArray(body.historicalResults)).toBe(false)
     expect(body.orderedComponentIDs).toContain('COMP-CHOL')
-    expect(body.historicalResults['COMP-CHOL'].historicalResultData.length).toBeGreaterThan(1)
+    expect(body.historicalResults['COMP-CHOL']!.historicalResultData.length).toBeGreaterThan(1)
   })
 
   it('listLabResults end-to-end: distinct panels, trends attached, imaging included', async () => {
@@ -185,28 +185,28 @@ describe('real envelopes reach the scrapers end-to-end', () => {
   it('activity feed', async () => {
     const feed = await getActivityFeed(session)
     expect(feed.length).toBeGreaterThan(0)
-    expect(feed[0].title).not.toBe('')
+    expect(feed[0]!.title).not.toBe('')
   })
   it('education materials', async () => {
     const materials = await getEducationMaterials(session)
     expect(materials.length).toBeGreaterThan(0)
-    expect(materials[0].title).not.toBe('')
+    expect(materials[0]!.title).not.toBe('')
   })
   it('EHI export templates', async () => {
     const templates = await getEhiExportTemplates(session)
     expect(templates.length).toBeGreaterThan(0)
-    expect(templates[0].name).not.toBe('')
+    expect(templates[0]!.name).not.toBe('')
   })
   it('upcoming orders', async () => {
     const orders = await getUpcomingOrders(session)
     expect(orders.length).toBeGreaterThan(0)
-    expect(orders[0].orderName).not.toBe('')
+    expect(orders[0]!.orderName).not.toBe('')
   })
   it('emergency contacts', async () => {
     const contacts = await getEmergencyContacts(session)
     expect(contacts.length).toBeGreaterThan(0)
-    expect(contacts[0].name).not.toBe('')
-    expect(contacts[0].phoneNumber).not.toBe('')
+    expect(contacts[0]!.name).not.toBe('')
+    expect(contacts[0]!.phoneNumber).not.toBe('')
   })
 })
 

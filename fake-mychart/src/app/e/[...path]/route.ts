@@ -21,7 +21,7 @@ function generateJsessionId(): string {
 function getJsessionFromCookie(request: NextRequest): string | null {
   const cookie = request.headers.get('cookie') ?? '';
   const match = cookie.match(/JSESSIONID=([^;]+)/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /**
@@ -46,7 +46,7 @@ function externalOrigin(request: NextRequest): string {
   // not be localhost). Docker service names like "fake-mychart:3000" have
   // no dot and only serve http, so they must stay http.
   const forwardedProto = request.headers.get('x-forwarded-proto');
-  const hostName = pickedHost.split(':')[0];
+  const hostName = pickedHost.split(':')[0] ?? pickedHost;
   const isExternal = !isLocalHost(pickedHost) && hostName.includes('.');
   const proto = isExternal
     ? 'https'
@@ -247,8 +247,9 @@ function buildCloErrorPayload(): Buffer {
 }
 const CLO_ERROR_PAYLOAD = buildCloErrorPayload();
 
-// Fallback to first X-ray series for unmatched requests
-const defaultSeries = homer.imaging.series[0];
+// Fallback to first X-ray series for unmatched requests (seeded fixture data,
+// always present)
+const defaultSeries = homer.imaging.series[0]!;
 const defaultClo = seriesCloData.get(defaultSeries.seriesUID)!;
 
 // ─── Route handler ──────────────────────────────────────────────────

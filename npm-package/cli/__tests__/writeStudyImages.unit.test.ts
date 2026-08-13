@@ -86,6 +86,6 @@ describe('writeStudyImages', () => {
 
     const written = await writeStudyImages(payload, path.join(tmpDir, 'sparse'));
     expect(written.length).toBe(1);
-    expect(written[0].seriesDescription).toBe('REAL');
+    expect(written[0]!.seriesDescription).toBe('REAL');
   });
 });
