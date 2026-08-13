@@ -555,7 +555,7 @@ export function registerAllTools(server: McpServer): void {
     {
       title: 'Check for extension updates',
       description: 'Check whether a newer version of the OpenRecord extension has been released. Sideloaded .mcpb extensions do not auto-update; updating means downloading the new openrecord.mcpb and opening it — saved accounts, passkeys and sessions are kept.',
-      inputSchema: {} as ZodRawShape,
+      inputSchema: {} satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     withUpdateNotice(async () => {
