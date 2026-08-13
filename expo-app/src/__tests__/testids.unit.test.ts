@@ -60,7 +60,7 @@ function extractInteractiveTags(file: string, source: string): Tag[] {
     }
     expect(end).toBeGreaterThan(start); // unterminated tag means the scanner broke
     const line = source.slice(0, start).split("\n").length;
-    tags.push({ file, line, component: match[1] ?? "", text: source.slice(start, end + 1) });
+    tags.push({ file, line, component: match[1]!, text: source.slice(start, end + 1) });
   }
   return tags;
 }
