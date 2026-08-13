@@ -78,5 +78,16 @@ describe('downloadStudyJpegs (download_imaging_study tool)', () => {
     for (const img of result.images) {
       expect(img.seriesDescription).not.toBe('SeriesSelector');
     }
+
+    // The SAG RECON series serves a DIFFERENT image per instance (the fake
+    // keys CustomImageServlet on objectUID, like a real server), and its
+    // wrappers carry the full real-wrapper shape: MONOCHROME1, a byte-array
+    // VOI LUT, ArrayCollection overlays, and -1 ImagePhaseInfo sentinels. If
+    // any of that stopped decoding, conversion would fail or every slice
+    // would come back identical.
+    const sagRecon = result.images.filter((img) => img.seriesDescription === 'SAG RECON');
+    expect(sagRecon.length).toBe(5);
+    const distinct = new Set(sagRecon.map((img) => img.jpegBase64));
+    expect(distinct.size).toBe(5);
   }, 120_000);
 });

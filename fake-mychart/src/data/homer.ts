@@ -1977,6 +1977,22 @@ export const ctImaging = {
       seriesDescription: 'SCOUT',
       cloPrefix: 'diagonal_510x510',
     },
+    {
+      // Multi-slice series with a DIFFERENT image per instance, like every
+      // real series. Each wrapper carries the full real-wrapper shape (VOI LUT
+      // byte array, ArrayCollection annotation overlays, MONOCHROME1,
+      // ImagePhaseInfo -1 sentinels) and a per-slice
+      // calibration.orientation.positionPatient whose Y values are
+      // deliberately NOT in instance order — clients that sort slices
+      // anatomically have real work to do here. Regenerate the fixtures with
+      // `bun dev-scripts/generate-clo.ts --fake-mychart`.
+      seriesUID: '1.3.51.0.7.400000004.12121.23232.34343.45454.56565.67676',
+      instances: [0, 1, 2, 3, 4].map((i) => ({
+        instanceUID: `1.3.51.0.7.400000004.12121.23232.34343.45454.56565.67676.${i + 1}`,
+        cloPrefix: `sag_recon_slice${i}`,
+      })),
+      seriesDescription: 'SAG RECON',
+    },
   ],
 };
 

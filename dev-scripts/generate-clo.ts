@@ -10,15 +10,25 @@
  * "write me some files to look at" entry point.
  */
 import { join } from 'path';
-import { generateTestFiles } from '../scrapers/myChart/clo-image-parser/generate_clo';
+import { generateTestFiles, generateFakeMychartFixtures } from '../scrapers/myChart/clo-image-parser/generate_clo';
 import { logger } from '../shared/logger';
 
 const args = process.argv.slice(2);
-const outputDirIdx = args.indexOf('--output-dir');
-const outputDir =
-  outputDirIdx >= 0 && args[outputDirIdx + 1]
-    ? args[outputDirIdx + 1]
-    : join(import.meta.dir, '..', 'scrapers', 'myChart', 'clo-image-parser', 'synthetic_test_data');
 
-generateTestFiles(outputDir);
-logger.debug(`\nDone. Test files written to ${outputDir}`);
+// --fake-mychart regenerates the committed multi-slice fixtures fake-mychart
+// serves (fake-mychart/src/data/clo-images/sag_recon_slice*). Deterministic —
+// rerunning must produce byte-identical files.
+if (args.includes('--fake-mychart')) {
+  const dir = join(import.meta.dir, '..', 'fake-mychart', 'src', 'data', 'clo-images');
+  generateFakeMychartFixtures(dir);
+  logger.debug(`\nDone. fake-mychart fixtures written to ${dir}`);
+} else {
+  const outputDirIdx = args.indexOf('--output-dir');
+  const outputDir =
+    outputDirIdx >= 0 && args[outputDirIdx + 1]
+      ? args[outputDirIdx + 1]
+      : join(import.meta.dir, '..', 'scrapers', 'myChart', 'clo-image-parser', 'synthetic_test_data');
+
+  generateTestFiles(outputDir);
+  logger.debug(`\nDone. Test files written to ${outputDir}`);
+}

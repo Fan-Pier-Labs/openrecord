@@ -79,7 +79,15 @@ interface StudyData {
     seriesDescription: string;
     instanceUIDs?: string[];
     instanceUID?: string;
+    /** Per-instance CLO data — each instance serves a different image, like real series. */
+    instances?: Array<{ instanceUID: string; cloPrefix: string }>;
   }>;
+}
+
+/** All instance UIDs of a series, whichever shape the data uses. */
+function seriesInstanceUIDs(s: StudyData['series'][0]): string[] {
+  if (s.instances) return s.instances.map((i) => i.instanceUID);
+  return s.instanceUIDs ?? (s.instanceUID ? [s.instanceUID] : []);
 }
 
 /**
@@ -113,7 +121,7 @@ function buildAmfResponse(study: StudyData): Buffer {
     );
 
   const writeSeries = (s: StudyData['series'][0], index: number) => (w: Amf3Writer) => {
-    const instances = s.instanceUIDs ?? (s.instanceUID ? [s.instanceUID] : []);
+    const instances = seriesInstanceUIDs(s);
     // Same UID root style real instances use for a frame of reference
     const frameOfReferenceUID = `${study.studyUID}.2.${index + 1}.0.0.0`;
     w.writeTypedObject(
@@ -132,10 +140,7 @@ function buildAmfResponse(study: StudyData): Buffer {
     );
   };
 
-  const totalInstances = study.series.reduce(
-    (sum, s) => sum + (s.instanceUIDs?.length ?? (s.instanceUID ? 1 : 0)),
-    0,
-  );
+  const totalInstances = study.series.reduce((sum, s) => sum + seriesInstanceUIDs(s).length, 0);
 
   w.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
@@ -209,23 +214,41 @@ const CLO_DATA_DIR = join(process.cwd(), 'src/data/clo-images');
 // Per-series CLO data keyed by seriesUID
 const seriesCloData = new Map<string, { wrapper: Buffer; pixel: Buffer }>();
 
+// Per-instance CLO data keyed by "seriesUID|objectUID" — real eUnity serves a
+// different image per objectUID, and multi-slice series here do the same.
+const instanceCloData = new Map<string, { wrapper: Buffer; pixel: Buffer }>();
+
 // Series that answer every image request with a CLOERROR payload — eUnity's
 // pseudo-series (e.g. the viewer's "SeriesSelector" entries), which appear in
 // the AMF study metadata like real series but carry no pixel data.
 const cloErrorSeriesUIDs = new Set<string>();
+
+function loadClo(prefix: string): { wrapper: Buffer; pixel: Buffer } {
+  const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
+  const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
+  return {
+    wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
+    pixel: pixelBuf,
+  };
+}
 
 for (const s of [...homer.imaging.series, ...homer.ctImaging.series]) {
   if ((s as { cloError?: boolean }).cloError) {
     cloErrorSeriesUIDs.add(s.seriesUID);
     continue;
   }
+  const instances = (s as { instances?: Array<{ instanceUID: string; cloPrefix: string }> }).instances;
+  if (instances) {
+    for (const inst of instances) {
+      instanceCloData.set(`${s.seriesUID}|${inst.instanceUID}`, loadClo(inst.cloPrefix));
+    }
+    // Series-level fallback: the first instance (mirrors real servers, which
+    // still answer a request whose objectUID they don't recognize).
+    seriesCloData.set(s.seriesUID, loadClo(instances[0].cloPrefix));
+    continue;
+  }
   const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
-  const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
-  const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
-  seriesCloData.set(s.seriesUID, {
-    wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
-    pixel: pixelBuf,
-  });
+  seriesCloData.set(s.seriesUID, loadClo(prefix));
 }
 
 /**
@@ -353,6 +376,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const formParams = new URLSearchParams(body);
     const requestType = formParams.get('requestType');
     const seriesUID = formParams.get('seriesUID') ?? '';
+    const objectUID = formParams.get('objectUID') ?? '';
 
     // Pseudo-series (SeriesSelector) answer 200 + application/cloerror for
     // every request type, exactly like a real eUnity server.
@@ -360,8 +384,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return binary(CLO_ERROR_PAYLOAD, { 'Content-Type': 'application/cloerror' });
     }
 
-    // Look up per-series image data, fall back to default
-    const clo = seriesCloData.get(seriesUID) ?? defaultClo;
+    // Per-instance image first (real servers key on objectUID), then the
+    // series image, then the default.
+    const clo =
+      instanceCloData.get(`${seriesUID}|${objectUID}`) ?? seriesCloData.get(seriesUID) ?? defaultClo;
 
     if (requestType === 'CLOWRAPPER') {
       return binary(clo.wrapper, { 'Content-Type': 'application/clowrapper' });

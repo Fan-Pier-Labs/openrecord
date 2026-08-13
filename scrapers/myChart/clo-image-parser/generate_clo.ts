@@ -75,9 +75,12 @@ export class AMF3Writer {
     } else if (typeof v === "boolean") {
       this.writeU8(v ? 0x03 : 0x02);
     } else if (typeof v === "number") {
-      if (Number.isInteger(v) && v >= 0 && v < 0x20000000) {
+      if (Number.isInteger(v) && v >= -0x10000000 && v < 0x20000000) {
+        // Negative integers encode as their 29-bit two's complement (e.g. -1 →
+        // 0x1FFFFFFF) — how real eUnity wrappers carry the ImagePhaseInfo
+        // "undefined" sentinels. The reader sign-extends them back.
         this.writeU8(0x04); // integer
-        this.writeU29(v);
+        this.writeU29(v & 0x1fffffff);
       } else {
         this.writeU8(0x05); // double
         this.writeDouble(v);
@@ -85,13 +88,27 @@ export class AMF3Writer {
     } else if (typeof v === "string") {
       this.writeU8(0x06); // string
       this.writeString(v);
-    } else if (typeof v === "object" && !Array.isArray(v)) {
+    } else if (Array.isArray(v)) {
+      this.writeU8(0x09); // dense array
+      this.writeU29((v.length << 1) | 1);
+      this.writeString(""); // empty associative section
+      for (const item of v) this.writeValue(item);
+    } else if (typeof v === "object") {
       this.writeObject(v);
     }
   }
 
   private writeObject(obj: Record<string, any>) {
     this.writeU8(0x0a); // object marker
+    if (obj._externalizable) {
+      // Externalizable object: traits 0x07, class name, then the class's
+      // custom body. The only body shape real CLO wrappers use is the
+      // ArrayCollection/ObjectProxy one — exactly one wrapped AMF3 value.
+      this.writeU29(0x07);
+      this.writeString(obj._class || "");
+      this.writeValue(obj._value);
+      return;
+    }
     const keys = Object.keys(obj).filter((k) => k !== "_class");
     const className = obj._class || "";
     // Inline traits: (memberCount << 4) | dynamic(0) << 3 | externalizable(0) << 2 | 0b11
@@ -105,6 +122,11 @@ export class AMF3Writer {
       this.writeValue(obj[key]);
     }
   }
+}
+
+/** An ArrayCollection node, matching how real wrappers carry annotation text arrays. */
+export function arrayCollection(items: any[]): Record<string, any> {
+  return { _class: "flex.messaging.io.ArrayCollection", _externalizable: true, _value: items };
 }
 
 // ==================== Zigzag Encode ====================
@@ -496,6 +518,49 @@ export interface WrapperMetadata {
     bits: number;
     lutIsLittleEndian: number;
   };
+  /**
+   * DICOM Image Position Patient (mm), emitted as the nested
+   * calibration.orientation.positionPatient chain real cross-sectional
+   * wrappers carry. Consumers sort multi-slice series by these.
+   */
+  positionPatient?: { x: number; y: number; z: number };
+  /**
+   * ImagePhaseInfo block. Real wrappers use -1 (a negative AMF3 integer,
+   * wire-encoded as 0x1FFFFFFF) for "undefined" — pass -1 here to reproduce
+   * that, which is what exercises reader sign extension.
+   */
+  imagePhaseInfo?: {
+    inStackPositionNumber: number;
+    stackID: string;
+    temporalPositionIdentifier: number;
+    numberOfTemporalPositions: number;
+  };
+  /**
+   * Adds the annotation overlay block: template-string arrays wrapped in
+   * externalizable flex.messaging.io.ArrayCollection nodes, like every real
+   * wrapper observed.
+   */
+  includeAnnotationOverlays?: boolean;
+}
+
+/** Overlay template strings as real wrappers carry them — placeholders, no PHI. */
+const OVERLAY_TEXTS: Record<string, string[]> = {
+  topLeft: ["%PATIENT_NAME%", "%PATIENT_ID%"],
+  topRight: ["%STUDY_DESCRIPTION%", "%STUDY_DATE%"],
+  bottomLeft: ["SE #: %SERIES_NUMBER%", "W\\L : %WINDOW_LEVEL%"],
+  bottomRight: ["%INSTITUTION_NAME%", "Zoom: %ZOOM_FACTOR%"],
+  topLeftAlwaysVisible: [],
+  topRightAlwaysVisible: [],
+  bottomLeftAlwaysVisible: ["%LOSSY_COMPRESSION%"],
+  bottomRightAlwaysVisible: [],
+};
+
+function buildAnnotationOverlay(): Record<string, any> {
+  const overlay: Record<string, any> = { _class: "com.clientoutlook.data.Annotation" };
+  for (const [position, texts] of Object.entries(OVERLAY_TEXTS)) {
+    overlay[position] = arrayCollection(texts);
+  }
+  return overlay;
 }
 
 export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
@@ -526,6 +591,41 @@ export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
   }
   if (metadata.voiLut !== undefined) {
     obj.voiLut = { ...metadata.voiLut };
+  }
+  if (metadata.positionPatient !== undefined) {
+    const p = metadata.positionPatient;
+    obj.calibration = {
+      _class: "com.clientoutlook.data.ImageCalibration",
+      pixelSpacingX: 0.5,
+      pixelSpacingY: 0.5,
+      hasPixelSpacing: true,
+      orientation: {
+        _class: "com.clientoutlook.data.OrientationPatient",
+        positionPatient: {
+          _class: "com.clientoutlook.data.ImagePositionPatient",
+          position_x: p.x,
+          position_y: p.y,
+          position_z: p.z,
+        },
+        orientationPatient: {
+          _class: "com.clientoutlook.data.ImageOrientationPatient",
+          orientX_x: 0.0, orientX_y: 1.0, orientX_z: 0.0,
+          orientY_x: 0.0, orientY_y: 0.0, orientY_z: -1.0,
+        },
+        frameOfReferenceUID: "1.3.51.0.7.999999999.1.1.1.1.1.1",
+        isProjectionScout: false,
+      },
+    };
+  }
+  if (metadata.imagePhaseInfo !== undefined) {
+    obj.imagePhaseInfo = {
+      _class: "com.clientoutlook.data.ImagePhaseInfo",
+      ...metadata.imagePhaseInfo,
+    };
+  }
+  if (metadata.includeAnnotationOverlays) {
+    obj.annotationOverlay = buildAnnotationOverlay();
+    obj.annotationOverlayMPR = buildAnnotationOverlay();
   }
 
   const writer = new AMF3Writer();
@@ -721,5 +821,94 @@ export function generateTestFiles(outputDir: string) {
     logger.debug(
       `Generated: ${testImage.name} (${testImage.width}x${testImage.height}) → ${pixelPath}`
     );
+  }
+}
+
+// ==================== fake-mychart multi-slice fixtures ====================
+
+/**
+ * The SAG RECON slice set served by fake-mychart — five slices whose wrappers
+ * carry every construct observed in real cross-sectional wrappers that the
+ * flat TEST_IMAGES metadata never exercises:
+ *
+ * - a VOI LUT with the raw table as an AMF3 byte array
+ * - annotation overlays wrapped in externalizable ArrayCollection nodes
+ * - calibration.orientation.positionPatient (per-slice, deliberately NOT in
+ *   server order, so clients that sort by position have something to sort)
+ * - ImagePhaseInfo with the -1 "undefined" sentinels (negative AMF3 integers
+ *   — the sign-extension case)
+ * - MONOCHROME1, so the display-inversion path runs end to end
+ *
+ * Pixel content is a cone sliced along Y: the disc radius grows monotonically
+ * with anatomical position, so every slice is byte-distinct and the correct
+ * sorted order is visually obvious.
+ */
+export const SAG_RECON_SLICE_COUNT = 5;
+
+/** Anatomical Y positions (mm) in SERVER order — shuffled on purpose. */
+export const SAG_RECON_POSITIONS_Y = [12.5, -37.5, -12.5, 37.5, 62.5];
+
+/** 12-bit linear-ramp VOI LUT, table stored little-endian like real wrappers. */
+function buildSagReconVoiLut(): NonNullable<WrapperMetadata["voiLut"]> {
+  const elements = 4096;
+  const lut = Buffer.alloc(elements * 2);
+  for (let i = 0; i < elements; i++) {
+    lut.writeUInt16LE(Math.round((i / (elements - 1)) * 65535), i * 2);
+  }
+  return { lut, elements, start: 0, bits: 16, lutIsLittleEndian: 1 };
+}
+
+/** A 512x512 disc whose radius encodes the slice's position on the cone. */
+function generateSagReconSlice(positionY: number): Uint16Array {
+  const size = 512;
+  // Cone: radius grows linearly with position, so every slice is distinct.
+  const radiusPx = 60 + (positionY + 37.5) * 1.5;
+  const img = new Uint16Array(size * size);
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const dx = c - size / 2;
+      const dy = r - size / 2;
+      const inside = Math.sqrt(dx * dx + dy * dy) <= radiusPx;
+      // 12-bit values, matching the 4096-entry VOI LUT. MONOCHROME1 stores
+      // inverted intensity: the disc is LOW so it displays bright.
+      img[r * size + c] = inside ? 500 : 3500;
+    }
+  }
+  return img;
+}
+
+/** Wrapper + pixel buffers for one SAG RECON slice (0-based server order). */
+export function generateSagReconSliceFiles(index: number): { pixel: Buffer; wrapper: Buffer } {
+  const positionY = SAG_RECON_POSITIONS_Y[index];
+  const img = generateSagReconSlice(positionY);
+  const pixel = Buffer.from(encodePixelFile(img, 512, 512));
+  const wrapper = Buffer.from(
+    encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME1",
+      bitsStored: 12,
+      windowCenter: 2048,
+      windowWidth: 4096,
+      voiLut: buildSagReconVoiLut(),
+      positionPatient: { x: -101.25, y: positionY, z: 88.75 },
+      imagePhaseInfo: {
+        inStackPositionNumber: -1,
+        stackID: "-1",
+        temporalPositionIdentifier: -1,
+        numberOfTemporalPositions: -1,
+      },
+      includeAnnotationOverlays: true,
+    }),
+  );
+  return { pixel, wrapper };
+}
+
+/** Write the SAG RECON fixture set (used by dev-scripts/generate-clo.ts --fake-mychart). */
+export function generateFakeMychartFixtures(outputDir: string) {
+  mkdirSync(outputDir, { recursive: true });
+  for (let i = 0; i < SAG_RECON_SLICE_COUNT; i++) {
+    const { pixel, wrapper } = generateSagReconSliceFiles(i);
+    writeFileSync(join(outputDir, `sag_recon_slice${i}_pixel.clo`), pixel);
+    writeFileSync(join(outputDir, `sag_recon_slice${i}_wrapper.clo`), wrapper);
+    logger.debug(`Generated: sag_recon_slice${i} (512x512, y=${SAG_RECON_POSITIONS_Y[i]}mm)`);
   }
 }
