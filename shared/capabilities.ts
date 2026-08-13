@@ -27,31 +27,31 @@
  * `rendersMedia` below).
  */
 
-import type { MyChartRequest } from '../scrapers/myChart/myChartRequest';
+import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
 
-import { getMyChartProfile, getEmail } from '../scrapers/myChart/profile';
-import { getHealthSummary } from '../scrapers/myChart/healthSummary';
-import { getMedications } from '../scrapers/myChart/medications';
-import { requestMedicationRefill } from '../scrapers/myChart/medicationRefill';
-import { getAllergies } from '../scrapers/myChart/allergies';
-import { getHealthIssues } from '../scrapers/myChart/healthIssues';
-import { getVitals } from '../scrapers/myChart/vitals';
-import { getImmunizations } from '../scrapers/myChart/immunizations';
-import { getPreventiveCare } from '../scrapers/myChart/preventiveCare';
-import { getMedicalHistory } from '../scrapers/myChart/medicalHistory';
-import { getGoals } from '../scrapers/myChart/goals';
+import { getMyChartProfile, getEmail } from '../scrapers/myChart/chart/profile';
+import { getHealthSummary } from '../scrapers/myChart/chart/healthSummary';
+import { getMedications } from '../scrapers/myChart/chart/medications';
+import { requestMedicationRefill } from '../scrapers/myChart/chart/medicationRefill';
+import { getAllergies } from '../scrapers/myChart/chart/allergies';
+import { getHealthIssues } from '../scrapers/myChart/chart/healthIssues';
+import { getVitals } from '../scrapers/myChart/chart/vitals';
+import { getImmunizations } from '../scrapers/myChart/chart/immunizations';
+import { getPreventiveCare } from '../scrapers/myChart/chart/preventiveCare';
+import { getMedicalHistory } from '../scrapers/myChart/chart/medicalHistory';
+import { getGoals } from '../scrapers/myChart/chart/goals';
 
-import { upcomingVisits, pastVisits } from '../scrapers/myChart/visits/visits';
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../scrapers/myChart/notes/notes';
+import { upcomingVisits, pastVisits } from '../scrapers/myChart/chart/visits/visits';
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../scrapers/myChart/chart/notes';
 
-import { listLabResults, getImagingResults } from '../scrapers/myChart/labs_and_procedure_results/labResults';
+import { listLabResults, getImagingResults } from '../scrapers/myChart/chart/labs/labResults';
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
 import type { FdiContext } from '../scrapers/myChart/eunity/imagingViewer';
 
-import { listConversations } from '../scrapers/myChart/messages/conversations';
-import { getConversationMessages } from '../scrapers/myChart/messages/messageThreads';
+import { listConversations } from '../scrapers/myChart/chart/messages/conversations';
+import { getConversationMessages } from '../scrapers/myChart/chart/messages/messageThreads';
 import {
   sendNewMessage,
   getMessageRecipients,
@@ -59,40 +59,40 @@ import {
   getVerificationToken,
   type MessageRecipient,
   type MessageTopic,
-} from '../scrapers/myChart/messages/sendMessage';
-import { sendReply } from '../scrapers/myChart/messages/sendReply';
-import { deleteMessage } from '../scrapers/myChart/messages/deleteMessage';
+} from '../scrapers/myChart/chart/messages/sendMessage';
+import { sendReply } from '../scrapers/myChart/chart/messages/sendReply';
+import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage';
 
-import { getBillingHistory } from '../scrapers/myChart/bills/bills';
-import { getInsurance } from '../scrapers/myChart/insurance';
+import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
+import { getInsurance } from '../scrapers/myChart/chart/insurance';
 
-import { getReferrals } from '../scrapers/myChart/referrals';
-import { getLetters, getLetterDetails } from '../scrapers/myChart/letters';
-import { getDocuments } from '../scrapers/myChart/documents';
-import { getUpcomingOrders } from '../scrapers/myChart/upcomingOrders';
-import { getQuestionnaires } from '../scrapers/myChart/questionnaires';
-import { getCareJourneys } from '../scrapers/myChart/careJourneys';
-import { getActivityFeed } from '../scrapers/myChart/activityFeed';
-import { getEducationMaterials } from '../scrapers/myChart/educationMaterials';
-import { getEhiExportTemplates } from '../scrapers/myChart/ehiExport';
-import { getLinkedMyChartAccounts } from '../scrapers/myChart/other_mycharts/other_mycharts';
+import { getReferrals } from '../scrapers/myChart/chart/referrals';
+import { getLetters, getLetterDetails } from '../scrapers/myChart/chart/letters';
+import { getDocuments } from '../scrapers/myChart/chart/documents';
+import { getUpcomingOrders } from '../scrapers/myChart/chart/upcomingOrders';
+import { getQuestionnaires } from '../scrapers/myChart/chart/questionnaires';
+import { getCareJourneys } from '../scrapers/myChart/chart/careJourneys';
+import { getActivityFeed } from '../scrapers/myChart/chart/activityFeed';
+import { getEducationMaterials } from '../scrapers/myChart/chart/educationMaterials';
+import { getEhiExportTemplates } from '../scrapers/myChart/chart/ehiExport';
+import { getLinkedMyChartAccounts } from '../scrapers/myChart/chart/otherMyCharts';
 
 import {
   getEmergencyContacts,
   addEmergencyContact,
   updateEmergencyContact,
   removeEmergencyContact,
-} from '../scrapers/myChart/emergencyContacts';
+} from '../scrapers/myChart/chart/emergencyContacts';
 
 import {
   assertProxyReadContext,
   runListProxyTargets,
   runSwitchProxyTarget,
-} from '../scrapers/myChart/proxyTools';
+} from '../scrapers/myChart/proxy/proxyTools';
 
-import { setupPasskey, listPasskeys, deletePasskey } from '../scrapers/myChart/setupPasskey';
-import { serializeCredential } from '../scrapers/myChart/softwareAuthenticator';
-import { setupTotp, disableTotp } from '../scrapers/myChart/setupTotp';
+import { setupPasskey, listPasskeys, deletePasskey } from '../scrapers/myChart/auth/setupPasskey';
+import { serializeCredential } from '../scrapers/myChart/auth/softwareAuthenticator';
+import { setupTotp, disableTotp } from '../scrapers/myChart/auth/setupTotp';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -221,10 +221,34 @@ interface CapabilityImpl extends Capability {
 
 // ── Argument coercion ───────────────────────────────────────────────────────
 
+/**
+ * Read a string argument.
+ *
+ * Args arrive untyped — a model emits JSON, the CLI parses `--arg name=value` —
+ * but the expected type is NOT a mystery: every param is declared in this file
+ * with a `type`, and these accessors are used for the ones declared `'string'`.
+ * So this enforces that declaration rather than guessing what the caller meant.
+ *
+ * A number or boolean converts, because that conversion is lossless and
+ * unambiguous, and a model answering `12345` for a `csn` is ordinary. Anything
+ * structural (object, array) is a caller error and throws by name: these values
+ * become message bodies, refill comments and search terms that go to a
+ * patient's provider, and there is no honest rendering of an object as one.
+ * `String()` used to send the literal "[object Object]"; JSON-stringifying it
+ * instead would just be a tidier way to send the wrong thing.
+ */
+function argString(v: unknown, name: string): string {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+  throw new Error(
+    `Argument "${name}" must be a string; received ${Array.isArray(v) ? 'an array' : `a ${typeof v}`}.`,
+  );
+}
+
 function str(args: CapabilityArgs, name: string, fallback = ''): string {
   const v = args[name];
   if (v === undefined || v === null) return fallback;
-  return String(v);
+  return argString(v, name);
 }
 
 function requireStr(args: CapabilityArgs, name: string): string {
@@ -236,7 +260,7 @@ function requireStr(args: CapabilityArgs, name: string): string {
 function optStr(args: CapabilityArgs, name: string): string | undefined {
   const v = args[name];
   if (v === undefined || v === null || v === '') return undefined;
-  return String(v);
+  return argString(v, name);
 }
 
 function num(args: CapabilityArgs, name: string, fallback: number): number {
