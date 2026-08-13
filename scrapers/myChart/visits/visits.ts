@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
@@ -7,7 +8,7 @@ import { logger } from '../../../shared/logger';
 
 export async function upcomingVisits(myChartRequest: MyChartRequest) {
 
-  const res = await myChartRequest.makeRequest({ path: '/Visits/VisitsList?noCache=' + Math.random() })
+  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
   const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
 
@@ -17,7 +18,7 @@ export async function upcomingVisits(myChartRequest: MyChartRequest) {
   }
 
 
-  const result = await myChartRequest.makeRequest({
+  const result = await makeAuthenticatedRequest(myChartRequest, {
     path: '/Visits/VisitsList/LoadUpcoming?timeZone=America%2FNew_York&ComponentNumber=5&noCache=' + Math.random(),
     "headers": {
       __requestverificationtoken: requestVerificationToken
@@ -65,7 +66,7 @@ async function loadPastVisitsPage(
   // 'Content-Type: text/plain;charset=UTF-8'. Omitting body sends no
   // Content-Type at all on both Bun and Node, which is the shape the WAF
   // accepts and matches what upcomingVisits has always done.
-  const result = await myChartRequest.makeRequest({
+  const result = await makeAuthenticatedRequest(myChartRequest, {
     path,
     "headers": {
       __requestverificationtoken: requestVerificationToken,
@@ -112,7 +113,7 @@ function visitTimestamp(visit: Visit): number | null {
  */
 export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date) {
 
-  const res = await myChartRequest.makeRequest({ path: '/Visits/VisitsList?noCache=' + Math.random() })
+  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
   const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
 

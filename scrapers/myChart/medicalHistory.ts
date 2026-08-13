@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -63,7 +64,7 @@ type LoadHistoriesResponse = {
 }
 
 export async function getMedicalHistory(mychartRequest: MyChartRequest): Promise<MedicalHistoryResult> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/histories' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/histories' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -78,7 +79,7 @@ export async function getMedicalHistory(mychartRequest: MyChartRequest): Promise
     return empty;
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/histories/LoadHistoriesViewModel',
     method: 'POST',
     headers: {

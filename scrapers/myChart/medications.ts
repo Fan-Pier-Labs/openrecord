@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -74,7 +75,7 @@ type LoadMedicationsPageResponse = {
 }
 
 export async function getMedications(mychartRequest: MyChartRequest): Promise<MedicationsResult> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/Clinical/Medications' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/Medications' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -83,7 +84,7 @@ export async function getMedications(mychartRequest: MyChartRequest): Promise<Me
     return { medications: [], patientFirstName: '' };
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/medications/LoadMedicationsPage',
     method: 'POST',
     headers: {

@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 
 import { MyChartRequest } from './myChartRequest';
+import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
 import { getMyChartProfile } from './profile';
 import { logger } from '../../shared/logger';
 
@@ -212,8 +213,8 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
   return dedupeTargets(targets);
 }
 
-async function loadHomeHtml(mychartRequest: MyChartRequest): Promise<string> {
-  const resp = await mychartRequest.makeRequest({ path: '/Home' });
+async function loadHomeHtml(mychartRequest: MyChartRequest, options?: AuthenticatedRequestOptions): Promise<string> {
+  const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' }, options);
   return await resp.text();
 }
 
@@ -347,15 +348,18 @@ export function compareProfileNames(expected: string, actual: string): 'match' |
   return 'mismatch';
 }
 
-export async function discoverProxyTargets(mychartRequest: MyChartRequest): Promise<ProxyTarget[]> {
+export async function discoverProxyTargets(
+  mychartRequest: MyChartRequest,
+  options?: AuthenticatedRequestOptions,
+): Promise<ProxyTarget[]> {
   try {
-    const resp = await mychartRequest.makeRequest({
+    const resp = await makeAuthenticatedRequest(mychartRequest, {
       path: `/ProxySwitch?noCache=${Math.random()}`,
       headers: {
         Accept: 'application/json, text/javascript, */*; q=0.01',
         'X-Requested-With': 'XMLHttpRequest',
       },
-    });
+    }, options);
 
     if (resp.ok) {
       const json = await resp.json() as ProxySwitchResponse;
@@ -366,10 +370,14 @@ export async function discoverProxyTargets(mychartRequest: MyChartRequest): Prom
       }
     }
   } catch (error) {
+    // An unrenewable expired session is a real answer, not a reason to fall
+    // through to the HTML surface — that would just attempt a second re-login
+    // and then parse a login page into "no proxy targets".
+    if (error instanceof SessionExpiredError) throw error;
     debugLog('proxy-switch-json discovery failed', error instanceof Error ? error.message : String(error));
   }
 
-  const html = await loadHomeHtml(mychartRequest);
+  const html = await loadHomeHtml(mychartRequest, options);
   const targets = parseProxyTargetsFromHomeHtml(mychartRequest, html);
   debugLog(`discovered targets source=home-html count=${targets.length} [${summarizeTargets(targets)}]`);
   return targets;
@@ -377,7 +385,7 @@ export async function discoverProxyTargets(mychartRequest: MyChartRequest): Prom
 
 export async function verifyActiveProxyTarget(
   mychartRequest: MyChartRequest,
-  options?: { proxyTargets?: ProxyTarget[] }
+  options?: { proxyTargets?: ProxyTarget[] } & AuthenticatedRequestOptions
 ): Promise<{
   profileName: string | null;
   profileDob: string | null;
@@ -386,9 +394,10 @@ export async function verifyActiveProxyTarget(
   /** False when discovery could not tell which record is active at all. */
   selectionKnown: boolean;
 }> {
+  const renewOptions = { autoRenew: options?.autoRenew };
   const [profile, proxyTargets] = await Promise.all([
-    getMyChartProfile(mychartRequest),
-    options?.proxyTargets ? Promise.resolve(options.proxyTargets) : discoverProxyTargets(mychartRequest),
+    getMyChartProfile(mychartRequest, renewOptions),
+    options?.proxyTargets ? Promise.resolve(options.proxyTargets) : discoverProxyTargets(mychartRequest, renewOptions),
   ]);
 
   const selectionKnown = proxyTargets.some((entry) => entry.selectionKnown);
@@ -490,9 +499,10 @@ export type ProxyContextCheck = {
 export async function checkProxyContext(
   mychartRequest: MyChartRequest,
   query?: string,
-  options?: { discoveredTargets?: ProxyTarget[] }
+  options?: { discoveredTargets?: ProxyTarget[] } & AuthenticatedRequestOptions
 ): Promise<ProxyContextCheck> {
-  const targets = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest);
+  const renewOptions = { autoRenew: options?.autoRenew };
+  const targets = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest, renewOptions);
   if (targets.length === 0) {
     return { targets, wanted: null, current: null, active: true, determinedBy: 'unknown' };
   }
@@ -511,7 +521,7 @@ export async function checkProxyContext(
   }
 
   // No selection flag: ask the profile page who we are.
-  const profile = await getMyChartProfile(mychartRequest);
+  const profile = await getMyChartProfile(mychartRequest, renewOptions);
   const profileName = profile?.name || '';
   const byName = profileName
     ? targets.filter((entry) => compareProfileNames(entry.displayName, profileName) === 'match')
@@ -566,8 +576,16 @@ export async function withProxyTarget<T>(
     ? findProxyTarget(discovered, target)
     : resolveTarget(discovered, target ?? { self: true });
 
-  // Already there — don't pay for a redirect chain we don't need.
-  if (!(resolved.selectionKnown && resolved.isSelected)) {
+  // Already there — don't pay for a redirect chain we don't need. Still record
+  // the intent: if the session expires inside fn(), automatic renewal must
+  // know which record to restore even though no switch happened on this call.
+  if (resolved.selectionKnown && resolved.isSelected) {
+    mychartRequest.activeProxyTarget = {
+      id: resolved.id,
+      isSelf: resolved.isSelf,
+      displayName: resolved.displayName,
+    };
+  } else {
     await switchProxyTarget(
       mychartRequest,
       resolved.isSelf ? { self: true } : { id: resolved.id },
@@ -581,9 +599,10 @@ export async function withProxyTarget<T>(
 export async function switchProxyTarget(
   mychartRequest: MyChartRequest,
   target: ProxyTargetSelector,
-  options?: { discoveredTargets?: ProxyTarget[] }
+  options?: { discoveredTargets?: ProxyTarget[] } & AuthenticatedRequestOptions
 ): Promise<{ target: ProxyTarget; verifiedProfileName: string | null; verifiedDob: string | null }> {
-  const discovered = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest);
+  const renewOptions = { autoRenew: options?.autoRenew };
+  const discovered = options?.discoveredTargets ?? await discoverProxyTargets(mychartRequest, renewOptions);
   if (discovered.length === 0) {
     throw new Error('No proxy targets were discovered for this session.');
   }
@@ -601,8 +620,8 @@ export async function switchProxyTarget(
   }
 
   await followProxySwitchChain(mychartRequest, resolved.linkUrl);
-  const refreshedTargets = await discoverProxyTargets(mychartRequest);
-  const verified = await verifyActiveProxyTarget(mychartRequest, { proxyTargets: refreshedTargets });
+  const refreshedTargets = await discoverProxyTargets(mychartRequest, renewOptions);
+  const verified = await verifyActiveProxyTarget(mychartRequest, { proxyTargets: refreshedTargets, autoRenew: options?.autoRenew });
   const selected = verified.selectedTarget;
 
   // Compare the patient the portal is now showing us against the one we asked
@@ -632,11 +651,23 @@ export async function switchProxyTarget(
     );
   }
 
+  // Remember which record this session is now on. Automatic session renewal
+  // (makeAuthenticatedRequest) reads this to restore the context after a
+  // re-login, which resets MyChart to the account holder server-side.
+  const recordSwitch = () => {
+    mychartRequest.activeProxyTarget = {
+      id: resolved.id,
+      isSelf: resolved.isSelf,
+      displayName: resolved.displayName,
+    };
+  };
+
   if (verified.selectionKnown) {
     const confirmed = resolved.isSelf ? !!selected?.isSelf : !!selected && selected.id === resolved.id;
     if (!confirmed) {
       throw new Error('Proxy target switch could not be confirmed after redirect chain.');
     }
+    recordSwitch();
     return {
       target: selected!,
       verifiedProfileName: verified.profileName,
@@ -655,6 +686,7 @@ export async function switchProxyTarget(
   }
 
   const refreshed = refreshedTargets.find((entry) => entry.id === resolved.id) ?? resolved;
+  recordSwitch();
   return {
     target: { ...refreshed, isSelected: true },
     verifiedProfileName: verified.profileName,

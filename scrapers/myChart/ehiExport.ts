@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -21,7 +22,7 @@ type GetEhiTemplatesResponse = {
 }
 
 export async function getEhiExportTemplates(mychartRequest: MyChartRequest): Promise<EhiTemplate[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/release-of-information' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/release-of-information' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -30,7 +31,7 @@ export async function getEhiExportTemplates(mychartRequest: MyChartRequest): Pro
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/release-of-information/GetEHIETemplates',
     method: 'POST',
     headers: {

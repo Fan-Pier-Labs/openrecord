@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
 import { MyChartRequest } from '../myChartRequest';
@@ -60,7 +61,7 @@ export function extractCopyContext(reportContentHtml: string): string | null {
  * so we fall back to extracting the token from the /Home page HTML.
  */
 async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Home/CSRFToken?noCache=' + Math.random(),
   });
   const html = await res.text();
@@ -69,7 +70,7 @@ async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | nu
 
   // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
   try {
-    const homeRes = await mychartRequest.makeRequest({ path: '/Home' });
+    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
     const homeBody = await homeRes.text();
     return getRequestVerificationTokenFromBody(homeBody) ?? null;
   } catch {
@@ -92,7 +93,7 @@ export async function getImageViewerSamlUrl(
     return null;
   }
 
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: `/Extensibility/Redirection/FdiData?fdi=${encodeURIComponent(fdiContext.fdi)}&ord=${encodeURIComponent(fdiContext.ord)}&patientIndex=undefined&noCache=${Math.random()}`,
     method: 'POST',
     headers: {
@@ -286,7 +287,7 @@ export async function getReportContentForImaging(
   requestVerificationToken: string
 ): Promise<ReportContent | null> {
   try {
-    const res = await mychartRequest.makeRequest({
+    const res = await makeAuthenticatedRequest(mychartRequest, {
       path: '/api/report-content/LoadReportContent',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
