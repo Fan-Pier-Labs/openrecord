@@ -81,7 +81,7 @@ async function loadPastVisitsPage(
 // null when neither yields a usable date so callers can keep paginating
 // rather than stop on an unparseable row.
 function visitTimestamp(visit: Visit): number | null {
-  const instant = visit.Instant?.match(/\/Date\((\d+)\)\//);
+  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
   if (instant) return Number(instant[1]);
   if (visit.PrimaryDate) {
     const t = Date.parse(visit.PrimaryDate);
@@ -126,7 +126,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
 
   // Defensive: a non-container response (e.g. a WAF/login interstitial) has no
   // List — return it untouched so existing error handling stays intact.
-  if (!firstPage || !firstPage.List) return firstPage;
+  if (!firstPage?.List) return firstPage;
 
   // Accumulate visits per organization across pages. `latestPage` is the most
   // recently fetched page; the stop conditions look at it (not the merged
@@ -154,7 +154,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
     if (!serializedIndex) break;
 
     const nextPage = await loadPastVisitsPage(myChartRequest, requestVerificationToken, oldestRenderedDate, serializedIndex);
-    if (!nextPage || !nextPage.List) break;
+    if (!nextPage?.List) break;
     if (nextPage.SerializedIndex === serializedIndex) break; // guard against a stuck cursor
 
     // Merge each org's visits into the accumulator.

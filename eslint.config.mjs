@@ -29,6 +29,13 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Type-aware: `a && a.b` chains become `a?.b` — one idiom for
+      // null-guarded access instead of two.
+      "@typescript-eslint/prefer-optional-chain": "error",
+      // Type-aware: `str.match(re)` on a non-global regex becomes
+      // `re.exec(str)` — same result, faster, and the call site stops looking
+      // like the g-flagged match-all form it isn't.
+      "@typescript-eslint/prefer-regexp-exec": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",

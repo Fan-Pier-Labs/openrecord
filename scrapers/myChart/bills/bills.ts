@@ -20,7 +20,7 @@ import { logger } from '../../../shared/logger';
 
 export function parsePaymentUrl(html: string): { id: string, context: string } | null {
   const regex = /"URLMakePayment":\s*"([^"]+)"/;
-  const match = html.match(regex);
+  const match = regex.exec(html);
   if (match) {
     // Remove the leading '~/'
     const urlStr = match[1]!.replace(/^~\//, ''); // the one capture group is non-optional
@@ -52,8 +52,8 @@ export function parseBillingAccountsHtml(html: string, hostname: string): Billin
 
   for (const billing_account of billing_accounts.toArray()) {
     const guarantorText = $('p.ba_card_header_account_idAndType', billing_account).text().trim();
-    const guarantorNumber = guarantorText.match(/Guarantor #(\d+)/)?.[1] || 'unknown';
-    const patientName = guarantorText.match(/\((.*)\)/)?.[1] || 'unknown';
+    const guarantorNumber = (/Guarantor #(\d+)/.exec(guarantorText))?.[1] || 'unknown';
+    const patientName = (/\((.*)\)/.exec(guarantorText))?.[1] || 'unknown';
     const amountdue = $('p.ba_card_status_due_amount', billing_account).text().trim()
     let amountDueNum: number | undefined;
     if (amountdue) amountDueNum = parseFloat(amountdue.replace('$', ''))
@@ -135,7 +135,7 @@ export async function getEncBillingId(mychartRequest: MyChartRequest, billingAcc
 
   const body = await res.text()
 
-  const match = body.match(/EncID"\s*:\s*"([^"]*)"/)
+  const match = /EncID"\s*:\s*"([^"]*)"/.exec(body)
 
   if (!match) {
     logger.debug('unable to find end id')

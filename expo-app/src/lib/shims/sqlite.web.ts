@@ -43,12 +43,12 @@ class WebSQLiteDatabase {
     const sqlLower = sql.trim().toLowerCase();
 
     if (sqlLower.startsWith("insert into")) {
-      const table = sql.match(/INSERT INTO (\w+)/i)?.[1];
+      const table = (/INSERT INTO (\w+)/i.exec(sql))?.[1];
       if (!table) return { changes: 0 };
       const rows = loadTable(table);
 
       // Extract column names from the SQL
-      const colList = sql.match(/\(([^)]+)\)\s*VALUES/i)?.[1];
+      const colList = (/\(([^)]+)\)\s*VALUES/i.exec(sql))?.[1];
       if (!colList) return { changes: 0 };
       const cols = colList.split(",").map((c) => c.trim());
 
@@ -64,12 +64,12 @@ class WebSQLiteDatabase {
     }
 
     if (sqlLower.startsWith("update")) {
-      const table = sql.match(/UPDATE (\w+)/i)?.[1];
+      const table = (/UPDATE (\w+)/i.exec(sql))?.[1];
       if (!table) return { changes: 0 };
       const rows = loadTable(table);
 
       // Extract SET column names (only those with ? placeholders)
-      const setClause = sql.match(/SET (.+?) WHERE/i)?.[1];
+      const setClause = (/SET (.+?) WHERE/i.exec(sql))?.[1];
       if (!setClause) return { changes: 0 };
       const setCols: string[] = [];
       for (const part of setClause.split(",")) {
@@ -96,7 +96,7 @@ class WebSQLiteDatabase {
     }
 
     if (sqlLower.startsWith("delete from")) {
-      const table = sql.match(/DELETE FROM (\w+)/i)?.[1];
+      const table = (/DELETE FROM (\w+)/i.exec(sql))?.[1];
       if (!table) return { changes: 0 };
       const rows = loadTable(table);
       const idValue = params[params.length - 1];
@@ -111,7 +111,7 @@ class WebSQLiteDatabase {
   }
 
   async getAllAsync<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    const table = sql.match(/FROM (\w+)/i)?.[1];
+    const table = (/FROM (\w+)/i.exec(sql))?.[1];
     if (!table) return [];
     const rows = loadTable(table);
 
@@ -119,7 +119,7 @@ class WebSQLiteDatabase {
 
     // Simple WHERE clause handling
     if (sql.toLowerCase().includes("where")) {
-      const conditions = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s*$)/i)?.[1];
+      const conditions = (/WHERE\s+(.+?)(?:\s+ORDER|\s*$)/i.exec(sql))?.[1];
       if (conditions) {
         if (conditions.includes("chat_id = ?")) {
           filtered = filtered.filter((r) => r.chat_id === params[0]);
@@ -140,7 +140,7 @@ class WebSQLiteDatabase {
 
     // ORDER BY
     if (sql.toLowerCase().includes("order by")) {
-      const orderMatch = sql.match(/ORDER BY (\w+)\s*(ASC|DESC)?/i);
+      const orderMatch = /ORDER BY (\w+)\s*(ASC|DESC)?/i.exec(sql);
       const col = orderMatch?.[1];
       if (orderMatch && col) {
         const desc = orderMatch[2]?.toUpperCase() === "DESC";
