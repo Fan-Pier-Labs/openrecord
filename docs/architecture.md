@@ -89,11 +89,17 @@ answer depended on which client they asked.
   chart. Omitting `patient` means the account holder, explicitly. The `Patients` group and the
   `account`-kind capabilities are exempt: guarding "you must already be on patient X" in front of
   the tools that list and change X would make them unusable exactly when they are needed.
+  **No client calls `capability.run` — every dispatch goes through `executeCapability`**, the
+  `account`-kind ones included, and `capability-parity.unit.test.ts` greps the three client dispatch
+  modules to keep it that way. The extension and the CLI each used to branch on `rendersMedia`
+  *before* dispatching and run the media capability directly, which made `download_imaging_study`
+  the one tool that skipped the assertion.
 - **`rendersMedia`** marks the one capability (`download_imaging_study`) whose payload isn't JSON:
   it returns raw CLO bytes because each client encodes them differently — pure-JS jpeg-js in the
   MCPB, an on-device decoder in the app, sharp in the CLI. **Clients branch on the flag, never on
   the id** — a second media capability must not require editing five call sites, and
-  `capability-parity.unit.test.ts` fails if an id check reappears.
+  `capability-parity.unit.test.ts` fails if an id check reappears. The branch decides how to render
+  the payload; it sits after the dispatch, never in place of it.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still
@@ -264,7 +270,9 @@ and had quietly stopped matching anything.
 - **CLI + npm package** (`npm-package/`) — `--action` accepts any capability id with repeated
   `--arg name=value`; `--list-capabilities` prints the lot. That dispatch lives in
   `npm-package/cli/capabilityActions.ts` rather than `cli.ts`, because `cli.ts` runs `main()` the
-  moment it is imported and the parity test has to import it. The library exposes the same set as
+  moment it is imported and the parity test has to import it. `runCapabilityAction` folds
+  `--patient` into the args *after* coercion — the registry declares `patient`, not each capability,
+  so coercing it would trip the unknown-argument check. The library exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `npm-package/README.md`.
 - **Claude Desktop extension** (`claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)

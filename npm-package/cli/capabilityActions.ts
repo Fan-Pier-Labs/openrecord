@@ -16,6 +16,7 @@
 import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import {
   capabilitiesByGroup,
+  executeCapability,
   type Capability,
   type CapabilityContext,
 } from '../../shared/capabilities';
@@ -123,17 +124,27 @@ export function jsonSafeReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
-/** Run one capability against one session and print its JSON result. */
+/**
+ * Run one capability against one session and print its JSON result.
+ *
+ * Dispatch goes through `executeCapability`, never `capability.run` — that is
+ * where the active-patient assertion lives. `patient` is folded in after
+ * coercion, since `coerceCapabilityArgs` rejects any name a capability didn't
+ * declare and this one is declared by the registry.
+ */
 export async function runCapabilityAction(
   capability: Capability,
   session: { hostname: string; request: MyChartRequest },
   password: string | undefined,
   args: Record<string, string>,
+  patient?: string,
 ): Promise<boolean> {
   console.log(`\n${'='.repeat(60)}\n  ${capability.title}: ${session.hostname}\n${'='.repeat(60)}`);
   try {
     const ctx = await capabilityContext(session.hostname, password);
-    const result = await capability.run(session.request, coerceCapabilityArgs(capability, args), ctx);
+    const coerced = coerceCapabilityArgs(capability, args);
+    if (patient !== undefined) coerced.patient = patient;
+    const result = await executeCapability(session.request, capability.id, coerced, ctx);
     console.log(JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
   } catch (err) {

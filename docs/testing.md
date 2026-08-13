@@ -165,6 +165,9 @@ Not blockers, but where to spend the next test-writing effort: `eunity/imagingDi
 `claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is
 covered today). All three files in `clo-image-parser/` now run.
 
+`npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
+`--action` dispatch grew tests that drive it without `cli.ts` in front.
+
 **Check what a waived file actually still calls before writing tests for it.**
 `clo-image-parser/generate_clo.ts` came *off* the waiver list in #245 without a single new assertion,
 because it was never under-tested — its only uncoverable part was an `import.meta.main` demo block,

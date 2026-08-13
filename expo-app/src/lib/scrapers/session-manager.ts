@@ -406,7 +406,10 @@ export async function executeAccountCapability(
   if (capability.kind !== "account") {
     throw new Error(`"${capabilityId}" is a data tool — run it through executeScraperTool.`);
   }
-  return capability.run(entry.request, args, contextFor(entry));
+  // executeCapability exempts `account`-kind from the patient assertion, so
+  // this is equivalent to calling `run` — but it keeps "no client reaches
+  // capability.run" absolute, leaving no direct-dispatch line to grow.
+  return executeCapability(entry.request, capability.id, args, contextFor(entry));
 }
 
 /** Get a logged-in session, connecting on demand, or throw with the reason. */
