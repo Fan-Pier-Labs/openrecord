@@ -396,13 +396,15 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 |-------|--------|---------|
 | `/MyChart/api/test-results/GetWidgetList?groupType=2` | POST | Lists imaging studies (X-ray skull, CT head) |
 | `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportID` |
-| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` |
+| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
 | `/MyChart/Extensibility/Redirection/FdiData` | POST | Bridge: returns `{url, launchmode, IsFdiPost}` pointing at `/e/saml-sts` |
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
-| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response with study/series/instance UIDs. Required before `CustomImageServlet` returns image bytes. |
-| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID` |
+| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built by `src/lib/amf3.ts`. |
+| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID`, with real content types (`application/clowrapper` / `application/clopixel`) |
+
+The two imaging studies deliberately advertise their viewer differently, matching the two shapes seen on real instances: the X-ray's report HTML embeds `data-fdi-context`, while the CT result carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`) and its report HTML has no fdi markup at all — the Mass General Brigham shape. Both scraper discovery paths stay covered.
 
 ### CLO image data
 
@@ -412,6 +414,19 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
 
 Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
+
+### SeriesSelector pseudo-instances
+
+Real eUnity servers emit a `SeriesSelector` pseudo-series at the head of a CT
+study's instance list — a viewer UI construct that appears in the AMF metadata
+like a real series (its UID derived from the study UID, three instances) but
+answers every `CustomImageServlet` request with HTTP 200 and a 226-byte
+`application/cloerror` payload (`CLOERROR#Z##` magic + zlib-deflated message).
+The CT study reproduces that shape (marked `cloError: true` in
+`src/data/homer.ts`), so clients are forced to handle a study whose first
+instances carry no image data: the junk must be skipped, never returned as an
+image and never allowed to turn the download into an empty result. The X-ray
+study stays clean so both shapes are covered.
 
 ### Origin handling
 

@@ -148,7 +148,7 @@ describe('withHostLimit', () => {
       withHostLimit('https://mychart.example.org/x', () => gate.promise),
     )
     await tick()
-    expect(hostLimiterStats()['mychart.example.org'].inFlight).toBe(LIMIT)
+    expect(hostLimiterStats()['mychart.example.org']!.inFlight).toBe(LIMIT)
 
     gate.resolve()
     await Promise.all(runs)

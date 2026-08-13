@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: 200 })
+  })
   return req
 }
 
@@ -46,9 +46,9 @@ describe('listConversations', () => {
     const result = await listConversations(req)
     if (!result?.threads) throw new Error('expected threads in result')
     expect(result.threads).toHaveLength(2)
-    expect(result.threads[0].subject).toBe('Lab Results Question')
-    expect(result.threads[0].senderName).toBe('Dr. Smith')
-    expect(result.threads[1].subject).toBe('Prescription Refill')
+    expect(result.threads[0]!.subject).toBe('Lab Results Question')
+    expect(result.threads[0]!.senderName).toBe('Dr. Smith')
+    expect(result.threads[1]!.subject).toBe('Prescription Refill')
   })
 
   it('returns empty threads array', async () => {
@@ -75,18 +75,18 @@ describe('listConversations', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
-      return new Response(r.body, { status: 200 })
-    }) as typeof req.transport
+      return new Response(r!.body, { status: 200 })
+    })
 
     await listConversations(req)
 
     // Second call should be the GetConversationList POST
-    expect(calls[1].init?.method).toBe('POST')
-    const headers = calls[1].init!.headers as Record<string, string>
+    expect(calls[1]!.init?.method).toBe('POST')
+    const headers = calls[1]!.init!.headers as Record<string, string>
     expect(headers['__RequestVerificationToken']).toBe('tok')
     expect(headers['Content-Type']).toBe('application/json; charset=utf-8')
 
-    const body = JSON.parse(calls[1].init!.body as string)
+    const body = JSON.parse(calls[1]!.init!.body as string)
     expect(body.tag).toBe(1)
     expect(body.searchQuery).toBe('')
     expect(body.localLoadParams).toBeDefined()

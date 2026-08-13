@@ -80,7 +80,6 @@ openrecord/
   fake-mychart/              # Fake MyChart server for development and CI
   openrecord-splash/         # Static splash site + in-browser interactive demo
   openrecord-demo-lambda/    # Lambda backing the demo's AI chat
-  newsletter-lambda/         # Lambda capturing waitlist signups
 ```
 
 The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions.
@@ -113,10 +112,6 @@ version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out.
-
-A separate dev-mode env var, `OPENRECORD_MOCK_DATA=1`, switches the
-scrapers' HTTP layer over to canned mock responses (was previously
-`MOCK_DATA`; renamed for namespacing). Don't set this in production.
 
 ## License
 

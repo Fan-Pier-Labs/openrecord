@@ -82,7 +82,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (url: string | URL | Request) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedUrl).toBe('https://mychart.example.com/MyChart/Home')
@@ -96,7 +96,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (url: string | URL | Request) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ url: 'https://other.com/custom/path' })
       expect(capturedUrl).toBe('https://other.com/custom/path')
@@ -109,7 +109,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedConfig?.method).toBe('GET')
@@ -122,7 +122,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedHeaders['User-Agent']).toContain('Chrome')
@@ -136,7 +136,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({
         path: '/Home',
@@ -154,7 +154,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({
         path: '/Home',
@@ -170,7 +170,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/Home' })
       expect(capturedConfig?.redirect).toBe('manual')
@@ -189,7 +189,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('Final page', { status: 200 })
-      }) as typeof req.transport
+      })
 
       const resp = await req.makeRequest({ path: '/Login' })
       expect(calls).toHaveLength(2)
@@ -210,7 +210,7 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('Redirected', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/old' })
       expect(calls).toHaveLength(2)
@@ -226,7 +226,7 @@ describe('MyChartRequest', () => {
           status: 302,
           headers: { 'Location': '/somewhere' }
         })
-      }) as typeof req.transport
+      })
 
       const resp = await req.makeRequest({ path: '/test', followRedirects: false })
       expect(calls).toHaveLength(1)
@@ -238,7 +238,7 @@ describe('MyChartRequest', () => {
 
       req.transport = mock(async () => {
         return new Response('', { status: 302 })
-      }) as typeof req.transport
+      })
 
       await expect(req.makeRequest({ path: '/test' })).rejects.toThrow(
         "302 didn't have a location header"
@@ -258,13 +258,13 @@ describe('MyChartRequest', () => {
           })
         }
         return new Response('OK', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/submit', method: 'POST', body: 'data=123' })
-      expect(capturedConfigs[0].method).toBe('POST')
-      expect(capturedConfigs[0].body).toBe('data=123')
-      expect(capturedConfigs[1].method).toBe('GET')
-      expect(capturedConfigs[1].body).toBeUndefined()
+      expect(capturedConfigs[0]!.method).toBe('POST')
+      expect(capturedConfigs[0]!.body).toBe('data=123')
+      expect(capturedConfigs[1]!.method).toBe('GET')
+      expect(capturedConfigs[1]!.body).toBeUndefined()
     })
 
     it('auto-sets Content-Type to application/json for POST with body', async () => {
@@ -274,7 +274,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/api', method: 'POST', body: '{"key":"val"}' })
       expect(capturedHeaders['Content-Type']).toBe('application/json')
@@ -287,7 +287,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({
         path: '/api',
@@ -308,7 +308,7 @@ describe('MyChartRequest', () => {
             return new Response('', { status, headers: { 'Location': '/moved' } })
           }
           return new Response('Final', { status: 200 })
-        }) as typeof req.transport
+        })
 
         const res = await req.makeRequest({ path: '/Home' })
         expect(res.status).toBe(200)
@@ -327,7 +327,7 @@ describe('MyChartRequest', () => {
             return new Response('', { status, headers: { 'Location': '/moved' } })
           }
           return new Response('Final', { status: 200 })
-        }) as typeof req.transport
+        })
 
         await req.makeRequest({ path: '/DoLogin', method: 'POST', body: 'x=1' })
         expect(methods[1]).toBe(expectedMethod)
@@ -379,7 +379,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async () => {
         calls++
         return new Response('', { status: 301, headers: { 'Location': 'https://mychart.example.com/loop' } })
-      }) as typeof req.transport
+      })
 
       const res = await req.makeRequest({ url: 'https://mychart.example.com/loop' })
       expect(res.status).toBe(301)
@@ -397,7 +397,7 @@ describe('MyChartRequest', () => {
       req.transport = mock(async (url: string | URL | Request) => {
         calls.push(url.toString())
         return new Response('ok', { status: 200 })
-      }) as typeof req.transport
+      })
 
       await req.makeRequest({ path: '/Authentication/Login' })
       expect(calls[0]).toBe('https://mycslink.cedars-sinai.org/mycslink/Authentication/Login')

@@ -153,8 +153,9 @@ export function saveAccountTotpSecret(hostname: string, username: string, totpSe
   const idx = accounts.findIndex(
     a => normalizeHostname(a.hostname) === normalized && sameUsername(a.username, username),
   );
-  if (idx < 0) return false;
-  accounts[idx] = { ...accounts[idx], totpSecret };
+  const existing = accounts[idx];
+  if (!existing) return false;
+  accounts[idx] = { ...existing, totpSecret };
   saveAccounts(accounts);
   return true;
 }

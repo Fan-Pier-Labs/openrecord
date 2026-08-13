@@ -1,6 +1,7 @@
 import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
+import importX from "eslint-plugin-import-x";
 
 
 export default [
@@ -28,7 +29,30 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
+      // semantics are preserved, and downgrades to a suggestion when the
+      // expression VALUE changes (null/'' vs undefined) — those were
+      // hand-verified (see the guard comments at the sites it must not touch).
+      "@typescript-eslint/prefer-optional-chain": "error",
+      // Type-aware: flags calls to anything @deprecated in its declaration
+      // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
+      "@typescript-eslint/no-deprecated": "error",
+      // Private fields assigned only in the constructor/initializer are marked
+      // readonly so mutation shows up in review.
+      "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/no-floating-promises": "error",
+      // Type-only imports vanish at compile time; marking them keeps a
+      // bundler/transpiler from pulling a module in (or keeping a side-effect
+      // edge) for something that was only ever a type — stylistic for tsc,
+      // load-bearing for bundlers. `inline-type-imports` merges into one
+      // statement instead of splitting every import in two.
+      // `disallowTypeAnnotations: false` keeps `typeof import(...)` legal —
+      // npm-package's built-bundle test types a runtime dynamic import with it.
+      "@typescript-eslint/consistent-type-imports": ["error", {
+        fixStyle: "inline-type-imports",
+        disallowTypeAnnotations: false,
+      }],
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All
@@ -73,6 +97,26 @@ export default [
       // before the module under test loads, and the parity suite re-imports
       // client surfaces to get fresh registrations.
       "no-restricted-syntax": "off",
+    },
+  },
+  // Module-cycle detection for the scraper core. #263 made the session-renewal
+  // graph acyclic; this locks that in so a cycle can't silently return behind
+  // an eslint-disable. Scoped to scrapers/ + shared/ because the rule walks
+  // every import transitively and is slow repo-wide. Both settings are
+  // load-bearing: the resolver so `./foo` finds foo.ts, and the parsers map so
+  // no-cycle can PARSE the imported .ts files — without it the rule silently
+  // reports nothing (verified with a canary cycle; resolution alone is not
+  // enough). Only no-cycle is enabled: no-unresolved false-positives on
+  // `bun:test` imports in the test files this block also matches.
+  {
+    files: ["scrapers/**/*.ts", "shared/**/*.ts"],
+    plugins: { "import-x": importX },
+    settings: {
+      "import-x/resolver": { typescript: true },
+      "import-x/parsers": { "@typescript-eslint/parser": [".ts", ".tsx"] },
+    },
+    rules: {
+      "import-x/no-cycle": "error",
     },
   },
   {rules: {

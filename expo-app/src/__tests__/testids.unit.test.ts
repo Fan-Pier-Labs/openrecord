@@ -34,7 +34,7 @@ function extractInteractiveTags(file: string, source: string): Tag[] {
   const tags: Tag[] = [];
   const open = new RegExp(`<(${INTERACTIVE.join("|")})(?=[\\s/>])`, "g");
   for (const match of source.matchAll(open)) {
-    const start = match.index!;
+    const start = match.index;
     // Skip type positions like useRef<TextInput>(null): JSX `<` follows
     // whitespace or an opening bracket, never an identifier character.
     const before = source[start - 1];

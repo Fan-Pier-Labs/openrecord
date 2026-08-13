@@ -85,7 +85,7 @@ describe('accounts', () => {
 
   it('normalizes the hostname on the way in', () => {
     store.upsertAccount(account('HTTPS://MyChart.Example.ORG/MyChart'))
-    expect(store.readAccounts()[0].hostname).toBe('mychart.example.org')
+    expect(store.readAccounts()[0]!.hostname).toBe('mychart.example.org')
   })
 
   it('updates the same login in place rather than duplicating it', () => {
@@ -94,7 +94,7 @@ describe('accounts', () => {
 
     const accounts = store.readAccounts()
     expect(accounts).toHaveLength(1)
-    expect(accounts[0].password).toBe('new')
+    expect(accounts[0]!.password).toBe('new')
   })
 
   it('treats a case-only username difference as the same login', () => {

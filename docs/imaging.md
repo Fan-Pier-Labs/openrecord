@@ -6,6 +6,7 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 
 - `scrapers/myChart/eunity/imagingViewer.ts` — FDI context extraction, FdiData API, SAML chain following (uses `globalThis.fetch` for TLS fingerprinting compatibility)
 - `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`AMF3Writer`, `buildAmfCall()`, `initializeAmfSession()`, `downloadImagingDirect()`)
+- `scrapers/myChart/eunity/amf3Reader.ts` — Strict AMF3 decoder for the `getStudyListMeta` response; `parseStudySeriesFromAmfStructured()` walks the decoded Study → Series → Image tree for exact UID pairing (the positional heuristic `parseStudySeriesFromAmf` remains as fallback)
 - `scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (fallback approach)
 - `scrapers/myChart/labs_and_procedure_results/labResults.ts` — `getImagingResults()` and `listLabResults()`
 - `scrapers/myChart/labs_and_procedure_results/labtestresulttype.ts` — `ImagingResult` interface
@@ -17,19 +18,20 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 1. Calls `GetList` API with group types 0–3 to get all test results
 2. Filters for imaging by keyword matching (`mri`, `x-ray`, `ct`, `ultrasound`, etc.) and structured data checks (`imageStudies`, `scans`, `narrative`, `reportDetails`)
 3. For each imaging result, loads the report content HTML via `LoadReportContent` API
-4. Extracts `data-fdi-context` JSON from the HTML (contains `fdi` and `ord` params for image viewer)
+4. Extracts `data-fdi-context` JSON from the HTML (contains `fdi` and `ord` params for image viewer). Some instances (observed on Mass General Brigham) never embed `data-fdi-context` — each result instead carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`), which `extractFdiContextFromFdiLink()` parses as a fallback
 5. Calls `FdiData` API to get SAML URLs for the eUnity image viewer
 6. Follows the SAML chain (`followSamlChain()`) to get authenticated eUnity session (`JSESSIONID`)
-7. (WIP) Calls `AmfServicesServlet` with `getStudyListMeta` to initialize the server-side study session
-8. (WIP) Downloads image data from `CustomImageServlet` in CLHAAR/CLWAVE format
+7. Calls `AmfServicesServlet` with `getStudyListMeta` to initialize the server-side study session, then decodes the AMF3 response structurally (`amf3Reader.ts`) to get the exact study/series/instance UID tree — a request with a mispaired UID triple gets `CLOERROR "Failed to find image in any supplied providers"`, not a 4xx
+8. Downloads image data from `CustomImageServlet` in CLHAAR/CLWAVE format
 
 ## eUnity AMF3 Protocol
 
 The eUnity viewer uses raw AMF3 typed objects (NOT standard Flex RemotingMessage):
 - **Request wrapper:** `com.clientoutlook.web.metaservices.AmfServicesMessage` (messageType="call", messageID, body)
 - **Request body:** `com.clientoutlook.web.metaservices.AmfServicesRequest` (service, method, args)
-- **Response body:** `com.clientoutlook.web.metaservices.AmfServicesResponse` (code: int, response: string|null)
+- **Response body:** `com.clientoutlook.web.metaservices.AmfServicesResponse` (code: int, response). For `getStudyListMeta`, `response` is a `StudyListResponse` — an *externalizable* whose custom body is: 4-byte big-endian header (2), a `DataRequestStatus` value, a version string ("1.0.0"), a second big-endian word, then the payload object whose `studyList` ArrayCollection holds `Study` → `series` → `Series` → `images` → `Image` typed objects
 - AMF `getStudyListMeta` call is REQUIRED before `CustomImageServlet` will serve images (otherwise 403)
+- The parsed instance list can lead with pseudo-instances (the viewer's `SeriesSelector` entries) that answer every pixel request with a ~226-byte `CLOERROR`; some (series, instance) pairings from the positional AMF parse are also invalid and fail the same way. `downloadImagingStudyDirect` downloads **every** instance in the study and skips these junk responses — they are never returned as images, and a study where *every* instance fails reports an error instead of a silent empty result. (An earlier `maxImages` budget sliced the first N entries, which on `SeriesSelector`-led studies spent the whole budget on junk and returned zero images with zero errors; the budget is gone.)
 - See `scrapers/myChart/eunity/docs/EUNITY_PROTOCOL.md` for full protocol details
 
 ## Example Health System-Specific Notes

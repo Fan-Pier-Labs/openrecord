@@ -29,9 +29,9 @@
  *   register_passkey(account)                      // optional: skip 2FA on future sessions
  */
 
-import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
+import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import { type MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
 import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
@@ -138,8 +138,8 @@ const ACCOUNT_SCHEMA = z
   );
 
 /** Translate one registry parameter into its zod equivalent. */
-function zodForParam(param: CapabilityParam): ZodTypeAny {
-  let schema: ZodTypeAny;
+function zodForParam(param: CapabilityParam): z.ZodType {
+  let schema: z.ZodType;
   switch (param.type) {
     case 'number': {
       let n = z.number();
@@ -189,7 +189,7 @@ function contextFor(ref: string): CapabilityContext {
  * disconnect_account already is.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
-  const shape: Record<string, ZodTypeAny> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
+  const shape: Record<string, z.ZodType> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
   // Which patient the call is about, for accounts with proxy access to family
   // members' charts. executeCapability asserts it — or the account holder,
   // when omitted — before the capability runs, so a read refuses rather than
@@ -214,14 +214,17 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       try {
         const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
-        // The flag, not the id: a second media capability must not need this
-        // branch edited. `run` hands back raw bytes; this client encodes them.
+        // executeCapability, not capability.run, for EVERY capability: the
+        // active-patient assertion lives there. Branching to a direct
+        // `capability.run` for the imaging tool is how that one tool ended up
+        // returning a family member's X-rays.
+        const payload = await executeCapability(session, capability.id, args, contextFor(account));
+        // The flag, not the id — and it decides how to RENDER the payload,
+        // never whether the guard ran.
         if (capability.rendersMedia) {
-          return await imagingResult(capability, session, args);
+          return imagingResult(payload as StudyImagePayload);
         }
-        // executeCapability, not capability.run: the active-patient assertion
-        // lives there, so every client gets it without remembering to.
-        return jsonResult(await executeCapability(session, capability.id, args, contextFor(account)));
+        return jsonResult(payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
@@ -234,16 +237,14 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * returns raw CLO bytes that this client encodes itself. One image content
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion.
  */
-async function imagingResult(
-  capability: Capability,
-  session: MyChartRequest,
-  args: Record<string, unknown>,
-): Promise<ToolResult> {
-  const payload = (await capability.run(session, args)) as StudyImagePayload;
-  const maxImages = typeof args.max_images === 'number' ? args.max_images : undefined;
-  const jpegQuality = typeof args.jpeg_quality === 'number' ? args.jpeg_quality : undefined;
-  const result = encodeStudyJpegs(payload, { maxImages, jpegQuality });
+function imagingResult(
+  payload: StudyImagePayload,
+): ToolResult {
+  const result = encodeStudyJpegs(payload);
 
   const content: ToolContent[] = [
     {
@@ -312,7 +313,7 @@ export function registerAllTools(server: McpServer): void {
     {
       title: 'List configured accounts',
       description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
-      inputSchema: {} as ZodRawShape,
+      inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     withUpdateNotice(async () => {

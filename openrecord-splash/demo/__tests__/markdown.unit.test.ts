@@ -35,19 +35,19 @@ describe('markup in model output stays text', () => {
   test('a script tag parses as a single text span', () => {
     const blocks = parseMarkdown('<script>alert(1)</script>');
     expect(blocks).toHaveLength(1);
-    expect(blocks[0].kind).toBe('paragraph');
+    expect(blocks[0]!.kind).toBe('paragraph');
     // One text span, verbatim — no tag node, nothing for React to interpret.
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'paragraph') throw new Error('expected a paragraph');
     expect(block.lines[0]).toEqual([{ kind: 'text', text: '<script>alert(1)</script>' }]);
   });
 
   test('an event-handler attribute never becomes an attribute', () => {
     const blocks = parseMarkdown('<img src=x onerror="alert(1)">');
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'paragraph') throw new Error('expected a paragraph');
     // Every span is `text`; there is no span kind that could carry an attribute.
-    expect(block.lines[0].every((s) => s.kind === 'text')).toBe(true);
+    expect(block.lines[0]!.every((s) => s.kind === 'text')).toBe(true);
     expect(textOf(blocks)).toBe('<img src=x onerror="alert(1)">');
   });
 
@@ -65,9 +65,9 @@ describe('markup in model output stays text', () => {
 
   test('markup inside a bullet is still text', () => {
     const blocks = parseMarkdown('- <iframe src="https://evil.example"></iframe>');
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'list') throw new Error('expected a list');
-    expect(block.items[0].every((s) => s.kind === 'text')).toBe(true);
+    expect(block.items[0]!.every((s) => s.kind === 'text')).toBe(true);
   });
 });
 
@@ -113,7 +113,7 @@ describe('parseMarkdown structure', () => {
   test('consecutive bullets group into one list', () => {
     const blocks = parseMarkdown('- one\n- two\n- three');
     expect(blocks).toHaveLength(1);
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'list') throw new Error('expected a list');
     expect(block.items).toHaveLength(3);
   });
@@ -126,7 +126,7 @@ describe('parseMarkdown structure', () => {
   test('single newlines stay inside one paragraph as separate lines', () => {
     const blocks = parseMarkdown('**Atorvastatin**\n40mg daily');
     expect(blocks).toHaveLength(1);
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'paragraph') throw new Error('expected a paragraph');
     expect(block.lines).toHaveLength(2);
   });
@@ -134,7 +134,7 @@ describe('parseMarkdown structure', () => {
   test('consecutive quote lines group into one blockquote', () => {
     const blocks = parseMarkdown('> line one\n> line two');
     expect(blocks).toHaveLength(1);
-    const [block] = blocks;
+    const block = blocks[0]!;
     if (block.kind !== 'quote') throw new Error('expected a quote');
     expect(block.lines).toHaveLength(2);
   });
@@ -162,7 +162,7 @@ describe('image tokens', () => {
   test('a known token becomes a named placeholder', () => {
     const blocks = parseMarkdown('Here it is:\n\n[image:xray]\n\nImpression follows.');
     expect(blocks.map((b) => b.kind)).toEqual(['paragraph', 'image', 'paragraph']);
-    const image = blocks[1];
+    const image = blocks[1]!;
     if (image.kind !== 'image') throw new Error('expected an image');
     expect(image.name).toBe('xray');
   });
@@ -180,7 +180,7 @@ describe('image tokens', () => {
 
   test('unknown names still parse; the renderer decides what to do with them', () => {
     const blocks = parseMarkdown('[image:mri]');
-    const image = blocks[0];
+    const image = blocks[0]!;
     if (image.kind !== 'image') throw new Error('expected an image');
     expect(image.name).toBe('mri');
   });

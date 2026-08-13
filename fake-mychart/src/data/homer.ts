@@ -1946,6 +1946,20 @@ export const ctImaging = {
   patientId: '742$$$SPRINGFIELD',
   series: [
     {
+      // Real eUnity servers emit a "SeriesSelector" pseudo-series at the head
+      // of a CT study's instance list — a viewer UI construct, not images.
+      // Its seriesUID is derived from the studyUID (unlike real series, whose
+      // UIDs come from the modality), and every CustomImageServlet request
+      // for it answers HTTP 200 with a small `application/cloerror` payload.
+      // Faked here so clients are forced to handle a study whose first
+      // instances are junk: a download budget spent on attempts rather than
+      // successes returns zero images on exactly this shape.
+      seriesUID: '1.2.840.114350.2.362.2.742742.2.9876543210.1.9999',
+      instanceUIDs: generateInstanceUIDs('1.2.840.114350.2.362.2.742742.2.9876543210.1.9999', 3),
+      seriesDescription: 'SeriesSelector',
+      cloError: true,
+    },
+    {
       seriesUID: '1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666',
       instanceUIDs: generateInstanceUIDs('1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666', 5),
       seriesDescription: 'AXIAL',
@@ -2026,6 +2040,11 @@ export const ctLabResultDetails = {
         reportContext: '',
         reportVars: { ordId: 'ORD-CT-001', ordDat: 'ORD-CT-001-DAT' },
       },
+      // Mass General Brigham shape: the viewer link is a structured fdiLink on
+      // the result — the report HTML carries no data-fdi-context at all. The
+      // X-ray result below keeps the data-fdi-context shape, so both viewer
+      // discovery paths stay covered.
+      fdiLink: { redirectUrl: '/Extensibility/Redirection/FdiRedirection?fdi=FDI-CT-001&ord=ORD-CT-001' },
       scans: [],
       imageStudies: [
         {
@@ -2057,8 +2076,10 @@ export const ctLabResultDetails = {
   hideEncInfo: false,
 };
 
+// No data-fdi-context here on purpose: the CT result advertises its viewer
+// via the structured fdiLink above (the Mass General Brigham shape).
 export const ctReportContent = {
-  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p><div data-fdi-context='${JSON.stringify({ fdi: 'FDI-CT-001', ord: 'ORD-CT-001' })}'><a href="#">View Images</a></div></div>`,
+  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>`,
   reportCss: '',
 };
 

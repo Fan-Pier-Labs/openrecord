@@ -106,9 +106,10 @@ export class AMF3Writer {
 // ==================== Zigzag Encode ====================
 
 export function zigzagEncode(signed: Int32Array): Int32Array {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   const result = new Int32Array(signed.length);
   for (let i = 0; i < signed.length; i++) {
-    const n = signed[i];
+    const n = signed[i]!;
     result[i] = n >= 0 ? n * 2 : (-n) * 2 - 1;
   }
   return result;
@@ -136,6 +137,7 @@ export function forwardHaarLevel(
   hl: Int32Array;
   hh: Int32Array;
 } {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   const n = inH * inW;
 
   // De-interleave image into quadrants
@@ -151,22 +153,22 @@ export function forwardHaarLevel(
 
   for (let r = 0; r < nEvenRows; r++) {
     for (let c = 0; c < nEvenCols; c++) {
-      out00[r * inW + c] = image[r * 2 * outW + c * 2];
+      out00[r * inW + c] = image[r * 2 * outW + c * 2]!;
     }
   }
   for (let r = 0; r < nEvenRows; r++) {
     for (let c = 0; c < nOddCols; c++) {
-      out01[r * inW + c] = image[r * 2 * outW + c * 2 + 1];
+      out01[r * inW + c] = image[r * 2 * outW + c * 2 + 1]!;
     }
   }
   for (let r = 0; r < nOddRows; r++) {
     for (let c = 0; c < nEvenCols; c++) {
-      out10[r * inW + c] = image[(r * 2 + 1) * outW + c * 2];
+      out10[r * inW + c] = image[(r * 2 + 1) * outW + c * 2]!;
     }
   }
   for (let r = 0; r < nOddRows; r++) {
     for (let c = 0; c < nOddCols; c++) {
-      out11[r * inW + c] = image[(r * 2 + 1) * outW + c * 2 + 1];
+      out11[r * inW + c] = image[(r * 2 + 1) * outW + c * 2 + 1]!;
     }
   }
 
@@ -177,12 +179,12 @@ export function forwardHaarLevel(
   const hh = new Int32Array(n);
 
   for (let i = 0; i < n; i++) {
-    const lInit = out01[i] - out00[i];
-    const lUpd = out11[i] - out10[i];
+    const lInit = out01[i]! - out00[i]!;
+    const lUpd = out11[i]! - out10[i]!;
     const c = lUpd - lInit; // HH
     const b = lInit + (c >> 1); // LH
-    const z = out00[i] + (lInit >> 1);
-    const a = out10[i] - z + (lUpd >> 1); // HL
+    const z = out00[i]! + (lInit >> 1);
+    const a = out10[i]! - z + (lUpd >> 1); // HL
     const s = z + (a >> 1); // LL
 
     ll[i] = s & 0xffff;
@@ -202,12 +204,13 @@ interface EncodedSubband {
 }
 
 function encodeSubbandU16(data: Uint16Array): EncodedSubband {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   const n = data.length;
   const lsb = new Uint8Array(n);
   const msb = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
-    lsb[i] = data[i] & 0xff;
-    msb[i] = (data[i] >> 8) & 0xff;
+    lsb[i] = data[i]! & 0xff;
+    msb[i] = (data[i]! >> 8) & 0xff;
   }
   return { lsbData: lsb, msbData: msb };
 }
@@ -227,6 +230,7 @@ function encodeDetailSubbands(
   hl: Int32Array,
   hh: Int32Array
 ): EncodedDetail {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   const n = lh.length;
 
   // Zigzag encode
@@ -244,18 +248,18 @@ function encodeDetailSubbands(
 
   for (let i = 0; i < n; i++) {
     // Split into LSB/MSB and extract overflow bits
-    lhLsb[i] = lhZ[i] & 0xff;
-    lhMsb[i] = (lhZ[i] >> 8) & 0xff;
-    hlLsb[i] = hlZ[i] & 0xff;
-    hlMsb[i] = (hlZ[i] >> 8) & 0xff;
-    hhLsb[i] = hhZ[i] & 0xff;
-    hhMsb[i] = (hhZ[i] >> 8) & 0xff;
+    lhLsb[i] = lhZ[i]! & 0xff;
+    lhMsb[i] = (lhZ[i]! >> 8) & 0xff;
+    hlLsb[i] = hlZ[i]! & 0xff;
+    hlMsb[i] = (hlZ[i]! >> 8) & 0xff;
+    hhLsb[i] = hhZ[i]! & 0xff;
+    hhMsb[i] = (hhZ[i]! >> 8) & 0xff;
 
     // Overflow: LH bit 16 → bit 0, HL bit 16 → bit 1, HH bits 16-17 → bits 2-3
     let ov = 0;
-    if (lhZ[i] & 0x10000) ov |= 1;
-    if (hlZ[i] & 0x10000) ov |= 2;
-    ov |= ((hhZ[i] >> 16) & 3) << 2;
+    if (lhZ[i]! & 0x10000) ov |= 1;
+    if (hlZ[i]! & 0x10000) ov |= 2;
+    ov |= ((hhZ[i]! >> 16) & 3) << 2;
     overflow[i] = ov;
   }
 
@@ -344,7 +348,7 @@ export function encodePixelFile(
 
   // Process from finest to coarsest
   for (let lvlIdx = levels.length - 1; lvlIdx >= 0; lvlIdx--) {
-    const [subH, subW] = levels[lvlIdx];
+    const [subH, subW] = levels[lvlIdx]!;
     const result = forwardHaarLevel(current, curH, curW, subH, subW);
     detailLevels.unshift({
       inH: subH,
@@ -380,8 +384,9 @@ export function encodePixelFile(
   parts.push(rec2);
 
   // Record 3: Level 2 marker (LL group header)
-  const llSubbandH = levels[0][0];
-  const llSubbandW = levels[0][1];
+  // At least one level always exists here (numLevels >= 1 or dimensions > TILE_SIZE); `!` for noUncheckedIndexedAccess.
+  const llSubbandH = levels[0]![0];
+  const llSubbandW = levels[0]![1];
   parts.push(
     writeMarkerFull(
       2,
@@ -404,7 +409,7 @@ export function encodePixelFile(
 
   // Detail groups (group 0, 1, 2, ...)
   for (let g = 0; g < detailLevels.length; g++) {
-    const detail = detailLevels[g];
+    const detail = detailLevels[g]!;
     const { inH, inW, lh, hl, hh } = detail;
     const encoded = encodeDetailSubbands(lh, hl, hh);
 
@@ -457,7 +462,8 @@ export function encodePixelFile(
               const srcRow = tr * TILE_SIZE + r;
               for (let c = 0; c < tw; c++) {
                 const srcCol = tc * TILE_SIZE + c;
-                tileData[r * tw + c] = fullData[srcRow * inW + srcCol];
+                // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
+                tileData[r * tw + c] = fullData[srcRow * inW + srcCol]!;
               }
             }
 
@@ -707,16 +713,4 @@ export function generateTestFiles(outputDir: string) {
       `Generated: ${testImage.name} (${testImage.width}x${testImage.height}) → ${pixelPath}`
     );
   }
-}
-
-if (import.meta.main) {
-  const args = process.argv.slice(2);
-  const outputDirIdx = args.indexOf("--output-dir");
-  const outputDir =
-    outputDirIdx >= 0 && args[outputDirIdx + 1]
-      ? args[outputDirIdx + 1]
-      : join(import.meta.dir, "synthetic_test_data");
-
-  generateTestFiles(outputDir);
-  logger.debug(`\nDone. Test files written to ${outputDir}`);
 }

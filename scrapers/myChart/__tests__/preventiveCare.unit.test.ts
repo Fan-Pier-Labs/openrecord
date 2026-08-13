@@ -7,7 +7,7 @@ function mockRequest(body: string) {
   req.firstPathPart = 'MyChart'
   req.transport = mock(async () => {
     return new Response(body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -42,9 +42,9 @@ describe('getPreventiveCare', () => {
     `
     const result = await getPreventiveCare(mockRequest(html))
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('Flu Vaccine')
-    expect(result[0].status).toBe('not_due')
-    expect(result[0].notDueUntil).toBe('10/01/2025')
+    expect(result[0]!.name).toBe('Flu Vaccine')
+    expect(result[0]!.status).toBe('not_due')
+    expect(result[0]!.notDueUntil).toBe('10/01/2025')
   })
 
   it('parses completed items', async () => {
@@ -56,8 +56,8 @@ describe('getPreventiveCare', () => {
     `
     const result = await getPreventiveCare(mockRequest(html))
     expect(result).toHaveLength(1)
-    expect(result[0].status).toBe('completed')
-    expect(result[0].completedDate).toBe('06/15/2024')
+    expect(result[0]!.status).toBe('completed')
+    expect(result[0]!.completedDate).toBe('06/15/2024')
   })
 
   it('parses multiple previously done dates', async () => {
@@ -69,7 +69,7 @@ describe('getPreventiveCare', () => {
       </body></html>
     `
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result[0].previouslyDone).toEqual(['01/01/2022', '01/01/2020', '01/01/2018'])
+    expect(result[0]!.previouslyDone).toEqual(['01/01/2022', '01/01/2020', '01/01/2018'])
   })
 
   it('handles multiple items with different statuses', async () => {
@@ -86,12 +86,12 @@ describe('getPreventiveCare', () => {
     `
     const result = await getPreventiveCare(mockRequest(html))
     expect(result).toHaveLength(3)
-    expect(result[0].name).toBe('Item A')
-    expect(result[0].status).toBe('overdue')
-    expect(result[1].name).toBe('Item B')
-    expect(result[1].status).toBe('not_due')
-    expect(result[2].name).toBe('Item C')
-    expect(result[2].status).toBe('completed')
+    expect(result[0]!.name).toBe('Item A')
+    expect(result[0]!.status).toBe('overdue')
+    expect(result[1]!.name).toBe('Item B')
+    expect(result[1]!.status).toBe('not_due')
+    expect(result[2]!.name).toBe('Item C')
+    expect(result[2]!.status).toBe('completed')
   })
 
   it('returns empty for page with no items', async () => {
