@@ -126,10 +126,15 @@ export interface ConnectArgs extends MyChartClientOptions {
   totpSecret?: string;
 }
 
+// Every member carries a UNIT discriminant on purpose: with a combined
+// `state: 'invalid_login' | 'error'` member, TypeScript cannot remove it when
+// a caller negates the checks (`if (invalid || error) return;`), and the
+// examples' narrowing silently stops working.
 export type ConnectResult =
   | { state: 'connected'; client: MyChartClient }
   | PendingTwoFa
-  | { state: 'invalid_login' | 'error'; error?: string };
+  | { state: 'invalid_login'; error?: string }
+  | { state: 'error'; error?: string };
 
 export interface PendingTwoFa {
   state: 'need_2fa';

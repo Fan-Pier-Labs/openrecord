@@ -11,6 +11,11 @@
     "outDir": "./dist",
     "rootDir": "..",
     "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "esModuleInterop": true,
@@ -28,7 +33,9 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "examples/**/*",
+    "tsup.config.ts"
   ],
   "exclude": [
     "node_modules",

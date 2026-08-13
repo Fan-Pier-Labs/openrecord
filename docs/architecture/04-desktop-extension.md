@@ -19,7 +19,7 @@ claude-desktop-extension/
     credential-store.ts  ~/.openrecord-mcpb/ — accounts, passkeys, sessions
     instances.ts         bundled MyChart directory + search
     pending-logins.ts    2FA continuations between tool calls
-    imaging/             CLO → JPEG with pure-JS jpeg-js
+    imaging/download-study.ts  CLO → JPEG via the shared pure-JS exporter
 ```
 
 ## Runtime shape
@@ -30,7 +30,7 @@ flowchart TB
     subgraph proc["node dist/server.cjs"]
         IDX["<code>index.ts</code><br/>McpServer + StdioServerTransport"]
         TOOLS["<code>tools.ts</code>"]
-        META["meta tools (hand-written)<br/>list_accounts · search_mycharts<br/>setup_account · complete_2fa<br/>disconnect_account"]
+        META["meta tools (hand-written)<br/>list_accounts · search_mycharts<br/>setup_account · complete_2fa<br/>disconnect_account · get_setup_widget"]
         CAPT["one tool per capability<br/>params → zod<br/>write ⇒ destructiveHint"]
         SM["<code>session-manager.ts</code>"]
         UI["<code>ui.ts</code><br/>setup widget resource"]
@@ -56,9 +56,11 @@ and Claude Desktop reports "Unexpected token X is not valid JSON".
 
 ## Which tools are hand-written, and why
 
-`registerAllTools` hand-writes only the five account-management meta tools. They manage
-credentials **on this machine** and have no counterpart in the other clients — the CLI has
-flags and a local password store, the mobile app has a settings screen. Everything else is
+`registerAllTools` hand-writes only the six account-management meta tools — `list_accounts`,
+`search_mycharts`, `setup_account`, `complete_2fa`, `disconnect_account`, and
+`get_setup_widget`, which hands back the setup UI resource for hosts that render it. They
+manage credentials **on this machine** and have no counterpart in the other clients — the CLI
+has flags and a local password store, the mobile app has a settings screen. Everything else is
 one MCP tool per registry entry, translated to zod:
 
 ```mermaid
@@ -74,8 +76,10 @@ flowchart LR
     C -->|"rendersMedia → imagingResult()"| T
 ```
 
-`account`-kind capabilities are not registered at all — they change how the patient signs
-in, and no client offers those to a model.
+The loop is over `CAPABILITIES`, not `AGENT_CAPABILITIES` — **this client does register the
+`account`-kind entries**, unlike the mobile app, which withholds them from its prompt. Claude
+Desktop is where a person deliberately sets an account up, so passkey and authenticator setup
+belong on the tool list here.
 
 ## Session resolution
 
@@ -138,6 +142,14 @@ renewable without storing anything the user has to re-enter.
 
 A built-in **Springfield General Hospital (test)** instance points at
 `fake-mychart.fanpierlabs.com`, so the extension is demoable without a real account.
+
+## Imaging
+
+`imaging/download-study.ts` calls `convertCloToJpgPureJs`
+(`scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs.ts`) — the same shared exporter the
+mobile app uses. The extension used to carry its own `jpeg-encoder.ts` and `voi-lut.ts`; those
+are gone, so the two `sharp`-less clients now produce identical bytes from identical code
+rather than two encoders that could drift.
 
 ## Testing
 

@@ -125,15 +125,15 @@ describe('fake-mychart marge user + /reset', () => {
     // homer can keep logging in with username+password.
     const loginResp = await rawDoLogin('homer', 'donuts123')
     expect(loginResp.body).toContain('md_home_index')
-    const sessionCookie = (loginResp.cookie ?? '').split(';')[0]
+    const sessionCookie = (loginResp.cookie ?? '').split(';')[0]!
 
     await fetch(`${BASE}/MyChart/api/secondary-validation/UpdateTwoFactorTotpOptInStatus`, {
       method: 'POST',
-      headers: { Cookie: sessionCookie },
+      headers: { Cookie: sessionCookie, '__RequestVerificationToken': 'tok-test' },
     })
     const totpInfoBefore = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
       method: 'POST',
-      headers: { Cookie: sessionCookie },
+      headers: { Cookie: sessionCookie, '__RequestVerificationToken': 'tok-test' },
     }).then(r => r.json()) as { IsTotpEnabled: boolean }
     expect(totpInfoBefore.IsTotpEnabled).toBe(true)
 
@@ -144,10 +144,10 @@ describe('fake-mychart marge user + /reset', () => {
 
     // After reset, log in again and confirm homer's TOTP is back to disabled
     const reloginResp = await rawDoLogin('homer', 'donuts123')
-    const reloginCookie = (reloginResp.cookie ?? '').split(';')[0]
+    const reloginCookie = (reloginResp.cookie ?? '').split(';')[0]!
     const totpInfoAfter = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
       method: 'POST',
-      headers: { Cookie: reloginCookie },
+      headers: { Cookie: reloginCookie, '__RequestVerificationToken': 'tok-test' },
     }).then(r => r.json()) as { IsTotpEnabled: boolean }
     expect(totpInfoAfter.IsTotpEnabled).toBe(false)
 

@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
+  addMyChartAccount,
   getMyChartAccounts,
   removeMyChartAccount,
   getAiProvider,
@@ -38,7 +40,7 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadSettings();
+      fireAndForget(loadSettings(), "settings:load");
     }, [])
   );
 
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
     await loadSettings();
   }
 
-  async function handleDeleteAccount(account: StoredMyChartAccount) {
+  function handleDeleteAccount(account: StoredMyChartAccount) {
     Alert.alert(
       "Remove Account",
       `Remove ${account.hostname}? This will delete stored credentials and passkeys.`,
@@ -90,10 +92,12 @@ export default function SettingsScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: async () => {
-            await removeMyChartAccount(account.id);
-            await deleteMemoryForAccount(account.id);
-            await loadSettings();
+          onPress: () => {
+            void (async () => {
+              await removeMyChartAccount(account.id);
+              await deleteMemoryForAccount(account.id);
+              await loadSettings();
+            })();
           },
         },
       ]
@@ -107,7 +111,7 @@ export default function SettingsScreen() {
    * offered to the model — the CLI drives them from flags and the app drives
    * them from here. Every one is confirmed first and its outcome reported.
    */
-  async function runAccountCapability(
+  function runAccountCapability(
     account: StoredMyChartAccount,
     capabilityId: string,
     prompt: { title: string; body: string; confirm: string; destructive?: boolean },
@@ -117,7 +121,9 @@ export default function SettingsScreen() {
       {
         text: prompt.confirm,
         style: prompt.destructive ? "destructive" : "default",
-        onPress: async () => {
+        // Sync wrapper: RN's Alert typing expects a void handler, and the
+        // async body already owns its errors (try/catch/finally).
+        onPress: () => void (async () => {
           setBusyAccountId(account.id);
           try {
             const result = await executeAccountCapability(account.id, capabilityId);
@@ -128,7 +134,7 @@ export default function SettingsScreen() {
           } finally {
             setBusyAccountId(null);
           }
-        },
+        })(),
       },
     ]);
   }
@@ -139,7 +145,6 @@ export default function SettingsScreen() {
       return;
     }
 
-    const { addMyChartAccount } = await import("@/lib/storage/secure-store");
     await addMyChartAccount({
       hostname: newHostname.trim(),
       username: newUsername.trim(),

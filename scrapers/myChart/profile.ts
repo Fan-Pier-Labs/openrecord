@@ -1,5 +1,4 @@
-import { login_TEST } from "./login";
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from "./makeAuthenticatedRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
@@ -123,27 +122,29 @@ export function parseProfileHtml(body: string): ProfileData | null {
 
   // Full format: Name | DOB | MRN | PCP (most MyChart instances)
   const fullRegex = /Name: (.+) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4}) \| MRN: (\d+) \| PCP: (.*)/;
-  const fullMatch = printheaderDiv.match(fullRegex)
+  const fullMatch = fullRegex.exec(printheaderDiv)
   if (fullMatch) {
     return {
-      name: fullMatch[1].trim(),
-      dob: fullMatch[2],
-      mrn: fullMatch[3],
-      pcp: fullMatch[4].trim(),
+      // All four capture groups are non-optional, so they exist on any match.
+      name: fullMatch[1]!.trim(),
+      dob: fullMatch[2]!,
+      mrn: fullMatch[3]!,
+      pcp: fullMatch[4]!.trim(),
     }
   }
 
   // Partial format: Name | DOB only (e.g. MyChart Central at central.mychart.org)
   const partialRegex = /Name: (.+?) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4})/;
-  const partialMatch = printheaderDiv.match(partialRegex)
+  const partialMatch = partialRegex.exec(printheaderDiv)
   if (partialMatch) {
     // Try to pick up MRN and PCP if present after DOB with different formats
-    const afterDob = printheaderDiv.slice(partialMatch.index! + partialMatch[0].length)
-    const mrnMatch = afterDob.match(/MRN:\s*(\d+)/)
-    const pcpMatch = afterDob.match(/PCP:\s*(.*)/)
+    const afterDob = printheaderDiv.slice(partialMatch.index + partialMatch[0].length)
+    const mrnMatch = /MRN:\s*(\d+)/.exec(afterDob)
+    const pcpMatch = /PCP:\s*(.*)/.exec(afterDob)
     return {
-      name: partialMatch[1].trim(),
-      dob: partialMatch[2],
+      // Both capture groups are non-optional, so they exist on any match.
+      name: partialMatch[1]!.trim(),
+      dob: partialMatch[2]!,
       mrn: mrnMatch?.[1] || '',
       pcp: pcpMatch?.[1]?.trim() || '',
     }
@@ -224,18 +225,4 @@ export async function getEmail(mychartRequest: MyChartRequest): Promise<string |
 
   return json.SecureCommunicationInfo.EmailAddress;
 
-}
-
-
-async function test() {
-  const mychartRequest = await login_TEST('mychart.example.org');
-  
-  const profile = await getMyChartProfile(mychartRequest)
-
-  logger.debug('getMedicalRecordNumber is', profile)
-}
-
-
-if (import.meta.main) {
-  test();
 }

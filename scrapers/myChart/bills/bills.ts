@@ -1,15 +1,13 @@
 
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { type MyChartRequest } from "../myChartRequest";
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
 import { date2dte } from "./utils";
 // import '../../../util'
-import { BillingAccount, BillingDetails, BillingVisit, PaymentListResponse, StatementItem, StatementListResponse } from "./types";
+import { type BillingAccount, type BillingDetails, type BillingVisit, type PaymentListResponse, type StatementItem, type StatementListResponse } from "./types";
 import { mkdirp } from 'mkdirp';
-import { OPENRECORD_MOCK_DATA } from '../../../shared/env';
 import { logger } from '../../../shared/logger';
 
 
@@ -22,10 +20,10 @@ import { logger } from '../../../shared/logger';
 
 export function parsePaymentUrl(html: string): { id: string, context: string } | null {
   const regex = /"URLMakePayment":\s*"([^"]+)"/;
-  const match = html.match(regex);
+  const match = regex.exec(html);
   if (match) {
     // Remove the leading '~/'
-    const urlStr = match[1].replace(/^~\//, '');
+    const urlStr = match[1]!.replace(/^~\//, ''); // the one capture group is non-optional
     // Split into path and query string
     let [, queryString] = urlStr.split('?');
     if (!queryString) {
@@ -54,8 +52,8 @@ export function parseBillingAccountsHtml(html: string, hostname: string): Billin
 
   for (const billing_account of billing_accounts.toArray()) {
     const guarantorText = $('p.ba_card_header_account_idAndType', billing_account).text().trim();
-    const guarantorNumber = guarantorText.match(/Guarantor #(\d+)/)?.[1] || 'unknown';
-    const patientName = guarantorText.match(/\((.*)\)/)?.[1] || 'unknown';
+    const guarantorNumber = (/Guarantor #(\d+)/.exec(guarantorText))?.[1] || 'unknown';
+    const patientName = (/\((.*)\)/.exec(guarantorText))?.[1] || 'unknown';
     const amountdue = $('p.ba_card_status_due_amount', billing_account).text().trim()
     let amountDueNum: number | undefined;
     if (amountdue) amountDueNum = parseFloat(amountdue.replace('$', ''))
@@ -137,7 +135,7 @@ export async function getEncBillingId(mychartRequest: MyChartRequest, billingAcc
 
   const body = await res.text()
 
-  const match = body.match(/EncID"\s*:\s*"([^"]*)"/)
+  const match = /EncID"\s*:\s*"([^"]*)"/.exec(body)
 
   if (!match) {
     logger.debug('unable to find end id')
@@ -211,31 +209,7 @@ export async function getBillingStatementPDFs(mychartRequest: MyChartRequest, bi
 
     // Write the buffer to a file
     await mkdirp('pdfs')
-    if (OPENRECORD_MOCK_DATA) {
-      logger.debug("not saving xlxs", name, " to disk b/c its mock data mode")
-    }
-    else {
-      await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
-      logger.debug('Saved', name)
-    }
+    await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
+    logger.debug('Saved', name)
   }
-}
-
-
-
-
-async function test() {
-
-  const mychartRequest = await login_TEST('mychart.example.org')
-
-  const results = await getBillingHistory(mychartRequest)
-
-  logger.debug(results)
-}
-
-
-if (import.meta.main) {
-  // This script is being run directly
-  // We will call the main function
-  test()
 }

@@ -10,8 +10,8 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: r!.status ?? 200 })
+  })
   return req
 }
 
@@ -23,8 +23,8 @@ function mockRequestWithCapture(responses: Array<{ body: string; status?: number
   req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: url.toString(), init })
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: r!.status ?? 200 })
+  })
   return { req, calls }
 }
 
@@ -58,13 +58,13 @@ describe('getMessageTopics', () => {
 
     const topics = await getMessageTopics(req, 'tok123')
     expect(topics).toHaveLength(3)
-    expect(topics[0].displayName).toBe('COVID-19 Related Inquiry')
-    expect(topics[1].value).toBe('12')
+    expect(topics[0]!.displayName).toBe('COVID-19 Related Inquiry')
+    expect(topics[1]!.value).toBe('12')
 
     // Verify the API call
-    const headers = calls[0].init!.headers as Record<string, string>
+    const headers = calls[0]!.init!.headers as Record<string, string>
     expect(headers['__RequestVerificationToken']).toBe('tok123')
-    const body = JSON.parse(calls[0].init!.body as string)
+    const body = JSON.parse(calls[0]!.init!.body as string)
     expect(body.organizationId).toBe('')
   })
 
@@ -113,9 +113,9 @@ describe('getMessageRecipients', () => {
 
     const recipients = await getMessageRecipients(req, 'tok')
     expect(recipients).toHaveLength(2)
-    expect(recipients[0].displayName).toBe('Claudia L. Ma, MD')
-    expect(recipients[0].recipientType).toBe(1)
-    expect(recipients[1].specialty).toBe('Allergy')
+    expect(recipients[0]!.displayName).toBe('Claudia L. Ma, MD')
+    expect(recipients[0]!.recipientType).toBe(1)
+    expect(recipients[1]!.specialty).toBe('Allergy')
   })
 
   it('returns empty array when no recipients', async () => {
@@ -203,8 +203,8 @@ describe('sendNewMessage', () => {
 
     // Verify the send request (4th call, index 3)
     const sendCall = calls[3]
-    expect(sendCall.url).toContain('/api/medicaladvicerequests/SendMedicalAdviceRequest')
-    const sendBody = JSON.parse(sendCall.init!.body as string)
+    expect(sendCall!.url).toContain('/api/medicaladvicerequests/SendMedicalAdviceRequest')
+    const sendBody = JSON.parse(sendCall!.init!.body as string)
     expect(sendBody.recipient.displayName).toBe('Dr. Test')
     expect(sendBody.recipient.userId).toBe('WP-user1')
     expect(sendBody.topic.title).toBe('Help with Booking')
@@ -219,8 +219,8 @@ describe('sendNewMessage', () => {
 
     // Verify cleanup (5th call, index 4)
     const cleanupCall = calls[4]
-    expect(cleanupCall.url).toContain('/api/conversations/RemoveComposeId')
-    const cleanupBody = JSON.parse(cleanupCall.init!.body as string)
+    expect(cleanupCall!.url).toContain('/api/conversations/RemoveComposeId')
+    const cleanupBody = JSON.parse(cleanupCall!.init!.body as string)
     expect(cleanupBody.composeId).toBe('WP-compose123')
   })
 
@@ -262,11 +262,11 @@ describe('sendNewMessage', () => {
     })
 
     // GetViewers should include organizationId
-    const viewersBody = JSON.parse(calls[1].init!.body as string)
+    const viewersBody = JSON.parse(calls[1]!.init!.body as string)
     expect(viewersBody.organizationId).toBe('WP-org1')
 
     // Send should include organizationId
-    const sendBody = JSON.parse(calls[3].init!.body as string)
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(sendBody.organizationId).toBe('WP-org1')
   })
 })

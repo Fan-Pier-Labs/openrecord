@@ -8,6 +8,11 @@
     "types": ["vite/client", "bun"],
 
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,

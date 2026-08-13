@@ -1,3 +1,6 @@
+/// <reference types="bun" />
+// ^ These run under `bun test`, not in the app: the reference pulls in
+// bun:test module declarations without adding Bun globals to the app config.
 import { describe, expect, test } from "bun:test";
 import {
   buildMemorySystemPrompt,
@@ -145,8 +148,8 @@ describe("parseExtractorResponse", () => {
     ]);
     const parsed = parseExtractorResponse(raw);
     expect(parsed).toHaveLength(2);
-    expect(parsed[0].text).toBe("morning headaches");
-    expect(parsed[1].category).toBe("lifestyle");
+    expect(parsed[0]!.text).toBe("morning headaches");
+    expect(parsed[1]!.category).toBe("lifestyle");
   });
 
   test("returns empty array for non-array responses", () => {
@@ -163,20 +166,20 @@ describe("parseExtractorResponse", () => {
     ]);
     const parsed = parseExtractorResponse(raw);
     expect(parsed).toHaveLength(2);
-    expect(parsed[0].text).toBe("ok");
-    expect(parsed[1].category).toBe("concern");
+    expect(parsed[0]!.text).toBe("ok");
+    expect(parsed[1]!.category).toBe("concern");
   });
 
   test("defaults missing category to 'fact'", () => {
     const raw = JSON.stringify([{ text: "no category" }]);
     const parsed = parseExtractorResponse(raw);
-    expect(parsed[0].category).toBe("fact");
+    expect(parsed[0]!.category).toBe("fact");
   });
 
   test("strips code fences", () => {
     const raw = "```json\n[{\"text\":\"hi\"}]\n```";
     const parsed = parseExtractorResponse(raw);
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].text).toBe("hi");
+    expect(parsed[0]!.text).toBe("hi");
   });
 });

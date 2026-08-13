@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: 200 })
+  })
   return req
 }
 
@@ -24,8 +24,8 @@ describe('getUpcomingOrders', () => {
       { body: '<input name="__RequestVerificationToken" value="t" />' },
       {
         body: JSON.stringify({
-          orders: [
-            {
+          orderList: {
+            'ORD-1': {
               orderName: 'CBC',
               orderType: 'Lab',
               status: 'Pending',
@@ -33,7 +33,7 @@ describe('getUpcomingOrders', () => {
               orderedByProvider: 'Dr. Smith',
               facilityName: 'Quest Diagnostics',
             },
-          ],
+          },
         }),
       },
     ])
@@ -53,7 +53,7 @@ describe('getUpcomingOrders', () => {
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ orders: [{}] }) },
+      { body: JSON.stringify({ orderList: { 'ORD-1': {} } }) },
     ])
 
     const result = await getUpcomingOrders(req)
@@ -70,7 +70,7 @@ describe('getUpcomingOrders', () => {
   it('handles empty orders list', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ orders: [] }) },
+      { body: JSON.stringify({ orderList: {} }) },
     ])
     expect(await getUpcomingOrders(req)).toEqual([])
   })

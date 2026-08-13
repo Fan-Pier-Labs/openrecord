@@ -7,7 +7,7 @@
  * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
-import { MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
+import { type MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
@@ -27,6 +27,7 @@ import {
   type CapabilityContext,
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
+import { TOTP } from "totp-generator";
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
@@ -66,10 +67,11 @@ const initialMemoryStarted = new Set<string>();
 function maybeKickoffInitialMemory(accountId: string): void {
   if (initialMemoryStarted.has(accountId)) return;
   initialMemoryStarted.add(accountId);
-  (async () => {
+  void (async () => {
     try {
       const existing = await getMemorySummary(accountId);
       if (existing) return;
+      // eslint-disable-next-line no-restricted-syntax -- deliberate cold-start deferral: keeps the AI client + memory module out of the initial bundle path
       const { buildInitialMemory } = await import("@/lib/memory/builder");
       await buildInitialMemory(accountId);
     } catch (err) {
@@ -160,7 +162,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
     if (result.state === "need_2fa") {
       // If we have a TOTP secret, auto-complete 2FA
       if (account.totpSecret) {
-        const { TOTP } = await import("totp-generator");
         const cleanSecret = account.totpSecret.replace(/\s+/g, "").toUpperCase();
         const { otp } = await TOTP.generate(cleanSecret);
 
@@ -221,7 +222,7 @@ export async function complete2fa(
   code: string,
 ): Promise<{ state: "logged_in" | "invalid_2fa" | "error" }> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "need_2fa") {
+  if (entry?.status !== "need_2fa") {
     return { state: "error" };
   }
 
@@ -247,7 +248,7 @@ export async function complete2fa(
  */
 export async function registerPasskey(accountId: string): Promise<boolean> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "logged_in") return false;
+  if (entry?.status !== "logged_in") return false;
   const credential = await setupPasskey(entry.request);
   if (!credential) return false;
   const serialized = serializeCredential(credential);
@@ -397,7 +398,7 @@ export async function executeAccountCapability(
   args: Record<string, unknown> = {},
 ): Promise<unknown> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "logged_in") {
+  if (entry?.status !== "logged_in") {
     throw new Error("That MyChart account is not connected. Connect it first, then try again.");
   }
   const capability = getCapability(capabilityId);
@@ -405,7 +406,10 @@ export async function executeAccountCapability(
   if (capability.kind !== "account") {
     throw new Error(`"${capabilityId}" is a data tool — run it through executeScraperTool.`);
   }
-  return capability.run(entry.request, args, contextFor(entry));
+  // executeCapability exempts `account`-kind from the patient assertion, so
+  // this is equivalent to calling `run` — but it keeps "no client reaches
+  // capability.run" absolute, leaving no direct-dispatch line to grow.
+  return executeCapability(entry.request, capability.id, args, contextFor(entry));
 }
 
 /** Get a logged-in session, connecting on demand, or throw with the reason. */
@@ -479,10 +483,7 @@ async function downloadImagingStudyAsAttachment(
 ): Promise<unknown> {
   let payload: StudyImagePayload;
   try {
-    payload = (await executeCapability(request, capability.id, {
-      ...input,
-      max_images: 1,
-    })) as StudyImagePayload;
+    payload = (await executeCapability(request, capability.id, input)) as StudyImagePayload;
   } catch (err) {
     return { error: `Could not download the image: ${(err as Error).message}` };
   }

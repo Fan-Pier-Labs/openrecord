@@ -6,6 +6,7 @@ import {
   runSwitchProxyTarget,
 } from '../proxyTools'
 import type { RequestConfig } from '../types'
+import { CAPABILITIES, executeCapability } from '../../../shared/capabilities'
 import { resetLogSink, silenceLogger } from '../../../shared/logger'
 
 beforeAll(() => {
@@ -72,7 +73,7 @@ function familyRequest(activeId: string) {
       })
     }
     if (config.url?.includes('switchcontext')) {
-      state.activeId = decodeURIComponent(config.url.split('eid=')[1])
+      state.activeId = decodeURIComponent(config.url.split('eid=')[1]!)
       return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
     }
     if (config.url?.endsWith('/MyChart/inside.asp')) {
@@ -333,5 +334,53 @@ describe('assertProxyReadContext', () => {
 
     await expect(assertProxyReadContext(a.req)).resolves.toBeUndefined()
     await expect(assertProxyReadContext(b.req)).rejects.toThrow(/currently on 'Bart Simpson'/)
+  })
+})
+
+/**
+ * The guard is only worth anything if every capability goes through it. The
+ * media capability is the one that historically didn't: two clients branched
+ * on `rendersMedia` before dispatching and called `capability.run` directly.
+ */
+describe('executeCapability applies the guard to every capability', () => {
+  const CHART_CAPABILITIES = CAPABILITIES.filter(
+    (c) => c.group !== 'Patients' && c.kind !== 'account',
+  )
+
+  it('covers the media capability, not just the JSON ones', () => {
+    // If this ever stops holding, the loop below is testing nothing.
+    expect(CHART_CAPABILITIES.some((c) => c.rendersMedia)).toBe(true)
+  })
+
+  it('refuses download_imaging_study while the portal is on another patient', async () => {
+    const { req } = familyRequest(CHILD_ID)
+
+    // Args are deliberately empty: the refusal has to come from the guard,
+    // before `run` gets far enough to complain about a missing image_id.
+    await expect(executeCapability(req, 'download_imaging_study', {})).rejects.toThrow(
+      /Refusing to read: MyChart is currently on 'Bart Simpson'/,
+    )
+  })
+
+  it('refuses every chart-touching capability the same way', async () => {
+    for (const capability of CHART_CAPABILITIES) {
+      const { req } = familyRequest(CHILD_ID)
+      await expect(executeCapability(req, capability.id, {})).rejects.toThrow(
+        /Refusing to read: MyChart is currently on 'Bart Simpson'/,
+      )
+    }
+  })
+
+  it('lets the media capability through once the portal is on the named patient', async () => {
+    const { req } = familyRequest(CHILD_ID)
+
+    // Past the guard, so the failure is now the capability's own — proof the
+    // assertion ran and passed rather than never having been reached.
+    const error = await executeCapability(req, 'download_imaging_study', { patient: 'Bart' })
+      .then(() => null, (err: unknown) => err as Error)
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error!.message).not.toContain('Refusing to read')
+    expect(error!.message).toMatch(/image_id|imaging_index|study/i)
   })
 })

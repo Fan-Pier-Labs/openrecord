@@ -32,16 +32,31 @@ When no subcommand is given, the CLI defaults to MyChart behavior.
 
 ## CLI Actions (MyChart)
 
-By default (no `--action` flag), the CLI scrapes all 30+ data categories in parallel. Specific actions:
+By default (no `--action` flag), the CLI scrapes every argument-free read
+capability in the registry and prints each result as JSON under its own
+header. The set is `FULL_SCRAPE_CAPABILITIES` in
+`npm-package/cli/capabilityActions.ts` — derived from `shared/capabilities.ts`,
+never hand-listed, so a read capability added to the registry is part of the
+default scrape the same day. Every category dispatches through
+`executeCapability`, so the full scrape gets the same active-patient guard as
+any single `--action`.
 
-- `--action send-message` — Send a new message to a care team provider
-- `--action send-reply --conversation-id <id> --message <text>` — Reply to an existing conversation
-- `--action delete-message --conversation-id <id>` — Delete a message/conversation
-- `--action request-refill` — Request a medication refill
-- `--action get-imaging` — Download imaging results (X-ray, MRI, CT, etc.) with report text, FDI context, and SAML viewer URLs
-- `--action get-thread --conversation-id <id>` — Get full message thread details
-- `--action keep-alive-test` — Ping /Home every 5 minutes to keep session alive; runs forever, prints status each ping
-- `--action list-proxies` — List the patient records this account can reach (its own, plus any it has proxy access to)
+Three actions are hand-written because they prompt interactively for their
+inputs:
+
+- `--action send-message` — Send a new message to a care team provider (prompts for topic and recipient; `--subject` / `--message` pre-fill those prompts)
+- `--action send-reply --conversation-id <id> --message <text>` — Reply to an existing conversation (prompts for whatever is omitted)
+- `--action keep-alive-test` — Ping KeepAlive every 30s to keep the session alive; runs until Ctrl+C
+
+The older dashed action names still work. Each resolves to the registry
+capability that replaced its hand-written handler and prints that capability's
+JSON:
+
+- `--action get-imaging` — Every imaging study, downloaded and decoded to JPEGs. A composite of `get_imaging_results` plus one `download_imaging_study` per study; images and the full metadata dump (`all-imaging.json`, reports included) land in `./imaging-output/<hostname>/`. `--output <dir>` overrides the base directory; `--save-clo` keeps the raw CLO bytes alongside the JPEGs
+- `--action get-thread --conversation-id <id>` — `get_message_thread`
+- `--action delete-message --conversation-id <id>` — `delete_message`
+- `--action request-refill --arg medication_name=<name>` — `request_refill`
+- `--action list-proxies` — `list_proxy_targets`
 
 ## Capabilities (`--action <capability-id>`)
 
@@ -54,12 +69,48 @@ entry, the mobile app offers one agent tool per entry, and the CLI gets one
 capability cannot exist in one and be missing from another.
 
 ```bash
+mychart-cli --help
+```
+
+```bash
 mychart-cli --list-capabilities
 ```
 
-Prints every capability grouped by area, with the arguments it takes. A `!`
-marks a command that changes something — a write to the chart, or the account's
-own sign-in settings.
+`--help` prints usage and every flag, then the capability listing;
+`--list-capabilities` prints the listing on its own. Capabilities are grouped by
+area, with the arguments each takes. A `!` marks a command that changes
+something — a write to the chart, or the account's own sign-in settings.
+
+### `--show-all`
+
+MyChart's surface is not evenly valuable. Labs, medications, visit notes and
+messages are the reason to connect an account; goals, education materials, care
+journeys, letters, the emergency-contact writes and the account's own sign-in
+settings are endpoints most charts leave empty and most callers never reach
+for. Listing all of them at equal weight buries the useful ones — a person
+skims past them, and a model picks a plausible-looking wrong tool out of the
+noise.
+
+So both listings show the commonly-used capabilities by default and name the
+count they held back:
+
+```
+  20 less-frequently-used capabilities are hidden. Show them with:
+      mychart-cli --list-capabilities --show-all
+```
+
+```bash
+mychart-cli --help --show-all
+```
+
+appends them under a **Less frequently used** heading rather than mixing them
+back in, so the default listing keeps its shape.
+
+**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities.ts`
+decides what a listing leads with and nothing else: a hidden capability is
+still registered in every client, still runs as `--action <id>`, and still
+takes the same arguments. Moving one in or out of the hidden set is a judgment
+call about usefulness, never a change to what the CLI can do.
 
 Arguments are supplied with repeated `--arg name=value`:
 
@@ -77,6 +128,19 @@ the capability ignoring the request. Missing required arguments and
 out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
+Capabilities that produce images (`rendersMedia` in the registry — today
+`download_imaging_study`) never print image bytes to the terminal.
+`download_imaging_study` downloads **every** image in the study; the CLI
+decodes each raw CLO image and writes it as a quality-100 JPEG into
+`./imaging-output` (override the directory with `--output <dir>`), and prints
+a JSON summary with each file's path and dimensions so the images can be
+opened straight from Finder:
+
+```bash
+mychart-cli --host mychart.example.org --action download_imaging_study \
+  --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
+```
+
 Every chart-touching capability also accepts `--arg patient="<name>"`, the same
 assertion `--patient` applies to the rest of the CLI: the call refuses if
 MyChart is on a different record rather than reading the wrong chart. The
@@ -92,17 +156,11 @@ perform, and they read and write the CLI's own TOTP and passkey stores.
 ## Proxy (Multi-Patient) Records
 
 Some MyChart accounts can see more than one patient's chart — a parent reading a
-child's record. `--action list-proxies` shows what's reachable:
-
-```
-  * Homer Jay Simpson  (your own record)
-      --patient "Homer Jay Simpson"
-    Bart Simpson
-      --patient "Bart Simpson"
-```
-
-`*` marks the record the portal currently has active; `?` means the portal does
-not report which one is active.
+child's record. `--action list-proxies` (the `list_proxy_targets` capability)
+shows what's reachable as JSON: a `patients` list with each record's `name`,
+`is_self` and `is_active`, plus `active_patient` naming the record data reads
+currently return. `is_active: null` means the portal does not report which
+record is active.
 
 ### Reading a chart: `--patient`
 

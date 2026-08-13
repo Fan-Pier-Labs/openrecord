@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -7,18 +7,19 @@ export type EhiTemplate = {
   id: string;
   name: string;
   description: string;
-  format: string;
 }
 
 type EhiTemplateResponse = {
   id?: string;
   name?: string;
   description?: string;
-  format?: string;
 }
 
+// Real responses key the list as `ehieTemplates`. (An earlier version read a
+// `templates` key that only the fake served, so this scraper returned nothing
+// against every real instance.)
 type GetEhiTemplatesResponse = {
-  templates?: EhiTemplateResponse[];
+  ehieTemplates?: EhiTemplateResponse[];
 }
 
 export async function getEhiExportTemplates(mychartRequest: MyChartRequest): Promise<EhiTemplate[]> {
@@ -43,10 +44,9 @@ export async function getEhiExportTemplates(mychartRequest: MyChartRequest): Pro
 
   const json: GetEhiTemplatesResponse = await resp.json();
 
-  return (json.templates || []).map((t: EhiTemplateResponse) => ({
+  return (json.ehieTemplates || []).map((t: EhiTemplateResponse) => ({
     id: t.id || '',
     name: t.name || '',
     description: t.description || '',
-    format: t.format || '',
   }));
 }

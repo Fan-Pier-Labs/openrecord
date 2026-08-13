@@ -18,7 +18,10 @@ import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
+import { isLegacyEpicVersion } from '@/lib/epicVersion';
 import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
+import { conformToShape } from '@/lib/shape';
+import * as shapes from '@/data/realShapes';
 
 import crypto from 'crypto';
 
@@ -104,7 +107,11 @@ function proxySwitchEnvelope(list: ReturnType<typeof proxySubjectList>) {
     ShouldTryAgain: false,
     ShowPersonalInformation: true,
     ShowAccountSettings: true,
-    AvailableLanguageList: [],
+    // Real instances list the languages the deployment offers; every capture
+    // carried at least English with IsSelected on the active one.
+    AvailableLanguageList: [
+      { DisplayText: 'English', IsSelected: true, Name: 'English' },
+    ],
     CurrentlySelectedTabColor: 0,
   };
 }
@@ -151,10 +158,14 @@ function activeEmergencyContacts(request: NextRequest): typeof homer.emergencyCo
     ? resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')))
     : null;
   const recordId = active?.id ?? user?.selfProxyId ?? '';
-  if (!state.emergencyContactsByRecord[recordId]) {
-    state.emergencyContactsByRecord[recordId] = { relationships: [] };
-  }
-  return state.emergencyContactsByRecord[recordId];
+  const existing = state.emergencyContactsByRecord[recordId];
+  if (existing) return existing;
+  const created: typeof homer.emergencyContacts = {
+    ...JSON.parse(JSON.stringify(homer.emergencyContacts)),
+    contacts: [],
+  };
+  state.emergencyContactsByRecord[recordId] = created;
+  return created;
 }
 
 /**
@@ -273,6 +284,54 @@ function requireSession(request: NextRequest): NextResponse | null {
   return null;
 }
 
+/**
+ * ASP.NET's error surface, as observed live on three instances.
+ *
+ * A request the server can't route or refuses (unknown `/api/*` path, an API
+ * POST missing its `__RequestVerificationToken`) does NOT get a tidy JSON
+ * error. On November 2025 instances (two of three) it gets ASP.NET's classic redirect
+ * dance: 302 to `/Home/FourOhFour?aspxerrorpath=<path>` (unknown path) or
+ * `/Home/FiveHundred?aspxerrorpath=<path>` (server error), each of which 302s
+ * on to `/Home/Error?code=14`, which renders a 200 HTML error page. On the
+ * August 2025 instance the same failures answer a bare 500 HTML error page with no
+ * redirect. `POST /mode {"epicVersion":"August 2025"}` selects the second shape.
+ */
+const ERROR_PAGE_HTML = `<!DOCTYPE html><html><head><title>Error</title></head><body>
+<h1>An error has occurred.</h1>
+<p>We're sorry, but something went wrong. Please try again later.</p>
+</body></html>`;
+
+function aspNetFailure(request: NextRequest, kind: 'fourohfour' | 'fivehundred', failedPath: string): NextResponse {
+  if (isLegacyEpicVersion()) {
+    return html(ERROR_PAGE_HTML, 500);
+  }
+  const page = kind === 'fourohfour' ? 'FourOhFour' : 'FiveHundred';
+  const target = `${mountPrefix()}/Home/${page}?aspxerrorpath=${encodeURIComponent(`${mountPrefix()}/${failedPath}`)}`;
+  return NextResponse.redirect(new URL(target, publicBaseUrl(request)), 302);
+}
+
+/**
+ * The November 2025 release (two of the three captured instances) attaches
+ * three extra fields to every test result: `canGenerateLLMSummary`,
+ * `feedbackSubmitted` and `isBedsideTablet`. August 2025 omits them entirely,
+ * so they ride on the epicVersion knob rather than living in the shape
+ * templates.
+ */
+function withModernResultFields(payload: unknown): unknown {
+  if (isLegacyEpicVersion()) return payload;
+  const trio = { canGenerateLLMSummary: false, feedbackSubmitted: false, isBedsideTablet: false };
+  const p = payload as Record<string, unknown>;
+  if (Array.isArray(p?.results)) {
+    p.results = p.results.map((r: Record<string, unknown>) => ({ ...trio, ...r }));
+  }
+  if (p?.newResults && typeof p.newResults === 'object') {
+    for (const [k, v] of Object.entries(p.newResults as Record<string, unknown>)) {
+      (p.newResults as Record<string, unknown>)[k] = { ...trio, ...(v as Record<string, unknown>) };
+    }
+  }
+  return p;
+}
+
 function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
 }
@@ -352,8 +411,28 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   // keepalive endpoints are the one exception: they answer "0" instead of
   // redirecting, which is the contract MyChart's own JS (and sessionStore's
   // pinger) relies on.
-  if (lower === 'home/keepalive' || lower === 'keepalive.asp') {
-    return new NextResponse(validateSession(request.headers.get('cookie')) ? '1' : '0');
+  // Real instances serve both keepalives as text/html (not text/plain). On
+  // November 2025 instances keepalive.asp answers "0" even for a live session —
+  // /Home/KeepAlive tells the truth, which sessionStore.ts already knows.
+  if (lower === 'home/keepalive') {
+    return new NextResponse(validateSession(request.headers.get('cookie')) ? '1' : '0', {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+  if (lower === 'keepalive.asp') {
+    const alive = validateSession(request.headers.get('cookie'));
+    const body = isLegacyEpicVersion() ? (alive ? '1' : '0') : '0';
+    return new NextResponse(body, { headers: { 'Content-Type': 'text/html' } });
+  }
+
+  // ASP.NET's error surface renders without a session — a client bounced to
+  // FourOhFour/FiveHundred mid-failure is often exactly one whose request was
+  // rejected before authentication was consulted.
+  if (lower === 'home/fourohfour' || lower === 'home/fivehundred') {
+    return NextResponse.redirect(new URL(`${mountPrefix()}/Home/Error?code=14`, publicBaseUrl(request)), 302);
+  }
+  if (lower === 'home/error') {
+    return html(ERROR_PAGE_HTML);
   }
   {
     const redirect = requireSession(request);
@@ -467,15 +546,15 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   }
 
   if (lower.startsWith('billing/details/getvisits')) {
-    return json(ds.billingVisits);
+    return json(conformToShape(shapes.billingGetVisits, ds.billingVisits));
   }
 
   if (lower.startsWith('billing/details/getstatementlist')) {
-    return json(ds.billingStatements);
+    return json(conformToShape(shapes.getStatementList, ds.billingStatements));
   }
 
   if (lower.startsWith('billing/details/loadpaymentlist')) {
-    return json(ds.billingPayments);
+    return json(conformToShape(shapes.loadPaymentList, ds.billingPayments));
   }
 
   if (lower.startsWith('billing/details/downloadfromblob')) {
@@ -563,6 +642,12 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
     return html(genericTokenPage('MyChart'));
   }
 
+  // An unknown /api/* path is an error on real instances, never a page:
+  // ASP.NET's FourOhFour dance on November 2025 instances, a bare 500 on August 2025.
+  if (lower.startsWith('api/')) {
+    return aspNetFailure(request, 'fourohfour', joined);
+  }
+
   // Fallback: return a token page for any unknown GET
   return html(genericTokenPage('MyChart'));
 }
@@ -584,6 +669,15 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   // Authentication/* stays open — DoLogin, 2FA, terms acceptance and the
   // passkey challenge ARE the login flow.
   if (!lower.startsWith('authentication/')) {
+    // CSRF before authentication, exactly as observed live: an /api/* POST
+    // with no __RequestVerificationToken header is rejected with the ASP.NET
+    // error surface (FiveHundred redirect on November 2025
+    // instances, bare 500 on August 2025) even when no session was presented at all. Only a request that
+    // clears the token check falls through to the login-redirect the
+    // expired-session detector in makeAuthenticatedRequest.ts relies on.
+    if (lower.startsWith('api/') && !request.headers.get('__requestverificationtoken')) {
+      return aspNetFailure(request, 'fivehundred', joined);
+    }
     const redirect = requireSession(request);
     if (redirect) return redirect;
   }
@@ -729,9 +823,12 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   // ── JSON API endpoints ────────────────────────────────────────
+  // Every fixture-backed response is conformed to the field set observed on
+  // real instances (realShapes.ts): fields the fixture curates win, fields it
+  // omits are present with the neutral value a real instance defaults to.
   // Medications
   if (lower === 'api/medications/loadmedicationspage') {
-    return json(ds.medications);
+    return json(conformToShape(shapes.loadMedicationsPage, ds.medications));
   }
   if (lower === 'api/medications/requestrefill') {
     return json({ success: true });
@@ -739,30 +836,30 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // Allergies
   if (lower === 'api/allergies/loadallergies') {
-    return json(ds.allergies);
+    return json(conformToShape(shapes.loadAllergies, ds.allergies));
   }
 
   // Immunizations
   if (lower === 'api/immunizations/loadimmunizations') {
-    return json(ds.immunizations);
+    return json(conformToShape(shapes.loadImmunizations, ds.immunizations));
   }
 
   // Health Issues
   if (lower === 'api/healthissues/loadhealthissuesdata') {
-    return json(ds.healthIssues);
+    return json(conformToShape(shapes.loadHealthIssuesData, ds.healthIssues));
   }
 
   // Health Summary
   if (lower === 'api/health-summary/fetchhealthsummary') {
-    return json(ds.healthSummary);
+    return json(conformToShape(shapes.fetchHealthSummary, ds.healthSummary));
   }
   if (lower === 'api/health-summary/fetchh2gheader') {
-    return json(ds.healthSummaryHeader);
+    return json(conformToShape(shapes.fetchH2GHeader, ds.healthSummaryHeader));
   }
 
   // Vitals / Flowsheets — two-call contract (definitions, then readings)
   if (lower === 'api/track-my-health/getflowsheets') {
-    return json(ds.vitals);
+    return json(conformToShape(shapes.getFlowsheets, ds.vitals));
   }
   if (lower === 'api/track-my-health/getflowsheetreadings') {
     // Real MyChart pages backwards through history: it returns readings at or
@@ -779,20 +876,19 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     const page = instants.slice(0, numReadings);
     const pageSet = new Set(page);
 
-    return json({
+    return json(conformToShape(shapes.getFlowsheetReadings, {
       ...ds.vitalsReadings,
       flowsheet: {
         ...ds.vitalsReadings.flowsheet,
         readings: inRange.filter((r) => pageSet.has(r.instantTakenIso)),
         hasMoreData: instants.length > page.length,
-        nextReadingDateIso: instants[page.length] || '',
       },
-    });
+    }));
   }
 
   // Medical History
   if (lower === 'api/histories/loadhistoriesviewmodel') {
-    return json(ds.medicalHistory);
+    return json(conformToShape(shapes.loadHistoriesViewModel, ds.medicalHistory));
   }
 
   // Care Journeys
@@ -802,30 +898,32 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // Goals
   if (lower === 'api/goals/loadcareteamgoals') {
-    return json(ds.careTeamGoals);
+    return json(conformToShape(shapes.loadCareTeamGoals, ds.careTeamGoals));
   }
   if (lower === 'api/goals/loadpatientgoals') {
-    return json(ds.patientGoals);
+    return json(conformToShape(shapes.loadPatientGoals, ds.patientGoals));
   }
 
   // Letters
   if (lower === 'api/letters/getletterslist') {
-    return json(ds.letters);
+    return json(conformToShape(shapes.getLettersList, ds.letters));
   }
   if (lower === 'api/letters/getletterdetails') {
+    // Real instances answer an unknown hnoId with a literal JSON null body,
+    // not an error status and not a placeholder document.
     try {
       const body = await request.json();
       const details = ds.letterDetails[body.hnoId];
       if (details) return json(details);
-      return json({ bodyHTML: '<p>Letter not found</p>' });
+      return json(null);
     } catch {
-      return json({ bodyHTML: '<p>Letter not found</p>' });
+      return json(null);
     }
   }
 
   // Referrals
   if (lower === 'api/referrals/listreferrals') {
-    return json(ds.referrals);
+    return json(conformToShape(shapes.listReferrals, ds.referrals));
   }
 
   // Documents
@@ -833,29 +931,29 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     return json(ds.documents);
   }
 
-  // Education
+  // Education. Real instances return a bare ARRAY of titles, not an object.
   if (lower === 'api/education/getpateducationtitles') {
-    return json(ds.educationMaterials);
+    return json(conformToShape(shapes.getPatEducationTitles, ds.educationMaterials));
   }
 
   // Emergency Contacts. Per-patient in real MyChart, and mutable, so they're
   // keyed by record id rather than living in the immutable dataset — a child's
   // chart must not list the account holder's contacts.
   if (lower === 'api/personalinformation/getrelationships') {
-    return json(activeEmergencyContacts(request));
+    return json(conformToShape(shapes.getRelationships, activeEmergencyContacts(request)));
   }
   if (lower === 'api/personalinformation/addrelationship') {
     try {
       const body = await request.json();
       state.ecIdCounter++;
-      const newContact = {
-        id: `EC-${state.ecIdCounter}`,
-        name: body.name || '',
-        relationshipType: body.relationshipType || '',
-        phoneNumber: body.phoneNumber || '',
-        isEmergencyContact: body.isEmergencyContact ?? true,
-      };
-      activeEmergencyContacts(request).relationships.push(newContact);
+      const newContact = homer.makeEmergencyContact(
+        `EC-${state.ecIdCounter}`,
+        body.name || '',
+        body.relationshipType || '',
+        body.phoneNumber || '',
+        body.isEmergencyContact ?? true,
+      );
+      activeEmergencyContacts(request).contacts.push(newContact);
       return json({ success: true, id: newContact.id });
     } catch {
       return json({ error: 'Invalid request' }, 400);
@@ -864,13 +962,20 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/personalinformation/updaterelationship') {
     try {
       const body = await request.json();
-      const contacts = activeEmergencyContacts(request);
-      const idx = contacts.relationships.findIndex(
-        (r: { id?: string; name?: string }) => r.id === body.id || r.name === body.id
+      const store = activeEmergencyContacts(request);
+      const idx = store.contacts.findIndex(
+        (r) => r.id === body.id || r.formattedName === body.id
       );
-      if (idx === -1) return json({ error: 'Contact not found' }, 404);
-      const existing = contacts.relationships[idx];
-      contacts.relationships[idx] = { ...existing, ...body };
+      const existing = idx === -1 ? undefined : store.contacts[idx];
+      if (!existing) return json({ error: 'Contact not found' }, 404);
+      if (body.name) existing.formattedName = body.name;
+      if (body.relationshipType) {
+        existing.relationToPatient = { ...existing.relationToPatient, name: body.relationshipType, labelText: body.relationshipType };
+      }
+      if (body.phoneNumber) {
+        existing.contactInformation.phoneNumbers = [{ phoneNumber: body.phoneNumber, type: 'Home' }];
+      }
+      if (body.isEmergencyContact !== undefined) existing.isEmergencyContact = body.isEmergencyContact;
       return json({ success: true });
     } catch {
       return json({ error: 'Invalid request' }, 400);
@@ -879,9 +984,9 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/personalinformation/removerelationship') {
     try {
       const body = await request.json();
-      const contacts = activeEmergencyContacts(request);
-      contacts.relationships = contacts.relationships.filter(
-        (r: { id?: string; name?: string }) => r.id !== body.id && r.name !== body.id
+      const store = activeEmergencyContacts(request);
+      store.contacts = store.contacts.filter(
+        (r) => r.id !== body.id && r.formattedName !== body.id
       );
       return json({ success: true });
     } catch {
@@ -889,60 +994,91 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  // Upcoming Orders
+  // Upcoming Orders. Real instances answer with keyed maps (orderList,
+  // orderGroupList, providerList), never a bare array.
   if (lower === 'api/upcoming-orders/getupcomingorders') {
-    return json(ds.upcomingOrders);
+    return json(conformToShape(shapes.getUpcomingOrders, ds.upcomingOrders));
   }
 
   // EHI Export
   if (lower === 'api/release-of-information/getehietemplates') {
-    return json(ds.ehiExport);
+    return json(conformToShape(shapes.getEhiETemplates, ds.ehiExport));
   }
 
   // Activity Feed
   if (lower === 'api/item-feed/fetchitemfeed') {
-    return json(ds.activityFeed);
+    return json(conformToShape(shapes.fetchItemFeed, ds.activityFeed));
   }
 
-  // Test Results / Labs
+  // Test Results / Labs.
+  //
+  // Real instances (all three captured) accept only groupType 0 and 1, and
+  // both return ONE combined list holding every result kind — labs, imaging
+  // and procedures together. Any other groupType is a 500 with the classic
+  // ASP.NET Web API `{"Message": "An error has occurred."}` body. There is no
+  // imaging-only groupType; the old fake invented one.
   if (lower === 'api/test-results/getlist') {
+    let groupType: unknown = 0;
     try {
-      const body = await request.json();
-      // groupType 2 or 3 may return imaging results
-      if (body.groupType === 2) {
-        return json(ds.imagingLabResultsList);
-      }
-    } catch { /* fall through */ }
-    return json(ds.labResultsList);
+      groupType = (await request.json()).groupType;
+    } catch { /* treat as default */ }
+    if (groupType !== 0 && groupType !== 1) {
+      return json({ Message: 'An error has occurred.' }, 500);
+    }
+    const combined = {
+      ...ds.labResultsList,
+      newResultGroups: [
+        ...ds.labResultsList.newResultGroups,
+        ...ds.imagingLabResultsList.newResultGroups,
+      ],
+      newResults: {
+        ...ds.labResultsList.newResults,
+        ...ds.imagingLabResultsList.newResults,
+      },
+      newProviderPhotoInfo: {
+        ...ds.labResultsList.newProviderPhotoInfo,
+        ...ds.imagingLabResultsList.newProviderPhotoInfo,
+      },
+    };
+    return json(withModernResultFields(conformToShape(shapes.testResultList, combined)));
   }
   if (lower === 'api/test-results/getdetails') {
+    let orderKey = '';
     try {
-      const body = await request.json();
-      if (body.orderKey === 'GRP-XRAY') {
-        return json(ds.imagingLabResultDetails);
-      }
-      if (body.orderKey === 'GRP-CT') {
-        return json(ds.ctLabResultDetails);
-      }
-      if (body.orderKey === 'GRP-CMP') {
-        return json(ds.cmpLabResultsDetails);
-      }
-      if (body.orderKey === 'GRP-CBC') {
-        return json(ds.cbcLabResultsDetails);
-      }
-    } catch { /* fall through */ }
-    return json(ds.labResultsDetails);
+      orderKey = (await request.json()).orderKey ?? '';
+    } catch { /* fall through to the empty shell */ }
+    const byKey: Record<string, unknown> = {
+      'GRP-XRAY': ds.imagingLabResultDetails,
+      'GRP-CT': ds.ctLabResultDetails,
+      'GRP-CMP': ds.cmpLabResultsDetails,
+      'GRP-LIPID': ds.labResultsDetails,
+      'GRP-CBC': ds.cbcLabResultsDetails,
+    };
+    // Real instances answer an unknown orderKey with a 200 whose envelope is
+    // fully formed but EMPTY — blank orderName/key, one result with no name,
+    // no components — never an error and never someone else's order.
+    const fixture = byKey[orderKey] ?? { orderName: '', key: '', results: [{}] };
+    return json(withModernResultFields(conformToShape(shapes.testResultDetails, fixture)));
   }
   if (lower === 'api/past-results/getmultiplehistoricalresultcomponents') {
-    return json({ historicalResults: [] });
+    // Real shape: historicalResults is a MAP keyed by component id (plus the
+    // component ordering and report id), not a list.
+    let orderID = '';
+    try {
+      orderID = (await request.json()).orderID ?? '';
+    } catch { /* fall through */ }
+    const data = ds.historicalResultsByOrder[orderID]
+      ?? { historicalResults: {}, orderedComponentIDs: [], reportID: '', shouldShowBedsideActiveView: false };
+    return json(conformToShape(shapes.getMultipleHistoricalResultComponents, data));
   }
   if (lower === 'api/visit-notes/getvisitnotes') {
+    // Real instances answer an unknown CSN with a literal JSON null body.
     try {
       const body = await request.json();
       const data = ds.visitNotesByCsn[body.CSN];
-      if (data) return json(data);
+      if (data) return json(conformToShape(shapes.getVisitNotes, data));
     } catch { /* fall through */ }
-    return json({ lrpID: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, noteList: [] });
+    return json(null);
   }
   if (lower === 'api/report-content/loadreportcontent') {
     try {
@@ -950,22 +1086,22 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       // Clinical note content (see getNoteContent in scrapers/myChart/notes/notes.ts).
       if (body.reportMnemonic === 'OPEN_NOTES') {
         const note = ds.noteContent[body.contextID];
-        if (note) return json(note);
+        if (note) return json(conformToShape(shapes.loadReportContent, note));
       }
       // After Visit Summary (see getVisitAVS in scrapers/myChart/notes/notes.ts).
       else if (body.reportMnemonic === 'AMB_AVS') {
         const avs = ds.avsByCsn[body.csn];
-        if (avs) return json(avs);
+        if (avs) return json(conformToShape(shapes.loadReportContent, avs));
       }
       // Imaging report bodies (existing).
       else if (body.reportID === 'RPT-XRAY-001') {
-        return json(ds.imagingReportContent);
+        return json(conformToShape(shapes.loadReportContent, ds.imagingReportContent));
       }
       else if (body.reportID === 'RPT-CT-001') {
-        return json(ds.ctReportContent);
+        return json(conformToShape(shapes.loadReportContent, ds.ctReportContent));
       }
     } catch { /* fall through */ }
-    return json({ reportContent: '', reportCss: '' });
+    return json(conformToShape(shapes.loadReportContent, { reportContent: '', reportCss: '' }));
   }
 
   // ── FdiData (bridge from MyChart to eUnity) ───────────────────
@@ -983,7 +1119,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       forwardedHost ||
       (hostHeader && !isLocalHost(hostHeader) ? hostHeader : null) ||
       url.host;
-    const hostName = host.split(':')[0];
+    const hostName = host.split(':')[0] ?? host;
     const isExternal = !isLocalHost(host) && hostName.includes('.');
     const proto = isExternal
       ? 'https'
@@ -1001,16 +1137,16 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── Visits ────────────────────────────────────────────────────
   if (lower.startsWith('visits/visitslist/loadupcoming')) {
-    return json(ds.upcomingVisits);
+    return json(conformToShape(shapes.visitsLoadUpcoming, ds.upcomingVisits));
   }
   if (lower.startsWith('visits/visitslist/loadpast')) {
     const serializedIndex = new URL(request.url).searchParams.get('serializedIndex');
-    return json(buildPastVisitsPage(ds, serializedIndex));
+    return json(conformToShape(shapes.visitsLoadPast, buildPastVisitsPage(ds, serializedIndex)));
   }
 
   // ── Messages / Conversations (mutable state) ──────────────────
   if (lower === 'api/conversations/getconversationlist') {
-    return json(activeConversations(request));
+    return json(conformToShape(shapes.getConversationList, activeConversations(request)));
   }
   if (lower === 'api/conversations/getconversationmessages') {
     try {
@@ -1075,10 +1211,10 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── Medical Advice Requests (new message compose) ─────────────
   if (lower === 'api/medicaladvicerequests/getsubtopics') {
-    return json(ds.subtopics);
+    return json(conformToShape(shapes.getSubTopics, ds.subtopics));
   }
   if (lower === 'api/medicaladvicerequests/getmedicaladvicerequestrecipients') {
-    return json(ds.messageRecipients);
+    return json(conformToShape(shapes.getMedicalAdviceRequestRecipients, ds.messageRecipients));
   }
   if (lower === 'api/medicaladvicerequests/getviewers') {
     return json(ds.messageViewers);
@@ -1178,12 +1314,12 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── Contact Information ───────────────────────────────────────
   if (lower.startsWith('personalinformation/getcontactinformation')) {
-    return json(ds.contactInfo);
+    return json(conformToShape(shapes.getContactInformation, ds.contactInfo));
   }
 
   // ── Linked Accounts ───────────────────────────────────────────
   if (lower.startsWith('community/shared/loadcommunitylinks')) {
-    return json(ds.linkedAccounts);
+    return json(conformToShape(shapes.loadCommunityLinks, ds.linkedAccounts));
   }
 
   // ── Questionnaires ────────────────────────────────────────────
@@ -1325,6 +1461,10 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── Fallback ──────────────────────────────────────────────────
   console.log(`[fake-mychart] Unhandled POST: /MyChart/${joined}`);
+  // An unknown /api/* path gets ASP.NET's error surface on real instances.
+  if (lower.startsWith('api/')) {
+    return aspNetFailure(request, 'fourohfour', joined);
+  }
   return json({ error: 'Not implemented', path: joined }, 404);
 }
 

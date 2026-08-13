@@ -13,6 +13,7 @@ scrapers/
     login.ts                   mount discovery + username/password + 2FA + passkey login
     makeAuthenticatedRequest.ts every post-login call goes through here
     silentLogin.ts             non-interactive re-login ladder
+    sessionRenewal.ts          renewMyChartSession — single-flight renewal, a leaf module
     sessionStore.ts            keepalive heartbeats
     proxyContext.ts            multi-patient (proxy) switching primitives
     proxyTools.ts              thin client layer over proxyContext
@@ -25,7 +26,7 @@ shared/
   capabilities.ts              the capability registry (see 02)
   hostConcurrency.ts           per-host request permit
   resolveUnique.ts             name → object lookup
-  base64url.ts  logger.ts  telemetry.ts  accounts.ts  env.ts  updateCheck.ts
+  base64url.ts  logger.ts  telemetry.ts  env.ts  updateCheck.ts  util.ts
 read-local-passwords/          Chrome/Arc/Firefox password store extraction (CLI only)
 ```
 
@@ -103,6 +104,17 @@ fresh. If nothing on the ladder can run without a human, the wrapper throws a ty
 A heartbeat that finds the session dead renews proactively through the same hook before
 marking the session expired.
 
+**The renewal engine is its own leaf module.** `sessionRenewal.ts` holds
+`renewMyChartSession(request)` — the single-flight guard (a `WeakMap` keyed on the request
+object) plus the retry — and imports nothing else from the scraper layer. Both
+`makeAuthenticatedRequest` and `sessionStore` depend on it statically. It exists because those
+two previously reached for each other through `import()` calls with eslint disables on them,
+and `makeAuthenticatedRequest` did the same to `proxyContext`. What made the untangle possible
+is that everything renewal needs now rides on the request object itself: the `reauthenticate`
+hook, plus `restoreProxyContext`, which `proxyContext` arms via `recordActiveTarget()`.
+`renewMyChartSession` is re-exported from `makeAuthenticatedRequest`, so the npm surface is
+unchanged.
+
 ## Rate limiting
 
 ```mermaid
@@ -169,9 +181,9 @@ flowchart LR
     EUN[("eUnity server<br/>AMF3 protocol")]
     DL["<code>eunity/imagingDirectDownload.ts</code>"]
     CLO["raw CLO bytes"]
-    DEC["<code>clo_to_bitmap.ts</code><br/>pure TypeScript, no sharp"]
+    DEC["<code>convertCloToBitmap</code> / <code>…Bitmap16</code><br/><code>clo_to_bitmap.ts</code> — pure TS, no sharp"]
     BMP["<code>Bitmap</code> (8-bit)<br/><code>Bitmap16</code> (16-bit)<br/><i>apply your own VOI LUT here</i>"]
-    EXP["<code>exporters/</code><br/>toJpg · toPng · toWebp · toAvif · toTiff"]
+    EXP["<code>exporters/</code><br/>convertBitmap16ToJpg · …ToPng · …ToWebp<br/>…ToAvif · …ToTiff · convertCloToJpgPureJs"]
     OUT["encoded image"]
 
     EUN --> DL --> CLO --> DEC --> BMP --> EXP --> OUT
@@ -186,7 +198,7 @@ send:
 | Seam | Scope | Used by |
 | --- | --- | --- |
 | `setTestTransport(fn)` | process-wide — **clear it in `afterEach`** | `loginFlow.unit.test.ts` |
-| `req.transport = fn` | one session; null in production | `__tests__/mockMyChartRequest.ts` |
+| `req.transport = fn` | one session; null in production | `myChart/__tests__/mockMyChartRequest.ts` |
 
 Anything wrapping `req.transport` must call `platformFetch`, not the old value — binding
 the old value once broke the whole 750-host mount-discovery sweep and nothing else caught

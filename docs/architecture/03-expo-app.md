@@ -27,17 +27,25 @@ expo-app/src/
       tool-executor.ts          confirmation gating, then dispatch
       title-generator.ts
     scrapers/session-manager.ts connect / 2FA / passkey / dispatch every capability
+      tool-executor.ts          confirmation gating, then dispatch
+    scrapers/session-manager.ts connect / 2FA / passkey / dispatch every capability
     storage/
-      database.ts               SQLite: chats, messages, alerts, insights,
-                                memory_summary, memory_sync_state
+      schema.ts                 SCHEMA_SQL — the whole DDL, in its own module so the
+                                schema test can run it against bun:sqlite
+      database.ts               opens openrecord.db and execs SCHEMA_SQL; query helpers
       secure-store.ts           MyChart accounts, API keys, model + provider choice
     backend/                    Google sign-in, backend session, AI Lambda client
-    memory/                     background digest builder
-    alerts/                     background alert generator
+    memory/                     builder.ts, chat-extractor.ts — background digest
+    alerts/generator.ts         background alert generator
     imaging/                    CLO → JPEG on device, attachment store
     skills/                     skill playbooks
-    shims/                      Node-API shims so the scrapers run under Hermes
+expo-app/shims/                 fs-empty.js, zlib-pako.js, telemetry-noop.ts
+expo-app/metro.config.js        where Node builtins actually get resolved
 ```
+
+Tables in `schema.ts`: `chats`, `messages`, `alerts`, `memory_summary`, `insights`,
+`memory_sync_state`. Every statement is `CREATE TABLE IF NOT EXISTS` on purpose — `alerts`
+was once a `DROP TABLE` + bare `CREATE`, which wiped `dismissed_at` on every launch.
 
 ## Runtime shape
 
@@ -50,7 +58,7 @@ flowchart TB
         EXECU["<code>tool-executor.ts</code><br/>write ⇒ native confirm dialog"]
         SM["<code>session-manager.ts</code><br/>one MyChartRequest per account"]
         CORE["shared scraper core<br/>+ <code>executeCapability</code>"]
-        SHIM["<code>lib/shims/</code><br/>fs · path · os · crypto · child_process<br/>tough-cookie · sqlite"]
+        SHIM["<code>metro.config.js</code> resolution<br/>real polyfills for crypto · path · os · zlib<br/>empty shim for fs · child_process · net"]
         DB[("SQLite<br/>chats · messages · alerts<br/>insights · memory")]
         SEC[("SecureStore<br/>credentials · passkeys<br/>TOTP secrets · API keys")]
         JOBS["background jobs<br/>memory builder · alert generator"]
@@ -72,8 +80,18 @@ flowchart TB
     EXECU -.write tools.-> UI
 ```
 
-The shims are what let unmodified scraper code run under Hermes — the scrapers import
-`fs`, `path`, `crypto` and friends, and Metro resolves those to the shim implementations.
+**Running unmodified scraper code under Hermes is a Metro-config problem, not a source-tree
+one** — there is deliberately no shim layer inside `src/`. `metro.config.js` does all of it:
+`resolverMainFields` / `unstable_conditionNames` make packages like cheerio pick their browser
+build, and `resolver.extraNodeModules` maps each Node builtin either to a real polyfill
+(`crypto` → `react-native-quick-crypto`, `path` → `path-browserify`, `os` →
+`os-browserify/browser`, `stream` → `readable-stream`, `zlib` → the pako-backed
+`shims/zlib-pako.js` the CLO parser needs) or, for the ones no code path actually calls at
+runtime (`fs`, `net`, `tls`, `child_process`, …), to the empty `shims/fs-empty.js`. A custom
+`resolveRequest` strips the `node:` prefix and swaps `shared/telemetry` for
+`shims/telemetry-noop.ts`, which is server-only. `tough-cookie` and `expo-sqlite` are ordinary
+dependencies — neither is shimmed.
+
 `http.ts`'s `PLATFORM_OWNS_COOKIES` check (two signals: `navigator.product` and whether
 `expo/fetch` resolved) is the other half of that story; getting it wrong on device is a
 silently broken session, not a crash.
@@ -174,5 +192,6 @@ by `expo-app/src/__tests__/testids.unit.test.ts`, which scans every `.tsx` under
 `src/app` and `src/components`. `tool-catalog.ts` is deliberately kept free of React Native
 imports so the parity and catalog tests can import it in plain Bun.
 
-UI automation goes through `maestro-cli` against a session-dedicated simulator — see the
-root `CLAUDE.md` for the recipe.
+UI automation goes through `maestro-cli` against a session-dedicated simulator — see
+[`docs/ios-simulator.md`](../ios-simulator.md) for the recipe. CI additionally smokes the
+Android build; see [06](06-supporting-services.md).

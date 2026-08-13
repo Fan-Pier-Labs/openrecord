@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import {
   createCredential,
@@ -129,7 +129,7 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   }
 
   const creationOptions: MyChartCreationOptions = createReqResult.data || createReqResult.Data;
-  if (!creationOptions || !creationOptions.challenge) {
+  if (!creationOptions?.challenge) {
     logger.debug('  Invalid creation options — no challenge in the response.');
     return null;
   }

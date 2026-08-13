@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { initDatabase } from "@/lib/storage/database";
@@ -41,11 +42,15 @@ function RootLayoutNav() {
           return now - last >= REFRESH_INTERVAL_MS;
         });
         if (due.length === 0) return;
+        // eslint-disable-next-line no-restricted-syntax -- deliberate cold-start deferral: keeps the AI client + memory module out of the initial bundle path
         const { refreshMemory } = await import("@/lib/memory/builder");
         for (const a of due) {
           lastRefreshAt.current.set(a.id, now);
-          refreshMemory(a.id).catch((err) =>
-            console.warn(`[memory] refresh failed for ${a.id}:`, err.message),
+          refreshMemory(a.id).catch((err: unknown) =>
+            console.warn(
+              `[memory] refresh failed for ${a.id}:`,
+              err instanceof Error ? err.message : err,
+            ),
           );
         }
       } catch (err) {
@@ -54,9 +59,9 @@ function RootLayoutNav() {
     }
 
     // Run once on mount (covers cold start) and on every transition to active.
-    maybeRefreshAll();
+    fireAndForget(maybeRefreshAll(), "memory:refresh");
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") maybeRefreshAll();
+      if (state === "active") fireAndForget(maybeRefreshAll(), "memory:refresh");
     });
     return () => sub.remove();
   }, [isAuthenticated]);
@@ -73,7 +78,11 @@ export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    initDatabase().then(() => setDbReady(true));
+    // A failed init would otherwise leave the app stuck on the null screen
+    // with no trace of why.
+    initDatabase()
+      .then(() => setDbReady(true))
+      .catch((err: unknown) => console.error("[db] initDatabase failed:", err));
   }, []);
 
   if (!dbReady) return null;

@@ -25,7 +25,7 @@ dist/           build output — gitignored, produced by deploy.sh
 - **Presentational only** — hero, feature grid, privacy section, 3-step timeline, CTA, footer.
 - **Does not link to the demo.** `/demo.html` ships with every deploy but is unadvertised, so
   it is reached by sharing the URL directly. Adding a CTA here is a product decision, not a
-  missing link — see `CLAUDE.md`.
+  missing link — see `docs/infrastructure.md`.
 - **Waitlist form** posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
   and logs to CloudWatch). Endpoint: `https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`,
   payload `{ site: "openrecord", name, email }`. A hidden `company` honeypot drops bots client-side.

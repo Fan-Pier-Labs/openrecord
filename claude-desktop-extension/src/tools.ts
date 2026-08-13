@@ -29,9 +29,9 @@
  *   register_passkey(account)                      // optional: skip 2FA on future sessions
  */
 
-import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
+import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import { type MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/login';
 import { setupPasskey } from '../../scrapers/myChart/setupPasskey';
@@ -58,6 +58,8 @@ import {
   adoptSession,
 } from './session-manager';
 import {
+  accountId,
+  lookupAccount,
   readAccounts,
   readAccountPasskey,
   removeAccount,
@@ -65,7 +67,6 @@ import {
   saveAccountPasskey,
   saveAccountTotpSecret,
   normalizeHostname,
-  findAccount,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { encodeStudyJpegs } from './imaging/download-study';
@@ -101,10 +102,13 @@ function errorResult(message: string): ToolResult {
  */
 async function tryAutoRegisterPasskey(
   hostname: string,
+  username: string,
   session: MyChartRequest,
 ): Promise<{ registered: boolean; reason?: string }> {
   const key = normalizeHostname(hostname);
-  if (readAccountPasskey(key)) {
+  // Passkeys are per (hostname, username): another user's passkey on the same
+  // hostname must not suppress this one's registration.
+  if (readAccountPasskey(key, username)) {
     return { registered: false, reason: 'already_saved' };
   }
   try {
@@ -112,7 +116,7 @@ async function tryAutoRegisterPasskey(
     if (!credential) {
       return { registered: false, reason: 'instance_returned_no_credential' };
     }
-    saveAccountPasskey(key, serializeCredential(credential));
+    saveAccountPasskey(key, username, serializeCredential(credential));
     return { registered: true };
   } catch (err) {
     return { registered: false, reason: `error: ${(err as Error).message}` };
@@ -128,11 +132,13 @@ async function tryAutoRegisterPasskey(
  */
 const ACCOUNT_SCHEMA = z
   .string()
-  .describe(`${ACCOUNT_PARAM.description} Get the exact value from list_accounts.`);
+  .describe(
+    'Which connected MyChart account to use, as `username@hostname`. Get the exact value from the `account` field of list_accounts.',
+  );
 
 /** Translate one registry parameter into its zod equivalent. */
-function zodForParam(param: CapabilityParam): ZodTypeAny {
-  let schema: ZodTypeAny;
+function zodForParam(param: CapabilityParam): z.ZodType {
+  let schema: z.ZodType;
   switch (param.type) {
     case 'number': {
       let n = z.number();
@@ -159,14 +165,15 @@ function zodForParam(param: CapabilityParam): ZodTypeAny {
  * (TOTP setup/disable, passkey registration). Reads the MCPB's own credential
  * store; the registry never knows where any of it lives.
  */
-function contextFor(hostname: string): CapabilityContext {
-  const key = normalizeHostname(hostname);
-  const account = findAccount(key);
+function contextFor(ref: string): CapabilityContext {
+  const account = lookupAccount(ref);
+  if (!account) return {};
+  const { hostname, username } = account;
   return {
-    password: account?.password,
-    totpSecret: account?.totpSecret,
-    saveTotpSecret: (secret: string) => { saveAccountTotpSecret(key, secret); },
-    savePasskey: (serialized: string) => saveAccountPasskey(key, serialized),
+    password: account.password,
+    totpSecret: account.totpSecret,
+    saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
+    savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
   };
 }
 
@@ -181,7 +188,7 @@ function contextFor(hostname: string): CapabilityContext {
  * disconnect_account already is.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
-  const shape: Record<string, ZodTypeAny> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
+  const shape: Record<string, z.ZodType> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
   // Which patient the call is about, for accounts with proxy access to family
   // members' charts. executeCapability asserts it — or the account holder,
   // when omitted — before the capability runs, so a read refuses rather than
@@ -206,14 +213,17 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       try {
         const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
-        // The flag, not the id: a second media capability must not need this
-        // branch edited. `run` hands back raw bytes; this client encodes them.
+        // executeCapability, not capability.run, for EVERY capability: the
+        // active-patient assertion lives there. Branching to a direct
+        // `capability.run` for the imaging tool is how that one tool ended up
+        // returning a family member's X-rays.
+        const payload = await executeCapability(session, capability.id, args, contextFor(account));
+        // The flag, not the id — and it decides how to RENDER the payload,
+        // never whether the guard ran.
         if (capability.rendersMedia) {
-          return await imagingResult(capability, session, args);
+          return imagingResult(payload as StudyImagePayload);
         }
-        // executeCapability, not capability.run: the active-patient assertion
-        // lives there, so every client gets it without remembering to.
-        return jsonResult(await executeCapability(session, capability.id, args, contextFor(account)));
+        return jsonResult(payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
@@ -226,16 +236,14 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * returns raw CLO bytes that this client encodes itself. One image content
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion.
  */
-async function imagingResult(
-  capability: Capability,
-  session: MyChartRequest,
-  args: Record<string, unknown>,
-): Promise<ToolResult> {
-  const payload = (await capability.run(session, args)) as StudyImagePayload;
-  const maxImages = typeof args.max_images === 'number' ? args.max_images : undefined;
-  const jpegQuality = typeof args.jpeg_quality === 'number' ? args.jpeg_quality : undefined;
-  const result = encodeStudyJpegs(payload, { maxImages, jpegQuality });
+function imagingResult(
+  payload: StudyImagePayload,
+): ToolResult {
+  const result = encodeStudyJpegs(payload);
 
   const content: ToolContent[] = [
     {
@@ -280,19 +288,19 @@ export function registerAllTools(server: McpServer): void {
     'list_accounts',
     {
       title: 'List configured accounts',
-      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `hostname` as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
-      inputSchema: {} as ZodRawShape,
+      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
+      inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
+    () => {
       const accounts = readAccounts();
       const accountList = accounts.map(a => ({
-        account: a.hostname,
+        account: accountId(a),
         hostname: a.hostname,
         username: a.username,
         configured: true,
-        sessionActive: isConnected(a.hostname),
-        hasPasskey: !!readAccountPasskey(a.hostname),
+        sessionActive: isConnected(accountId(a)),
+        hasPasskey: !!readAccountPasskey(a.hostname, a.username),
         hasTotpSecret: !!a.totpSecret,
       }));
 
@@ -315,7 +323,7 @@ export function registerAllTools(server: McpServer): void {
           type: 'text',
           text:
             '\nThese accounts are already configured — credentials are stored on disk. ' +
-            'Call data tools directly with `account: <hostname>`; login + 2FA happen automatically via the saved passkey or password. ' +
+            'Call data tools directly with `account: <the account id above>`; login + 2FA happen automatically via the saved passkey or password. ' +
             'DO NOT re-prompt the user for username, password, or hostname. ' +
             '`sessionActive: false` just means no in-memory session yet; the next tool call will create one transparently.',
         });
@@ -334,7 +342,7 @@ export function registerAllTools(server: McpServer): void {
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
     },
-    async () => ({
+    () => ({
       content: [
         {
           type: 'text',
@@ -355,7 +363,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ query, limit }) => {
+    ({ query, limit }) => {
       const matches = searchInstances(query, limit ?? 10);
       return jsonResult({
         query,
@@ -383,11 +391,11 @@ export function registerAllTools(server: McpServer): void {
 
         if (result.state === 'logged_in') {
           upsertAccount({ hostname: normalizeHostname(hostname), username, password });
-          await adoptSession(hostname, result.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(hostname, result.mychartRequest);
+          await adoptSession(hostname, username, result.mychartRequest);
+          const passkey = await tryAutoRegisterPasskey(hostname, username, result.mychartRequest);
           return jsonResult({
             state: 'logged_in',
-            account: normalizeHostname(hostname),
+            account: accountId({ hostname, username }),
             passkey_registered: passkey.registered,
             passkey_reason: passkey.reason ?? null,
             message: passkey.registered
@@ -457,11 +465,11 @@ export function registerAllTools(server: McpServer): void {
         });
         if (twoFa.state === 'logged_in') {
           upsertAccount({ hostname: pending.hostname, username: pending.username, password: pending.password });
-          await adoptSession(pending.hostname, twoFa.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(pending.hostname, twoFa.mychartRequest);
+          await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
+          const passkey = await tryAutoRegisterPasskey(pending.hostname, pending.username, twoFa.mychartRequest);
           return jsonResult({
             state: 'logged_in',
-            account: pending.hostname,
+            account: accountId(pending),
             passkey_registered: passkey.registered,
             passkey_reason: passkey.reason ?? null,
             message: passkey.registered
@@ -503,18 +511,19 @@ export function registerAllTools(server: McpServer): void {
     'disconnect_account',
     {
       title: 'Forget a MyChart account',
-      description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this hostname.',
+      description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this login only — other usernames saved for the same hostname are untouched.',
       inputSchema: {
-        account: z.string().describe('MyChart hostname (the account from list_accounts).'),
+        account: z.string().describe('Account id from list_accounts (`username@hostname`).'),
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
-    async ({ account }) => {
-      clearSession(account);
-      const removed = removeAccount(account);
-      const known = findAccount(account);
-      if (!removed && !known) return textResult(`No saved account for ${account}.`);
-      return textResult(`Forgot ${normalizeHostname(account)}. Credentials, passkey, and session cache have been deleted from disk.`);
+    ({ account }) => {
+      const match = lookupAccount(account);
+      if (!match) return textResult(`No saved account for ${account}.`);
+      const id = accountId(match);
+      clearSession(id);
+      removeAccount(match.hostname, match.username);
+      return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
     },
   );
 

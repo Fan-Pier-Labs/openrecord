@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { MyChartRequest } from "../myChartRequest";
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 
 /**
@@ -115,10 +115,15 @@ export async function getVisitNotes(
     body: JSON.stringify({ CSN: csn, FromPvdPage: true }),
   });
 
-  const json = await parseJsonOrWafError<GetVisitNotesApiResponse>(
+  const json = await parseJsonOrWafError<GetVisitNotesApiResponse | null>(
     resp,
     '/api/visit-notes/GetVisitNotes'
   );
+
+  // Real instances answer an unknown CSN with a literal JSON null body.
+  if (json === null) {
+    return { csn, lrpId: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, notes: [] };
+  }
 
   const notes: VisitNote[] = (json.noteList || []).map((n) => ({
     hnoId: n.hnoID || '',

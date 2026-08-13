@@ -374,7 +374,7 @@ export function buildSystemPrompt({
         ].join('\n');
 
   const memorySection =
-    memoryDigest && memoryDigest.trim()
+    memoryDigest?.trim()
       ? [
           "Patient digest from prior sessions and MyChart records (use it so you don't refetch the obvious; verify with tools when the user asks for current data):",
           memoryDigest,
@@ -383,7 +383,7 @@ export function buildSystemPrompt({
       : '';
 
   const skillSection =
-    skillAddition && skillAddition.trim()
+    skillAddition?.trim()
       ? [
           'The user invoked a specific skill. Follow this playbook for the rest of the conversation — it overrides the generic guidance above on conflict, but the JSON output protocol and write-confirmation rules still apply:',
           skillAddition,
@@ -539,7 +539,7 @@ export async function runTurn({
   const onError = callbacks.onError ?? (() => {});
   // No dialog wired means no writes. Fail shut: the alternative is a surface
   // that silently runs them unconfirmed, which is the bug this exists to stop.
-  const onConfirmWrite = callbacks.onConfirmWrite ?? (async () => false);
+  const onConfirmWrite = callbacks.onConfirmWrite ?? (() => Promise.resolve(false));
 
   const executed: ToolRecord[] = [];
 

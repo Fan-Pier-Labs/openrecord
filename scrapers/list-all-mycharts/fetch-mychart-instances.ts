@@ -59,9 +59,7 @@ async function fetchDirectory(): Promise<MyChartCustomer[]> {
   const response = await scraperFetch(MYCHART_DIRECTORY_URL);
   const html = await response.text();
 
-  const match = html.match(
-    /window\.PageContext\s*=\s*\{\s*Directory:\s*JSON\.parse\('(.+?)'\)/
-  );
+  const match = /window\.PageContext\s*=\s*\{\s*Directory:\s*JSON\.parse\('(.+?)'\)/.exec(html);
   if (!match) {
     throw new Error(
       "Could not find PageContext.Directory in page HTML. The page structure may have changed."
@@ -69,7 +67,7 @@ async function fetchDirectory(): Promise<MyChartCustomer[]> {
   }
 
   // The JSON is single-quote escaped inside a JS string
-  const jsonStr = match[1].replace(/\\'/g, "'").replace(/\\"/g, '"');
+  const jsonStr = match[1]!.replace(/\\'/g, "'").replace(/\\"/g, '"'); // the one capture group is non-optional
   const directory = JSON.parse(jsonStr);
   const customers: MyChartCustomer[] = directory.Customers;
   logger.debug(`Found ${customers.length} MyChart instances`);
@@ -246,7 +244,7 @@ async function main() {
   logger.debug("Done!");
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   logger.error(err);
   process.exit(1);
 });

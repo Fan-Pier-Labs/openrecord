@@ -1,3 +1,6 @@
+/// <reference types="bun" />
+// ^ These run under `bun test`, not in the app: the reference pulls in
+// bun:test module declarations without adding Bun globals to the app config.
 import { describe, expect, test } from "bun:test";
 import {
   TOOLS,
@@ -34,7 +37,7 @@ describe("tool catalog", () => {
   test("switch_proxy_target is a confirmed, exclusive write; list_proxy_targets is a plain read", () => {
     expect(WRITE_TOOLS.has("switch_proxy_target")).toBe(true);
     expect(isExclusiveTool("switch_proxy_target")).toBe(true);
-    expect(WRITE_TOOL_META.switch_proxy_target.confirmLabel).toBe("Switch");
+    expect(WRITE_TOOL_META.switch_proxy_target!.confirmLabel).toBe("Switch");
 
     expect(WRITE_TOOLS.has("list_proxy_targets")).toBe(false);
     expect(isExclusiveTool("list_proxy_targets")).toBe(false);
@@ -44,7 +47,7 @@ describe("tool catalog", () => {
     for (const name of ["send_message", "send_reply", "request_refill"]) {
       expect(WRITE_TOOLS.has(name)).toBe(true);
       expect(isExclusiveTool(name)).toBe(true);
-      expect(WRITE_TOOL_META[name].title.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[name]!.title.length).toBeGreaterThan(0);
     }
   });
 

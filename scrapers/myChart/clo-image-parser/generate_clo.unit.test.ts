@@ -1,8 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { unlinkSync } from "fs";
+import { inflateSync } from "zlib";
 import sharp from "sharp";
 import {
   AMF3Writer,
+  arrayCollection,
   zigzagEncode,
   forwardHaarLevel,
   encodePixelFile,
@@ -14,7 +16,6 @@ import {
   generateDiagonal,
 } from "./generate_clo";
 import {
-  AMF3Reader,
   parsePixelHeader,
   parseWrapper,
   extractTiles,
@@ -22,6 +23,8 @@ import {
   zigzagDecode,
   convertCloToBitmap,
 } from "./clo_to_bitmap";
+import { Amf3Reader } from "../eunity/amf3Reader";
+import { readPatientPosition } from "./sortByPatientPosition";
 import { convertBitmapToJpg } from "./exporters/to_jpg";
 
 // ==================== AMF3Writer ====================
@@ -30,21 +33,21 @@ describe("AMF3Writer", () => {
   it("writes and reads back integer", () => {
     const writer = new AMF3Writer();
     writer.writeValue(42);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe(42);
   });
 
   it("writes and reads back double", () => {
     const writer = new AMF3Writer();
     writer.writeValue(3.14);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBeCloseTo(3.14);
   });
 
   it("writes and reads back string", () => {
     const writer = new AMF3Writer();
     writer.writeValue("hello world");
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe("hello world");
   });
 
@@ -52,7 +55,7 @@ describe("AMF3Writer", () => {
     const writer = new AMF3Writer();
     writer.writeValue(true);
     writer.writeValue(false);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBe(true);
     expect(reader.readValue()).toBe(false);
   });
@@ -60,7 +63,7 @@ describe("AMF3Writer", () => {
   it("writes and reads back null", () => {
     const writer = new AMF3Writer();
     writer.writeValue(null);
-    const reader = new AMF3Reader(writer.getBuffer());
+    const reader = new Amf3Reader(writer.getBuffer());
     expect(reader.readValue()).toBeNull();
   });
 
@@ -72,12 +75,103 @@ describe("AMF3Writer", () => {
       count: 42,
       ratio: 1.5,
     });
-    const reader = new AMF3Reader(writer.getBuffer());
-    const result = reader.readValue();
-    expect(result._class).toBe("TestClass");
+    const reader = new Amf3Reader(writer.getBuffer());
+    const result = reader.readValue() as Record<string, unknown>;
+    expect(result.__class).toBe("TestClass");
     expect(result.name).toBe("test");
     expect(result.count).toBe(42);
     expect(result.ratio).toBe(1.5);
+  });
+
+  it("encodes negative integers as 29-bit two's complement, and the reader sign-extends them", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(-1);
+    writer.writeValue(-268435456); // -2^28, the most negative AMF3 integer
+    writer.writeValue(-268435457); // one past the range — must fall back to double
+    const buf = writer.getBuffer();
+    expect(buf[0]).toBe(0x04); // integer marker, not double
+    const reader = new Amf3Reader(buf);
+    expect(reader.readValue()).toBe(-1);
+    expect(reader.readValue()).toBe(-268435456);
+    expect(reader.readValue()).toBe(-268435457);
+  });
+
+  it("writes and reads back dense arrays", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(["a", 1, true]);
+    const reader = new Amf3Reader(writer.getBuffer());
+    expect(reader.readValue()).toEqual(["a", 1, true]);
+  });
+
+  it("writes byte arrays the reader returns as a Buffer", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(Buffer.from([0xaa, 0xbb, 0xcc]));
+    const result = new Amf3Reader(writer.getBuffer()).readValue() as Buffer;
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(Array.from(result)).toEqual([0xaa, 0xbb, 0xcc]);
+  });
+
+  it("writes externalizable ArrayCollection nodes the strict reader unwraps", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(arrayCollection(["%SERIES_NUMBER%", "%WINDOW_LEVEL%"]));
+    const result = new Amf3Reader(writer.getBuffer()).readValue() as Record<string, unknown>;
+    expect(result.__class).toBe("flex.messaging.io.ArrayCollection");
+    expect(result.__externalizable).toBe(true);
+    expect(result.value).toEqual(["%SERIES_NUMBER%", "%WINDOW_LEVEL%"]);
+  });
+});
+
+// ==================== Full real-wrapper shape ====================
+
+describe("encodeWrapperFile — full real-wrapper shape", () => {
+  it("encodes every construct real cross-sectional wrappers carry", () => {
+    // One wrapper carrying everything a real MR/CT wrapper does that the flat
+    // scalar metadata never reaches: a byte-array VOI LUT, externalizable
+    // ArrayCollection overlays, the nested calibration chain, and
+    // ImagePhaseInfo -1 sentinels (negative AMF3 integers → sign extension).
+    const lut = Buffer.alloc(8);
+    for (let i = 0; i < 4; i++) lut.writeUInt16LE(i * 100, i * 2);
+
+    const wrapper = encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME1",
+      bitsStored: 12,
+      windowCenter: 2048,
+      windowWidth: 4096,
+      voiLut: { lut, elements: 4, start: 0, bits: 16, lutIsLittleEndian: 1 },
+      positionPatient: { x: -101.25, y: -37.5, z: 88.75 },
+      imagePhaseInfo: {
+        inStackPositionNumber: -1,
+        stackID: "-1",
+        temporalPositionIdentifier: -1,
+        numberOfTemporalPositions: -1,
+      },
+      includeAnnotationOverlays: true,
+    });
+
+    const tree = new Amf3Reader(inflateSync(wrapper.subarray(16))).readValue() as {
+      calibration: { orientation: { positionPatient: { __class: string; position_y: number } } };
+      imagePhaseInfo: { inStackPositionNumber: number; numberOfTemporalPositions: number; stackID: string };
+      annotationOverlay: { bottomLeft: { __class: string; value: string[] } };
+      voiLut: { lut: unknown; elements: number };
+    };
+
+    const pos = tree.calibration.orientation.positionPatient;
+    expect(pos.__class).toBe("com.clientoutlook.data.ImagePositionPatient");
+    expect(pos.position_y).toBe(-37.5);
+    // Negative integers must sign-extend, not surface as 536870911.
+    expect(tree.imagePhaseInfo.inStackPositionNumber).toBe(-1);
+    expect(tree.imagePhaseInfo.numberOfTemporalPositions).toBe(-1);
+    expect(tree.imagePhaseInfo.stackID).toBe("-1");
+    // Overlays decode as externalizable ArrayCollection wrappers.
+    const overlay = tree.annotationOverlay.bottomLeft;
+    expect(overlay.__class).toBe("flex.messaging.io.ArrayCollection");
+    expect(overlay.value).toContain("SE #: %SERIES_NUMBER%");
+    // And the VOI LUT survives as a byte array.
+    expect(Buffer.isBuffer(tree.voiLut.lut)).toBe(true);
+    expect(tree.voiLut.elements).toBe(4);
+
+    // readPatientPosition still finds the position through all the extras.
+    expect(readPatientPosition(wrapper)).toEqual({ x: -101.25, y: -37.5, z: 88.75 });
   });
 });
 
@@ -229,13 +323,13 @@ describe("encode → decode round-trip", () => {
     for (let i = 0; i < width * height; i++) {
       windowed[i] = Math.max(
         0,
-        Math.min(65535, Math.round((img[i] / 65536) * 65535))
+        Math.min(65535, Math.round((img[i]! / 65536) * 65535))
       );
-      if (windowed[i] > maxWindowed) maxWindowed = windowed[i];
+      if (windowed[i]! > maxWindowed) maxWindowed = windowed[i]!;
     }
     const result = new Uint8Array(width * height);
     for (let i = 0; i < width * height; i++) {
-      result[i] = Math.round((windowed[i] / maxWindowed) * 255);
+      result[i] = Math.round((windowed[i]! / maxWindowed) * 255);
     }
     return result;
   }
@@ -247,7 +341,7 @@ describe("encode → decode round-trip", () => {
     let maxDiff = 0;
     let exact = 0;
     for (let i = 0; i < expected.length; i++) {
-      const diff = Math.abs(actual[i] - expected[i]);
+      const diff = Math.abs(actual[i]! - expected[i]!);
       if (diff > maxDiff) maxDiff = diff;
       if (diff === 0) exact++;
     }
@@ -368,7 +462,7 @@ describe("encode → decode round-trip", () => {
     );
 
     const expected = expected8bit(img, width, height);
-    for (let i = 0; i < expected.length; i++) expected[i] = 255 - expected[i];
+    for (let i = 0; i < expected.length; i++) expected[i] = 255 - expected[i]!;
 
     const result = compare(bitmap.pixels, expected);
     expect(result.maxDiff).toBe(0);

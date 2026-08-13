@@ -9,10 +9,10 @@ function mockRequest(responses: Array<{ body: string; contentType?: string; serv
   req.transport = mock(async () => {
     const r = responses[i++]
     const headers: Record<string, string> = {}
-    if (r.contentType !== undefined) headers['content-type'] = r.contentType
-    if (r.server !== undefined) headers['server'] = r.server
-    return new Response(r.body, { status: 200, headers })
-  }) as typeof req.transport
+    if (r!.contentType !== undefined) headers['content-type'] = r!.contentType
+    if (r!.server !== undefined) headers['server'] = r!.server
+    return new Response(r!.body, { status: 200, headers })
+  })
   return req
 }
 
@@ -56,10 +56,10 @@ describe('getVisitNotes', () => {
     expect(result.lrpId).toBe('WP-lrp-abc')
     expect(result.depPhoneNumber).toBe('555-111-2222')
     expect(result.notes).toHaveLength(2)
-    expect(result.notes[0].hnoId).toBe('WP-hno-1')
-    expect(result.notes[0].displayName).toBe('Anesthesia Procedure Notes')
-    expect(result.notes[0].providerName).toBe('Neil Zilberg, MD')
-    expect(result.notes[1].hnoId).toBe('WP-hno-2')
+    expect(result.notes[0]!.hnoId).toBe('WP-hno-1')
+    expect(result.notes[0]!.displayName).toBe('Anesthesia Procedure Notes')
+    expect(result.notes[0]!.providerName).toBe('Neil Zilberg, MD')
+    expect(result.notes[1]!.hnoId).toBe('WP-hno-2')
   })
 
   it('handles an empty notes list', async () => {
@@ -84,17 +84,17 @@ describe('getVisitNotes', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
-      return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+      return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
+    })
 
     await getVisitNotes(req, 'WP-csn-test')
 
-    expect(calls[1].url).toContain('/api/visit-notes/GetVisitNotes')
-    expect(calls[1].init?.method).toBe('POST')
-    const headers = calls[1].init!.headers as Record<string, string>
+    expect(calls[1]!.url).toContain('/api/visit-notes/GetVisitNotes')
+    expect(calls[1]!.init?.method).toBe('POST')
+    const headers = calls[1]!.init!.headers as Record<string, string>
     expect(headers['__requestverificationtoken']).toBe('csrf_token')
     expect(headers['Content-Type']).toBe('application/json')
-    expect(JSON.parse(calls[1].init!.body as string)).toEqual({
+    expect(JSON.parse(calls[1]!.init!.body as string)).toEqual({
       CSN: 'WP-csn-test',
       FromPvdPage: true,
     })
@@ -161,8 +161,8 @@ describe('getNoteContent', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
-      return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+      return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
+    })
 
     await getNoteContent(req, {
       csn: 'WP-csn-X',
@@ -171,8 +171,8 @@ describe('getNoteContent', () => {
       hnoDat: 'WP-dat-X',
     })
 
-    expect(calls[1].url).toContain('/api/report-content/LoadReportContent')
-    const body = JSON.parse(calls[1].init!.body as string)
+    expect(calls[1]!.url).toContain('/api/report-content/LoadReportContent')
+    const body = JSON.parse(calls[1]!.init!.body as string)
     expect(body.reportMnemonic).toBe('OPEN_NOTES')
     expect(body.reportID).toBe('WP-lrp-X')
     expect(body.contextID).toBe('WP-hno-X')
@@ -225,12 +225,12 @@ describe('getVisitAVS', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
-      return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+      return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
+    })
 
     await getVisitAVS(req, 'WP-csn-avs')
 
-    const body = JSON.parse(calls[1].init!.body as string)
+    const body = JSON.parse(calls[1]!.init!.body as string)
     expect(body.reportMnemonic).toBe('AMB_AVS')
     expect(body.reportID).toBe('')
     expect(body.csn).toBe('WP-csn-avs')

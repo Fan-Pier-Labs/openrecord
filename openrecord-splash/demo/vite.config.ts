@@ -16,13 +16,14 @@ function splashPage(): Plugin {
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const url = (req.url ?? '').split('?')[0];
-        if (SPLASH_ASSETS[url]) {
-          res.setHeader('content-type', SPLASH_ASSETS[url]);
+        const url = (req.url ?? '').split('?')[0] ?? '';
+        const assetType = SPLASH_ASSETS[url];
+        if (assetType) {
+          res.setHeader('content-type', assetType);
           res.end(readFileSync(`${__dirname}/..${url}`));
           return;
         }
-        if (url !== '/' && url !== '/index.html') return next();
+        if (url !== '/' && url !== '/index.html') { next(); return; }
         res.setHeader('content-type', 'text/html; charset=utf-8');
         res.end(readFileSync(`${__dirname}/../index.html`, 'utf8'));
       });

@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: 200 })
+  })
   return req
 }
 
@@ -22,8 +22,8 @@ describe('getGoals', () => {
   it('parses goals from API response', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ goals: [{ name: 'Lower BP', description: 'Reduce to 120/80', status: 'active', startDate: '2024-01-01', targetDate: '2024-06-01' }] }) },
-      { body: JSON.stringify({ goals: [{ name: 'Walk daily', description: '30 min walk', status: 'in_progress', startDate: '2024-02-01', targetDate: '2024-12-31' }] }) },
+      { body: JSON.stringify({ careTeamGoals: [{ name: 'Lower BP', description: 'Reduce to 120/80', status: 'active', startDate: '2024-01-01', targetDate: '2024-06-01' }] }) },
+      { body: JSON.stringify({ patientGoals: [{ name: 'Walk daily', description: '30 min walk', status: 'in_progress', startDate: '2024-02-01', targetDate: '2024-12-31' }] }) },
     ])
 
     const result = await getGoals(req)
@@ -37,14 +37,14 @@ describe('getGoals', () => {
       source: 'care_team',
     })
     expect(result.patientGoals).toHaveLength(1)
-    expect(result.patientGoals[0].source).toBe('patient')
+    expect(result.patientGoals[0]!.source).toBe('patient')
   })
 
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ goals: [{}] }) },
-      { body: JSON.stringify({ goals: [] }) },
+      { body: JSON.stringify({ careTeamGoals: [{}] }) },
+      { body: JSON.stringify({ patientGoals: [] }) },
     ])
 
     const result = await getGoals(req)

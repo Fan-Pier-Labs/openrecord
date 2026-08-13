@@ -12,13 +12,17 @@ entries, which meant a patient's answer depended on which client they happened t
 classDiagram
     class Capability {
         id : string
-        aliases : string[]
+        aliases? : string[]
         title : string
         description : string
-        group : string
         kind : read | write | account
+        group : string
+        lessFrequentlyUsed? : boolean
         params : CapabilityParam[]
         rendersMedia? : boolean
+    }
+    class CapabilityImpl {
+        <<module-private>>
         run(request, args, ctx) Promise~unknown~
     }
     class CapabilityParam {
@@ -26,20 +30,32 @@ classDiagram
         type : string | number | boolean | object
         description : string
         required? : boolean
+        min? : number
+        max? : number
     }
     class CapabilityContext {
         password?
         totpSecret?
-        onTotpSecret()
-        onPasskey()
+        saveTotpSecret()
+        savePasskey()
     }
+    Capability <|-- CapabilityImpl
     Capability --> CapabilityParam
-    Capability ..> CapabilityContext : run(ctx)
+    CapabilityImpl ..> CapabilityContext : run(ctx)
 ```
 
 `run()` takes a logged-in `MyChartRequest` and returns JSON-serializable data. Nothing in
 here knows about MCP, React Native, or argv — the clients own their own presentation, and
 only their presentation.
+
+**`run` is deliberately not on the public `Capability` type.** It lives on a module-private
+`CapabilityImpl`, so `capability.run(...)` does not compile outside `capabilities.ts` and
+`executeCapability` is the only way to invoke one — which means the active-patient assertion
+cannot be routed around. That guarantee used to be a regex over the source; it is now the type
+system's job.
+
+`lessFrequentlyUsed` is a **presentation** flag and nothing else: it decides what
+`--list-capabilities` holds back until `--show-all`, and never what is allowed to run.
 
 `CapabilityContext` carries the per-account state that isn't on the MyChart session: the
 stored password, the saved TOTP secret, and the callbacks that persist new ones. Each
@@ -54,14 +70,17 @@ flowchart TB
     AG["<code>AGENT_CAPABILITIES</code><br/>kind !== 'account'"]
     WR["<code>WRITE_CAPABILITY_IDS</code>"]
     IDS["<code>CAPABILITY_IDS</code>"]
+    COM["<code>COMMON_CAPABILITIES</code> /<br/><code>LESS_FREQUENTLY_USED_CAPABILITIES</code>"]
 
     REG --> AG
     REG --> WR
     REG --> IDS
+    REG --> COM
 
     AG --> MCPB["<b>Desktop extension</b><br/><code>registerCapabilityTool</code><br/>params → zod schema<br/>write ⇒ <code>destructiveHint</code>"]
     AG --> APP["<b>Mobile app</b><br/><code>tool-catalog.ts</code><br/>one tool line per entry in the prompt<br/>write ⇒ native confirm dialog"]
-    IDS --> CLI["<b>CLI</b><br/><code>capabilityActions.ts</code><br/><code>--action id --arg k=v</code>"]
+    IDS --> CLI["<b>CLI</b><br/><code>capabilityActions.ts</code><br/>generic dispatch<br/><code>--action id --arg k=v</code>"]
+    COM --> CLI
     IDS --> LIB["<b>npm library</b><br/><code>runCapability(id, args)</code><br/>+ a typed method per entry"]
 
     MCPB --> EXEC
@@ -71,9 +90,15 @@ flowchart TB
     EXEC["<code>executeCapability(request, id, args, ctx)</code><br/>active-patient guard, then <code>capability.run</code>"]
 ```
 
-The `account`-kind entries are filtered out of `AGENT_CAPABILITIES`: **no client offers
-them to a model.** The CLI drives them from flags, the mobile app from its settings screen
-(`executeAccountCapability`), the extension not at all.
+`AGENT_CAPABILITIES` drops the `account`-kind entries, and that is what the **mobile app**
+builds its prompt from — `capability-parity.unit.test.ts` asserts directly that no
+`account`-kind id reaches the app's tool catalog, because changing how a patient signs in is
+not something a model should reach for mid-conversation. The app drives them from its settings
+screen instead (`executeAccountCapability`), and the CLI from flags.
+
+The **desktop extension is the exception**: it registers one MCP tool for every entry in
+`CAPABILITIES`, `account`-kind included. Claude Desktop is a place where a person is
+deliberately setting an account up, and the setup flow needs them.
 
 ## What `kind` decides
 
@@ -81,14 +106,15 @@ them to a model.** The CLI drives them from flags, the mobile app from its setti
 | --- | --- | --- | --- | --- |
 | `read` | Reads chart data | plain tool, batchable | batchable, no confirmation | `--action` |
 | `write` | Mutates the chart | `destructiveHint` annotation | exclusive tool + native confirm popup | `--action` |
-| `account` | Changes how the patient signs in | not registered | settings screen only | dedicated flags |
+| `account` | Changes how the patient signs in | registered like any other | settings screen only, never the model | dedicated flags |
 
 At time of writing the registry holds 51 entries — 38 `read`, 8 `write`, 5 `account` —
 across ten groups (Profile, Prescriptions, Results, Visits, Messages, Billing, Care,
-Emergency contacts, Patients, Account security). Don't trust that count; run:
+Emergency contacts, Patients, Account security), of which 20 are `lessFrequentlyUsed`. Don't
+trust those counts; run:
 
 ```bash
-bun run cli --list-capabilities
+bun run cli --list-capabilities --show-all
 ```
 
 ## The parity tests
@@ -112,7 +138,11 @@ flowchart LR
 
 The parity test reads each client's *real* surface, not a declaration of it, and also fails
 if a hardcoded capability-id check reappears where `rendersMedia` should be used, or if the
-account-parameter spelling drifts between clients.
+account-parameter spelling drifts between clients. It additionally greps the three client
+dispatch modules to enforce that **no client calls `capability.run` directly** — the extension
+and the CLI each used to branch on `rendersMedia` *before* dispatching and run the media
+capability themselves, which made `download_imaging_study` the one tool that skipped the
+active-patient assertion.
 
 ## Shared conventions the registry owns
 

@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeAll } from 'bun:test'
 import { getTestSession } from './testHelper'
-import { MyChartRequest } from '../myChartRequest'
+import { type MyChartRequest } from '../myChartRequest'
 
 // Scrapers
 import { getMyChartProfile, getEmail } from '../profile'

@@ -83,10 +83,11 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
   for (const raw of lines) {
     const line = raw.replace(/\s+$/, '');
 
-    const image = line.match(IMAGE_TOKEN);
+    const image = IMAGE_TOKEN.exec(line);
     if (image) {
       flushAll();
-      blocks.push({ kind: 'image', name: image[1].toLowerCase() });
+      // Group 1 is non-optional in IMAGE_TOKEN, so it is present on any match.
+      blocks.push({ kind: 'image', name: image[1]!.toLowerCase() });
       continue;
     }
 
@@ -95,26 +96,27 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const heading = line.match(/^(#{1,4})\s+(.*)$/);
+    const heading = /^(#{1,4})\s+(.*)$/.exec(line);
     if (heading) {
       flushAll();
-      blocks.push({ kind: 'heading', level: heading[1].length, spans: parseInline(heading[2]) });
+      // Both groups are non-optional, so they are present on any match.
+      blocks.push({ kind: 'heading', level: heading[1]!.length, spans: parseInline(heading[2]!) });
       continue;
     }
 
-    const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
     if (bullet) {
       flushParagraph();
       flushQuote();
-      list.push(parseInline(bullet[1]));
+      list.push(parseInline(bullet[1]!));
       continue;
     }
 
-    const quoted = line.match(/^>\s?(.*)$/);
+    const quoted = /^>\s?(.*)$/.exec(line);
     if (quoted) {
       flushParagraph();
       flushList();
-      quote.push(parseInline(quoted[1]));
+      quote.push(parseInline(quoted[1]!));
       continue;
     }
 

@@ -38,16 +38,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Before eslint, not after: linting is type-aware (projectService), so a
+      # package whose node_modules is missing has its imports degrade to `any`
+      # and the type-aware rules silently stop seeing them.
+      - name: Install Expo app deps
+        run: cd expo-app && bun install
+      - name: Install npm-package deps
+        run: cd npm-package && bun install
+      # Built before eslint on purpose: npm-package's bundle test imports
+      # dist/index.js, and without it the import degrades to `any` — the
+      # type-aware rules then misjudge that file (e.g. flagging non-null
+      # assertions as vacuous because everything is already `any`).
+      - name: Build npm-package (lint needs dist types)
+        run: cd npm-package && bun run build
+      # tests/integration/ci is part of the ROOT tsconfig project (no separate
+      # tsconfig on purpose), so both eslint and `bun run typecheck` below need
+      # its playwright types resolvable.
+      - name: Install CI integration test deps
+        run: cd tests/integration/ci && bun install
       - run: npx eslint .
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: '--max-old-space-size=8192'
       # Root tsconfig covers scrapers/, shared/, npm-package/cli/ and
       # read-local-passwords/ — the shared scraper core no other package's
       # typecheck reaches.
       - name: Typecheck scrapers, shared and CLI
         run: bun run typecheck
-      - name: Install Expo app deps
-        run: cd expo-app && bun install
       - name: Typecheck Expo app
         run: cd expo-app && bun run typecheck
       - name: Typecheck & build Claude Desktop extension

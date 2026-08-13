@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 
 import fs from 'fs';
 import { getRequestVerificationTokenFromBody } from "./util";
+import { changeDirToPackageRoot } from "../../shared/util";
 import { sendTelemetryEvent } from "../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
@@ -136,7 +137,10 @@ export function parseFirstPathPartFromInput(input: string): string | null {
   try {
     const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
     const part = parsed.pathname.split('/').filter(Boolean)[0];
-    if (!part || !part.toLowerCase().includes('mychart')) {
+    // `part` is `.split('/').filter(Boolean)[0]`-shaped: undefined or a
+    // non-empty string, never '' — so `!part?.…` and the old `!part || !part.…`
+    // take identical branches.
+    if (!part?.toLowerCase().includes('mychart')) {
       return null;
     }
     return part;
@@ -189,11 +193,11 @@ export function looksLikeSignedOutPage(html: string): boolean {
  */
 export function parseScriptRedirectTarget(html: string, baseUrl: string): URL | null {
   // window.location = "…" / window.location.href = '…' / location.replace("…")
-  const match = html.match(/\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i)
-    ?? html.match(/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i);
+  const match = (/\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i.exec(html))
+    ?? (/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i.exec(html));
   if (!match) return null;
   try {
-    return new URL(match[1], baseUrl);
+    return new URL(match[1]!, baseUrl); // both patterns have one non-optional capture group
   } catch {
     return null;
   }
@@ -288,7 +292,7 @@ export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest:
       }
 
       const finalPathPart = finalUrl.pathname.split('/').filter(Boolean)[0];
-      if ((finalPathPart && finalPathPart.toLowerCase() === candidate.toLowerCase()) && looksLikeLoginPage(html)) {
+      if (finalPathPart?.toLowerCase() === candidate.toLowerCase() && looksLikeLoginPage(html)) {
         logger.debug('Recovered firstPathPart by probing common login path:', finalPathPart || candidate);
         return finalPathPart || candidate;
       }
@@ -524,14 +528,14 @@ export function parse2faDeliveryMethods(html: string): {
       hasEmail = true;
       // Try to extract masked email from button text or nearby elements
       const fullText = $(el).text().trim();
-      const emailMatch = fullText.match(/[\w*]+\*+[\w*]*@[\w.]+/);
+      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(fullText);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (text.includes('text') || text.includes('phone') || text.includes('sms')) {
       hasSms = true;
       // Try to extract masked phone from button text or nearby elements
       const fullText = $(el).text().trim();
-      const phoneMatch = fullText.match(/[\d*][\d*-]+[\d*]/);
+      const phoneMatch = /[\d*][\d*-]+[\d*]/.exec(fullText);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });
@@ -540,11 +544,11 @@ export function parse2faDeliveryMethods(html: string): {
   $('p, span, div').each((_, el) => {
     const text = $(el).text();
     if (!emailContact) {
-      const emailMatch = text.match(/[\w*]+\*+[\w*]*@[\w.]+/);
+      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(text);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (!smsContact) {
-      const phoneMatch = text.match(/\*{2,}[\d*-]*\d{4}/);
+      const phoneMatch = /\*{2,}[\d*-]*\d{4}/.exec(text);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });
@@ -577,8 +581,9 @@ export function parseLoginPageFields(html: string) {
 
 /** The name MyChart's login controller JS gives the username credential. */
 export function usernameFieldFromControllerJs(js: string): 'LoginIdentifier' | 'Username' {
-  const credMatch = js.match(/Credentials:\s*\{([^}]{0,300})\}/);
-  if (credMatch && credMatch[1].includes('Username') && !credMatch[1].includes('LoginIdentifier')) {
+  const credMatch = /Credentials:\s*\{([^}]{0,300})\}/.exec(js);
+  const creds = credMatch?.[1];
+  if (creds && creds.includes('Username') && !creds.includes('LoginIdentifier')) {
     return 'Username';
   }
   return 'LoginIdentifier';
@@ -616,7 +621,13 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
   if (!hostname || !user || !pass) {
-    logger.debug('missing hostname, user, or pass', {hostname, user, pass})
+    // Which one is missing, never the values: the sink is whatever the host
+    // wired up, and a plaintext password belongs in none of them.
+    logger.debug('missing hostname, user, or pass', {
+      hostname: hostname || '(missing)',
+      user: user ? '(present)' : '(missing)',
+      pass: pass ? '(present)' : '(missing)',
+    })
     throw new Error('Missing hostname, user, or pass')
   }
 
@@ -626,7 +637,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
@@ -897,15 +908,15 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
   let invalidCode = false;
 
-  for (const code of sortedCodes) {
-    logger.debug('Trying code with score', code.score)
+  for (const candidate of sortedCodes) {
+    logger.debug('Trying code with score', candidate.score)
     const resp = await mychartRequest.makeRequest({
       path: "/Authentication/SecondaryValidation/Validate?noCache=" + Math.random(),
       "headers": { 
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         '__RequestVerificationToken': requestVerificationToken,
       },
-      "body": "TwoFactorCode=" + code.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
+      "body": "TwoFactorCode=" + candidate.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
       "method": "POST",
     });
 
@@ -941,7 +952,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
     if (respBody.TwoFactorCodeFailReason === 'codewrong') {
       // wrong code!
-      logger.debug('wrong code! score:', code.score)
+      logger.debug('wrong code! score:', candidate.score)
       invalidCode = true;
     }
   }
@@ -988,7 +999,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
     throw new Error(`${hostname} is not supported.`);
   }
 
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
@@ -1106,8 +1117,8 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
 
 export async function areCookiesValid(mychartRequest: MyChartRequest): Promise<boolean> {
   const res = await mychartRequest.makeRequest({path: '/Home', followRedirects: false})
-  logger.debug("are cookies valid?", res.status == 200, res.headers.get('Location'))
-  return res.status == 200
+  logger.debug("are cookies valid?", res.status === 200, res.headers.get('Location'))
+  return res.status === 200
 }
 
 async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, user: string, pass: string}): Promise<MyChartRequest> {
@@ -1128,8 +1139,7 @@ async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, u
 
 
 export async function login_TEST(hostname: string): Promise<MyChartRequest> {
-  const { changeDirToPackageRoot } = await import("../../shared/util");
-  await changeDirToPackageRoot()
+  changeDirToPackageRoot()
 
 
   let mychartRequest = new MyChartRequest(hostname);
@@ -1177,17 +1187,4 @@ export async function login_TEST(hostname: string): Promise<MyChartRequest> {
   await mychartRequest.saveCookies_TEST('cookies.json');  
 
   return mychartRequest
-}
-
-
-async function test() { 
-
-
-
-
-
-}
-
-if (import.meta.main) {
-  test()
 }

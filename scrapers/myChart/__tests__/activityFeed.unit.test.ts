@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: 200 })
+  })
   return req
 }
 
@@ -24,9 +24,11 @@ describe('getActivityFeed', () => {
       { body: '<input name="__RequestVerificationToken" value="t" />' },
       {
         body: JSON.stringify({
-          items: [
-            { id: 'F1', title: 'New lab result', description: 'CBC results available', date: '2024-03-01', type: 'lab', isRead: false },
-          ],
+          singleItemFeedViewModels: [{
+            feedItems: [
+              { identifier: 'F1', displayText: 'New lab result', announcementBody: 'CBC results available', priorityInstant: 1709251200000, type: 'lab', primaryAction: { uri: '/app/test-results' } },
+            ],
+          }],
         }),
       },
     ])
@@ -37,25 +39,25 @@ describe('getActivityFeed', () => {
       id: 'F1',
       title: 'New lab result',
       description: 'CBC results available',
-      date: '2024-03-01',
+      date: new Date(1709251200000).toISOString(),
       type: 'lab',
-      isRead: false,
+      link: '/app/test-results',
     })
   })
 
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ items: [{}] }) },
+      { body: JSON.stringify({ singleItemFeedViewModels: [{ feedItems: [{}] }] }) },
     ])
     const result = await getActivityFeed(req)
-    expect(result[0]).toEqual({ id: '', title: '', description: '', date: '', type: '', isRead: false })
+    expect(result[0]).toEqual({ id: '', title: '', description: '', date: '', type: '', link: '' })
   })
 
   it('handles empty items list', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ items: [] }) },
+      { body: JSON.stringify({ singleItemFeedViewModels: [] }) },
     ])
     expect(await getActivityFeed(req)).toEqual([])
   })

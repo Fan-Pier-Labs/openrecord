@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: r!.status ?? 200 })
+  })
   return req
 }
 
@@ -26,11 +26,11 @@ describe('getEmergencyContacts', () => {
       { body: TOKEN_HTML },
       {
         body: JSON.stringify({
-          relationships: [
+          contacts: [
             {
-              name: 'Jane Doe',
-              relationshipType: 'Spouse',
-              phoneNumber: '555-1234',
+              formattedName: 'Jane Doe',
+              relationToPatient: { name: 'Spouse' },
+              contactInformation: { phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }] },
               isEmergencyContact: true,
             },
           ],
@@ -51,7 +51,7 @@ describe('getEmergencyContacts', () => {
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
-      { body: JSON.stringify({ relationships: [{}] }) },
+      { body: JSON.stringify({ contacts: [{}] }) },
     ])
 
     const result = await getEmergencyContacts(req)
@@ -59,14 +59,14 @@ describe('getEmergencyContacts', () => {
       name: '',
       relationshipType: '',
       phoneNumber: '',
-      isEmergencyContact: false,
+      isEmergencyContact: true,
     })
   })
 
   it('handles empty relationships list', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
-      { body: JSON.stringify({ relationships: [] }) },
+      { body: JSON.stringify({ contacts: [] }) },
     ])
     expect(await getEmergencyContacts(req)).toEqual([])
   })
@@ -107,7 +107,7 @@ describe('addEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({
       name: 'Lisa',
       relationshipType: 'Child',
@@ -142,7 +142,7 @@ describe('updateEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({
       id: 'EC-1',
       phoneNumber: '555-9999',
@@ -178,7 +178,7 @@ describe('removeEmergencyContact', () => {
 
     const fetchMock = req.transport as ReturnType<typeof mock>
     const secondCall = fetchMock.mock.calls[1]
-    const body = JSON.parse(secondCall[1]?.body as string)
+    const body = JSON.parse(secondCall![1]?.body as string)
     expect(body).toEqual({ id: 'EC-42' })
   })
 

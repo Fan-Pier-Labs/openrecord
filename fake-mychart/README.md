@@ -141,7 +141,8 @@ curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"discovery":"moved-host","movedHost":"127.0.0.1:4000"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"requireTerms":true}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false}
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"epicVersion":"August 2025"}'
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025"}
 ```
 
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
@@ -155,6 +156,7 @@ curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","m
 - `movedHost` — **where `moved-host` sends the client.** Point it at another name for this same server — `127.0.0.1:4000` when the client came in on `localhost:4000` — to exercise the move without running a second server. Setting `discovery: "moved-host"` without it is a 400.
 - `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 - `requireTerms` — **whether login lands on the chart or on Terms & Conditions.** `false` (default) or `true`, which bounces every un-accepted session to `/Authentication/TermsConditions`. Wants a fresh login, since it gates sessions that haven't accepted yet. This was the `FAKE_MYCHART_REQUIRE_TERMS` environment variable, which needed a second server on another port to exercise.
+- `epicVersion` — **which Epic release the instance behaves like.** `"November 2025"` (default) or `"August 2025"` — real Epic release names, read from the captured organizations' public FHIR `metadata` endpoints (`software.version`; Epic names releases by month). On November 2025, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On August 2025, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. (Of the three captured instances, the August 2025 one reports that release directly; one November 2025 instance reports it directly and the third's release number wasn't readable, but its behavior is byte-compatible with November 2025.) No re-login needed.
 
 `mode` and `discovery` are orthogonal — every combination works, and whichever
 mount is active serves MyChart from exactly one prefix while the other 404s. A
@@ -165,6 +167,46 @@ worked.
 All of them are global to the process, so a test suite that depends on any of
 them must set it rather than inherit whatever ran before it. `/reset` restores
 the defaults.
+
+## Response Shapes and Error Behavior (captured live)
+
+The JSON the fake serves is held to the field set observed on three real
+instances (one on Epic's August 2025 release, two behaving as November 2025), via two pieces:
+
+- **`src/data/realShapes.ts`** — GENERATED skeletons of real responses, one per
+  endpoint, every leaf a neutral default (`''`/`0`/`false`/`null`). Structure
+  only, never data; dynamic id-keyed maps are collapsed to a single `"*"` key.
+- **`src/lib/shape.ts` (`conformToShape`)** — route handlers conform every
+  fixture to its skeleton: fields the fixture curates win, fields it omits are
+  present with the neutral default. This holds for Homer, the kids' sparse
+  datasets, and emptied categories alike, so a fixture can stay a readable
+  story without silently dropping half the real field set.
+
+Behavioral contract, all verified against the same captures and enforced by
+`scrapers/myChart/__tests__/fake-mychart/realBehavior.integration.test.ts`:
+
+- **`GetList` accepts only groupType 0 and 1**, each returning ONE combined
+  list holding labs, imaging and procedures together (there is no imaging-only
+  groupType). Any other groupType is a 500 with ASP.NET Web API's
+  `{"Message": "An error has occurred."}` body.
+- **`GetDetails` answers an unknown orderKey with a 200 empty shell** — blank
+  `orderName`/`key`, one result with no name and no components — never an error
+  and never another order's data.
+- **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
+  `null`.**
+- **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
+  `abnormalFlagCategoryValue: "Unknown"`, `groupBy: "ORDER"`), and components
+  carry `numericValue` plus numeric `referenceRange` bounds.
+- **`GetMultipleHistoricalResultComponents` returns a MAP** keyed by component
+  id, plus `orderedComponentIDs`/`reportID`.
+- **Every `/api/*` POST requires a `__RequestVerificationToken` header.** A
+  token-less POST is rejected before authentication (the FiveHundred dance on
+  November 2025, a bare 500 on August 2025) — even unauthenticated. Only
+  token-carrying requests fall through to the login redirect that
+  `makeAuthenticatedRequest`'s expiry detection relies on. The fake's own page
+  scripts attach the token through a shared `fetch` wrapper in `html.ts`.
+- **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
+  generic token page.
 
 ## Resetting In-Memory State
 
@@ -180,8 +222,14 @@ Reset clears all sessions, restores the seeded conversations and emergency conta
 ```bash
 cd fake-mychart
 bun install
-bun run dev    # Development mode → http://localhost:4000
+bun run dev    # Development mode → a random port in 4000-5000, printed at startup
 ```
+
+The dev port is random so several agents/worktrees can each run their own
+fake-mychart instead of sharing one instance's RAM. `PORT=4000 bun run dev` pins
+it — which is what the examples below, and any suite defaulting to
+`localhost:4000`, expect. `bun run fake-mychart` from the repo root is the same
+script.
 
 For production builds:
 ```bash
@@ -348,13 +396,15 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 |-------|--------|---------|
 | `/MyChart/api/test-results/GetWidgetList?groupType=2` | POST | Lists imaging studies (X-ray skull, CT head) |
 | `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportID` |
-| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` |
+| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
 | `/MyChart/Extensibility/Redirection/FdiData` | POST | Bridge: returns `{url, launchmode, IsFdiPost}` pointing at `/e/saml-sts` |
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
-| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response with study/series/instance UIDs. Required before `CustomImageServlet` returns image bytes. |
-| `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID` |
+| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built by `src/lib/amf3.ts`. |
+| `/e/CustomImageServlet` | POST | Returns CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) with real content types (`application/clowrapper` / `application/clopixel`). `CLOWRAPPER` is keyed per `(seriesUID, objectUID)` like a real server: multi-slice series answer a per-instance wrapper carrying that slice's `calibration.orientation.positionPatient` (synthesized at startup by `src/lib/cloWrapper.ts` from `slicePositions` in `src/data/homer.ts`), which is what lets clients sort slices into anatomical order. Other series share one pre-generated wrapper per series. |
+
+The two imaging studies deliberately advertise their viewer differently, matching the two shapes seen on real instances: the X-ray's report HTML embeds `data-fdi-context`, while the CT result carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`) and its report HTML has no fdi markup at all — the Mass General Brigham shape. Both scraper discovery paths stay covered.
 
 ### CLO image data
 
@@ -364,6 +414,21 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
 
 Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
+
+The CT study's multi-slice series (`AXIAL`, `BONE RECON`) carry per-slice patient positions (`slicePositions` in `src/data/homer.ts`) — the AXIAL z values run *descending* against instance number on purpose, so anatomical order is the reverse of download order and a client that skips position sorting is observably wrong. `SCOUT` keeps a position-free wrapper, covering projection images.
+
+### SeriesSelector pseudo-instances
+
+Real eUnity servers emit a `SeriesSelector` pseudo-series at the head of a CT
+study's instance list — a viewer UI construct that appears in the AMF metadata
+like a real series (its UID derived from the study UID, three instances) but
+answers every `CustomImageServlet` request with HTTP 200 and a 226-byte
+`application/cloerror` payload (`CLOERROR#Z##` magic + zlib-deflated message).
+The CT study reproduces that shape (marked `cloError: true` in
+`src/data/homer.ts`), so clients are forced to handle a study whose first
+instances carry no image data: the junk must be skipped, never returned as an
+image and never allowed to turn the download into an empty result. The X-ray
+study stays clean so both shapes are covered.
 
 ### Origin handling
 
@@ -396,6 +461,14 @@ bun run test:integration
 ```
 
 ## Adding New Endpoints
+
+**Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a
+convenience mock. Replicate the real API's response shapes, field names and casing, pagination (page
+sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules
+(e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never
+simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the
+fake returns 10, and the fixture is sized around that. When you discover how a real endpoint
+behaves, update the fake to match it exactly.
 
 To add a new endpoint:
 

@@ -6,6 +6,7 @@ import {
   extractServiceInstanceFromAmf,
   buildGetStudyListMetaRequest,
 } from '../imagingDirectDownload';
+import { Amf3Reader } from '../amf3Reader';
 
 // ─── Helper: build a fake AMF binary with UIDs laid out like a real response ───
 
@@ -345,5 +346,200 @@ describe('buildGetStudyListMetaRequest', () => {
     const buf1 = buildGetStudyListMetaRequest('ACC1', 'SI1', 'PID1');
     const buf2 = buildGetStudyListMetaRequest('ACC2', 'SI2', 'PID2');
     expect(buf1.equals(buf2)).toBe(false);
+  });
+});
+
+// ─── AMF3 frame integrity ───
+
+/**
+ * The frames below are decoded with the production `Amf3Reader` — the same
+ * decoder that parses getStudyListMeta responses. An encoder round-tripped
+ * through a decoder that grew up next to it would agree with any shared
+ * misreading of the AMF3 spec, so the round-trip alone is not the evidence
+ * here: `GOLDEN_FRAME_HEX` is. It pins the writer byte-for-byte to a frame a
+ * real eUnity server accepted, and no shared writer/reader bug survives that.
+ * The structural decodes then say *which* field moved when the bytes change.
+ */
+
+/**
+ * Walk a decoded frame down to its single RequestedPHI object — the leaf that
+ * carries the caller's arguments, six levels of nesting below the root.
+ */
+function requestedPhiOf(decoded: unknown): Record<string, unknown> {
+  const frame = decoded as {
+    body: {
+      parameters: { value: { payload: { requestedPHI: { value: Record<string, unknown>[] } } } }[];
+    };
+  };
+  const phi = frame.body?.parameters?.[0]?.value?.payload?.requestedPHI?.value?.[0];
+  if (!phi) throw new Error('decoded frame carried no RequestedPHI');
+  return phi;
+}
+
+// Synthetic values — not from any real patient or study.
+const ACCESSION = 'ACC0000001';
+const SERVICE_INSTANCE = 'EXAMPLEstudystrategy';
+const PATIENT_ID = 'MRN000000$$$EXAMPLESITE';
+
+/**
+ * The exact bytes `buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE,
+ * PATIENT_ID)` emits, captured from a build verified byte-for-byte against the
+ * implementation as it stood before the `no-shadow` refactor (#257).
+ *
+ * eUnity's AMF protocol was reverse-engineered from captured browser traffic
+ * and there is no server-side schema to validate against — a single wrong byte
+ * yields a corrupt frame that the server rejects with a 403 rather than a
+ * useful error, and the failure only ever shows up against a live eUnity
+ * instance. So this is pinned. **Do not re-record this fixture to make a
+ * failing test pass**: if a change moves these bytes, the frame changed, and
+ * the question to answer is why.
+ */
+const GOLDEN_FRAME_HEX =
+  '0a336b636f6d2e636c69656e746f75746c6f6f6b2e7765622e6d65746173657276696365' +
+  '732e416d6653657276696365734d657373616765136d6573736167654944176d65737361' +
+  '67655479706509626f647906254854545053696d706c654c6f616465725f31060963616c' +
+  '6c0a336b636f6d2e636c69656e746f75746c6f6f6b2e7765622e6d657461736572766963' +
+  '65732e416d665365727669636573526571756573740f736572766963650d6d6574686f64' +
+  '15706172616d65746572730619537475647953657276696365062167657453747564794c' +
+  '6973744d6574610903010a0767636f6d2e636c69656e746f75746c6f6f6b2e7765622e6d' +
+  '65746173657276696365732e53747564794c697374526571756573740000000206196765' +
+  '7453747564794c697374060b312e322e300a33010f6e6f74557365641972657175657374' +
+  '656450484917656e7669726f6e6d656e74030a0743666c65782e6d6573736167696e672e' +
+  '696f2e4172726179436f6c6c656374696f6e0903010a810347636f6d2e636c69656e746f' +
+  '75746c6f6f6b2e646174612e5265717565737465645048491370617469656e7449641173' +
+  '747564795549441f616363657373696f6e4e756d6265723173657276696365496e737461' +
+  '6e6365506172616d657465723373657276696365496e7374616e636550726f7065727469' +
+  '65731f73657276696365496e7374616e6365416f726967696e616c53657276696365496e' +
+  '7374616e6365506172616d657465722f6f726967696e616c53657276696365496e737461' +
+  '6e6365062f4d524e3030303030302424244558414d504c45534954450106154143433030' +
+  '303030303106010106294558414d504c45737475647973747261746567790601063c0a63' +
+  '65636f6d2e636c69656e746f75746c6f6f6b2e646174612e68616e67696e6770726f746f' +
+  '636f6c2e456e7669726f6e6d656e74156c6576656c56616c75650b6c6576656c09757365' +
+  '720b726f6c65730d6465766963651f6e756d6265724f6653637265656e73010400010106' +
+  '07574542060331';
+
+describe('buildGetStudyListMetaRequest — AMF3 frame integrity', () => {
+  it('decodes to the exact structure the eUnity protocol expects', () => {
+    const reader = new Amf3Reader(buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID));
+
+    expect(reader.readValue()).toEqual({
+      __class: 'com.clientoutlook.web.metaservices.AmfServicesMessage',
+      // Member order is load-bearing for sealed traits: messageID before messageType.
+      messageID: 'HTTPSimpleLoader_1',
+      messageType: 'call',
+      body: {
+        __class: 'com.clientoutlook.web.metaservices.AmfServicesRequest',
+        service: 'StudyService',
+        method: 'getStudyListMeta',
+        parameters: [
+          {
+            __class: 'com.clientoutlook.web.metaservices.StudyListRequest',
+            __externalizable: true,
+            value: {
+              header: 2,
+              qualifier: 'getStudyList',
+              version: '1.2.0',
+              payload: {
+                __class: '', // anonymous
+                notUsed: true,
+                requestedPHI: {
+                  __class: 'flex.messaging.io.ArrayCollection',
+                  __externalizable: true,
+                  value: [
+                    {
+                      __class: 'com.clientoutlook.data.RequestedPHI',
+                      patientId: PATIENT_ID,
+                      studyUID: null,
+                      accessionNumber: ACCESSION,
+                      serviceInstanceParameter: '',
+                      serviceInstanceProperties: null,
+                      serviceInstance: SERVICE_INSTANCE,
+                      originalServiceInstanceParameter: '',
+                      originalServiceInstance: SERVICE_INSTANCE,
+                    },
+                  ],
+                },
+                environment: {
+                  __class: 'com.clientoutlook.data.hangingprotocol.Environment',
+                  levelValue: null,
+                  level: 0,
+                  user: null,
+                  roles: null,
+                  device: 'WEB',
+                  numberOfScreens: '1',
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('emits a frame with no trailing or missing bytes', () => {
+    const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
+    const reader = new Amf3Reader(buf);
+    reader.readValue();
+    expect(reader.offset).toBe(buf.length);
+  });
+
+  it('writes every nested value through one shared writer', () => {
+    // The frame is built by a tree of callbacks nested six deep, each handed a
+    // writer. They must all be handed the *same* writer: the AMF3 string
+    // reference table lives on the writer, so a callback that wrote to a fresh
+    // one would restart the table and shift every later index.
+    //
+    // `serviceInstance` is the observable. It appears twice in RequestedPHI, so
+    // a shared table encodes the second as a back-reference — the string
+    // occurs exactly once in the raw bytes. A broken writer chain inlines it a
+    // second time instead — same decoded value, different bytes, and every
+    // subsequent reference index off by one.
+    const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
+    const phi = requestedPhiOf(new Amf3Reader(buf).readValue());
+
+    expect(phi.serviceInstance).toBe(SERVICE_INSTANCE);
+    expect(phi.originalServiceInstance).toBe(SERVICE_INSTANCE);
+
+    const occurrences = buf.toString('latin1').split(SERVICE_INSTANCE).length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it('matches the recorded frame byte for byte', () => {
+    const buf = buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID);
+    expect(buf.toString('hex')).toBe(GOLDEN_FRAME_HEX);
+  });
+
+  it('prefixes strings with their UTF-8 byte length, not their character count', () => {
+    // A multi-byte accession would desynchronize the whole frame if the length
+    // prefix counted characters.
+    const accession = 'ACC-Ω-ünïcodé';
+    expect(accession.length).not.toBe(Buffer.byteLength(accession, 'utf-8'));
+
+    const reader = new Amf3Reader(buildGetStudyListMetaRequest(accession, SERVICE_INSTANCE, PATIENT_ID));
+    expect(requestedPhiOf(reader.readValue()).accessionNumber).toBe(accession);
+  });
+
+  it('encodes string lengths across every U29 width the fields can reach', () => {
+    // U29 is variable-width; the branch is chosen by (byteLength << 1) | 1.
+    // 1-byte prefix < 0x80, 2-byte < 0x4000, 3-byte < 0x200000.
+    for (const length of [10, 100, 9000]) {
+      const accession = 'A'.repeat(length);
+      const reader = new Amf3Reader(buildGetStudyListMetaRequest(accession, SERVICE_INSTANCE, PATIENT_ID));
+      expect(requestedPhiOf(reader.readValue()).accessionNumber).toBe(accession);
+    }
+  });
+
+  it('keeps empty strings inline and out of the reference table', () => {
+    // Both empty members must stay inline. If the writer added the empty
+    // string to its reference table, every index after it would shift by one
+    // and the spec-correct reader (which never tables the empty string) would
+    // decode later fields as the wrong strings — these assertions and the
+    // structure test above would both fail.
+    const phi = requestedPhiOf(
+      new Amf3Reader(buildGetStudyListMetaRequest(ACCESSION, SERVICE_INSTANCE, PATIENT_ID)).readValue(),
+    );
+
+    expect(phi.serviceInstanceParameter).toBe('');
+    expect(phi.originalServiceInstanceParameter).toBe('');
   });
 });

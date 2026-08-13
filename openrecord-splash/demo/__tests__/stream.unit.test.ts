@@ -75,7 +75,7 @@ describe('streamText', () => {
     // Every emission is a prefix of the final text, in order.
     for (const [i, visible] of seen.entries()) {
       expect('Your A1c is 7.2%.'.startsWith(visible)).toBe(true);
-      if (i > 0) expect(visible.length).toBeGreaterThanOrEqual(seen[i - 1].length);
+      if (i > 0) expect(visible.length).toBeGreaterThanOrEqual(seen[i - 1]!.length);
     }
   });
 

@@ -40,7 +40,7 @@ function mockRouted(routes: Array<[string, string | (() => Response)]>) {
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.transport
+  })
 
   return { req, calls }
 }
@@ -177,11 +177,11 @@ describe('getBillingHistory', () => {
     const { req } = fullMock()
     const [account] = await getBillingHistory(req)
 
-    expect(account.guarantorNumber).toBe('7007')
-    expect(account.billingDetails?.Success).toBe(true)
-    expect(account.statementList).toBeDefined()
-    expect(account.paymentList).toBeDefined()
-    expect(account.encBillingId).toBe('ENC-7')
+    expect(account!.guarantorNumber).toBe('7007')
+    expect(account!.billingDetails?.Success).toBe(true)
+    expect(account!.statementList).toBeDefined()
+    expect(account!.paymentList).toBeDefined()
+    expect(account!.encBillingId).toBe('ENC-7')
   })
 
   it('searches a window wide enough to cover a lifetime of visits', async () => {
@@ -210,8 +210,8 @@ describe('getBillingHistory', () => {
     ])
 
     const [account] = await getBillingHistory(req)
-    expect(account.billingDetails?.Success).toBe(true)
-    expect(account.statementList).toBeUndefined()
+    expect(account!.billingDetails?.Success).toBe(true)
+    expect(account!.statementList).toBeUndefined()
   })
 
   it('returns an empty list when the summary page has no accounts', async () => {

@@ -8,6 +8,11 @@
     "outDir": "./dist",
     "rootDir": "..",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "strictNullChecks": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
@@ -17,6 +22,6 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "tsup.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

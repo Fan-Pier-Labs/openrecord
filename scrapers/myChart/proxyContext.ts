@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
 import { getMyChartProfile } from './profile';
 import { logger } from '../../shared/logger';
@@ -190,9 +190,9 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
   const scriptRegex = /EpicPx\.ReactContext\.personalizations\.proxySubjects\.push\((\{[\s\S]*?\})\);/g;
   let match: RegExpExecArray | null;
   while ((match = scriptRegex.exec(html)) !== null) {
-    const block = match[1];
-    const displayName = block.match(/displayName:"([^"]+)"/)?.[1] || '';
-    const id = block.match(/\{type:"INTERNAL",value:"([^"]+)"\}/)?.[1] || '';
+    const block = match[1]!; // the regex's one capture group is non-optional
+    const displayName = (/displayName:"([^"]+)"/.exec(block))?.[1] || '';
+    const id = (/\{type:"INTERNAL",value:"([^"]+)"\}/.exec(block))?.[1] || '';
     if (!displayName) continue;
     // Prefer an explicit self flag (`isSelf:!0` once minified). Falling back to
     // "has no id" is a last resort and is known to be wrong wherever the
@@ -215,7 +215,7 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
 
 async function loadHomeHtml(mychartRequest: MyChartRequest, options?: AuthenticatedRequestOptions): Promise<string> {
   const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' }, options);
-  return await resp.text();
+  return resp.text();
 }
 
 async function followProxySwitchChain(mychartRequest: MyChartRequest, startPathOrUrl: string): Promise<void> {
@@ -261,7 +261,7 @@ function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): Pro
         `discovered records are flagged as self.`
       );
     }
-    return matches[0];
+    return matches[0]!;
   }
 
   if (target.id !== undefined) {
@@ -269,7 +269,7 @@ function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): Pro
     if (matches.length !== 1) {
       throw new Error(`Could not resolve proxy target by id '${target.id}'.`);
     }
-    return matches[0];
+    return matches[0]!;
   }
 
   if (target.displayName) {
@@ -281,7 +281,7 @@ function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): Pro
     if (matches.length > 1) {
       throw new Error(`Ambiguous proxy target displayName '${target.displayName}'.`);
     }
-    return matches[0];
+    return matches[0]!;
   }
 
   throw new Error('Proxy target must include self, id or displayName.');
@@ -335,7 +335,7 @@ export function compareProfileNames(expected: string, actual: string): 'match' |
   if (a.every((token) => setB.has(token)) || b.every((token) => setA.has(token))) return 'match';
 
   const surnameShared = a[a.length - 1] === b[b.length - 1];
-  if (surnameShared && isShortFormOf(a[0], b[0])) return 'match';
+  if (surnameShared && isShortFormOf(a[0]!, b[0]!)) return 'match'; // both non-empty per the check above
 
   // Reordered renderings ("Simpson, Homer Jay").
   const shared = a.filter((token) => setB.has(token));
@@ -434,29 +434,29 @@ export function findProxyTarget(targets: ProxyTarget[], query: string): ProxyTar
 
   if (SELF_QUERIES.has(wanted)) {
     const selves = targets.filter((entry) => entry.isSelf);
-    if (selves.length === 1) return selves[0];
+    if (selves.length === 1) return selves[0]!;
     // Only one record is reachable at all, so it IS the account holder —
     // whether or not the portal bothered to flag it. This matters because the
     // HTML and script discovery surfaces are inferred rather than captured: a
     // single-record account whose markup we misparse must not get locked out
     // of a tool that has nothing to do with proxy access.
-    if (targets.length === 1) return targets[0];
+    if (targets.length === 1) return targets[0]!;
     throw new Error(`Could not identify the account holder's own record among: ${describe()}.`);
   }
 
   // Ids are opaque and exact — check them before any name matching so a record
   // can always be named unambiguously even if display names collide.
   const byId = targets.filter((entry) => entry.id === query.trim());
-  if (byId.length === 1) return byId[0];
+  if (byId.length === 1) return byId[0]!;
 
   const exact = targets.filter((entry) => normalize(entry.displayName) === wanted);
-  if (exact.length === 1) return exact[0];
+  if (exact.length === 1) return exact[0]!;
   if (exact.length > 1) {
     throw new Error(`'${query}' matches more than one patient record. Use --patient with the record id instead.`);
   }
 
   const partial = targets.filter((entry) => normalize(entry.displayName).includes(wanted));
-  if (partial.length === 1) return partial[0];
+  if (partial.length === 1) return partial[0]!;
   if (partial.length > 1) {
     throw new Error(
       `'${query}' matches ${partial.length} patient records (${partial.map((t) => `'${t.displayName}'`).join(', ')}). Be more specific.`
@@ -527,12 +527,13 @@ export async function checkProxyContext(
     ? targets.filter((entry) => compareProfileNames(entry.displayName, profileName) === 'match')
     : [];
 
-  if (byName.length === 1) {
+  const namedCurrent = byName.length === 1 ? byName[0] : undefined;
+  if (namedCurrent) {
     return {
       targets,
       wanted,
-      current: byName[0],
-      active: byName[0].id === wanted.id,
+      current: namedCurrent,
+      active: namedCurrent.id === wanted.id,
       determinedBy: 'profile-name',
     };
   }
@@ -558,6 +559,32 @@ export async function checkProxyContext(
  * Accounts with no proxy access have no proxy surface at all; there `fn` simply
  * runs.
  */
+/**
+ * Record which patient record this session is on, and arm the restore hook
+ * session renewal uses to put it back after a silent re-login. Set together
+ * on purpose: renewal fails closed if it ever finds a recorded non-self
+ * target without a restore hook (see sessionRenewal.ts). The hook re-runs the
+ * verified switch with autoRenew: false, so it can only ever fail, never
+ * re-enter renewal.
+ */
+function recordActiveTarget(
+  mychartRequest: MyChartRequest,
+  resolved: Pick<ProxyTarget, 'id' | 'isSelf' | 'displayName'>,
+): void {
+  mychartRequest.activeProxyTarget = {
+    id: resolved.id,
+    isSelf: resolved.isSelf,
+    displayName: resolved.displayName,
+  };
+  mychartRequest.restoreProxyContext = async () => {
+    await switchProxyTarget(
+      mychartRequest,
+      resolved.isSelf ? { self: true } : { id: resolved.id },
+      { autoRenew: false },
+    );
+  };
+}
+
 export async function withProxyTarget<T>(
   mychartRequest: MyChartRequest,
   target: ProxyTargetSelector | string | undefined,
@@ -580,11 +607,7 @@ export async function withProxyTarget<T>(
   // the intent: if the session expires inside fn(), automatic renewal must
   // know which record to restore even though no switch happened on this call.
   if (resolved.selectionKnown && resolved.isSelected) {
-    mychartRequest.activeProxyTarget = {
-      id: resolved.id,
-      isSelf: resolved.isSelf,
-      displayName: resolved.displayName,
-    };
+    recordActiveTarget(mychartRequest, resolved);
   } else {
     await switchProxyTarget(
       mychartRequest,
@@ -652,15 +675,9 @@ export async function switchProxyTarget(
   }
 
   // Remember which record this session is now on. Automatic session renewal
-  // (makeAuthenticatedRequest) reads this to restore the context after a
-  // re-login, which resets MyChart to the account holder server-side.
-  const recordSwitch = () => {
-    mychartRequest.activeProxyTarget = {
-      id: resolved.id,
-      isSelf: resolved.isSelf,
-      displayName: resolved.displayName,
-    };
-  };
+  // (sessionRenewal.ts) reads this to restore the context after a re-login,
+  // which resets MyChart to the account holder server-side.
+  const recordSwitch = () => recordActiveTarget(mychartRequest, resolved);
 
   if (verified.selectionKnown) {
     const confirmed = resolved.isSelf ? !!selected?.isSelf : !!selected && selected.id === resolved.id;

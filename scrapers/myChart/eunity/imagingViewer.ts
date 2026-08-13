@@ -1,9 +1,9 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
-import { MyChartRequest } from '../myChartRequest';
+import { type MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
-import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
+import { type ReportContent } from '../labs_and_procedure_results/labtestresulttype';
 import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
@@ -42,6 +42,26 @@ export function extractFdiContext(reportContentHtml: string): FdiContext | null 
     // data-fdi-context wasn't valid JSON
   }
   return null;
+}
+
+/**
+ * Extract the fdi/ord pair from a result's `fdiLink.redirectUrl`.
+ *
+ * Some instances (observed on Mass General Brigham) never embed a
+ * `data-fdi-context` attribute in the report HTML — instead each result
+ * carries a structured `fdiLink` whose redirectUrl is
+ * `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`, the same pair the
+ * FdiData API takes. The tokens are MyChart's own `WP-…` encoding and contain
+ * no `%` escapes, so URLSearchParams returns them verbatim.
+ */
+export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | null {
+  const queryStart = redirectUrl.indexOf('?');
+  if (queryStart < 0) return null;
+  const params = new URLSearchParams(redirectUrl.slice(queryStart + 1));
+  const fdi = params.get('fdi');
+  const ord = params.get('ord');
+  if (!fdi || !ord) return null;
+  return { fdi, ord };
 }
 
 /**
@@ -189,7 +209,7 @@ export async function followSamlChain(
         // Check if we've reached eUnity (detected by /e/viewer path)
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
           const viewerRes = await req(url);
-          return makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
+          return await makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
         }
         continue;
       }
@@ -201,10 +221,10 @@ export async function followSamlChain(
         if (html.length < 3000) logger.debug(`  [SAML] Body: ${html.substring(0, 2000)}`);
 
         // Check for meta-refresh: <meta http-equiv="refresh" content="0;URL='https://...'">
-        const metaMatch = html.match(/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i) ||
-                          html.match(/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i);
+        const metaMatch = (/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i.exec(html)) ||
+                          (/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i.exec(html));
         if (metaMatch) {
-          url = new URL(metaMatch[1], url).href;
+          url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess
           method = 'GET';
           body = undefined;
           contentType = undefined;
@@ -213,15 +233,15 @@ export async function followSamlChain(
 
         // Check for JavaScript redirect (e.g. window.location.href = '...')
         // The redirecttoviewer page uses JS to redirect to eUnity
-        const jsRedirectMatch = html.match(/(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i);
+        const jsRedirectMatch = /(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i.exec(html);
         if (jsRedirectMatch) {
           // If it's a variable reference (url2, url3), extract the URL from the var declaration
           let targetUrl = jsRedirectMatch[1] || jsRedirectMatch[2];
           if (!targetUrl) {
             // Variable reference — look for the var declaration
-            const varMatch = html.match(/var\s+url\s*=\s*'([^']+)'/);
+            const varMatch = /var\s+url\s*=\s*'([^']+)'/.exec(html);
             if (varMatch) {
-              targetUrl = varMatch[1].replace(/&amp;/g, '&');
+              targetUrl = varMatch[1]!.replace(/&amp;/g, '&'); // pattern has one mandatory capture group; noUncheckedIndexedAccess
             }
           }
           if (targetUrl) {
@@ -255,7 +275,7 @@ export async function followSamlChain(
         }
 
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
-          return makeViewerResult(url, html);
+          return await makeViewerResult(url, html);
         }
 
         // Reached a page that's not eUnity and has no redirect

@@ -2,19 +2,18 @@
  * Encode a downloaded imaging study as JPEGs.
  *
  * The download itself is the shared `download_imaging_study` capability
- * (`shared/capabilities.ts`), which returns raw CLO bytes — every client has to
- * encode those itself, because the MCPB ships no native image dependency and
- * uses the pure-JS CLO→JPEG path (convertCloToBitmap16 + jpeg-js) where the
- * CLI uses sharp and the mobile app uses its own decoder. This module is that
- * MCPB-specific encoding step, kept out of tool registration so it can be
+ * (`shared/capabilities.ts`), which returns raw CLO bytes. Encoding is the
+ * shared pure-JS exporter (`convertCloToJpgPureJs`) — the same code path the
+ * Expo app uses, so an X-ray renders identically in every client. This module
+ * is just the MCPB glue around it, kept out of tool registration so it can be
  * unit-tested against fake-mychart without standing up an MCP server.
  */
 import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
-import { convertCloToBitmap16 } from '../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
-import { encodeCloAsJpeg } from './jpeg-encoder';
+import { convertCloToJpgPureJs } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import {
   encodeImageId,
+  executeCapability,
   getCapability,
   type StudyImagePayload,
 } from '../../../shared/capabilities';
@@ -33,7 +32,7 @@ export interface DownloadStudyJpegsResult {
   studyName: string;
   /** Total image instances the study contains. */
   totalImages: number;
-  /** How many images were encoded and returned (capped by maxImages). */
+  /** How many images were encoded and returned. */
   returned: number;
   images: StudyJpeg[];
   /** Non-fatal errors from the download/encode pipeline. */
@@ -42,10 +41,6 @@ export interface DownloadStudyJpegsResult {
 
 export interface DownloadStudyJpegsOptions {
   studyName?: string;
-  /** Max images to download and encode (default 3). */
-  maxImages?: number;
-  /** JPEG quality 1-100 (default 85). */
-  jpegQuality?: number;
 }
 
 /**
@@ -53,28 +48,21 @@ export interface DownloadStudyJpegsOptions {
  * as JPEGs. Pure — no network — so the tool handler can call the capability
  * once and hand its payload straight here.
  */
-export function encodeStudyJpegs(
-  payload: StudyImagePayload,
-  opts: { maxImages?: number; jpegQuality?: number } = {},
-): DownloadStudyJpegsResult {
-  const maxImages = opts.maxImages ?? 3;
-  const jpegQuality = opts.jpegQuality ?? 85;
-
+export function encodeStudyJpegs(payload: StudyImagePayload): DownloadStudyJpegsResult {
   const errors = [...payload.errors];
   const withPixels = payload.images.filter((img) => img.pixelData && img.pixelData.length > 0);
   const images: StudyJpeg[] = [];
 
-  for (let i = 0; i < Math.min(withPixels.length, maxImages); i++) {
-    const img = withPixels[i];
+  for (let i = 0; i < withPixels.length; i++) {
+    const img = withPixels[i]!; // i bounded by loop over withPixels.length; noUncheckedIndexedAccess
     try {
-      const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
-      const encoded = encodeCloAsJpeg(bitmap, jpegQuality);
+      const encoded = convertCloToJpgPureJs(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       images.push({
         index: i,
         seriesDescription: img.seriesDescription,
         width: encoded.width,
         height: encoded.height,
-        bytes: encoded.bytes,
+        bytes: encoded.buffer.length,
         jpegBase64: Buffer.from(encoded.buffer).toString('base64'),
       });
     } catch (err) {
@@ -93,7 +81,7 @@ export function encodeStudyJpegs(
 
 /**
  * Resolve a fresh image-viewer session from `fdiContext`, download the study's
- * CLO image data over HTTP, and encode the first `maxImages` images as JPEGs.
+ * CLO image data over HTTP, and encode every image as a JPEG.
  *
  * `fdiContext` ({ fdi, ord }) comes from an entry returned by
  * `getImagingResults` — it is durable report-identifier data, so a fresh
@@ -104,16 +92,19 @@ export async function downloadStudyJpegs(
   fdiContext: FdiContext,
   opts: DownloadStudyJpegsOptions = {},
 ): Promise<DownloadStudyJpegsResult> {
-  const maxImages = opts.maxImages ?? 3;
   const capability = getCapability('download_imaging_study');
   if (!capability?.rendersMedia) {
     throw new Error('The imaging-download capability is missing from the registry.');
   }
-  const payload = (await capability.run(req, {
+  // executeCapability, not the implementation: this asserts which patient's
+  // chart is active before downloading anything. Reaching `run` here was a
+  // live bypass — the regex that was supposed to prevent it only scanned three
+  // other files, and this reached `run` via getCapability rather than by the
+  // one spelling it matched.
+  const payload = (await executeCapability(req, capability.id, {
     image_id: encodeImageId(fdiContext),
     study_name: opts.studyName ?? 'imaging study',
-    max_images: maxImages,
   })) as StudyImagePayload;
 
-  return encodeStudyJpegs(payload, { maxImages, jpegQuality: opts.jpegQuality });
+  return encodeStudyJpegs(payload);
 }

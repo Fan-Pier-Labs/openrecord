@@ -64,13 +64,14 @@ export function generateTotpCode(secret: string, timestampMs: number = Date.now(
   counterBuf.writeUInt32BE(counter >>> 0, 4);
 
   const hmac = crypto.createHmac('sha1', base32Decode(secret)).update(counterBuf).digest();
-  // Dynamic truncation (RFC 4226 §5.3)
-  const offset = hmac[hmac.length - 1] & 0x0f;
+  // Dynamic truncation (RFC 4226 §5.3). A SHA-1 digest is always 20 bytes and
+  // the offset is masked to [0, 15], so offset + 3 is always in range.
+  const offset = hmac[hmac.length - 1]! & 0x0f;
   const binary =
-    ((hmac[offset] & 0x7f) << 24) |
-    ((hmac[offset + 1] & 0xff) << 16) |
-    ((hmac[offset + 2] & 0xff) << 8) |
-    (hmac[offset + 3] & 0xff);
+    ((hmac[offset]! & 0x7f) << 24) |
+    ((hmac[offset + 1]! & 0xff) << 16) |
+    ((hmac[offset + 2]! & 0xff) << 8) |
+    (hmac[offset + 3]! & 0xff);
 
   return String(binary % 1_000_000).padStart(6, '0');
 }

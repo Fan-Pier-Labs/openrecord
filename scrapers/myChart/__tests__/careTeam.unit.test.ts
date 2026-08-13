@@ -1,13 +1,14 @@
 import { describe, it, expect, mock } from 'bun:test'
 import { getCareTeam } from '../careTeam'
 import { MyChartRequest } from '../myChartRequest'
+import { SessionExpiredError } from '../makeAuthenticatedRequest'
 
 function mockRequest(body: string) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   req.transport = mock(async () => {
     return new Response(body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -22,7 +23,7 @@ function mockRequestByPath(responses: Record<string, string>) {
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -58,7 +59,7 @@ describe('getCareTeam', () => {
     `
     const result = await getCareTeam(mockRequest(html))
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('Jane Doe, NP')
+    expect(result[0]!.name).toBe('Jane Doe, NP')
   })
 
   it('falls back to API when HTML has no structured care team data', async () => {
@@ -120,7 +121,7 @@ describe('getCareTeam', () => {
     expect(result).toEqual([])
   })
 
-  it('returns empty array when API call fails', async () => {
+  it('returns empty array when the recipients endpoint does not serve JSON', async () => {
     const pageHtml = `
       <html><body>
         <input name="__RequestVerificationToken" value="tok" />
@@ -132,5 +133,64 @@ describe('getCareTeam', () => {
     })
     const result = await getCareTeam(req)
     expect(result).toEqual([])
+  })
+})
+
+/**
+ * The fallback used to sit inside a bare `catch {}`, so a dead session or a
+ * dropped connection came back as "this patient has no care team" — an
+ * empty result nothing downstream can tell apart from a real answer.
+ */
+describe('getCareTeam failure reporting', () => {
+  const TOKEN_PAGE = `
+    <html><body>
+      <input name="__RequestVerificationToken" value="tok" />
+    </body></html>
+  `
+
+  function requestFailingRecipients(fail: () => never) {
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    req.transport = mock(async (url: string) => {
+      if (url.includes('GetMedicalAdviceRequestRecipients')) fail()
+      return new Response(TOKEN_PAGE, { status: 200 })
+    })
+    return req
+  }
+
+  it('propagates a transport failure instead of reporting no care team', async () => {
+    const req = requestFailingRecipients(() => { throw new Error('connection reset') })
+
+    await expect(getCareTeam(req)).rejects.toThrow('connection reset')
+  })
+
+  it('propagates a SessionExpiredError instead of reporting no care team', async () => {
+    const req = requestFailingRecipients(() => { throw new SessionExpiredError() })
+
+    await expect(getCareTeam(req)).rejects.toBeInstanceOf(SessionExpiredError)
+  })
+
+  it('still treats a non-ok recipients response as "not available here"', async () => {
+    // The legitimate case the swallow existed for: many instances render the
+    // care team client-side and do not serve this endpoint at all.
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    req.transport = mock(async (url: string) => {
+      if (url.includes('GetMedicalAdviceRequestRecipients')) {
+        return new Response('Not Found', { status: 404 })
+      }
+      return new Response(TOKEN_PAGE, { status: 200 })
+    })
+
+    await expect(getCareTeam(req)).resolves.toEqual([])
+  })
+
+  it('treats a JSON body whose wrapper key is not a list as no care team', async () => {
+    const req = mockRequestByPath({
+      'Clinical/CareTeam': TOKEN_PAGE,
+      'GetMedicalAdviceRequestRecipients': JSON.stringify({ recipients: { unexpected: 'shape' } }),
+    })
+
+    await expect(getCareTeam(req)).resolves.toEqual([])
   })
 })

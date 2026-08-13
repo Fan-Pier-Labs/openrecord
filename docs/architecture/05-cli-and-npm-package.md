@@ -11,9 +11,10 @@ Install: `npm i -g mychart-cli`.
 ```
 npm-package/
   cli/
-    entry.ts             bin shim
-    cli.ts               argv parsing, interactive prompts, output — runs main() on import
-    capabilityActions.ts --action dispatch, kept OUT of cli.ts
+    entry.ts             bin shim — splices argv, then dynamically imports cli.ts
+    cli.ts               argv parsing, interactive prompts, output; exports runCli()
+    capabilityActions.ts the CLI's only dispatch surface — generic, registry-driven
+    help.ts              renders --help, flags then the capability listing
     totpStore.ts         saved TOTP secrets
     passkeyStore.ts      saved passkey credentials
   src/
@@ -21,11 +22,24 @@ npm-package/
     index.ts             public exports
   examples/
   docs.md
-read-local-passwords/    Chrome / Arc / Firefox password store extraction
+read-local-passwords/    Chrome / Arc / Firefox password store extraction (repo root)
 ```
 
-`capabilityActions.ts` is separate from `cli.ts` for a specific reason: `cli.ts` runs
-`main()` the moment it is imported, and the parity test has to import the dispatch.
+**The CLI has no hand-written per-action code left worth the name.** `capabilityActions.ts`
+resolves `--action` through `resolveCliAction` (plus `CLI_ACTION_ALIASES`, the four surviving
+dashed spellings — `list-proxies`, `get-thread`, `delete-message`, `request-refill`) and runs
+it through one generic `runCapabilityAction`. Even `FULL_SCRAPE_CAPABILITIES` is derived by
+predicate — read-kind, not `rendersMedia`, accepts a patient, no required params — rather than
+hand-listed. Four cases still branch in `cli.ts`, and each earns it: `send-message`,
+`send-reply` and `keep-alive-test` are interactive, and `get-imaging` is a *composite* that
+chains `get_imaging_results` into one `download_imaging_study` per study — both hops through
+`executeCapability`, replacing a 220-line handler that fetched around the active-patient guard
+entirely.
+
+`capabilityActions.ts` and `help.ts` sit outside `cli.ts` so the parity test and the CLI's own
+unit tests can drive them without dragging in the login flow and argv parsing. Note that
+importing `cli.ts` **no longer runs the CLI** — it ends in `export async function runCli()`
+behind an `if (import.meta.main)` guard, which is what lets tests reach its internals.
 
 ## Runtime shape
 
@@ -61,17 +75,26 @@ with repeated `--arg name=value` runs any of them.
 ```mermaid
 flowchart LR
     APP["consumer code"]
-    C["<code>new MyChartClient(opts)</code>"]
-    CONN["<code>connect()</code><br/>→ MyChartRequest, wired for<br/>silent renewal from the connect args<br/>(<code>autoRenew: false</code> opts out)"]
-    RC["<code>runCapability(id, args)</code>"]
-    TM["<code>getMedications()</code>, <code>sendMessage()</code>, …<br/>one typed method per capability"]
-    SER["<code>serialize()</code> / <code>isSessionValid()</code>"]
+    C["<code>MyChartClient.connect(args)</code><br/>static factory — also<br/><code>connectWithPasskey</code>, <code>fromSerialized</code>"]
+    RES{"<code>ConnectResult</code><br/>discriminated union"}
+    PEND["pending 2FA<br/><code>.complete(code)</code>"]
+    CONN["<code>{ state: 'connected', client }</code><br/>MyChartRequest wired for silent renewal<br/>from the connect args<br/>(<code>autoRenew: false</code> opts out)"]
+    RC["<code>runCapability(id, args, ctx?)</code>"]
+    TM["<code>getMedications()</code>, <code>sendMessage()</code>, …<br/>~55 typed methods, one per capability"]
+    SER["<code>serialize()</code> · <code>isSessionValid()</code> · <code>close()</code>"]
 
-    APP --> C --> CONN
+    APP --> C --> RES
+    RES --> PEND --> CONN
+    RES --> CONN
     CONN --> RC
     CONN --> TM
     CONN --> SER
 ```
+
+`connect` is a static factory rather than a constructor + method because a connection can
+legitimately end up half-made: it returns a union whose pending-2FA arm carries the
+`complete(code)` continuation, so there is no window in which you hold a `MyChartClient` that
+is not actually connected.
 
 The typed methods and `runCapability` route to the same registry entries, so they cannot
 disagree about what a capability does.

@@ -18,6 +18,11 @@
     "types": ["bun", "node"],
     "strict": true,
     "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "sourceMap": false,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
@@ -30,6 +35,10 @@
     "scrapers/**/*.ts",
     "npm-package/cli/**/*.ts",
     "shared/**/*.ts",
-    "read-local-passwords/**/*.ts"
+    "read-local-passwords/**/*.ts",
+    "dev-scripts/**/*.ts",
+    "openrecord-demo-lambda/**/*.ts",
+    "openrecord-splash/__tests__/**/*.ts",
+    "tests/**/*.ts"
   ]
 }

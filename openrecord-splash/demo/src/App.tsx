@@ -73,10 +73,10 @@ export function App() {
 
   const complete = useMemo(() => {
     if (HAS_LIVE_AI) return createProxyCompleter(AI_ENDPOINT);
-    // Nothing to call. Fail loudly rather than inventing an answer.
-    return async () => {
-      throw new Error('no model endpoint is configured for this build');
-    };
+    // Nothing to call. Fail loudly rather than inventing an answer. A rejected
+    // promise (not a sync throw) so callers observe the same failure shape a
+    // real completer produces.
+    return () => Promise.reject(new Error('no model endpoint is configured for this build'));
   }, []);
 
   const runTurn = useCallback(
@@ -116,7 +116,7 @@ export function App() {
     // Read the handle at click time, not at render time — the surfaces register
     // theirs in an effect, and App does not re-render when they do.
     const active = surface === 'ios' ? iosRef.current : desktopRef.current;
-    active?.send(text);
+    void active?.send(text);
   }
 
   function reset() {
