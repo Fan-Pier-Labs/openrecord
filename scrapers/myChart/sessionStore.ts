@@ -108,7 +108,7 @@ class SessionStore {
       return () => this.stopKeepalive();
     }
     logger.debug(`[keepalive] Starting keepalive (every ${KEEPALIVE_INTERVAL_MS / 1000}s)`);
-    this.intervalHandle = setInterval(() => this.runKeepalive(), KEEPALIVE_INTERVAL_MS);
+    this.intervalHandle = setInterval(() => void this.runKeepalive(), KEEPALIVE_INTERVAL_MS);
     // The heartbeat must never be the thing holding a process open — a CLI run
     // that finished its scrape should exit, not ping forever. unref doesn't
     // exist on React Native's timers, where there is no process to hold open.

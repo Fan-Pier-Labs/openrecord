@@ -180,14 +180,17 @@ function buildAmfCall(
   method: string,
   parameters: ((w: AMF3Writer) => void)[],
 ): Buffer {
+  // Callback params are numbered by nesting depth (w1, w2, …): each callback
+  // writes to exactly the writer it is handed, so the code stays correct by
+  // construction even if a writer method ever hands down a sub-writer.
   const w = new AMF3Writer();
   w.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
     ['messageID', 'messageType', 'body'],
     [
-      (w) => w.writeString(messageID),
-      (w) => w.writeString('call'),
-      (w) => w.writeTypedObject(
+      (w1) => w1.writeString(messageID),
+      (w1) => w1.writeString('call'),
+      (w1) => w1.writeTypedObject(
         'com.clientoutlook.web.metaservices.AmfServicesRequest',
         ['service', 'method', 'parameters'],
         [
@@ -225,36 +228,39 @@ export function buildGetStudyListMetaRequest(
   serviceInstance: string,
   patientId: string,
 ): Buffer {
+  // Callback params are numbered by nesting depth (w1…w6): each callback
+  // writes to exactly the writer it is handed, so the code stays correct by
+  // construction even if a writer method ever hands down a sub-writer.
   return buildAmfCall('HTTPSimpleLoader_1', 'StudyService', 'getStudyListMeta', [
-    (w) => {
+    (w1) => {
       // StudyListRequest is Externalizable — custom binary format
-      w.writeExternalizableObject(
+      w1.writeExternalizableObject(
         'com.clientoutlook.web.metaservices.StudyListRequest',
-        (w) => {
+        (w2) => {
           // 4-byte big-endian header (observed value: 2)
-          w.writeBE32(2);
+          w2.writeBE32(2);
           // Method qualifier string
-          w.writeString('getStudyList');
+          w2.writeString('getStudyList');
           // Version string
-          w.writeString('1.2.0');
+          w2.writeString('1.2.0');
           // Anonymous sealed object with 3 members and empty class name.
           // NOT dynamic — the browser uses plain sealed traits (0x33 = 3 members, no dynamic flag).
-          w.writeTypedObject(
+          w2.writeTypedObject(
             '', // empty class name = anonymous object
             ['notUsed', 'requestedPHI', 'environment'],
             [
               // notUsed: true
-              (w) => w.writeTrue(),
+              (w3) => w3.writeTrue(),
               // requestedPHI: ArrayCollection wrapping RequestedPHI objects
-              (w) => {
+              (w3) => {
                 // ArrayCollection is Externalizable — wraps a standard AMF3 array
-                w.writeExternalizableObject(
+                w3.writeExternalizableObject(
                   'flex.messaging.io.ArrayCollection',
-                  (w) => {
-                    w.writeArray([
-                      (w) => {
+                  (w4) => {
+                    w4.writeArray([
+                      (w5) => {
                         // RequestedPHI sealed object (8 members)
-                        w.writeTypedObject(
+                        w5.writeTypedObject(
                           'com.clientoutlook.data.RequestedPHI',
                           [
                             'patientId',
@@ -267,14 +273,14 @@ export function buildGetStudyListMetaRequest(
                             'originalServiceInstance',
                           ],
                           [
-                            (w) => w.writeString(patientId),        // e.g. "<MRN>$$$<site>"
-                            (w) => w.writeNull(),                    // studyUID: null
-                            (w) => w.writeString(accession),         // e.g. "E48330984"
-                            (w) => w.writeString(''),                // serviceInstanceParameter: empty
-                            (w) => w.writeNull(),                    // serviceInstanceProperties: null
-                            (w) => w.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
-                            (w) => w.writeString(''),                // originalServiceInstanceParameter: empty
-                            (w) => w.writeString(serviceInstance),   // originalServiceInstance: same
+                            (w6) => w6.writeString(patientId),        // e.g. "<MRN>$$$<site>"
+                            (w6) => w6.writeNull(),                    // studyUID: null
+                            (w6) => w6.writeString(accession),         // e.g. "E48330984"
+                            (w6) => w6.writeString(''),                // serviceInstanceParameter: empty
+                            (w6) => w6.writeNull(),                    // serviceInstanceProperties: null
+                            (w6) => w6.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
+                            (w6) => w6.writeString(''),                // originalServiceInstanceParameter: empty
+                            (w6) => w6.writeString(serviceInstance),   // originalServiceInstance: same
                           ],
                         );
                       },
@@ -283,17 +289,17 @@ export function buildGetStudyListMetaRequest(
                 );
               },
               // environment: Environment sealed object (6 members)
-              (w) => {
-                w.writeTypedObject(
+              (w3) => {
+                w3.writeTypedObject(
                   'com.clientoutlook.data.hangingprotocol.Environment',
                   ['levelValue', 'level', 'user', 'roles', 'device', 'numberOfScreens'],
                   [
-                    (w) => w.writeNull(),           // levelValue: null
-                    (w) => w.writeInteger(0),        // level: 0
-                    (w) => w.writeNull(),           // user: null
-                    (w) => w.writeNull(),           // roles: null
-                    (w) => w.writeString('WEB'),    // device: "WEB"
-                    (w) => w.writeString('1'),      // numberOfScreens: "1"
+                    (w4) => w4.writeNull(),           // levelValue: null
+                    (w4) => w4.writeInteger(0),        // level: 0
+                    (w4) => w4.writeNull(),           // user: null
+                    (w4) => w4.writeNull(),           // roles: null
+                    (w4) => w4.writeString('WEB'),    // device: "WEB"
+                    (w4) => w4.writeString('1'),      // numberOfScreens: "1"
                   ],
                 );
               },
