@@ -51,7 +51,9 @@ export function AlertsCard({ onDoAlert }: Props) {
           {
             text: "Request",
             style: "default",
-            onPress: async () => {
+            // Sync wrapper: RN's Alert typing expects a void handler, and the
+            // async body already owns its errors (try/catch/finally).
+            onPress: () => void (async () => {
               setBusyId(alert.id);
               try {
                 const result = (await executeScraperTool("request_refill", {
@@ -70,7 +72,7 @@ export function AlertsCard({ onDoAlert }: Props) {
               } finally {
                 setBusyId(null);
               }
-            },
+            })(),
           },
         ],
       );
