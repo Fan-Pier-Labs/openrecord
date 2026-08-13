@@ -6,21 +6,26 @@
  * to import a file which immediately tries to log into MyChart would not be
  * much of a test.
  *
- * The pretty-printed `scrapeAll` output in `cli.ts` stays the default because
- * it is what a human reading a terminal wants. This is the surface that
+ * This is the CLI's only dispatch surface: the default no-`--action` run walks
+ * {@link FULL_SCRAPE_CAPABILITIES}, and every named action resolves to a
+ * registry id (directly, or through {@link CLI_ACTION_ALIASES}). That is what
  * guarantees the CLI can do everything the Claude Desktop extension and the
- * mobile app can: every entry in `shared/capabilities.ts` is a command here,
- * with no per-flag plumbing to remember.
+ * mobile app can — every entry in `shared/capabilities.ts` is a command here,
+ * with no per-flag plumbing to remember — and that every read passes through
+ * `executeCapability`'s active-patient guard.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import {
+  CAPABILITIES,
+  acceptsPatientParam,
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
   executeCapability,
+  getCapability,
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
@@ -30,6 +35,42 @@ import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/expo
 import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
+
+/**
+ * Dashed action names the CLI accepted back when each had a hand-written
+ * handler. Each now resolves to the registry capability that replaced it —
+ * same fetch, same active-patient guard, JSON output. (`get-imaging` is the
+ * one dashed action that is not a plain alias; see
+ * {@link downloadAllImagingStudies}.)
+ */
+export const CLI_ACTION_ALIASES: Readonly<Record<string, string>> = {
+  'list-proxies': 'list_proxy_targets',
+  'get-thread': 'get_message_thread',
+  'delete-message': 'delete_message',
+  'request-refill': 'request_refill',
+};
+
+/** Resolve an `--action` value to a registry capability, dashed spellings included. */
+export function resolveCliAction(action: string): Capability | undefined {
+  return getCapability(CLI_ACTION_ALIASES[action] ?? action);
+}
+
+/**
+ * What a bare `mychart-cli --host <hostname>` scrapes: every chart-reading
+ * capability that can run without arguments. Derived from the registry, never
+ * hand-listed — a read capability added there is scraped here the same day.
+ * Excluded by the predicate itself: writes and account-security operations,
+ * reads that require an argument (per-visit notes, single threads), the
+ * media capability (bytes belong behind an explicit `--action`), and the
+ * `Patients` group (session introspection, not chart data).
+ */
+export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(
+  (capability) =>
+    capability.kind === 'read' &&
+    !capability.rendersMedia &&
+    acceptsPatientParam(capability) &&
+    capability.params.every((param) => !param.required),
+);
 
 /** How much of the registry a listing prints. */
 export interface CapabilityListOptions {
@@ -212,6 +253,7 @@ export interface WrittenStudyImage {
 export async function writeStudyImages(
   payload: StudyImagePayload,
   outputDir: string,
+  options: { saveClo?: boolean } = {},
 ): Promise<WrittenStudyImage[]> {
   await fs.promises.mkdir(outputDir, { recursive: true });
   const safeStudy = (payload.studyName || 'study').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
@@ -220,8 +262,14 @@ export async function writeStudyImages(
   for (const image of payload.images) {
     if (!image.pixelData) continue;
     const safeSeries = image.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${safeStudy}_${String(image.index).padStart(3, '0')}_${safeSeries}.jpg`;
-    const filePath = path.join(outputDir, fileName);
+    const baseName = `${safeStudy}_${String(image.index).padStart(3, '0')}_${safeSeries}`;
+    const filePath = path.join(outputDir, `${baseName}.jpg`);
+    if (options.saveClo) {
+      await fs.promises.writeFile(path.join(outputDir, `${baseName}_pixel.clo`), image.pixelData);
+      if (image.wrapperData) {
+        await fs.promises.writeFile(path.join(outputDir, `${baseName}_wrapper.clo`), image.wrapperData);
+      }
+    }
     const bitmap = convertCloToBitmap(
       Buffer.from(image.pixelData),
       image.wrapperData ? Buffer.from(image.wrapperData) : undefined,
@@ -262,8 +310,10 @@ export async function runCapabilityAction(
     const coerced = coerceCapabilityArgs(capability, args);
     // `patient` is declared by the registry, not by each capability, so it is
     // folded in AFTER coercion — coerceCapabilityArgs rejects any name the
-    // capability did not declare.
-    if (patient !== undefined) coerced.patient = patient;
+    // capability did not declare. An explicit argument wins: on
+    // switch_proxy_target, `patient` is the declared switch target, which the
+    // --patient assertion flag must not clobber.
+    if (patient !== undefined && coerced.patient === undefined) coerced.patient = patient;
     // executeCapability, never capability.run: the active-patient assertion
     // lives there, and it has to run for media capabilities too.
     const result = await executeCapability(session.request, capability.id, coerced, ctx);
@@ -287,6 +337,70 @@ export async function runCapabilityAction(
 
     console.log(JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
+  } catch (err) {
+    console.log(`  ${(err as Error).message}`);
+    return false;
+  }
+}
+
+/**
+ * `--action get-imaging` — every imaging study on the account, downloaded and
+ * decoded to JPEGs under `<outputDir>/<hostname>/`, with the full result
+ * metadata (reports included) saved as `all-imaging.json`.
+ *
+ * This is the one dashed action that is a composite rather than an alias: it
+ * chains `get_imaging_results` into one `download_imaging_study` per study.
+ * Both steps go through `executeCapability`, so the active-patient guard
+ * applies to each — this used to be a 220-line hand-written handler that
+ * fetched around the guard entirely.
+ */
+export async function downloadAllImagingStudies(
+  session: { hostname: string; request: MyChartRequest },
+  password: string | undefined,
+  options: { outputDir?: string; patient?: string; saveClo?: boolean } = {},
+): Promise<boolean> {
+  console.log(`\n${'='.repeat(60)}\n  Imaging: ${session.hostname}\n${'='.repeat(60)}`);
+  try {
+    const ctx = await capabilityContext(session.hostname, password);
+    const patientArg = options.patient !== undefined ? { patient: options.patient } : {};
+    const results = (await executeCapability(
+      session.request,
+      'get_imaging_results',
+      { ...patientArg },
+      ctx,
+    )) as Array<{ orderName?: string; image_id?: string }>;
+
+    const hostDir = path.resolve(
+      options.outputDir ?? path.join(process.cwd(), 'imaging-output'),
+      session.hostname,
+    );
+    await fs.promises.mkdir(hostDir, { recursive: true });
+    const metadataPath = path.join(hostDir, 'all-imaging.json');
+    await fs.promises.writeFile(metadataPath, JSON.stringify(results, jsonSafeReplacer, 2));
+    console.log(`  ${results.length} imaging result(s); metadata and reports in ${metadataPath}`);
+
+    let ok = true;
+    for (const study of results) {
+      // No image_id means no viewable pictures — the report text is already
+      // in all-imaging.json, so there is nothing more to download.
+      if (!study.image_id) continue;
+      try {
+        const payload = (await executeCapability(
+          session.request,
+          'download_imaging_study',
+          { ...patientArg, image_id: study.image_id, study_name: study.orderName },
+          ctx,
+        )) as StudyImagePayload;
+        const files = await writeStudyImages(payload, hostDir, { saveClo: options.saveClo });
+        console.log(`  ${payload.studyName}: wrote ${files.length} of ${payload.totalImages} image(s)`);
+        for (const message of payload.errors) console.log(`    warning: ${message}`);
+        if (files.length === 0 && payload.errors.length > 0) ok = false;
+      } catch (err) {
+        console.log(`  ${study.orderName ?? 'study'}: ${(err as Error).message}`);
+        ok = false;
+      }
+    }
+    return ok;
   } catch (err) {
     console.log(`  ${(err as Error).message}`);
     return false;

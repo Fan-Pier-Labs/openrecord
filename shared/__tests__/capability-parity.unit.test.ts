@@ -308,6 +308,53 @@ describe('CLI', () => {
     }
   });
 
+  it('routes the legacy dashed action names onto the registry', async () => {
+    // These used to be hand-written handlers that fetched around
+    // executeCapability — the same second-dispatch-path bug this whole
+    // describe block exists to prevent. Now they are aliases.
+    const { CLI_ACTION_ALIASES, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
+    for (const [dashed, id] of Object.entries(CLI_ACTION_ALIASES)) {
+      expect(resolveCliAction(dashed)?.id).toBe(id);
+    }
+    // Registry ids resolve unchanged, and unknown names stay unknown.
+    expect(resolveCliAction('get_medications')?.id).toBe('get_medications');
+    expect(resolveCliAction('no-such-action')).toBeUndefined();
+  });
+
+  it('derives the default full scrape from the registry', async () => {
+    const { FULL_SCRAPE_CAPABILITIES } = await import('../../npm-package/cli/capabilityActions');
+    const ids = FULL_SCRAPE_CAPABILITIES.map((c) => c.id);
+
+    // The reads a chart is connected for are all in the default scrape…
+    for (const id of [
+      'get_profile',
+      'get_medications',
+      'get_allergies',
+      'get_lab_results',
+      'get_imaging_results',
+      'get_past_visits',
+      'get_messages',
+      'get_billing',
+    ]) {
+      expect(ids).toContain(id);
+    }
+
+    // …and nothing that writes, needs an argument, returns image bytes, or
+    // manages the session or account rather than reading the chart.
+    for (const id of [
+      'send_message',
+      'delete_message',
+      'get_visit_notes',
+      'download_imaging_study',
+      'list_proxy_targets',
+      'switch_proxy_target',
+      'setup_totp',
+      'register_passkey',
+    ]) {
+      expect(ids).not.toContain(id);
+    }
+  });
+
   it('coerces --arg values to the types the capability declared', async () => {
     const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const pastVisits = CAPABILITIES.find((c) => c.id === 'get_past_visits')!;
