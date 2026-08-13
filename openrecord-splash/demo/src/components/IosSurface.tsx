@@ -74,7 +74,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   const alerts = useMemo(
     () =>
       buildAlerts(session, data.billing).filter(
-        (a) => !dismissedAlerts.has(a.id) && !(a.resolvedWhen && a.resolvedWhen(session)),
+        (a) => !dismissedAlerts.has(a.id) && !(a.resolvedWhen?.(session)),
       ),
     // `session` mutates in place, so tie this to the things that change it.
     [session, dismissedAlerts, messages],
