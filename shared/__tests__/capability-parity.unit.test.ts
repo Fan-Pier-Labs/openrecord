@@ -243,6 +243,14 @@ describe('rendersMedia', () => {
  * a family member's images when the session was parked on their chart.
  */
 describe('capability dispatch', () => {
+  // This used to be a regex over three client source files. It is now the type
+  // system's job: `run` is absent from the exported `Capability`, so reaching
+  // it is a compile error in every client, whatever the spelling. See
+  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // assertion in capabilities.unit.test.ts.
+  //
+  // What remains here is the positive half — that each client actually calls
+  // the guarded entry point — which the type system cannot express.
   const CLIENT_SOURCES = [
     'claude-desktop-extension/src/tools.ts',
     'expo-app/src/lib/scrapers/session-manager.ts',
@@ -250,18 +258,11 @@ describe('capability dispatch', () => {
   ];
 
   for (const relativePath of CLIENT_SOURCES) {
-    it(`${relativePath} runs capabilities through executeCapability, never capability.run`, async () => {
+    it(`${relativePath} dispatches through executeCapability`, async () => {
       const source = await Bun.file(
         new URL(`../../${relativePath}`, import.meta.url).pathname,
       ).text();
-
-      // Strip comments so the prose explaining the rule doesn't trip it.
-      const code = source
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/^\s*\/\/.*$/gm, '');
-
-      expect(code).toContain('executeCapability(');
-      expect(code).not.toMatch(/\bcapability\.run\s*\(/);
+      expect(source).toContain('executeCapability(');
     });
   }
 });
