@@ -623,7 +623,7 @@ export function renderProxySelector(model: ProxySelectorModel | null): string {
     { ...model.self, isSelf: true },
     ...model.subjects.map(s => ({ ...s, isSelf: false })),
   ];
-  const activeName = (entries.find(e => e.id === model.activeId) ?? entries[0]).displayName;
+  const activeName = (entries.find(e => e.id === model.activeId) ?? entries[0]!).displayName; // entries always contains the self record
 
   if (rendersProxyAnchors()) {
     const anchors = entries.map(entry => {

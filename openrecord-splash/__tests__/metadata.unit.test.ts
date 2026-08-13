@@ -31,7 +31,7 @@ function metaContents(attr: "property" | "name", key: string): string[] {
     `<meta\\s+${attr}="${key.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}"\\s+content="([^"]*)"`,
     "g",
   );
-  return [...head.matchAll(pattern)].map((m) => m[1]);
+  return [...head.matchAll(pattern)].map((m) => m[1]!);
 }
 
 function meta(attr: "property" | "name", key: string): string | undefined {

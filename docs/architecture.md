@@ -76,6 +76,19 @@ answer depended on which client they asked.
   `write` mutates the chart — the mobile app shows a confirmation popup, the extension marks it
   `destructiveHint`. `account` changes how the patient signs in (passkeys, authenticator app); **no
   client offers these to a model** — the CLI drives them from flags, the mobile app from settings.
+- **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
+  not evenly valuable: labs, medications, visit notes and messages are the reason to connect an
+  account at all, while goals, letters, education materials, care journeys, questionnaires, the
+  emergency-contact writes and the `account`-kind sign-in settings are endpoints most charts leave
+  empty and most callers never reach for. Listing all ~50 at equal weight buries the useful ones — a
+  person skims past them and a model picks a plausible-looking wrong tool out of the noise. So the
+  flag is **presentation only**: `COMMON_CAPABILITIES` / `LESS_FREQUENTLY_USED_CAPABILITIES`
+  partition the registry, the CLI's `--help` and `--list-capabilities` print the common set and name
+  the count they held back, and `--show-all` appends the rest under their own heading.
+  `executeCapability` never looks at it, every client still registers every entry, and a hidden id
+  still runs as `--action <id>` with the same arguments.
+  `npm-package/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
+  asserts `--show-all` still lists the whole registry.
 - **`CapabilityContext`** carries the per-account state that isn't on the MyChart session — the
   stored password, the saved TOTP secret, and the callbacks that persist new ones. Each client wires
   it to its own credential store; the registry never knows where credentials live.
@@ -89,11 +102,17 @@ answer depended on which client they asked.
   chart. Omitting `patient` means the account holder, explicitly. The `Patients` group and the
   `account`-kind capabilities are exempt: guarding "you must already be on patient X" in front of
   the tools that list and change X would make them unusable exactly when they are needed.
+  **No client calls `capability.run` — every dispatch goes through `executeCapability`**, the
+  `account`-kind ones included, and `capability-parity.unit.test.ts` greps the three client dispatch
+  modules to keep it that way. The extension and the CLI each used to branch on `rendersMedia`
+  *before* dispatching and run the media capability directly, which made `download_imaging_study`
+  the one tool that skipped the assertion.
 - **`rendersMedia`** marks the one capability (`download_imaging_study`) whose payload isn't JSON:
   it returns raw CLO bytes because each client encodes them differently — pure-JS jpeg-js in the
   MCPB, an on-device decoder in the app, sharp in the CLI. **Clients branch on the flag, never on
   the id** — a second media capability must not require editing five call sites, and
-  `capability-parity.unit.test.ts` fails if an id check reappears. The CLI never prints image
+  `capability-parity.unit.test.ts` fails if an id check reappears. The branch decides how to render
+  the payload; it sits after the dispatch, never in place of it. The CLI never prints image
   bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
   prints the file paths (`writeStudyImages` in `npm-package/cli/capabilityActions.ts`). The
   download always fetches **every** instance in the study — there is deliberately no
@@ -269,9 +288,14 @@ and had quietly stopped matching anything.
 ## Client notes
 
 - **CLI + npm package** (`npm-package/`) — `--action` accepts any capability id with repeated
-  `--arg name=value`; `--list-capabilities` prints the lot. That dispatch lives in
-  `npm-package/cli/capabilityActions.ts` rather than `cli.ts`, because `cli.ts` runs `main()` the
-  moment it is imported and the parity test has to import it. The library exposes the same set as
+  `--arg name=value`; `--help` prints usage plus the capability listing and `--list-capabilities`
+  prints the listing alone. Both lead with the commonly-used capabilities and hold the rest behind
+  `--show-all` (see `lessFrequentlyUsed` above). That dispatch, the listing and the help text live in
+  `npm-package/cli/capabilityActions.ts` and `npm-package/cli/help.ts` rather than `cli.ts`, because
+  `cli.ts` runs `main()` the moment it is imported and the tests have to import them.
+  `runCapabilityAction` folds `--patient` into the args *after* coercion — the registry declares
+  `patient`, not each capability, so coercing it would trip the unknown-argument check. The library
+  exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `npm-package/README.md`.
 - **Claude Desktop extension** (`claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)

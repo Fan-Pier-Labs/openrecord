@@ -20,6 +20,7 @@ import { type MyChartRequest } from '../myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
+import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
 
 // ─── AMF3 Writer ───
 
@@ -35,9 +36,9 @@ import { logger } from '../../../shared/logger';
  * Protocol reverse-engineered from captured browser AMF traffic via
  * Playwright CDP Fetch domain interception.
  */
-class AMF3Writer {
-  private buf: number[] = [];
-  private stringTable: string[] = [];
+export class AMF3Writer {
+  private readonly buf: number[] = [];
+  private readonly stringTable: string[] = [];
 
   writeU29(value: number) {
     if (value < 0x80) {
@@ -345,7 +346,8 @@ export function parseAmfResponse(buf: Buffer): AmfResponse | null {
 
   if (buf[pos] === 0x04) { // Integer
     pos++;
-    code = buf[pos] & 0x7F;
+    // Byte reads are `!`-asserted: positions are bounded by the scan loop above; noUncheckedIndexedAccess.
+    code = buf[pos]! & 0x7F;
     pos++;
   }
 
@@ -357,11 +359,11 @@ export function parseAmfResponse(buf: Buffer): AmfResponse | null {
       pos++;
       // Read U29 string length
       let len: number;
-      if (buf[pos] < 0x80) {
-        len = buf[pos] >> 1;
+      if (buf[pos]! < 0x80) {
+        len = buf[pos]! >> 1;
         pos++;
       } else {
-        len = ((buf[pos] & 0x7F) << 7) | buf[pos + 1];
+        len = ((buf[pos]! & 0x7F) << 7) | buf[pos + 1]!;
         len >>= 1;
         pos += 2;
       }
@@ -436,9 +438,10 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
       if (!accession && arg.includes('|')) {
         const parts = arg.split('|');
         if (parts.length >= 3) {
-          accession = parts[0];
-          serviceInstance = parts[1];
-          patientId = parts[2];
+          // Length checked above; `!` for noUncheckedIndexedAccess.
+          accession = parts[0]!;
+          serviceInstance = parts[1]!;
+          patientId = parts[2]!;
         }
       }
     }
@@ -450,19 +453,19 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
     // Extract accessionNumber from JSON: "accessionNumber":"E48330984"
     if (!accession) {
       const accMatch = viewerBody.match(/"accessionNumber"\s*:\s*"([^"]+)"/);
-      if (accMatch) accession = accMatch[1];
+      if (accMatch) accession = accMatch[1]!;
     }
 
     // Extract serviceInstance from JSON: "serviceInstance":"EXAMPLEstudystrategy"
     if (!serviceInstance) {
       const siMatch = viewerBody.match(/"serviceInstance"\s*:\s*"([^"]+)"/);
-      if (siMatch) serviceInstance = siMatch[1];
+      if (siMatch) serviceInstance = siMatch[1]!;
     }
 
     // Extract patientId from JSON: "patientId":"<MRN>$$$<site>"
     if (!patientId) {
       const pidMatch = viewerBody.match(/"patientId"\s*:\s*"([^"]+)"/);
-      if (pidMatch) patientId = pidMatch[1];
+      if (pidMatch) patientId = pidMatch[1]!;
     }
   }
 
@@ -488,7 +491,102 @@ interface ParsedStudyInfo {
 
 
 /**
+ * Parse the getStudyListMeta response *structurally* with the AMF3 reader:
+ * decode the typed-object tree and walk Study → series → images, so every
+ * (seriesUID, instanceUID) pair and series description is exact.
+ *
+ * This is the primary parser. The positional heuristic below remains as the
+ * fallback for responses the reader can't decode (e.g. an externalizable
+ * class we haven't seen). The heuristic mispaired UIDs on Mass General
+ * Brigham multi-slice studies — it took a frameOfReferenceUID for the series UID and
+ * the real series UIDs for instances, so every CustomImageServlet request
+ * came back CLOERROR "Failed to find image in any supplied providers".
+ *
+ * @param accession When the response carries several studies (priors in
+ * relevantStudyList), picks the one whose accessionNumber matches; otherwise
+ * the first study with image series wins.
+ */
+export function parseStudySeriesFromAmfStructured(amfBuf: Buffer, accession?: string): ParsedStudyInfo | null {
+  let root: unknown;
+  try {
+    root = decodeAmf3(amfBuf);
+  } catch (err) {
+    logger.debug(`      [AMF-PARSE] Structured decode failed: ${(err as Error).message}`);
+    return null;
+  }
+
+  const studies = collectAmf3Objects(root, 'com.clientoutlook.data.Study');
+  if (studies.length === 0) return null;
+
+  const seriesOf = (study: Amf3Object): Amf3Object[] => {
+    const arr = unwrapAmf3(study.series);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((s): s is Amf3Object =>
+      typeof s === 'object' && s !== null && typeof (s as Amf3Object).uid === 'string' && !!(s as Amf3Object).uid);
+  };
+
+  const study =
+    (accession ? studies.find((s) => s.accessionNumber === accession && seriesOf(s).length > 0) : undefined) ??
+    studies.find((s) => seriesOf(s).length > 0) ??
+    studies[0];
+  // An empty study list previously crashed on `study.uid`; null is this
+  // function's failure value for a response it can't use.
+  if (!study) return null;
+
+  const studyUID = study.uid;
+  if (typeof studyUID !== 'string' || !studyUID) return null;
+
+  const series: ParsedStudyInfo['series'] = [];
+  let seriesCount = 0;
+  for (const s of seriesOf(study)) {
+    seriesCount++;
+    const seriesUID = s.uid as string;
+    const description = typeof s.description === 'string' && s.description.trim()
+      ? s.description.trim()
+      : `Series ${seriesCount}`;
+
+    const images = unwrapAmf3(s.images);
+    const instances = (Array.isArray(images) ? images : [])
+      .filter((img): img is Amf3Object =>
+        typeof img === 'object' && img !== null && typeof (img as Amf3Object).uid === 'string' && !!(img as Amf3Object).uid)
+      .sort((a, b) => (Number(a.instanceNumber) || 0) - (Number(b.instanceNumber) || 0));
+
+    for (const img of instances) {
+      series.push({ seriesUID, instanceUID: img.uid as string, seriesDescription: description });
+    }
+    logger.debug(`      [AMF-PARSE] ${description}: ${instances.length} instances`);
+  }
+
+  if (series.length === 0) return null;
+  logger.debug(`      [AMF-PARSE] Structured parse: ${series.length} (seriesUID, instanceUID) entries across ${seriesCount} series`);
+  return { studyUID, series };
+}
+
+/**
+ * Parse the study/series/instance tree from a getStudyListMeta response:
+ * structured AMF3 decode first, positional heuristic as fallback.
+ *
+ * The fallback is loud on purpose. The heuristic is the parser that mispaired
+ * UIDs on Mass General Brigham multi-slice studies and produced a silent
+ * zero-image result, so when it runs, the log says so — a future zero-image
+ * report must be diagnosable to "the strict reader couldn't decode this
+ * response" in one step rather than rediscovered from scratch.
+ */
+function parseStudySeries(amfBuf: Buffer, accession: string): ParsedStudyInfo | null {
+  const structured = parseStudySeriesFromAmfStructured(amfBuf, accession);
+  if (structured) return structured;
+  logger.warn(
+    '      [AMF-PARSE] Structured AMF3 decode failed; falling back to the positional UID heuristic. ' +
+    'UID pairing may be wrong on multi-slice studies — capture this response and extend amf3Reader.ts.',
+  );
+  return parseStudySeriesFromAmf(amfBuf);
+}
+
+/**
  * Parse the AMF getStudyListMeta response to extract study UID and series info.
+ *
+ * Positional-heuristic fallback for responses {@link parseStudySeriesFromAmfStructured}
+ * can't decode.
  *
  * The AMF response contains a structured list where series UIDs appear as boundaries,
  * followed by their instance UIDs. For multi-slice studies (CT scans), each series
@@ -530,7 +628,7 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   logger.debug(`      [AMF-PARSE] ${uniqueUIDs.length} unique study-related UIDs from ${uidOccurrences.length} occurrences`);
 
   // Study UID: the first UID in the response (AMF always starts with study-level data)
-  const studyUID = uniqueUIDs[0];
+  const studyUID = uniqueUIDs[0]!; // uidOccurrences checked non-empty above; noUncheckedIndexedAccess
 
   // Detect series vs instance UIDs using positional structure analysis.
   //
@@ -578,7 +676,7 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   for (const sg of subGroups) {
     if (sg.uids.length === 1) {
       // Single UID — likely a series UID (or a standalone instance like Scout)
-      const uid = sg.uids[0];
+      const uid = sg.uids[0]!; // length === 1 checked above; noUncheckedIndexedAccess
       // If the previous "series" had no instances, it was actually an instance itself
       // Add it to the current series
       if (currentSeriesUID && seriesInstances.get(currentSeriesUID)!.size === 0) {
@@ -653,12 +751,12 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   const series: ParsedStudyInfo['series'] = [];
   let seriesIdx = 0;
   for (let si = 0; si < candidateSeriesUIDs.length; si++) {
-    const seriesUID = candidateSeriesUIDs[si];
+    const seriesUID = candidateSeriesUIDs[si]!; // si bounded by loop; noUncheckedIndexedAccess
     const instances = seriesInstances.get(seriesUID)!;
     const seriesPos = firstPosition.get(seriesUID) ?? 0;
     // Search for descriptions between this series and the next one
     const nextSeriesPos = si + 1 < candidateSeriesUIDs.length
-      ? (firstPosition.get(candidateSeriesUIDs[si + 1]) ?? text.length)
+      ? (firstPosition.get(candidateSeriesUIDs[si + 1]!) ?? text.length)
       : text.length;
 
     // Find series description: look for readable strings between this series and the next
@@ -727,7 +825,7 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
   if (allUIDs.length === 0) return null;
 
   // Study UID: the first UID in the response (AMF always starts with study-level data)
-  const studyUID = allUIDs[0];
+  const studyUID = allUIDs[0]!; // allUIDs.length checked non-zero above; noUncheckedIndexedAccess
   const otherUIDs = allUIDs.filter(uid => uid !== studyUID);
 
   if (otherUIDs.length === 0) return { studyUID, series: [] };
@@ -747,8 +845,8 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
 
   const series: ParsedStudyInfo['series'] = [];
   for (let i = 0; i + 1 < otherUIDs.length; i += 2) {
-    const seriesUID = otherUIDs[i];
-    const instanceUID = otherUIDs[i + 1];
+    const seriesUID = otherUIDs[i]!; // i + 1 < length per loop condition; noUncheckedIndexedAccess
+    const instanceUID = otherUIDs[i + 1]!;
     const seriesPos = uidPositions.get(seriesUID) ?? 0;
 
     let bestDesc = `Series ${Math.floor(i / 2) + 1}`;
@@ -796,7 +894,7 @@ export function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceIns
     const valuePattern = /([A-Z][A-Za-z0-9]{5,}(?:Bundle|Strategy|strategy))/g;
     let match;
     while ((match = valuePattern.exec(region)) !== null) {
-      const val = match[1];
+      const val = match[1]!; // pattern has one mandatory capture group; noUncheckedIndexedAccess
       if (val !== originalServiceInstance && !val.startsWith('ServiceInstance')) {
         return val;
       }
@@ -808,7 +906,7 @@ export function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceIns
   const globalPattern = /([A-Z][A-Za-z0-9]{4,}Bundle|[A-Z][A-Za-z0-9]{4,}[Ss]trategy)/g;
   let match;
   while ((match = globalPattern.exec(text)) !== null) {
-    const val = match[1];
+    const val = match[1]!; // pattern has one mandatory capture group; noUncheckedIndexedAccess
     if (val !== originalServiceInstance) {
       return val;
     }
@@ -851,11 +949,14 @@ async function initializeAmfSession(
   const amfBuf = Buffer.from(await res.arrayBuffer());
   const parsed = parseAmfResponse(amfBuf);
 
+  // Deliberately NOT `parsed?.code !== 0`: with no parse, `undefined !== 0` is
+  // true and would flip this into the error branch. "No parse" must stay
+  // "no error" here; only a parsed non-zero code is an upstream error.
   if (parsed && parsed.code !== 0) {
     logger.debug(`      [AMF] Error code=${parsed.code}: ${parsed.response ?? '(null)'}`);
   }
 
-  if (parsed && parsed.code === 0) {
+  if (parsed?.code === 0) {
     logger.debug(`      [AMF] Session initialized successfully (${amfBuf.length} bytes)`);
   }
 
@@ -927,7 +1028,7 @@ export async function initEunitySession(
   if (!amfResult) return null;
 
   const { amfBuf, effectiveServiceInstance } = amfResult;
-  const studyInfo = parseStudySeriesFromAmf(amfBuf);
+  const studyInfo = parseStudySeries(amfBuf, studyParams.accession);
   if (!studyInfo || studyInfo.series.length === 0) return null;
 
   return {
@@ -1419,8 +1520,9 @@ export async function downloadImagingStudyDirect(
       studyParams.serviceInstance = effectiveServiceInstance;
     }
 
-    // Step 5: Parse series info from AMF response
-    const studyInfo = parseStudySeriesFromAmf(amfResponse);
+    // Step 5: Parse series info from AMF response — structured AMF3 decode
+    // first, positional heuristic as loud fallback
+    const studyInfo = parseStudySeries(amfResponse, studyParams.accession);
     if (!studyInfo || studyInfo.series.length === 0) {
       result.errors.push('Could not parse series info from AMF response');
       return result;

@@ -222,7 +222,7 @@ export async function complete2fa(
   code: string,
 ): Promise<{ state: "logged_in" | "invalid_2fa" | "error" }> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "need_2fa") {
+  if (entry?.status !== "need_2fa") {
     return { state: "error" };
   }
 
@@ -248,7 +248,7 @@ export async function complete2fa(
  */
 export async function registerPasskey(accountId: string): Promise<boolean> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "logged_in") return false;
+  if (entry?.status !== "logged_in") return false;
   const credential = await setupPasskey(entry.request);
   if (!credential) return false;
   const serialized = serializeCredential(credential);
@@ -398,7 +398,7 @@ export async function executeAccountCapability(
   args: Record<string, unknown> = {},
 ): Promise<unknown> {
   const entry = sessions.get(accountId);
-  if (!entry || entry.status !== "logged_in") {
+  if (entry?.status !== "logged_in") {
     throw new Error("That MyChart account is not connected. Connect it first, then try again.");
   }
   const capability = getCapability(capabilityId);
@@ -406,7 +406,10 @@ export async function executeAccountCapability(
   if (capability.kind !== "account") {
     throw new Error(`"${capabilityId}" is a data tool — run it through executeScraperTool.`);
   }
-  return capability.run(entry.request, args, contextFor(entry));
+  // executeCapability exempts `account`-kind from the patient assertion, so
+  // this is equivalent to calling `run` — but it keeps "no client reaches
+  // capability.run" absolute, leaving no direct-dispatch line to grow.
+  return executeCapability(entry.request, capability.id, args, contextFor(entry));
 }
 
 /** Get a logged-in session, connecting on demand, or throw with the reason. */

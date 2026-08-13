@@ -25,6 +25,11 @@ app code too, where Hermes has no Bun. Don't reach for Bun APIs in `expo-app/src
 `@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
 `.rejects`/`.resolves` matchers as `void`, but awaiting them is load-bearing at runtime.
 
+`import-x/no-cycle` guards `scrapers/` + `shared/` — #263 made the session-renewal graph
+acyclic and the rule keeps it that way. Its two settings are both load-bearing: the TS resolver
+so `./foo` finds `foo.ts`, and the parsers map so the rule can parse imported TS files (without
+it, no-cycle silently reports nothing).
+
 ## Test suites
 
 **A test file's *filename* decides which suite it belongs to, not its folder.** Every test file in
@@ -236,6 +241,9 @@ Not blockers, but where to spend the next test-writing effort: `eunity/imagingDi
 (interactive flows), `login.ts`, and the scraper-tool handler bodies in
 `claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is
 covered today). All three files in `clo-image-parser/` now run.
+
+`npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
+`--action` dispatch grew tests that drive it without `cli.ts` in front.
 
 **Check what a waived file actually still calls before writing tests for it.**
 `clo-image-parser/generate_clo.ts` came *off* the waiver list in #245 without a single new assertion,

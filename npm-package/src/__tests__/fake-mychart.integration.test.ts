@@ -140,7 +140,8 @@ test('downloadImagingStudyDirect → decode → export produces a valid JPEG', a
   expect(downloadResult.errors).toHaveLength(0);
   expect(downloadResult.images.length).toBeGreaterThan(0);
 
-  const firstImage = downloadResult.images[0];
+  // Non-null: the length assertion above guarantees at least one image.
+  const firstImage = downloadResult.images[0]!;
   expect(firstImage.format).toBe('CLHAAR');
   expect(firstImage.pixelData).toBeDefined();
   expect(firstImage.pixelData!.length).toBeGreaterThan(0);

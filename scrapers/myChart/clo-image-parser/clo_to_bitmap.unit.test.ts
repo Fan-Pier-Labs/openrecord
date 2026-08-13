@@ -509,8 +509,8 @@ describe("synthetic CLO round-trip", () => {
     const bitmap = convertCloToBitmap(pixelBuffer, wrapperBuffer);
     let min = 255, max = 0;
     for (let i = 0; i < bitmap.pixels.length; i++) {
-      if (bitmap.pixels[i] < min) min = bitmap.pixels[i];
-      if (bitmap.pixels[i] > max) max = bitmap.pixels[i];
+      if (bitmap.pixels[i]! < min) min = bitmap.pixels[i]!;
+      if (bitmap.pixels[i]! > max) max = bitmap.pixels[i]!;
     }
     expect(min).toBe(0);
     expect(max).toBe(255);

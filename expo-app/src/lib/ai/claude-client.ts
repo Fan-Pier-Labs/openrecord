@@ -59,14 +59,14 @@ function buildSystemPrompt(
   skillAddition?: string | null,
 ): string {
   const toolList = renderToolList();
-  const memorySection = memoryDigest && memoryDigest.trim()
+  const memorySection = memoryDigest?.trim()
     ? [
         "Patient digest from prior sessions and MyChart records (use this so you don't have to refetch obvious info; verify with tools when the user asks for current data):",
         memoryDigest.length > 4000 ? memoryDigest.slice(0, 4000) + "\n…(digest truncated)…" : memoryDigest,
         "",
       ].join("\n")
     : "";
-  const skillSection = skillAddition && skillAddition.trim()
+  const skillSection = skillAddition?.trim()
     ? [
         "The user invoked a specific skill. Follow this playbook for the rest of the conversation — it overrides the generic guidance above when there's a conflict, but the JSON output protocol and write-confirmation rules still apply:",
         skillAddition,
@@ -266,7 +266,7 @@ type ResolvedCompleter = { complete: CompleteFn; model: string };
 
 type ModelTier = "default" | "mini";
 
-const MINI_MODELS: Record<string, string> = {
+const MINI_MODELS: Record<"openai" | "anthropic" | "gemini" | "free", string> = {
   openai: "gpt-5.4-mini",
   anthropic: "claude-haiku-4-5-20251001",
   gemini: "gemini-2.5-flash-lite",
@@ -397,8 +397,9 @@ export async function sendMessage(
     }
 
     // `respond` terminates the loop and surfaces text to the user.
-    if (calls.length === 1 && calls[0].tool === RESPOND_TOOL) {
-      const text = typeof calls[0].args.text === "string" ? (calls[0].args.text) : "";
+    const soleCall = calls.length === 1 ? calls[0] : undefined;
+    if (soleCall?.tool === RESPOND_TOOL) {
+      const text = typeof soleCall.args.text === "string" ? (soleCall.args.text) : "";
       let finalText = text;
       for (const id of pendingImageIds) {
         if (!finalText.includes(`[image:${id}]`)) {
@@ -423,18 +424,22 @@ export async function sendMessage(
       callbacks.onToolCall(tc);
     }
 
-    const settled = await Promise.allSettled(
-      calls.map((c) => executeLocalTool(c.tool, c.args)),
+    // Each promise settles into { call, result } so results stay paired with
+    // their call without index bookkeeping (allSettled semantics preserved:
+    // nothing here rejects, order matches `calls`).
+    const settled = await Promise.all(
+      calls.map(async (call) => {
+        try {
+          return { call, result: await executeLocalTool(call.tool, call.args) };
+        } catch (reason) {
+          return { call, result: `Error: ${(reason as Error)?.message ?? String(reason)}` };
+        }
+      }),
     );
 
     const resultParts: string[] = [];
-    for (let j = 0; j < calls.length; j++) {
-      const name = calls[j].tool;
-      const s = settled[j];
-      const result =
-        s.status === "fulfilled"
-          ? s.value
-          : `Error: ${(s.reason as Error)?.message ?? String(s.reason)}`;
+    for (const { call, result } of settled) {
+      const name = call.tool;
       // If a tool returned an image_id, remember it so we can ensure the
       // final respond includes the [image:id] token even if the model forgets.
       try {

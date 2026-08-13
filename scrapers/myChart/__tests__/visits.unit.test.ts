@@ -15,7 +15,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -52,8 +52,8 @@ describe('upcomingVisits', () => {
 
     const result = ok(await upcomingVisits(req))
     expect(result.LaterVisitsList).toHaveLength(1)
-    expect(result.LaterVisitsList[0].VisitTypeName).toBe('Annual Physical')
-    expect(result.LaterVisitsList[0].PrimaryProviderName).toBe('Dr. Johnson')
+    expect(result.LaterVisitsList[0]!.VisitTypeName).toBe('Annual Physical')
+    expect(result.LaterVisitsList[0]!.PrimaryProviderName).toBe('Dr. Johnson')
     expect(result.NextNDaysVisits).toHaveLength(0)
   })
 
@@ -89,19 +89,19 @@ describe('upcomingVisits', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
-      return new Response(r.body, { status: 200 })
+      return new Response(r!.body, { status: 200 })
     })
 
     await upcomingVisits(req)
 
     // Second call should be the LoadUpcoming POST
-    expect(calls[1].init?.method).toBe('POST')
-    const headers = calls[1].init!.headers as Record<string, string>
+    expect(calls[1]!.init?.method).toBe('POST')
+    const headers = calls[1]!.init!.headers as Record<string, string>
     expect(headers['__requestverificationtoken']).toBe('my_csrf')
     // Pin the WAF-safe shape: no body, no Content-Type. On Node's undici fetch,
     // an empty-string body would still trigger Content-Type: text/plain. The
     // body must be omitted entirely to avoid tripping F5 Volterra WAF rules.
-    expect(calls[1].init?.body).toBeUndefined()
+    expect(calls[1]!.init?.body).toBeUndefined()
     expect(headers['content-type']).toBeUndefined()
     expect(headers['Content-Type']).toBeUndefined()
   })
@@ -144,9 +144,9 @@ describe('pastVisits', () => {
     ])
 
     const result = ok(await pastVisits(req, new Date("2023-01-01")))
-    expect(result.List['Org-1'].List).toHaveLength(2)
-    expect(result.List['Org-1'].List[0].VisitTypeName).toBe('Office Visit')
-    expect(result.List['Org-1'].List[0].Diagnoses?.[0]?.Description).toBe('Common Cold')
+    expect(result.List['Org-1']!.List).toHaveLength(2)
+    expect(result.List['Org-1']!.List[0]!.VisitTypeName).toBe('Office Visit')
+    expect(result.List['Org-1']!.List[0]!.Diagnoses?.[0]?.Description).toBe('Common Cold')
   })
 
   it('sends LoadPast with no body and no Content-Type (F5 WAF regression)', async () => {
@@ -163,24 +163,24 @@ describe('pastVisits', () => {
     req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
-      return new Response(r.body, { status: 200 })
+      return new Response(r!.body, { status: 200 })
     })
 
     const oldestDate = new Date('2023-06-15T00:00:00.000Z')
     await pastVisits(req, oldestDate)
 
     // The LoadPast URL should contain the date
-    expect(calls[1].url).toContain('oldestRenderedDate=')
-    expect(calls[1].url).toContain('2023-06-15')
-    expect(calls[1].init?.method).toBe('POST')
+    expect(calls[1]!.url).toContain('oldestRenderedDate=')
+    expect(calls[1]!.url).toContain('2023-06-15')
+    expect(calls[1]!.init?.method).toBe('POST')
     // Mirror upcomingVisits: no body, no Content-Type header. The previous
     // shape (form-urlencoded + 'serializedIndex=' body) trips F5 Volterra
     // WAF rules on some MyChart deployments. We must omit the body entirely
     // (not 'body: \'\'') because on Node's undici fetch an empty string still
     // auto-adds 'Content-Type: text/plain;charset=UTF-8'. Pin all three to
     // catch any partial revert.
-    expect(calls[1].init?.body).toBeUndefined()
-    const loadPastHeaders = calls[1].init?.headers as Record<string, string> | undefined
+    expect(calls[1]!.init?.body).toBeUndefined()
+    const loadPastHeaders = calls[1]!.init?.headers as Record<string, string> | undefined
     expect(loadPastHeaders?.['content-type']).toBeUndefined()
     expect(loadPastHeaders?.['Content-Type']).toBeUndefined()
   })
@@ -207,7 +207,7 @@ describe('pastVisits', () => {
 
     const result = ok(await pastVisits(req, new Date("2023-01-01")))
     expect(Object.keys(result.List)).toHaveLength(2)
-    expect(result.List['Org-A'].List).toHaveLength(1)
-    expect(result.List['Org-B'].List).toHaveLength(2)
+    expect(result.List['Org-A']!.List).toHaveLength(1)
+    expect(result.List['Org-B']!.List).toHaveLength(2)
   })
 })

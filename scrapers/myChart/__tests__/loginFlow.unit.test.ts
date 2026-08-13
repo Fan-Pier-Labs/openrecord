@@ -209,8 +209,8 @@ describe('credential encoding', () => {
     await myChartUserPassLogin({ hostname: HOST, user: 'testuser', pass: 'testpass123!' })
 
     const creds = postedCredentials(calls)
-    expect(atob(creds.LoginIdentifier)).toBe('testuser')
-    expect(atob(creds.Password)).toBe('testpass123!')
+    expect(atob(creds.LoginIdentifier!)).toBe('testuser')
+    expect(atob(creds.Password!)).toBe('testpass123!')
   })
 
   it('posts a StandardLogin payload with the CSRF token', async () => {
@@ -229,7 +229,7 @@ describe('credential encoding', () => {
     const { calls } = fakeMyChart({})
     await myChartUserPassLogin({ hostname: HOST, user: 'u', pass })
 
-    expect(atob(postedCredentials(calls).Password)).toBe(pass)
+    expect(atob(postedCredentials(calls).Password!)).toBe(pass)
   })
 
   it('encodes unicode credentials that plain btoa cannot handle', async () => {
@@ -238,9 +238,13 @@ describe('credential encoding', () => {
     const { calls } = fakeMyChart({})
     await myChartUserPassLogin({ hostname: HOST, user, pass: 'p' })
 
-    const encoded = postedCredentials(calls).LoginIdentifier
+    const encoded = postedCredentials(calls).LoginIdentifier!
     expect(() => btoa(user)).toThrow()
-    expect(decodeURIComponent(escape(atob(encoded)))).toBe(user)
+    // UTF-8-aware base64 decode. Replaces the deprecated
+    // decodeURIComponent(escape(atob(...))) trick — identical for valid UTF-8;
+    // on malformed bytes the old form threw where this yields replacement
+    // characters, and either way this assertion fails.
+    expect(Buffer.from(encoded, 'base64').toString('utf8')).toBe(user)
   })
 })
 

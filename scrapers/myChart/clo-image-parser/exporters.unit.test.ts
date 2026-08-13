@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import sharp from "sharp";
 import { inflateSync } from "zlib";
+import jpegJs from "jpeg-js";
 
 import {
   convertCloToBitmap,
@@ -9,8 +10,13 @@ import {
   to8bit,
   to16bit,
 } from "./clo_to_bitmap";
-import type { Bitmap16 } from "./clo_to_bitmap";
-import { convertBitmap16ToJpg } from "./exporters/to_jpg";
+import type { Bitmap, Bitmap16 } from "./clo_to_bitmap";
+import { convertBitmap16ToJpg, convertBitmapToJpg } from "./exporters/to_jpg";
+import {
+  convertBitmapToJpgPureJs,
+  convertCloToJpgPureJs,
+  grayscaleToRgba,
+} from "./exporters/to_jpg_purejs";
 import { convertBitmap16ToPng } from "./exporters/to_png";
 import { convertBitmap16ToAvif } from "./exporters/to_avif";
 import { convertBitmap16ToTiff } from "./exporters/to_tiff";
@@ -76,7 +82,7 @@ function readPng16Pixels(pngBuf: Buffer): { pixels: number[]; bitDepth: number; 
     if (type === "IHDR") {
       width = pngBuf.readUInt32BE(pos + 8);
       height = pngBuf.readUInt32BE(pos + 12);
-      bitDepth = pngBuf[pos + 8 + 8];
+      bitDepth = pngBuf[pos + 8 + 8]!;
     }
     if (type === "IDAT") {
       idatChunks.push(pngBuf.subarray(pos + 8, pos + 8 + len));
@@ -95,7 +101,7 @@ function readPng16Pixels(pngBuf: Buffer): { pixels: number[]; bitDepth: number; 
       if (bitDepth === 16) {
         pixels.push(decompressed.readUInt16BE(offset));
       } else {
-        pixels.push(decompressed[offset]);
+        pixels.push(decompressed[offset]!);
       }
     }
   }
@@ -151,7 +157,7 @@ describe("encode16bitPng", () => {
     // doesn't declare it.
     expect((info as typeof info & { depth?: string }).depth).toBe("ushort");
     for (let i = 0; i < 4; i++) {
-      expect(data.readUInt16LE(i * 2)).toBe(pixels[i]);
+      expect(data.readUInt16LE(i * 2)).toBe(pixels[i]!);
     }
   });
 
@@ -208,8 +214,8 @@ describe("convertCloToBitmap16", () => {
     const bitmap16 = makeGradientBitmap16();
     let min = 65535, max = 0;
     for (let i = 0; i < bitmap16.pixels.length; i++) {
-      if (bitmap16.pixels[i] < min) min = bitmap16.pixels[i];
-      if (bitmap16.pixels[i] > max) max = bitmap16.pixels[i];
+      if (bitmap16.pixels[i]! < min) min = bitmap16.pixels[i]!;
+      if (bitmap16.pixels[i]! > max) max = bitmap16.pixels[i]!;
     }
     expect(min).toBeGreaterThanOrEqual(0);
     expect(max).toBeLessThanOrEqual(65535);
@@ -233,7 +239,7 @@ describe("convertCloToBitmap16", () => {
     const downsampled = to8bit(bitmap16.pixels, false);
     let maxDiff = 0;
     for (let i = 0; i < bitmap8.pixels.length; i++) {
-      const diff = Math.abs(downsampled[i] - bitmap8.pixels[i]);
+      const diff = Math.abs(downsampled[i]! - bitmap8.pixels[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(1);
@@ -301,6 +307,82 @@ describe("to16bit", () => {
   });
 });
 
+// ==================== to_jpg_purejs ====================
+
+/** Synthetic gradient CLO pixel/wrapper pair for the pure-JS decode path. */
+function makeGradientClo(w = 512, h = 512): { pixelData: Buffer; wrapperData: Buffer } {
+  const img = generateGradientH(w, h);
+  return {
+    pixelData: Buffer.from(encodePixelFile(img, w, h)),
+    wrapperData: Buffer.from(encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME2",
+      bitsStored: 16,
+      windowCenter: 32768,
+      windowWidth: 65536,
+    })),
+  };
+}
+
+describe("to_jpg_purejs", () => {
+  it("grayscaleToRgba repeats each sample into RGB with opaque alpha", () => {
+    const rgba = grayscaleToRgba(new Uint8Array([0, 128, 255]));
+    expect(Array.from(rgba)).toEqual([
+      0, 0, 0, 255,
+      128, 128, 128, 255,
+      255, 255, 255, 255,
+    ]);
+  });
+
+  it("encodes a valid JPEG from a synthetic CLO", () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const jpeg = convertCloToJpgPureJs(pixelData, wrapperData);
+    expect(jpeg.width).toBe(512);
+    expect(jpeg.height).toBe(512);
+    // JPEG magic: SOI (FFD8) … EOI (FFD9).
+    expect(jpeg.buffer[0]).toBe(0xff);
+    expect(jpeg.buffer[1]).toBe(0xd8);
+    expect(jpeg.buffer[jpeg.buffer.length - 2]).toBe(0xff);
+    expect(jpeg.buffer[jpeg.buffer.length - 1]).toBe(0xd9);
+  }, 30000);
+
+  it("JPEG content matches the canonical 8-bit bitmap", () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const bitmap = convertCloToBitmap(pixelData, wrapperData);
+    const jpeg = convertBitmapToJpgPureJs(bitmap);
+
+    const decoded = jpegJs.decode(jpeg.buffer, { useTArray: true });
+    expect(decoded.width).toBe(bitmap.width);
+    expect(decoded.height).toBe(bitmap.height);
+
+    let maxDiff = 0;
+    for (let i = 0; i < bitmap.pixels.length; i++) {
+      const diff = Math.abs(decoded.data[i * 4]! - bitmap.pixels[i]!);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    // Quality-100 JPEG should stay very close to the source pixels.
+    expect(maxDiff).toBeLessThanOrEqual(5);
+  }, 30000);
+
+  it("renders the same image as the sharp-backed CLI exporter", async () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const bitmap: Bitmap = convertCloToBitmap(pixelData, wrapperData);
+
+    const pureJs = convertBitmapToJpgPureJs(bitmap);
+    const viaSharp = await convertBitmapToJpg(bitmap);
+
+    const pureJsPixels = await readGrayscale8(Buffer.from(pureJs.buffer));
+    const sharpPixels = await readGrayscale8(viaSharp);
+
+    let maxDiff = 0;
+    for (let i = 0; i < pureJsPixels.data.length; i++) {
+      const diff = Math.abs(pureJsPixels.data[i]! - sharpPixels.data[i]!);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    // Two quality-100 encoders over identical windowed pixels: near-identical.
+    expect(maxDiff).toBeLessThanOrEqual(5);
+  }, 30000);
+});
+
 // ==================== convertBitmap16ToJpg ====================
 
 describe("convertBitmap16ToJpg", () => {
@@ -359,7 +441,7 @@ describe("convertBitmap16ToJpg", () => {
     // At quality 100, JPEG should be very close to source
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(5);
@@ -574,7 +656,7 @@ describe("convertBitmap16ToAvif", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Lossless AVIF at 8-bit should be very close
@@ -590,7 +672,7 @@ describe("convertBitmap16ToAvif", () => {
 
     let sumSq = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = data[i] - expected8[i];
+      const diff = data[i]! - expected8[i]!;
       sumSq += diff * diff;
     }
     const rmse = Math.sqrt(sumSq / data.length);
@@ -696,7 +778,7 @@ describe("convertBitmap16ToTiff", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(1);

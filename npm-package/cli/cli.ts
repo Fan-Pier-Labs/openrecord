@@ -60,8 +60,9 @@ import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthentic
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import { isBlockedInstance } from '../../scrapers/myChart/blockedInstances';
-import { CAPABILITIES, getCapability } from '../../shared/capabilities';
+import { COMMON_CAPABILITIES, LESS_FREQUENTLY_USED_CAPABILITIES, getCapability } from '../../shared/capabilities';
 import { renderCapabilityList, runCapabilityAction } from './capabilityActions';
+import { renderCliHelp } from './help';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -102,7 +103,9 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action list-proxies                 (list accessible patient records)
 //   npx tsx src/cli.ts --host <hostname> --patient "Bart Simpson"            (read a proxy patient's chart)
 //   npx tsx src/cli.ts --host <hostname> --switch "Bart Simpson"             (change MyChart's active patient)
-//   npx tsx src/cli.ts --list-capabilities                                   (every capability and its arguments)
+//   npx tsx src/cli.ts --help                                                (usage + the commonly-used capabilities)
+//   npx tsx src/cli.ts --help --show-all                                     (…including the less-frequently-used ones)
+//   npx tsx src/cli.ts --list-capabilities [--show-all]                      (just the capability listing)
 //   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
 //
 // `--action` accepts any id from the shared capability registry
@@ -119,7 +122,10 @@ interface CliArgs {
   setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
   setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
   deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
+  help?: boolean;
   listCapabilities?: boolean;
+  /** Include the less-frequently-used capabilities in `--help` / `--list-capabilities`. */
+  showAll?: boolean;
   /** Repeated `--arg name=value` pairs, passed straight to the capability. */
   capabilityArgs?: Record<string, string>;
   /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
@@ -132,11 +138,13 @@ function parseArgs(): CliArgs {
   const capabilityArgs: Record<string, string> = {};
   parsed.capabilityArgs = capabilityArgs;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
+    if (args[i] === '--help' || args[i] === '-h') parsed.help = true;
+    else if (args[i] === '--show-all') parsed.showAll = true;
+    else if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
     // `--arg name=value`, repeatable. Whatever the chosen capability declares
     // in the shared registry is what this accepts — no per-flag plumbing.
     else if (args[i] === '--arg' && args[i + 1]) {
-      const pair = args[++i];
+      const pair = args[++i]!; // guarded by args[i + 1] above
       const eq = pair.indexOf('=');
       if (eq <= 0) {
         console.error(`  --arg expects name=value, got "${pair}".`);
@@ -144,21 +152,21 @@ function parseArgs(): CliArgs {
       }
       capabilityArgs[pair.slice(0, eq)] = pair.slice(eq + 1);
     }
-    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
-    else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i];
-    else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i];
-    else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i];
+    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i]!;
+    else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i]!;
+    else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i]!;
+    else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i]!;
     else if (args[i] === '--no-cache') parsed.nocache = true;
     else if (args[i] === '--read-login-from-browser') parsed.readLoginFromBrowser = true;
-    else if (args[i] === '--action' && args[i + 1]) parsed.action = args[++i];
-    else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i];
-    else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i];
-    else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i];
+    else if (args[i] === '--action' && args[i + 1]) parsed.action = args[++i]!;
+    else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i]!;
+    else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i]!;
+    else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i]!;
     // Which patient's chart to read. A name (full or partial), a record id, or
     // "me". Applies to every action; see resolvePatientContext().
-    else if (args[i] === '--patient' && args[i + 1]) parsed.patient = args[++i];
+    else if (args[i] === '--patient' && args[i + 1]) parsed.patient = args[++i]!;
     // The one command that changes MyChart's server-side active patient.
-    else if (args[i] === '--switch' && args[i + 1]) parsed.switchPatient = args[++i];
+    else if (args[i] === '--switch' && args[i + 1]) parsed.switchPatient = args[++i]!;
     else if (args[i] === '--set-up-totp') parsed.setupTotp = true;
     else if (args[i] === '--use-saved-totp') parsed.useSavedTotp = true;
     else if (args[i] === '--disable-totp') parsed.disableTotp = true;
@@ -169,7 +177,7 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
     // Output directory for capabilities that produce images (rendersMedia).
-    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i];
+    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
   }
   return parsed;
 }
@@ -186,7 +194,7 @@ async function resolveCredsFromBrowsers(host: string): Promise<{ user: string; p
         return new URL(a.url).hostname === host;
       } catch { return false; }
     });
-    if (match && match.user && match.pass) {
+    if (match?.user && match.pass) {
       console.log(`  Found credentials for ${host} in browser passwords (user: ${match.user})`);
       return { user: match.user, pass: match.pass };
     }
@@ -249,7 +257,7 @@ async function discoverAccounts(): Promise<PasswordStoreEntryWithKey[]> {
     } else {
       console.log(`  Found ${accounts.length} MyChart account(s):\n`);
       for (let i = 0; i < accounts.length; i++) {
-        const a = accounts[i];
+        const a = accounts[i]!; // loop condition guarantees i < accounts.length
         const hostname = new URL(a.url).hostname;
         console.log(`    [${i + 1}] ${hostname} - ${a.user || '(no username)'}`);
       }
@@ -289,7 +297,7 @@ async function getCredentials(): Promise<{ hostname: string; username: string; p
         console.log('  Invalid selection. Using all accounts.');
         selectedAccounts = accounts;
       } else {
-        selectedAccounts = indices.map(i => accounts[i]);
+        selectedAccounts = indices.map(i => accounts[i]!); // indices were filtered to be in range
       }
     }
 
@@ -757,7 +765,7 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
   subheader('Messages');
   try {
     const conversations = await listConversations(mychartRequest);
-    if (conversations && conversations.threads && conversations.threads.length > 0) {
+    if (conversations?.threads && conversations.threads.length > 0) {
       for (const thread of conversations.threads.slice(0, 10)) {
         console.log(`\n      Subject: ${thread.subject || 'No subject'}`);
         if (thread.senderName) item('  From', thread.senderName);
@@ -1200,7 +1208,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
 
   console.log('\n  Available topics:');
   for (let i = 0; i < topics.length; i++) {
-    console.log(`    [${i + 1}] ${topics[i].displayName}`);
+    console.log(`    [${i + 1}] ${topics[i]!.displayName}`); // loop bound guarantees the index
   }
 
   const topicChoice = await ask('\n  Select topic number: ');
@@ -1209,7 +1217,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
     console.log('  Invalid topic selection.');
     return;
   }
-  const selectedTopic = topics[topicIdx];
+  const selectedTopic = topics[topicIdx]!; // range-checked just above
 
   // Get available recipients
   const recipients = await getMessageRecipients(mychartRequest, token);
@@ -1220,7 +1228,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
 
   console.log('\n  Available recipients:');
   for (let i = 0; i < recipients.length; i++) {
-    const r = recipients[i];
+    const r = recipients[i]!; // loop bound guarantees the index
     const specialty = r.specialty ? ` (${r.specialty})` : r.pcpTypeDisplayName ? ` (${r.pcpTypeDisplayName})` : '';
     console.log(`    [${i + 1}] ${r.displayName}${specialty}`);
   }
@@ -1231,7 +1239,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
     console.log('  Invalid recipient selection.');
     return;
   }
-  const selectedRecipient = recipients[recipientIdx];
+  const selectedRecipient = recipients[recipientIdx]!; // range-checked just above
 
   const subject = cliArgs.subject || await ask('\n  Subject: ');
   const messageBody = cliArgs.message || await ask('  Message: ');
@@ -1281,7 +1289,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
     }
 
     for (let i = 0; i < Math.min(convoList.length, 10); i++) {
-      const c = convoList[i];
+      const c = convoList[i]!; // loop bound guarantees the index
       const audience = c.audience?.map((a: { name: string }) => a.name).join(', ') || 'System';
       console.log(`    [${i + 1}] "${c.subject}" - ${audience}`);
     }
@@ -1292,7 +1300,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
       console.log('  Invalid selection.');
       return;
     }
-    conversationId = convoList[convoIdx].hthId;
+    conversationId = convoList[convoIdx]!.hthId; // range-checked just above
   }
 
   if (!messageBody) {
@@ -1332,9 +1340,15 @@ async function main() {
   // Fire-and-forget update check — never blocks or breaks the CLI
   void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
 
-  // Listing what the CLI can do needs no account and no network.
+  // Saying what the CLI can do needs no account and no network. Both listings
+  // lead with the commonly-used capabilities and name `--show-all` for the rest.
+  if (cliArgs.help) {
+    console.log(renderCliHelp({ showAll: cliArgs.showAll }));
+    closeRL();
+    return;
+  }
   if (cliArgs.listCapabilities) {
-    console.log(renderCapabilityList());
+    console.log(renderCapabilityList({ showAll: cliArgs.showAll }));
     closeRL();
     return;
   }
@@ -1350,7 +1364,7 @@ async function main() {
       const match = accounts.find(a => {
         try { return new URL(a.url).hostname === cliArgs.host; } catch { return false; }
       });
-      if (match && match.user && match.pass) {
+      if (match?.user && match.pass) {
         console.log(`  Found credentials for ${cliArgs.host} (user: ${match.user})`);
         cliArgs.user = match.user;
         cliArgs.pass = match.pass;
@@ -1366,7 +1380,7 @@ async function main() {
         closeRL();
         process.exit(1);
       }
-      const first = accounts[0];
+      const first = accounts[0]!; // non-empty checked just above
       cliArgs.host = new URL(first.url).hostname;
       cliArgs.user = first.user!;
       cliArgs.pass = first.pass!;
@@ -1806,7 +1820,7 @@ async function main() {
               }
 
               for (const [, seriesImages] of seriesGroups) {
-                const safeDesc = seriesImages[0].seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const safeDesc = seriesImages[0]!.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_'); // groups are created non-empty
                 const multiSlice = seriesImages.length > 1;
                 // Create per-series subdirectory for multi-slice series (e.g. CT)
                 const seriesDir = multiSlice ? path.join(studyDir, safeDesc) : studyDir;
@@ -1817,7 +1831,7 @@ async function main() {
                   try {
                     const positions: Array<{ idx: number; x: number; y: number; z: number }> = [];
                     for (let i = 0; i < seriesImages.length; i++) {
-                      const img = seriesImages[i];
+                      const img = seriesImages[i]!; // loop bound guarantees the index
                       if (!img.wrapperData) { positions.push({ idx: i, x: 0, y: 0, z: 0 }); continue; }
                       try {
                         const wrapBuf = Buffer.isBuffer(img.wrapperData) ? img.wrapperData : Buffer.from(img.wrapperData);
@@ -1840,8 +1854,8 @@ async function main() {
                     if (rx > 0.1 || ry > 0.1 || rz > 0.1) {
                       const sortKey = rx >= ry && rx >= rz ? 'x' : ry >= rz ? 'y' : 'z';
                       positions.sort((a, b) => a[sortKey] - b[sortKey]);
-                      const sorted = positions.map(p => seriesImages[p.idx]);
-                      for (let i = 0; i < sorted.length; i++) seriesImages[i] = sorted[i];
+                      const sorted = positions.map(p => seriesImages[p.idx]!); // idx values come from this same array
+                      for (let i = 0; i < sorted.length; i++) seriesImages[i] = sorted[i]!;
                       console.log(`          Sorted ${seriesImages.length} slices by ${sortKey}-position (range: ${Math.max(rx, ry, rz).toFixed(1)}mm)`);
                     }
                   } catch (err) {
@@ -1850,7 +1864,7 @@ async function main() {
                 }
 
                 for (let i = 0; i < seriesImages.length; i++) {
-                  const img = seriesImages[i];
+                  const img = seriesImages[i]!; // loop bound guarantees the index
                   const fileName = multiSlice
                     ? `${String(i + 1).padStart(4, '0')}.jpg`
                     : `${safeDesc}.jpg`;
@@ -1888,7 +1902,7 @@ async function main() {
                   }
                 }
                 if (multiSlice) {
-                  console.log(`          Series "${seriesImages[0].seriesDescription}": ${seriesImages.length} slices → ${seriesDir}`);
+                  console.log(`          Series "${seriesImages[0]!.seriesDescription}": ${seriesImages.length} slices → ${seriesDir}`);
                 }
               }
 
@@ -2013,8 +2027,10 @@ async function main() {
     const capability = getCapability(cliArgs.action);
     if (!capability) {
       console.log(`\n  Unknown --action "${cliArgs.action}".`);
-      console.log(`  Capabilities: ${CAPABILITIES.map(c => c.id).join(', ')}`);
-      console.log('  Run  mychart-cli --list-capabilities  for the full list with arguments.');
+      console.log(`  Capabilities: ${COMMON_CAPABILITIES.map(c => c.id).join(', ')}`);
+      console.log(
+        `  …and ${LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used ones. Run  mychart-cli --list-capabilities [--show-all]  for the full list with arguments.`,
+      );
       closeRL();
       process.exit(1);
     }
@@ -2022,7 +2038,7 @@ async function main() {
     for (const session of sessions) {
       const creds = credentialsList.find(c => c.hostname === session.hostname);
       const password = creds && 'password' in creds ? creds.password : undefined;
-      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output))) ok = false;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output, cliArgs.patient))) ok = false;
     }
     closeRL();
     process.exit(ok ? 0 : 1);

@@ -20,6 +20,8 @@ import {
   CAPABILITIES,
   CAPABILITY_IDS,
   AGENT_CAPABILITIES,
+  COMMON_CAPABILITIES,
+  LESS_FREQUENTLY_USED_CAPABILITIES,
 } from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
@@ -149,8 +151,8 @@ describe('mobile app', () => {
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
-      expect(WRITE_TOOL_META[id].title.length).toBeGreaterThan(0);
-      expect(WRITE_TOOL_META[id].description.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.title.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.description.length).toBeGreaterThan(0);
     }
   });
 
@@ -231,12 +233,46 @@ describe('rendersMedia', () => {
   });
 });
 
+// ── No client dispatches around executeCapability ──────────────────────────
+
+/**
+ * `executeCapability` is where the active-patient assertion lives, so a client
+ * reaching `capability.run` itself has silently opted out of it. The extension
+ * and the CLI both did, for the one capability returning bytes instead of
+ * JSON — making `download_imaging_study` the single tool that would hand back
+ * a family member's images when the session was parked on their chart.
+ */
+describe('capability dispatch', () => {
+  // This used to be a regex over three client source files. It is now the type
+  // system's job: `run` is absent from the exported `Capability`, so reaching
+  // it is a compile error in every client, whatever the spelling. See
+  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // assertion in capabilities.unit.test.ts.
+  //
+  // What remains here is the positive half — that each client actually calls
+  // the guarded entry point — which the type system cannot express.
+  const CLIENT_SOURCES = [
+    'claude-desktop-extension/src/tools.ts',
+    'expo-app/src/lib/scrapers/session-manager.ts',
+    'npm-package/cli/capabilityActions.ts',
+  ];
+
+  for (const relativePath of CLIENT_SOURCES) {
+    it(`${relativePath} dispatches through executeCapability`, async () => {
+      const source = await Bun.file(
+        new URL(`../../${relativePath}`, import.meta.url).pathname,
+      ).text();
+      expect(source).toContain('executeCapability(');
+    });
+  }
+});
+
 // ── 3. CLI ─────────────────────────────────────────────────────────────────
 
 describe('CLI', () => {
-  it('lists every capability under --list-capabilities', async () => {
+  it('lists every capability under --list-capabilities --show-all', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const id of ALL) {
       expect(listing).toContain(id);
     }
@@ -244,11 +280,25 @@ describe('CLI', () => {
 
   it('documents every argument each capability accepts', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const capability of CAPABILITIES) {
       for (const param of capability.params) {
         expect(listing).toContain(`--arg ${param.name}=<${param.type}>`);
       }
+    }
+  });
+
+  // The default listing is the useful subset. Hiding an entry is a
+  // presentation choice and nothing more — `--action` still runs it, which the
+  // "resolves every capability id" case below covers for the whole registry.
+  it('leads with the commonly-used capabilities and holds the rest back', async () => {
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
+    const listing = renderCapabilityList();
+    for (const capability of COMMON_CAPABILITIES) {
+      expect(listing).toContain(capability.id);
+    }
+    for (const capability of LESS_FREQUENTLY_USED_CAPABILITIES) {
+      expect(listing).not.toContain(capability.id);
     }
   });
 

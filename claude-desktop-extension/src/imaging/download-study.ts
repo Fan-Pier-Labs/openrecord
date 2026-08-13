@@ -2,19 +2,18 @@
  * Encode a downloaded imaging study as JPEGs.
  *
  * The download itself is the shared `download_imaging_study` capability
- * (`shared/capabilities.ts`), which returns raw CLO bytes — every client has to
- * encode those itself, because the MCPB ships no native image dependency and
- * uses the pure-JS CLO→JPEG path (convertCloToBitmap16 + jpeg-js) where the
- * CLI uses sharp and the mobile app uses its own decoder. This module is that
- * MCPB-specific encoding step, kept out of tool registration so it can be
+ * (`shared/capabilities.ts`), which returns raw CLO bytes. Encoding is the
+ * shared pure-JS exporter (`convertCloToJpgPureJs`) — the same code path the
+ * Expo app uses, so an X-ray renders identically in every client. This module
+ * is just the MCPB glue around it, kept out of tool registration so it can be
  * unit-tested against fake-mychart without standing up an MCP server.
  */
 import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
-import { convertCloToBitmap16 } from '../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
-import { encodeCloAsJpeg } from './jpeg-encoder';
+import { convertCloToJpgPureJs } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import {
   encodeImageId,
+  executeCapability,
   getCapability,
   type StudyImagePayload,
 } from '../../../shared/capabilities';
@@ -55,16 +54,15 @@ export function encodeStudyJpegs(payload: StudyImagePayload): DownloadStudyJpegs
   const images: StudyJpeg[] = [];
 
   for (let i = 0; i < withPixels.length; i++) {
-    const img = withPixels[i];
+    const img = withPixels[i]!; // i bounded by loop over withPixels.length; noUncheckedIndexedAccess
     try {
-      const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
-      const encoded = encodeCloAsJpeg(bitmap);
+      const encoded = convertCloToJpgPureJs(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       images.push({
         index: i,
         seriesDescription: img.seriesDescription,
         width: encoded.width,
         height: encoded.height,
-        bytes: encoded.bytes,
+        bytes: encoded.buffer.length,
         jpegBase64: Buffer.from(encoded.buffer).toString('base64'),
       });
     } catch (err) {
@@ -98,7 +96,12 @@ export async function downloadStudyJpegs(
   if (!capability?.rendersMedia) {
     throw new Error('The imaging-download capability is missing from the registry.');
   }
-  const payload = (await capability.run(req, {
+  // executeCapability, not the implementation: this asserts which patient's
+  // chart is active before downloading anything. Reaching `run` here was a
+  // live bypass — the regex that was supposed to prevent it only scanned three
+  // other files, and this reached `run` via getCapability rather than by the
+  // one spelling it matched.
+  const payload = (await executeCapability(req, capability.id, {
     image_id: encodeImageId(fdiContext),
     study_name: opts.studyName ?? 'imaging study',
   })) as StudyImagePayload;

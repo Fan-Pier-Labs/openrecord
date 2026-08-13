@@ -354,11 +354,12 @@ describe('buildGetStudyListMetaRequest', () => {
  * A minimal AMF3 reader, deliberately written here as an *independent* oracle
  * for the writer in `imagingDirectDownload.ts` rather than imported from it.
  *
- * The module ships only heuristic byte-scanners for responses
- * (`parseAmfResponse` and friends), so there is no structural decoder to
- * import. Deriving this one from the AMF3 spec instead of from the encoder is
- * what makes the round-trip below evidence of anything: an encoder checked
- * against its own mirror image would agree with any bug it contained.
+ * A product decoder does exist (`../amf3Reader.ts`, used for the
+ * getStudyListMeta *response*), but it is deliberately not used here:
+ * deriving this oracle from the AMF3 spec instead of from anything in the
+ * codebase is what makes the round-trip below evidence of anything. An
+ * encoder checked against its own mirror image — or against a decoder that
+ * grew up next to it — would agree with any shared misreading of the spec.
  *
  * Covers exactly the subset the writer emits — sealed and externalizable typed
  * objects, dense arrays, strings with the reference table, null, true, and
@@ -367,7 +368,7 @@ describe('buildGetStudyListMetaRequest', () => {
  */
 class Amf3Reader {
   private pos = 0;
-  private stringTable: string[] = [];
+  private readonly stringTable: string[] = [];
   /** Strings that arrived as a back-reference rather than an inline copy. */
   readonly resolvedReferences: string[] = [];
 
