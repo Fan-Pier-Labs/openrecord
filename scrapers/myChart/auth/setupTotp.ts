@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import { type MyChartRequest } from '../core/myChartRequest';
+import type { MyChartRequest } from '../core/myChartRequest';
 import { fetchSessionCsrfToken } from '../core/csrf';
 import { generateTotpCode } from './totp';
 import { logger } from '../../../shared/logger';
