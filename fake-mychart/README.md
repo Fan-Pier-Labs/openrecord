@@ -168,6 +168,42 @@ All of them are global to the process, so a test suite that depends on any of
 them must set it rather than inherit whatever ran before it. `/reset` restores
 the defaults.
 
+## Signup and account recovery (the pre-auth surface)
+
+Everything above is for a patient who already has an account. These endpoints are
+for the ones who don't, and they mirror the live Epic contract reverse-engineered
+in `claude-memory/mychart-signup-recovery-api.md`.
+
+| Flow | Endpoints |
+| --- | --- |
+| Self-signup (identity match) | `POST /Signup/Standalone/SubmitActivationRequest` — urlencoded demographic form; answers `{Success, SignupToken, DeliveryMasked}`, or `{Success: false, ErrorCode: 'AccountAlreadyExists'}` |
+| Activation-code signup | `POST /api/signup/VerifyActivationCode` (seeded valid code `ABCDE-FGHIJ-KLMNO`) |
+| Both, to finish | `POST /api/signup/VerifyContactCode`, then `POST /api/signup/CreateAccount` |
+| Unified recovery | `POST /api/account-recovery/{GetAccountRecoverySettings,SendCode,VerifyCode,ResetPassword}` |
+
+The one-time signup/recovery code is the fixed `123456`, the same as the 2FA code —
+or any 6-digit code under `FAKE_MYCHART_ACCEPT_ANY`. Seed users have recovery
+contacts (`homer@springfield.net`, and a phone for `marge`). `SendCode` answers
+success even when no account matches, so the endpoint can't be used to enumerate
+accounts; it just doesn't seed a pending recovery. `/reset` clears pending signups
+and recoveries along with any accounts they created.
+
+Two things about this surface are load-bearing:
+
+- **These routes are exempt from the session check and only from that.** They exist
+  for people with no account to sign in with, so gating them on a live session
+  would make them unreachable. `isOpenRoute` in the route handler names them
+  explicitly rather than opening a wildcard.
+- **They still require `__RequestVerificationToken` on the `api/*` POSTs**, like
+  every other API route here, because real Epic does. The scrapers GET the SPA
+  shell (`/Signup`, `/app/activation`, `/app/account-recovery`) first to pick one up.
+
+One deliberate infidelity, and it is the reason self-signup can't be shipped as a
+pure-HTTP flow: **real Epic gates self-signup behind reCAPTCHA Enterprise** (field
+`g-recaptcha-response`), which a bare `fetch` cannot mint. The fake has no bot
+protection, so CI exercises the contract without it. Activation-code signup and
+account recovery show no reCAPTCHA on their initial steps.
+
 ## Response Shapes and Error Behavior (captured live)
 
 The JSON the fake serves is held to the field set observed on three real

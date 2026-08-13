@@ -13,7 +13,10 @@ import {
   type ProxySelectorModel,
 } from '@/lib/html';
 import * as homer from '@/data/homer';
-import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
+import {
+  state, findUser, findUserByPasskey, findUserByContact, nextSignupToken,
+  TEST_OTP_CODE, resolveActiveRecord, type FakeUser, type ConversationStore,
+} from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { servesProxySwitchJson } from '@/lib/proxy';
@@ -276,6 +279,32 @@ function publicBaseUrl(request: NextRequest): string {
   return `${proto}://${host}`;
 }
 
+/**
+ * The routes that are reachable without a session.
+ *
+ * `Authentication/*` is the login flow itself. The rest is the *pre*-auth
+ * surface: self-signup, activation-code signup and account recovery all exist
+ * precisely for people who have no account to sign in with, so gating them on a
+ * live session would make them unreachable — on the fake and on a real
+ * instance alike. Each entry covers both the SPA shell a scraper GETs to pick
+ * up its `__RequestVerificationToken` and the JSON endpoints it then POSTs.
+ *
+ * Being session-exempt does NOT mean being CSRF-exempt: real Epic still
+ * requires `__RequestVerificationToken` on these `api/*` POSTs (confirmed
+ * against a live instance — see claude-memory/mychart-signup-recovery-api.md),
+ * and the signup/recovery scrapers fetch the shell first to obtain one. The
+ * token check below therefore runs on them like anything else.
+ */
+function isOpenRoute(lower: string): boolean {
+  return lower.startsWith('authentication/')
+    || lower === 'signup'
+    || lower.startsWith('signup/')
+    || lower.startsWith('api/signup/')
+    || lower === 'app/activation'
+    || lower === 'app/account-recovery'
+    || lower.startsWith('api/account-recovery/');
+}
+
 function requireSession(request: NextRequest): NextResponse | null {
   const cookie = request.headers.get('cookie');
   if (!validateSession(cookie)) {
@@ -334,6 +363,28 @@ function withModernResultFields(payload: unknown): unknown {
 
 function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
+}
+
+// Mask an email like real MyChart does in code-delivery prompts:
+// "homer@springfield.net" → "ho***@springfield.net".
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const head = local.slice(0, 2);
+  return `${head}***@${domain}`;
+}
+
+// Mask a phone like real MyChart: keep the last 4 digits, "***-***-7890".
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const last4 = digits.slice(-4);
+  return `***-***-${last4}`;
+}
+
+// Whether a submitted one-time code is acceptable: the fixed test code, or any
+// 6-digit code when FAKE_MYCHART_ACCEPT_ANY is set (mirrors the 2FA validator).
+function otpAccepted(code: string): boolean {
+  return code === TEST_OTP_CODE || (acceptAny() && /^\d{6}$/.test(code));
 }
 
 
@@ -434,7 +485,7 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   if (lower === 'home/error') {
     return html(ERROR_PAGE_HTML);
   }
-  {
+  if (!isOpenRoute(lower)) {
     const redirect = requireSession(request);
     if (redirect) return redirect;
   }
@@ -675,11 +726,16 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     // instances, bare 500 on August 2025) even when no session was presented at all. Only a request that
     // clears the token check falls through to the login-redirect the
     // expired-session detector in makeAuthenticatedRequest.ts relies on.
+    //
+    // This runs on the pre-auth signup/recovery endpoints too — they are
+    // exempt from the session check below, never from the token check.
     if (lower.startsWith('api/') && !request.headers.get('__requestverificationtoken')) {
       return aspNetFailure(request, 'fivehundred', joined);
     }
-    const redirect = requireSession(request);
-    if (redirect) return redirect;
+    if (!isOpenRoute(lower)) {
+      const redirect = requireSession(request);
+      if (redirect) return redirect;
+    }
   }
 
   // ── Authentication ──────────────────────────────────────────────
@@ -820,6 +876,180 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       return response;
     }
     return json({ Success: false, TwoFactorCodeFailReason: 'codewrong' });
+  }
+
+  // ── Signup (self-signup / identity match) ─────────────────────
+  // Real Denver Health posts a urlencoded demographic form here behind
+  // reCAPTCHA Enterprise and answers with HTML. fake-mychart has no bot
+  // protection, accepts the same field names, and answers with JSON the
+  // signup scraper understands. See claude-memory/mychart-signup-recovery-api.md.
+  if (lower === 'signup/standalone/submitactivationrequest') {
+    const raw = await request.text();
+    const form = new URLSearchParams(raw);
+    const email = (form.get('Email') || '').trim();
+    const names = form.getAll('NameInput');
+    const displayName = [names[0], names[2]].filter(Boolean).join(' ').trim() || 'New Patient';
+
+    if (!email) {
+      return json({ Success: false, ErrorCode: 'MissingEmail' });
+    }
+    // Reject if an account already exists for this email (the real portal
+    // bounces back to the demographic page with an error in this case).
+    if (findUserByContact(email)) {
+      return json({ Success: false, ErrorCode: 'AccountAlreadyExists' });
+    }
+
+    const signupToken = nextSignupToken('SUTOKEN');
+    state.pendingSignups[signupToken] = {
+      email,
+      mobilePhone: (form.get('MobilePhone') || '').trim() || undefined,
+      displayName,
+      contactCode: TEST_OTP_CODE,
+      contactVerified: false,
+    };
+    return json({ Success: true, SignupToken: signupToken, DeliveryMasked: maskEmail(email) });
+  }
+
+  // Activation-code signup (enrollment letter / After-Visit Summary code).
+  if (lower === 'api/signup/verifyactivationcode') {
+    let code = '';
+    try {
+      code = ((await request.json()) as { code?: string }).code || '';
+    } catch { /* fall through to invalid */ }
+    const match = state.activationCodes[code.trim().toUpperCase()];
+    if (!match) {
+      return json({ Success: false, ErrorCode: 'InvalidActivationCode' });
+    }
+    const signupToken = nextSignupToken('ACTOKEN');
+    state.pendingSignups[signupToken] = {
+      email: match.email,
+      displayName: match.displayName,
+      contactCode: TEST_OTP_CODE,
+      // Activation-code holders have already proven identity via the code, so
+      // contact verification isn't separately required.
+      contactVerified: true,
+    };
+    return json({ Success: true, SignupToken: signupToken });
+  }
+
+  // Verify the one-time contact code sent during self-signup.
+  if (lower === 'api/signup/verifycontactcode') {
+    let body: { signupToken?: string; code?: string } = {};
+    try { body = (await request.json()) as typeof body; } catch { /* invalid */ }
+    const pending = body.signupToken ? state.pendingSignups[body.signupToken] : undefined;
+    if (!pending) return json({ Success: false, ErrorCode: 'UnknownSignup' });
+    if (!otpAccepted((body.code || '').trim())) return json({ Success: false });
+    pending.contactVerified = true;
+    return json({ Success: true });
+  }
+
+  // Final signup step: choose username + password, creating the account.
+  if (lower === 'api/signup/createaccount') {
+    let body: { signupToken?: string; username?: string; password?: string } = {};
+    try { body = (await request.json()) as typeof body; } catch { /* invalid */ }
+    const pending = body.signupToken ? state.pendingSignups[body.signupToken] : undefined;
+    if (!pending) return json({ Success: false, ErrorCode: 'UnknownSignup' });
+    if (!pending.contactVerified) return json({ Success: false, ErrorCode: 'ContactNotVerified' });
+    const username = (body.username || '').trim();
+    const password = body.password || '';
+    if (!username || !password) return json({ Success: false, ErrorCode: 'MissingCredentials' });
+    if (findUser(username)) return json({ Success: false, ErrorCode: 'UsernameTaken' });
+
+    // Materialize a real, login-able user. Give them a distinct MRN so the
+    // profile scraper can tell sessions apart, like the seed users.
+    state.users[username.toLowerCase()] = {
+      username,
+      password,
+      displayName: pending.displayName,
+      email: pending.email,
+      mobilePhone: pending.mobilePhone,
+      profile: {
+        name: pending.displayName,
+        dob: '01/01/1980',
+        mrn: String(800 + Object.keys(state.users).length),
+        pcp: 'Dr. Julius Hibbert, MD',
+      },
+      requires2faAtLogin: false,
+      totpEnabled: false,
+      passkeys: [],
+    };
+    delete state.pendingSignups[body.signupToken!];
+    return json({ Success: true });
+  }
+
+  // ── Account recovery (unified username + password) ────────────
+  // GetAccountRecoverySettings is verified byte-for-byte against Denver Health.
+  if (lower === 'api/account-recovery/getaccountrecoverysettings') {
+    // Real Epic returns settings regardless of whether the contact matches an
+    // account (it never confirms account existence). We mirror that.
+    return json({
+      allowEmail: true,
+      allowSMS: true,
+      consentStrings: {
+        showSMSConsent: true,
+        callToAction:
+          'Text messages related to your relationship with Denver Health, including ' +
+          'updates related to your visits, MyChart account, one-time passcode, billing ' +
+          'notifications, prescription reminders, and care management will be sent to the ' +
+          'phone number above. Message and data rates may apply. Message frequency may ' +
+          'vary. For help text HELP and text STOP to opt out of notifications from a ' +
+          'specific short code.',
+      },
+    });
+  }
+
+  // Send a recovery code to the contact. If no account matches we still answer
+  // success (no account enumeration), but only seed a pending recovery when it
+  // does, so verification can only succeed for a real account.
+  if (lower === 'api/account-recovery/sendcode') {
+    let body: { contactInfo?: string; useSMS?: boolean } = {};
+    try { body = (await request.json()) as typeof body; } catch { /* invalid */ }
+    const contactInfo = (body.contactInfo || '').trim();
+    const matched = findUserByContact(contactInfo);
+    if (matched) {
+      const token = nextSignupToken('RECOVERY');
+      state.pendingRecoveries[token] = {
+        contactInfo,
+        username: matched.username,
+        code: TEST_OTP_CODE,
+        codeVerified: false,
+      };
+    }
+    const masked = body.useSMS
+      ? maskPhone(contactInfo)
+      : (contactInfo.includes('@') ? maskEmail(contactInfo) : maskPhone(contactInfo));
+    return json({ Success: true, DeliveryMasked: masked });
+  }
+
+  // Verify the recovery code → reveal the username + return a reset token.
+  if (lower === 'api/account-recovery/verifycode') {
+    let body: { contactInfo?: string; code?: string } = {};
+    try { body = (await request.json()) as typeof body; } catch { /* invalid */ }
+    const contactInfo = (body.contactInfo || '').trim();
+    const entry = Object.entries(state.pendingRecoveries).find(
+      ([, r]) => r.contactInfo === contactInfo
+    );
+    if (!entry || !otpAccepted((body.code || '').trim())) {
+      return json({ Success: false });
+    }
+    const [recoveryToken, recovery] = entry;
+    recovery.codeVerified = true;
+    return json({ Success: true, RecoveryToken: recoveryToken, Username: recovery.username });
+  }
+
+  // Set a new password using a verified recovery token.
+  if (lower === 'api/account-recovery/resetpassword') {
+    let body: { recoveryToken?: string; newPassword?: string } = {};
+    try { body = (await request.json()) as typeof body; } catch { /* invalid */ }
+    const recovery = body.recoveryToken ? state.pendingRecoveries[body.recoveryToken] : undefined;
+    if (!recovery || !recovery.codeVerified) {
+      return json({ Success: false, ErrorCode: 'InvalidRecoveryToken' });
+    }
+    if (!body.newPassword) return json({ Success: false, ErrorCode: 'MissingPassword' });
+    const user = findUser(recovery.username);
+    if (user) user.password = body.newPassword;
+    delete state.pendingRecoveries[body.recoveryToken!];
+    return json({ Success: true });
   }
 
   // ── JSON API endpoints ────────────────────────────────────────

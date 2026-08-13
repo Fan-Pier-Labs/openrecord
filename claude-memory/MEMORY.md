@@ -90,6 +90,10 @@ Attempted two's complement decoding based on eUnity's GPU shader code (`unpacked
 
 MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Removed the skip — the eUnity pipeline is modality-agnostic (same CLO format for X-ray, CT, MRI). Successfully tested MRI downloads with multi-series studies.
 
+## Signup / Account Recovery (Onboarding §7)
+
+See [mychart-signup-recovery-api.md](mychart-signup-recovery-api.md) for the live Denver Health (Epic) contract, and [recaptcha-mobile-options.md](recaptcha-mobile-options.md) for how to make reCAPTCHA-gated self-signup work on mobile (validated live: a WebView-minted `grecaptcha.enterprise.execute(0)` token IS accepted by Epic's server → embedded-WebView or token-harvest both viable; native Enterprise SDK is not). Scrapers: `scrapers/myChart/signup.ts` (self-signup + activation code) and `accountRecovery.ts` (unified forgot username/password), bootstrapped via `preAuthRequest.ts` (`createPreAuthRequest` — resolves firstPathPart for pre-login flows; `determineFirstPathPart` is now exported from login.ts). Expo wiring: `expo-app/src/lib/scrapers/onboarding-auth.ts` + onboarding steps `account-choice-step`/`activate-step`/`signup-step`/`recover-step`. **Key constraint: real Epic self-signup is gated by reCAPTCHA Enterprise — pure HTTP can't mint the token; production needs a WebView. fake-mychart has no bot protection.**
+
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`

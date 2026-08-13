@@ -68,6 +68,49 @@ export const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.6 },
 
+  // Account-choice hub (no-account / forgot-login branches)
+  choiceButton: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#e2e2e2",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+  },
+  choiceButtonPressed: { backgroundColor: "#f7f7f7" },
+  choiceButtonTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  choiceButtonSubtitle: {
+    fontSize: 13,
+    color: "#888",
+    marginTop: 2,
+  },
+  // Inline field label + helper text used in the multi-phase signup form
+  fieldLabel: {
+    width: "100%",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 4,
+  },
+  helperText: {
+    width: "100%",
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 12,
+  },
+  rowInputs: {
+    flexDirection: "row",
+    width: "100%",
+    gap: 10,
+  },
+  flex1: { flex: 1 },
+
   // Picker
   pickerHeader: {
     paddingHorizontal: 24,
