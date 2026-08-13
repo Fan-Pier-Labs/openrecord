@@ -89,9 +89,9 @@ describe("messages", () => {
 
     const messages = await db.getMessages(chat.id);
     expect(messages).toHaveLength(2);
-    expect(messages[0].role).toBe("user");
-    expect(messages[1].tool_calls).toBe('[{"tool":"get_medications"}]');
-    expect(messages[1].tool_results).toBe('["ok"]');
+    expect(messages[0]!.role).toBe("user");
+    expect(messages[1]!.tool_calls).toBe('[{"tool":"get_medications"}]');
+    expect(messages[1]!.tool_results).toBe('["ok"]');
   });
 
   test("messages come back in chronological order", async () => {
@@ -111,7 +111,7 @@ describe("messages", () => {
     await tick();
     await db.addMessage(a.id, "user", "bump");
     const chats = await db.getChats();
-    expect(chats[0].title).toBe("A");
+    expect(chats[0]!.title).toBe("A");
   });
 });
 
@@ -164,7 +164,7 @@ describe("alerts", () => {
 
   test("metadata and payload are serialized to JSON", async () => {
     await db.upsertAlerts([makeAlert()]);
-    const [alert] = await db.getActiveAlerts();
+    const alert = (await db.getActiveAlerts())[0]!;
     expect(JSON.parse(alert.metadata)).toEqual({ amount: "$125.00" });
     expect(JSON.parse(alert.action_payload)).toEqual({ url: "https://example.org/pay" });
     expect(alert.uses_ai).toBe(0);
@@ -172,14 +172,14 @@ describe("alerts", () => {
 
   test("dismissAlert hides the alert from getActiveAlerts", async () => {
     await db.upsertAlerts([makeAlert()]);
-    const [alert] = await db.getActiveAlerts();
+    const alert = (await db.getActiveAlerts())[0]!;
     await db.dismissAlert(alert.id);
     expect(await db.getActiveAlerts()).toEqual([]);
   });
 
   test("dismissed alerts stay dismissed after re-upsert", async () => {
     await db.upsertAlerts([makeAlert()]);
-    const [alert] = await db.getActiveAlerts();
+    const alert = (await db.getActiveAlerts())[0]!;
     await db.dismissAlert(alert.id);
     const result = await db.upsertAlerts([makeAlert()]);
     expect(result).toEqual({ added: 0, skipped: 1 });
@@ -230,14 +230,14 @@ describe("insights", () => {
     ]);
     const insights = await db.listInsights("acct1");
     expect(insights).toHaveLength(1);
-    expect(insights[0].status).toBe("active");
+    expect(insights[0]!.status).toBe("active");
   });
 
   test("upsert dedupes by title and reactivates dismissed insights", async () => {
     await db.upsertInsightsForAccount("acct1", [
       { title: "Elevated ferritin", body_md: "v1", severity: "info" },
     ]);
-    const [insight] = await db.listInsights("acct1");
+    const insight = (await db.listInsights("acct1"))[0]!;
     await db.setInsightStatus(insight.id, "dismissed");
     expect(await db.listInsights("acct1")).toEqual([]);
 
@@ -247,9 +247,9 @@ describe("insights", () => {
 
     const active = await db.listInsights("acct1");
     expect(active).toHaveLength(1);
-    expect(active[0].id).toBe(insight.id);
-    expect(active[0].body_md).toBe("v2");
-    expect(active[0].severity).toBe("discuss_soon");
+    expect(active[0]!.id).toBe(insight.id);
+    expect(active[0]!.body_md).toBe("v2");
+    expect(active[0]!.severity).toBe("discuss_soon");
   });
 
   test("listInsights filters by status and scopes by account", async () => {

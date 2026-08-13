@@ -77,8 +77,8 @@ function completeChat(req: AiRequest): string {
   }
 
   // Main chat protocol.
-  const toolResultMatch = lastUserText.match(
-    /Tool result for get_medications:\n([\s\S]*)/,
+  const toolResultMatch = /Tool result for get_medications:\n([\s\S]*)/.exec(
+    lastUserText,
   );
   if (toolResultMatch) {
     const meds = extractMedicationNames(toolResultMatch[1]);

@@ -21,8 +21,8 @@ function makeInstance(overrides: Partial<MyChartInstance>): MyChartInstance {
 describe("getInstances", () => {
   test("puts the fake-mychart demo entry first", () => {
     const instances = getInstances();
-    expect(instances[0].name).toBe("Springfield Medical Center (Demo)");
-    expect(instances[0].url).toContain("fake-mychart.fanpierlabs.com");
+    expect(instances[0]!.name).toBe("Springfield Medical Center (Demo)");
+    expect(instances[0]!.url).toContain("fake-mychart.fanpierlabs.com");
   });
 
   test("includes the bundled instance list", () => {
@@ -73,13 +73,13 @@ describe("searchInstances", () => {
   test("matches by name, case-insensitively", () => {
     const result = searchInstances("springfield", fixtures);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("Springfield Medical Center");
+    expect(result[0]!.name).toBe("Springfield Medical Center");
   });
 
   test("matches by hostname", () => {
     const result = searchInstances("epic.shelbyville", fixtures);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("Shelbyville Hospital");
+    expect(result[0]!.name).toBe("Shelbyville Hospital");
   });
 
   test("invalid URLs never match on host but still match on name", () => {

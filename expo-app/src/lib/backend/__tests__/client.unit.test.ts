@@ -45,8 +45,8 @@ describe("backendUrl", () => {
 describe("backendFetch", () => {
   test("attaches the Google ID token as Bearer auth", async () => {
     await backendFetch("");
-    expect(seen[0].url).toBe("http://localhost:9999");
-    expect(new Headers(seen[0].init.headers).get("Authorization")).toBe(
+    expect(seen[0]!.url).toBe("http://localhost:9999");
+    expect(new Headers(seen[0]!.init.headers).get("Authorization")).toBe(
       "Bearer test-id-token",
     );
   });
@@ -54,12 +54,12 @@ describe("backendFetch", () => {
   test("sends no Authorization header when there is no session", async () => {
     idToken = null;
     await backendFetch("");
-    expect(new Headers(seen[0].init.headers).get("Authorization")).toBeNull();
+    expect(new Headers(seen[0]!.init.headers).get("Authorization")).toBeNull();
   });
 
   test("defaults a body to JSON but leaves a declared Content-Type alone", async () => {
     await backendFetch("", { method: "POST", body: "{}" });
-    expect(new Headers(seen[0].init.headers).get("Content-Type")).toBe(
+    expect(new Headers(seen[0]!.init.headers).get("Content-Type")).toBe(
       "application/json",
     );
 
@@ -68,11 +68,11 @@ describe("backendFetch", () => {
       body: "raw",
       headers: { "Content-Type": "text/plain" },
     });
-    expect(new Headers(seen[1].init.headers).get("Content-Type")).toBe("text/plain");
+    expect(new Headers(seen[1]!.init.headers).get("Content-Type")).toBe("text/plain");
   });
 
   test("omits credentials so browser cookies never ride along", async () => {
     await backendFetch("");
-    expect(seen[0].init.credentials).toBe("omit");
+    expect(seen[0]!.init.credentials).toBe("omit");
   });
 });

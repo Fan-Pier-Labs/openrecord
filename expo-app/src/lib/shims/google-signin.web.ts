@@ -10,7 +10,7 @@ function notSupported(): never {
 
 export const GoogleSignin = {
   configure: () => {},
-  hasPlayServices: async () => true,
+  hasPlayServices: () => Promise.resolve(true),
   signIn: notSupported,
   signOut: async () => {},
 };

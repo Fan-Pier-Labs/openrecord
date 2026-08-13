@@ -357,13 +357,13 @@ describe('scraperFetch', () => {
       try {
         // Not a browser (no DOM): no credentials mode is forced.
         await platformFetch('https://mychart.example.org/Home', {})
-        expect(seen[0].credentials).toBeUndefined()
+        expect(seen[0]!.credentials).toBeUndefined()
 
         // Simulate the web export's environment: DOM globals present.
         g.document = {}
         g.window = g.window ?? {}
         await platformFetch('https://mychart.example.org/Home', {})
-        expect(seen[1].credentials).toBe('include')
+        expect(seen[1]!.credentials).toBe('include')
       } finally {
         globalThis.fetch = realFetch
         if (!hadDocument) delete g.document

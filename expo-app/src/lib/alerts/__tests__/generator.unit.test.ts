@@ -82,7 +82,8 @@ describe("bill alerts", () => {
     const bills = upserted.filter((a) => a.type === "bill");
     expect(bills).toHaveLength(2);
 
-    const [first, second] = bills;
+    const first = bills[0]!;
+    const second = bills[1]!;
     expect(first.title).toBe("Outstanding bill");
     expect(first.description).toBe("$125.50 for Annual physical — 1/10/2026");
     expect(first.dedup_key).toBe("bill:G123:HA1");
@@ -99,7 +100,7 @@ describe("bill alerts", () => {
 
   test("falls back to an AI chat action when there is no payment URL", async () => {
     const noUrl = structuredClone(billing);
-    noUrl[0].billingDetails.Data.URLMakePayment = undefined as never;
+    noUrl[0]!.billingDetails.Data.URLMakePayment = undefined as never;
     scraperResults.set("get_billing", noUrl);
 
     await regenerateAlerts();
@@ -111,7 +112,7 @@ describe("bill alerts", () => {
 
   test("keeps absolute payment URLs as-is", async () => {
     const absolute = structuredClone(billing);
-    absolute[0].billingDetails.Data.URLMakePayment = "https://pay.example.com/x";
+    absolute[0]!.billingDetails.Data.URLMakePayment = "https://pay.example.com/x";
     scraperResults.set("get_billing", absolute);
 
     await regenerateAlerts("mychart.example.org");
@@ -148,7 +149,7 @@ describe("refill alerts", () => {
     const refills = upserted.filter((a) => a.type === "refill");
     expect(refills).toHaveLength(1);
 
-    const [refill] = refills;
+    const refill = refills[0]!;
     expect(refill.title).toBe("Lisinopril");
     expect(refill.description).toBe(
       "Take 1 tablet daily · 90-day supply · last filled 5/1/2026",
@@ -168,7 +169,7 @@ describe("refill alerts", () => {
     });
     await regenerateAlerts();
 
-    const [refill] = upserted.filter((a) => a.type === "refill");
+    const refill = upserted.filter((a) => a.type === "refill")[0]!;
     expect(refill.title).toBe("Mystery Med");
     expect(refill.description).toBe("Refillable prescription");
     expect(refill.dedup_key).toBe("refill:Mystery Med");
@@ -215,7 +216,7 @@ describe("lab alerts", () => {
     const labAlerts = upserted.filter((a) => a.type === "lab");
     expect(labAlerts).toHaveLength(1);
 
-    const [alert] = labAlerts;
+    const alert = labAlerts[0]!;
     expect(alert.title).toBe("Abnormal: Lipid Panel");
     expect(alert.description).toBe("LDL Cholesterol: 162 mg/dL (4/20/2026)");
     expect(alert.dedup_key).toBe("lab:lab-1");
@@ -258,7 +259,7 @@ describe("regenerateAlerts orchestration", () => {
     await regenerateAlerts();
 
     expect(upserted).toHaveLength(1);
-    expect(upserted[0].type).toBe("refill");
+    expect(upserted[0]!.type).toBe("refill");
   });
 
   test("concurrent calls share one in-flight run", async () => {

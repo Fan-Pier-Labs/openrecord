@@ -80,10 +80,10 @@ describe("write tools", () => {
 
     expect(alertCalls).toHaveLength(1);
     // The title comes from the capability registry entry's `title`.
-    expect(alertCalls[0].title).toBe("Confirm: Send a message");
+    expect(alertCalls[0]!.title).toBe("Confirm: Send a message");
     // The exact payload is shown to the user — minus the instance plumbing.
-    expect(alertCalls[0].message).toContain("Please send an itemized statement.");
-    expect(alertCalls[0].message).not.toContain("localhost:4000");
+    expect(alertCalls[0]!.message).toContain("Please send an itemized statement.");
+    expect(alertCalls[0]!.message).not.toContain("localhost:4000");
 
     expect(scraperCalls).toEqual([{ tool: "send_message", input }]);
     expect(JSON.parse(result)).toEqual({ ok: true });
@@ -119,6 +119,6 @@ describe("write tools", () => {
   test("empty args render a placeholder in the confirmation", async () => {
     nextAlertAction = "cancel";
     await executeLocalTool("send_message", { instance: "x" });
-    expect(alertCalls[0].message).toContain("(no arguments)");
+    expect(alertCalls[0]!.message).toContain("(no arguments)");
   });
 });

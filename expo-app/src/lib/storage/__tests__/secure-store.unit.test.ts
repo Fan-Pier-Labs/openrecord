@@ -56,8 +56,8 @@ describe("MyChart accounts", () => {
 
     const accounts = await store.getMyChartAccounts();
     expect(accounts).toHaveLength(2);
-    expect(accounts[0].hostname).toBe("mychart.example.org");
-    expect(accounts[1].username).toBe("marge");
+    expect(accounts[0]!.hostname).toBe("mychart.example.org");
+    expect(accounts[1]!.username).toBe("marge");
   });
 
   test("updateMyChartAccount merges fields for the matching id only", async () => {
@@ -85,7 +85,7 @@ describe("MyChart accounts", () => {
     await store.updateMyChartAccount("missing", { password: "x" });
     const accounts = await store.getMyChartAccounts();
     expect(accounts).toHaveLength(1);
-    expect(accounts[0].password).toBe("p");
+    expect(accounts[0]!.password).toBe("p");
   });
 
   test("removeMyChartAccount removes only the matching account", async () => {
@@ -96,7 +96,7 @@ describe("MyChart accounts", () => {
 
     const accounts = await store.getMyChartAccounts();
     expect(accounts).toHaveLength(1);
-    expect(accounts[0].hostname).toBe("h2");
+    expect(accounts[0]!.hostname).toBe("h2");
   });
 });
 

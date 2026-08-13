@@ -18,7 +18,7 @@ let aiPrompts: string[] = [];
 
 void mock.module("@/lib/ai/claude-client", () => ({
   oneShotComplete: async (messages: Array<{ content: string }>) => {
-    aiPrompts.push(messages[0].content);
+    aiPrompts.push(messages[0]!.content);
     if (aiResponse instanceof Error) throw aiResponse;
     return aiResponse;
   },
@@ -97,7 +97,7 @@ describe("buildInitialMemory", () => {
     expect(JSON.parse(savedRow!.facts_json)).toHaveLength(1);
 
     expect(savedInsights).toHaveLength(1);
-    expect(savedInsights![0].title).toBe("Persistently elevated LDL");
+    expect(savedInsights![0]!.title).toBe("Persistently elevated LDL");
 
     // One hash per successfully fetched category.
     expect(syncStates.size).toBe(2);
@@ -137,9 +137,9 @@ describe("buildInitialMemory", () => {
     await buildInitialMemory("acct1");
 
     expect(savedInsights).toHaveLength(2);
-    expect(savedInsights![0].title).toHaveLength(200);
-    expect(savedInsights![0].severity).toBe("info");
-    expect(savedInsights![1].severity).toBe("discuss_soon");
+    expect(savedInsights![0]!.title).toHaveLength(200);
+    expect(savedInsights![0]!.severity).toBe("info");
+    expect(savedInsights![1]!.severity).toBe("discuss_soon");
   });
 });
 

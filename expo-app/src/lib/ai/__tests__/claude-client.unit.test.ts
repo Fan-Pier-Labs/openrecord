@@ -123,7 +123,7 @@ describe("sendMessage — respond", () => {
   test("the system prompt lists tools and the JSON protocol", async () => {
     modelTurns = ['{"tool": "respond", "args": {"text": "hi"}}'];
     await run("hello", neverExecute);
-    const system = requests[0].systemInstruction.parts[0].text;
+    const system = requests[0]!.systemInstruction.parts[0]!.text;
     expect(system).toContain("get_medications");
     expect(system).toContain('{ "tool": "respond", "args": { "text": "<your reply>" } }');
   });
@@ -134,7 +134,7 @@ describe("sendMessage — respond", () => {
       memoryDigest: "## Demographics\nHomer Simpson",
       skillAddition: "[Skill: Find bills to itemize]",
     });
-    const system = requests[0].systemInstruction.parts[0].text;
+    const system = requests[0]!.systemInstruction.parts[0]!.text;
     expect(system).toContain("Homer Simpson");
     expect(system).toContain("[Skill: Find bills to itemize]");
   });
@@ -157,11 +157,11 @@ describe("sendMessage — tool dispatch", () => {
     expect(result.toolCalls.map((t) => t.name)).toEqual(["get_medications"]);
 
     // Second completion gets the tool result as a user turn.
-    const secondTurn = requests[1].contents;
-    const lastUser = secondTurn[secondTurn.length - 1];
+    const secondTurn = requests[1]!.contents;
+    const lastUser = secondTurn[secondTurn.length - 1]!;
     expect(lastUser.role).toBe("user");
-    expect(lastUser.parts[0].text).toContain("Tool result for get_medications");
-    expect(lastUser.parts[0].text).toContain("Lisinopril");
+    expect(lastUser.parts[0]!.text).toContain("Tool result for get_medications");
+    expect(lastUser.parts[0]!.text).toContain("Lisinopril");
   });
 
   test("multiple read calls in one turn run as a batch and return together", async () => {
@@ -177,9 +177,9 @@ describe("sendMessage — tool dispatch", () => {
 
     expect(result.error).toBeNull();
     expect(executed.map((e) => e.tool)).toEqual(["get_billing", "get_messages"]);
-    expect(executed[1].input).toEqual({ limit: 50 });
+    expect(executed[1]!.input).toEqual({ limit: 50 });
 
-    const feedback = requests[1].contents.at(-1)!.parts[0].text;
+    const feedback = requests[1]!.contents.at(-1)!.parts[0]!.text;
     expect(feedback).toContain("Tool result for get_billing:\nget_billing-result");
     expect(feedback).toContain("Tool result for get_messages:\nget_messages-result");
   });
@@ -194,7 +194,7 @@ describe("sendMessage — tool dispatch", () => {
     });
 
     expect(result.error).toBeNull();
-    const feedback = requests[1].contents.at(-1)!.parts[0].text;
+    const feedback = requests[1]!.contents.at(-1)!.parts[0]!.text;
     expect(feedback).toContain("Error: session expired");
     expect(result.done?.fullText).toBe("Could not load billing.");
   });
@@ -210,7 +210,7 @@ describe("sendMessage — protocol enforcement", () => {
 
     expect(result.error).toBeNull();
     expect(result.done?.fullText).toBe("recovered");
-    const corrective = requests[1].contents.at(-1)!.parts[0].text;
+    const corrective = requests[1]!.contents.at(-1)!.parts[0]!.text;
     expect(corrective).toContain("no parseable tool calls");
   });
 
@@ -239,7 +239,7 @@ describe("sendMessage — protocol enforcement", () => {
     expect(result.toolCalls).toEqual([]);
     expect(result.done?.fullText).toBe("alone now");
 
-    const rejection = requests[1].contents.at(-1)!.parts[0].text;
+    const rejection = requests[1]!.contents.at(-1)!.parts[0]!.text;
     expect(rejection).toContain("must be called alone");
   });
 

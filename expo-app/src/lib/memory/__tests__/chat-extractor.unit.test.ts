@@ -120,7 +120,7 @@ describe("extractFactsFromTurn", () => {
 
     const facts = JSON.parse(savedRow!.facts_json) as Array<{ text: string }>;
     expect(facts).toHaveLength(200);
-    expect(facts[0].text).toBe("fact number 1"); // oldest dropped
+    expect(facts[0]!.text).toBe("fact number 1"); // oldest dropped
     expect(facts.at(-1)!.text).toBe("newest fact B");
   });
 

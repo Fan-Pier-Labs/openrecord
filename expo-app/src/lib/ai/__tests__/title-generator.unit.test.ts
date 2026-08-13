@@ -82,7 +82,7 @@ describe("generateChatTitle", () => {
     aiResponse = "Title";
     const longMsg: ChatMessage[] = [{ role: "user", content: "x".repeat(2000) }];
     await generateChatTitle(longMsg);
-    const transcript = lastCall!.messages[0].content;
+    const transcript = lastCall!.messages[0]!.content;
     // 600-char slice per message plus the "User: " prefix and wrapper.
     expect(transcript.length).toBeLessThan(700);
   });
