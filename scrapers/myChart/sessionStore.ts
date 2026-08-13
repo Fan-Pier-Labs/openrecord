@@ -255,6 +255,7 @@ class SessionStore {
   private async tryRenew(entry: SessionEntry): Promise<boolean> {
     if (!entry.request.reauthenticate) return false;
     try {
+      // eslint-disable-next-line no-restricted-syntax -- cycle breaker: makeAuthenticatedRequest imports this module
       const { renewMyChartSession } = await import('./makeAuthenticatedRequest');
       return await renewMyChartSession(entry.request);
     } catch (err) {
