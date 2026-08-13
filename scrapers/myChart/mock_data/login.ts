@@ -20,23 +20,18 @@ export const doLogin: MockData = {
     const user = atob(body.Credentials.Username)
     const pass = atob(body.Credentials.Password)
 
+    // Username only. Fixture code, but it runs against whatever credentials a
+    // developer points it at, and terminal scrollback is a real sink.
     if (user !== 'mock_username' || pass !== 'mock_password_valid') {
-      console.log("MOCK server, returing login failed", user, pass)
+      console.log("MOCK server, returning login failed for user", user)
       return new Response(` login failed</div>`)
     }
 
+    console.log("MOCK server, returning secondary validation for user", user)
+    return new Response(` secondaryvalidationcontroller
 
-    if (user === 'mock_username' && pass === 'mock_password_valid') {
-      console.log("MOCK server, returing secondary validation", user, pass)
-      return new Response(` secondaryvalidationcontroller
-    
         <input name="__RequestVerificationToken" type="hidden" value="qmpggc8W7pwFFxM57sZeLbbLg3yTWkWqZy8Z_LFY1WohPUvEksk6qdx3L1VNkPtBoM7qJzE7CdWl7jWXCdi74_bQs2Y1" /></div>
     `)
-    }
-
-    // console.log()
-
-    throw new Error('unsure which mock ldfjdlkasjfls' + user + ' ' + pass)
   }
 }
 
