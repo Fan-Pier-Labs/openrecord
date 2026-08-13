@@ -484,6 +484,8 @@ export interface WrapperMetadata {
   isSigned?: number;
   rescaleSlope?: number;
   rescaleIntercept?: number;
+  /** DICOM patient position, encoded as calibration.orientation.positionPatient. */
+  positionPatient?: { x: number; y: number; z: number };
 }
 
 export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
@@ -511,6 +513,18 @@ export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
   }
   if (metadata.rescaleIntercept !== undefined) {
     obj.rescaleIntercept = metadata.rescaleIntercept;
+  }
+  if (metadata.positionPatient) {
+    // The nesting the real viewer produces and readPatientPosition consumes.
+    obj.calibration = {
+      orientation: {
+        positionPatient: {
+          position_x: metadata.positionPatient.x,
+          position_y: metadata.positionPatient.y,
+          position_z: metadata.positionPatient.z,
+        },
+      },
+    };
   }
 
   const writer = new AMF3Writer();

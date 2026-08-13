@@ -1,10 +1,9 @@
 /**
  * `--action <capability-id>` — the CLI's generic capability dispatch.
  *
- * `cli.ts` runs `main()` the moment it is imported, so this lives in its own
- * module: the parity test drives these functions directly, and a test that had
- * to import a file which immediately tries to log into MyChart would not be
- * much of a test.
+ * Lives in its own module so the parity test and the CLI's own unit tests can
+ * drive these functions directly, without dragging in `cli.ts`'s login flow
+ * and argv parsing.
  *
  * This is the CLI's only dispatch surface: the default no-`--action` run walks
  * {@link FULL_SCRAPE_CAPABILITIES}, and every named action resolves to a

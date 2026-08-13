@@ -1002,8 +1002,22 @@ async function main() {
   closeRL();
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  closeRL();
-  process.exit(1);
-});
+/**
+ * main() plus the fatal-error handler. Called by `entry.ts` (which is also
+ * what the published binary is built from), or directly below when this file
+ * itself is the entry module — importing this module no longer runs the CLI,
+ * so tests can reach its internals.
+ */
+export async function runCli(): Promise<void> {
+  try {
+    await main();
+  } catch (err) {
+    console.error('Fatal error:', err);
+    closeRL();
+    process.exit(1);
+  }
+}
+
+if (import.meta.main) {
+  void runCli();
+}

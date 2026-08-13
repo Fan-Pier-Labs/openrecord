@@ -3,10 +3,9 @@
  * capability listing.
  *
  * This lives outside `cli.ts` for the same reason `capabilityActions.ts` does:
- * `cli.ts` runs `main()` the moment it is imported, so anything a test needs to
- * read has to be importable on its own. The help text is exactly that — a test
- * asserts that the default listing leads with the useful capabilities and holds
- * the rest back, which is only checkable if rendering it costs nothing.
+ * a test asserts that the default listing leads with the useful capabilities
+ * and holds the rest back, and rendering the text should cost nothing beyond
+ * importing this module.
  */
 
 import { renderCapabilityList, type CapabilityListOptions } from './capabilityActions';
