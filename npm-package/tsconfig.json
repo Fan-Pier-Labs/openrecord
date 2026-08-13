@@ -11,6 +11,8 @@
     "outDir": "./dist",
     "rootDir": "..",
     "strictNullChecks": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "esModuleInterop": true,
