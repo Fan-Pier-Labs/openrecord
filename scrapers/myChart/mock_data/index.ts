@@ -55,17 +55,3 @@ export async function mockRequest(inputUrl: string, config: RequestConfig): Prom
   // take the host down with it.
   throw new Error(`No mock data found for ${pathname}. Add a MockData entry for it in scrapers/myChart/mock_data/.`)
 }
-
-
-
-async function test() {
-
-  const response = await mockRequest('https://mychart.example.org/Authentication/Login', {})
-
-  console.log(response)
-
-}
-
-if (import.meta.main) {
-  void test()
-}

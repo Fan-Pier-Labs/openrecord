@@ -167,3 +167,12 @@ covered today). All three files in `clo-image-parser/` now run.
 
 `npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
 `--action` dispatch grew tests that drive it without `cli.ts` in front.
+
+**Check what a waived file actually still calls before writing tests for it.**
+`clo-image-parser/generate_clo.ts` came *off* the waiver list in #245 without a single new assertion,
+because it was never under-tested — its only uncoverable part was an `import.meta.main` demo block,
+which is unreachable from a test by construction (96% lines without it). Some of what remains on that
+list is likely partly dead too, not hard to test: most of `eunity/imagingDirectDownload.ts`'s gap is a
+superseded copy of the download loop that no caller reaches, and removing it would take the file to
+93%/93%. That one is parked until the live path can be verified against a real eUnity instance — the
+account it was tried on turned out not to use eUnity at all.
