@@ -79,10 +79,10 @@ the capability fails on any account.
 
 Capabilities that produce images (`rendersMedia` in the registry — today
 `download_imaging_study`) never print image bytes to the terminal. The CLI
-decodes each raw CLO image and writes it as a JPEG into `./imaging-output`
-(override the directory with `--output <dir>`), honoring `--arg
-jpeg_quality=<1-100>` (default 85), and prints a JSON summary with each file's
-path and dimensions so the images can be opened straight from Finder:
+decodes each raw CLO image and writes it as a quality-100 JPEG into
+`./imaging-output` (override the directory with `--output <dir>`), and prints
+a JSON summary with each file's path and dimensions so the images can be
+opened straight from Finder:
 
 ```bash
 mychart-cli --host mychart.example.org --action download_imaging_study \

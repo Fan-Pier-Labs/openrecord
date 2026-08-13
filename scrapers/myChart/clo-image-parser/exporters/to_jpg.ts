@@ -33,7 +33,7 @@ export async function convertBitmap16ToJpg(
 }
 
 /**
- * Encode an already-8-bit bitmap to JPEG (quality 100 unless overridden).
+ * Encode an already-8-bit bitmap to JPEG at quality 100.
  *
  * Kept separate from `convertBitmap16ToJpg` rather than folded into it: this
  * path feeds sharp the 8-bit samples directly, where the 16-bit one goes via a
@@ -43,13 +43,12 @@ export async function convertBitmap16ToJpg(
 export async function convertBitmapToJpg(
   bitmap: Bitmap,
   outputPath?: string | null,
-  options?: JpgOptions,
 ): Promise<Buffer> {
   const img = sharp(
     Buffer.from(bitmap.pixels.buffer, bitmap.pixels.byteOffset, bitmap.pixels.byteLength),
     { raw: { width: bitmap.width, height: bitmap.height, channels: 1 } },
   );
-  const buffer = await img.jpeg({ quality: options?.quality ?? 100 }).toBuffer();
+  const buffer = await img.jpeg({ quality: 100 }).toBuffer();
   if (outputPath) writeFileSync(outputPath, buffer);
   return buffer;
 }

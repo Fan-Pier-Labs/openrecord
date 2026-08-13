@@ -548,9 +548,6 @@ export const CAPABILITIES: readonly Capability[] = [
       { name: 'imaging_index', type: 'number', description: 'Alternative to image_id: the 0-based index of the study in get_imaging_results.', min: 0 },
       { name: 'study_name', type: 'string', description: 'Human-readable study name used to label the output. Optional.' },
       { name: 'max_images', type: 'number', description: 'Maximum images to download (default 3).', min: 1, max: 50 },
-      // Rendering hint rather than a download parameter: `run` returns raw CLO
-      // bytes and each client encodes them, so the quality is applied there.
-      { name: 'jpeg_quality', type: 'number', description: 'JPEG quality 1-100 for the returned pictures (default 85).', min: 1, max: 100 },
     ],
     run: async (request, args): Promise<StudyImagePayload> => {
       let fdiContext: FdiContext;

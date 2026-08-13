@@ -44,8 +44,6 @@ export interface DownloadStudyJpegsOptions {
   studyName?: string;
   /** Max images to download and encode (default 3). */
   maxImages?: number;
-  /** JPEG quality 1-100 (default 85). */
-  jpegQuality?: number;
 }
 
 /**
@@ -55,10 +53,9 @@ export interface DownloadStudyJpegsOptions {
  */
 export function encodeStudyJpegs(
   payload: StudyImagePayload,
-  opts: { maxImages?: number; jpegQuality?: number } = {},
+  opts: { maxImages?: number } = {},
 ): DownloadStudyJpegsResult {
   const maxImages = opts.maxImages ?? 3;
-  const jpegQuality = opts.jpegQuality ?? 85;
 
   const errors = [...payload.errors];
   const withPixels = payload.images.filter((img) => img.pixelData && img.pixelData.length > 0);
@@ -68,7 +65,7 @@ export function encodeStudyJpegs(
     const img = withPixels[i];
     try {
       const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
-      const encoded = encodeCloAsJpeg(bitmap, jpegQuality);
+      const encoded = encodeCloAsJpeg(bitmap);
       images.push({
         index: i,
         seriesDescription: img.seriesDescription,
@@ -115,5 +112,5 @@ export async function downloadStudyJpegs(
     max_images: maxImages,
   })) as StudyImagePayload;
 
-  return encodeStudyJpegs(payload, { maxImages, jpegQuality: opts.jpegQuality });
+  return encodeStudyJpegs(payload, { maxImages });
 }

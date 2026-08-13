@@ -165,7 +165,6 @@ export interface WrittenStudyImage {
 export async function writeStudyImages(
   payload: StudyImagePayload,
   outputDir: string,
-  quality: number,
 ): Promise<WrittenStudyImage[]> {
   await fs.promises.mkdir(outputDir, { recursive: true });
   const safeStudy = (payload.studyName || 'study').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
@@ -180,7 +179,7 @@ export async function writeStudyImages(
       Buffer.from(image.pixelData),
       image.wrapperData ? Buffer.from(image.wrapperData) : undefined,
     );
-    const jpeg = await convertBitmapToJpg(bitmap, filePath, { quality });
+    const jpeg = await convertBitmapToJpg(bitmap, filePath);
     written.push({
       filePath,
       seriesUID: image.seriesUID,
@@ -211,8 +210,7 @@ export async function runCapabilityAction(
       // Media payloads become files on disk, never bytes in the terminal.
       const payload = result as StudyImagePayload;
       const dir = path.resolve(outputDir ?? path.join(process.cwd(), 'imaging-output'));
-      const quality = typeof coerced.jpeg_quality === 'number' ? coerced.jpeg_quality : 85;
-      const files = await writeStudyImages(payload, dir, quality);
+      const files = await writeStudyImages(payload, dir);
       console.log(JSON.stringify({
         studyName: payload.studyName,
         totalImages: payload.totalImages,

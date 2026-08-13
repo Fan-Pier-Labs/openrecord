@@ -53,7 +53,7 @@ describe('writeStudyImages', () => {
     };
 
     const outDir = path.join(tmpDir, 'two-images');
-    const written = await writeStudyImages(payload, outDir, 85);
+    const written = await writeStudyImages(payload, outDir);
 
     expect(written.length).toBe(2);
     expect(written.map((w) => path.basename(w.filePath))).toEqual([
@@ -84,21 +84,8 @@ describe('writeStudyImages', () => {
       errors: [],
     };
 
-    const written = await writeStudyImages(payload, path.join(tmpDir, 'sparse'), 85);
+    const written = await writeStudyImages(payload, path.join(tmpDir, 'sparse'));
     expect(written.length).toBe(1);
     expect(written[0].seriesDescription).toBe('REAL');
-  });
-
-  it('honors the jpeg quality setting', async () => {
-    const payload: StudyImagePayload = {
-      studyName: 'Quality',
-      totalImages: 1,
-      images: [cloImage(0, 'AXIAL')],
-      errors: [],
-    };
-
-    const [low] = await writeStudyImages(payload, path.join(tmpDir, 'q-low'), 10);
-    const [high] = await writeStudyImages(payload, path.join(tmpDir, 'q-high'), 95);
-    expect(low.jpegBytes).toBeLessThan(high.jpegBytes);
   });
 });
