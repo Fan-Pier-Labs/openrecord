@@ -18,6 +18,8 @@
     "types": ["bun", "node"],
     "strict": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "sourceMap": false,
     "jsx": "react-jsx",
     "resolveJsonModule": true,

@@ -367,7 +367,7 @@ describe('buildGetStudyListMetaRequest', () => {
  */
 class Amf3Reader {
   private pos = 0;
-  private stringTable: string[] = [];
+  private readonly stringTable: string[] = [];
   /** Strings that arrived as a back-reference rather than an inline copy. */
   readonly resolvedReferences: string[] = [];
 
