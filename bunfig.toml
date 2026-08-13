@@ -72,13 +72,12 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #     — the login and keepalive paths. Lifecycle and resolution are covered.
 #   npm-package/src/client.ts (45%/1%)
 #     — the library surface.
-#
-# capabilityActions.ts came off this list once `--action` dispatch grew tests of
-# its own (82%/96%): it routes through executeCapability now, so the
-# active-patient guard it used to skip is exercised here rather than assumed.
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
+#
+# npm-package/cli/capabilityActions.ts came off this list at 82%/96%, once
+# `--action` dispatch grew tests of its own.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/**",
