@@ -30,8 +30,14 @@ import { type MyChartRequest } from './myChartRequest';
 import { type RequestConfig } from './types';
 import { looksLikeSignedOutPage } from './login';
 import { sessionStore } from './sessionStore';
+import { renewMyChartSession } from './sessionRenewal';
 import { OPENRECORD_MOCK_DATA } from '../../shared/env';
-import { logger } from '../../shared/logger';
+
+// Re-exported for callers that treat this module as the session-expiry
+// surface (the npm package's index, tests). The implementation lives in
+// sessionRenewal.ts — a leaf module — so this file, sessionStore and
+// proxyContext form an acyclic graph.
+export { renewMyChartSession } from './sessionRenewal';
 
 /**
  * An expired MyChart session that could not be renewed automatically — either
@@ -59,20 +65,6 @@ export type AuthenticatedRequestOptions = {
 const LOGIN_URL_RE = /\/authentication\/login/i;
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
-
-// Per-request-object renewal state. WeakMap rather than fields on the class so
-// the transport stays serialization-clean.
-type AuthState = { renewPromise: Promise<boolean> | null };
-const authStates = new WeakMap<MyChartRequest, AuthState>();
-
-function stateFor(mychartRequest: MyChartRequest): AuthState {
-  let state = authStates.get(mychartRequest);
-  if (!state) {
-    state = { renewPromise: null };
-    authStates.set(mychartRequest, state);
-  }
-  return state;
-}
 
 /**
  * Rebuild a Response whose body has been read, so callers can still call
@@ -128,71 +120,6 @@ async function requestDetectingSignOut(
   }
 
   return { response, signedOut: false };
-}
-
-/**
- * Renew an expired session via the request's `reauthenticate` hook, then
- * restore the active proxy patient if the session had been switched to one.
- *
- * Single-flight per request object: concurrent callers all await the same
- * renewal. Exported so the keepalive can renew proactively when a heartbeat
- * reports the session dead.
- */
-export async function renewMyChartSession(mychartRequest: MyChartRequest): Promise<boolean> {
-  const state = stateFor(mychartRequest);
-  if (!state.renewPromise) {
-    state.renewPromise = doRenew(mychartRequest).finally(() => {
-      state.renewPromise = null;
-    });
-  }
-  return state.renewPromise;
-}
-
-async function doRenew(mychartRequest: MyChartRequest): Promise<boolean> {
-  const reauthenticate = mychartRequest.reauthenticate;
-  if (!reauthenticate) {
-    logger.debug(`MyChart session for ${mychartRequest.hostname} expired and no reauthenticate hook is wired.`);
-    return false;
-  }
-
-  logger.warn(`MyChart session for ${mychartRequest.hostname} expired — attempting automatic re-login.`);
-  let loggedIn = false;
-  try {
-    loggedIn = await reauthenticate();
-  } catch (error) {
-    logger.error(`Automatic re-login for ${mychartRequest.hostname} threw:`, error);
-    return false;
-  }
-  if (!loggedIn) {
-    logger.warn(`Automatic re-login for ${mychartRequest.hostname} was not possible.`);
-    return false;
-  }
-
-  // Re-login resets MyChart's server-side proxy context to the account holder.
-  // If this session had been deliberately switched to another patient's
-  // record, put it back BEFORE any caller retries — a renewed session that
-  // silently reads the wrong patient's chart is the one failure this app must
-  // never produce. The switch verifies the landing profile and throws if it
-  // can't confirm, and it runs with autoRenew: false so it can only ever fail,
-  // never re-enter this renewal.
-  const target = mychartRequest.activeProxyTarget;
-  if (target && !target.isSelf) {
-    try {
-      // Dynamic import: proxyContext uses this module for its own requests.
-      // eslint-disable-next-line no-restricted-syntax -- cycle breaker: proxyContext imports this module
-      const { switchProxyTarget } = await import('./proxyContext');
-      await switchProxyTarget(mychartRequest, { id: target.id }, { autoRenew: false });
-    } catch (error) {
-      logger.error(
-        `Re-login for ${mychartRequest.hostname} succeeded but restoring the active patient record ('${target.displayName}') failed:`,
-        error,
-      );
-      return false;
-    }
-  }
-
-  logger.info(`MyChart session for ${mychartRequest.hostname} renewed.`);
-  return true;
 }
 
 /**
