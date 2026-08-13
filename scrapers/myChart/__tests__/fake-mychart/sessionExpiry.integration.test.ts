@@ -57,9 +57,12 @@ describe('fake-mychart session enforcement (fidelity)', () => {
   });
 
   it('bounces an unauthenticated API POST to the login page like real MyChart', async () => {
+    // The request carries a CSRF token header, like every scraper request
+    // whose session dies mid-scrape: CSRF passes, authentication fails, and
+    // THAT is the login bounce makeAuthenticatedRequest detects.
     const res = await fetch(`http://${HOST}/MyChart/api/allergies/LoadAllergies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: '{}',
       redirect: 'manual',
     });
@@ -70,11 +73,44 @@ describe('fake-mychart session enforcement (fidelity)', () => {
     // login page, which is precisely why .json() used to throw on real MyChart.
     const followed = await fetch(`http://${HOST}/MyChart/api/allergies/LoadAllergies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: '{}',
     });
     expect(followed.status).toBe(200);
     expect(followed.headers.get('content-type') ?? '').toContain('text/html');
+  });
+
+  it('rejects an API POST with no CSRF token via the FiveHundred dance, before auth', async () => {
+    // Observed on the two modern instances: a token-less API POST — even a
+    // fully unauthenticated one — is bounced to /Home/FiveHundred, NOT to the
+    // login page. Only token-carrying requests reach the auth check.
+    const res = await fetch(`http://${HOST}/MyChart/api/allergies/LoadAllergies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred');
+
+    // The FiveHundred page 302s on to /Home/Error?code=14, a 200 error page.
+    const followed = await fetch(`http://${HOST}/MyChart/api/allergies/LoadAllergies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    expect(followed.status).toBe(200);
+    expect(followed.url).toContain('/Home/Error');
+  });
+
+  it('answers an unknown /api/* path with the FourOhFour dance', async () => {
+    const session = await loginHomer();
+    const res = await session.makeRequest({
+      path: '/api/this-endpoint-does-not-exist',
+      followRedirects: false,
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location') ?? '').toContain('/Home/FourOhFour');
   });
 
   it('bounces unauthenticated page GETs to the login page', async () => {
