@@ -316,27 +316,6 @@ function isPreLoginEndpoint(lower: string): boolean {
   );
 }
 
-/**
- * Whether a submitted 2FA code is a live TOTP code for the seeded secret
- * (homer.totpQrCode.encodedSecretKey). Real MyChart validates real TOTP codes,
- * not a magic constant, so accepting a correctly generated code alongside the
- * fixed test code '123456' keeps the fake faithful — it's what lets a client's
- * silent re-login (stored TOTP secret → generated code) be exercised end to
- * end. The previous and current 30-second steps are both accepted, matching
- * the usual clock-skew tolerance.
- */
-async function isValidSeededTotpCode(code: string): Promise<boolean> {
-  if (!/^\d{6}$/.test(code)) return false;
-  const secret = homer.totpQrCode.encodedSecretKey;
-  const { TOTP } = await import('totp-generator');
-  const now = Date.now();
-  for (const timestamp of [now, now - 30_000]) {
-    const { otp } = await TOTP.generate(secret, { timestamp });
-    if (otp === code) return true;
-  }
-  return false;
-}
-
 function requireTermsRedirect(request: NextRequest): NextResponse | null {
   if (!getRequireTerms()) return null;
   const cookie = request.headers.get('cookie');
@@ -768,7 +747,14 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower.startsWith('authentication/secondaryvalidation/validate')) {
     const body = await request.text();
     const submittedCode = new URLSearchParams(body).get('TwoFactorCode') ?? '';
-    if (submittedCode === '123456' || acceptAny() || await isValidSeededTotpCode(submittedCode)) {
+    // Real MyChart validates a real TOTP code against the account's enrolled
+    // secret, so a live code for the user's stored secret (marge seeds
+    // JBSWY3DPEHPK3PXP) is accepted alongside the fixed test code — that's
+    // what lets a client's silent re-login (stored TOTP secret → generated
+    // code) be exercised end to end.
+    const userSecret = currentUser(request)?.totpSecret ?? null;
+    const totpValid = !!userSecret && verifyTotpCode(userSecret, submittedCode);
+    if (submittedCode === '123456' || acceptAny() || totpValid) {
       // Preserve the username from the pending session so the post-2FA
       // session continues to know who's logged in (matters for per-user
       // TOTP/passkey state).

@@ -15,10 +15,12 @@ A standalone Next.js server that faithfully mimics Epic MyChart's web API surfac
 | Homer   | `homer`  | `donuts123` | No                      |
 | Marge   | `marge`  | `donuts123` | Yes (TOTP enabled)      |
 
-The **login-time** 2FA code `123456` is always accepted, and is unrelated to TOTP
-setup, below. A live TOTP code generated from the seeded secret `JBSWY3DPEHPK3PXP`
-is accepted too, matching real MyChart's actual TOTP validation — that's what lets
-a client's silent re-login (stored TOTP secret → generated code) be tested end to end.
+The **login-time** 2FA accepts the fixed code `123456`, or a live TOTP code
+for the account's stored secret (marge seeds `JBSWY3DPEHPK3PXP`) — real
+MyChart validates real codes, and this is what lets a client's silent
+re-login (stored TOTP secret → generated code) be tested end to end. The
+fixed code is unrelated to TOTP *setup*, below, which mints a fresh secret
+per enrollment and verifies against that.
 
 - `homer` logs in directly.
 - `marge` exists for testing the 2FA path — her login always returns the secondary-validation page until you submit the code.

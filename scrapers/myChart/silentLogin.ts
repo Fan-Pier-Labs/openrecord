@@ -32,6 +32,9 @@ export type SilentLoginParams = {
    * Locally stored passkey. Mutated in place — a login advances its WebAuthn
    * signature counter — so persist it from `onPasskeyUsed` or the next login
    * starts a counter-desync recovery dance.
+   *
+   * (No transport parameter: scrapers/http.ts picks the platform's transport —
+   * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
   passkey?: PasskeyCredential | null;
   /** 'http' for local fake-mychart; defaults to https. */

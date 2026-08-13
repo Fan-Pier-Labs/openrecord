@@ -1,250 +1,241 @@
-import { describe, it, expect, afterEach } from 'bun:test'
-import { silentLogin, wireSilentReauthentication } from '../silentLogin'
-import { MyChartRequest } from '../myChartRequest'
-import { setTestTransport } from '../../http'
+import { describe, it, expect, beforeAll, afterEach } from 'bun:test';
+import { silentLogin, wireSilentReauthentication } from '../silentLogin';
+import { MyChartRequest } from '../myChartRequest';
+import { createCredential, type PasskeyCredential } from '../softwareAuthenticator';
+import { setTestTransport } from '../../http';
 
-/**
- * `silentLogin` is the ladder every client climbs when a session dies
- * mid-scrape: passkey first, then password, then a stored TOTP secret for the
- * 2FA step. Nobody is at the keyboard, so each rung has to either succeed or
- * say precisely why it couldn't — a silent failure here surfaces as an empty
- * chart rather than an error.
- *
- * Driven against a scripted MyChart via `setTestTransport`, so the real URL
- * building, headers and per-host limiter all still run.
- */
+// Drives the silent login ladder end to end against a scripted fake MyChart
+// (setTestTransport), the same pattern as loginFlow.unit.test.ts. The ladder's
+// job is ordering and classification — passkey first, then password, then a
+// TOTP-secret 2FA — and each rung only shows up in which requests actually go
+// out and which callback fires.
 
-const HOST = 'mychart.example.com'
-const TOKEN_INPUT = '<input name="__RequestVerificationToken" value="tok123" />'
-const HOME_PAGE = '<html><body>MD_HOME_INDEX</body></html>'
-// The marker the real page carries, and the one login.ts matches on — spelled
-// lowercase because that check is case-sensitive.
-const TWO_FA_PAGE =
-  `<html><body><div>secondaryvalidationcontroller</div>${TOKEN_INPUT}</body></html>`
-const FAILED_PAGE = '<html><body>Login/LoginFailed</body></html>'
+const HOST = 'mychart.example.com';
+const TOKEN_INPUT = '<input name="__RequestVerificationToken" value="tok123" />';
+const HOME_PAGE = '<html><body>MD_HOME_INDEX</body></html>';
+const LOGIN_FAILED_PAGE = '<html><body>Login failed</body></html>';
+const NEED_2FA_PAGE = `<html><body>secondaryvalidationcontroller${TOKEN_INPUT}</body></html>`;
 
-// Marge's seeded secret — the standard RFC 6238 test vector fake-mychart uses.
-const TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
+type FakeServer = {
+  /** How the server answers a passkey DoLogin. */
+  passkeyLogin?: 'success' | 'invalid';
+  /** How it answers a password DoLogin. */
+  passwordLogin?: 'success' | 'need_2fa' | 'invalid';
+  /** Whether SecondaryValidation/Validate accepts the submitted code. */
+  totpAccepted?: boolean;
+};
 
-type Server = {
-  /** Body the DoLogin POST answers with. */
-  doLogin?: string
-  /** Whether the 2FA Validate endpoint accepts the submitted code. */
-  totpAccepted?: boolean
-  /** Fail every passkey challenge request, as an instance with none would. */
-  passkeyWorks?: boolean
+function fakeMyChart(server: FakeServer) {
+  const calls: string[] = [];
+  setTestTransport(async (url: string, init: RequestInit): Promise<Response> => {
+    calls.push(url);
+    const body = init.body ? String(init.body) : '';
+
+    if (url === `https://${HOST}` || url === `https://${HOST}/`) {
+      return new Response('', { status: 302, headers: { Location: '/MyChart/' } });
+    }
+    if (url.includes('loginpagecontroller')) {
+      return new Response('', { status: 200 });
+    }
+    if (url.endsWith('/Authentication/Login')) {
+      return new Response(TOKEN_INPUT, { status: 200 });
+    }
+    if (url.includes('/Authentication/Login/GetPasskeyGetParams')) {
+      return Response.json({
+        Success: true,
+        PasskeyGetParams: {
+          Challenge: Buffer.from('challenge-bytes').toString('base64'),
+          Attestation: 'none',
+          Timeout: 60000,
+          UserVerification: 'preferred',
+          RpId: '',
+        },
+      });
+    }
+    if (url.includes('/Authentication/Login/DoLogin')) {
+      const isPasskey = decodeURIComponent(body).includes('PasskeyLogin');
+      if (isPasskey) {
+        return new Response(server.passkeyLogin === 'success' ? HOME_PAGE : LOGIN_FAILED_PAGE, { status: 200 });
+      }
+      if (server.passwordLogin === 'need_2fa') return new Response(NEED_2FA_PAGE, { status: 200 });
+      if (server.passwordLogin === 'invalid') return new Response(LOGIN_FAILED_PAGE, { status: 200 });
+      return new Response(HOME_PAGE, { status: 200 });
+    }
+    if (url.includes('/SecondaryValidation/GetSMSConsentStrings')) {
+      return new Response('{}', { status: 200 });
+    }
+    if (url.includes('/SecondaryValidation/SendCode')) {
+      return Response.json({ Success: true });
+    }
+    if (url.includes('/SecondaryValidation/Validate')) {
+      return Response.json(
+        server.totpAccepted
+          ? { Success: true }
+          : { Success: false, TwoFactorCodeFailReason: 'codewrong' },
+      );
+    }
+    if (url.endsWith('/Authentication/SecondaryValidation')) {
+      return new Response(TOKEN_INPUT, { status: 200 });
+    }
+    if (url.includes('inside.asp')) {
+      return new Response('<html><body>home</body></html>', { status: 200 });
+    }
+    return new Response('', { status: 404 });
+  });
+  return { calls };
 }
 
-function fakeMyChart(server: Server = {}) {
-  const calls: string[] = []
-  setTestTransport(async (url: string) => {
-    calls.push(url)
-    const path = new URL(url).pathname.toLowerCase()
-
-    if (path === '/' || path === '') {
-      return new Response('', { status: 302, headers: { Location: '/MyChart/' } })
-    }
-    if (url.toLowerCase().includes('loginpagecontroller')) {
-      return new Response('', { status: 200 })
-    }
-    if (path.includes('getpasskeygetparams')) {
-      return server.passkeyWorks
-        ? new Response(JSON.stringify({ Success: true }), { status: 200 })
-        : new Response('', { status: 500 })
-    }
-    if (path.includes('/secondaryvalidation/validate')) {
-      return new Response(
-        JSON.stringify(
-          server.totpAccepted
-            ? { Success: true }
-            : { Success: false, TwoFactorCodeFailReason: 'codewrong' },
-        ),
-        { status: 200 },
-      )
-    }
-    if (path.includes('/secondaryvalidation/sendcode')) {
-      return new Response(JSON.stringify({ Success: true }), { status: 200 })
-    }
-    if (path.includes('/secondaryvalidation/getsmsconsentstrings')) {
-      return new Response('{}', { status: 200 })
-    }
-    if (path.includes('/authentication/login/dologin')) {
-      return new Response(server.doLogin ?? HOME_PAGE, { status: 200 })
-    }
-    if (path.includes('/authentication/secondaryvalidation')) {
-      return new Response(TWO_FA_PAGE, { status: 200 })
-    }
-    if (path.includes('/authentication/login')) {
-      return new Response(TOKEN_INPUT, { status: 200 })
-    }
-    if (path.includes('/home')) {
-      return new Response(HOME_PAGE, { status: 200 })
-    }
-    return new Response('', { status: 404 })
-  })
-  return { calls }
+function testCredential(): PasskeyCredential {
+  const registration = createCredential(
+    {
+      rp: { id: '', name: 'Test MyChart' },
+      attestation: 'none',
+      authenticatorSelection: { requireResidentKey: true, residentKey: 'required', userVerification: 'preferred' },
+      challenge: Buffer.from('registration-challenge').toString('base64'),
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      timeout: 60000,
+      user: { id: Buffer.from('user-id').toString('base64'), name: 'homer', displayName: 'Homer' },
+      excludeCredentials: [],
+    },
+    `https://${HOST}`,
+  );
+  return registration.credential;
 }
+
+beforeAll(() => {
+  process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
+});
 
 afterEach(() => {
-  setTestTransport(null)
-})
+  setTestTransport(null);
+});
 
-describe('silentLogin — what it refuses to do', () => {
-  it('fails with a specific reason when nothing is stored', async () => {
-    fakeMyChart()
-    const outcome = await silentLogin({ hostname: HOST, protocol: 'https' })
-    expect(outcome).toEqual({ state: 'failed', reason: 'no stored credentials' })
-  })
+describe('silentLogin', () => {
+  it('logs in with a passkey and reports the used credential for persistence', async () => {
+    fakeMyChart({ passkeyLogin: 'success' });
+    const credential = testCredential();
+    let persisted: PasskeyCredential | null = null;
 
-  it('says the passkey was the thing that failed when there is no password to fall back to', async () => {
-    fakeMyChart({ passkeyWorks: false })
     const outcome = await silentLogin({
       hostname: HOST,
-      protocol: 'https',
-      passkey: {
-        credentialId: 'abc',
-        privateKeyPem: 'not-a-key',
-        rpId: HOST,
-        userHandle: 'homer',
-        signCount: 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-    })
-    expect(outcome.state).toBe('failed')
-    expect(outcome).toHaveProperty(
-      'reason',
-      'passkey login failed and no password is available',
-    )
-  })
+      passkey: credential,
+      onPasskeyUsed: (cred) => { persisted = cred; },
+    });
 
-  it('refuses rather than guessing when 2FA is demanded and no TOTP secret is stored', async () => {
-    fakeMyChart({ doLogin: TWO_FA_PAGE })
+    expect(outcome.state).toBe('logged_in');
+    expect(persisted).toBe(credential);
+  });
+
+  it('falls back to the password when the passkey is rejected, and reports it invalid', async () => {
+    fakeMyChart({ passkeyLogin: 'invalid', passwordLogin: 'success' });
+    let invalidated = false;
+
     const outcome = await silentLogin({
       hostname: HOST,
-      protocol: 'https',
       username: 'homer',
       password: 'donuts123',
-    })
-    expect(outcome).toEqual({
-      state: 'failed',
-      reason: '2FA required and no TOTP secret is stored',
-    })
-  })
+      passkey: testCredential(),
+      onPasskeyInvalid: () => { invalidated = true; },
+    });
 
-  it('reports the rejection when the generated TOTP code is refused', async () => {
-    fakeMyChart({ doLogin: TWO_FA_PAGE, totpAccepted: false })
+    expect(outcome.state).toBe('logged_in');
+    // The counter retry ran its course first, so this is a genuine rejection,
+    // not a signature-counter desync.
+    expect(invalidated).toBe(true);
+  });
+
+  it('fails honestly when there are no stored credentials', async () => {
+    fakeMyChart({});
+    const outcome = await silentLogin({ hostname: HOST });
+    expect(outcome).toEqual({ state: 'failed', reason: 'no stored credentials' });
+  });
+
+  it('fails when 2FA is required and no TOTP secret is stored', async () => {
+    fakeMyChart({ passwordLogin: 'need_2fa' });
+    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    expect(outcome.state).toBe('failed');
+    expect(outcome.state === 'failed' && outcome.reason).toContain('2FA required');
+  });
+
+  it('completes 2FA with a generated TOTP code', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa', totpAccepted: true });
     const outcome = await silentLogin({
       hostname: HOST,
-      protocol: 'https',
       username: 'homer',
       password: 'donuts123',
-      totpSecret: TOTP_SECRET,
-    })
-    expect(outcome.state).toBe('failed')
-    expect((outcome as { reason: string }).reason).toContain('TOTP code rejected')
-  })
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
+    expect(outcome.state).toBe('logged_in');
+    expect(calls.some((url) => url.includes('/SecondaryValidation/Validate'))).toBe(true);
+  });
 
-  it('surfaces a plain bad-password rejection as such', async () => {
-    fakeMyChart({ doLogin: FAILED_PAGE })
+  it('fails when the TOTP code is rejected', async () => {
+    fakeMyChart({ passwordLogin: 'need_2fa', totpAccepted: false });
     const outcome = await silentLogin({
       hostname: HOST,
-      protocol: 'https',
-      username: 'homer',
-      password: 'wrong',
-    })
-    expect(outcome.state).toBe('failed')
-    expect((outcome as { reason: string }).reason).toContain('login failed')
-  })
-})
-
-describe('silentLogin — the happy rungs', () => {
-  it('logs in with username and password', async () => {
-    fakeMyChart()
-    const outcome = await silentLogin({
-      hostname: HOST,
-      protocol: 'https',
       username: 'homer',
       password: 'donuts123',
-    })
-    expect(outcome.state).toBe('logged_in')
-  })
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
+    expect(outcome.state).toBe('failed');
+    expect(outcome.state === 'failed' && outcome.reason).toContain('TOTP code rejected');
+  });
 
-  it('completes the 2FA step from the stored TOTP secret, with no user present', async () => {
-    fakeMyChart({ doLogin: TWO_FA_PAGE, totpAccepted: true })
-    const outcome = await silentLogin({
-      hostname: HOST,
-      protocol: 'https',
-      username: 'homer',
-      password: 'donuts123',
-      totpSecret: TOTP_SECRET,
-    })
-    expect(outcome.state).toBe('logged_in')
-  })
+  it('logs in with username and password when no passkey is stored', async () => {
+    fakeMyChart({ passwordLogin: 'success' });
+    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    expect(outcome.state).toBe('logged_in');
+  });
 
-  it('falls back to the password when the passkey is rejected', async () => {
-    fakeMyChart({ passkeyWorks: false })
-    const outcome = await silentLogin({
-      hostname: HOST,
-      protocol: 'https',
-      username: 'homer',
-      password: 'donuts123',
-      passkey: {
-        credentialId: 'abc',
-        privateKeyPem: 'not-a-key',
-        rpId: HOST,
-        userHandle: 'homer',
-        signCount: 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-    })
-    expect(outcome.state).toBe('logged_in')
-  })
-})
+  it('surfaces a rejected password as a login failure, not as a missing credential', async () => {
+    // The two read very differently to a client deciding whether to prompt:
+    // "no stored credentials" means ask for them, a rejection means the ones
+    // stored are wrong.
+    fakeMyChart({ passwordLogin: 'invalid' });
+    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
+    expect(outcome.state).toBe('failed');
+    expect((outcome as { reason: string }).reason).toContain('login failed');
+  });
+});
 
 describe('wireSilentReauthentication', () => {
-  it('adopts the renewed session onto the SAME request object', async () => {
-    fakeMyChart()
-    const request = new MyChartRequest(HOST)
-    request.firstPathPart = 'MyChart'
+  it('adopts the fresh session onto the same request object and re-persists', async () => {
+    fakeMyChart({ passwordLogin: 'success' });
+    const request = new MyChartRequest('stale.example.org');
+    let renewedWith: MyChartRequest | null = null;
 
-    let renewedWith: MyChartRequest | null = null
     wireSilentReauthentication(
       request,
-      () => ({ hostname: HOST, protocol: 'https', username: 'homer', password: 'donuts123' }),
-      (r) => {
-        renewedWith = r
-      },
-    )
+      () => ({ hostname: HOST, username: 'homer', password: 'donuts123' }),
+      (renewed) => { renewedWith = renewed; },
+    );
 
-    expect(await request.reauthenticate!()).toBe(true)
-    // Everything mid-scrape holds a reference to `request`, so the renewed
-    // state has to land on it rather than on a replacement object.
-    expect(renewedWith).toBe(request)
-  })
+    expect(await request.reauthenticate!()).toBe(true);
+    // The login discovered the real host + mount and the hook adopted them in
+    // place — the object identity everyone holds references to is unchanged.
+    expect(renewedWith).toBe(request);
+    expect(request.hostname).toBe(HOST);
+    expect(request.firstPathPart).toBe('MyChart');
+  });
 
-  it('returns false — never throws — when the ladder cannot log back in', async () => {
-    fakeMyChart()
-    const request = new MyChartRequest(HOST)
-    request.firstPathPart = 'MyChart'
-
-    wireSilentReauthentication(request, () => ({ hostname: HOST, protocol: 'https' }))
-
-    expect(await request.reauthenticate!()).toBe(false)
-  })
+  it('reports false when no silent path exists', async () => {
+    fakeMyChart({ passwordLogin: 'need_2fa' });
+    const request = new MyChartRequest(HOST);
+    wireSilentReauthentication(request, () => ({ hostname: HOST, username: 'homer', password: 'donuts123' }));
+    expect(await request.reauthenticate!()).toBe(false);
+  });
 
   it('re-reads the credentials at renewal time, not at wiring time', async () => {
-    fakeMyChart()
-    const request = new MyChartRequest(HOST)
-    request.firstPathPart = 'MyChart'
-
     // A passkey registered mid-session, or a password the user just changed,
     // has to be picked up by the next renewal — which is why getParams is a
-    // callback rather than a value.
-    let stored: { username?: string; password?: string } = {}
-    wireSilentReauthentication(request, () => ({ hostname: HOST, protocol: 'https', ...stored }))
+    // callback rather than a value captured when the hook was wired.
+    fakeMyChart({ passwordLogin: 'success' });
+    const request = new MyChartRequest(HOST);
+    let stored: { username?: string; password?: string } = {};
+    wireSilentReauthentication(request, () => ({ hostname: HOST, ...stored }));
 
-    expect(await request.reauthenticate!()).toBe(false)
-    stored = { username: 'homer', password: 'donuts123' }
-    expect(await request.reauthenticate!()).toBe(true)
-  })
-})
+    expect(await request.reauthenticate!()).toBe(false);
+    stored = { username: 'homer', password: 'donuts123' };
+    expect(await request.reauthenticate!()).toBe(true);
+  });
+});

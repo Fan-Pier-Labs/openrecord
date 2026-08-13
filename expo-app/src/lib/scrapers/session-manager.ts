@@ -316,9 +316,9 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
 
 /**
  * Make a logged-in session self-sustaining: wire the silent re-login hook
- * (passkey with counter retry → password → TOTP secret, all with the native
- * fetch so iOS keeps managing cookies) and enroll it in the shared 30-second
- * keepalive heartbeat. From then on, expiry mid-scrape is renewed
+ * (passkey with counter retry → password → TOTP secret; scrapers/http.ts
+ * picks the on-device transport so iOS keeps managing cookies) and enroll it
+ * in the shared 30-second keepalive heartbeat. From then on, expiry mid-scrape is renewed
  * transparently by makeAuthenticatedRequest, and a heartbeat that finds the
  * session dead renews it proactively through the same hook.
  *

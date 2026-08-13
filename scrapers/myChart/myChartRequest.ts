@@ -180,10 +180,9 @@ export class MyChartRequest {
    * come along too, because discovery during the fresh login may legitimately
    * have followed a vanity-host move.
    *
-   * `transport` is deliberately NOT copied: it is a per-session override (a
-   * test's scripted router), and a re-login should not silently inherit the
-   * old session's network layer. Production sessions leave it null and let
-   * `scraperFetch` pick from the platform on every call anyway.
+   * `transport` is deliberately NOT copied: it's a per-instance test seam, and
+   * production requests read `this.cookieJar` at call time anyway — reassigning
+   * the jar is enough.
    */
   adoptStateFrom(other: MyChartRequest) {
     this.cookieJar = other.cookieJar;
