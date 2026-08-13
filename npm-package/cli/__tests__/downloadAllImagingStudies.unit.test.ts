@@ -27,7 +27,7 @@ const actual = await import('../../../shared/capabilities');
 let executeCalls: Array<{ id: string; args: Record<string, unknown> }> = [];
 let executeImpl: (id: string, args: Record<string, unknown>) => Promise<unknown>;
 
-mock.module('../../../shared/capabilities', () => ({
+void mock.module('../../../shared/capabilities', () => ({
   ...actual,
   executeCapability: async (
     _request: unknown,
