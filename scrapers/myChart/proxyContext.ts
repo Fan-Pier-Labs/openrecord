@@ -215,7 +215,7 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
 
 async function loadHomeHtml(mychartRequest: MyChartRequest, options?: AuthenticatedRequestOptions): Promise<string> {
   const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' }, options);
-  return await resp.text();
+  return resp.text();
 }
 
 async function followProxySwitchChain(mychartRequest: MyChartRequest, startPathOrUrl: string): Promise<void> {
