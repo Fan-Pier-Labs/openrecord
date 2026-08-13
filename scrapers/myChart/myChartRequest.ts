@@ -83,6 +83,17 @@ export class MyChartRequest {
    */
   activeProxyTarget?: { id: string; isSelf: boolean; displayName: string };
 
+  /**
+   * Re-runs the verified proxy switch that produced `activeProxyTarget`,
+   * with autoRenew: false. Armed by proxyContext together with
+   * `activeProxyTarget`; called by session renewal (`sessionRenewal.ts`)
+   * after a silent re-login, which resets MyChart's server-side context to
+   * the account holder. A closure on the request — rather than an import of
+   * proxyContext from the renewal path — so the renewal module stays a leaf
+   * and the module graph stays acyclic.
+   */
+  restoreProxyContext?: () => Promise<void>;
+
   constructor(hostname: string, options?: string | MyChartRequestOptions) {
     // Support old signature: new MyChartRequest(hostname, protocol?)
     const opts: MyChartRequestOptions = typeof options === 'string'
