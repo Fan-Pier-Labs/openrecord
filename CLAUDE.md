@@ -121,8 +121,10 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   push the branch, and create the PR without waiting to be asked a second time. Never push directly
   to `main`; CI (lint, tests, build) must pass.
 - **NEVER merge a PR or enable auto-merge without the user's explicit permission.**
-- **Always write tests for all changes.** No PR without corresponding coverage, and name the file for
-  the kind of test it is.
+- **Test what's reasonable, not everything.** Scraper and utility logic, parsing, anything with edge
+  cases or a failure mode that would be silent — write the test. Docs, comments, config tweaks, and
+  changes whose only assertion would restate the diff — don't. Name the file for the kind of test it
+  is.
 - **Every interactive element in the Expo app needs a `testID`**, added in the same diff — enforced
   by `expo-app/src/__tests__/testids.unit.test.ts`.
 - `gh pr edit` fails on a GitHub Projects Classic deprecation error. Update PRs with the API instead:
@@ -137,7 +139,7 @@ Every session pays for this file in context, so length is a real cost. **Maintai
 adding, editing, *and deleting* — a PR that only ever appends is how it got out of hand.**
 
 - **Leave it the same size or smaller.** If a change genuinely belongs here, look for something to
-  shorten or delete in the same PR. `tests/claude-md-size.unit.test.ts` caps its length.
+  shorten or delete in the same PR. It got to 65KB by only ever being appended to.
 - **Write a line here only if getting it wrong breaks something and the code wouldn't tell you.**
   Everything else is discoverable by reading the repo.
 - **Detail belongs in `docs/` or the package's README**; this file gets the one-line rule and the
