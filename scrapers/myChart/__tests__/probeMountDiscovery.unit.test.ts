@@ -24,7 +24,7 @@ describe('timeBoundedRequest', () => {
     // default became "let the platform decide", there was nothing to bind and
     // every probe threw before it sent anything.
     const seen: string[] = []
-    globalThis.fetch = mock(async (url: string | URL | Request) => {
+    globalThis.fetch = mock(async (url: string) => {
       seen.push(url.toString())
       return new Response('<html>login</html>', { status: 200 })
     }) as unknown as typeof globalThis.fetch
@@ -38,7 +38,7 @@ describe('timeBoundedRequest', () => {
 
   it('attaches an abort signal to every request', async () => {
     const signals: (AbortSignal | null | undefined)[] = []
-    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
       signals.push(init?.signal)
       return new Response('', { status: 200 })
     }) as unknown as typeof globalThis.fetch
@@ -52,7 +52,7 @@ describe('timeBoundedRequest', () => {
 
   it('keeps the browser headers the wrapped transport sits underneath', async () => {
     let headers: Record<string, string> = {}
-    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
       headers = init?.headers as Record<string, string>
       return new Response('', { status: 200 })
     }) as unknown as typeof globalThis.fetch

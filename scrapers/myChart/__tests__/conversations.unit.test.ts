@@ -72,7 +72,7 @@ describe('listConversations', () => {
       { body: JSON.stringify({ threads: [] }) },
     ]
 
-    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
       return new Response(r!.body, { status: 200 })

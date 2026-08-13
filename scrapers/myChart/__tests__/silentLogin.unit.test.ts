@@ -29,7 +29,7 @@ function fakeMyChart(server: FakeServer) {
   const calls: string[] = [];
   setTestTransport(async (url: string, init: RequestInit): Promise<Response> => {
     calls.push(url);
-    const body = init.body ? String(init.body) : '';
+    const body = typeof init.body === 'string' ? init.body : '';
 
     if (url === `https://${HOST}` || url === `https://${HOST}/`) {
       return new Response('', { status: 302, headers: { Location: '/MyChart/' } });

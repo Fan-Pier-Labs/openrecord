@@ -473,7 +473,7 @@ describe('cross-domain redirect handling', () => {
 type Route = { redirect: string; status?: number } | { body: string; status?: number }
 
 function fakeInstance(routes: Record<string, Route>) {
-  return mock(async (url: string | URL | Request) => {
+  return mock(async (url: string) => {
     const href = url.toString()
     const route = routes[href] ?? routes[href.replace(/\?$/, '')]
     if (!route) return new Response('<html><body>Not found</body></html>', { status: 404 })
@@ -822,7 +822,7 @@ describe('detectUsernameField', () => {
     const req = new MyChartRequest('patients.mycslink.org')
     req.setHostname('mycslink.cedars-sinai.org')
     const fetched: string[] = []
-    req.transport = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string) => {
       fetched.push(url.toString())
       return new Response('Credentials: { Username: u, Password: p }', { status: 200 })
     })
@@ -849,7 +849,7 @@ describe('detectUsernameField', () => {
 describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
   it('recovers MyChart when marketing-page discovery fails', async () => {
     const req = new MyChartRequest('mychart.uchealth.org')
-    req.transport = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string) => {
       const href = url.toString()
       if (href === 'https://mychart.uchealth.org/MyChart/Authentication/Login') {
         return new Response(`<html><body>

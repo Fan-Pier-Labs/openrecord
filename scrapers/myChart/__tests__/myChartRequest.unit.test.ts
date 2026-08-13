@@ -79,7 +79,7 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('MyChart')
 
       let capturedUrl = ''
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
       })
@@ -93,7 +93,7 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('MyChart')
 
       let capturedUrl = ''
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         capturedUrl = url.toString()
         return new Response('', { status: 200 })
       })
@@ -106,7 +106,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedConfig: RequestInit | undefined
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
       })
@@ -119,7 +119,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
       })
@@ -133,7 +133,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
       })
@@ -151,7 +151,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
       })
@@ -167,7 +167,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedConfig: RequestInit | undefined
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedConfig = init
         return new Response('', { status: 200 })
       })
@@ -180,7 +180,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         calls.push(url.toString())
         if (calls.length === 1) {
           return new Response('', {
@@ -201,7 +201,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         calls.push(url.toString())
         if (calls.length === 1) {
           return new Response('', {
@@ -220,7 +220,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const calls: string[] = []
 
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         calls.push(url.toString())
         return new Response('', {
           status: 302,
@@ -249,7 +249,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
       const capturedConfigs: RequestInit[] = []
 
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedConfigs.push(init!)
         if (capturedConfigs.length === 1) {
           return new Response('', {
@@ -271,7 +271,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
       })
@@ -284,7 +284,7 @@ describe('MyChartRequest', () => {
       const req = new MyChartRequest('mychart.example.com')
 
       let capturedHeaders: Record<string, string> = {}
-      req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      req.transport = mock(async (_url: string, init?: RequestInit) => {
         capturedHeaders = init?.headers as Record<string, string>
         return new Response('', { status: 200 })
       })
@@ -302,7 +302,7 @@ describe('MyChartRequest', () => {
       for (const status of [303, 307, 308]) {
         const req = new MyChartRequest('mychart.example.com')
         const calls: string[] = []
-        req.transport = mock(async (url: string | URL | Request) => {
+        req.transport = mock(async (url: string) => {
           calls.push(url.toString())
           if (calls.length === 1) {
             return new Response('', { status, headers: { 'Location': '/moved' } })
@@ -321,7 +321,7 @@ describe('MyChartRequest', () => {
         const req = new MyChartRequest('mychart.example.com')
         const methods: (string | undefined)[] = []
         let calls = 0
-        req.transport = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+        req.transport = mock(async (_url: string, init?: RequestInit) => {
           methods.push(init?.method)
           if (++calls === 1) {
             return new Response('', { status, headers: { 'Location': '/moved' } })
@@ -346,7 +346,7 @@ describe('MyChartRequest', () => {
       let calls = 0
 
       const realFetch = globalThis.fetch
-      globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
         cookiesSeen.push((init?.headers as Record<string, string>)?.['Cookie'])
         if (++calls === 1) {
           return new Response('', {
@@ -394,7 +394,7 @@ describe('MyChartRequest', () => {
       req.setFirstPathPart('mycslink')
 
       const calls: string[] = []
-      req.transport = mock(async (url: string | URL | Request) => {
+      req.transport = mock(async (url: string) => {
         calls.push(url.toString())
         return new Response('ok', { status: 200 })
       })

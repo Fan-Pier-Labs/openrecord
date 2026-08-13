@@ -33,7 +33,7 @@ function fakeMyChart(server: FakeServer) {
     calls.push({
       url,
       method: (init.method ?? 'GET'),
-      body: init.body ? String(init.body) : undefined,
+      body: typeof init.body === 'string' && init.body ? init.body : undefined,
     })
 
     // Root request: redirect to /MyChart/ so firstPathPart resolves.

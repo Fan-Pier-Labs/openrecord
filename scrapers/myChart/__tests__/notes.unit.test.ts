@@ -81,7 +81,7 @@ describe('getVisitNotes', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({ noteList: [] }), contentType: 'application/json' },
     ]
-    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
@@ -158,7 +158,7 @@ describe('getNoteContent', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({}), contentType: 'application/json' },
     ]
-    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
@@ -222,7 +222,7 @@ describe('getVisitAVS', () => {
       { body: tokenHtml, contentType: 'text/html' },
       { body: JSON.stringify({}), contentType: 'application/json' },
     ]
-    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string, init?: RequestInit) => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r!.body, { status: 200, headers: { 'content-type': r!.contentType } })
