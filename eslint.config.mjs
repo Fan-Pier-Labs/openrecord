@@ -113,5 +113,9 @@ export default [
     }],
     "eqeqeq": ["error", "smart"],
     "prefer-const": "error",
+    // The TS variant understands enums/type parameters; the core rule
+    // false-positives on them.
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "error",
   }},
 ];

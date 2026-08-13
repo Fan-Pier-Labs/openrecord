@@ -169,13 +169,13 @@ describe('proxyContext', () => {
 
     const targets = await discoverProxyTargets(req)
 
-    expect(targets.map((target) => ({
-      id: target.id,
-      displayName: target.displayName,
-      isSelf: target.isSelf,
-      isSelected: target.isSelected,
-      selectionKnown: target.selectionKnown,
-      source: target.source,
+    expect(targets.map((t) => ({
+      id: t.id,
+      displayName: t.displayName,
+      isSelf: t.isSelf,
+      isSelected: t.isSelected,
+      selectionKnown: t.selectionKnown,
+      source: t.source,
     }))).toEqual([
       {
         id: SELF_ID,
