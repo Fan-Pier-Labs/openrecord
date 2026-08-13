@@ -23,7 +23,7 @@ const EMPTY_LIST = JSON.stringify({ newResultGroups: [] })
 function getListMaxResults(captured: Array<{ url: string; body?: string }>): number[] {
   return captured
     .filter((c) => c.url.includes('/api/test-results/GetList') && c.body)
-    .map((c) => JSON.parse(c.body as string).maxResults)
+    .map((c) => JSON.parse(c.body!).maxResults)
 }
 
 describe('lab results GetList pagination cap', () => {
