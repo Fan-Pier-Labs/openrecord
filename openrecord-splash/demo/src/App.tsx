@@ -116,7 +116,7 @@ export function App() {
     // Read the handle at click time, not at render time — the surfaces register
     // theirs in an effect, and App does not re-render when they do.
     const active = surface === 'ios' ? iosRef.current : desktopRef.current;
-    active?.send(text);
+    void active?.send(text);
   }
 
   function reset() {
