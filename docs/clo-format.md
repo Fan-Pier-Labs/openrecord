@@ -200,10 +200,10 @@ Class: `com.clientoutlook.data.ImagePhaseInfo`
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `inStackPositionNumber` | number | Slice index within a stack (536870911 = undefined) |
+| `inStackPositionNumber` | number | Slice index within a stack (-1 = undefined) |
 | `stackID` | string | Stack identifier ("-1" = no stack) |
-| `temporalPositionIdentifier` | number | Position in time series (536870911 = undefined) |
-| `numberOfTemporalPositions` | number | Total temporal positions (536870911 = undefined) |
+| `temporalPositionIdentifier` | number | Position in time series (-1 = undefined) |
+| `numberOfTemporalPositions` | number | Total temporal positions (-1 = undefined) |
 
 #### Patient Orientation (`patientOrientation`)
 
