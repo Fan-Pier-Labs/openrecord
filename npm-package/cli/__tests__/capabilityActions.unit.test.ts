@@ -96,6 +96,7 @@ describe('runCapabilityAction', () => {
       session(familyRequest(CHILD_ID)),
       undefined,
       {},
+      undefined, // outputDir
       'Bart',
     );
 
@@ -112,6 +113,7 @@ describe('runCapabilityAction', () => {
       session(familyRequest(SELF_ID)),
       undefined,
       {},
+      undefined, // outputDir
       'Bart',
     );
 
@@ -123,7 +125,7 @@ describe('runCapabilityAction', () => {
     // `patient` is declared by the registry, not per capability, so folding it
     // into the coerced args before validation would trip the typo check.
     logged = [];
-    await runCapabilityAction(MEDICATIONS, session(familyRequest(CHILD_ID)), undefined, {}, 'Bart');
+    await runCapabilityAction(MEDICATIONS, session(familyRequest(CHILD_ID)), undefined, {}, undefined, 'Bart');
 
     expect(logged.join('\n')).not.toContain('has no argument "patient"');
   });
