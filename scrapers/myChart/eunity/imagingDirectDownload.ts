@@ -558,6 +558,26 @@ export function parseStudySeriesFromAmfStructured(amfBuf: Buffer, accession?: st
 }
 
 /**
+ * Parse the study/series/instance tree from a getStudyListMeta response:
+ * structured AMF3 decode first, positional heuristic as fallback.
+ *
+ * The fallback is loud on purpose. The heuristic is the parser that mispaired
+ * UIDs on Mass General Brigham multi-slice studies and produced a silent
+ * zero-image result, so when it runs, the log says so — a future zero-image
+ * report must be diagnosable to "the strict reader couldn't decode this
+ * response" in one step rather than rediscovered from scratch.
+ */
+function parseStudySeries(amfBuf: Buffer, accession: string): ParsedStudyInfo | null {
+  const structured = parseStudySeriesFromAmfStructured(amfBuf, accession);
+  if (structured) return structured;
+  logger.warn(
+    '      [AMF-PARSE] Structured AMF3 decode failed; falling back to the positional UID heuristic. ' +
+    'UID pairing may be wrong on multi-slice studies — capture this response and extend amf3Reader.ts.',
+  );
+  return parseStudySeriesFromAmf(amfBuf);
+}
+
+/**
  * Parse the AMF getStudyListMeta response to extract study UID and series info.
  *
  * Positional-heuristic fallback for responses {@link parseStudySeriesFromAmfStructured}
@@ -1000,8 +1020,7 @@ export async function initEunitySession(
   if (!amfResult) return null;
 
   const { amfBuf, effectiveServiceInstance } = amfResult;
-  const studyInfo = parseStudySeriesFromAmfStructured(amfBuf, studyParams.accession)
-    ?? parseStudySeriesFromAmf(amfBuf);
+  const studyInfo = parseStudySeries(amfBuf, studyParams.accession);
   if (!studyInfo || studyInfo.series.length === 0) return null;
 
   return {
@@ -1494,9 +1513,8 @@ export async function downloadImagingStudyDirect(
     }
 
     // Step 5: Parse series info from AMF response — structured AMF3 decode
-    // first, positional heuristic as fallback
-    const studyInfo = parseStudySeriesFromAmfStructured(amfResponse, studyParams.accession)
-      ?? parseStudySeriesFromAmf(amfResponse);
+    // first, positional heuristic as loud fallback
+    const studyInfo = parseStudySeries(amfResponse, studyParams.accession);
     if (!studyInfo || studyInfo.series.length === 0) {
       result.errors.push('Could not parse series info from AMF response');
       return result;

@@ -20,13 +20,23 @@
  * layout, below); an unknown externalizable class throws, and callers fall
  * back to the heuristic parser.
  *
- * Deliberately separate from the AMF3Reader in clo-image-parser/clo_to_bitmap.ts:
- * that one parses CLO *wrapper metadata* and is lenient on purpose — it
- * swallows malformed tails so a truncated wrapper still yields windowing
- * metadata, treats every externalizable as wrapping one value, and doesn't
- * sign-extend integers. Those failure semantics are right for pixel metadata
- * and wrong here, where a misdecoded UID must surface as an error (→ heuristic
- * fallback), never as a plausible-but-wrong download request.
+ * This is one of THREE AMF3 readers in the repo, and each exists for a reason
+ * — do not dedupe them without reading the other two first:
+ *
+ * - clo-image-parser/clo_to_bitmap.ts has a *lenient* reader for CLO wrapper
+ *   metadata: it swallows malformed tails so a truncated wrapper still yields
+ *   windowing metadata, treats every externalizable as wrapping one value,
+ *   and doesn't sign-extend integers. Those failure semantics are right for
+ *   pixel metadata and wrong here, where a misdecoded UID must surface as an
+ *   error (→ heuristic fallback), never as a plausible-but-wrong download
+ *   request. (Folding that one into this one behind a `lenient` option is a
+ *   reasonable future unification; the third reader is different.)
+ * - __tests__/imagingDirectDownload.unit.test.ts has an *independent oracle*
+ *   reader, derived from the AMF3 spec rather than from any code in this
+ *   repo, that pins the request writer's bytes. Replacing it with this class
+ *   would silently destroy the property that makes it evidence: an encoder
+ *   checked against a decoder that grew up next to it agrees with any shared
+ *   misreading of the spec.
  */
 
 /** A decoded AMF3 typed object. Sealed and dynamic members become plain properties. */
