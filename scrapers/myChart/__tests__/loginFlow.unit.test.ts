@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin } from '../login'
 import { setTestTransport } from '../../http'
+import { resetLogSink, setLogSink, silenceLogger } from '../../../shared/logger'
 
 // Drives myChartUserPassLogin end to end against a scripted fake MyChart,
 // installed with setTestTransport. Covers the parts of the flow that only
@@ -8,6 +9,8 @@ import { setTestTransport } from '../../http'
 // picks, how it encodes the credentials, and how it classifies the response.
 
 const HOST = 'mychart.example.com'
+/** Distinctive enough that a substring search for it can't false-negative. */
+const SECRET_PASSWORD = 'hunter2-do-not-log'
 const TOKEN_INPUT = '<input name="__RequestVerificationToken" value="tok123" />'
 const HOME_PAGE = '<html><body>MD_HOME_INDEX</body></html>'
 
@@ -29,7 +32,7 @@ function fakeMyChart(server: FakeServer) {
   const fetchFn = async (url: string, init: RequestInit): Promise<Response> => {
     calls.push({
       url,
-      method: (init.method ?? 'GET') as string,
+      method: (init.method ?? 'GET'),
       body: init.body ? String(init.body) : undefined,
     })
 
@@ -101,6 +104,34 @@ describe('myChartUserPassLogin argument validation', () => {
   it('throws when pass is missing', async () => {
     await expect(myChartUserPassLogin({ hostname: HOST, user: 'u', pass: '' }))
       .rejects.toThrow('Missing hostname, user, or pass')
+  })
+
+  // The guard used to log {hostname, user, pass}. It fires when ANY of the
+  // three is falsy, so a present password went to the sink whenever the
+  // username was the missing one — and the sink is whatever the host wired up:
+  // a log file, a terminal, a crash reporter.
+  it('never puts the password in the log when another argument is missing', async () => {
+    const captured: unknown[] = []
+    setLogSink((_level, args) => { captured.push(...args) })
+    try {
+      await expect(myChartUserPassLogin({ hostname: HOST, user: '', pass: SECRET_PASSWORD }))
+        .rejects.toThrow('Missing hostname, user, or pass')
+    } finally {
+      resetLogSink()
+    }
+
+    expect(captured.length).toBeGreaterThan(0)
+    expect(JSON.stringify(captured)).not.toContain(SECRET_PASSWORD)
+  })
+
+  it('does not put the password in the thrown message either', async () => {
+    silenceLogger()
+    try {
+      await expect(myChartUserPassLogin({ hostname: '', user: 'u', pass: SECRET_PASSWORD }))
+        .rejects.toThrow(/^((?!hunter2-do-not-log).)*$/s)
+    } finally {
+      resetLogSink()
+    }
   })
 })
 
@@ -187,7 +218,7 @@ describe('credential encoding', () => {
     await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
 
     const doLogin = calls.find((c) => c.url.includes('DoLogin'))!
-    const params = new URLSearchParams(doLogin.body!)
+    const params = new URLSearchParams(doLogin.body)
     expect(doLogin.method).toBe('POST')
     expect(params.get('__RequestVerificationToken')).toBe('tok123')
     expect(JSON.parse(params.get('LoginInfo')!).Type).toBe('StandardLogin')

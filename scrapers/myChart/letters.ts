@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody, parseMyChartDate, sortNewestFirstByDate } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -97,6 +97,7 @@ export async function getLetterDetails(mychartRequest: MyChartRequest, hnoId: st
     body: JSON.stringify({ hnoId, csn }),
   });
 
-  const json: LetterDetailsResponse = await resp.json();
-  return json;
+  const json: LetterDetailsResponse | null = await resp.json();
+  // Real instances answer an unknown hnoId with a literal JSON null body.
+  return json ?? { bodyHTML: '' };
 }

@@ -3,13 +3,13 @@
  *
  * The fake-mychart Next.js server must be running on localhost:4000 before
  * these tests are executed. In CI this is handled by the workflow; locally
- * run `cd fake-mychart && bun run dev` first.
+ * run `cd fake-mychart && PORT=4000 bun run dev` first.
  *
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { platformFetch } from '../../../http'
 import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
@@ -589,6 +589,15 @@ for (const mode of MOUNT_MODES) {
       // Should have multiple series
       expect(result.seriesList).toBeDefined()
       expect(result.seriesList!.length).toBeGreaterThanOrEqual(2)
+      // The fake mirrors real eUnity: the study metadata carries a
+      // "SeriesSelector" pseudo-series (the viewer's UI construct), but its
+      // instances answer CLOERROR and must never come back as images.
+      const pseudo = result.seriesList!.find((s) => s.description === 'SeriesSelector')
+      expect(pseudo).toBeDefined()
+      expect(pseudo!.instanceCount).toBe(3)
+      for (const img of result.images) {
+        expect(img.seriesDescription).not.toBe('SeriesSelector')
+      }
     }, 60_000)
   })
 }

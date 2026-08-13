@@ -40,7 +40,7 @@ function mockRouted(routes: Array<[string, string | (() => Response)]>) {
       }
     }
     return new Response('', { status: 404 })
-  }) as typeof req.transport
+  })
 
   return { req, calls }
 }

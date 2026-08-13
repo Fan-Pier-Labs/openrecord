@@ -6,7 +6,7 @@
  * the correct argument shape) → pixelData/wrapperData → CLO→JPEG base64.
  *
  * The fake-mychart server must be running on localhost:4000 first:
- *   cd fake-mychart && bun run dev
+ *   cd fake-mychart && PORT=4000 bun run dev
  * Run with: bun run test (from this package, with fake-mychart up)
  */
 import { describe, it, expect, beforeAll } from 'bun:test';
@@ -16,7 +16,7 @@ import type { MyChartRequest } from '../../../../scrapers/myChart/myChartRequest
 import { downloadStudyJpegs } from '../download-study';
 
 // Assumes a fake-mychart server is running at FAKE_MYCHART_HOST (CI starts one;
-// locally run `cd fake-mychart && bun run dev`). Fails loudly if it isn't.
+// locally run `cd fake-mychart && PORT=4000 bun run dev`). Fails loudly if it isn't.
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
 let session: MyChartRequest;
@@ -42,7 +42,6 @@ describe('downloadStudyJpegs (download_imaging_study tool)', () => {
 
     const result = await downloadStudyJpegs(session, xray!.fdiContext!, {
       studyName: xray!.orderName,
-      maxImages: 3,
     });
 
     // The whole point of the bug: this must NOT be an empty array.
@@ -64,18 +63,20 @@ describe('downloadStudyJpegs (download_imaging_study tool)', () => {
     expect(jpeg[jpeg.length - 1]).toBe(0xd9);
   }, 120_000);
 
-  it('caps the number of returned images at maxImages', async () => {
+  it('downloads every real slice of the CT study, skipping SeriesSelector junk', async () => {
     const imaging = await getImagingResults(session);
-    // The CT study has many slices — a good target for the cap.
     const ct = imaging.find((r) => r.fdiContext && r.orderName?.includes('CT'));
     expect(ct).toBeDefined();
 
     const result = await downloadStudyJpegs(session, ct!.fdiContext!, {
       studyName: ct!.orderName,
-      maxImages: 2,
     });
 
-    expect(result.returned).toBeLessThanOrEqual(2);
+    // The CT study is multi-slice; everything with pixel data comes back.
+    expect(result.returned).toBeGreaterThan(2);
     expect(result.images.length).toBe(result.returned);
+    for (const img of result.images) {
+      expect(img.seriesDescription).not.toBe('SeriesSelector');
+    }
   }, 120_000);
 });

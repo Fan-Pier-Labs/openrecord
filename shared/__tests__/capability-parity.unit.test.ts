@@ -304,6 +304,14 @@ describe('CLI', () => {
     const { jsonSafeReplacer } = await import('../../npm-package/cli/capabilityActions');
     const json = JSON.stringify({ pixelData: new Uint8Array(2048) }, jsonSafeReplacer);
     expect(json).toBe('{"pixelData":"<2048 bytes>"}');
+
+    // A Node Buffer is what download_imaging_study actually returns, and
+    // JSON.stringify calls Buffer.toJSON() *before* the replacer sees the
+    // value — so the replacer receives {type:'Buffer', data:[...]}, never a
+    // Uint8Array. Without handling that shape, one image prints as tens of
+    // thousands of lines of byte values.
+    const bufJson = JSON.stringify({ pixelData: Buffer.alloc(2048) }, jsonSafeReplacer);
+    expect(bufJson).toBe('{"pixelData":"<2048 bytes>"}');
   });
 });
 

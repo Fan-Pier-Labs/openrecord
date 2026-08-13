@@ -239,11 +239,60 @@ export const insurance = [
 ];
 
 // ─── Emergency Contacts ─────────────────────────────────────────────
+// Real GetRelationships responses key the list as `contacts` — the flat
+// `relationships` array the fake used to return exists on no captured
+// instance — and each contact nests its name under `formattedName`, its
+// relationship under `relationToPatient` and its phone numbers under
+// `contactInformation.phoneNumbers`. (`isEmergencyContact` itself appears on
+// only one captured instance and rides along as an extra field.)
+export function makeEmergencyContact(id: string, name: string, relationship: string, phone: string, isEmergencyContact = true) {
+  return {
+    id,
+    formattedName: name,
+    relationToPatient: { name: relationship, labelText: relationship, isInactive: false },
+    isPrimaryContact: false,
+    isLinkedToOtherPatient: false,
+    isHCA: false,
+    isAddressLinkedToPatient: false,
+    contactInformation: {
+      address: {
+        street: '742 Evergreen Terrace',
+        city: 'Springfield',
+        county: { number: '', title: '', isInactive: false },
+        state: { number: '', title: 'NT', abbreviation: 'NT', isInactive: false },
+        zip: '49007',
+        country: { number: '1', title: 'United States of America', isInactive: false },
+        houseNumber: '',
+        district: { number: '', abbreviation: '', isInactive: false },
+        formattedValues: ['742 Evergreen Terrace', 'Springfield, NT 49007'],
+        allowArbitraryInput: true,
+        allowDefaults: false,
+      },
+      emailAddress: '',
+      phoneNumbers: [{ phoneNumber: phone, type: 'Home' }],
+    },
+    savedSuccessfully: false,
+    isPending: false,
+    isVRK: false,
+    isEmergencyContact,
+  };
+}
 export const emergencyContacts = {
-  relationships: [
-    { id: 'EC-1', name: 'Marge Simpson', relationshipType: 'Spouse', phoneNumber: '(555) 636-2701', isEmergencyContact: true },
-    { id: 'EC-2', name: 'Barney Gumble', relationshipType: 'Friend', phoneNumber: '(555) 636-2800', isEmergencyContact: true },
+  isViewOnly: false,
+  hideEmergencyContacts: false,
+  contacts: [
+    makeEmergencyContact('EC-1', 'Marge Simpson', 'Spouse', '(555) 636-2701'),
+    makeEmergencyContact('EC-2', 'Barney Gumble', 'Friend', '(555) 636-2800'),
   ],
+  relationToPatientChoices: [
+    { name: 'Spouse', labelText: 'Spouse', isInactive: false },
+    { name: 'Friend', labelText: 'Friend', isInactive: false },
+    { name: 'Parent', labelText: 'Parent', isInactive: false },
+    { name: 'Child', labelText: 'Child', isInactive: false },
+  ],
+  requiredFields: [],
+  vrkFields: [],
+  hasEndOfLifePageMnemonic: false,
 };
 
 // ─── Medical History ────────────────────────────────────────────────
@@ -274,7 +323,7 @@ export const medicalHistory = {
 export const labResultsList = {
   areResultsFullyLoaded: true,
   isGroupingFullyLoaded: true,
-  groupBy: 1,
+  groupBy: 'ORDER',
   newResultGroups: [
     {
       key: 'GRP-CMP',
@@ -327,10 +376,10 @@ export const labResultsList = {
         orderProviderName: 'Julius Hibbert, MD',
         authorizingProviderName: 'Julius Hibbert, MD',
         authorizingProviderID: 'PROV-HIBBERT',
-        unreadCommentingProviderName: '',
-        resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
-        resultType: 1,
-        read: 0,
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [],
       shouldHideHistoricalData: false,
@@ -352,10 +401,10 @@ export const labResultsList = {
         orderProviderName: 'Julius Hibbert, MD',
         authorizingProviderName: 'Julius Hibbert, MD',
         authorizingProviderID: 'PROV-HIBBERT',
-        unreadCommentingProviderName: '',
-        resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
-        resultType: 1,
-        read: 0,
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [],
       shouldHideHistoricalData: false,
@@ -377,10 +426,10 @@ export const labResultsList = {
         orderProviderName: 'Julius Hibbert, MD',
         authorizingProviderName: 'Julius Hibbert, MD',
         authorizingProviderID: 'PROV-HIBBERT',
-        unreadCommentingProviderName: '',
-        resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
-        resultType: 1,
-        read: 0,
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [],
       shouldHideHistoricalData: false,
@@ -417,9 +466,11 @@ export const labResultsDetails = {
       showDetails: true,
       orderMetadata: {
         orderProviderName: 'Julius Hibbert, MD',
-        unreadCommentingProviderName: '',
         readingProviderName: '',
         resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        latestUpdateInstantISO: '2026-01-10T10:30:00',
         collectionTimestampsDisplay: 'Jan 10, 2026 9:00 AM',
         specimensDisplay: 'Blood',
         resultStatus: 'Final',
@@ -430,28 +481,28 @@ export const labResultsDetails = {
           labDirector: 'Julius Hibbert, MD',
           cliaNumber: '',
         },
-        resultType: 1,
-        read: 0,
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [
         {
           componentInfo: { componentID: 'COMP-CHOL', name: 'Total Cholesterol', commonName: 'Total Cholesterol', units: 'mg/dL' },
-          componentResultInfo: { value: '280', isValueRtf: false, referenceRange: { displayLow: '125', displayHigh: '200', formattedReferenceRange: '125 - 200 mg/dL' }, abnormalFlagCategoryValue: 2 },
+          componentResultInfo: { value: '280', isValueRtf: false, numericValue: 280, referenceRange: { low: 125, high: 200, displayLow: '125', displayHigh: '200', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '125 - 200 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-LDL', name: 'LDL Cholesterol', commonName: 'LDL Cholesterol', units: 'mg/dL' },
-          componentResultInfo: { value: '190', isValueRtf: false, referenceRange: { displayLow: '0', displayHigh: '100', formattedReferenceRange: '0 - 100 mg/dL' }, abnormalFlagCategoryValue: 2 },
+          componentResultInfo: { value: '190', isValueRtf: false, numericValue: 190, referenceRange: { low: 0, high: 100, displayLow: '0', displayHigh: '100', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '0 - 100 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-HDL', name: 'HDL Cholesterol', commonName: 'HDL Cholesterol', units: 'mg/dL' },
-          componentResultInfo: { value: '35', isValueRtf: false, referenceRange: { displayLow: '40', displayHigh: '60', formattedReferenceRange: '40 - 60 mg/dL' }, abnormalFlagCategoryValue: 3 },
+          componentResultInfo: { value: '35', isValueRtf: false, numericValue: 35, referenceRange: { low: 40, high: 60, displayLow: '40', displayHigh: '60', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '40 - 60 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-TRIG', name: 'Triglycerides', commonName: 'Triglycerides', units: 'mg/dL' },
-          componentResultInfo: { value: '350', isValueRtf: false, referenceRange: { displayLow: '0', displayHigh: '150', formattedReferenceRange: '0 - 150 mg/dL' }, abnormalFlagCategoryValue: 2 },
+          componentResultInfo: { value: '350', isValueRtf: false, numericValue: 350, referenceRange: { low: 0, high: 150, displayLow: '0', displayHigh: '150', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '0 - 150 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
       ],
@@ -460,7 +511,6 @@ export const labResultsDetails = {
         impression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         combinedRTFNarrativeImpression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         addenda: [],
-        isCupidAddendum: false,
         transcriptions: [],
         ecgDiagnosis: [],
         hasStudyContent: false,
@@ -501,9 +551,11 @@ export const cmpLabResultsDetails = {
       showDetails: true,
       orderMetadata: {
         orderProviderName: 'Julius Hibbert, MD',
-        unreadCommentingProviderName: '',
         readingProviderName: '',
         resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        latestUpdateInstantISO: '2026-01-10T10:30:00',
         collectionTimestampsDisplay: 'Jan 10, 2026 9:00 AM',
         specimensDisplay: 'Blood',
         resultStatus: 'Final',
@@ -514,33 +566,33 @@ export const cmpLabResultsDetails = {
           labDirector: 'Julius Hibbert, MD',
           cliaNumber: '',
         },
-        resultType: 1,
-        read: 0,
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [
         {
           componentInfo: { componentID: 'COMP-GLU', name: 'Glucose', commonName: 'Glucose', units: 'mg/dL' },
-          componentResultInfo: { value: '92', isValueRtf: false, referenceRange: { displayLow: '65', displayHigh: '99', formattedReferenceRange: '65 - 99 mg/dL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '92', isValueRtf: false, numericValue: 92, referenceRange: { low: 65, high: 99, displayLow: '65', displayHigh: '99', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '65 - 99 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-NA', name: 'Sodium', commonName: 'Sodium', units: 'mmol/L' },
-          componentResultInfo: { value: '140', isValueRtf: false, referenceRange: { displayLow: '135', displayHigh: '145', formattedReferenceRange: '135 - 145 mmol/L' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '140', isValueRtf: false, numericValue: 140, referenceRange: { low: 135, high: 145, displayLow: '135', displayHigh: '145', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '135 - 145 mmol/L' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-K', name: 'Potassium', commonName: 'Potassium', units: 'mmol/L' },
-          componentResultInfo: { value: '4.2', isValueRtf: false, referenceRange: { displayLow: '3.5', displayHigh: '5.1', formattedReferenceRange: '3.5 - 5.1 mmol/L' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '4.2', isValueRtf: false, numericValue: 4.2, referenceRange: { low: 3.5, high: 5.1, displayLow: '3.5', displayHigh: '5.1', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '3.5 - 5.1 mmol/L' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-CREAT', name: 'Creatinine', commonName: 'Creatinine', units: 'mg/dL' },
-          componentResultInfo: { value: '0.9', isValueRtf: false, referenceRange: { displayLow: '0.6', displayHigh: '1.3', formattedReferenceRange: '0.6 - 1.3 mg/dL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '0.9', isValueRtf: false, numericValue: 0.9, referenceRange: { low: 0.6, high: 1.3, displayLow: '0.6', displayHigh: '1.3', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '0.6 - 1.3 mg/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-ALT', name: 'ALT', commonName: 'ALT', units: 'U/L' },
-          componentResultInfo: { value: '30', isValueRtf: false, referenceRange: { displayLow: '9', displayHigh: '46', formattedReferenceRange: '9 - 46 U/L' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '30', isValueRtf: false, numericValue: 30, referenceRange: { low: 9, high: 46, displayLow: '9', displayHigh: '46', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '9 - 46 U/L' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
       ],
@@ -549,7 +601,6 @@ export const cmpLabResultsDetails = {
         impression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         combinedRTFNarrativeImpression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         addenda: [],
-        isCupidAddendum: false,
         transcriptions: [],
         ecgDiagnosis: [],
         hasStudyContent: false,
@@ -590,9 +641,11 @@ export const cbcLabResultsDetails = {
       showDetails: true,
       orderMetadata: {
         orderProviderName: 'Julius Hibbert, MD',
-        unreadCommentingProviderName: '',
         readingProviderName: '',
         resultTimestampDisplay: 'Jan 10, 2026 10:30 AM',
+        prioritizedInstantISO: '2026-01-10T10:30:00',
+        prioritizedInstantDisplay: 'Jan 10, 2026 10:30 AM',
+        latestUpdateInstantISO: '2026-01-10T10:30:00',
         collectionTimestampsDisplay: 'Jan 10, 2026 9:00 AM',
         specimensDisplay: 'Blood',
         resultStatus: 'Final',
@@ -603,33 +656,33 @@ export const cbcLabResultsDetails = {
           labDirector: 'Julius Hibbert, MD',
           cliaNumber: '',
         },
-        resultType: 1,
-        read: 0,
+        resultType: 'LAB',
+        read: 'Read',
       },
       resultComponents: [
         {
           componentInfo: { componentID: 'COMP-WBC', name: 'White Blood Cell Count', commonName: 'WBC', units: 'K/uL' },
-          componentResultInfo: { value: '6.8', isValueRtf: false, referenceRange: { displayLow: '4.0', displayHigh: '11.0', formattedReferenceRange: '4.0 - 11.0 K/uL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '6.8', isValueRtf: false, numericValue: 6.8, referenceRange: { low: 4, high: 11, displayLow: '4.0', displayHigh: '11.0', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '4.0 - 11.0 K/uL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-RBC', name: 'Red Blood Cell Count', commonName: 'RBC', units: 'M/uL' },
-          componentResultInfo: { value: '4.9', isValueRtf: false, referenceRange: { displayLow: '4.2', displayHigh: '5.8', formattedReferenceRange: '4.2 - 5.8 M/uL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '4.9', isValueRtf: false, numericValue: 4.9, referenceRange: { low: 4.2, high: 5.8, displayLow: '4.2', displayHigh: '5.8', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '4.2 - 5.8 M/uL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-HGB', name: 'Hemoglobin', commonName: 'Hemoglobin', units: 'g/dL' },
-          componentResultInfo: { value: '14.8', isValueRtf: false, referenceRange: { displayLow: '13.2', displayHigh: '17.1', formattedReferenceRange: '13.2 - 17.1 g/dL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '14.8', isValueRtf: false, numericValue: 14.8, referenceRange: { low: 13.2, high: 17.1, displayLow: '13.2', displayHigh: '17.1', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '13.2 - 17.1 g/dL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-HCT', name: 'Hematocrit', commonName: 'Hematocrit', units: '%' },
-          componentResultInfo: { value: '44.1', isValueRtf: false, referenceRange: { displayLow: '38.5', displayHigh: '50.0', formattedReferenceRange: '38.5 - 50.0 %' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '44.1', isValueRtf: false, numericValue: 44.1, referenceRange: { low: 38.5, high: 50, displayLow: '38.5', displayHigh: '50.0', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '38.5 - 50.0 %' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
         {
           componentInfo: { componentID: 'COMP-PLT', name: 'Platelet Count', commonName: 'Platelets', units: 'K/uL' },
-          componentResultInfo: { value: '245', isValueRtf: false, referenceRange: { displayLow: '140', displayHigh: '400', formattedReferenceRange: '140 - 400 K/uL' }, abnormalFlagCategoryValue: 0 },
+          componentResultInfo: { value: '245', isValueRtf: false, numericValue: 245, referenceRange: { low: 140, high: 400, displayLow: '140', displayHigh: '400', lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: '140 - 400 K/uL' }, abnormalFlagCategoryValue: 'Unknown' },
           componentComments: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '' },
         },
       ],
@@ -638,7 +691,6 @@ export const cbcLabResultsDetails = {
         impression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         combinedRTFNarrativeImpression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         addenda: [],
-        isCupidAddendum: false,
         transcriptions: [],
         ecgDiagnosis: [],
         hasStudyContent: false,
@@ -666,6 +718,63 @@ export const cbcLabResultsDetails = {
   orderLimitReached: false,
   ordersDeduplicated: false,
   hideEncInfo: false,
+};
+
+// ─── Historical lab trends ──────────────────────────────────────────
+// GetMultipleHistoricalResultComponents on real instances returns a MAP of
+// component id → trend (never a list), plus the component ordering and report
+// id. Keyed here by the orderID the scraper sends (the result-group key).
+function trendPoint(value: number, low: number, high: number, range: string, dateISO: string) {
+  return {
+    value: String(value),
+    isValueRtf: false,
+    numericValue: value,
+    referenceRange: { low, high, displayLow: String(low), displayHigh: String(high), lowerBoundExclusive: false, upperBoundExclusive: false, formattedReferenceRange: range },
+    abnormalFlagCategoryValue: 'Unknown',
+    dateISO,
+  };
+}
+export const historicalResultsByOrder: Record<string, {
+  historicalResults: Record<string, unknown>;
+  orderedComponentIDs: string[];
+  reportID: string;
+  shouldShowBedsideActiveView: boolean;
+}> = {
+  'GRP-LIPID': {
+    historicalResults: {
+      'COMP-CHOL': {
+        oldestResultISO: '2024-01-08T09:00:00',
+        hideGraph: false,
+        showAbnormalFlag: true,
+        historicalResultData: [
+          trendPoint(255, 125, 200, '125 - 200 mg/dL', '2024-01-08T09:00:00'),
+          trendPoint(268, 125, 200, '125 - 200 mg/dL', '2025-01-06T09:00:00'),
+          trendPoint(280, 125, 200, '125 - 200 mg/dL', '2026-01-10T09:00:00'),
+        ],
+        componentID: 'COMP-CHOL',
+        name: 'Total Cholesterol',
+        commonName: 'Total Cholesterol',
+        units: 'mg/dL',
+      },
+      'COMP-LDL': {
+        oldestResultISO: '2024-01-08T09:00:00',
+        hideGraph: false,
+        showAbnormalFlag: true,
+        historicalResultData: [
+          trendPoint(170, 0, 100, '0 - 100 mg/dL', '2024-01-08T09:00:00'),
+          trendPoint(182, 0, 100, '0 - 100 mg/dL', '2025-01-06T09:00:00'),
+          trendPoint(190, 0, 100, '0 - 100 mg/dL', '2026-01-10T09:00:00'),
+        ],
+        componentID: 'COMP-LDL',
+        name: 'LDL Cholesterol',
+        commonName: 'LDL Cholesterol',
+        units: 'mg/dL',
+      },
+    },
+    orderedComponentIDs: ['COMP-CHOL', 'COMP-LDL'],
+    reportID: '',
+    shouldShowBedsideActiveView: false,
+  },
 };
 
 // ─── Immunizations ──────────────────────────────────────────────────
@@ -739,10 +848,13 @@ export const upcomingVisits = {
       VisitProviderAppointment: null,
     },
   ],
-  EarlierVisitsList: [],
-  PastVisitsList: [],
-  ApptTypes: null,
-  IsScrollToEnabled: false,
+  // Real LoadUpcoming responses carry these alongside LaterVisitsList; none of
+  // the invented keys the fake used to add (EarlierVisitsList, PastVisitsList,
+  // ApptTypes, IsScrollToEnabled) appear on any captured instance.
+  InProgressVisits: [],
+  NextNDaysVisits: [],
+  HighlightDays: [],
+  HasPVG: false,
 };
 
 // Lightweight past-visit factory for filler history. Real MyChart returns far
@@ -1322,15 +1434,19 @@ export const letterDetails: Record<string, { bodyHTML: string }> = {
 };
 
 // ─── Goals ───────────────────────────────────────────────────────────
+// Real envelopes are `careTeamGoals` / `patientGoals` (observed on all three
+// captured instances), not the `goals` the fake used to invent. The element
+// shape is unverifiable from those accounts (every real list was empty), so
+// the entries keep the fields modelled here.
 export const careTeamGoals = {
-  goals: [
+  careTeamGoals: [
     { name: 'Lose 50 lbs', description: 'Reduce body weight from 260 lbs to 210 lbs through diet and exercise', status: 'In Progress', startDate: '01/10/2026', targetDate: '07/10/2026' },
     { name: 'Lower cholesterol', description: 'Reduce total cholesterol below 200 mg/dL', status: 'In Progress', startDate: '01/10/2026', targetDate: '04/10/2026' },
   ],
 };
 
 export const patientGoals = {
-  goals: [
+  patientGoals: [
     { name: 'Eat one vegetable per week', description: 'Incorporate at least one serving of vegetables into weekly diet', status: 'Not Started', startDate: '01/15/2026', targetDate: '12/31/2026' },
   ],
 };
@@ -1384,35 +1500,77 @@ export const careJourneys = {
 };
 
 // ─── Activity Feed ──────────────────────────────────────────────────
+// Real FetchItemFeed responses group items per patient tab under
+// `singleItemFeedViewModels` (one entry per record the account can see), each
+// carrying `feedItems` whose text lives in `displayText` and whose links live
+// in `primaryAction.uri`. The flat `{items: [...]}` the fake used to return
+// exists on no captured instance.
+function feedItem(identifier: string, displayText: string, type: string, priorityInstant: number, uri: string) {
+  const action = { uriId: '', uri, uriType: 0, uriDisplayText: '', uriAccessibleText: '', uriIconKey: '', isHidden: false };
+  return {
+    phone: '', smsActive: false, allTextEnabled: false, email: '', allEmailEnabled: false, canEditInfo: false,
+    displayText, type, defaultType: type, groupCount: 0, priority: 0, priorityInstant,
+    iconKey: '', subiconKey: '', shouldShowWatermark: false,
+    primaryAction: action,
+    secondaryAction: { ...action, uri: '' },
+    tertiaryAction: { uriId: '', uriType: 0, uriDisplayText: '', uriAccessibleText: '', uriIconKey: '', isHidden: false },
+    defaultAction: action,
+    identifier, topicId: 0, isH2GEnabled: false,
+  };
+}
 export const activityFeed = {
-  items: [
-    { id: 'FEED-001', title: 'New Lab Results Available', description: 'Your Lipid Panel results from January 10 are ready to view.', date: '01/10/2026', type: 'lab_result', isRead: false },
-    { id: 'FEED-002', title: 'Upcoming Appointment Reminder', description: 'Annual Physical with Dr. Hibbert on April 15, 2026 at 9:00 AM.', date: '04/08/2026', type: 'appointment', isRead: false },
-    { id: 'FEED-003', title: 'New Message from Dr. Hibbert', description: 'Dr. Hibbert sent you a message about Weight Management Follow-up.', date: '01/11/2026', type: 'message', isRead: true },
+  singleItemFeedViewModels: [
+    {
+      eptId: 'EPT-HOMER',
+      displayName: 'Homer',
+      photoUrl: '',
+      tabColor: 0,
+      zeroStateIconKey: '',
+      isSelected: true,
+      feedItems: [
+        feedItem('FEED-001', 'New Lab Results Available', 'TestResult', Date.parse('2026-01-10T10:30:00Z'), '/app/test-results'),
+        feedItem('FEED-002', 'Annual Physical with Dr. Hibbert on April 15, 2026 at 9:00 AM', 'Appointment', Date.parse('2026-04-08T09:00:00Z'), '/Visits'),
+        feedItem('FEED-003', 'New Message from Dr. Hibbert', 'Message', Date.parse('2026-01-11T08:00:00Z'), '/app/communication-center'),
+      ],
+    },
   ],
 };
 
 // ─── Education Materials ────────────────────────────────────────────
-export const educationMaterials = {
-  educationTitles: [
-    { id: 'EDU-001', title: 'Heart Health: What You Need to Know', category: 'Cardiovascular', assignedDate: '01/10/2026', providerName: 'Julius Hibbert, MD' },
-    { id: 'EDU-002', title: 'Managing Your Cholesterol', category: 'Cardiovascular', assignedDate: '01/10/2026', providerName: 'Julius Hibbert, MD' },
-  ],
-};
+// Real GetPatEducationTitles responses are a bare ARRAY of titles — there is
+// no `educationTitles` wrapper on any captured instance — and the title text
+// lives in `displayName`.
+export const educationMaterials = [
+  { elementId: 'EDU-001', displayName: 'Heart Health: What You Need to Know', assignedDate: '01/10/2026', eduKey: 'EDU-KEY-001', numTopics: 3, numPoints: 12, isAdmitted: false, encounterContext: 0, wasAssignedThisVisit: false, canUserTrackUnderstanding: true, numPagesReviewed: 0, numPagesUnderstood: 0, numPagesQuestions: 0, thumbnailImage: '', thumbnailImageBlobToken: '', thumbnailIcon: 0, tvSupported: false, removeThumbnails: false },
+  { elementId: 'EDU-002', displayName: 'Managing Your Cholesterol', assignedDate: '01/10/2026', eduKey: 'EDU-KEY-002', numTopics: 2, numPoints: 8, isAdmitted: false, encounterContext: 0, wasAssignedThisVisit: false, canUserTrackUnderstanding: true, numPagesReviewed: 0, numPagesUnderstood: 0, numPagesQuestions: 0, thumbnailImage: '', thumbnailImageBlobToken: '', thumbnailIcon: 0, tvSupported: false, removeThumbnails: false },
+];
 
 // ─── EHI Export ─────────────────────────────────────────────────────
+// Real envelope is `ehieTemplates` (with the EHIE availability flags), not the
+// `templates` key the fake used to invent.
 export const ehiExport = {
-  templates: [
-    { id: 'EHI-001', name: 'Full Health Record', description: 'Complete export of all health information', format: 'CCDA' },
+  isNoBuildEhie: false,
+  existingEHIE: false,
+  ehieTemplates: [
+    { description: 'Complete export of all health information', hideAdditionalComments: false, name: 'Full Health Record', id: 'EHI-001' },
   ],
 };
 
 // ─── Upcoming Orders ────────────────────────────────────────────────
+// Real GetUpcomingOrders responses are keyed MAPS (orderList, orderGroupList,
+// providerList) plus a settings object — never a bare `orders` array. Every
+// captured account had the maps empty, so the order VALUE shape here is
+// modelled, not verified; the envelope is.
 export const upcomingOrders = {
-  orders: [
-    { orderName: 'Lipid Panel', orderType: 'Lab', status: 'Ordered', orderedDate: '01/10/2026', orderedByProvider: 'Julius Hibbert, MD', facilityName: 'Springfield General Hospital' },
-    { orderName: 'HbA1c', orderType: 'Lab', status: 'Ordered', orderedDate: '01/10/2026', orderedByProvider: 'Julius Hibbert, MD', facilityName: 'Springfield General Hospital' },
-  ],
+  orderGroupList: {},
+  orderList: {
+    'ORD-001': { orderName: 'Lipid Panel', orderType: 'Lab', status: 'Ordered', orderedDate: '01/10/2026', orderedByProvider: 'Julius Hibbert, MD', facilityName: 'Springfield General Hospital' },
+    'ORD-002': { orderName: 'HbA1c', orderType: 'Lab', status: 'Ordered', orderedDate: '01/10/2026', orderedByProvider: 'Julius Hibbert, MD', facilityName: 'Springfield General Hospital' },
+  },
+  providerList: {
+    'PROV-HIBBERT': { name: 'Julius Hibbert, MD', providerId: 'PROV-HIBBERT' },
+  },
+  upcomingOrdersSettings: { canHideOrUnhideReminders: false },
 };
 
 // ─── Linked Accounts ────────────────────────────────────────────────
@@ -1534,7 +1692,7 @@ export const imaging = {
 export const imagingLabResultsList = {
   areResultsFullyLoaded: true,
   isGroupingFullyLoaded: true,
-  groupBy: 1,
+  groupBy: 'ORDER',
   newResultGroups: [
     {
       key: 'GRP-XRAY',
@@ -1564,7 +1722,60 @@ export const imagingLabResultsList = {
     },
   ],
   organizationLoadMoreInfo: {},
-  newResults: {},
+  // Real lists carry a newResults entry for every result the groups reference;
+  // the empty map here previously existed on no captured instance.
+  newResults: {
+    'RES-XRAY^': {
+      name: 'XR Skull 2 Views',
+      key: 'RES-XRAY',
+      showName: false,
+      showDetails: true,
+      orderMetadata: {
+        orderProviderName: 'Julius Hibbert, MD',
+        authorizingProviderName: 'Julius Hibbert, MD',
+        authorizingProviderID: 'PROV-HIBBERT',
+        prioritizedInstantISO: '2025-08-05T11:00:00',
+        prioritizedInstantDisplay: 'Aug 5, 2025 11:00 AM',
+        resultType: 'IMAGING',
+        read: 'Read',
+      },
+      resultComponents: [],
+      shouldHideHistoricalData: false,
+      scans: [],
+      shareEverywhereLogin: false,
+      showProviderNotReviewed: false,
+      providerComments: [],
+      tooManyVariants: false,
+      hasComment: false,
+      hasAllDetails: false,
+      isAbnormal: false,
+    },
+    'RES-CT^': {
+      name: 'CT Head without Contrast',
+      key: 'RES-CT',
+      showName: false,
+      showDetails: true,
+      orderMetadata: {
+        orderProviderName: 'Julius Hibbert, MD',
+        authorizingProviderName: 'Julius Hibbert, MD',
+        authorizingProviderID: 'PROV-HIBBERT',
+        prioritizedInstantISO: '2025-09-15T15:00:00',
+        prioritizedInstantDisplay: 'Sep 15, 2025 3:00 PM',
+        resultType: 'IMAGING',
+        read: 'Read',
+      },
+      resultComponents: [],
+      shouldHideHistoricalData: false,
+      scans: [],
+      shareEverywhereLogin: false,
+      showProviderNotReviewed: false,
+      providerComments: [],
+      tooManyVariants: false,
+      hasComment: false,
+      hasAllDetails: false,
+      isAbnormal: false,
+    },
+  },
   newProviderPhotoInfo: {},
 };
 
@@ -1579,9 +1790,11 @@ export const imagingLabResultDetails = {
       showDetails: true,
       orderMetadata: {
         orderProviderName: 'Julius Hibbert, MD',
-        unreadCommentingProviderName: '',
         readingProviderName: 'Julius Hibbert, MD',
         resultTimestampDisplay: 'Aug 5, 2025 11:00 AM',
+        prioritizedInstantISO: '2025-08-05T11:00:00',
+        prioritizedInstantDisplay: 'Aug 5, 2025 11:00 AM',
+        latestUpdateInstantISO: '2025-08-05T11:00:00',
         collectionTimestampsDisplay: 'Aug 5, 2025 10:00 AM',
         specimensDisplay: '',
         resultStatus: 'Final',
@@ -1592,8 +1805,8 @@ export const imagingLabResultDetails = {
           labDirector: 'Julius Hibbert, MD',
           cliaNumber: '',
         },
-        resultType: 3,
-        read: 0,
+        resultType: 'IMAGING',
+        read: 'Read',
       },
       resultComponents: [],
       studyResult: {
@@ -1613,7 +1826,6 @@ export const imagingLabResultDetails = {
         },
         combinedRTFNarrativeImpression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         addenda: [],
-        isCupidAddendum: false,
         transcriptions: [],
         ecgDiagnosis: [],
         hasStudyContent: true,
@@ -1734,6 +1946,20 @@ export const ctImaging = {
   patientId: '742$$$SPRINGFIELD',
   series: [
     {
+      // Real eUnity servers emit a "SeriesSelector" pseudo-series at the head
+      // of a CT study's instance list — a viewer UI construct, not images.
+      // Its seriesUID is derived from the studyUID (unlike real series, whose
+      // UIDs come from the modality), and every CustomImageServlet request
+      // for it answers HTTP 200 with a small `application/cloerror` payload.
+      // Faked here so clients are forced to handle a study whose first
+      // instances are junk: a download budget spent on attempts rather than
+      // successes returns zero images on exactly this shape.
+      seriesUID: '1.2.840.114350.2.362.2.742742.2.9876543210.1.9999',
+      instanceUIDs: generateInstanceUIDs('1.2.840.114350.2.362.2.742742.2.9876543210.1.9999', 3),
+      seriesDescription: 'SeriesSelector',
+      cloError: true,
+    },
+    {
       seriesUID: '1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666',
       instanceUIDs: generateInstanceUIDs('1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666', 5),
       seriesDescription: 'AXIAL',
@@ -1754,30 +1980,6 @@ export const ctImaging = {
   ],
 };
 
-export const ctLabResultsList = {
-  areResultsFullyLoaded: true,
-  isGroupingFullyLoaded: true,
-  groupBy: 1,
-  newResultGroups: [
-    {
-      key: 'GRP-CT',
-      contactType: '',
-      resultList: ['RES-CT'],
-      isInpatient: false,
-      isEDVisit: false,
-      isCurrentAdmission: false,
-      visitProviderID: 'PROV-HIBBERT',
-      organizationID: 'ORG-SPRINGFIELD',
-      sortDate: '2025-09-15T14:30:00',
-      formattedDate: 'Sep 15, 2025',
-      isLargeGroup: false,
-    },
-  ],
-  organizationLoadMoreInfo: {},
-  newResults: {},
-  newProviderPhotoInfo: {},
-};
-
 export const ctLabResultDetails = {
   orderName: 'CT Head without Contrast',
   key: 'RES-CT',
@@ -1789,9 +1991,11 @@ export const ctLabResultDetails = {
       showDetails: true,
       orderMetadata: {
         orderProviderName: 'Julius Hibbert, MD',
-        unreadCommentingProviderName: '',
         readingProviderName: 'Julius Hibbert, MD',
         resultTimestampDisplay: 'Sep 15, 2025 3:00 PM',
+        prioritizedInstantISO: '2025-09-15T15:00:00',
+        prioritizedInstantDisplay: 'Sep 15, 2025 3:00 PM',
+        latestUpdateInstantISO: '2025-09-15T15:00:00',
         collectionTimestampsDisplay: 'Sep 15, 2025 2:30 PM',
         specimensDisplay: '',
         resultStatus: 'Final',
@@ -1802,8 +2006,8 @@ export const ctLabResultDetails = {
           labDirector: 'Julius Hibbert, MD',
           cliaNumber: '',
         },
-        resultType: 3,
-        read: 0,
+        resultType: 'IMAGING',
+        read: 'Read',
       },
       resultComponents: [],
       studyResult: {
@@ -1823,7 +2027,6 @@ export const ctLabResultDetails = {
         },
         combinedRTFNarrativeImpression: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
         addenda: [],
-        isCupidAddendum: false,
         transcriptions: [],
         ecgDiagnosis: [],
         hasStudyContent: true,

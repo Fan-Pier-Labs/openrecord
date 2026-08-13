@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
 import { getMyChartProfile } from './profile';
 import { logger } from '../../shared/logger';
@@ -215,7 +215,7 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
 
 async function loadHomeHtml(mychartRequest: MyChartRequest, options?: AuthenticatedRequestOptions): Promise<string> {
   const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' }, options);
-  return await resp.text();
+  return resp.text();
 }
 
 async function followProxySwitchChain(mychartRequest: MyChartRequest, startPathOrUrl: string): Promise<void> {
@@ -558,6 +558,32 @@ export async function checkProxyContext(
  * Accounts with no proxy access have no proxy surface at all; there `fn` simply
  * runs.
  */
+/**
+ * Record which patient record this session is on, and arm the restore hook
+ * session renewal uses to put it back after a silent re-login. Set together
+ * on purpose: renewal fails closed if it ever finds a recorded non-self
+ * target without a restore hook (see sessionRenewal.ts). The hook re-runs the
+ * verified switch with autoRenew: false, so it can only ever fail, never
+ * re-enter renewal.
+ */
+function recordActiveTarget(
+  mychartRequest: MyChartRequest,
+  resolved: Pick<ProxyTarget, 'id' | 'isSelf' | 'displayName'>,
+): void {
+  mychartRequest.activeProxyTarget = {
+    id: resolved.id,
+    isSelf: resolved.isSelf,
+    displayName: resolved.displayName,
+  };
+  mychartRequest.restoreProxyContext = async () => {
+    await switchProxyTarget(
+      mychartRequest,
+      resolved.isSelf ? { self: true } : { id: resolved.id },
+      { autoRenew: false },
+    );
+  };
+}
+
 export async function withProxyTarget<T>(
   mychartRequest: MyChartRequest,
   target: ProxyTargetSelector | string | undefined,
@@ -580,11 +606,7 @@ export async function withProxyTarget<T>(
   // the intent: if the session expires inside fn(), automatic renewal must
   // know which record to restore even though no switch happened on this call.
   if (resolved.selectionKnown && resolved.isSelected) {
-    mychartRequest.activeProxyTarget = {
-      id: resolved.id,
-      isSelf: resolved.isSelf,
-      displayName: resolved.displayName,
-    };
+    recordActiveTarget(mychartRequest, resolved);
   } else {
     await switchProxyTarget(
       mychartRequest,
@@ -652,15 +674,9 @@ export async function switchProxyTarget(
   }
 
   // Remember which record this session is now on. Automatic session renewal
-  // (makeAuthenticatedRequest) reads this to restore the context after a
-  // re-login, which resets MyChart to the account holder server-side.
-  const recordSwitch = () => {
-    mychartRequest.activeProxyTarget = {
-      id: resolved.id,
-      isSelf: resolved.isSelf,
-      displayName: resolved.displayName,
-    };
-  };
+  // (sessionRenewal.ts) reads this to restore the context after a re-login,
+  // which resets MyChart to the account holder server-side.
+  const recordSwitch = () => recordActiveTarget(mychartRequest, resolved);
 
   if (verified.selectionKnown) {
     const confirmed = resolved.isSelf ? !!selected?.isSelf : !!selected && selected.id === resolved.id;

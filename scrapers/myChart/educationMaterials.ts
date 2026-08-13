@@ -1,27 +1,28 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
 export type EducationMaterial = {
   id: string;
   title: string;
-  category: string;
   assignedDate: string;
-  providerName: string;
+  numTopics: number;
 }
 
+// Real GetPatEducationTitles responses are a bare ARRAY of titles whose text
+// lives in `displayName` and whose id is `elementId`/`eduKey`. (An earlier
+// version read an `educationTitles` wrapper that only the fake served, so
+// this scraper returned nothing against every real instance.)
 type EducationResponse = {
-  id?: string;
-  title?: string;
-  category?: string;
+  elementId?: string;
+  eduKey?: string;
+  displayName?: string;
   assignedDate?: string;
-  providerName?: string;
+  numTopics?: number;
 }
 
-type GetEducationResponse = {
-  educationTitles?: EducationResponse[];
-}
+type GetEducationResponse = EducationResponse[];
 
 export async function getEducationMaterials(mychartRequest: MyChartRequest): Promise<EducationMaterial[]> {
   const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/education' });
@@ -45,11 +46,10 @@ export async function getEducationMaterials(mychartRequest: MyChartRequest): Pro
 
   const json: GetEducationResponse = await resp.json();
 
-  return (json.educationTitles || []).map((ed: EducationResponse) => ({
-    id: ed.id || '',
-    title: ed.title || '',
-    category: ed.category || '',
+  return (Array.isArray(json) ? json : []).map((ed: EducationResponse) => ({
+    id: ed.elementId || ed.eduKey || '',
+    title: ed.displayName || '',
     assignedDate: ed.assignedDate || '',
-    providerName: ed.providerName || '',
+    numTopics: ed.numTopics ?? 0,
   }));
 }

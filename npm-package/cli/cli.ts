@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import { version as CLI_VERSION } from '../package.json';
 import { myChartUserPassLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/login';
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
 import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
@@ -22,7 +23,7 @@ import { getLetters } from '../../scrapers/myChart/letters';
 import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import { dte2date } from '../../scrapers/myChart/bills/utils';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
-import { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
+import { type PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../../scrapers/myChart/messages/sendMessage';
 import { sendReply } from '../../scrapers/myChart/messages/sendReply';
 import { getVitals } from '../../scrapers/myChart/vitals';
@@ -127,6 +128,8 @@ interface CliArgs {
   showAll?: boolean;
   /** Repeated `--arg name=value` pairs, passed straight to the capability. */
   capabilityArgs?: Record<string, string>;
+  /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
+  output?: string;
 }
 
 function parseArgs(): CliArgs {
@@ -173,8 +176,10 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--delete-passkey') parsed.deletePasskey = true;
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
+    // Output directory for capabilities that produce images (rendersMedia).
+    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i];
   }
-  return parsed as CliArgs;
+  return parsed;
 }
 
 const cliArgs = parseArgs();
@@ -993,13 +998,13 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     if (flowsheets.length === 0) {
       console.log('    No vitals data found.');
     }
-    for (const fs of flowsheets) {
-      console.log(`\n      ${fs.name}`);
-      for (const reading of fs.readings.slice(0, 10)) {
+    for (const flowsheet of flowsheets) {
+      console.log(`\n      ${flowsheet.name}`);
+      for (const reading of flowsheet.readings.slice(0, 10)) {
         console.log(`        ${reading.date}: ${reading.value} ${reading.units}`);
       }
-      if (fs.readings.length > 10) {
-        console.log(`        ... and ${fs.readings.length - 10} more readings`);
+      if (flowsheet.readings.length > 10) {
+        console.log(`        ... and ${flowsheet.readings.length - 10} more readings`);
       }
     }
   } catch (err) {
@@ -1144,9 +1149,8 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     }
     for (const mat of materials) {
       console.log(`      ${mat.title}`);
-      if (mat.category) item('  Category', mat.category);
       if (mat.assignedDate) item('  Assigned', mat.assignedDate);
-      if (mat.providerName) item('  Provider', mat.providerName);
+      if (mat.numTopics) item('  Topics', String(mat.numTopics));
     }
   } catch (err) {
     console.log('    Error fetching education materials:', (err as Error).message);
@@ -1160,7 +1164,7 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
       console.log('    No EHI export templates found.');
     }
     for (const tmpl of templates) {
-      console.log(`      ${tmpl.name} (${tmpl.format})`);
+      console.log(`      ${tmpl.name}`);
       if (tmpl.description) item('  Description', tmpl.description);
     }
   } catch (err) {
@@ -1334,8 +1338,7 @@ async function main() {
   }, 'cli');
 
   // Fire-and-forget update check — never blocks or breaks the CLI
-  const { version } = await import('../package.json');
-  void checkForUpdate({ currentVersion: version, packageName: 'cli' });
+  void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
 
   // Saying what the CLI can do needs no account and no network. Both listings
   // lead with the commonly-used capabilities and name `--show-all` for the rest.
@@ -2035,7 +2038,7 @@ async function main() {
     for (const session of sessions) {
       const creds = credentialsList.find(c => c.hostname === session.hostname);
       const password = creds && 'password' in creds ? creds.password : undefined;
-      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}))) ok = false;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output))) ok = false;
     }
     closeRL();
     process.exit(ok ? 0 : 1);

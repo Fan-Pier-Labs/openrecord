@@ -1,9 +1,9 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
-import { MyChartRequest } from '../myChartRequest';
+import { type MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
-import { ReportContent } from '../labs_and_procedure_results/labtestresulttype';
+import { type ReportContent } from '../labs_and_procedure_results/labtestresulttype';
 import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
@@ -189,7 +189,7 @@ export async function followSamlChain(
         // Check if we've reached eUnity (detected by /e/viewer path)
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
           const viewerRes = await req(url);
-          return makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
+          return await makeViewerResult(url, viewerRes.status === 200 ? await viewerRes.text() : '');
         }
         continue;
       }
@@ -255,7 +255,7 @@ export async function followSamlChain(
         }
 
         if (url.includes('/e/viewer') || url.includes('/eUnity/viewer')) {
-          return makeViewerResult(url, html);
+          return await makeViewerResult(url, html);
         }
 
         // Reached a page that's not eUnity and has no redirect

@@ -129,11 +129,11 @@ describe('fake-mychart marge user + /reset', () => {
 
     await fetch(`${BASE}/MyChart/api/secondary-validation/UpdateTwoFactorTotpOptInStatus`, {
       method: 'POST',
-      headers: { Cookie: sessionCookie },
+      headers: { Cookie: sessionCookie, '__RequestVerificationToken': 'tok-test' },
     })
     const totpInfoBefore = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
       method: 'POST',
-      headers: { Cookie: sessionCookie },
+      headers: { Cookie: sessionCookie, '__RequestVerificationToken': 'tok-test' },
     }).then(r => r.json()) as { IsTotpEnabled: boolean }
     expect(totpInfoBefore.IsTotpEnabled).toBe(true)
 
@@ -147,7 +147,7 @@ describe('fake-mychart marge user + /reset', () => {
     const reloginCookie = (reloginResp.cookie ?? '').split(';')[0]
     const totpInfoAfter = await fetch(`${BASE}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
       method: 'POST',
-      headers: { Cookie: reloginCookie },
+      headers: { Cookie: reloginCookie, '__RequestVerificationToken': 'tok-test' },
     }).then(r => r.json()) as { IsTotpEnabled: boolean }
     expect(totpInfoAfter.IsTotpEnabled).toBe(false)
 

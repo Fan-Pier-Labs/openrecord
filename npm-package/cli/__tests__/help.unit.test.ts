@@ -52,11 +52,20 @@ describe('renderCliHelp', () => {
     expect(renderCliHelp({ showAll: true })).not.toContain('are hidden. Show them with');
   });
 
-  it('documents the flags a session actually needs', () => {
+  it('documents every flag the CLI actually parses', async () => {
+    // Read the flags out of `cli.ts` itself rather than listing them here — a
+    // hand-kept list in a test is the same thing the capability registry
+    // exists to abolish. `--output` was added to the CLI while this help text
+    // was in flight and went undocumented; this is what catches the next one.
+    const source = await Bun.file(new URL('../cli.ts', import.meta.url).pathname).text();
+    const parsed = new Set(
+      [...source.matchAll(/args\[i\] === '(--[a-z-]+)'/g)].map((m) => m[1]),
+    );
+    expect(parsed.size).toBeGreaterThan(20);
+
     const help = renderCliHelp();
-    for (const flag of ['--host', '--action', '--arg', '--patient', '--switch', '--list-capabilities']) {
-      expect(help).toContain(flag);
-    }
+    const undocumented = [...parsed].filter((flag) => !help.includes(flag)).sort();
+    expect(undocumented).toEqual([]);
   });
 
   it('carries the capability listing rather than a second copy of it', () => {

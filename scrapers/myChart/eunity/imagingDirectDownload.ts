@@ -13,11 +13,11 @@
  *
  * Protocol reverse-engineered from eUnity's Dart/WASM viewer network traffic.
  */
-import * as tough from 'tough-cookie';
+import type * as tough from 'tough-cookie';
 import * as fs from 'fs';
 import * as path from 'path';
-import { MyChartRequest } from '../myChartRequest';
-import { FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
+import { type MyChartRequest } from '../myChartRequest';
+import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
@@ -180,14 +180,17 @@ function buildAmfCall(
   method: string,
   parameters: ((w: AMF3Writer) => void)[],
 ): Buffer {
+  // Callback params are numbered by nesting depth (w1, w2, …): each callback
+  // writes to exactly the writer it is handed, so the code stays correct by
+  // construction even if a writer method ever hands down a sub-writer.
   const w = new AMF3Writer();
   w.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
     ['messageID', 'messageType', 'body'],
     [
-      (w) => w.writeString(messageID),
-      (w) => w.writeString('call'),
-      (w) => w.writeTypedObject(
+      (w1) => w1.writeString(messageID),
+      (w1) => w1.writeString('call'),
+      (w1) => w1.writeTypedObject(
         'com.clientoutlook.web.metaservices.AmfServicesRequest',
         ['service', 'method', 'parameters'],
         [
@@ -225,36 +228,39 @@ export function buildGetStudyListMetaRequest(
   serviceInstance: string,
   patientId: string,
 ): Buffer {
+  // Callback params are numbered by nesting depth (w1…w6): each callback
+  // writes to exactly the writer it is handed, so the code stays correct by
+  // construction even if a writer method ever hands down a sub-writer.
   return buildAmfCall('HTTPSimpleLoader_1', 'StudyService', 'getStudyListMeta', [
-    (w) => {
+    (w1) => {
       // StudyListRequest is Externalizable — custom binary format
-      w.writeExternalizableObject(
+      w1.writeExternalizableObject(
         'com.clientoutlook.web.metaservices.StudyListRequest',
-        (w) => {
+        (w2) => {
           // 4-byte big-endian header (observed value: 2)
-          w.writeBE32(2);
+          w2.writeBE32(2);
           // Method qualifier string
-          w.writeString('getStudyList');
+          w2.writeString('getStudyList');
           // Version string
-          w.writeString('1.2.0');
+          w2.writeString('1.2.0');
           // Anonymous sealed object with 3 members and empty class name.
           // NOT dynamic — the browser uses plain sealed traits (0x33 = 3 members, no dynamic flag).
-          w.writeTypedObject(
+          w2.writeTypedObject(
             '', // empty class name = anonymous object
             ['notUsed', 'requestedPHI', 'environment'],
             [
               // notUsed: true
-              (w) => w.writeTrue(),
+              (w3) => w3.writeTrue(),
               // requestedPHI: ArrayCollection wrapping RequestedPHI objects
-              (w) => {
+              (w3) => {
                 // ArrayCollection is Externalizable — wraps a standard AMF3 array
-                w.writeExternalizableObject(
+                w3.writeExternalizableObject(
                   'flex.messaging.io.ArrayCollection',
-                  (w) => {
-                    w.writeArray([
-                      (w) => {
+                  (w4) => {
+                    w4.writeArray([
+                      (w5) => {
                         // RequestedPHI sealed object (8 members)
-                        w.writeTypedObject(
+                        w5.writeTypedObject(
                           'com.clientoutlook.data.RequestedPHI',
                           [
                             'patientId',
@@ -267,14 +273,14 @@ export function buildGetStudyListMetaRequest(
                             'originalServiceInstance',
                           ],
                           [
-                            (w) => w.writeString(patientId),        // e.g. "<MRN>$$$<site>"
-                            (w) => w.writeNull(),                    // studyUID: null
-                            (w) => w.writeString(accession),         // e.g. "E48330984"
-                            (w) => w.writeString(''),                // serviceInstanceParameter: empty
-                            (w) => w.writeNull(),                    // serviceInstanceProperties: null
-                            (w) => w.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
-                            (w) => w.writeString(''),                // originalServiceInstanceParameter: empty
-                            (w) => w.writeString(serviceInstance),   // originalServiceInstance: same
+                            (w6) => w6.writeString(patientId),        // e.g. "<MRN>$$$<site>"
+                            (w6) => w6.writeNull(),                    // studyUID: null
+                            (w6) => w6.writeString(accession),         // e.g. "E48330984"
+                            (w6) => w6.writeString(''),                // serviceInstanceParameter: empty
+                            (w6) => w6.writeNull(),                    // serviceInstanceProperties: null
+                            (w6) => w6.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
+                            (w6) => w6.writeString(''),                // originalServiceInstanceParameter: empty
+                            (w6) => w6.writeString(serviceInstance),   // originalServiceInstance: same
                           ],
                         );
                       },
@@ -283,17 +289,17 @@ export function buildGetStudyListMetaRequest(
                 );
               },
               // environment: Environment sealed object (6 members)
-              (w) => {
-                w.writeTypedObject(
+              (w3) => {
+                w3.writeTypedObject(
                   'com.clientoutlook.data.hangingprotocol.Environment',
                   ['levelValue', 'level', 'user', 'roles', 'device', 'numberOfScreens'],
                   [
-                    (w) => w.writeNull(),           // levelValue: null
-                    (w) => w.writeInteger(0),        // level: 0
-                    (w) => w.writeNull(),           // user: null
-                    (w) => w.writeNull(),           // roles: null
-                    (w) => w.writeString('WEB'),    // device: "WEB"
-                    (w) => w.writeString('1'),      // numberOfScreens: "1"
+                    (w4) => w4.writeNull(),           // levelValue: null
+                    (w4) => w4.writeInteger(0),        // level: 0
+                    (w4) => w4.writeNull(),           // user: null
+                    (w4) => w4.writeNull(),           // roles: null
+                    (w4) => w4.writeString('WEB'),    // device: "WEB"
+                    (w4) => w4.writeString('1'),      // numberOfScreens: "1"
                   ],
                 );
               },
@@ -976,7 +982,7 @@ export interface DirectDownloadResult {
   studyName: string;
   images: DirectDownloadedImage[];
   errors: string[];
-  /** Parsed series info from AMF response (available even with maxImages: 0) */
+  /** Parsed series info from the AMF response */
   seriesList?: SeriesInfo[];
 }
 
@@ -994,9 +1000,7 @@ export interface DirectDownloadedImage {
 
 export interface DirectDownloadOptions {
   skipFileWrite?: boolean;
-  /** Stop after downloading this many images (default: unlimited). */
-  maxImages?: number;
-  /** Number of parallel downloads (default: 10). */
+  /** Number of parallel downloads (default: 5). */
   concurrency?: number;
 }
 
@@ -1423,7 +1427,7 @@ export async function downloadImagingStudyDirect(
     }
     logger.debug(`      Found ${studyInfo.series.length} series, studyUID: ${studyInfo.studyUID.substring(0, 30)}...`);
 
-    // Build series list summary (available even with maxImages: 0)
+    // Build series list summary
     const seriesMap = new Map<string, { description: string; count: number }>();
     for (const s of studyInfo.series) {
       const existing = seriesMap.get(s.seriesUID);
@@ -1439,11 +1443,12 @@ export async function downloadImagingStudyDirect(
       instanceCount: count,
     }));
 
-    // Step 6: Download images — each (seriesUID, instanceUID) pair is a separate image.
-    // Download in parallel batches for speed (CT scans can have 700+ slices).
-    const maxImages = options?.maxImages ?? Infinity;
+    // Step 6: Download every image — each (seriesUID, instanceUID) pair is a
+    // separate image. Downloaded in parallel batches for speed (CT scans can
+    // have 700+ slices). Instances that answer CLOERROR are skipped, never
+    // returned as images: eUnity's instance list can carry pseudo-instances
+    // (the viewer's "SeriesSelector" entries) that hold no pixel data.
     const concurrency = options?.concurrency ?? 5;
-    const seriesToDownload = studyInfo.series.slice(0, maxImages);
     const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
     const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
     let completed = 0;
@@ -1460,8 +1465,8 @@ export async function downloadImagingStudyDirect(
 
         completed++;
         if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
-          if (completed % 50 === 0 || completed === seriesToDownload.length) {
-            logger.debug(`      [${completed}/${seriesToDownload.length}] Progress...`);
+          if (completed % 50 === 0) {
+            logger.debug(`      [${completed} tried] Progress...`);
           }
           return;
         }
@@ -1470,21 +1475,20 @@ export async function downloadImagingStudyDirect(
 
         if (skipFileWrite) {
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
-          if (haarIdx >= 0) {
-            const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
-            const embeddedPixelData = data.subarray(haarIdx);
-            result.images.push({
-              filePath: '',
-              sizeBytes: embeddedPixelData.length,
-              seriesUID: series.seriesUID,
-              instanceUID: series.instanceUID,
-              seriesDescription: series.seriesDescription,
-              accessionNumber: studyParams!.accession,
-              format: 'CLHAAR',
-              pixelData: Buffer.from(embeddedPixelData),
-              wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
-            });
-          }
+          if (haarIdx < 0) return;
+          const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
+          const embeddedPixelData = data.subarray(haarIdx);
+          result.images.push({
+            filePath: '',
+            sizeBytes: embeddedPixelData.length,
+            seriesUID: series.seriesUID,
+            instanceUID: series.instanceUID,
+            seriesDescription: series.seriesDescription,
+            accessionNumber: studyParams!.accession,
+            format: 'CLHAAR',
+            pixelData: Buffer.from(embeddedPixelData),
+            wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
+          });
         } else {
           const ext = isCloFormat(data) ? '.clo' : '.bin';
           const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
@@ -1526,8 +1530,8 @@ export async function downloadImagingStudyDirect(
           }
         }
 
-        if (completed % 50 === 0 || completed === seriesToDownload.length) {
-          logger.debug(`      [${completed}/${seriesToDownload.length}] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
+        if (completed % 50 === 0) {
+          logger.debug(`      [${completed} tried] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
         }
       } catch (err) {
         completed++;
@@ -1535,11 +1539,16 @@ export async function downloadImagingStudyDirect(
       }
     }
 
-    // Run downloads in parallel batches
-    logger.debug(`      Downloading ${seriesToDownload.length} images (concurrency: ${concurrency})...`);
-    for (let i = 0; i < seriesToDownload.length; i += concurrency) {
-      const batch = seriesToDownload.slice(i, i + concurrency);
-      await Promise.all(batch.map(s => downloadOne(s)));
+    logger.debug(`      Downloading ${studyInfo.series.length} instances (concurrency: ${concurrency})...`);
+    for (let i = 0; i < studyInfo.series.length; i += concurrency) {
+      const batch = studyInfo.series.slice(i, i + concurrency);
+      await Promise.all(batch.map((s) => downloadOne(s)));
+    }
+    logger.debug(`      Downloaded ${result.images.length} images (${studyInfo.series.length} instances tried)`);
+    if (result.images.length === 0 && result.errors.length === 0) {
+      result.errors.push(
+        `No downloadable images: all ${studyInfo.series.length} instances returned empty or error responses from the image server.`,
+      );
     }
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);

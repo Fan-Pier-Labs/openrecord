@@ -9,7 +9,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -23,11 +23,9 @@ describe('getEducationMaterials', () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
       {
-        body: JSON.stringify({
-          educationTitles: [
-            { id: 'E1', title: 'Managing Diabetes', category: 'Chronic Conditions', assignedDate: '2024-02-15', providerName: 'Dr. Smith' },
-          ],
-        }),
+        body: JSON.stringify([
+          { elementId: 'E1', displayName: 'Managing Diabetes', assignedDate: '2024-02-15', eduKey: 'EDU-K1', numTopics: 4 },
+        ]),
       },
     ])
 
@@ -36,25 +34,24 @@ describe('getEducationMaterials', () => {
     expect(result[0]).toEqual({
       id: 'E1',
       title: 'Managing Diabetes',
-      category: 'Chronic Conditions',
       assignedDate: '2024-02-15',
-      providerName: 'Dr. Smith',
+      numTopics: 4,
     })
   })
 
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ educationTitles: [{}] }) },
+      { body: JSON.stringify([{}]) },
     ])
     const result = await getEducationMaterials(req)
-    expect(result[0]).toEqual({ id: '', title: '', category: '', assignedDate: '', providerName: '' })
+    expect(result[0]).toEqual({ id: '', title: '', assignedDate: '', numTopics: 0 })
   })
 
   it('handles empty list', async () => {
     const req = mockRequest([
       { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ educationTitles: [] }) },
+      { body: JSON.stringify([]) },
     ])
     expect(await getEducationMaterials(req)).toEqual([])
   })

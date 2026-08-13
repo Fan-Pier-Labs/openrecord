@@ -137,7 +137,9 @@ function buildSystemPrompt(
 export type StreamCallbacks = {
   onText: (text: string) => void;
   onToolCall: (toolCall: ToolCall) => void;
-  onDone: (fullText: string, toolCalls: ToolCall[]) => void;
+  // May be async: callers persist the finished turn. The loop fires it and
+  // returns without awaiting — completion handlers own their errors.
+  onDone: (fullText: string, toolCalls: ToolCall[]) => void | Promise<void>;
   onError: (error: Error) => void;
 };
 
@@ -396,7 +398,7 @@ export async function sendMessage(
 
     // `respond` terminates the loop and surfaces text to the user.
     if (calls.length === 1 && calls[0].tool === RESPOND_TOOL) {
-      const text = typeof calls[0].args.text === "string" ? (calls[0].args.text as string) : "";
+      const text = typeof calls[0].args.text === "string" ? (calls[0].args.text) : "";
       let finalText = text;
       for (const id of pendingImageIds) {
         if (!finalText.includes(`[image:${id}]`)) {
@@ -404,7 +406,7 @@ export async function sendMessage(
         }
       }
       callbacks.onText(finalText);
-      callbacks.onDone(finalText, toolCalls);
+      void callbacks.onDone(finalText, toolCalls);
       return;
     }
 

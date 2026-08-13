@@ -8,8 +8,15 @@
  */
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-// @ts-expect-error — zero-dep ES module, no type declarations by design
-import { handler, validatePayload, buildGeminiRequest, extractText, checkRateLimit } from '../handler.mjs';
+import { handler as rawHandler, validatePayload, buildGeminiRequest, extractText, checkRateLimit } from '../handler.mjs';
+
+/**
+ * The response as API Gateway sees it. TS infers a per-branch union from the
+ * .mjs handler, which makes branch-specific fields (`body`) unreachable in
+ * assertions — this is the one shape every branch conforms to.
+ */
+type LambdaResponse = { statusCode: number; headers?: Record<string, string>; body?: string };
+const handler = rawHandler as (event: unknown) => Promise<LambdaResponse>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;

@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -136,15 +136,15 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
 
         const meta = rowMeta.get(r.rowId);
         const value = r.stringValue ?? (r.numericValue !== undefined && r.numericValue !== null ? String(r.numericValue) : '');
-        const list = byRow.get(r.rowId) || [];
-        list.push({
+        const readings = byRow.get(r.rowId) || [];
+        readings.push({
           date: instant,
           value,
           units: meta?.units || '',
           isAbnormal: !!r.isAbnormal,
           entryType: r.entryType || '',
         });
-        byRow.set(r.rowId, list);
+        byRow.set(r.rowId, readings);
       }
 
       // Deliberately NOT keyed off hasMoreData: MyChart reports it false while
