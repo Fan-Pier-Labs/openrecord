@@ -62,6 +62,8 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // A template literal wrapping one string and nothing else is just quotes.
+      "@typescript-eslint/no-unnecessary-template-expression": "error",
       // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
       "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       "@typescript-eslint/no-floating-promises": "error",
