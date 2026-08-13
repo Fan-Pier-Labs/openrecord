@@ -263,8 +263,9 @@ Look for:
   or read `gh pr checks`. 
 - **Consistency** — does it match existing patterns, naming, and structure? Security
   (sanitization/`SafeHtml`, no XSS), no committed secrets/PII, no needless heavy dependencies.
-- **Docs** — did it update `CLAUDE.md`/relevant docs when it added flags/scrapers/config (repo
-  convention)?
+- **Docs** — did it document new flags/scrapers/config in the right place (repo convention)?
+  Detail belongs in `docs/` or the package README; `CLAUDE.md` takes only a one-line rule plus a
+  pointer, and should not grow with every PR.
 
 ### 4c. The fix-it-vs-ask decision
 
