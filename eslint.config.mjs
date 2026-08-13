@@ -126,6 +126,11 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // Spreading a Map, Set, class instance, function or array into an object
+      // produces something other than what it reads as — indices for an array,
+      // an empty object for a Map. Caught the header merge in scraperFetch,
+      // the single point every outbound request in the product passes through.
+      "@typescript-eslint/no-misused-spread": "error",
     },
   },
   // bun-types declares the `.rejects`/`.resolves` matchers as returning void,
