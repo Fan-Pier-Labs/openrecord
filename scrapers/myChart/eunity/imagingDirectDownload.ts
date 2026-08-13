@@ -453,19 +453,19 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
   if ((!accession || !serviceInstance || !patientId) && viewerBody) {
     // Extract accessionNumber from JSON: "accessionNumber":"E48330984"
     if (!accession) {
-      const accMatch = viewerBody.match(/"accessionNumber"\s*:\s*"([^"]+)"/);
+      const accMatch = /"accessionNumber"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (accMatch) accession = accMatch[1]!;
     }
 
     // Extract serviceInstance from JSON: "serviceInstance":"EXAMPLEstudystrategy"
     if (!serviceInstance) {
-      const siMatch = viewerBody.match(/"serviceInstance"\s*:\s*"([^"]+)"/);
+      const siMatch = /"serviceInstance"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (siMatch) serviceInstance = siMatch[1]!;
     }
 
     // Extract patientId from JSON: "patientId":"<MRN>$$$<site>"
     if (!patientId) {
-      const pidMatch = viewerBody.match(/"patientId"\s*:\s*"([^"]+)"/);
+      const pidMatch = /"patientId"\s*:\s*"([^"]+)"/.exec(viewerBody);
       if (pidMatch) patientId = pidMatch[1]!;
     }
   }
