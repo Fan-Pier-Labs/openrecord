@@ -19,7 +19,7 @@ const current = (JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as { version
 
 function nextVersion(arg: string): string {
   if (/^\d+\.\d+\.\d+$/.test(arg)) return arg;
-  const [major, minor, patch] = current.split('.').map(Number);
+  const [major = 0, minor = 0, patch = 0] = current.split('.').map(Number);
   switch (arg) {
     case 'major': return `${major + 1}.0.0`;
     case 'minor': return `${major}.${minor + 1}.0`;
