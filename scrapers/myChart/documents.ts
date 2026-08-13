@@ -47,7 +47,7 @@ export async function getDocuments(mychartRequest: MyChartRequest): Promise<Docu
 
   const json: LoadDocumentsResponse = await resp.json();
 
-  return (json.documents || []).map((doc: DocumentResponse) => ({
+  return (json.documents ?? []).map((doc: DocumentResponse) => ({
     id: doc.id || '',
     title: doc.title || '',
     documentType: doc.documentType || '',

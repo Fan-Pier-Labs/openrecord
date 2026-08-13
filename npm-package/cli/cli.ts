@@ -613,7 +613,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
     // List conversations and let user pick
     subheader('Recent Conversations');
     const conversations = await listConversations(mychartRequest);
-    const convoList = conversations?.conversations || [];
+    const convoList = conversations?.conversations ?? [];
 
     if (convoList.length === 0) {
       console.log('  No conversations found.');

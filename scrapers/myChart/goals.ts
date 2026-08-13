@@ -80,7 +80,7 @@ export async function getGoals(mychartRequest: MyChartRequest): Promise<GoalsRes
   const patientJson: LoadGoalsResponse = await patientResp.json();
 
   return {
-    careTeamGoals: mapGoals(careTeamJson.careTeamGoals || [], 'care_team'),
-    patientGoals: mapGoals(patientJson.patientGoals || [], 'patient'),
+    careTeamGoals: mapGoals(careTeamJson.careTeamGoals ?? [], 'care_team'),
+    patientGoals: mapGoals(patientJson.patientGoals ?? [], 'patient'),
   };
 }
