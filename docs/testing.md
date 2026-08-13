@@ -19,9 +19,8 @@ name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright su
 
 One caveat the compiler can't express: the expo test files carry `/// <reference types="bun" />`
 so `bun:test` resolves, and a triple-slash reference is program-wide — it puts `Bun` in scope for
-app code too, where Hermes has no Bun. `expo-app/src/__tests__/no-bun-globals.unit.test.ts`
-enforces that boundary instead (a separate test-only tsconfig was considered and rejected: one
-project per package, deliberately).
+app code too, where Hermes has no Bun. Don't reach for Bun APIs in `expo-app/src` outside
+`__tests__`.
 
 `@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
 `.rejects`/`.resolves` matchers as `void`, but awaiting them is load-bearing at runtime.
