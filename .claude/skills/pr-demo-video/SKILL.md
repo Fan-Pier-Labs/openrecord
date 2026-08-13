@@ -272,6 +272,24 @@ which GitHub account posted it.
 
 ## Troubleshooting
 
+Lessons from real runs of the iOS path:
+
+- **`pod install` / build fails with `EncodingError` or "sandbox not in sync with
+  Podfile.lock"**: run `pod install` in `expo-app/ios` with
+  `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` set — CocoaPods crashes in a shell without a
+  UTF-8 locale.
+- **The app can't reach `fake-mychart.fanpierlabs.com`**: the deployed instance may not
+  resolve. Start fake-mychart locally and connect via "Don't see yours? Enter hostname
+  manually" → `localhost:4000` — the simulator shares the Mac's network, and the app
+  uses plain HTTP for dotless hostnames.
+- **Taps silently do nothing on one screen**: the dev-build LogBox toast ("Open
+  debugger to view warnings") swallows taps near the bottom of the screen. Dismiss it
+  (its ✕ sits at roughly point (369, 810) on an iPhone 17) before recording, and
+  re-dismiss if it reappears.
+- **The recording drags**: each one-shot maestro-cli call adds several seconds of
+  startup dead time, so a 10-beat flow lands around 2–3 minutes. Speed it up in post —
+  `ffmpeg -i demo.mov -vf "setpts=PTS/2.5,fps=30" -an ...` — and say so in the comment.
+
 - **Upload fails with 4xx**: GitHub occasionally changes the private endpoints. Debug as
   a request-shape problem first (cookies, `GitHub-Verified-Fetch: true` header, field
   names) before blaming bot detection. The whole flow is readable in
