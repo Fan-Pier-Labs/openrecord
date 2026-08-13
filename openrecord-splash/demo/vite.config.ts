@@ -23,7 +23,7 @@ function splashPage(): Plugin {
           res.end(readFileSync(`${__dirname}/..${url}`));
           return;
         }
-        if (url !== '/' && url !== '/index.html') return next();
+        if (url !== '/' && url !== '/index.html') { next(); return; }
         res.setHeader('content-type', 'text/html; charset=utf-8');
         res.end(readFileSync(`${__dirname}/../index.html`, 'utf8'));
       });
