@@ -31,6 +31,11 @@ export default [
       "@typescript-eslint/await-thenable": "error",
       // Referencing a class method without its receiver silently loses `this`.
       "@typescript-eslint/unbound-method": "error",
+      // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
+      // semantics are preserved, and downgrades to a suggestion when the
+      // expression VALUE changes (null/'' vs undefined) — those were
+      // hand-verified (see the guard comments at the sites it must not touch).
+      "@typescript-eslint/prefer-optional-chain": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",

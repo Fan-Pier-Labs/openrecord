@@ -3,8 +3,10 @@ import { chmod } from 'node:fs/promises';
 
 // Two builds:
 // 1. The library (`src/index.ts` → ESM + CJS + .d.ts).
-// 2. The CLI (`cli/cli.ts` → CJS only, with #!/usr/bin/env node shebang)
-//    published as the `mychart-cli` bin.
+// 2. The CLI (`cli/entry.ts` → CJS only, with #!/usr/bin/env node shebang)
+//    published as the `mychart-cli` bin. entry.ts calls runCli() explicitly —
+//    cli.ts's own `if (import.meta.main)` self-run evaluates to false in a
+//    CJS bundle, so the binary must not rely on it.
 export default defineConfig([
   {
     entry: ['src/index.ts'],
@@ -23,7 +25,7 @@ export default defineConfig([
     noExternal: [/scrapers[\\/]myChart/],
   },
   {
-    entry: { cli: 'cli/cli.ts' },
+    entry: { cli: 'cli/entry.ts' },
     format: ['cjs'],
     outExtension: () => ({ js: '.cjs' }),
     dts: false,
