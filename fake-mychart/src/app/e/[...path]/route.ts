@@ -10,6 +10,7 @@ import { join } from 'path';
 import { deflateSync } from 'zlib';
 import * as homer from '@/data/homer';
 import { Amf3Writer } from '@/lib/amf3';
+import { buildCloWrapper } from '@/lib/cloWrapper';
 
 // ─── In-memory eUnity sessions ──────────────────────────────────────
 const eunitySessions = new Map<string, { initialized: boolean; ts: number; studyType: string }>();
@@ -209,22 +210,62 @@ const CLO_DATA_DIR = join(process.cwd(), 'src/data/clo-images');
 // Per-series CLO data keyed by seriesUID
 const seriesCloData = new Map<string, { wrapper: Buffer; pixel: Buffer }>();
 
+// Per-instance CLOWRAPPER payloads, keyed by `${seriesUID}\n${objectUID}`.
+// Real eUnity servers answer CLOWRAPPER per *instance*: for cross-sectional
+// series each slice's wrapper carries its own patient position, which is the
+// only way clients can put parallel-downloaded slices back in anatomical
+// order. Series without slicePositions keep one shared wrapper.
+const instanceCloWrappers = new Map<string, Buffer>();
+
 // Series that answer every image request with a CLOERROR payload — eUnity's
 // pseudo-series (e.g. the viewer's "SeriesSelector" entries), which appear in
 // the AMF study metadata like real series but carry no pixel data.
 const cloErrorSeriesUIDs = new Set<string>();
 
-for (const s of [...homer.imaging.series, ...homer.ctImaging.series]) {
-  if ((s as { cloError?: boolean }).cloError) {
-    cloErrorSeriesUIDs.add(s.seriesUID);
-    continue;
-  }
-  const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
-  const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
-  const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
-  seriesCloData.set(s.seriesUID, {
-    wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
-    pixel: pixelBuf,
+interface CloSeries {
+  seriesUID: string;
+  instanceUID?: string;
+  instanceUIDs?: string[];
+  cloError?: boolean;
+  cloPrefix?: string;
+  slicePositions?: Array<{ x: number; y: number; z: number }>;
+  /** Emit the byte-array VOI LUT, -1 ImagePhaseInfo sentinels and overlays. */
+  richWrapperMetadata?: boolean;
+}
+
+const cloStudies: Array<{ studyUID: string; series: CloSeries[] }> = [homer.imaging, homer.ctImaging];
+for (const study of cloStudies) {
+  study.series.forEach((s, index) => {
+    if (s.cloError) {
+      cloErrorSeriesUIDs.add(s.seriesUID);
+      return;
+    }
+    const prefix = s.cloPrefix ?? 'checkerboard_512x512';
+    const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
+    const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
+    seriesCloData.set(s.seriesUID, {
+      wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
+      pixel: pixelBuf,
+    });
+    if (s.slicePositions) {
+      // Must match buildAmfResponse's per-series frameOfReferenceUID formula.
+      const frameOfReferenceUID = `${study.studyUID}.2.${index + 1}.0.0.0`;
+      (s.instanceUIDs ?? []).forEach((objectUID, i) => {
+        const positionPatient = s.slicePositions![i];
+        if (!positionPatient) return;
+        instanceCloWrappers.set(
+          `${s.seriesUID}\n${objectUID}`,
+          Buffer.concat([
+            buildCloWrapper({
+              positionPatient,
+              frameOfReferenceUID,
+              includeRichMetadata: s.richWrapperMetadata,
+            }),
+            pixelBuf,
+          ]),
+        );
+      });
+    }
   });
 }
 
@@ -354,6 +395,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const formParams = new URLSearchParams(body);
     const requestType = formParams.get('requestType');
     const seriesUID = formParams.get('seriesUID') ?? '';
+    const objectUID = formParams.get('objectUID') ?? '';
 
     // Pseudo-series (SeriesSelector) answer 200 + application/cloerror for
     // every request type, exactly like a real eUnity server.
@@ -365,7 +407,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const clo = seriesCloData.get(seriesUID) ?? defaultClo;
 
     if (requestType === 'CLOWRAPPER') {
-      return binary(clo.wrapper, { 'Content-Type': 'application/clowrapper' });
+      // Multi-slice series serve a per-instance wrapper (per-slice patient
+      // position); everything else keeps the shared per-series payload.
+      const wrapper = instanceCloWrappers.get(`${seriesUID}\n${objectUID}`) ?? clo.wrapper;
+      return binary(wrapper, { 'Content-Type': 'application/clowrapper' });
     } else if (requestType === 'CLOPIXEL') {
       return binary(clo.pixel, { 'Content-Type': 'application/clopixel' });
     } else {

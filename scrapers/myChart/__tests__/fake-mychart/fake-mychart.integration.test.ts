@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
+import { inflateSync } from 'zlib'
 import { type MyChartRequest } from '../../myChartRequest'
+import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-image-parser/sortByPatientPosition'
+import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
+import { Amf3Reader } from '../../eunity/amf3Reader'
 import { platformFetch } from '../../../http'
 import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
@@ -598,6 +602,79 @@ for (const mode of MOUNT_MODES) {
       for (const img of result.images) {
         expect(img.seriesDescription).not.toBe('SeriesSelector')
       }
+    }, 60_000)
+
+    it('CT slices carry per-instance wrappers that sort them anatomically', async () => {
+      const results = await getImagingResults(session)
+      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const result = await downloadImagingStudyDirect(
+        session,
+        ct!.fdiContext!,
+        'Homer CT Head',
+        '/tmp/fake-mychart-test-ct-order',
+        { skipFileWrite: true },
+      )
+      expect(result.errors).toHaveLength(0)
+
+      // A real eUnity server answers CLOWRAPPER per *instance*, not per
+      // series, so each slice carries its own position.
+      const axialBase = '1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666'
+      const axial = result.images.filter(i => i.seriesDescription === 'AXIAL')
+      expect(axial.length).toBe(5)
+      expect(new Set(axial.map(i => Buffer.from(i.wrapperData!).toString('base64'))).size).toBe(5)
+
+      // The fake serves AXIAL z DESCENDING against instance number, so
+      // anatomical order is the reverse of instance order — a sort that
+      // silently no-ops (wrappers stop decoding, positions stop being read)
+      // fails right here.
+      const sortedAxial = sortImagesByPatientPosition(axial)
+      expect(sortedAxial.map(i => i.instanceUID)).toEqual(
+        [5, 4, 3, 2, 1].map(n => `${axialBase}.${n}`),
+      )
+      expect(sortedAxial.map(i => readPatientPosition(i.wrapperData!)!.z)).toEqual([40, 80, 120, 160, 200])
+
+      // SCOUT is a projection image served from the shared per-series wrapper
+      // — no patient position, and the sort must leave it alone.
+      const scout = result.images.find(i => i.seriesDescription === 'SCOUT')
+      expect(readPatientPosition(scout!.wrapperData!)).toBeNull()
+    }, 60_000)
+
+    it('CT wrappers decode the constructs only real wrappers carry', async () => {
+      // The AXIAL wrappers additionally carry a byte-array VOI LUT,
+      // externalizable ArrayCollection overlays, and ImagePhaseInfo -1
+      // sentinels. Each is a decode path the flat scalar wrappers never
+      // reach, and all three must survive the strict reader.
+      const results = await getImagingResults(session)
+      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const result = await downloadImagingStudyDirect(
+        session,
+        ct!.fdiContext!,
+        'Homer CT Head',
+        '/tmp/fake-mychart-test-ct-rich',
+        { skipFileWrite: true },
+      )
+
+      const axial = result.images.find(i => i.seriesDescription === 'AXIAL')!
+      const tree = new Amf3Reader(
+        inflateSync(Buffer.from(axial.wrapperData!).subarray(16)),
+      ).readValue() as {
+        voiLut: { lut: unknown; elements: number }
+        annotationOverlay: { bottomLeft: { __class: string; value: string[] } }
+        imagePhaseInfo: { inStackPositionNumber: number; numberOfTemporalPositions: number }
+      }
+
+      // VOI LUT table arrives as an AMF3 byte array.
+      expect(Buffer.isBuffer(tree.voiLut.lut)).toBe(true)
+      expect(tree.voiLut.elements).toBe(4096)
+      // Overlays arrive inside externalizable ArrayCollection nodes.
+      expect(tree.annotationOverlay.bottomLeft.__class).toBe('flex.messaging.io.ArrayCollection')
+      expect(tree.annotationOverlay.bottomLeft.value).toContain('SE #: %SERIES_NUMBER%')
+      // Sentinels sign-extend to -1, not 536870911.
+      expect(tree.imagePhaseInfo.inStackPositionNumber).toBe(-1)
+      expect(tree.imagePhaseInfo.numberOfTemporalPositions).toBe(-1)
+
+      // And parseWrapper still reads the display metadata through all of it.
+      expect(parseWrapper(Buffer.from(axial.wrapperData!)).photometric).toBe('MONOCHROME2')
     }, 60_000)
   })
 }
