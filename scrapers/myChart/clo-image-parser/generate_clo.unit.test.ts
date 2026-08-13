@@ -3,6 +3,7 @@ import { unlinkSync } from "fs";
 import sharp from "sharp";
 import {
   AMF3Writer,
+  arrayCollection,
   zigzagEncode,
   forwardHaarLevel,
   encodePixelFile,
@@ -12,6 +13,9 @@ import {
   generateCheckerboard,
   generateCircle,
   generateDiagonal,
+  generateSagReconSliceFiles,
+  SAG_RECON_SLICE_COUNT,
+  SAG_RECON_POSITIONS_Y,
 } from "./generate_clo";
 import {
   parsePixelHeader,
@@ -80,6 +84,36 @@ describe("AMF3Writer", () => {
     expect(result.name).toBe("test");
     expect(result.count).toBe(42);
     expect(result.ratio).toBe(1.5);
+  });
+
+  it("encodes negative integers as 29-bit two's complement, and the reader sign-extends them", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(-1);
+    writer.writeValue(-268435456); // -2^28, the most negative AMF3 integer
+    writer.writeValue(-268435457); // one past the range — must fall back to double
+    const buf = writer.getBuffer();
+    expect(buf[0]).toBe(0x04); // integer marker, not double
+    const reader = new Amf3Reader(buf);
+    expect(reader.readValue()).toBe(-1);
+    expect(reader.readValue()).toBe(-268435456);
+    expect(reader.readValue()).toBe(-268435457);
+  });
+
+  it("writes and reads back dense arrays", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(["a", 1, true]);
+    const reader = new Amf3Reader(writer.getBuffer());
+    expect(reader.readValue()).toEqual(["a", 1, true]);
+  });
+
+  it("writes externalizable ArrayCollection nodes the strict reader unwraps", () => {
+    const writer = new AMF3Writer();
+    writer.writeValue(arrayCollection(["%SERIES_NUMBER%", "%WINDOW_LEVEL%"]));
+    const reader = new Amf3Reader(writer.getBuffer());
+    const result = reader.readValue() as Record<string, unknown>;
+    expect(result.__class).toBe("flex.messaging.io.ArrayCollection");
+    expect(result.__externalizable).toBe(true);
+    expect(result.value).toEqual(["%SERIES_NUMBER%", "%WINDOW_LEVEL%"]);
   });
 });
 
@@ -206,6 +240,74 @@ describe("encodeWrapperFile", () => {
     expect(metadata.photometric).toBe("MONOCHROME1");
     expect(metadata.bits_stored).toBe(12);
   });
+
+  it("encodes the full real-wrapper shape and the strict reader decodes every construct", () => {
+    // One wrapper carrying everything real cross-sectional wrappers do:
+    // nested calibration/positionPatient, ImagePhaseInfo -1 sentinels
+    // (negative AMF3 integers → sign extension), externalizable
+    // ArrayCollection overlays, and a byte-array VOI LUT.
+    const lut = Buffer.alloc(8);
+    for (let i = 0; i < 4; i++) lut.writeUInt16LE(i * 100, i * 2);
+
+    const wrapper = encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME1",
+      bitsStored: 12,
+      windowCenter: 2048,
+      windowWidth: 4096,
+      voiLut: { lut, elements: 4, start: 0, bits: 16, lutIsLittleEndian: 1 },
+      positionPatient: { x: -101.25, y: -37.5, z: 88.75 },
+      imagePhaseInfo: {
+        inStackPositionNumber: -1,
+        stackID: "-1",
+        temporalPositionIdentifier: -1,
+        numberOfTemporalPositions: -1,
+      },
+      includeAnnotationOverlays: true,
+    });
+
+    // parseWrapper still extracts the display metadata around all the extras.
+    const metadata = parseWrapper(Buffer.from(wrapper));
+    expect(metadata.photometric).toBe("MONOCHROME1");
+    expect(Array.from(metadata.voi_lut!)).toEqual([0, 100, 200, 300]);
+
+    // The raw tree carries the slice-sorting chain and the sentinels.
+    const decompressed = require("zlib").inflateSync(wrapper.subarray(16)) as Buffer;
+    const tree = new Amf3Reader(decompressed).readValue() as Record<string, any>;
+    const pos = tree.calibration.orientation.positionPatient;
+    expect(pos.__class).toBe("com.clientoutlook.data.ImagePositionPatient");
+    expect(pos.position_y).toBe(-37.5);
+    // Negative integers must sign-extend, not surface as 536870911.
+    expect(tree.imagePhaseInfo.inStackPositionNumber).toBe(-1);
+    expect(tree.imagePhaseInfo.numberOfTemporalPositions).toBe(-1);
+    expect(tree.imagePhaseInfo.stackID).toBe("-1");
+    // Overlays decode as externalizable ArrayCollection wrappers.
+    const overlay = tree.annotationOverlay.bottomLeft;
+    expect(overlay.__class).toBe("flex.messaging.io.ArrayCollection");
+    expect(overlay.__externalizable).toBe(true);
+    expect(overlay.value).toContain("SE #: %SERIES_NUMBER%");
+  });
+
+  it("SAG RECON fixture slices decode, sort by position, and differ per slice", () => {
+    const seen = new Set<string>();
+    const positions: number[] = [];
+    for (let i = 0; i < SAG_RECON_SLICE_COUNT; i++) {
+      const { pixel, wrapper } = generateSagReconSliceFiles(i);
+      // Every slice converts through the real display pipeline (MONOCHROME1 + VOI LUT).
+      const bitmap = convertCloToBitmap(pixel, wrapper);
+      expect(bitmap.width).toBe(512);
+      seen.add(Buffer.from(bitmap.pixels).toString("base64"));
+
+      const decompressed = require("zlib").inflateSync(wrapper.subarray(16)) as Buffer;
+      const tree = new Amf3Reader(decompressed).readValue() as Record<string, any>;
+      positions.push(tree.calibration.orientation.positionPatient.position_y);
+    }
+    // Slices are byte-distinct (per-instance serving is observable) …
+    expect(seen.size).toBe(SAG_RECON_SLICE_COUNT);
+    // … and server order is NOT anatomical order, so sorting has work to do.
+    expect(positions).toEqual(SAG_RECON_POSITIONS_Y);
+    const sorted = [...positions].sort((a, b) => a - b);
+    expect(positions).not.toEqual(sorted);
+  }, 60_000);
 });
 
 // ==================== Full round-trip tests ====================

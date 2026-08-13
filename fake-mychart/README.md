@@ -412,6 +412,7 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 
 - **X-ray skull** — `skull_ap_*.clo`, `skull_lateral_*.clo`
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
+- **CT head, SAG RECON series** — `sag_recon_slice{0-4}_*.clo`, a five-slice series with a **different image per instance** (`CustomImageServlet` keys these on `objectUID`, like a real server). Each wrapper carries the full shape observed on real cross-sectional wrappers: a VOI LUT stored as an AMF3 byte array, annotation overlays wrapped in externalizable `flex.messaging.io.ArrayCollection` nodes, `MONOCHROME1` photometric (display inversion), `ImagePhaseInfo` with the `-1` "undefined" sentinels (negative AMF3 integers — reader sign extension), and per-slice `calibration.orientation.positionPatient` whose Y positions are deliberately **not** in instance order, so anatomical slice sorting is observable. Regenerate deterministically with `bun dev-scripts/generate-clo.ts --fake-mychart`.
 
 Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
 
