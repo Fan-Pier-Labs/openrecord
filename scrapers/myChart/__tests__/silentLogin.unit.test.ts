@@ -20,7 +20,7 @@ type FakeServer = {
   /** How the server answers a passkey DoLogin. */
   passkeyLogin?: 'success' | 'invalid';
   /** How it answers a password DoLogin. */
-  passwordLogin?: 'success' | 'need_2fa';
+  passwordLogin?: 'success' | 'need_2fa' | 'invalid';
   /** Whether SecondaryValidation/Validate accepts the submitted code. */
   totpAccepted?: boolean;
 };
@@ -57,7 +57,9 @@ function fakeMyChart(server: FakeServer) {
       if (isPasskey) {
         return new Response(server.passkeyLogin === 'success' ? HOME_PAGE : LOGIN_FAILED_PAGE, { status: 200 });
       }
-      return new Response(server.passwordLogin === 'need_2fa' ? NEED_2FA_PAGE : HOME_PAGE, { status: 200 });
+      if (server.passwordLogin === 'need_2fa') return new Response(NEED_2FA_PAGE, { status: 200 });
+      if (server.passwordLogin === 'invalid') return new Response(LOGIN_FAILED_PAGE, { status: 200 });
+      return new Response(HOME_PAGE, { status: 200 });
     }
     if (url.includes('/SecondaryValidation/GetSMSConsentStrings')) {
       return new Response('{}', { status: 200 });
@@ -180,6 +182,22 @@ describe('silentLogin', () => {
     expect(outcome.state).toBe('failed');
     expect(outcome.state === 'failed' && outcome.reason).toContain('TOTP code rejected');
   });
+
+  it('logs in with username and password when no passkey is stored', async () => {
+    fakeMyChart({ passwordLogin: 'success' });
+    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    expect(outcome.state).toBe('logged_in');
+  });
+
+  it('surfaces a rejected password as a login failure, not as a missing credential', async () => {
+    // The two read very differently to a client deciding what to do next:
+    // "no stored credentials" means ask for them, a rejection means the ones
+    // already stored are wrong.
+    fakeMyChart({ passwordLogin: 'invalid' });
+    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
+    expect(outcome.state).toBe('failed');
+    expect((outcome as { reason: string }).reason).toContain('login failed');
+  });
 });
 
 describe('wireSilentReauthentication', () => {
@@ -207,5 +225,19 @@ describe('wireSilentReauthentication', () => {
     const request = new MyChartRequest(HOST);
     wireSilentReauthentication(request, () => ({ hostname: HOST, username: 'homer', password: 'donuts123' }));
     expect(await request.reauthenticate!()).toBe(false);
+  });
+
+  it('re-reads the credentials at renewal time, not at wiring time', async () => {
+    // A passkey registered mid-session, or a password the user just changed,
+    // has to be picked up by the next renewal — which is why getParams is a
+    // callback rather than a value captured when the hook was wired.
+    fakeMyChart({ passwordLogin: 'success' });
+    const request = new MyChartRequest(HOST);
+    let stored: { username?: string; password?: string } = {};
+    wireSilentReauthentication(request, () => ({ hostname: HOST, ...stored }));
+
+    expect(await request.reauthenticate!()).toBe(false);
+    stored = { username: 'homer', password: 'donuts123' };
+    expect(await request.reauthenticate!()).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../../http'
+import { abortAfter, BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../../http'
 import { hostLimiterStats, resetHostLimiters } from '../../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../../shared/env'
 import { silenceLogger, resetLogSink } from '../../../shared/logger'
@@ -398,5 +398,42 @@ describe('scrapers have exactly one outbound path', () => {
   it('scans a meaningful number of files', () => {
     // A broken walk would also make the guard pass vacuously.
     expect(sourceFiles(SCRAPERS_DIR).length).toBeGreaterThan(30)
+  })
+})
+
+/**
+ * The 30s cap on eUnity image downloads is the only caller of this, and it
+ * runs on device — where React Native polyfills `AbortSignal` with the
+ * `abort-controller` package, which has the constructor but not the static
+ * `timeout()`. That gap is the whole reason the fallback exists, so it is the
+ * branch worth pinning.
+ *
+ * These moved here when `eunity/fetch.ts` was folded into http.ts; they are
+ * still the only coverage the polyfill has.
+ */
+describe('abortAfter', () => {
+  it('returns a signal that is not yet aborted', () => {
+    expect(abortAfter(1000).aborted).toBe(false)
+  })
+
+  it('aborts once the deadline passes', async () => {
+    const signal = abortAfter(5)
+    await Bun.sleep(30)
+    expect(signal.aborted).toBe(true)
+  })
+
+  it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
+    const original = AbortSignal.timeout
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (AbortSignal as any).timeout
+    try {
+      const signal = abortAfter(5)
+      expect(signal.aborted).toBe(false)
+      await Bun.sleep(30)
+      expect(signal.aborted).toBe(true)
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(AbortSignal as any).timeout = original
+    }
   })
 })
