@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   getAiProvider,
   setAiProvider,
@@ -45,12 +46,12 @@ export default function AiSettings() {
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
+      fireAndForget((async () => {
         setProvider(await getAiProvider());
         setOpenaiKeyLocal((await getOpenAiApiKey()) || "");
         setAnthropicKeyLocal((await getClaudeApiKey()) || "");
         setGeminiKeyLocal((await getGeminiApiKey()) || "");
-      })();
+      })(), "settings:loadAiKeys");
     }, []),
   );
 

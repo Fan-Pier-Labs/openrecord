@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import { version as CLI_VERSION } from '../package.json';
 import { myChartUserPassLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/login';
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
 import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
@@ -1325,8 +1326,7 @@ async function main() {
   }, 'cli');
 
   // Fire-and-forget update check — never blocks or breaks the CLI
-  const { version } = await import('../package.json');
-  void checkForUpdate({ currentVersion: version, packageName: 'cli' });
+  void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
 
   // Listing what the CLI can do needs no account and no network.
   if (cliArgs.listCapabilities) {
