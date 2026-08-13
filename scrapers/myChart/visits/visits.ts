@@ -81,7 +81,7 @@ async function loadPastVisitsPage(
 // null when neither yields a usable date so callers can keep paginating
 // rather than stop on an unparseable row.
 function visitTimestamp(visit: Visit): number | null {
-  const instant = visit.Instant?.match(/\/Date\((\d+)\)\//);
+  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
   if (instant) return Number(instant[1]);
   if (visit.PrimaryDate) {
     const t = Date.parse(visit.PrimaryDate);
