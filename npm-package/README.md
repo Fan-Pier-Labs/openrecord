@@ -119,11 +119,11 @@ npx mychart-cli --host mychart.example.org --action send-message \
 npx mychart-cli --host mychart.example.org --action send-reply \
   --conversation-id <id> --message "Thanks!"
 
-# Request a refill on a current prescription (CLI walks you through
-# picking which med and which pharmacy).
-npx mychart-cli --host mychart.example.org --action request-refill
+# Request a refill on a current prescription, by name.
+npx mychart-cli --host mychart.example.org --action request-refill \
+  --arg medication_name="Lisinopril"
 
-# Download an imaging study (X-ray, MRI, CT) as JPEGs.
+# Download every imaging study (X-ray, MRI, CT) as JPEGs.
 npx mychart-cli --host mychart.example.org --action get-imaging
 ```
 
@@ -181,11 +181,11 @@ Common commands you can run:
   mychart-cli --host mychart.example.org --use-passkey \
     --action send-reply --conversation-id <id> --message "..."
 
-  # Request a refill (interactive — picks med and pharmacy).
+  # Request a refill on a current prescription, by name.
   mychart-cli --host mychart.example.org --use-passkey \
-    --action request-refill
+    --action request-refill --arg medication_name="..."
 
-  # Download an imaging study as JPEGs.
+  # Download every imaging study as JPEGs.
   mychart-cli --host mychart.example.org --use-passkey \
     --action get-imaging
 
