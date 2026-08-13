@@ -786,8 +786,10 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
     } else {
       // Add an entry for EACH instance UID — the download loop iterates these
       const sortedInstances = [...instances].sort((a, b) => {
-        const aNum = parseInt(a.split('.').pop()!) || 0;
-        const bNum = parseInt(b.split('.').pop()!) || 0;
+        // DICOM UIDs are decimal digit runs joined by dots (see uidPattern),
+        // so the trailing component sorts as a base-10 number.
+        const aNum = parseInt(a.split('.').pop()!, 10) || 0;
+        const bNum = parseInt(b.split('.').pop()!, 10) || 0;
         return aNum - bNum;
       });
 

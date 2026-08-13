@@ -40,6 +40,10 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // `parseInt(s)` reads as "parse a decimal number", but the radix comes
+      // from the string: "0x10" is 16, not 0. Every call says which base it
+      // meant.
+      "radix": "error",
       // Round-4 zero-violation set — enabling these required NO code changes.
       // Each zero was canary-verified: a planted violation fires before the
       // zero is trusted.
