@@ -171,7 +171,7 @@ export async function runSwitchProxyTarget(
     message:
       `Every data tool on this account now reads ${result.target.displayName}'s record` +
       `${result.target.isSelf ? " (the account holder's own chart)" : ''}.` +
-      `${result.target.isSelf ? '' : ' Switch back with patient: "me" when done.'}`,
+      (result.target.isSelf ? '' : ' Switch back with patient: "me" when done.'),
   };
 }
 

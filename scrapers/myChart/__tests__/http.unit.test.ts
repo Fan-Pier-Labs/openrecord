@@ -105,7 +105,7 @@ describe('scraperFetch', () => {
       expect(uaVersion).toBeDefined()
 
       const brands = [...BROWSER_HEADERS['Sec-Ch-Ua']!.matchAll(/"([^"]+)";v="(\d+)"/g)]
-      const chromeBrands = brands.filter(([, brand]) => /Chrom/.test(brand!))
+      const chromeBrands = brands.filter(([, brand]) => (brand!).includes('Chrom'))
 
       expect(chromeBrands.length).toBeGreaterThan(0)
       for (const [, brand, version] of chromeBrands) {
@@ -423,7 +423,7 @@ describe('abortAfter', () => {
   })
 
   it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
-    const original = AbortSignal.timeout
+    const original = AbortSignal.timeout?.bind(AbortSignal)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (AbortSignal as any).timeout
     try {

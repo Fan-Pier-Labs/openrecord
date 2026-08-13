@@ -1873,7 +1873,7 @@ async function main() {
                     // Save raw CLO files if --save-clo flag is set
                     if (cliArgs.saveClo && img.pixelData) {
                       const cloBase = multiSlice
-                        ? `${String(i + 1).padStart(4, '0')}`
+                        ? String(i + 1).padStart(4, '0')
                         : safeDesc;
                       const pixelPath = path.join(seriesDir, `${cloBase}_pixel.clo`);
                       await fs.promises.writeFile(pixelPath, img.pixelData);
@@ -2055,7 +2055,7 @@ async function main() {
   closeRL();
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error('Fatal error:', err);
   closeRL();
   process.exit(1);
