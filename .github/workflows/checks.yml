@@ -51,11 +51,6 @@ jobs:
       # assertions as vacuous because everything is already `any`).
       - name: Build npm-package (lint needs dist types)
         run: cd npm-package && bun run build
-      # tests/integration/ci is part of the ROOT tsconfig project (no separate
-      # tsconfig on purpose), so both eslint and `bun run typecheck` below need
-      # its playwright types resolvable.
-      - name: Install CI integration test deps
-        run: cd tests/integration/ci && bun install
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
@@ -115,9 +110,11 @@ jobs:
         run: |
           cd claude-desktop-extension && bun install && cd ..
           cd npm-package && bun install && cd ..
-          cd tests/integration/ci && bun install
+      # `playwright` itself rides the root install; this fetches the browser it
+      # drives. The passkey UI suite skips without it everywhere but CI, where
+      # $CI forces it to run so a broken install step fails loudly.
       - name: Install Playwright browsers
-        run: cd tests/integration/ci && bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
       # npm-package's integration suite imports the BUILT `dist/index.js` on
       # purpose — it exists to test what consumers actually install — so the
       # build has to happen before anything runs.
