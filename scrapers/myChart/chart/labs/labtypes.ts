@@ -1,4 +1,4 @@
-import { type ResultComponent, type Scan } from './labtestresulttype';
+import type { ResultComponent, Scan } from './labtestresulttype';
 
 export interface ProviderComment {
   commentText: string;
