@@ -423,7 +423,7 @@ describe('abortAfter', () => {
   })
 
   it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
-    const original = AbortSignal.timeout
+    const original = AbortSignal.timeout?.bind(AbortSignal)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (AbortSignal as any).timeout
     try {
