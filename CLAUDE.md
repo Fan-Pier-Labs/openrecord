@@ -15,7 +15,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared MyChart + eUnity scraper core — every client calls into this |
+| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging) |
 | `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
 | `npm-package/` | The `mychart-cli` CLI and importable library |
 | `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
@@ -64,10 +64,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
-| `bun run cli mychart [flags]` | Run the CLI scraper |
-| `bun run cli --help [--show-all]` | Usage, every flag, and the capability listing |
-| `bun run cli --list-capabilities [--show-all]` | The commonly-used capabilities and their arguments; `--show-all` adds the less-frequently-used ones |
-| `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
+| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — see [`docs/cli.md`](docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
@@ -93,8 +90,8 @@ selects on the suffix and nothing else.
   a suite that can't run belongs behind `it.skip`.
 - **Every integration suite shares one server and must reset it in its own `beforeAll`**
   (`resetFakeMyChart`), because Bun runs files in directory-entry order, not alphabetically.
-- **Scraper tests live under `scrapers/myChart/__tests__/` only** — next to the implementation, not
-  in a client package that re-exports it.
+- **A scraper test goes in the `__tests__/` beside the code it tests**, not in `myChart/__tests__/`
+  (cross-cutting suites only) and never in a client package that re-exports the scraper.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 - **The expo app also has E2E suites**: Playwright against the web export on every PR
