@@ -169,7 +169,7 @@ describe("refill alerts", () => {
     });
     await regenerateAlerts();
 
-    const refill = upserted.filter((a) => a.type === "refill")[0]!;
+    const refill = upserted.find((a) => a.type === "refill")!;
     expect(refill.title).toBe("Mystery Med");
     expect(refill.description).toBe("Refillable prescription");
     expect(refill.dedup_key).toBe("refill:Mystery Med");
