@@ -448,7 +448,6 @@ describe('npm library', () => {
       delete_message: 'deleteMessage',
       get_billing: 'getBillingHistory',
       get_insurance: 'getInsurance',
-      get_care_team: 'getCareTeam',
       get_referrals: 'getReferrals',
       get_letters: 'getLetters',
       get_letter_details: 'getLetterDetails',
@@ -474,7 +473,12 @@ describe('npm library', () => {
       disable_totp: 'disableTotp',
     };
 
-    const unmapped = ALL.filter((id) => !methodFor[id]);
+    // `comingSoon` capabilities are declared but deliberately unimplemented,
+    // so there is no scraper for the library to wrap. They are still listed by
+    // every client (that is the point — the notice ships everywhere); they
+    // just have no typed method here until the feature lands for real.
+    const comingSoon = new Set(CAPABILITIES.filter((c) => c.comingSoon).map((c) => c.id));
+    const unmapped = ALL.filter((id) => !methodFor[id] && !comingSoon.has(id));
     expect(unmapped).toEqual([]);
 
     const absent = Object.values(methodFor).filter((m) => !methods.includes(m));

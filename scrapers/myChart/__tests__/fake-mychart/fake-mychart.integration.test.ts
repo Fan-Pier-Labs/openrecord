@@ -29,7 +29,6 @@ import { getHealthIssues } from '../../healthIssues'
 import { getImmunizations } from '../../immunizations'
 import { getVitals } from '../../vitals'
 import { getInsurance } from '../../insurance'
-import { getCareTeam } from '../../careTeam'
 import { getReferrals } from '../../referrals'
 import { getMedicalHistory } from '../../medicalHistory'
 import { getPreventiveCare } from '../../preventiveCare'
@@ -188,12 +187,6 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.coverages)).toBe(true)
       expect(result.coverages.length).toBeGreaterThan(0)
       expect(result.hasCoverages).toBe(true)
-    }, 10_000)
-
-    it('getCareTeam returns care team members', async () => {
-      const result = await getCareTeam(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
