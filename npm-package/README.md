@@ -158,6 +158,13 @@ credentials from the user's saved browser passwords.
 
 Common commands you can run:
 
+  # Everything the tool can do. The default listing is the useful
+  # subset; add --show-all for the rarely-wanted rest (goals,
+  # education materials, emergency-contact edits, sign-in settings),
+  # which run exactly the same way.
+  mychart-cli --help
+  mychart-cli --help --show-all
+
   # Log in and dump every scrape category to stdout (medications,
   # labs, imaging, visits, messages, etc.).
   mychart-cli --host mychart.example.org --use-passkey
@@ -288,7 +295,17 @@ npx mychart-cli --host <hostname> [flags]
 | `--use-saved-totp` | Use the saved TOTP secret to derive 2FA codes (no prompt). |
 | `--disable-totp` | Disable TOTP on the account. |
 | `--no-cache` | Don't reuse cached cookies; force a fresh login. |
-| `--action <name>` | Run a one-shot action: `send-message`, `send-reply`, `get-imaging`. |
+| `--action <name>` | Run a one-shot action: `send-message`, `send-reply`, `get-imaging`, or any capability id. |
+| `--arg name=value` | An argument for `--action <capability>`. Repeat for each one. |
+| `--help` | Usage, every flag, and the commonly-used capabilities. |
+| `--list-capabilities` | Just the capability listing. |
+| `--show-all` | With `--help` or `--list-capabilities`: include the less-frequently-used capabilities. |
+
+`--help` and `--list-capabilities` lead with the capabilities most charts are
+read for and hold back the ones most charts leave empty — goals, education
+materials, care journeys, the emergency-contact writes, the account's own
+sign-in settings. Nothing is disabled by being held back: every id still runs
+as an `--action`. Add `--show-all` to see the rest.
 
 The default invocation (no flags besides `--host`) logs in interactively
 and dumps every scrape category to stdout. Useful as a smoke test.

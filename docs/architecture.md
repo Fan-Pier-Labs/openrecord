@@ -76,6 +76,19 @@ answer depended on which client they asked.
   `write` mutates the chart — the mobile app shows a confirmation popup, the extension marks it
   `destructiveHint`. `account` changes how the patient signs in (passkeys, authenticator app); **no
   client offers these to a model** — the CLI drives them from flags, the mobile app from settings.
+- **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
+  not evenly valuable: labs, medications, visit notes and messages are the reason to connect an
+  account at all, while goals, letters, education materials, care journeys, questionnaires, the
+  emergency-contact writes and the `account`-kind sign-in settings are endpoints most charts leave
+  empty and most callers never reach for. Listing all ~50 at equal weight buries the useful ones — a
+  person skims past them and a model picks a plausible-looking wrong tool out of the noise. So the
+  flag is **presentation only**: `COMMON_CAPABILITIES` / `LESS_FREQUENTLY_USED_CAPABILITIES`
+  partition the registry, the CLI's `--help` and `--list-capabilities` print the common set and name
+  the count they held back, and `--show-all` appends the rest under their own heading.
+  `executeCapability` never looks at it, every client still registers every entry, and a hidden id
+  still runs as `--action <id>` with the same arguments.
+  `npm-package/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
+  asserts `--show-all` still lists the whole registry.
 - **`CapabilityContext`** carries the per-account state that isn't on the MyChart session — the
   stored password, the saved TOTP secret, and the callbacks that persist new ones. Each client wires
   it to its own credential store; the registry never knows where credentials live.
@@ -93,7 +106,14 @@ answer depended on which client they asked.
   it returns raw CLO bytes because each client encodes them differently — pure-JS jpeg-js in the
   MCPB, an on-device decoder in the app, sharp in the CLI. **Clients branch on the flag, never on
   the id** — a second media capability must not require editing five call sites, and
-  `capability-parity.unit.test.ts` fails if an id check reappears.
+  `capability-parity.unit.test.ts` fails if an id check reappears. The CLI never prints image
+  bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
+  prints the file paths (`writeStudyImages` in `npm-package/cli/capabilityActions.ts`). The
+  download always fetches **every** instance in the study — there is deliberately no
+  `max_images` knob — and instances that answer CLOERROR are skipped, never returned as images:
+  real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
+  and an earlier budget spent on those first N junk entries returned zero images with zero
+  errors. fake-mychart's CT study reproduces that shape.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still
@@ -262,9 +282,11 @@ and had quietly stopped matching anything.
 ## Client notes
 
 - **CLI + npm package** (`npm-package/`) — `--action` accepts any capability id with repeated
-  `--arg name=value`; `--list-capabilities` prints the lot. That dispatch lives in
-  `npm-package/cli/capabilityActions.ts` rather than `cli.ts`, because `cli.ts` runs `main()` the
-  moment it is imported and the parity test has to import it. The library exposes the same set as
+  `--arg name=value`; `--help` prints usage plus the capability listing and `--list-capabilities`
+  prints the listing alone. Both lead with the commonly-used capabilities and hold the rest behind
+  `--show-all` (see `lessFrequentlyUsed` above). That dispatch, the listing and the help text live in
+  `npm-package/cli/capabilityActions.ts` and `npm-package/cli/help.ts` rather than `cli.ts`, because
+  `cli.ts` runs `main()` the moment it is imported and the tests have to import them. The library exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `npm-package/README.md`.
 - **Claude Desktop extension** (`claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)

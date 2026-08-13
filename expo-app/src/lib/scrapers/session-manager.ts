@@ -480,10 +480,7 @@ async function downloadImagingStudyAsAttachment(
 ): Promise<unknown> {
   let payload: StudyImagePayload;
   try {
-    payload = (await executeCapability(request, capability.id, {
-      ...input,
-      max_images: 1,
-    })) as StudyImagePayload;
+    payload = (await executeCapability(request, capability.id, input)) as StudyImagePayload;
   } catch (err) {
     return { error: `Could not download the image: ${(err as Error).message}` };
   }
