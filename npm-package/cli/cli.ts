@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import { version as CLI_VERSION } from '../package.json';
 import { myChartUserPassLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/login';
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
 import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
@@ -985,13 +986,13 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     if (flowsheets.length === 0) {
       console.log('    No vitals data found.');
     }
-    for (const fs of flowsheets) {
-      console.log(`\n      ${fs.name}`);
-      for (const reading of fs.readings.slice(0, 10)) {
+    for (const flowsheet of flowsheets) {
+      console.log(`\n      ${flowsheet.name}`);
+      for (const reading of flowsheet.readings.slice(0, 10)) {
         console.log(`        ${reading.date}: ${reading.value} ${reading.units}`);
       }
-      if (fs.readings.length > 10) {
-        console.log(`        ... and ${fs.readings.length - 10} more readings`);
+      if (flowsheet.readings.length > 10) {
+        console.log(`        ... and ${flowsheet.readings.length - 10} more readings`);
       }
     }
   } catch (err) {
@@ -1136,9 +1137,8 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     }
     for (const mat of materials) {
       console.log(`      ${mat.title}`);
-      if (mat.category) item('  Category', mat.category);
       if (mat.assignedDate) item('  Assigned', mat.assignedDate);
-      if (mat.providerName) item('  Provider', mat.providerName);
+      if (mat.numTopics) item('  Topics', String(mat.numTopics));
     }
   } catch (err) {
     console.log('    Error fetching education materials:', (err as Error).message);
@@ -1152,7 +1152,7 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
       console.log('    No EHI export templates found.');
     }
     for (const tmpl of templates) {
-      console.log(`      ${tmpl.name} (${tmpl.format})`);
+      console.log(`      ${tmpl.name}`);
       if (tmpl.description) item('  Description', tmpl.description);
     }
   } catch (err) {
@@ -1326,8 +1326,7 @@ async function main() {
   }, 'cli');
 
   // Fire-and-forget update check — never blocks or breaks the CLI
-  const { version } = await import('../package.json');
-  void checkForUpdate({ currentVersion: version, packageName: 'cli' });
+  void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
 
   // Listing what the CLI can do needs no account and no network.
   if (cliArgs.listCapabilities) {

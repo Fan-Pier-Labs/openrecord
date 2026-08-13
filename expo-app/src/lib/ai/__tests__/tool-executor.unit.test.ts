@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 
 /**
@@ -8,7 +9,7 @@ type AlertButton = { text: string; style?: string; onPress?: () => void };
 let alertCalls: Array<{ title: string; message: string; buttons: AlertButton[] }> = [];
 let nextAlertAction: "send" | "cancel" | "dismiss" = "send";
 
-mock.module("react-native", () => ({
+void mock.module("react-native", () => ({
   Alert: {
     alert: (
       title: string,
@@ -30,7 +31,7 @@ mock.module("react-native", () => ({
 const scraperCalls: Array<{ tool: string; input: Record<string, unknown> }> = [];
 let scraperResult: unknown = { ok: true };
 
-mock.module("@/lib/scrapers/session-manager", () => ({
+void mock.module("@/lib/scrapers/session-manager", () => ({
   executeScraperTool: async (tool: string, input: Record<string, unknown>) => {
     scraperCalls.push({ tool, input });
     if (scraperResult instanceof Error) throw scraperResult;

@@ -1,10 +1,11 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 import type { MemorySummaryRow } from "@/lib/storage/database";
 
 let aiResponse: string | Error = "[]";
 let aiCalls = 0;
 
-mock.module("@/lib/ai/claude-client", () => ({
+void mock.module("@/lib/ai/claude-client", () => ({
   oneShotComplete: async () => {
     aiCalls++;
     if (aiResponse instanceof Error) throw aiResponse;
@@ -15,7 +16,7 @@ mock.module("@/lib/ai/claude-client", () => ({
 let memoryRow: MemorySummaryRow | null = null;
 let savedRow: MemorySummaryRow | null = null;
 
-mock.module("@/lib/storage/database", () => ({
+void mock.module("@/lib/storage/database", () => ({
   getMemorySummary: async () => memoryRow,
   setMemorySummary: async (row: MemorySummaryRow) => {
     savedRow = row;
@@ -24,7 +25,7 @@ mock.module("@/lib/storage/database", () => ({
 
 let accounts: Array<{ id: string }> = [{ id: "acct1" }];
 
-mock.module("@/lib/storage/secure-store", () => ({
+void mock.module("@/lib/storage/secure-store", () => ({
   getMyChartAccounts: async () => accounts,
 }));
 

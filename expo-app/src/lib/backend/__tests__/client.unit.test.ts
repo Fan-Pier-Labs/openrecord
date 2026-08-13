@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { afterAll, beforeEach, describe, expect, test, mock } from "bun:test";
 
 /**
@@ -5,14 +6,14 @@ import { afterAll, beforeEach, describe, expect, test, mock } from "bun:test";
  * configured endpoint and attaches the user's Google ID token as Bearer auth.
  */
 
-mock.module("expo-constants", () => ({
+void mock.module("expo-constants", () => ({
   default: { expoConfig: { extra: { backendUrl: "http://localhost:9999/" } } },
 }));
 
 // The real module drags in @react-native-google-signin (and react-native,
 // which bun can't parse). Tests flip the token to exercise both branches.
 let idToken: string | null = "test-id-token";
-mock.module("@/lib/backend/google-signin", () => ({
+void mock.module("@/lib/backend/google-signin", () => ({
   getFreshIdToken: async () => idToken,
 }));
 

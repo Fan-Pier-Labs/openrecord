@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 import type { AlertInput } from "@/lib/storage/database";
 
@@ -9,7 +10,7 @@ const scraperResults = new Map<string, unknown>();
 const scraperCalls: Array<{ tool: string; input: Record<string, unknown> }> = [];
 let upserted: AlertInput[] = [];
 
-mock.module("@/lib/scrapers/session-manager", () => ({
+void mock.module("@/lib/scrapers/session-manager", () => ({
   executeScraperTool: async (tool: string, input: Record<string, unknown>) => {
     scraperCalls.push({ tool, input });
     const result = scraperResults.get(tool);
@@ -19,7 +20,7 @@ mock.module("@/lib/scrapers/session-manager", () => ({
   },
 }));
 
-mock.module("@/lib/storage/database", () => ({
+void mock.module("@/lib/storage/database", () => ({
   upsertAlerts: async (inputs: AlertInput[]) => {
     upserted = inputs;
     return { added: inputs.length, skipped: 0 };

@@ -17,37 +17,35 @@ export default [
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parserOptions: {
-        projectService: {
-          // Files no tsconfig includes: build configs, dev scripts, examples,
-          // and the test directories the package tsconfigs exclude. They lint
-          // against a default project instead of failing to parse.
-          allowDefaultProject: [
-            "claude-desktop-extension/tsup.config.ts",
-            "npm-package/tsup.config.ts",
-            "npm-package/examples/*.ts",
-            "dev-scripts/*.ts",
-            "expo-app/src/__tests__/*.ts",
-            "expo-app/src/lib/__tests__/*.ts",
-            "expo-app/src/lib/ai/__tests__/*.ts",
-            "expo-app/src/lib/alerts/__tests__/*.ts",
-            "expo-app/src/lib/backend/__tests__/*.ts",
-            "expo-app/src/lib/memory/__tests__/*.ts",
-            "expo-app/src/lib/skills/__tests__/*.ts",
-            "expo-app/src/lib/storage/__tests__/*.ts",
-            "newsletter-lambda/src/__tests__/*.ts",
-            "openrecord-demo-lambda/src/__tests__/*.ts",
-            "openrecord-splash/__tests__/*.ts",
-            "tests/*.ts",
-            "tests/integration/ci/*.ts",
-          ],
-          // The default cap is 8; the globs above match 28 files today.
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 36,
-        },
+        // Deliberately no allowDefaultProject escape hatch: every TS file in
+        // the repo belongs to a real tsconfig project, so every file gets full
+        // type-aware linting. A new file outside every tsconfig fails lint
+        // with a "not found by the project service" error — the fix is to put
+        // it in a project, not to exempt it.
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      // `attributes: false` allows the idiomatic async JSX handler
+      // (onPress={handleSave}) — React ignores the returned promise, and the
+      // alternative is wrapping every handler in `() => void f()` noise. All
+      // other void positions (callbacks, setInterval, spreads) stay checked.
+      "@typescript-eslint/no-misused-promises": ["error", {
+        checksVoidReturn: { attributes: false },
+      }],
+      // No runtime import() in product code — a static import says what a
+      // module needs where every reader and every bundler can see it. The
+      // few load-bearing dynamic imports (module-cycle breakers, an
+      // import-order requirement, deliberate cold-start deferral) carry a
+      // line-level disable with the reason. Test files are exempt below:
+      // they import dynamically to control mock/module ordering.
+      "no-restricted-syntax": ["error", {
+        selector: "ImportExpression",
+        message: "No runtime import() in product code — use a static import, or disable this line with a comment saying why the dynamic import is load-bearing.",
+      }],
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
@@ -71,6 +69,10 @@ export default [
     files: ["**/*.test.ts", "**/__tests__/**"],
     rules: {
       "@typescript-eslint/await-thenable": "off",
+      // Tests import dynamically on purpose: mock.module must be installed
+      // before the module under test loads, and the parity suite re-imports
+      // client surfaces to get fresh registrations.
+      "no-restricted-syntax": "off",
     },
   },
   {rules: {
@@ -85,5 +87,9 @@ export default [
     }],
     "eqeqeq": ["error", "smart"],
     "prefer-const": "error",
+    // The TS variant understands enums/type parameters; the core rule
+    // false-positives on them.
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "error",
   }},
 ];

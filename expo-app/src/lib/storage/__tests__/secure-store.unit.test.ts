@@ -1,8 +1,9 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 
 const memory = new Map<string, string>();
 
-mock.module("expo-secure-store", () => ({
+void mock.module("expo-secure-store", () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: "whenUnlockedThisDeviceOnly",
   getItemAsync: async (key: string) => memory.get(key) ?? null,
   setItemAsync: async (key: string, value: string) => {

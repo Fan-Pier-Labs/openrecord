@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 import type { MemorySummaryRow, SyncStateRow, InsightInput } from "@/lib/storage/database";
 import { MEMORY_CATEGORIES } from "@/lib/memory/types";
@@ -5,7 +6,7 @@ import { MEMORY_CATEGORIES } from "@/lib/memory/types";
 /** Scraper data per category. Categories not present throw (fetch failure). */
 let scraperData = new Map<string, unknown>();
 
-mock.module("@/lib/scrapers/session-manager", () => ({
+void mock.module("@/lib/scrapers/session-manager", () => ({
   executeScraperTool: async (tool: string) => {
     if (!scraperData.has(tool)) throw new Error(`${tool} unavailable`);
     return scraperData.get(tool);
@@ -15,7 +16,7 @@ mock.module("@/lib/scrapers/session-manager", () => ({
 let aiResponse: string | Error = "";
 let aiPrompts: string[] = [];
 
-mock.module("@/lib/ai/claude-client", () => ({
+void mock.module("@/lib/ai/claude-client", () => ({
   oneShotComplete: async (messages: Array<{ content: string }>) => {
     aiPrompts.push(messages[0].content);
     if (aiResponse instanceof Error) throw aiResponse;
@@ -28,7 +29,7 @@ let savedRow: MemorySummaryRow | null = null;
 let savedInsights: InsightInput[] | null = null;
 let syncStates = new Map<string, string | null>();
 
-mock.module("@/lib/storage/database", () => ({
+void mock.module("@/lib/storage/database", () => ({
   getMemorySummary: async () => memoryRow,
   setMemorySummary: async (row: MemorySummaryRow) => {
     savedRow = row;
@@ -48,7 +49,7 @@ mock.module("@/lib/storage/database", () => ({
   },
 }));
 
-mock.module("@/lib/storage/secure-store", () => ({
+void mock.module("@/lib/storage/secure-store", () => ({
   getMyChartAccounts: async () => [{ id: "acct1", hostname: "localhost:4000" }],
 }));
 

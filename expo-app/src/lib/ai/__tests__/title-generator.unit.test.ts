@@ -1,10 +1,11 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 import type { ChatMessage } from "@/lib/ai/claude-client";
 
 let aiResponse: string | Error = "SKIP";
 let lastCall: { messages: ChatMessage[]; system: string; tier?: string } | null = null;
 
-mock.module("@/lib/ai/claude-client", () => ({
+void mock.module("@/lib/ai/claude-client", () => ({
   oneShotComplete: async (messages: ChatMessage[], system: string, tier?: string) => {
     lastCall = { messages, system, tier };
     if (aiResponse instanceof Error) throw aiResponse;

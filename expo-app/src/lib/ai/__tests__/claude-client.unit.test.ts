@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { afterAll, beforeEach, describe, expect, test, mock } from "bun:test";
 import type { ChatMessage, ToolCall } from "@/lib/ai/claude-client";
 
@@ -7,14 +8,14 @@ import type { ChatMessage, ToolCall } from "@/lib/ai/claude-client";
  * stubbed to pop one scripted model turn per completion call.
  */
 
-mock.module("expo-constants", () => ({
+void mock.module("expo-constants", () => ({
   default: { expoConfig: { extra: { backendUrl: "http://localhost:9999" } } },
 }));
 
 /** Provider under test; individual tests flip it to exercise other completers. */
 let activeProvider = "gemini";
 
-mock.module("@/lib/storage/secure-store", () => ({
+void mock.module("@/lib/storage/secure-store", () => ({
   getAiProvider: async () => activeProvider,
   getGeminiApiKey: async () => "test-key",
   getOpenAiApiKey: async () => null,
@@ -24,7 +25,7 @@ mock.module("@/lib/storage/secure-store", () => ({
 // AI is gated behind Google sign-in for every provider (BYO keys included),
 // so the scripted runs need a signed-in session even though the Gemini key
 // path never sends the token anywhere.
-mock.module("@/lib/backend/session", () => ({
+void mock.module("@/lib/backend/session", () => ({
   getBackendSession: async () => ({
     idToken: "test-id-token",
     user: { id: "test-user", email: "test@example.com" },
@@ -35,7 +36,7 @@ mock.module("@/lib/backend/session", () => ({
 // @react-native-google-signin (and with it react-native, which bun can't
 // parse). The BYO-key paths never send the token; the free-tier path
 // attaches it as the Bearer credential.
-mock.module("@/lib/backend/google-signin", () => ({
+void mock.module("@/lib/backend/google-signin", () => ({
   getFreshIdToken: async () => "fresh-id-token",
 }));
 
@@ -287,7 +288,7 @@ describe("sendMessage — image attachments", () => {
 describe("sendMessage — provider failures", () => {
   test("a failing completion surfaces through onError", async () => {
     globalThis.fetch = (async () =>
-      new Response("quota exceeded", { status: 429 })) as typeof fetch;
+      new Response("quota exceeded", { status: 429 })) as unknown as typeof fetch;
     const result = await run("hello", neverExecute);
     expect(result.error?.message).toContain("Gemini error 429");
   });
@@ -342,7 +343,7 @@ describe("free tier — the backend completer", () => {
       [401, "sign-in expired"],
       [402, "monthly AI credit is used up"],
     ] as const) {
-      globalThis.fetch = (async () => new Response("", { status })) as typeof fetch;
+      globalThis.fetch = (async () => new Response("", { status })) as unknown as typeof fetch;
       await expect(
         oneShotComplete([{ role: "user", content: "hi" }], "sys"),
       ).rejects.toThrow(needle);
@@ -352,7 +353,7 @@ describe("free tier — the backend completer", () => {
   test("other upstream failures surface the status and body", async () => {
     activeProvider = "free";
     globalThis.fetch = (async () =>
-      new Response("boom", { status: 500 })) as typeof fetch;
+      new Response("boom", { status: 500 })) as unknown as typeof fetch;
     await expect(
       oneShotComplete([{ role: "user", content: "hi" }], "sys"),
     ).rejects.toThrow("Backend AI error 500: boom");

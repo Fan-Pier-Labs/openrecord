@@ -29,7 +29,7 @@ export async function getInsurance(mychartRequest: MyChartRequest): Promise<Insu
     const memberId = $(el).find('.member-id').first().text().trim();
     const groupNumber = $(el).find('.group-number').first().text().trim();
     const details: string[] = [];
-    $(el).find('.detail, .info-row').each((_, d) => {
+    $(el).find('.detail, .info-row').each((_d, d) => {
       details.push($(d).text().trim());
     });
     if (planName) {

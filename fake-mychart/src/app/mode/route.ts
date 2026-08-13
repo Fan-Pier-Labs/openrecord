@@ -11,6 +11,7 @@ import {
   type ProxyDiscoveryMode,
 } from '@/lib/proxy';
 import { getRequireTerms, setRequireTerms } from '@/lib/terms';
+import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from '@/lib/epicVersion';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
@@ -69,6 +70,7 @@ function currentSettings() {
     movedHost: getMovedHost(),
     proxyDiscovery: getProxyDiscoveryMode(),
     requireTerms: getRequireTerms(),
+    epicVersion: getEpicVersion(),
   };
 }
 
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { mode, discovery, movedHost, proxyDiscovery, requireTerms } = body ?? {};
+  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion } = body ?? {};
 
   if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
@@ -127,6 +129,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    epicVersion !== undefined
+    && (typeof epicVersion !== 'string' || !EPIC_VERSIONS.includes(epicVersion as EpicVersion))
+  ) {
+    return NextResponse.json(
+      { error: `epicVersion must be one of ${EPIC_VERSIONS.join(', ')}`, received: epicVersion },
+      { status: 400 },
+    );
+  }
+
   // `moved-host` with nowhere to move to would answer every request with a 500,
   // which is a confusing way to find out the call was incomplete.
   const effectiveMovedHost = movedHost !== undefined ? movedHost : getMovedHost();
@@ -139,10 +151,10 @@ export async function POST(request: NextRequest) {
 
   if (
     mode === undefined && discovery === undefined && movedHost === undefined
-    && proxyDiscovery === undefined && requireTerms === undefined
+    && proxyDiscovery === undefined && requireTerms === undefined && epicVersion === undefined
   ) {
     return NextResponse.json(
-      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms' },
+      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion' },
       { status: 400 },
     );
   }
@@ -152,6 +164,7 @@ export async function POST(request: NextRequest) {
   if (movedHost !== undefined) setMovedHost(movedHost as string | null);
   if (proxyDiscovery !== undefined) setProxyDiscoveryMode(proxyDiscovery as ProxyDiscoveryMode);
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
+  if (epicVersion !== undefined) setEpicVersion(epicVersion as EpicVersion);
 
   return NextResponse.json({ ok: true, ...currentSettings() });
 }

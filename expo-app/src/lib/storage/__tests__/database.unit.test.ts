@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { beforeEach, describe, expect, test, mock } from "bun:test";
 import { Database } from "bun:sqlite";
 
@@ -7,7 +8,7 @@ import { Database } from "bun:sqlite";
  */
 let raw: Database;
 
-mock.module("expo-sqlite", () => ({
+void mock.module("expo-sqlite", () => ({
   openDatabaseAsync: async () => ({
     execAsync: async (sql: string) => {
       for (const stmt of sql.split(";")) {
@@ -25,6 +26,7 @@ mock.module("expo-sqlite", () => ({
 }));
 
 const db = await import("@/lib/storage/database");
+type AlertInput = import("@/lib/storage/database").AlertInput;
 
 const tick = () => new Promise((r) => setTimeout(r, 2));
 
@@ -130,7 +132,7 @@ describe("searchChats", () => {
   });
 });
 
-function makeAlert(overrides: Partial<db.AlertInput> = {}): db.AlertInput {
+function makeAlert(overrides: Partial<AlertInput> = {}): AlertInput {
   return {
     type: "bill",
     title: "Outstanding bill",
