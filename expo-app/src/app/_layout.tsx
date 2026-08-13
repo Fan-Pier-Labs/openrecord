@@ -41,6 +41,7 @@ function RootLayoutNav() {
           return now - last >= REFRESH_INTERVAL_MS;
         });
         if (due.length === 0) return;
+        // eslint-disable-next-line no-restricted-syntax -- deliberate cold-start deferral: keeps the AI client + memory module out of the initial bundle path
         const { refreshMemory } = await import("@/lib/memory/builder");
         for (const a of due) {
           lastRefreshAt.current.set(a.id, now);
