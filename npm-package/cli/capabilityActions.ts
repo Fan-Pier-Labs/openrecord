@@ -220,6 +220,9 @@ export function coerceCapabilityArgs(
  */
 export function jsonSafeReplacer(_key: string, value: unknown): unknown {
   if (value instanceof Uint8Array) return `<${value.length} bytes>`;
+  // JSON.stringify invokes Buffer.toJSON() *before* the replacer sees the
+  // value, so a Buffer arrives here already converted to
+  // { type: 'Buffer', data: number[] } — catch that shape too.
   if (
     value !== null &&
     typeof value === 'object' &&

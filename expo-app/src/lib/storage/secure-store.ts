@@ -88,8 +88,9 @@ export async function addMyChartAccount(account: Omit<StoredMyChartAccount, "id"
 export async function updateMyChartAccount(id: string, updates: Partial<StoredMyChartAccount>): Promise<void> {
   const accounts = await getMyChartAccounts();
   const idx = accounts.findIndex((a) => a.id === id);
-  if (idx >= 0) {
-    accounts[idx] = { ...accounts[idx], ...updates };
+  const existing = idx >= 0 ? accounts[idx] : undefined;
+  if (existing) {
+    accounts[idx] = { ...existing, ...updates };
     await saveMyChartAccounts(accounts);
   }
 }

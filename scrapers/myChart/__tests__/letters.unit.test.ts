@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -49,7 +49,7 @@ describe('getLetters', () => {
       hnoId: 'H2',
       csn: 'C2',
     })
-    expect(result[1].providerName).toBe('Dr. Alice Smith')
+    expect(result[1]!.providerName).toBe('Dr. Alice Smith')
   })
 
   it('places letters with missing dateISO last', async () => {
@@ -82,8 +82,8 @@ describe('getLetters', () => {
     ])
 
     const result = await getLetters(req)
-    expect(result[0].providerName).toBe('')
-    expect(result[0].providerPhotoUrl).toBe('')
+    expect(result[0]!.providerName).toBe('')
+    expect(result[0]!.providerPhotoUrl).toBe('')
   })
 
   it('handles empty letters array', async () => {
@@ -103,7 +103,7 @@ function mockRequestRecording(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init })
-    return new Response(responses[i++].body, { status: 200 })
+    return new Response(responses[i++]!.body, { status: 200 })
   })
   return { req, calls }
 }
@@ -131,10 +131,10 @@ describe('getLetterDetails', () => {
     await getLetterDetails(req, 'H9', 'C9')
 
     const post = calls[1]
-    expect(post.url).toContain('/api/letters/GetLetterDetails')
-    expect(post.init.method).toBe('POST')
-    expect(JSON.parse(post.init.body as string)).toEqual({ hnoId: 'H9', csn: 'C9' })
-    expect((post.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
+    expect(post!.url).toContain('/api/letters/GetLetterDetails')
+    expect(post!.init.method).toBe('POST')
+    expect(JSON.parse(post!.init.body as string)).toEqual({ hnoId: 'H9', csn: 'C9' })
+    expect((post!.init.headers as Record<string, string>).__RequestVerificationToken).toBe('tok')
   })
 
   it('throws rather than returning an empty body when the token is missing', async () => {

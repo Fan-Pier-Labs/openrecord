@@ -12,7 +12,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
     captured.push({ url: String(url), body: init?.body ? String(init.body) : undefined })
     const r = responses[Math.min(i++, responses.length - 1)]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return { req, captured }
 }
@@ -78,8 +78,8 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
         routeCounters[pattern] = (routeCounters[pattern] || 0)
         const idx = routeCounters[pattern]++
         const responses = routes[pattern]
-        const r = idx < responses.length ? responses[idx] : responses[responses.length - 1]
-        return new Response(r.body, { status: r.status ?? 200 })
+        const r = idx < responses!.length ? responses![idx] : responses![responses!.length - 1]
+        return new Response(r!.body, { status: r!.status ?? 200 })
       }
     }
     return new Response('', { status: 404 })
@@ -182,7 +182,7 @@ describe('partial-failure handling', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].orderName).toBe('Lab')
+    expect(result[0]!.orderName).toBe('Lab')
   })
 
   it('tolerates a group list that is not JSON at all', async () => {
@@ -281,10 +281,10 @@ describe('listLabResults', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(2)
-    expect(result[0].orderName).toBe('CBC')
-    expect(result[0].results[0].resultComponents).toHaveLength(2)
-    expect(result[1].orderName).toBe('Metabolic Panel')
-    expect(result[1].results[0].resultComponents[0].componentInfo.name).toBe('Glucose')
+    expect(result[0]!.orderName).toBe('CBC')
+    expect(result[0]!.results[0]!.resultComponents).toHaveLength(2)
+    expect(result[1]!.orderName).toBe('Metabolic Panel')
+    expect(result[1]!.results[0]!.resultComponents[0]!.componentInfo.name).toBe('Glucose')
   })
 
   it('fetches report content when reportDetails has a reportID', async () => {
@@ -326,7 +326,7 @@ describe('listLabResults', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].results[0].reportDetails.reportContent).toEqual({
+    expect(result[0]!.results[0]!.reportDetails.reportContent).toEqual({
       reportContent: '<p>No acute findings.</p>',
       reportCss: '.report { font-family: serif; }',
     })
@@ -358,7 +358,7 @@ describe('listLabResults', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].results[0].reportDetails.reportContent).toBeUndefined()
+    expect(result[0]!.results[0]!.reportDetails.reportContent).toBeUndefined()
   })
 
   it('handles results with no results array', async () => {
@@ -380,7 +380,7 @@ describe('listLabResults', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].orderName).toBe('Empty Order')
+    expect(result[0]!.orderName).toBe('Empty Order')
   })
 
   it('makes correct API calls with proper headers', async () => {

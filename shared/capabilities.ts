@@ -177,6 +177,30 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+}
+
+/**
+ * A capability plus its implementation. **Internal to this module on purpose.**
+ *
+ * `run` is deliberately absent from the exported {@link Capability}, so
+ * `capability.run(...)` does not compile anywhere outside this file. That is
+ * the enforcement for "every dispatch goes through {@link executeCapability}",
+ * which is where the active-patient assertion lives — and it replaces a regex
+ * over three client source files.
+ *
+ * The regex only ever caught the one spelling that had already caused a bug.
+ * Every one of these compiled, bypassed the assertion, and on the imaging
+ * capability meant returning a different patient's medical images:
+ *
+ *     const { run } = capability;  run(session, args)
+ *     getCapability(id)!.run(session, args)
+ *     CAPABILITIES[0].run(session, args)
+ *     for (const c of CAPABILITIES) c.run(session, args)
+ *
+ * The last of those was live: `downloadStudyJpegs` reached `run` through
+ * `getCapability`, in a file the regex never scanned.
+ */
+interface CapabilityImpl extends Capability {
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
 }
 
@@ -264,11 +288,12 @@ export function resolveTopic(
   topics: MessageTopic[],
   query: string | undefined,
 ): { topic: MessageTopic; substituted: boolean } {
-  if (topics.length === 0) throw new Error('No message topics are available on this MyChart.');
+  const firstTopic = topics[0];
+  if (!firstTopic) throw new Error('No message topics are available on this MyChart.');
   const wanted = (query ?? '').toLowerCase().trim();
-  if (!wanted) return { topic: topics[0], substituted: false };
+  if (!wanted) return { topic: firstTopic, substituted: false };
   const match = topics.find((t) => t.displayName.toLowerCase().includes(wanted));
-  return match ? { topic: match, substituted: false } : { topic: topics[0], substituted: true };
+  return match ? { topic: match, substituted: false } : { topic: firstTopic, substituted: true };
 }
 
 // ── Small shared helpers ────────────────────────────────────────────────────
@@ -356,7 +381,7 @@ export function readAccountArg(args: CapabilityArgs): string | undefined {
 }
 
 
-export const CAPABILITIES: readonly Capability[] = [
+const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
   // ── Profile / overview ────────────────────────────────────────────────────
   {
     id: 'get_profile',
@@ -1076,6 +1101,12 @@ export const CAPABILITIES: readonly Capability[] = [
 // ── Lookup helpers ──────────────────────────────────────────────────────────
 
 /** Capability ids in registry order. */
+/**
+ * Every capability, as clients see them: no `run`. Reaching the implementation
+ * is a compile error outside this module — see {@link CapabilityImpl}.
+ */
+export const CAPABILITIES: readonly Capability[] = CAPABILITY_IMPLS;
+
 export const CAPABILITY_IDS: readonly string[] = CAPABILITIES.map((c) => c.id);
 
 /** The read + write capabilities — everything a model may be offered as a tool. */
@@ -1099,14 +1130,23 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 
-const BY_NAME = new Map<string, Capability>();
-for (const capability of CAPABILITIES) {
+const BY_NAME = new Map<string, CapabilityImpl>();
+for (const capability of CAPABILITY_IMPLS) {
   BY_NAME.set(capability.id, capability);
   for (const alias of capability.aliases ?? []) BY_NAME.set(alias, capability);
 }
 
 /** Look a capability up by id or alias. Returns undefined for unknown names. */
 export function getCapability(idOrAlias: string): Capability | undefined {
+  return BY_NAME.get(idOrAlias);
+}
+
+/**
+ * The same lookup, but keeping the implementation handle. Module-private:
+ * {@link executeCapability} is the only caller, because it is the only place
+ * allowed to reach `run`.
+ */
+function getCapabilityImpl(idOrAlias: string): CapabilityImpl | undefined {
   return BY_NAME.get(idOrAlias);
 }
 
@@ -1162,7 +1202,7 @@ export async function executeCapability(
   args: CapabilityArgs = {},
   ctx?: CapabilityContext,
 ): Promise<unknown> {
-  const capability = getCapability(idOrAlias);
+  const capability = getCapabilityImpl(idOrAlias);
   if (!capability) {
     throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
   }

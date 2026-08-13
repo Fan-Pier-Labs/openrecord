@@ -125,10 +125,11 @@ export function parseProfileHtml(body: string): ProfileData | null {
   const fullMatch = printheaderDiv.match(fullRegex)
   if (fullMatch) {
     return {
-      name: fullMatch[1].trim(),
-      dob: fullMatch[2],
-      mrn: fullMatch[3],
-      pcp: fullMatch[4].trim(),
+      // All four capture groups are non-optional, so they exist on any match.
+      name: fullMatch[1]!.trim(),
+      dob: fullMatch[2]!,
+      mrn: fullMatch[3]!,
+      pcp: fullMatch[4]!.trim(),
     }
   }
 
@@ -141,8 +142,9 @@ export function parseProfileHtml(body: string): ProfileData | null {
     const mrnMatch = afterDob.match(/MRN:\s*(\d+)/)
     const pcpMatch = afterDob.match(/PCP:\s*(.*)/)
     return {
-      name: partialMatch[1].trim(),
-      dob: partialMatch[2],
+      // Both capture groups are non-optional, so they exist on any match.
+      name: partialMatch[1]!.trim(),
+      dob: partialMatch[2]!,
       mrn: mrnMatch?.[1] || '',
       pcp: pcpMatch?.[1]?.trim() || '',
     }

@@ -1,7 +1,3 @@
-
-
-export const OPENRECORD_MOCK_DATA = process.env.OPENRECORD_MOCK_DATA;
-
 /**
  * How many requests may be in flight to a single MyChart host at once.
  *

@@ -45,7 +45,8 @@ type Props = {
 export function IosSurface({ session, runTurn, onReady }: Props) {
   const [screen, setScreen] = useState<Screen>('chat');
   // The demo starts on a connected account, so the provider is fixed.
-  const instance = data.directory[0];
+  // The directory is seeded fixture data and always has at least one entry.
+  const instance = data.directory[0]!;
 
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [activeTool, setActiveTool] = useState<string | null>(null);

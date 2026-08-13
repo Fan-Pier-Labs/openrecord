@@ -110,8 +110,8 @@ describe('downloadAllImagingStudies', () => {
     expect(ok).toBe(true);
     // One listing call, then exactly one download — the report-only study is skipped.
     expect(executeCalls.map((c) => c.id)).toEqual(['get_imaging_results', 'download_imaging_study']);
-    expect(executeCalls[0].args).toEqual({ patient: 'Bart' });
-    expect(executeCalls[1].args).toEqual({
+    expect(executeCalls[0]!.args).toEqual({ patient: 'Bart' }); // asserted non-empty by the toEqual above
+    expect(executeCalls[1]!.args).toEqual({
       patient: 'Bart',
       image_id: 'token-xr',
       study_name: 'XR Skull 2 Views',

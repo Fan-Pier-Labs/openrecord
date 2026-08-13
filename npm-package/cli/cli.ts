@@ -111,7 +111,7 @@ function parseArgs(): CliArgs {
     // `--arg name=value`, repeatable. Whatever the chosen capability declares
     // in the shared registry is what this accepts — no per-flag plumbing.
     else if (args[i] === '--arg' && args[i + 1]) {
-      const pair = args[++i];
+      const pair = args[++i]!; // guarded by args[i + 1] above
       const eq = pair.indexOf('=');
       if (eq <= 0) {
         console.error(`  --arg expects name=value, got "${pair}".`);
@@ -119,21 +119,21 @@ function parseArgs(): CliArgs {
       }
       capabilityArgs[pair.slice(0, eq)] = pair.slice(eq + 1);
     }
-    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
-    else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i];
-    else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i];
-    else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i];
+    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i]!;
+    else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i]!;
+    else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i]!;
+    else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i]!;
     else if (args[i] === '--no-cache') parsed.nocache = true;
     else if (args[i] === '--read-login-from-browser') parsed.readLoginFromBrowser = true;
-    else if (args[i] === '--action' && args[i + 1]) parsed.action = args[++i];
-    else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i];
-    else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i];
-    else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i];
+    else if (args[i] === '--action' && args[i + 1]) parsed.action = args[++i]!;
+    else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i]!;
+    else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i]!;
+    else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i]!;
     // Which patient's chart to read. A name (full or partial), a record id, or
     // "me". Applies to every action; see checkProxyContext().
-    else if (args[i] === '--patient' && args[i + 1]) parsed.patient = args[++i];
+    else if (args[i] === '--patient' && args[i + 1]) parsed.patient = args[++i]!;
     // The one command that changes MyChart's server-side active patient.
-    else if (args[i] === '--switch' && args[i + 1]) parsed.switchPatient = args[++i];
+    else if (args[i] === '--switch' && args[i + 1]) parsed.switchPatient = args[++i]!;
     else if (args[i] === '--set-up-totp') parsed.setupTotp = true;
     else if (args[i] === '--use-saved-totp') parsed.useSavedTotp = true;
     else if (args[i] === '--disable-totp') parsed.disableTotp = true;
@@ -144,7 +144,7 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
     // Output directory for capabilities that produce images (rendersMedia).
-    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i];
+    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
   }
   return parsed;
 }
@@ -218,7 +218,7 @@ async function discoverAccounts(): Promise<PasswordStoreEntryWithKey[]> {
     } else {
       console.log(`  Found ${accounts.length} MyChart account(s):\n`);
       for (let i = 0; i < accounts.length; i++) {
-        const a = accounts[i];
+        const a = accounts[i]!; // loop condition guarantees i < accounts.length
         const hostname = new URL(a.url).hostname;
         console.log(`    [${i + 1}] ${hostname} - ${a.user || '(no username)'}`);
       }
@@ -258,7 +258,7 @@ async function getCredentials(): Promise<{ hostname: string; username: string; p
         console.log('  Invalid selection. Using all accounts.');
         selectedAccounts = accounts;
       } else {
-        selectedAccounts = indices.map(i => accounts[i]);
+        selectedAccounts = indices.map(i => accounts[i]!); // indices were filtered to be in range
       }
     }
 
@@ -541,7 +541,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
 
   console.log('\n  Available topics:');
   for (let i = 0; i < topics.length; i++) {
-    console.log(`    [${i + 1}] ${topics[i].displayName}`);
+    console.log(`    [${i + 1}] ${topics[i]!.displayName}`); // loop bound guarantees the index
   }
 
   const topicChoice = await ask('\n  Select topic number: ');
@@ -550,7 +550,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
     console.log('  Invalid topic selection.');
     return;
   }
-  const selectedTopic = topics[topicIdx];
+  const selectedTopic = topics[topicIdx]!; // range-checked just above
 
   // Get available recipients
   const recipients = await getMessageRecipients(mychartRequest, token);
@@ -561,7 +561,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
 
   console.log('\n  Available recipients:');
   for (let i = 0; i < recipients.length; i++) {
-    const r = recipients[i];
+    const r = recipients[i]!; // loop bound guarantees the index
     const specialty = r.specialty ? ` (${r.specialty})` : r.pcpTypeDisplayName ? ` (${r.pcpTypeDisplayName})` : '';
     console.log(`    [${i + 1}] ${r.displayName}${specialty}`);
   }
@@ -572,7 +572,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
     console.log('  Invalid recipient selection.');
     return;
   }
-  const selectedRecipient = recipients[recipientIdx];
+  const selectedRecipient = recipients[recipientIdx]!; // range-checked just above
 
   const subject = cliArgs.subject || await ask('\n  Subject: ');
   const messageBody = cliArgs.message || await ask('  Message: ');
@@ -622,7 +622,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
     }
 
     for (let i = 0; i < Math.min(convoList.length, 10); i++) {
-      const c = convoList[i];
+      const c = convoList[i]!; // loop bound guarantees the index
       const audience = c.audience?.map((a: { name: string }) => a.name).join(', ') || 'System';
       console.log(`    [${i + 1}] "${c.subject}" - ${audience}`);
     }
@@ -633,7 +633,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
       console.log('  Invalid selection.');
       return;
     }
-    conversationId = convoList[convoIdx].hthId;
+    conversationId = convoList[convoIdx]!.hthId; // range-checked just above
   }
 
   if (!messageBody) {
@@ -713,7 +713,7 @@ async function main() {
         closeRL();
         process.exit(1);
       }
-      const first = accounts[0];
+      const first = accounts[0]!; // non-empty checked just above
       cliArgs.host = new URL(first.url).hostname;
       cliArgs.user = first.user!;
       cliArgs.pass = first.pass!;

@@ -18,6 +18,7 @@
     "types": ["bun", "node"],
     "strict": true,
     "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "sourceMap": false,
@@ -34,7 +35,6 @@
     "shared/**/*.ts",
     "read-local-passwords/**/*.ts",
     "dev-scripts/**/*.ts",
-    "newsletter-lambda/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
     "tests/**/*.ts"

@@ -81,7 +81,7 @@ async function loginToFakeMychart(): Promise<string> {
   if (!sessionCookie) {
     throw new Error('Failed to get session cookie from fake-mychart');
   }
-  return sessionCookie.split(';')[0];
+  return sessionCookie.split(';')[0]!;
 }
 
 async function getPasskeysFromFakeMychart(): Promise<unknown[]> {

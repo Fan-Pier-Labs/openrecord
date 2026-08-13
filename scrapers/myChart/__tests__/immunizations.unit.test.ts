@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -51,7 +51,7 @@ describe('getImmunizations', () => {
       administeredDates: ['01/15/2021', '02/15/2021'],
       organizationName: 'Example Hospital',
     })
-    expect(result[2].organizationName).toBe('Example Pharmacy')
+    expect(result[2]!.organizationName).toBe('Example Pharmacy')
   })
 
   it('handles missing organization name', async () => {
@@ -66,7 +66,7 @@ describe('getImmunizations', () => {
       },
     ])
     const result = await getImmunizations(req)
-    expect(result[0].organizationName).toBe('')
+    expect(result[0]!.organizationName).toBe('')
   })
 
   it('handles empty list', async () => {

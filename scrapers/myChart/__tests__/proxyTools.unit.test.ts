@@ -73,7 +73,7 @@ function familyRequest(activeId: string) {
       })
     }
     if (config.url?.includes('switchcontext')) {
-      state.activeId = decodeURIComponent(config.url.split('eid=')[1])
+      state.activeId = decodeURIComponent(config.url.split('eid=')[1]!)
       return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
     }
     if (config.url?.endsWith('/MyChart/inside.asp')) {

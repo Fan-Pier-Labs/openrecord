@@ -45,6 +45,26 @@ export function extractFdiContext(reportContentHtml: string): FdiContext | null 
 }
 
 /**
+ * Extract the fdi/ord pair from a result's `fdiLink.redirectUrl`.
+ *
+ * Some instances (observed on Mass General Brigham) never embed a
+ * `data-fdi-context` attribute in the report HTML — instead each result
+ * carries a structured `fdiLink` whose redirectUrl is
+ * `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`, the same pair the
+ * FdiData API takes. The tokens are MyChart's own `WP-…` encoding and contain
+ * no `%` escapes, so URLSearchParams returns them verbatim.
+ */
+export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | null {
+  const queryStart = redirectUrl.indexOf('?');
+  if (queryStart < 0) return null;
+  const params = new URLSearchParams(redirectUrl.slice(queryStart + 1));
+  const fdi = params.get('fdi');
+  const ord = params.get('ord');
+  if (!fdi || !ord) return null;
+  return { fdi, ord };
+}
+
+/**
  * Extract `data-copy-context` from report content HTML.
  * Format: "|||| Z15696837|54254.98||" - contains internal order/study IDs.
  */
@@ -204,7 +224,7 @@ export async function followSamlChain(
         const metaMatch = html.match(/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i) ||
                           html.match(/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i);
         if (metaMatch) {
-          url = new URL(metaMatch[1], url).href;
+          url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess
           method = 'GET';
           body = undefined;
           contentType = undefined;
@@ -221,7 +241,7 @@ export async function followSamlChain(
             // Variable reference — look for the var declaration
             const varMatch = html.match(/var\s+url\s*=\s*'([^']+)'/);
             if (varMatch) {
-              targetUrl = varMatch[1].replace(/&amp;/g, '&');
+              targetUrl = varMatch[1]!.replace(/&amp;/g, '&'); // pattern has one mandatory capture group; noUncheckedIndexedAccess
             }
           }
           if (targetUrl) {

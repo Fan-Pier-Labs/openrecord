@@ -151,7 +151,7 @@ describe('makeRequest per-host concurrency', () => {
     await expect(req.makeRequest({ path: '/Home' })).rejects.toThrow(
       "302 didn't have a location header",
     )
-    expect(hostLimiterStats()['mychart.example.org'].inFlight).toBe(0)
+    expect(hostLimiterStats()['mychart.example.org']!.inFlight).toBe(0)
   })
 
   it('still enforces the cap across a redirect loop that hits the hop limit', async () => {

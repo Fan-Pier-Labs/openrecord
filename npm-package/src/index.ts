@@ -159,6 +159,12 @@ export {
   type JpgOptions,
 } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 export {
+  convertBitmapToJpgPureJs,
+  convertCloToJpgPureJs,
+  grayscaleToRgba,
+  type PureJsJpeg,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
+export {
   convertBitmap16ToWebp,
   convertBitmapToWebp,
 } from '../../scrapers/myChart/clo-image-parser/exporters/to_webp';

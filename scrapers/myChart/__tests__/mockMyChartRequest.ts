@@ -100,7 +100,7 @@ export function createMockRequest(
       if (matches.length !== 1) {
         throw new Error(`Expected exactly 1 call to ${pathSuffix}, got ${matches.length}`)
       }
-      return matches[0]
+      return matches[0]!
     },
   }
 }

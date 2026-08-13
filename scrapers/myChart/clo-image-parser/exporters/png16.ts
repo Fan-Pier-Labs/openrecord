@@ -34,7 +34,8 @@ export function encode16bitPng(pixels: Uint16Array, width: number, height: numbe
   for (let r = 0; r < height; r++) {
     raw[r * rowSize] = 0; // filter type: None
     for (let c = 0; c < width; c++) {
-      raw.writeUInt16BE(pixels[r * width + c], r * rowSize + 1 + c * 2);
+      // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
+      raw.writeUInt16BE(pixels[r * width + c]!, r * rowSize + 1 + c * 2);
     }
   }
   const compressed = deflateSync(raw);
@@ -57,7 +58,7 @@ function makeChunk(type: string, data: Buffer): Buffer {
   const crcData = Buffer.concat([Buffer.from(type), data]);
   let crc = 0xffffffff;
   for (let i = 0; i < crcData.length; i++) {
-    crc ^= crcData[i];
+    crc ^= crcData[i]!; // i bounded by loop; noUncheckedIndexedAccess
     for (let j = 0; j < 8; j++) {
       crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
     }

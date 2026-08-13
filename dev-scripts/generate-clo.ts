@@ -15,10 +15,10 @@ import { logger } from '../shared/logger';
 
 const args = process.argv.slice(2);
 const outputDirIdx = args.indexOf('--output-dir');
+const explicitOutputDir = outputDirIdx >= 0 ? args[outputDirIdx + 1] : undefined;
 const outputDir =
-  outputDirIdx >= 0 && args[outputDirIdx + 1]
-    ? args[outputDirIdx + 1]
-    : join(import.meta.dir, '..', 'scrapers', 'myChart', 'clo-image-parser', 'synthetic_test_data');
+  explicitOutputDir ||
+  join(import.meta.dir, '..', 'scrapers', 'myChart', 'clo-image-parser', 'synthetic_test_data');
 
 generateTestFiles(outputDir);
 logger.debug(`\nDone. Test files written to ${outputDir}`);

@@ -261,10 +261,10 @@ describe('MyChartRequest', () => {
       })
 
       await req.makeRequest({ path: '/submit', method: 'POST', body: 'data=123' })
-      expect(capturedConfigs[0].method).toBe('POST')
-      expect(capturedConfigs[0].body).toBe('data=123')
-      expect(capturedConfigs[1].method).toBe('GET')
-      expect(capturedConfigs[1].body).toBeUndefined()
+      expect(capturedConfigs[0]!.method).toBe('POST')
+      expect(capturedConfigs[0]!.body).toBe('data=123')
+      expect(capturedConfigs[1]!.method).toBe('GET')
+      expect(capturedConfigs[1]!.body).toBeUndefined()
     })
 
     it('auto-sets Content-Type to application/json for POST with body', async () => {
