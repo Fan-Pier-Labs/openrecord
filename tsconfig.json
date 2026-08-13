@@ -34,7 +34,6 @@
     "shared/**/*.ts",
     "read-local-passwords/**/*.ts",
     "dev-scripts/**/*.ts",
-    "newsletter-lambda/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
     "tests/**/*.ts"
