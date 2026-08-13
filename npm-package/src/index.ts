@@ -219,10 +219,6 @@ export { getBillingHistory } from '../../scrapers/myChart/bills/bills';
 
 // ─── Care coordination ───────────────────────────────────────────────────
 export {
-  getCareTeam,
-  type CareTeamMember,
-} from '../../scrapers/myChart/careTeam';
-export {
   getReferrals,
   type Referral,
 } from '../../scrapers/myChart/referrals';
