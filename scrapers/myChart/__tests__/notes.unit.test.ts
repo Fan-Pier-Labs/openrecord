@@ -12,7 +12,7 @@ function mockRequest(responses: Array<{ body: string; contentType?: string; serv
     if (r.contentType !== undefined) headers['content-type'] = r.contentType
     if (r.server !== undefined) headers['server'] = r.server
     return new Response(r.body, { status: 200, headers })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -85,7 +85,7 @@ describe('getVisitNotes', () => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+    })
 
     await getVisitNotes(req, 'WP-csn-test')
 
@@ -162,7 +162,7 @@ describe('getNoteContent', () => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+    })
 
     await getNoteContent(req, {
       csn: 'WP-csn-X',
@@ -226,7 +226,7 @@ describe('getVisitAVS', () => {
       calls.push({ url: url.toString(), init })
       const r = responses[i++]
       return new Response(r.body, { status: 200, headers: { 'content-type': r.contentType } })
-    }) as typeof req.transport
+    })
 
     await getVisitAVS(req, 'WP-csn-avs')
 
