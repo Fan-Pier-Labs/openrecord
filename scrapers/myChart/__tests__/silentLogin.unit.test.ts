@@ -123,7 +123,9 @@ describe('silentLogin', () => {
     });
 
     expect(outcome.state).toBe('logged_in');
-    expect(persisted).toBe(credential);
+    // The assertion cast defeats TS narrowing `persisted` to its initializer:
+    // the assignment happens inside the onPasskeyUsed callback.
+    expect(persisted as PasskeyCredential | null).toBe(credential);
   });
 
   it('falls back to the password when the passkey is rejected, and reports it invalid', async () => {
@@ -213,7 +215,7 @@ describe('wireSilentReauthentication', () => {
     expect(await request.reauthenticate!()).toBe(true);
     // The login discovered the real host + mount and the hook adopted them in
     // place — the object identity everyone holds references to is unchanged.
-    expect(renewedWith).toBe(request);
+    expect(renewedWith as MyChartRequest | null).toBe(request);
     expect(request.hostname).toBe(HOST);
     expect(request.firstPathPart).toBe('MyChart');
   });

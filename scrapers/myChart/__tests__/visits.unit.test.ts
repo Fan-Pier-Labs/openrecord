@@ -1,6 +1,13 @@
 import { describe, it, expect, mock } from 'bun:test'
 import { upcomingVisits, pastVisits } from '../visits/visits'
+import { isVisitsScrapeError, VisitsScrapeError } from '../visits/types'
 import { MyChartRequest } from '../myChartRequest'
+
+// Narrow a visits result to its container shape, failing the test on the error branch.
+function ok<T>(result: T | VisitsScrapeError): T {
+  if (isVisitsScrapeError(result)) throw new Error(`unexpected visits error: ${result.error}`)
+  return result
+}
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -43,7 +50,7 @@ describe('upcomingVisits', () => {
       { body: JSON.stringify(visitsData) },
     ])
 
-    const result = await upcomingVisits(req)
+    const result = ok(await upcomingVisits(req))
     expect(result.LaterVisitsList).toHaveLength(1)
     expect(result.LaterVisitsList[0].VisitTypeName).toBe('Annual Physical')
     expect(result.LaterVisitsList[0].PrimaryProviderName).toBe('Dr. Johnson')
@@ -62,7 +69,7 @@ describe('upcomingVisits', () => {
       { body: JSON.stringify(visitsData) },
     ])
 
-    const result = await upcomingVisits(req)
+    const result = ok(await upcomingVisits(req))
     expect(result.LaterVisitsList).toHaveLength(1)
     expect(result.NextNDaysVisits).toHaveLength(1)
     expect(result.InProgressVisits).toHaveLength(1)
@@ -118,7 +125,7 @@ describe('pastVisits', () => {
               VisitTypeName: 'Office Visit',
               PrimaryProviderName: 'Dr. Williams',
               PrimaryDepartment: { Name: 'Internal Medicine' },
-              Diagnoses: 'Common Cold',
+              Diagnoses: [{ Code: 'J00', Description: 'Common Cold' }],
             },
             {
               Date: '11/15/2024',
@@ -136,10 +143,10 @@ describe('pastVisits', () => {
       { body: JSON.stringify(visitsData) },
     ])
 
-    const result = await pastVisits(req, new Date('2023-01-01'))
+    const result = ok(await pastVisits(req, new Date("2023-01-01")))
     expect(result.List['Org-1'].List).toHaveLength(2)
     expect(result.List['Org-1'].List[0].VisitTypeName).toBe('Office Visit')
-    expect(result.List['Org-1'].List[0].Diagnoses).toBe('Common Cold')
+    expect(result.List['Org-1'].List[0].Diagnoses?.[0]?.Description).toBe('Common Cold')
   })
 
   it('sends LoadPast with no body and no Content-Type (F5 WAF regression)', async () => {
@@ -198,7 +205,7 @@ describe('pastVisits', () => {
       { body: JSON.stringify(visitsData) },
     ])
 
-    const result = await pastVisits(req, new Date('2023-01-01'))
+    const result = ok(await pastVisits(req, new Date("2023-01-01")))
     expect(Object.keys(result.List)).toHaveLength(2)
     expect(result.List['Org-A'].List).toHaveLength(1)
     expect(result.List['Org-B'].List).toHaveLength(2)

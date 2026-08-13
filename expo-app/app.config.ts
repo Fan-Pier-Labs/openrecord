@@ -28,12 +28,6 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   scheme: "openrecord",
-  newArchEnabled: true,
-  splash: {
-    image: "./assets/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
-  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.fanpierlabs.openrecord",
@@ -47,11 +41,20 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    edgeToEdgeEnabled: true,
     package: "com.fanpierlabs.openrecord",
   },
   plugins: [
     "expo-router",
+    // SDK 57 dropped the top-level `splash` key; the splash screen is
+    // configured through the expo-splash-screen plugin instead.
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/splash-icon.png",
+        resizeMode: "contain",
+        backgroundColor: "#ffffff",
+      },
+    ],
     "expo-secure-store",
     "expo-sqlite",
     "expo-font",

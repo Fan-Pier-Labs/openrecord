@@ -9,7 +9,7 @@
  * `tests/integration/ci/cli-passkey.integration.test.ts`.
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
+import { describe, it, expect, beforeEach, afterAll, setSystemTime } from 'bun:test'
 import { setupTotp, disableTotp } from '../setupTotp'
 import { generateTotpCode } from '../totp'
 import { setLogSink, resetLogSink } from '../../../shared/logger'
@@ -25,32 +25,40 @@ const CSRF = 'csrf-token-for-tests'
 const PASSWORD = 'donuts123'
 const SECRET = 'JBSWY3DPEHPK3PXP'
 
+/**
+ * The instant every test in this file runs at.
+ *
+ * TOTP codes change every 30 seconds, and the scraper derives its code from
+ * the clock. Freezing it means the code the scraper submitted and the code
+ * this file re-derives are from the same step by construction — so the check
+ * below is exact equality rather than the "try the neighbouring steps too"
+ * fudge it used to need to survive straddling a boundary.
+ *
+ * Deliberately mid-step (:15, not :00 or :30) so nothing here sits on the edge
+ * of a step even if the scraper's own reading drifts by a few hundred ms.
+ */
+const FROZEN_CLOCK = new Date('2026-03-01T12:00:15.000Z')
+
 // Log output from the module under test, captured so tests can assert on what
 // it does and doesn't emit. Reset before each test.
 let logged: string[] = []
 
 beforeEach(() => {
+  setSystemTime(FROZEN_CLOCK)
   logged = []
   setLogSink((_level, args) => {
     logged.push(args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
   })
 })
 
-afterAll(resetLogSink)
+afterAll(() => {
+  setSystemTime()
+  resetLogSink()
+})
 
-/**
- * Is `code` a valid TOTP for `secret` right now?
- *
- * Accepts the neighbouring steps as well as the current one: a test that
- * straddles a 30-second boundary between the scraper generating the code and
- * this check running would otherwise fail for no reason.
- */
+/** Is `code` the TOTP for `secret` at the frozen instant above? */
 async function isValidTotp(secret: string, code: string): Promise<boolean> {
-  const now = Date.now()
-  for (const offset of [-30_000, 0, 30_000]) {
-    if ((await generateTotpCode(secret, now + offset)) === code) return true
-  }
-  return false
+  return (await generateTotpCode(secret, FROZEN_CLOCK.getTime())) === code
 }
 
 /** The five endpoints of a successful setup, all responding happily. */
@@ -187,7 +195,7 @@ describe('setupTotp — successful setup', () => {
   it('POSTs the password under the field name MyChart expects', async () => {
     const { req, callTo } = createMockRequest(happyRoutes())
     await setupTotp(req, PASSWORD)
-    expect(callTo('/api/secondary-validation/VerifyPasswordAndUpdateContact').json())
+    expect(callTo('/api/secondary-validation/VerifyPasswordAndUpdateContact').json<{ Password: string }>())
       .toEqual({ Password: PASSWORD })
   })
 

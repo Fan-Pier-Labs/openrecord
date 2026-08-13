@@ -117,9 +117,9 @@ describe('acceptTermsAndConditions', () => {
       const req = createMockRequest()
       let postBody = ''
 
-      req.transport = mock(async (_url: string, config: Record<string, string>) => {
+      req.transport = mock(async (_url: string, config: RequestInit) => {
         if (config?.method === 'POST') {
-          postBody = config.body
+          postBody = String(config.body)
         }
         if (!config?.method || config.method === 'GET') {
           return new Response(buildTermsPage({

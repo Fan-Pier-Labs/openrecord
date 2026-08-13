@@ -204,8 +204,8 @@ describe('listLabResults', () => {
       'LoadReportContent': [
         {
           body: JSON.stringify({
-            content: 'No acute findings.',
-            reportTitle: 'Chest X-Ray Report',
+            reportContent: '<p>No acute findings.</p>',
+            reportCss: '.report { font-family: serif; }',
           }),
         },
       ],
@@ -215,8 +215,8 @@ describe('listLabResults', () => {
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
     expect(result[0].results[0].reportDetails.reportContent).toEqual({
-      content: 'No acute findings.',
-      reportTitle: 'Chest X-Ray Report',
+      reportContent: '<p>No acute findings.</p>',
+      reportCss: '.report { font-family: serif; }',
     })
   })
 
