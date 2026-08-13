@@ -78,7 +78,8 @@ out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
 Capabilities that produce images (`rendersMedia` in the registry — today
-`download_imaging_study`) never print image bytes to the terminal. The CLI
+`download_imaging_study`) never print image bytes to the terminal.
+`download_imaging_study` downloads **every** image in the study; the CLI
 decodes each raw CLO image and writes it as a quality-100 JPEG into
 `./imaging-output` (override the directory with `--output <dir>`), and prints
 a JSON summary with each file's path and dimensions so the images can be

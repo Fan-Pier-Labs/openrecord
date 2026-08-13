@@ -2,7 +2,7 @@
  * Diagnostic: probe eUnity CustomImageServlet responses per series to see why
  * download_imaging_study returns 0 images. Logs response sizes and magic bytes
  * for one instance of every distinct series, plus the first 3 entries the
- * capability would pick with max_images=3.
+ * capability used to pick first.
  *
  * Usage:
  *   MYCHART_PASSKEY_DIR=/path/to/.passkey-credentials bun dev-scripts/probe-eunity-download.ts <hostname> <image_id>
@@ -94,7 +94,7 @@ async function main() {
     }
   }
 
-  console.log('\n─── First 3 entries (what max_images=3 downloads) ───');
+  console.log('\n─── First 3 entries of the instance list ───');
   for (const s of session.series.slice(0, 3)) {
     await probe(`entry ${s.seriesDescription}`, s.seriesUID, s.instanceUID, 'CLOWRAPPER');
   }

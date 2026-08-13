@@ -422,9 +422,9 @@ answers every `CustomImageServlet` request with HTTP 200 and a 226-byte
 `application/cloerror` payload (`CLOERROR#Z##` magic + zlib-deflated message).
 The CT study reproduces that shape (marked `cloError: true` in
 `src/data/homer.ts`), so clients are forced to handle a study whose first
-instances carry no image data: a download budget spent on attempts rather than
-successful downloads returns zero images on exactly this shape. The X-ray study
-stays clean so both shapes are covered.
+instances carry no image data: the junk must be skipped, never returned as an
+image and never allowed to turn the download into an empty result. The X-ray
+study stays clean so both shapes are covered.
 
 ### Origin handling
 

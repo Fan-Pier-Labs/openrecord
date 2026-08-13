@@ -133,7 +133,6 @@ describe('capability registry against fake-mychart', () => {
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
       image_id: withImages!.image_id,
-      max_images: 1,
     })) as StudyImagePayload
 
     expect(payload.images.length).toBeGreaterThan(0)
@@ -150,7 +149,6 @@ describe('capability registry against fake-mychart', () => {
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
       imaging_index: withImages!.index,
-      max_images: 1,
     })) as StudyImagePayload
     expect(payload.images.length).toBeGreaterThan(0)
   }, 60_000)
@@ -159,11 +157,12 @@ describe('capability registry against fake-mychart', () => {
     expect(getCapability('get_xray_image')?.id).toBe('download_imaging_study')
   })
 
-  it('spends the default budget on real images when the study leads with SeriesSelector junk', async () => {
+  it('downloads every real image when the study leads with SeriesSelector junk', async () => {
     // The fake's CT study mirrors real eUnity: its instance list starts with
-    // three "SeriesSelector" pseudo-instances that answer CLOERROR. A budget
-    // counted in attempts rather than successes downloads exactly those and
-    // returns zero images — the regression this test pins down.
+    // three "SeriesSelector" pseudo-instances that answer CLOERROR. Those must
+    // be skipped — never returned as images, and never allowed to turn the
+    // whole download into an empty result — while every instance that does
+    // carry pixel data comes back.
     const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
       image_id?: string
       orderName: string
@@ -171,13 +170,13 @@ describe('capability registry against fake-mychart', () => {
     const ct = results.find((r) => r.image_id && r.orderName.includes('CT'))
     expect(ct).toBeDefined()
 
-    // No max_images: the default (3) must survive the three junk instances.
     const payload = (await executeCapability(session, 'download_imaging_study', {
       image_id: ct!.image_id,
     })) as StudyImagePayload
 
     expect(payload.errors).toHaveLength(0)
-    expect(payload.images.length).toBe(3)
+    // The CT study seeds 9 real instances (5 AXIAL + 3 BONE RECON + 1 SCOUT).
+    expect(payload.images.length).toBeGreaterThanOrEqual(9)
     for (const image of payload.images) {
       expect(image.seriesDescription).not.toBe('SeriesSelector')
       expect(image.pixelData?.length ?? 0).toBeGreaterThan(0)

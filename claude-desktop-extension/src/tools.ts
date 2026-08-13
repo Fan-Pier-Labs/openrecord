@@ -240,8 +240,7 @@ async function imagingResult(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const payload = (await capability.run(session, args)) as StudyImagePayload;
-  const maxImages = typeof args.max_images === 'number' ? args.max_images : undefined;
-  const result = encodeStudyJpegs(payload, { maxImages });
+  const result = encodeStudyJpegs(payload);
 
   const content: ToolContent[] = [
     {

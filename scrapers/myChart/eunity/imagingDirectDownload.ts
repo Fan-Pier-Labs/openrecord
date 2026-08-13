@@ -972,35 +972,6 @@ export async function downloadSingleImage(
 
 // ─── Image Download ───
 
-/**
- * Run `downloadOne` over `items` in parallel batches of `concurrency`,
- * stopping as soon as `quota` calls have returned true (or the list runs out).
- *
- * The quota counts *successes*, not attempts: eUnity's instance list can lead
- * with pseudo-instances (the viewer's "SeriesSelector" entries) that answer
- * every pixel request with CLOERROR, and a quota spent on attempts downloads
- * exactly those and returns zero images. A batch is never wider than the
- * remaining quota, so the result can't overshoot it either — a failed slot
- * widens the pool for the next batch instead of shrinking the result.
- */
-export async function downloadUpToQuota<T>(
-  items: readonly T[],
-  quota: number,
-  concurrency: number,
-  downloadOne: (item: T) => Promise<boolean>,
-): Promise<{ succeeded: number; attempted: number }> {
-  let succeeded = 0;
-  let next = 0;
-  while (next < items.length && succeeded < quota) {
-    const batchSize = Math.min(concurrency, quota - succeeded, items.length - next);
-    const batch = items.slice(next, next + batchSize);
-    next += batchSize;
-    const outcomes = await Promise.all(batch.map((item) => downloadOne(item)));
-    for (const ok of outcomes) if (ok) succeeded++;
-  }
-  return { succeeded, attempted: next };
-}
-
 export interface SeriesInfo {
   seriesUID: string;
   description: string;
@@ -1011,7 +982,7 @@ export interface DirectDownloadResult {
   studyName: string;
   images: DirectDownloadedImage[];
   errors: string[];
-  /** Parsed series info from AMF response (available even with maxImages: 0) */
+  /** Parsed series info from the AMF response */
   seriesList?: SeriesInfo[];
 }
 
@@ -1029,9 +1000,7 @@ export interface DirectDownloadedImage {
 
 export interface DirectDownloadOptions {
   skipFileWrite?: boolean;
-  /** Stop after downloading this many images (default: unlimited). */
-  maxImages?: number;
-  /** Number of parallel downloads (default: 10). */
+  /** Number of parallel downloads (default: 5). */
   concurrency?: number;
 }
 
@@ -1458,7 +1427,7 @@ export async function downloadImagingStudyDirect(
     }
     logger.debug(`      Found ${studyInfo.series.length} series, studyUID: ${studyInfo.studyUID.substring(0, 30)}...`);
 
-    // Build series list summary (available even with maxImages: 0)
+    // Build series list summary
     const seriesMap = new Map<string, { description: string; count: number }>();
     for (const s of studyInfo.series) {
       const existing = seriesMap.get(s.seriesUID);
@@ -1474,21 +1443,17 @@ export async function downloadImagingStudyDirect(
       instanceCount: count,
     }));
 
-    // Step 6: Download images — each (seriesUID, instanceUID) pair is a separate image.
-    // Download in parallel batches for speed (CT scans can have 700+ slices).
-    //
-    // downloadUpToQuota walks the whole instance list until maxImages
-    // downloads have *succeeded*: some instances are junk (CLOERROR
-    // pseudo-instances, mispaired UIDs from the positional AMF parse), and
-    // slicing the first maxImages entries used to spend the entire default
-    // budget on them — returning zero images with zero errors.
-    const maxImages = options?.maxImages ?? Infinity;
+    // Step 6: Download every image — each (seriesUID, instanceUID) pair is a
+    // separate image. Downloaded in parallel batches for speed (CT scans can
+    // have 700+ slices). Instances that answer CLOERROR are skipped, never
+    // returned as images: eUnity's instance list can carry pseudo-instances
+    // (the viewer's "SeriesSelector" entries) that hold no pixel data.
     const concurrency = options?.concurrency ?? 5;
     const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
     const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
     let completed = 0;
 
-    async function downloadOne(series: NonNullable<typeof studyInfo>['series'][0]): Promise<boolean> {
+    async function downloadOne(series: NonNullable<typeof studyInfo>['series'][0]): Promise<void> {
       try {
         const { data } = await downloadImage(session!.cookieJar, baseUrl, {
           studyUID: studyInfo!.studyUID,
@@ -1503,14 +1468,14 @@ export async function downloadImagingStudyDirect(
           if (completed % 50 === 0) {
             logger.debug(`      [${completed} tried] Progress...`);
           }
-          return false;
+          return;
         }
 
         const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         if (skipFileWrite) {
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
-          if (haarIdx < 0) return false;
+          if (haarIdx < 0) return;
           const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
           const embeddedPixelData = data.subarray(haarIdx);
           result.images.push({
@@ -1568,20 +1533,21 @@ export async function downloadImagingStudyDirect(
         if (completed % 50 === 0) {
           logger.debug(`      [${completed} tried] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
         }
-        return true;
       } catch (err) {
         completed++;
         result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
-        return false;
       }
     }
 
-    logger.debug(`      Downloading up to ${Number.isFinite(maxImages) ? maxImages : 'all'} of ${studyInfo.series.length} instances (concurrency: ${concurrency})...`);
-    const { succeeded, attempted } = await downloadUpToQuota(studyInfo.series, maxImages, concurrency, downloadOne);
-    logger.debug(`      Downloaded ${succeeded} images (${attempted} instances tried)`);
-    if (succeeded === 0 && attempted > 0 && result.errors.length === 0) {
+    logger.debug(`      Downloading ${studyInfo.series.length} instances (concurrency: ${concurrency})...`);
+    for (let i = 0; i < studyInfo.series.length; i += concurrency) {
+      const batch = studyInfo.series.slice(i, i + concurrency);
+      await Promise.all(batch.map((s) => downloadOne(s)));
+    }
+    logger.debug(`      Downloaded ${result.images.length} images (${studyInfo.series.length} instances tried)`);
+    if (result.images.length === 0 && result.errors.length === 0) {
       result.errors.push(
-        `No downloadable images: all ${attempted} instances returned empty or error responses from the image server.`,
+        `No downloadable images: all ${studyInfo.series.length} instances returned empty or error responses from the image server.`,
       );
     }
   } catch (err) {

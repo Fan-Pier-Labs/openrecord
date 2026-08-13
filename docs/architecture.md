@@ -96,11 +96,11 @@ answer depended on which client they asked.
   `capability-parity.unit.test.ts` fails if an id check reappears. The CLI never prints image
   bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
   prints the file paths (`writeStudyImages` in `npm-package/cli/capabilityActions.ts`). The
-  download budget counts *successful* images, not attempts (`downloadUpToQuota` in
-  `scrapers/myChart/eunity/imagingDirectDownload.ts`): real eUnity studies can lead with
-  `SeriesSelector` pseudo-instances that answer every pixel request with CLOERROR, and a budget
-  spent on attempts returns zero images on exactly those studies. fake-mychart's CT study
-  reproduces that shape.
+  download always fetches **every** instance in the study — there is deliberately no
+  `max_images` knob — and instances that answer CLOERROR are skipped, never returned as images:
+  real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
+  and an earlier budget spent on those first N junk entries returned zero images with zero
+  errors. fake-mychart's CT study reproduces that shape.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still
