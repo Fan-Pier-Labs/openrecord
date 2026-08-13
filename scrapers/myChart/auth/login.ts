@@ -1,21 +1,12 @@
 import { MyChartRequest } from "../core/myChartRequest";
 import * as cheerio from 'cheerio';
 
-import fs from 'fs';
 import { getRequestVerificationTokenFromBody } from "../core/util";
-import { changeDirToPackageRoot } from "../../../shared/util";
 import { sendTelemetryEvent } from "../../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
 import { createAssertion, type PasskeyCredential } from "./softwareAuthenticator";
 import { logger } from '../../../shared/logger';
-
-
-// Just for testing / local development
-// reads local creds from disk
-function readTestCredentials_TEST_ONLY() {
-  return JSON.parse(fs.readFileSync('creds.json', 'utf-8'))
-}
 
 
 // MyChart's login route. When a root redirect lands on it, everything in front
@@ -654,8 +645,6 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   }
 
 
-  // await mychartRequest.loadCookies('cookies.json');
-
   // The homepage has a __RequestVerificationToken that we need to extract.
   // Also get the cookies in the jar as well
   const firstRequst = await mychartRequest.makeRequest({path: '/Authentication/Login'})
@@ -1121,70 +1110,3 @@ export async function areCookiesValid(mychartRequest: MyChartRequest): Promise<b
   return res.status === 200
 }
 
-async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, user: string, pass: string}): Promise<MyChartRequest> {
-
-  const loginResult = await myChartUserPassLogin({hostname, user, pass})
-
-  const mychartRequest = loginResult.mychartRequest;
-
-  if (loginResult.state === 'need_2fa') {
-    throw new Error('2FA required — gmail integration has been removed. Use the CLI or web app for 2FA.')
-  }
-
-  const cookiesValid = await areCookiesValid(mychartRequest)
-  logger.debug('cookies valid?', cookiesValid)
-
-  return mychartRequest;
-}
-
-
-export async function login_TEST(hostname: string): Promise<MyChartRequest> {
-  changeDirToPackageRoot()
-
-
-  let mychartRequest = new MyChartRequest(hostname);
-  const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
-  if (firstPathPartFromInput) {
-    logger.debug('Using firstPathPart from user input:', firstPathPartFromInput);
-    mychartRequest.setFirstPathPart(firstPathPartFromInput);
-  }
-
-  const foundMyChartFirstPathPart = await determineFirstPathPart(mychartRequest);
-
-  if (!foundMyChartFirstPathPart) {
-    logger.debug('could not determine first path part! exiting early')
-    return mychartRequest
-  }
-
-  // First, figure out what the path is for the domain. 
-  // Most mychart scrapers start at /MyChart, but some like Example Hospital use /MyChart-PRD
-  // Fire an API request to determine it
-  // mychartRequest.getPathFromDomain(domain);
-
-  await mychartRequest.loadCookies_TEST('cookies.json');
-
-  // Make a request to see if the cookies are valid or not 
-  // There's basically three ways the cookies can go: 
-  // 1. The cookies are valid, no more auth needed at all
-  // 2. the are verified with 2fa, but we need to username + password auth again
-  // 3. cookies are not valid at all, need to do username + password and 2fa again.
-
-  const areCookiesValidBool = await areCookiesValid(mychartRequest);
-  
-
-  // If we got redirected somewhere, we need to relogin
-  if (!areCookiesValidBool) {
-    logger.debug('Cookies are not valid, going through login process again')
-    // mychartRequest = await myChartRawLogin(hostname);
-    const creds = await readTestCredentials_TEST_ONLY()
-    mychartRequest = await myChartRawLogin_TEST({hostname, user: creds[hostname]['user'], pass: creds[hostname]['pass']})
-
-  }
-  else {
-    logger.debug('Cookies are valid, re-using them')
-  }
-
-  await mychartRequest.saveCookies_TEST('cookies.json');  
-
-  return mychartRequest
-}
