@@ -55,10 +55,10 @@ export async function getLetters(mychartRequest: MyChartRequest): Promise<Letter
 
   const json: GetLettersListResponse = await resp.json();
 
-  const users = json.users ?? {};
+  const users = json.users || {};
 
-  const letters: Letter[] = (json.letters ?? []).map((letter: LetterResponse) => {
-    const provider = users[letter.empId || ''] ?? {};
+  const letters: Letter[] = (json.letters || []).map((letter: LetterResponse) => {
+    const provider = users[letter.empId || ''] || {};
     return {
       dateISO: letter.dateISO || '',
       reason: letter.reason || '',

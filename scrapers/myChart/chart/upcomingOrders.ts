@@ -53,7 +53,7 @@ export async function getUpcomingOrders(mychartRequest: MyChartRequest): Promise
 
   const json: GetUpcomingOrdersResponse = await resp.json();
 
-  return Object.values(json.orderList ?? {}).map((o: OrderResponse) => ({
+  return Object.values(json.orderList || {}).map((o: OrderResponse) => ({
     orderName: o.orderName || '',
     orderType: o.orderType || '',
     status: o.status || '',

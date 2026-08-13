@@ -137,7 +137,7 @@ function dedupeTargets(targets: ProxyTarget[]): ProxyTarget[] {
 
 function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: ProxySwitchResponse): ProxyTarget[] {
   return dedupeTargets(
-    (json.ProxySubjectList ?? [])
+    (json.ProxySubjectList || [])
       .map((entry) => ({
         id: entry.Id || '',
         displayName: entry.DisplayName || '',
@@ -401,7 +401,7 @@ export async function verifyActiveProxyTarget(
   ]);
 
   const selectionKnown = proxyTargets.some((entry) => entry.selectionKnown);
-  const selectedTarget = proxyTargets.find((entry) => entry.selectionKnown && entry.isSelected) ?? null;
+  const selectedTarget = proxyTargets.find((entry) => entry.selectionKnown && entry.isSelected) || null;
   const result = {
     profileName: profile?.name || null,
     profileDob: profile?.dob || null,

@@ -98,8 +98,8 @@ export async function getMedications(mychartRequest: MyChartRequest): Promise<Me
 
   const medications: Medication[] = [];
 
-  for (const member of json.communityMembers ?? []) {
-    const prescriptions = member?.prescriptionList?.prescriptions ?? [];
+  for (const member of json.communityMembers || []) {
+    const prescriptions = member?.prescriptionList?.prescriptions || [];
     for (const rx of prescriptions) {
       const pharmacy = rx.refillDetails?.owningPharmacy;
       medications.push({
@@ -115,7 +115,7 @@ export async function getMedications(mychartRequest: MyChartRequest): Promise<Me
         pharmacy: pharmacy ? {
           name: pharmacy.name || '',
           phoneNumber: pharmacy.phoneNumber || '',
-          formattedAddress: pharmacy.formattedAddress ?? [],
+          formattedAddress: pharmacy.formattedAddress || [],
         } : null,
         refillDetails: rx.refillDetails ? {
           writtenDispenseQuantity: rx.refillDetails.writtenDispenseQuantity || '',

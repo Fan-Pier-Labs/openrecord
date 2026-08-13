@@ -125,7 +125,7 @@ export async function getVisitNotes(
     return { csn, lrpId: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, notes: [] };
   }
 
-  const notes: VisitNote[] = (json.noteList ?? []).map((n) => ({
+  const notes: VisitNote[] = (json.noteList || []).map((n) => ({
     hnoId: n.hnoID || '',
     hnoDat: n.hnoDAT || '',
     displayName: n.displayName || '',

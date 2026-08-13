@@ -221,7 +221,7 @@ export async function followSamlChain(
         if (html.length < 3000) logger.debug(`  [SAML] Body: ${html.substring(0, 2000)}`);
 
         // Check for meta-refresh: <meta http-equiv="refresh" content="0;URL='https://...'">
-        const metaMatch = (/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i.exec(html)) ??
+        const metaMatch = (/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i.exec(html)) ||
                           (/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i.exec(html));
         if (metaMatch) {
           url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess

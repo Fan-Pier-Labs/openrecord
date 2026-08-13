@@ -232,7 +232,9 @@ export class MyChartRequest {
   // `redirectsFollowed` is bookkeeping for the recursive redirect follow below;
   // callers pass one argument and let it default.
   async makeRequest(config: RequestConfig, redirectsFollowed = 0): Promise<Response> {
-    config.method ??= 'GET';
+    if (config.method === undefined) {
+      config.method = 'GET';
+    }
 
     if (!config.url && !config.path) {
       throw new Error("Either url or path must be defined in the config object.");

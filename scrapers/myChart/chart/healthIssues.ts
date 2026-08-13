@@ -47,7 +47,7 @@ export async function getHealthIssues(mychartRequest: MyChartRequest): Promise<H
 
   const json: LoadHealthIssuesResponse = await resp.json();
 
-  return (json.dataList ?? []).map((item: HealthIssueDataListEntry) => ({
+  return (json.dataList || []).map((item: HealthIssueDataListEntry) => ({
     name: item.healthIssueItem?.name || '',
     id: item.healthIssueItem?.id || '',
     formattedDateNoted: item.healthIssueItem?.formattedDateNoted || '',

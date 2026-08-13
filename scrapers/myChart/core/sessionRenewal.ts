@@ -48,9 +48,11 @@ function stateFor(mychartRequest: MyChartRequest): RenewalState {
  */
 export async function renewMyChartSession(mychartRequest: MyChartRequest): Promise<boolean> {
   const state = stateFor(mychartRequest);
-  state.renewPromise ??= doRenew(mychartRequest).finally(() => {
+  if (!state.renewPromise) {
+    state.renewPromise = doRenew(mychartRequest).finally(() => {
       state.renewPromise = null;
     });
+  }
   return state.renewPromise;
 }
 

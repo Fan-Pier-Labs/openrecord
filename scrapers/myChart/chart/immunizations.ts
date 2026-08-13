@@ -53,13 +53,13 @@ export async function getImmunizations(mychartRequest: MyChartRequest): Promise<
 
   const immunizations: Immunization[] = [];
 
-  for (const orgEntry of json.organizationImmunizationList ?? []) {
+  for (const orgEntry of json.organizationImmunizationList || []) {
     const orgName = orgEntry.organization?.organizationName || '';
-    for (const imm of orgEntry.orgImmunizations ?? []) {
+    for (const imm of orgEntry.orgImmunizations || []) {
       immunizations.push({
         name: imm.name || '',
         id: imm.id || '',
-        administeredDates: imm.formattedAdministeredDates ?? [],
+        administeredDates: imm.formattedAdministeredDates || [],
         organizationName: orgName,
       });
     }

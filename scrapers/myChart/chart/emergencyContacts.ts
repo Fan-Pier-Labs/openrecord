@@ -76,7 +76,7 @@ export async function getEmergencyContacts(mychartRequest: MyChartRequest): Prom
 
   const json: GetRelationshipsResponse = await resp.json();
 
-  return (json.contacts ?? []).map((rel: RelationshipResponse) => ({
+  return (json.contacts || []).map((rel: RelationshipResponse) => ({
     ...(rel.id && { id: rel.id }),
     name: rel.formattedName || '',
     relationshipType: rel.relationToPatient?.name || '',
