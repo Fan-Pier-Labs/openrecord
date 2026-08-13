@@ -29,6 +29,8 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Referencing a class method without its receiver silently loses `this`.
+      "@typescript-eslint/unbound-method": "error",
       // `str.match(re)` and `re.exec(str)` are identical for non-global
       // regexes, and exec is the clearer read; the rule declines to convert
       // /g patterns, where the two genuinely differ.
