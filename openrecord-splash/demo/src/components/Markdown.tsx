@@ -39,7 +39,8 @@ function renderBlock(block: Block, key: number): ReactNode {
   switch (block.kind) {
     case 'heading': {
       // Demote by two so an assistant's `##` doesn't compete with page headings.
-      const Tag = (['h3', 'h4', 'h5', 'h6'] as const)[Math.min(block.level, 4) - 1];
+      // level is 1-4 (the parser only matches 1-4 hashes), so the index is 0-3.
+      const Tag = (['h3', 'h4', 'h5', 'h6'] as const)[Math.min(block.level, 4) - 1] ?? 'h6';
       return <Tag key={key}>{renderSpans(block.spans)}</Tag>;
     }
     case 'list':

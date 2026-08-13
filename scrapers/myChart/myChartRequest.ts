@@ -1,8 +1,6 @@
 import { CookieJar } from 'tough-cookie'
 import fs from 'fs';
-import {mockRequest} from './mock_data/index'
-import { OPENRECORD_MOCK_DATA } from '../../shared/env';
-import { RequestConfig } from './types';
+import { type RequestConfig } from './types';
 import { logger } from '../../shared/logger';
 import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../http';
 
@@ -130,27 +128,28 @@ export class MyChartRequest {
     };
   }
 
-  async serialize(): Promise<string> {
-    return JSON.stringify({
+  // Promise-typed for API stability (npm-package exposes it); the work is synchronous.
+  serialize(): Promise<string> {
+    return Promise.resolve(JSON.stringify({
       firstPathPart: this.firstPathPart,
       hostname: this.hostname,
       protocol: this.protocol,
       cookies: this.cookieJar.serializeSync()
-    })
+    }))
   }
 
-  static async unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
+  static unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
     try {
       const data = JSON.parse(serializedData);
       // firstPathPart is null for root-mounted instances, so check for presence
       // rather than truthiness.
-      if (data && data.hostname && data.firstPathPart !== undefined && data.cookies) {
+      if (data?.hostname && data.firstPathPart !== undefined && data.cookies) {
         const request = new MyChartRequest(data.hostname, { ...options, protocol: data.protocol });
         request.firstPathPart = data.firstPathPart;
         if (Object.keys(data.cookies).length > 0) {
           request.cookieJar = CookieJar.deserializeSync(data.cookies);
         }
-        return request;
+        return Promise.resolve(request);
       } else {
         // `data` holds the serialized cookie jar — log its shape, never its contents.
         logger.error(
@@ -161,7 +160,7 @@ export class MyChartRequest {
     } catch (error) {
       logger.error('Error unserializing MyChartRequest:', error);
     }
-    return null;
+    return Promise.resolve(null);
   }
 
   setFirstPathPart(firstPathPart: string | null) {
@@ -256,23 +255,14 @@ export class MyChartRequest {
     const mountPath = this.firstPathPart ? '/' + this.firstPathPart : '';
     const url = config.url ?? (this.protocol + '://' + this.hostname + mountPath + config.path);
 
-    let response ;
-
-    if (OPENRECORD_MOCK_DATA) {
-      response = await mockRequest(url, finalConfig)
-      logger.debug('MOCK:', response.status, url)
-    }
-    else {
-      response = await scraperFetch(url, finalConfig, {
-        // Who keeps the cookies is a property of the runtime, not of the
-        // caller — see PLATFORM_OWNS_COOKIES.
-        cookieJar: PLATFORM_OWNS_COOKIES ? null : this.cookieJar,
-        transport: this.transport ?? undefined,
-      })
-      // Log each request and its status code.
-      logger.debug(response.status, url)
-    }
-
+    const response = await scraperFetch(url, finalConfig, {
+      // Who keeps the cookies is a property of the runtime, not of the
+      // caller — see PLATFORM_OWNS_COOKIES.
+      cookieJar: PLATFORM_OWNS_COOKIES ? null : this.cookieJar,
+      transport: this.transport ?? undefined,
+    })
+    // Log each request and its status code.
+    logger.debug(response.status, url)
 
     // Follow redirects, if necessary.
     if (REDIRECT_STATUSES.includes(response.status) && config.followRedirects !== false) {

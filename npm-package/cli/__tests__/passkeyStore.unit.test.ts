@@ -102,7 +102,7 @@ describe('passkeyStore', () => {
 
     // Archived file should contain the old credential
     const archivedContent = JSON.parse(
-      await fs.promises.readFile(path.join(PASSKEY_DIR, archived[0]), 'utf-8')
+      await fs.promises.readFile(path.join(PASSKEY_DIR, archived[0]!), 'utf-8')
     );
     expect(archivedContent.credentialId).toBe('dGVzdC1jcmVkLWlk');
     expect(archivedContent.signCount).toBe(1);

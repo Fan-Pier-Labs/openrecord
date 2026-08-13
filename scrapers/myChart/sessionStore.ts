@@ -14,7 +14,7 @@
  *   stop();
  */
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { renewMyChartSession } from './sessionRenewal';
 import { logger } from '../../shared/logger';
 
@@ -30,10 +30,10 @@ export interface SessionEntry {
 const KEEPALIVE_MAX_ERRORS = 3;
 
 class SessionStore {
-  private sessions = new Map<string, SessionEntry>();
+  private readonly sessions = new Map<string, SessionEntry>();
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private keepAliveCounter = 0;
-  private keepAliveErrors = new Map<string, number>();
+  private readonly keepAliveErrors = new Map<string, number>();
   private autoTokenCounter = 0;
 
   /** Store a session. */

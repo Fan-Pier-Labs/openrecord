@@ -32,7 +32,7 @@ function recorder() {
     calls.push({ url, init })
     return new Response('ok', { status: 200 })
   }
-  const headersOf = (i = 0) => calls[i].init.headers as Record<string, string>
+  const headersOf = (i = 0) => calls[i]!.init.headers as Record<string, string>
   return { calls, transport, headersOf }
 }
 
@@ -101,11 +101,11 @@ describe('scraperFetch', () => {
       // These drifted apart once already (Sec-Ch-Ua said 126 while the
       // User-Agent said 131) — a combination no real browser sends, on every
       // outbound request.
-      const uaVersion = BROWSER_HEADERS['User-Agent'].match(/Chrome\/(\d+)/)?.[1]
+      const uaVersion = BROWSER_HEADERS['User-Agent']!.match(/Chrome\/(\d+)/)?.[1]
       expect(uaVersion).toBeDefined()
 
-      const brands = [...BROWSER_HEADERS['Sec-Ch-Ua'].matchAll(/"([^"]+)";v="(\d+)"/g)]
-      const chromeBrands = brands.filter(([, brand]) => /Chrom/.test(brand))
+      const brands = [...BROWSER_HEADERS['Sec-Ch-Ua']!.matchAll(/"([^"]+)";v="(\d+)"/g)]
+      const chromeBrands = brands.filter(([, brand]) => /Chrom/.test(brand!))
 
       expect(chromeBrands.length).toBeGreaterThan(0)
       for (const [, brand, version] of chromeBrands) {
@@ -231,7 +231,7 @@ describe('scraperFetch', () => {
         new Response('', { status: 200, headers: { 'Set-Cookie': 'x=1; path=/' } })
 
       await scraperFetch('https://mychart.example.org/Home', {}, { cookieJar: jar, transport })
-      expect(hostLimiterStats()['mychart.example.org'].inFlight).toBe(0)
+      expect(hostLimiterStats()['mychart.example.org']!.inFlight).toBe(0)
     })
   })
 
@@ -297,7 +297,7 @@ describe('scraperFetch', () => {
       await scraperFetch('https://mychart.example.org/Home', {}, { cookieJar: jar })
       expect(headers['User-Agent']).toBe(BROWSER_HEADERS['User-Agent'])
       expect(headers['Cookie']).toBe('session=abc')
-      expect(hostLimiterStats()['mychart.example.org'].limit).toBe(LIMIT)
+      expect(hostLimiterStats()['mychart.example.org']!.limit).toBe(LIMIT)
     })
   })
 
@@ -325,7 +325,7 @@ describe('scraperFetch', () => {
       const realFetch = globalThis.fetch
       let seenUserAgent = ''
       globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
-        seenUserAgent = (init?.headers as Record<string, string>)['User-Agent']
+        seenUserAgent = (init?.headers as Record<string, string>)['User-Agent']!
         return new Response('ok', { status: 200 })
       }) as unknown as typeof globalThis.fetch
 
@@ -335,7 +335,7 @@ describe('scraperFetch', () => {
         globalThis.fetch = realFetch
       }
 
-      expect(seenUserAgent).toBe(BROWSER_HEADERS['User-Agent'])
+      expect(seenUserAgent).toBe(BROWSER_HEADERS['User-Agent']!)
     })
   })
 })

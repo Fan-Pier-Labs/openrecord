@@ -30,7 +30,7 @@ function scriptedModel(turns: string[]) {
   let i = 0;
   const complete = async (messages: Any[], system: string) => {
     seen.push({ messages: structuredClone(messages), system });
-    return turns[Math.min(i++, turns.length - 1)];
+    return turns[Math.min(i++, turns.length - 1)]!;
   };
   return { complete, seen, calls: () => i };
 }
@@ -82,13 +82,13 @@ describe('extractToolCalls', () => {
 
   test('handles nested objects in args', () => {
     const calls = extractToolCalls('{"tool":"send_message","args":{"meta":{"a":{"b":1}},"subject":"hi"}}');
-    expect((calls[0].args.meta as { a: { b: number } }).a.b).toBe(1);
+    expect((calls[0]!.args.meta as { a: { b: number } }).a.b).toBe(1);
   });
 
   test('braces inside strings do not confuse the scanner', () => {
     const calls = extractToolCalls('{"tool":"respond","args":{"text":"use {\\"tool\\": ...} to call a tool"}}');
     expect(calls).toHaveLength(1);
-    expect(calls[0].args.text).toContain('use {"tool": ...}');
+    expect(calls[0]!.args.text).toContain('use {"tool": ...}');
   });
 
   test('malformed JSON and non-tool objects are dropped', () => {
@@ -278,8 +278,8 @@ describe('describeWrite', () => {
 describe('resolveWriteDetails', () => {
   test('a booking dialog says who, when and where — not just an opaque slot id', () => {
     const session = createSession();
-    const offer = session.availableAppointments[0];
-    const slot = offer.slots[0];
+    const offer = session.availableAppointments[0]!;
+    const slot = offer.slots[0]!;
 
     const details = resolveWriteDetails(session, 'book_appointment', { slot_id: slot.slotId });
     expect(details).toEqual([
@@ -365,7 +365,7 @@ describe('runTurn', () => {
     expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['get_medications']);
 
     // The second model turn must actually see the tool output.
-    const secondTurn = model.seen[1].messages.at(-1).content;
+    const secondTurn = model.seen[1]!.messages.at(-1).content;
     expect(secondTurn).toContain('Result of get_medications');
     expect(secondTurn).toContain('Atorvastatin');
   });
@@ -391,8 +391,8 @@ describe('runTurn', () => {
 
     // Nothing ran, and the refill count is untouched.
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.medications[0].refillsRemaining).toBe(3);
-    expect(model.seen[1].messages.at(-1).content).toContain('must be called alone');
+    expect(session.medications[0]!.refillsRemaining).toBe(3);
+    expect(model.seen[1]!.messages.at(-1).content).toContain('must be called alone');
   });
 
   test('respond batched with anything else is rejected and retried', async () => {
@@ -404,7 +404,7 @@ describe('runTurn', () => {
 
     expect(result.text).toBe('after retry');
     expect(result.toolCalls).toHaveLength(0);
-    expect(model.seen[1].messages.at(-1).content).toContain('`respond` is exclusive');
+    expect(model.seen[1]!.messages.at(-1).content).toContain('`respond` is exclusive');
   });
 
   test('a write tool called alone executes and mutates the session', async () => {
@@ -422,7 +422,7 @@ describe('runTurn', () => {
     });
 
     expect(result.text).toBe('Refill submitted.');
-    expect(session.medications[0].refillsRemaining).toBe(2);
+    expect(session.medications[0]!.refillsRemaining).toBe(2);
   });
 
   test('a tool error is fed back so the model can recover', async () => {
@@ -438,7 +438,7 @@ describe('runTurn', () => {
     });
 
     expect(result.text).toBe('That one has no refills left.');
-    expect(model.seen[1].messages.at(-1).content).toContain('no refills remaining');
+    expect(model.seen[1]!.messages.at(-1).content).toContain('no refills remaining');
   });
 
   test('prose is re-prompted, then surfaced verbatim if the model never complies', async () => {
@@ -499,7 +499,7 @@ describe('runTurn', () => {
     expect(result.text).toBe('You take four medications.');
     // The nudge must point at the question, not at the format — telling a weak
     // model "every turn must be JSON" is what produces the chatter.
-    const nudge = model.seen[1].messages.at(-1).content;
+    const nudge = model.seen[1]!.messages.at(-1).content;
     expect(nudge).toContain('did not answer the question');
     expect(nudge).not.toContain('every turn must be JSON');
   });
@@ -558,7 +558,7 @@ describe('runTurn', () => {
     const result = await runTurn({ ...base(), complete: model.complete, callbacks: dialog(false) });
 
     expect(result.toolCalls).toHaveLength(0);
-    const fedBack = model.seen[1].messages.at(-1).content;
+    const fedBack = model.seen[1]!.messages.at(-1).content;
     expect(fedBack).toContain('User declined to run request_refill');
     expect(fedBack).toContain('Do not retry unless they ask again');
   });
@@ -609,7 +609,7 @@ describe('runTurn', () => {
     const result = await runTurn({ ...base(), session, complete: model.complete });
 
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.medications[0].refillsRemaining).toBe(3);
+    expect(session.medications[0]!.refillsRemaining).toBe(3);
   });
 
   test('a draft request never sends, and never even offers to', async () => {
@@ -643,7 +643,7 @@ describe('runTurn', () => {
     expect(session.messages).toHaveLength(inboxBefore); // nothing new in the thread list
     expect(result.text).toBe('Here is the draft — shall I send it?');
 
-    const fedBack = model.seen[1].messages.at(-1).content;
+    const fedBack = model.seen[1]!.messages.at(-1).content;
     expect(fedBack).toContain('asked you to draft this, not to send it');
   });
 

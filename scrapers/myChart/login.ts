@@ -137,7 +137,10 @@ export function parseFirstPathPartFromInput(input: string): string | null {
   try {
     const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
     const part = parsed.pathname.split('/').filter(Boolean)[0];
-    if (!part || !part.toLowerCase().includes('mychart')) {
+    // `part` is `.split('/').filter(Boolean)[0]`-shaped: undefined or a
+    // non-empty string, never '' — so `!part?.…` and the old `!part || !part.…`
+    // take identical branches.
+    if (!part?.toLowerCase().includes('mychart')) {
       return null;
     }
     return part;
@@ -194,7 +197,7 @@ export function parseScriptRedirectTarget(html: string, baseUrl: string): URL | 
     ?? html.match(/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i);
   if (!match) return null;
   try {
-    return new URL(match[1], baseUrl);
+    return new URL(match[1]!, baseUrl); // both patterns have one non-optional capture group
   } catch {
     return null;
   }
@@ -289,7 +292,7 @@ export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest:
       }
 
       const finalPathPart = finalUrl.pathname.split('/').filter(Boolean)[0];
-      if ((finalPathPart && finalPathPart.toLowerCase() === candidate.toLowerCase()) && looksLikeLoginPage(html)) {
+      if (finalPathPart?.toLowerCase() === candidate.toLowerCase() && looksLikeLoginPage(html)) {
         logger.debug('Recovered firstPathPart by probing common login path:', finalPathPart || candidate);
         return finalPathPart || candidate;
       }
@@ -579,7 +582,8 @@ export function parseLoginPageFields(html: string) {
 /** The name MyChart's login controller JS gives the username credential. */
 export function usernameFieldFromControllerJs(js: string): 'LoginIdentifier' | 'Username' {
   const credMatch = js.match(/Credentials:\s*\{([^}]{0,300})\}/);
-  if (credMatch && credMatch[1].includes('Username') && !credMatch[1].includes('LoginIdentifier')) {
+  const creds = credMatch?.[1];
+  if (creds && creds.includes('Username') && !creds.includes('LoginIdentifier')) {
     return 'Username';
   }
   return 'LoginIdentifier';
@@ -617,7 +621,13 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
   if (!hostname || !user || !pass) {
-    logger.debug('missing hostname, user, or pass', {hostname, user, pass})
+    // Which one is missing, never the values: the sink is whatever the host
+    // wired up, and a plaintext password belongs in none of them.
+    logger.debug('missing hostname, user, or pass', {
+      hostname: hostname || '(missing)',
+      user: user ? '(present)' : '(missing)',
+      pass: pass ? '(present)' : '(missing)',
+    })
     throw new Error('Missing hostname, user, or pass')
   }
 
@@ -627,7 +637,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
@@ -989,7 +999,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
     throw new Error(`${hostname} is not supported.`);
   }
 
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
@@ -1177,17 +1187,4 @@ export async function login_TEST(hostname: string): Promise<MyChartRequest> {
   await mychartRequest.saveCookies_TEST('cookies.json');  
 
   return mychartRequest
-}
-
-
-async function test() { 
-
-
-
-
-
-}
-
-if (import.meta.main) {
-  void test()
 }

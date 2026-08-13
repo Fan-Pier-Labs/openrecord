@@ -1,8 +1,7 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
-import { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
+import { type PastVisitsContainer, type Visit, type VisitListContainer, type VisitsScrapeError } from "./types";
 import { logger } from '../../../shared/logger';
 
 
@@ -127,7 +126,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
 
   // Defensive: a non-container response (e.g. a WAF/login interstitial) has no
   // List — return it untouched so existing error handling stays intact.
-  if (!firstPage || !firstPage.List) return firstPage;
+  if (!firstPage?.List) return firstPage;
 
   // Accumulate visits per organization across pages. `latestPage` is the most
   // recently fetched page; the stop conditions look at it (not the merged
@@ -155,7 +154,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
     if (!serializedIndex) break;
 
     const nextPage = await loadPastVisitsPage(myChartRequest, requestVerificationToken, oldestRenderedDate, serializedIndex);
-    if (!nextPage || !nextPage.List) break;
+    if (!nextPage?.List) break;
     if (nextPage.SerializedIndex === serializedIndex) break; // guard against a stuck cursor
 
     // Merge each org's visits into the accumulator.
@@ -182,13 +181,4 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
   }
 
   return merged;
-}
-
-
-
-if (import.meta.main) {
-  void (async () => {
-    const mychartRequest = await login_TEST('mychart.example.org')
-    await pastVisits(mychartRequest, new Date('2025-01-01T00:30:50.183Z'))
-  })()
 }

@@ -58,7 +58,8 @@ export function hostnameFromInstance(instance: MyChartInstance): string {
   try {
     return new URL(instance.url).host;
   } catch {
-    return instance.url.replace(/^https?:\/\//, "").split("/")[0];
+    // split() always yields at least one element; ?? "" only satisfies the type checker.
+    return instance.url.replace(/^https?:\/\//, "").split("/")[0] ?? "";
   }
 }
 

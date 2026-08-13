@@ -203,12 +203,12 @@ describe('parseBillingAccountsHtml', () => {
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
     expect(accounts).toHaveLength(2)
-    expect(accounts[0].guarantorNumber).toBe('111')
-    expect(accounts[0].patientName).toBe('Alice')
-    expect(accounts[0].amountDue).toBe(50.00)
-    expect(accounts[1].guarantorNumber).toBe('222')
-    expect(accounts[1].patientName).toBe('Bob')
-    expect(accounts[1].amountDue).toBe(200.50)
+    expect(accounts[0]!.guarantorNumber).toBe('111')
+    expect(accounts[0]!.patientName).toBe('Alice')
+    expect(accounts[0]!.amountDue).toBe(50.00)
+    expect(accounts[1]!.guarantorNumber).toBe('222')
+    expect(accounts[1]!.patientName).toBe('Bob')
+    expect(accounts[1]!.amountDue).toBe(200.50)
   })
 
   it('falls back to parsePaymentUrl when link has no ID/Context', () => {
@@ -222,8 +222,8 @@ describe('parseBillingAccountsHtml', () => {
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
     expect(accounts).toHaveLength(1)
-    expect(accounts[0].id).toBe('FB_ID')
-    expect(accounts[0].context).toBe('FB_CTX')
+    expect(accounts[0]!.id).toBe('FB_ID')
+    expect(accounts[0]!.context).toBe('FB_CTX')
   })
 
   it('skips accounts with no ID or Context from any source', () => {
@@ -258,7 +258,7 @@ describe('parseBillingAccountsHtml', () => {
       </div>
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
-    expect(accounts[0].amountDue).toBe(99.99)
+    expect(accounts[0]!.amountDue).toBe(99.99)
   })
 
   it('handles zero amount due', () => {
@@ -272,7 +272,7 @@ describe('parseBillingAccountsHtml', () => {
       </div>
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
-    expect(accounts[0].amountDue).toBe(0)
+    expect(accounts[0]!.amountDue).toBe(0)
   })
 
   it('sets unknown for missing guarantor number', () => {
@@ -286,8 +286,8 @@ describe('parseBillingAccountsHtml', () => {
       </div>
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
-    expect(accounts[0].guarantorNumber).toBe('unknown')
-    expect(accounts[0].patientName).toBe('Test Patient')
+    expect(accounts[0]!.guarantorNumber).toBe('unknown')
+    expect(accounts[0]!.patientName).toBe('Test Patient')
   })
 
   it('sets unknown for missing patient name', () => {
@@ -301,8 +301,8 @@ describe('parseBillingAccountsHtml', () => {
       </div>
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
-    expect(accounts[0].guarantorNumber).toBe('123')
-    expect(accounts[0].patientName).toBe('unknown')
+    expect(accounts[0]!.guarantorNumber).toBe('123')
+    expect(accounts[0]!.patientName).toBe('unknown')
   })
 
   it('extracts ID/Context from Billing/Details link when recentPaymentLabel is missing', () => {
@@ -317,10 +317,10 @@ describe('parseBillingAccountsHtml', () => {
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
     expect(accounts).toHaveLength(1)
-    expect(accounts[0].guarantorNumber).toBe('102424656')
-    expect(accounts[0].patientName).toBe('Ryan Hughes')
-    expect(accounts[0].id).toBe('WP-ABC123')
-    expect(accounts[0].context).toBe('WP-DEF456')
+    expect(accounts[0]!.guarantorNumber).toBe('102424656')
+    expect(accounts[0]!.patientName).toBe('Ryan Hughes')
+    expect(accounts[0]!.id).toBe('WP-ABC123')
+    expect(accounts[0]!.context).toBe('WP-DEF456')
   })
 
   it('handles amountDue as undefined when element is empty', () => {
@@ -334,6 +334,6 @@ describe('parseBillingAccountsHtml', () => {
       </div>
     `
     const accounts = parseBillingAccountsHtml(html, hostname)
-    expect(accounts[0].amountDue).toBeUndefined()
+    expect(accounts[0]!.amountDue).toBeUndefined()
   })
 })

@@ -129,19 +129,6 @@ the app's agent loops stay identical.
 - **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model
   unreachable". The demo has no offline path by design.
 
-## Newsletter Lambda (`newsletter-lambda/`)
-
-Tiny zero-dep AWS Lambda that captures newsletter/waitlist signups and `console.log`s them to
-CloudWatch (log group `/aws/lambda/newsletter-signup`). Replaces the old Formspree integration.
-Fronted by an API Gateway HTTP API (`newsletter-signup-api`, wide-open CORS) because this account
-blocks unauthenticated Lambda Function URLs. A hidden `company` honeypot field drops bots.
-
-- Deploy: `cd newsletter-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`
-- Endpoint: `https://a4443h7zdd.execute-api.us-east-2.amazonaws.com`
-- Read signups via CloudWatch Logs Insights:
-  `fields @timestamp, @message | filter @message like /newsletter_signup/ | sort @timestamp desc`
-- See `newsletter-lambda/README.md`.
-
 ## S3 buckets (us-east-2)
 
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`) — `mychart-logos/` holds logos for all

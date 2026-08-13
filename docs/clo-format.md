@@ -333,7 +333,7 @@ Request/response use AMF3 binary serialization with typed objects:
 | `scrapers/myChart/clo-image-parser/exporters/` | Format-specific exporters (JPEG, PNG, AVIF, TIFF, WebP) — step two, after decoding to a bitmap |
 | `dev-scripts/clo-to-jpg.ts` | Terminal wrapper wiring both steps together |
 | `scrapers/myChart/eunity/imagingDirectDownload.ts` | Direct HTTP download pipeline |
-| `scrapers/myChart/clo-image-parser/wasm/` | eUnity's original WASM/Dart viewer code (reference) |
+| `scrapers/myChart/clo-image-parser/files-pulled-from-mychart/` | eUnity's own WASM/Dart viewer, pulled verbatim off a real instance. Reference material for the reverse engineering — nothing imports it and none of it ships |
 
 ## Potential: DICOM Reconstruction
 

@@ -86,7 +86,8 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
     const image = line.match(IMAGE_TOKEN);
     if (image) {
       flushAll();
-      blocks.push({ kind: 'image', name: image[1].toLowerCase() });
+      // Group 1 is non-optional in IMAGE_TOKEN, so it is present on any match.
+      blocks.push({ kind: 'image', name: image[1]!.toLowerCase() });
       continue;
     }
 
@@ -98,7 +99,8 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
     const heading = line.match(/^(#{1,4})\s+(.*)$/);
     if (heading) {
       flushAll();
-      blocks.push({ kind: 'heading', level: heading[1].length, spans: parseInline(heading[2]) });
+      // Both groups are non-optional, so they are present on any match.
+      blocks.push({ kind: 'heading', level: heading[1]!.length, spans: parseInline(heading[2]!) });
       continue;
     }
 
@@ -106,7 +108,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
     if (bullet) {
       flushParagraph();
       flushQuote();
-      list.push(parseInline(bullet[1]));
+      list.push(parseInline(bullet[1]!));
       continue;
     }
 
@@ -114,7 +116,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
     if (quoted) {
       flushParagraph();
       flushList();
-      quote.push(parseInline(quoted[1]));
+      quote.push(parseInline(quoted[1]!));
       continue;
     }
 

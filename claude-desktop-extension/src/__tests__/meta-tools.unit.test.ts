@@ -43,8 +43,8 @@ const call = (name: string, args: Record<string, unknown> = {}) => {
   return tool.handler(args)
 }
 
-const parse = (result: ToolResult) => JSON.parse(result.content[0].text)
-const text = (result: ToolResult) => result.content[0].text
+const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)
+const text = (result: ToolResult) => result.content[0]!.text
 
 beforeEach(() => {
   memfs.reset()
@@ -152,7 +152,7 @@ describe('disconnect_account', () => {
 
   it('is not an error to disconnect something that was never connected', async () => {
     const result = await call('disconnect_account', { account: 'nobody@nope.example.org' })
-    expect(result.content[0].text).toBeTruthy()
+    expect(result.content[0]!.text).toBeTruthy()
   })
 })
 

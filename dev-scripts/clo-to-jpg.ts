@@ -72,7 +72,7 @@ async function main() {
     process.exit(1);
   }
 
-  const input = args[0];
+  const input = args[0]!; // args.length === 0 was rejected above
   const output = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
 
   if (statSync(input).isDirectory()) {

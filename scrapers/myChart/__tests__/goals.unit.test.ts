@@ -8,8 +8,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+    return new Response(r!.body, { status: 200 })
+  })
   return req
 }
 
@@ -37,7 +37,7 @@ describe('getGoals', () => {
       source: 'care_team',
     })
     expect(result.patientGoals).toHaveLength(1)
-    expect(result.patientGoals[0].source).toBe('patient')
+    expect(result.patientGoals[0]!.source).toBe('patient')
   })
 
   it('handles missing fields with defaults', async () => {

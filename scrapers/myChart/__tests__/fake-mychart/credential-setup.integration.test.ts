@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { setupTotp, disableTotp } from '../../setupTotp'
 import { setupPasskey, listPasskeys, deletePasskey } from '../../setupPasskey'
 import { myChartPasskeyLogin } from '../../login'
@@ -190,7 +190,7 @@ describe('setupPasskey against fake-mychart', () => {
     const passkeys = await listPasskeys(req) as Array<{ rawId: string }>
     expect(passkeys.length).toBe(1)
     // The server must have stored the same credential id the scraper kept.
-    expect(passkeys[0].rawId).toBe(credential!.credentialId)
+    expect(passkeys[0]!.rawId).toBe(credential!.credentialId)
   }, 30_000)
 
   it('produces a credential that can actually log in', async () => {

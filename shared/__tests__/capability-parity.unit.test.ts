@@ -20,6 +20,8 @@ import {
   CAPABILITIES,
   CAPABILITY_IDS,
   AGENT_CAPABILITIES,
+  COMMON_CAPABILITIES,
+  LESS_FREQUENTLY_USED_CAPABILITIES,
 } from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
@@ -149,8 +151,8 @@ describe('mobile app', () => {
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
-      expect(WRITE_TOOL_META[id].title.length).toBeGreaterThan(0);
-      expect(WRITE_TOOL_META[id].description.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.title.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.description.length).toBeGreaterThan(0);
     }
   });
 
@@ -231,12 +233,46 @@ describe('rendersMedia', () => {
   });
 });
 
+// ── No client dispatches around executeCapability ──────────────────────────
+
+/**
+ * `executeCapability` is where the active-patient assertion lives, so a client
+ * reaching `capability.run` itself has silently opted out of it. The extension
+ * and the CLI both did, for the one capability returning bytes instead of
+ * JSON — making `download_imaging_study` the single tool that would hand back
+ * a family member's images when the session was parked on their chart.
+ */
+describe('capability dispatch', () => {
+  // This used to be a regex over three client source files. It is now the type
+  // system's job: `run` is absent from the exported `Capability`, so reaching
+  // it is a compile error in every client, whatever the spelling. See
+  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // assertion in capabilities.unit.test.ts.
+  //
+  // What remains here is the positive half — that each client actually calls
+  // the guarded entry point — which the type system cannot express.
+  const CLIENT_SOURCES = [
+    'claude-desktop-extension/src/tools.ts',
+    'expo-app/src/lib/scrapers/session-manager.ts',
+    'npm-package/cli/capabilityActions.ts',
+  ];
+
+  for (const relativePath of CLIENT_SOURCES) {
+    it(`${relativePath} dispatches through executeCapability`, async () => {
+      const source = await Bun.file(
+        new URL(`../../${relativePath}`, import.meta.url).pathname,
+      ).text();
+      expect(source).toContain('executeCapability(');
+    });
+  }
+});
+
 // ── 3. CLI ─────────────────────────────────────────────────────────────────
 
 describe('CLI', () => {
-  it('lists every capability under --list-capabilities', async () => {
+  it('lists every capability under --list-capabilities --show-all', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const id of ALL) {
       expect(listing).toContain(id);
     }
@@ -244,7 +280,7 @@ describe('CLI', () => {
 
   it('documents every argument each capability accepts', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const capability of CAPABILITIES) {
       for (const param of capability.params) {
         expect(listing).toContain(`--arg ${param.name}=<${param.type}>`);
@@ -252,10 +288,71 @@ describe('CLI', () => {
     }
   });
 
+  // The default listing is the useful subset. Hiding an entry is a
+  // presentation choice and nothing more — `--action` still runs it, which the
+  // "resolves every capability id" case below covers for the whole registry.
+  it('leads with the commonly-used capabilities and holds the rest back', async () => {
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
+    const listing = renderCapabilityList();
+    for (const capability of COMMON_CAPABILITIES) {
+      expect(listing).toContain(capability.id);
+    }
+    for (const capability of LESS_FREQUENTLY_USED_CAPABILITIES) {
+      expect(listing).not.toContain(capability.id);
+    }
+  });
+
   it('resolves every capability id as an --action', async () => {
     const { getCapability } = await import('../capabilities');
     for (const id of ALL) {
       expect(getCapability(id)?.id).toBe(id);
+    }
+  });
+
+  it('routes the legacy dashed action names onto the registry', async () => {
+    // These used to be hand-written handlers that fetched around
+    // executeCapability — the same second-dispatch-path bug this whole
+    // describe block exists to prevent. Now they are aliases.
+    const { CLI_ACTION_ALIASES, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
+    for (const [dashed, id] of Object.entries(CLI_ACTION_ALIASES)) {
+      expect(resolveCliAction(dashed)?.id).toBe(id);
+    }
+    // Registry ids resolve unchanged, and unknown names stay unknown.
+    expect(resolveCliAction('get_medications')?.id).toBe('get_medications');
+    expect(resolveCliAction('no-such-action')).toBeUndefined();
+  });
+
+  it('derives the default full scrape from the registry', async () => {
+    const { FULL_SCRAPE_CAPABILITIES } = await import('../../npm-package/cli/capabilityActions');
+    const ids = FULL_SCRAPE_CAPABILITIES.map((c) => c.id);
+
+    // The reads a chart is connected for are all in the default scrape…
+    for (const id of [
+      'get_profile',
+      'get_medications',
+      'get_allergies',
+      'get_lab_results',
+      'get_imaging_results',
+      'get_past_visits',
+      'get_messages',
+      'get_billing',
+    ]) {
+      expect(ids).toContain(id);
+    }
+
+    // …and nothing that writes, needs an argument, returns image bytes, or
+    // manages the session or account rather than reading the chart.
+    for (const id of [
+      'send_message',
+      'delete_message',
+      'get_visit_notes',
+      'download_imaging_study',
+      'list_proxy_targets',
+      'switch_proxy_target',
+      'setup_totp',
+      'register_passkey',
+    ]) {
+      expect(ids).not.toContain(id);
     }
   });
 
@@ -288,6 +385,14 @@ describe('CLI', () => {
     const { jsonSafeReplacer } = await import('../../npm-package/cli/capabilityActions');
     const json = JSON.stringify({ pixelData: new Uint8Array(2048) }, jsonSafeReplacer);
     expect(json).toBe('{"pixelData":"<2048 bytes>"}');
+
+    // A Node Buffer is what download_imaging_study actually returns, and
+    // JSON.stringify calls Buffer.toJSON() *before* the replacer sees the
+    // value — so the replacer receives {type:'Buffer', data:[...]}, never a
+    // Uint8Array. Without handling that shape, one image prints as tens of
+    // thousands of lines of byte values.
+    const bufJson = JSON.stringify({ pixelData: Buffer.alloc(2048) }, jsonSafeReplacer);
+    expect(bufJson).toBe('{"pixelData":"<2048 bytes>"}');
   });
 });
 

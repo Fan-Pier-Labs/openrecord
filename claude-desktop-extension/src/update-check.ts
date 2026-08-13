@@ -82,7 +82,7 @@ interface LatestManifest {
  */
 export function compareVersions(a: string, b: string): number {
   const parse = (v: string): number[] =>
-    v.replace(/^v/, '').split('-')[0].split('.').map(Number);
+    (v.replace(/^v/, '').split('-')[0] ?? '').split('.').map(Number);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {

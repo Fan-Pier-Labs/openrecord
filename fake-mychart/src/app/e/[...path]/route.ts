@@ -7,7 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { deflateSync } from 'zlib';
 import * as homer from '@/data/homer';
+import { Amf3Writer } from '@/lib/amf3';
 
 // ─── In-memory eUnity sessions ──────────────────────────────────────
 const eunitySessions = new Map<string, { initialized: boolean; ts: number; studyType: string }>();
@@ -19,7 +21,7 @@ function generateJsessionId(): string {
 function getJsessionFromCookie(request: NextRequest): string | null {
   const cookie = request.headers.get('cookie') ?? '';
   const match = cookie.match(/JSESSIONID=([^;]+)/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /**
@@ -44,7 +46,7 @@ function externalOrigin(request: NextRequest): string {
   // not be localhost). Docker service names like "fake-mychart:3000" have
   // no dot and only serve http, so they must stay http.
   const forwardedProto = request.headers.get('x-forwarded-proto');
-  const hostName = pickedHost.split(':')[0];
+  const hostName = pickedHost.split(':')[0] ?? pickedHost;
   const isExternal = !isLocalHost(pickedHost) && hostName.includes('.');
   const proto = isExternal
     ? 'https'
@@ -70,6 +72,8 @@ function binary(data: Buffer, extraHeaders: Record<string, string> = {}) {
 
 interface StudyData {
   studyUID: string;
+  accessionNumber?: string;
+  serviceInstance?: string;
   series: Array<{
     seriesUID: string;
     seriesDescription: string;
@@ -79,85 +83,123 @@ interface StudyData {
 }
 
 /**
- * Build a minimal AMF3 response for getStudyListMeta.
- * The scraper's parseAmfResponse looks for "code" in the binary,
- * then reads an integer (0x04) and null (0x01).
- * The parseStudySeriesFromAmf scans for DICOM UID patterns.
+ * Build the getStudyListMeta response exactly as observed on a real eUnity
+ * instance (Mass General Brigham): AmfServicesMessage{messageType, messageID,
+ * body} → AmfServicesResponse{code, response} → StudyListResponse, an
+ * *externalizable* whose custom body is a 4-byte big-endian format header
+ * (2), a DataRequestStatus value, a version string ("1.0.0"), a second
+ * big-endian word (0xEB), then an anonymous payload object whose studyList
+ * ArrayCollection holds Study → series ArrayCollection → Series → images
+ * ArrayCollection → Image typed objects. Each Series carries a
+ * frameOfReferenceUID — real responses do, and it's exactly the UID the old
+ * positional parser used to mistake for the series UID.
  */
 function buildAmfResponse(study: StudyData): Buffer {
-  const parts: number[] = [];
+  const w = new Amf3Writer();
 
-  // AmfServicesMessage typed object marker
-  parts.push(0x0a); // object marker
-  parts.push(0x33); // traits: 3 members, sealed, inline
-  // class name: "com.clientoutlook.web.metaservices.AmfServicesMessage"
-  const className = 'com.clientoutlook.web.metaservices.AmfServicesMessage';
-  writeAmfString(parts, className);
-  // member names
-  writeAmfString(parts, 'messageID');
-  writeAmfString(parts, 'messageType');
-  writeAmfString(parts, 'body');
+  const writeImage = (uid: string, instanceNumber: number, frameOfReferenceUID: string) => (w: Amf3Writer) =>
+    w.writeTypedObject(
+      'com.clientoutlook.data.Image',
+      ['uid', 'instanceNumber', 'rows', 'columns', 'sopClassUID', 'frameOfReferenceUID', 'numberOfFrames'],
+      [
+        (w) => w.writeString(uid),
+        (w) => w.writeInteger(instanceNumber),
+        (w) => w.writeInteger(512),
+        (w) => w.writeInteger(512),
+        (w) => w.writeString('1.2.840.10008.5.1.4.1.1.4'),
+        (w) => w.writeString(frameOfReferenceUID),
+        (w) => w.writeInteger(1),
+      ],
+    );
 
-  // messageID value
-  parts.push(0x06); // string marker
-  writeAmfString(parts, 'HTTPSimpleLoader_1');
-  // messageType value
-  parts.push(0x06);
-  writeAmfString(parts, 'response');
-
-  // body: AmfServicesResponse
-  parts.push(0x0a); // object marker
-  parts.push(0x23); // traits: 2 members, sealed, inline
-  const respClass = 'com.clientoutlook.web.metaservices.AmfServicesResponse';
-  writeAmfString(parts, respClass);
-  writeAmfString(parts, 'code');
-  writeAmfString(parts, 'response');
-  // code = 0
-  parts.push(0x04); // integer marker
-  parts.push(0x00); // value 0
-  // response = null
-  parts.push(0x01); // null marker
-
-  // Now append study UIDs as readable strings so parseStudySeriesFromAmf can find them
-  // It scans for patterns like 1.X.X.X.X.X...
-  const padding = Buffer.from('\x00\x00\x00\x00');
-  const studyBuf = Buffer.from(study.studyUID);
-
-  const trailingParts: Buffer[] = [padding, studyBuf, padding];
-  for (const s of study.series) {
+  const writeSeries = (s: StudyData['series'][0], index: number) => (w: Amf3Writer) => {
     const instances = s.instanceUIDs ?? (s.instanceUID ? [s.instanceUID] : []);
-    trailingParts.push(Buffer.from(s.seriesDescription));
-    trailingParts.push(padding);
-    // For each instance, emit the seriesUID + instanceUID pair
-    // The parser groups instances by seriesUID frequency
-    for (const instanceUID of instances) {
-      trailingParts.push(Buffer.from(s.seriesUID));
-      trailingParts.push(padding);
-      trailingParts.push(Buffer.from(instanceUID));
-      trailingParts.push(padding);
-    }
-  }
+    // Same UID root style real instances use for a frame of reference
+    const frameOfReferenceUID = `${study.studyUID}.2.${index + 1}.0.0.0`;
+    w.writeTypedObject(
+      'com.clientoutlook.data.Series',
+      ['uid', 'description', 'modality', 'sopClassUID', 'seriesNumber', 'frameOfReferenceUID', 'nonImages', 'images'],
+      [
+        (w) => w.writeString(s.seriesUID),
+        (w) => w.writeString(s.seriesDescription),
+        (w) => w.writeString('CR'),
+        (w) => w.writeString('1.2.840.10008.5.1.4.1.1.4'),
+        (w) => w.writeInteger(index + 1),
+        (w) => w.writeString(frameOfReferenceUID),
+        (w) => w.writeArrayCollection([]),
+        (w) => w.writeArrayCollection(instances.map((uid, i) => writeImage(uid, i + 1, frameOfReferenceUID))),
+      ],
+    );
+  };
 
-  return Buffer.concat([Buffer.from(parts), ...trailingParts]);
+  const totalInstances = study.series.reduce(
+    (sum, s) => sum + (s.instanceUIDs?.length ?? (s.instanceUID ? 1 : 0)),
+    0,
+  );
+
+  w.writeTypedObject(
+    'com.clientoutlook.web.metaservices.AmfServicesMessage',
+    ['messageType', 'messageID', 'body'],
+    [
+      (w) => w.writeString('response'),
+      (w) => w.writeString('HTTPSimpleLoader_1'),
+      (w) =>
+        w.writeTypedObject('com.clientoutlook.web.metaservices.AmfServicesResponse', ['code', 'response'], [
+          (w) => w.writeInteger(0),
+          (w) =>
+            w.writeExternalizableObject('com.clientoutlook.web.metaservices.StudyListResponse', (w) => {
+              w.writeBE32(2);
+              w.writeTypedObject(
+                'com.clientoutlook.data.DataRequestStatus',
+                ['requestDebugDetails', 'requestDetails', 'localeDetailKey', 'retryOnError', 'localeDetailParams', 'localeDebugKey', 'statusCode', 'localeDebugParams'],
+                [
+                  (w) => w.writeString(''),
+                  (w) => w.writeString(''),
+                  (w) => w.writeNull(),
+                  (w) => w.writeFalse(),
+                  (w) => w.writeNull(),
+                  (w) => w.writeNull(),
+                  (w) => w.writeInteger(0),
+                  (w) => w.writeNull(),
+                ],
+              );
+              w.writeString('1.0.0');
+              w.writeBE32(0xeb);
+              w.writeTypedObject(
+                '',
+                ['studySelectors', 'seriesSelectors', 'studyList', 'hangingProtocols', 'relevantStudyList'],
+                [
+                  (w) => w.writeArrayCollection([]),
+                  (w) => w.writeArrayCollection([]),
+                  (w) =>
+                    w.writeArrayCollection([
+                      (w) =>
+                        w.writeTypedObject(
+                          'com.clientoutlook.data.Study',
+                          ['description', 'numberOfStudyRelatedSeries', 'accessionNumber', 'numberOfStudyRelatedInstances', 'uid', 'serviceInstance', 'series'],
+                          [
+                            (w) => w.writeString('IMAGING STUDY'),
+                            (w) => w.writeInteger(study.series.length),
+                            (w) => w.writeString(study.accessionNumber ?? ''),
+                            (w) => w.writeInteger(totalInstances),
+                            (w) => w.writeString(study.studyUID),
+                            (w) => w.writeString(study.serviceInstance ?? ''),
+                            (w) => w.writeArrayCollection(study.series.map(writeSeries)),
+                          ],
+                        ),
+                    ]),
+                  (w) => w.writeArrayCollection([]),
+                  (w) => w.writeArrayCollection([]),
+                ],
+              );
+            }),
+        ]),
+    ],
+  );
+
+  return w.toBuffer();
 }
 
-function writeAmfString(buf: number[], str: string) {
-  const bytes = Buffer.from(str, 'utf-8');
-  // U29 inline string: (length << 1) | 1
-  const len = bytes.length;
-  if (len < 0x40) {
-    buf.push((len << 1) | 1);
-  } else if (len < 0x2000) {
-    buf.push(((len << 1 | 1) >> 7) | 0x80);
-    buf.push((len << 1 | 1) & 0x7F);
-  } else {
-    // For very long strings (shouldn't happen here)
-    buf.push(((len << 1 | 1) >> 14) | 0x80);
-    buf.push((((len << 1 | 1) >> 7) & 0x7F) | 0x80);
-    buf.push((len << 1 | 1) & 0x7F);
-  }
-  buf.push(...bytes);
-}
 
 // ─── Real CLO Image Data ─────────────────────────────────────────────
 // Pre-generated images for Homer's skull X-rays and CT scan.
@@ -167,8 +209,16 @@ const CLO_DATA_DIR = join(process.cwd(), 'src/data/clo-images');
 // Per-series CLO data keyed by seriesUID
 const seriesCloData = new Map<string, { wrapper: Buffer; pixel: Buffer }>();
 
-// Load X-ray series CLO data
-for (const s of homer.imaging.series) {
+// Series that answer every image request with a CLOERROR payload — eUnity's
+// pseudo-series (e.g. the viewer's "SeriesSelector" entries), which appear in
+// the AMF study metadata like real series but carry no pixel data.
+const cloErrorSeriesUIDs = new Set<string>();
+
+for (const s of [...homer.imaging.series, ...homer.ctImaging.series]) {
+  if ((s as { cloError?: boolean }).cloError) {
+    cloErrorSeriesUIDs.add(s.seriesUID);
+    continue;
+  }
   const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
   const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
   const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
@@ -178,19 +228,28 @@ for (const s of homer.imaging.series) {
   });
 }
 
-// Load CT series CLO data
-for (const s of homer.ctImaging.series) {
-  const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
-  const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
-  const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
-  seriesCloData.set(s.seriesUID, {
-    wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
-    pixel: pixelBuf,
-  });
+/**
+ * The payload a real eUnity server returns for a pseudo-instance: HTTP 200,
+ * `Content-Type: application/cloerror`, 226 bytes — an ASCII `CLOERROR#Z##`
+ * magic, a 4-byte length, a zlib-deflated error message, zero-padded.
+ * Observed on a real instance; the scrapers detect it by the magic prefix
+ * (and by the body being under 256 bytes), never by parsing the message.
+ */
+function buildCloErrorPayload(): Buffer {
+  const magic = Buffer.from('CLOERROR#Z##');
+  const message = deflateSync(Buffer.from('The requested object has no image data on this service instance.'));
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(message.length);
+  const body = Buffer.concat([magic, length, message]);
+  // Real payloads are 226 bytes; pad (or in the unlikely case, trim) to match.
+  if (body.length >= 226) return body.subarray(0, 226);
+  return Buffer.concat([body, Buffer.alloc(226 - body.length)]);
 }
+const CLO_ERROR_PAYLOAD = buildCloErrorPayload();
 
-// Fallback to first X-ray series for unmatched requests
-const defaultSeries = homer.imaging.series[0];
+// Fallback to first X-ray series for unmatched requests (seeded fixture data,
+// always present)
+const defaultSeries = homer.imaging.series[0]!;
 const defaultClo = seriesCloData.get(defaultSeries.seriesUID)!;
 
 // ─── Route handler ──────────────────────────────────────────────────
@@ -296,13 +355,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const requestType = formParams.get('requestType');
     const seriesUID = formParams.get('seriesUID') ?? '';
 
+    // Pseudo-series (SeriesSelector) answer 200 + application/cloerror for
+    // every request type, exactly like a real eUnity server.
+    if (cloErrorSeriesUIDs.has(seriesUID)) {
+      return binary(CLO_ERROR_PAYLOAD, { 'Content-Type': 'application/cloerror' });
+    }
+
     // Look up per-series image data, fall back to default
     const clo = seriesCloData.get(seriesUID) ?? defaultClo;
 
     if (requestType === 'CLOWRAPPER') {
-      return binary(clo.wrapper);
+      return binary(clo.wrapper, { 'Content-Type': 'application/clowrapper' });
     } else if (requestType === 'CLOPIXEL') {
-      return binary(clo.pixel);
+      return binary(clo.pixel, { 'Content-Type': 'application/clopixel' });
     } else {
       return new NextResponse('CLOERROR: unsupported request type', { status: 400 });
     }

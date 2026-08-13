@@ -14,7 +14,7 @@
  * call fixes it. Both clients register the tools under those names.
  */
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import {
   checkProxyContext,
   compareProfileNames,
@@ -106,7 +106,7 @@ export async function runListProxyTargets(mychartRequest: MyChartRequest): Promi
     const byName = targets.filter(
       (target) => compareProfileNames(target.displayName, verified.profileName!) === 'match',
     );
-    if (byName.length === 1) active = byName[0];
+    if (byName.length === 1) active = byName[0]!;
   }
 
   return {
@@ -142,7 +142,7 @@ export async function runSwitchProxyTarget(
   mychartRequest: MyChartRequest,
   patient: string,
 ): Promise<SwitchProxyTargetResult> {
-  if (!patient || !patient.trim()) {
+  if (!patient?.trim()) {
     throw new Error(
       'Pass the patient to switch to — a name from list_proxy_targets, or "me" for the account holder\'s own record.',
     );

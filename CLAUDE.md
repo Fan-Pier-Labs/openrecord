@@ -23,7 +23,6 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
 | `openrecord-splash/` | Static splash site + the browser demo |
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
-| `newsletter-lambda/` | Waitlist signup capture |
 | `read-local-passwords/` | Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
@@ -66,7 +65,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper |
-| `bun run cli --list-capabilities` | Every capability and the arguments it takes |
+| `bun run cli --help [--show-all]` | Usage, every flag, and the capability listing |
+| `bun run cli --list-capabilities [--show-all]` | The commonly-used capabilities and their arguments; `--show-all` adds the less-frequently-used ones |
 | `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
@@ -97,6 +97,11 @@ selects on the suffix and nothing else.
   in a client package that re-exports it.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
+
+- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
+  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
+  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
+  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 
@@ -161,10 +166,10 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
 - [CLI reference](docs/cli.md) — cookie caching, credential resolution, 2FA, actions, proxy flags
 - [Imaging scraper](docs/imaging.md) — eUnity protocol, AMF3, instance-specific notes
 - [Scraping guide](docs/scraping.md) — MyChart login, scraping tips, tooling
-- [MyChart features](docs/MYCHART_FEATURES.md) — full feature inventory and scraper coverage
+- [MyChart features](docs/MYCHART_FEATURES.md) — MyChart features we deliberately don't scrape
 - [MyChart TOTP](docs/mychart-totp.md) — authenticator-app 2FA setup, endpoints, CLI flags
 - Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,
-  `openrecord-demo-lambda/`, `newsletter-lambda/`, `openrecord-splash/`
+  `openrecord-demo-lambda/`, `openrecord-splash/`
 
 ## Memory
 

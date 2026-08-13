@@ -59,7 +59,7 @@ export interface MockRequestHandle {
 
 export function createMockRequest(
   routes: Record<string, RouteHandler>,
-  { hostname = 'mychart.example.org', firstPathPart = 'MyChart' as string | null } = {},
+  { hostname = 'mychart.example.org', firstPathPart = 'MyChart' } = {},
 ): MockRequestHandle {
   const req = new MyChartRequest(hostname)
   req.firstPathPart = firstPathPart
@@ -89,7 +89,7 @@ export function createMockRequest(
       return new Response(`No mock route for ${path}`, { status: 404 })
     }
     return handler(call)
-  }) as typeof req.transport
+  })
 
   return {
     req,
@@ -100,7 +100,7 @@ export function createMockRequest(
       if (matches.length !== 1) {
         throw new Error(`Expected exactly 1 call to ${pathSuffix}, got ${matches.length}`)
       }
-      return matches[0]
+      return matches[0]!
     },
   }
 }

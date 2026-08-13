@@ -64,7 +64,7 @@ describe('check_for_updates tool', () => {
     globalThis.fetch = releasesFetch('99.0.0');
     try {
       const result = await tools.get('check_for_updates')!.handler({});
-      const payload = JSON.parse(result.content[0].text ?? '{}') as Record<string, unknown>;
+      const payload = JSON.parse(result.content[0]?.text ?? '{}') as Record<string, unknown>;
       expect(payload.installed_version).toBe(EXTENSION_VERSION);
       expect(payload.latest_version).toBe('99.0.0');
       expect(payload.update_available).toBe(true);
@@ -84,7 +84,7 @@ describe('check_for_updates tool', () => {
     process.env.OPENRECORD_DISABLE_UPDATE_CHECK = '1';
     try {
       const result = await tools.get('check_for_updates')!.handler({});
-      const payload = JSON.parse(result.content[0].text ?? '{}') as Record<string, unknown>;
+      const payload = JSON.parse(result.content[0]?.text ?? '{}') as Record<string, unknown>;
       expect(payload.update_checks).toBe('disabled');
       expect(payload.installed_version).toBe(EXTENSION_VERSION);
     } finally {
@@ -101,7 +101,7 @@ describe('check_for_updates tool', () => {
     }) as unknown as typeof globalThis.fetch;
     try {
       const result = await tools.get('check_for_updates')!.handler({});
-      const payload = JSON.parse(result.content[0].text ?? '{}') as Record<string, unknown>;
+      const payload = JSON.parse(result.content[0]?.text ?? '{}') as Record<string, unknown>;
       expect(payload.installed_version).toBe(EXTENSION_VERSION);
       expect(payload.check_failed).toBe(true);
       expect(payload.update_available).toBe(false);
