@@ -101,7 +101,7 @@ describe('scraperFetch', () => {
       // These drifted apart once already (Sec-Ch-Ua said 126 while the
       // User-Agent said 131) — a combination no real browser sends, on every
       // outbound request.
-      const uaVersion = BROWSER_HEADERS['User-Agent']!.match(/Chrome\/(\d+)/)?.[1]
+      const uaVersion = (/Chrome\/(\d+)/.exec((BROWSER_HEADERS['User-Agent']!)))?.[1]
       expect(uaVersion).toBeDefined()
 
       const brands = [...BROWSER_HEADERS['Sec-Ch-Ua']!.matchAll(/"([^"]+)";v="(\d+)"/g)]

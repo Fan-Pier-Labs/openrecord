@@ -56,6 +56,7 @@
 import { readFileSync, existsSync } from "fs";
 import { inflateSync } from "zlib";
 import { decompress as zstdDecompress } from "fzstd";
+import { Amf3Reader } from '../eunity/amf3Reader';
 import { logger } from '../../../shared/logger';
 
 const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
@@ -74,167 +75,6 @@ export interface Bitmap16 {
   pixels: Uint16Array;
   width: number;
   height: number;
-}
-
-// ==================== AMF3 Parser ====================
-
-interface AMF3Traits {
-  class: string;
-  externalizable: boolean;
-  dynamic: boolean;
-  members: string[];
-}
-
-/**
- * Lenient AMF3 reader for CLO *wrapper metadata* — best-effort by design, so
- * a truncated or partially-corrupt wrapper still yields the windowing
- * metadata it carries (parseWrapper has a text-based fallback behind it).
- *
- * One of three AMF3 readers in the repo, each with different failure
- * semantics on purpose — see the header of eunity/amf3Reader.ts (the strict
- * production decoder for getStudyListMeta responses) before deduplicating.
- * The third, in eunity/__tests__/imagingDirectDownload.unit.test.ts, is a
- * deliberately independent oracle and must stay separate.
- */
-export class AMF3Reader {
-  private data: Buffer;
-  private pos: number;
-  private stringRefs: string[] = [];
-  private objectRefs: any[] = [];
-  private traitsRefs: AMF3Traits[] = [];
-
-  constructor(data: Buffer) {
-    this.data = data;
-    this.pos = 0;
-  }
-
-  readU8(): number {
-    return this.data[this.pos++]!;
-  }
-
-  readU29(): number {
-    let n = 0;
-    for (let i = 0; i < 3; i++) {
-      const b = this.readU8();
-      n = (n << 7) | (b & 0x7f);
-      if (!(b & 0x80)) return n;
-    }
-    return (n << 8) | this.readU8();
-  }
-
-  readString(): string {
-    const ref = this.readU29();
-    if (ref & 1) {
-      const length = ref >> 1;
-      if (length === 0) return "";
-      const s = this.data.subarray(this.pos, this.pos + length).toString("utf-8");
-      this.pos += length;
-      this.stringRefs.push(s);
-      return s;
-    }
-    return this.stringRefs[ref >> 1]!;
-  }
-
-  readDouble(): number {
-    const v = this.data.readDoubleBE(this.pos);
-    this.pos += 8;
-    return v;
-  }
-
-  readValue(depth = 0): any {
-    if (depth > 20) return null;
-    const marker = this.readU8();
-    if (marker === 0x00 || marker === 0x01) return null;
-    if (marker === 0x02) return false;
-    if (marker === 0x03) return true;
-    if (marker === 0x04) return this.readU29();
-    if (marker === 0x05) return this.readDouble();
-    if (marker === 0x06) return this.readString();
-    if (marker === 0x08) {
-      this.readU29();
-      return this.readDouble();
-    }
-    if (marker === 0x09) return this.readArray(depth);
-    if (marker === 0x0a) return this.readObject(depth);
-    if (marker === 0x0c) {
-      const ref = this.readU29();
-      if (ref & 1) {
-        const length = ref >> 1;
-        const data = Buffer.from(this.data.subarray(this.pos, this.pos + length));
-        this.pos += length;
-        this.objectRefs.push(data);
-        return data;
-      }
-      return this.objectRefs[ref >> 1];
-    }
-    return null;
-  }
-
-  private readArray(depth: number): any {
-    const ref = this.readU29();
-    if (!(ref & 1)) return this.objectRefs[ref >> 1];
-    const count = ref >> 1;
-    // Read associative part
-    while (true) {
-      const key = this.readString();
-      if (key === "") break;
-      this.readValue(depth + 1);
-    }
-    const dense: any[] = [];
-    for (let i = 0; i < count; i++) {
-      dense.push(this.readValue(depth + 1));
-    }
-    this.objectRefs.push(dense);
-    return dense;
-  }
-
-  private readObject(depth: number): any {
-    const ref = this.readU29();
-    if (!(ref & 1)) return this.objectRefs[ref >> 1];
-    let traits: AMF3Traits;
-    if (ref & 2) {
-      const members: string[] = [];
-      const memberCount = ref >> 4;
-      const className = this.readString();
-      for (let i = 0; i < memberCount; i++) {
-        members.push(this.readString());
-      }
-      traits = {
-        class: className,
-        externalizable: !!(ref & 4),
-        dynamic: !!(ref & 8),
-        members,
-      };
-      this.traitsRefs.push(traits);
-    } else {
-      traits = this.traitsRefs[ref >> 2]!;
-    }
-    const obj: any = { _class: traits.class };
-    this.objectRefs.push(obj);
-    if (traits.externalizable) {
-      obj._data = this.readValue(depth + 1);
-      return obj;
-    }
-    for (const name of traits.members) {
-      try {
-        obj[name] = this.readValue(depth + 1);
-      } catch {
-        break;
-      }
-    }
-    if (traits.dynamic) {
-      while (true) {
-        try {
-          const key = this.readString();
-          if (key === "") break;
-          obj[key] = this.readValue(depth + 1);
-        } catch {
-          break;
-        }
-      }
-    }
-    return obj;
-  }
 }
 
 // ==================== Wrapper Parser ====================
@@ -269,9 +109,12 @@ export function parseWrapper(input: string | Buffer): CloMetadata {
 
   const metadata: CloMetadata = {};
 
+  // Decoded strictly (eunity/amf3Reader.ts — the repo's one AMF3 reader): a
+  // wrapper this decoder can't fully parse costs the windowing metadata, and
+  // the text-based fallback below still recovers the photometric so the image
+  // renders.
   try {
-    const reader = new AMF3Reader(decompressed);
-    const result = reader.readValue();
+    const result = new Amf3Reader(decompressed).readValue() as Record<string, any>;
     if (result && typeof result === "object" && !Array.isArray(result)) {
       if (typeof result.photometricInterpretation === "string") {
         metadata.photometric = result.photometricInterpretation;
