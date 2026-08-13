@@ -127,14 +127,20 @@ bun run lint
 bun run test
 ```
 
-If CI integration tests are available (Docker running), also run:
+If Docker is running, also run the integration suites and the coverage gate.
+`test:integration` covers every `*.integration.test.ts` in the repo — the
+scraper suites, the desktop extension and the CLI passkey flow — all against the
+one compose service, and it needs the built CLI binary:
+
 ```bash
 docker compose -f docker-compose.ci.yaml up -d --build --wait
-bun run test:ci-integration
+cd npm-package && bun run build && cd ..
+bun run test:integration
+bun run test:coverage
 docker compose -f docker-compose.ci.yaml down -v
 ```
 
-Don't skip the CI integration tests just because they're slow — they're the only thing that catches runtime regressions in the CLI passkey flow against a real fake-mychart server. If Docker isn't running, ask the user whether to start it or skip CI integration (note the skip in the PR description).
+Don't skip these just because they're slow — they're the only thing that catches runtime regressions against a real fake-mychart server, and a dependency bump is exactly the kind of change that breaks at runtime rather than at typecheck. If Docker isn't running, ask the user whether to start it or skip them (note the skip in the PR description).
 
 For `expo-app/`, also run any unit tests it has and at minimum confirm `bunx expo doctor` is clean.
 

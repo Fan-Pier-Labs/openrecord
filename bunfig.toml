@@ -1,15 +1,21 @@
 # Coverage gate for `bun run test:coverage`, enforced in CI.
 #
-# These only take effect when `--coverage` is passed, so the plain `bun run
-# test`, `test:fake-mychart` and `test:ci-integration` runs are unaffected.
+# These only take effect when `--coverage` is passed, so the plain `bun run test`
+# and `bun run test:integration` runs are unaffected.
 #
-# SCOPE: the gate measures the unit suite AND the fake-mychart suite together —
-# it needs a fake-mychart on :4000, which is why the CI step lives in the
-# `fake-mychart` job. Measuring only the unit suite counted every scraper that is
-# covered end-to-end as untested and put the number ~10 points low. Run it
-# locally with `cd fake-mychart && bun run dev` first.
-# `tests/integration/ci` stays out: it drives the built CLI binary as a
-# subprocess, so nothing there is instrumented.
+# SCOPE: every `*.unit.test.ts` and `*.integration.test.ts` in the repo, measured
+# together in one process. It has to be both: the unit suite alone counts every
+# scraper that is only exercised end-to-end as untested (~10 points low), and the
+# integration suite alone does the reverse. That is why this is its own script
+# rather than a flag on either one.
+#
+# It therefore needs everything the integration suite needs — the compose
+# fake-mychart on :4000, npm-package's dist/ built, every package's deps
+# installed — so the CI step lives in the `integration` job, the only one with
+# all of it. Locally:
+#
+#   docker compose -f docker-compose.ci.yaml up -d --build --wait
+#   cd npm-package && bun install && bun run build
 
 [test]
 coverageSkipTestFiles = true
