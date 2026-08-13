@@ -633,6 +633,16 @@ for (const mode of MOUNT_MODES) {
       )
       expect(sortedAxial.map(i => readPatientPosition(i.wrapperData!)!.z)).toEqual([40, 80, 120, 160, 200])
 
+      // BONE RECON runs z ASCENDING with instance number — the other
+      // direction, where a correct sort is a no-op. Asserting it too is what
+      // separates "sorted anatomically" from "reversed unconditionally".
+      const boneBase = '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333'
+      const bone = result.images.filter(i => i.seriesDescription === 'BONE RECON')
+      expect(bone.length).toBe(3)
+      expect(sortImagesByPatientPosition(bone).map(i => i.instanceUID)).toEqual(
+        [1, 2, 3].map(n => `${boneBase}.${n}`),
+      )
+
       // SCOUT is a projection image served from the shared per-series wrapper
       // — no patient position, and the sort must leave it alone.
       const scout = result.images.find(i => i.seriesDescription === 'SCOUT')
