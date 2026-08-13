@@ -50,6 +50,8 @@ export async function mockRequest(inputUrl: string, config: RequestConfig): Prom
     }
   }
 
-  console.log('no mock data found for', pathname)
-  process.exit(1)
+  // Throw, never exit: this runs inside whatever process installed it (an MCP
+  // server, the app, a test runner), and an unmapped fixture path must not
+  // take the host down with it.
+  throw new Error(`No mock data found for ${pathname}. Add a MockData entry for it in scrapers/myChart/mock_data/.`)
 }
