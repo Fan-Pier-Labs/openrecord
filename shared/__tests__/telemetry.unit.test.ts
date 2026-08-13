@@ -87,7 +87,7 @@ describe('telemetry', () => {
       expect(amplitudeCall).toBeTruthy();
 
       if (amplitudeCall) {
-        const opts = amplitudeCall[1] as RequestInit;
+        const opts = amplitudeCall[1]!;
         expect(opts.method).toBe('POST');
         const body = JSON.parse(opts.body as string);
         expect(body.api_key).toBe('a7d8557f623f24012e62edc61bbc0fd6');
@@ -169,7 +169,7 @@ describe('telemetry', () => {
       const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
       expect(analyticsCall).toBeTruthy();
 
-      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      const body = JSON.parse(analyticsCall![1]!.body as string);
       expect(body.event).toBe('cli_started');
       expect(body.source).toBe('cli');
       expect(body.deviceId).toBeTruthy();
@@ -183,17 +183,17 @@ describe('telemetry', () => {
     test('defaults source to "node" when the caller omits it', async () => {
       const { calls } = await capturePostUrls('test_event');
       const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
-      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      const body = JSON.parse(analyticsCall![1]!.body as string);
       expect(body.source).toBe('node');
     });
 
     test('uses the same anonymous device id for both sinks', async () => {
       const { calls } = await capturePostUrls('test_event');
       const amplitudeBody = JSON.parse(
-        (calls.find((c) => String(c[0]).includes('amplitude.com'))![1] as RequestInit).body as string,
+        calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string,
       );
       const analyticsBody = JSON.parse(
-        (calls.find((c) => String(c[0]).includes('execute-api'))![1] as RequestInit).body as string,
+        calls.find((c) => String(c[0]).includes('execute-api'))![1]!.body as string,
       );
       expect(analyticsBody.deviceId).toBe(amplitudeBody.events[0].device_id);
     });

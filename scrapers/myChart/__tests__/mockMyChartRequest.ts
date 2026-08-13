@@ -23,7 +23,7 @@ export interface RecordedCall {
   headers: Record<string, string>
   body?: string
   /** Parse the request body as JSON. Throws if it isn't JSON. */
-  json<T = Record<string, unknown>>(): T
+  json: <T = Record<string, unknown>>() => T
 }
 
 export type RouteHandler = (call: RecordedCall) => Response | Promise<Response>
@@ -52,9 +52,9 @@ export interface MockRequestHandle {
   req: MyChartRequest
   calls: RecordedCall[]
   /** Every call whose path ends with the given suffix. */
-  callsTo(pathSuffix: string): RecordedCall[]
+  callsTo: (pathSuffix: string) => RecordedCall[]
   /** The single call to the given path suffix. Throws unless there is exactly one. */
-  callTo(pathSuffix: string): RecordedCall
+  callTo: (pathSuffix: string) => RecordedCall
 }
 
 export function createMockRequest(

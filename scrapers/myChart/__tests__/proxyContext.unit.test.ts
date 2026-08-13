@@ -755,7 +755,7 @@ describe('withProxyTarget', () => {
   it('skips the switch when the portal already reports the wanted record', async () => {
     const { req, state } = familyRequest(CHILD_ID)
     let switches = 0
-    const original = req.makeRequest
+    const original = req.makeRequest.bind(req)
     req.makeRequest = ((config: RequestConfig) => {
       if (config.url?.includes('switchcontext')) switches += 1
       return original.call(req, config)
