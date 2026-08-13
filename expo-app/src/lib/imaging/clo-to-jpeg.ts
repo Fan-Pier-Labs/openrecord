@@ -24,7 +24,7 @@ export function cloToJpegBase64(
   // convertCloToBitmap returns 8-bit grayscale pixels. jpeg-js wants RGBA.
   const rgba = new Uint8Array(width * height * 4);
   for (let i = 0; i < pixels.length; i++) {
-    const v = pixels[i];
+    const v = pixels[i] ?? 0;
     const j = i * 4;
     rgba[j] = v;
     rgba[j + 1] = v;

@@ -10,15 +10,17 @@ type Row = Record<string, unknown>;
 const tables: Record<string, Row[]> = {};
 
 function loadTable(name: string): Row[] {
-  if (!tables[name]) {
-    try {
-      const stored = localStorage.getItem(`sqlite_${name}`);
-      tables[name] = stored ? JSON.parse(stored) : [];
-    } catch {
-      tables[name] = [];
-    }
+  const existing = tables[name];
+  if (existing) return existing;
+  let rows: Row[];
+  try {
+    const stored = localStorage.getItem(`sqlite_${name}`);
+    rows = stored ? JSON.parse(stored) : [];
+  } catch {
+    rows = [];
   }
-  return tables[name];
+  tables[name] = rows;
+  return rows;
 }
 
 function saveTable(name: string) {
@@ -41,15 +43,14 @@ class WebSQLiteDatabase {
     const sqlLower = sql.trim().toLowerCase();
 
     if (sqlLower.startsWith("insert into")) {
-      const tableMatch = sql.match(/INSERT INTO (\w+)/i);
-      if (!tableMatch) return { changes: 0 };
-      const table = tableMatch[1];
+      const table = sql.match(/INSERT INTO (\w+)/i)?.[1];
+      if (!table) return { changes: 0 };
       const rows = loadTable(table);
 
       // Extract column names from the SQL
-      const colMatch = sql.match(/\(([^)]+)\)\s*VALUES/i);
-      if (!colMatch) return { changes: 0 };
-      const cols = colMatch[1].split(",").map((c) => c.trim());
+      const colList = sql.match(/\(([^)]+)\)\s*VALUES/i)?.[1];
+      if (!colList) return { changes: 0 };
+      const cols = colList.split(",").map((c) => c.trim());
 
       const row: Row = {};
       cols.forEach((col, i) => {
@@ -63,17 +64,16 @@ class WebSQLiteDatabase {
     }
 
     if (sqlLower.startsWith("update")) {
-      const tableMatch = sql.match(/UPDATE (\w+)/i);
-      if (!tableMatch) return { changes: 0 };
-      const table = tableMatch[1];
+      const table = sql.match(/UPDATE (\w+)/i)?.[1];
+      if (!table) return { changes: 0 };
       const rows = loadTable(table);
 
       // Extract SET column names (only those with ? placeholders)
-      const setMatch = sql.match(/SET (.+?) WHERE/i);
-      if (!setMatch) return { changes: 0 };
+      const setClause = sql.match(/SET (.+?) WHERE/i)?.[1];
+      if (!setClause) return { changes: 0 };
       const setCols: string[] = [];
-      for (const part of setMatch[1].split(",")) {
-        const colName = part.split("=")[0].trim();
+      for (const part of setClause.split(",")) {
+        const colName = (part.split("=")[0] ?? "").trim();
         // Only include columns bound to ? params, skip SQL expressions
         if (part.includes("?")) {
           setCols.push(colName);
@@ -96,33 +96,31 @@ class WebSQLiteDatabase {
     }
 
     if (sqlLower.startsWith("delete from")) {
-      const tableMatch = sql.match(/DELETE FROM (\w+)/i);
-      if (!tableMatch) return { changes: 0 };
-      const table = tableMatch[1];
+      const table = sql.match(/DELETE FROM (\w+)/i)?.[1];
+      if (!table) return { changes: 0 };
       const rows = loadTable(table);
       const idValue = params[params.length - 1];
       const before = rows.length;
-      tables[table] = rows.filter((r) => r.id !== idValue && r.chat_id !== idValue);
+      const remaining = rows.filter((r) => r.id !== idValue && r.chat_id !== idValue);
+      tables[table] = remaining;
       saveTable(table);
-      return { changes: before - tables[table].length };
+      return { changes: before - remaining.length };
     }
 
     return { changes: 0 };
   }
 
   async getAllAsync<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    const tableMatch = sql.match(/FROM (\w+)/i);
-    if (!tableMatch) return [];
-    const table = tableMatch[1];
+    const table = sql.match(/FROM (\w+)/i)?.[1];
+    if (!table) return [];
     const rows = loadTable(table);
 
     let filtered = [...rows];
 
     // Simple WHERE clause handling
     if (sql.toLowerCase().includes("where")) {
-      const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s*$)/i);
-      if (whereMatch) {
-        const conditions = whereMatch[1];
+      const conditions = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s*$)/i)?.[1];
+      if (conditions) {
         if (conditions.includes("chat_id = ?")) {
           filtered = filtered.filter((r) => r.chat_id === params[0]);
         } else if (conditions.includes("id = ?")) {
@@ -143,8 +141,8 @@ class WebSQLiteDatabase {
     // ORDER BY
     if (sql.toLowerCase().includes("order by")) {
       const orderMatch = sql.match(/ORDER BY (\w+)\s*(ASC|DESC)?/i);
-      if (orderMatch) {
-        const col = orderMatch[1];
+      const col = orderMatch?.[1];
+      if (orderMatch && col) {
         const desc = orderMatch[2]?.toUpperCase() === "DESC";
         filtered.sort((a, b) => {
           const va = String(a[col] || "");
