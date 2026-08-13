@@ -29,6 +29,8 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Referencing a class method without its receiver silently loses `this`.
+      "@typescript-eslint/unbound-method": "error",
       // `str.match(re)` and `re.exec(str)` are identical for non-global
       // regexes, and exec is the clearer read; the rule declines to convert
       // /g patterns, where the two genuinely differ.
@@ -62,6 +64,10 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // `.filter(p)[0]` builds a whole array to keep one element — `.find(p)`.
+      "@typescript-eslint/prefer-find": "error",
+      // `x as T` where `T` is just the non-null of x reads clearer as `x!`.
+      "@typescript-eslint/non-nullable-type-assertion-style": "error",
       // A template literal wrapping one string and nothing else is just quotes.
       "@typescript-eslint/no-unnecessary-template-expression": "error",
       // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
