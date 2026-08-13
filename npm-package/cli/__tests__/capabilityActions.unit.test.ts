@@ -49,7 +49,7 @@ function familyRequest(activeId: string): MyChartRequest {
       );
     }
     throw new Error(`Unexpected request ${JSON.stringify(config)}`);
-  }) as typeof req.makeRequest;
+  });
   return req;
 }
 

@@ -124,7 +124,7 @@ function requestFailingOnDetail(
       return new Response(JSON.stringify(null), { status: 200 })
     }
     return new Response('', { status: 404 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -178,7 +178,7 @@ describe('partial-failure handling', () => {
         return new Response(JSON.stringify({ orderName: 'Lab' }), { status: 200 })
       }
       return new Response(JSON.stringify(null), { status: 200 })
-    }) as typeof req.transport
+    })
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
@@ -195,7 +195,7 @@ describe('partial-failure handling', () => {
       }
       if (urlStr.includes('GetList')) return new Response('<html>not json</html>', { status: 200 })
       return new Response('', { status: 404 })
-    }) as typeof req.transport
+    })
 
     await expect(listLabResults(req)).resolves.toEqual([])
   })

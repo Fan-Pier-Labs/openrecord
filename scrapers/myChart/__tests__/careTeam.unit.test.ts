@@ -154,7 +154,7 @@ describe('getCareTeam failure reporting', () => {
     req.transport = mock(async (url: string) => {
       if (url.includes('GetMedicalAdviceRequestRecipients')) fail()
       return new Response(TOKEN_PAGE, { status: 200 })
-    }) as typeof req.transport
+    })
     return req
   }
 
@@ -180,7 +180,7 @@ describe('getCareTeam failure reporting', () => {
         return new Response('Not Found', { status: 404 })
       }
       return new Response(TOKEN_PAGE, { status: 200 })
-    }) as typeof req.transport
+    })
 
     await expect(getCareTeam(req)).resolves.toEqual([])
   })
