@@ -54,9 +54,9 @@ function RootLayoutNav() {
     }
 
     // Run once on mount (covers cold start) and on every transition to active.
-    maybeRefreshAll();
+    void maybeRefreshAll();
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") maybeRefreshAll();
+      if (state === "active") void maybeRefreshAll();
     });
     return () => sub.remove();
   }, [isAuthenticated]);
@@ -73,7 +73,11 @@ export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    initDatabase().then(() => setDbReady(true));
+    // A failed init would otherwise leave the app stuck on the null screen
+    // with no trace of why.
+    initDatabase()
+      .then(() => setDbReady(true))
+      .catch((err) => console.error("[db] initDatabase failed:", err));
   }, []);
 
   if (!dbReady) return null;

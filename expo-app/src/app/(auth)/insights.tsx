@@ -48,7 +48,7 @@ export default function InsightsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      void load();
     }, [load]),
   );
 

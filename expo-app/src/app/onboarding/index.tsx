@@ -38,7 +38,7 @@ export default function OnboardingScreen() {
   // Dev shortcut: BYO Claude key + Google session → straight to chat.
   // Also pre-warm the MyChart instance list so the picker is instant.
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const [byoKey, session] = await Promise.all([
         getClaudeApiKey(),
         getBackendSession(),

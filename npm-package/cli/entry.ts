@@ -9,4 +9,4 @@ const subcommand = process.argv[2];
 if (subcommand === 'mychart') {
   process.argv.splice(2, 1);
 }
-import('./cli');
+void import('./cli');
