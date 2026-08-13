@@ -66,7 +66,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper |
-| `bun run cli --list-capabilities` | Every capability and the arguments it takes |
+| `bun run cli --help [--show-all]` | Usage, every flag, and the capability listing |
+| `bun run cli --list-capabilities [--show-all]` | The commonly-used capabilities and their arguments; `--show-all` adds the less-frequently-used ones |
 | `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |

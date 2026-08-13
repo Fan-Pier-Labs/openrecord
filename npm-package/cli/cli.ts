@@ -60,8 +60,9 @@ import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthentic
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import { isBlockedInstance } from '../../scrapers/myChart/blockedInstances';
-import { CAPABILITIES, getCapability } from '../../shared/capabilities';
+import { COMMON_CAPABILITIES, LESS_FREQUENTLY_USED_CAPABILITIES, getCapability } from '../../shared/capabilities';
 import { renderCapabilityList, runCapabilityAction } from './capabilityActions';
+import { renderCliHelp } from './help';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -102,7 +103,9 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action list-proxies                 (list accessible patient records)
 //   npx tsx src/cli.ts --host <hostname> --patient "Bart Simpson"            (read a proxy patient's chart)
 //   npx tsx src/cli.ts --host <hostname> --switch "Bart Simpson"             (change MyChart's active patient)
-//   npx tsx src/cli.ts --list-capabilities                                   (every capability and its arguments)
+//   npx tsx src/cli.ts --help                                                (usage + the commonly-used capabilities)
+//   npx tsx src/cli.ts --help --show-all                                     (…including the less-frequently-used ones)
+//   npx tsx src/cli.ts --list-capabilities [--show-all]                      (just the capability listing)
 //   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
 //
 // `--action` accepts any id from the shared capability registry
@@ -119,7 +122,10 @@ interface CliArgs {
   setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
   setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
   deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
+  help?: boolean;
   listCapabilities?: boolean;
+  /** Include the less-frequently-used capabilities in `--help` / `--list-capabilities`. */
+  showAll?: boolean;
   /** Repeated `--arg name=value` pairs, passed straight to the capability. */
   capabilityArgs?: Record<string, string>;
   /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
@@ -132,7 +138,9 @@ function parseArgs(): CliArgs {
   const capabilityArgs: Record<string, string> = {};
   parsed.capabilityArgs = capabilityArgs;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
+    if (args[i] === '--help' || args[i] === '-h') parsed.help = true;
+    else if (args[i] === '--show-all') parsed.showAll = true;
+    else if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
     // `--arg name=value`, repeatable. Whatever the chosen capability declares
     // in the shared registry is what this accepts — no per-flag plumbing.
     else if (args[i] === '--arg' && args[i + 1]) {
@@ -1332,9 +1340,15 @@ async function main() {
   // Fire-and-forget update check — never blocks or breaks the CLI
   void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
 
-  // Listing what the CLI can do needs no account and no network.
+  // Saying what the CLI can do needs no account and no network. Both listings
+  // lead with the commonly-used capabilities and name `--show-all` for the rest.
+  if (cliArgs.help) {
+    console.log(renderCliHelp({ showAll: cliArgs.showAll }));
+    closeRL();
+    return;
+  }
   if (cliArgs.listCapabilities) {
-    console.log(renderCapabilityList());
+    console.log(renderCapabilityList({ showAll: cliArgs.showAll }));
     closeRL();
     return;
   }
@@ -2013,8 +2027,10 @@ async function main() {
     const capability = getCapability(cliArgs.action);
     if (!capability) {
       console.log(`\n  Unknown --action "${cliArgs.action}".`);
-      console.log(`  Capabilities: ${CAPABILITIES.map(c => c.id).join(', ')}`);
-      console.log('  Run  mychart-cli --list-capabilities  for the full list with arguments.');
+      console.log(`  Capabilities: ${COMMON_CAPABILITIES.map(c => c.id).join(', ')}`);
+      console.log(
+        `  …and ${LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used ones. Run  mychart-cli --list-capabilities [--show-all]  for the full list with arguments.`,
+      );
       closeRL();
       process.exit(1);
     }

@@ -18,6 +18,8 @@ import * as path from 'path';
 import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import {
   capabilitiesByGroup,
+  COMMON_CAPABILITIES,
+  LESS_FREQUENTLY_USED_CAPABILITIES,
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
@@ -28,19 +30,21 @@ import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 
-/** Every capability, grouped, with its parameters — `--list-capabilities`. */
-export function renderCapabilityList(): string {
-  const lines: string[] = [
-    '',
-    '='.repeat(60),
-    '  Capabilities',
-    '='.repeat(60),
-    '',
-    '  Run one with:  mychart-cli --host <hostname> --action <id> [--arg name=value ...]',
-  ];
-  for (const { group, capabilities } of capabilitiesByGroup()) {
+/** How much of the registry a listing prints. */
+export interface CapabilityListOptions {
+  /**
+   * Include the {@link Capability.lessFrequentlyUsed} entries too. Off by
+   * default: a full dump of the registry buries the handful of capabilities
+   * that are the reason to connect an account at all.
+   */
+  showAll?: boolean;
+}
+
+function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
+  const lines: string[] = [];
+  for (const { group, capabilities: inGroup } of capabilitiesByGroup(capabilities)) {
     lines.push('', `  -- ${group} --`);
-    for (const capability of capabilities) {
+    for (const capability of inGroup) {
       // Anything that isn't a plain read gets a marker, so a glance down the
       // list separates "shows me something" from "changes something".
       const marker = capability.kind === 'read' ? ' ' : '!';
@@ -53,12 +57,54 @@ export function renderCapabilityList(): string {
       }
     }
   }
+  return lines;
+}
+
+/**
+ * The capabilities, grouped, with the parameters each takes.
+ *
+ * By default this is the commonly-used set only, with a pointer to
+ * `--show-all` for the rest — the hidden entries stay every bit as runnable,
+ * they just don't crowd out labs and medications in a 50-entry wall of text.
+ * `--show-all` appends them under their own heading rather than mixing them
+ * back in, so the shape of the default listing doesn't change under the reader.
+ */
+export function renderCapabilityList(options: CapabilityListOptions = {}): string {
+  const lines: string[] = [
+    '',
+    '='.repeat(60),
+    '  Capabilities',
+    '='.repeat(60),
+    '',
+    '  Run one with:  mychart-cli --host <hostname> --action <id> [--arg name=value ...]',
+    ...renderCapabilityGroups(COMMON_CAPABILITIES),
+  ];
+
+  if (options.showAll) {
+    lines.push(
+      '',
+      '='.repeat(60),
+      '  Less frequently used',
+      '='.repeat(60),
+      '',
+      '  Supported, and rarely what you want: endpoints most charts leave empty,',
+      "  and settings for the account's own sign-in. Run them the same way.",
+      ...renderCapabilityGroups(LESS_FREQUENTLY_USED_CAPABILITIES),
+    );
+  }
+
   lines.push(
     '',
     "  ! marks a command that changes something — a write to the chart, or the account's own sign-in settings.",
     '  Commands that produce images write JPEGs to ./imaging-output (override with --output <dir>).',
-    '',
   );
+  if (!options.showAll) {
+    lines.push(
+      `  ${LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used capabilities are hidden. Show them with:`,
+      '      mychart-cli --list-capabilities --show-all',
+    );
+  }
+  lines.push('');
   return lines.join('\n');
 }
 
