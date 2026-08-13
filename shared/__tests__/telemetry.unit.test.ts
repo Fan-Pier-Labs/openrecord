@@ -73,7 +73,7 @@ describe('telemetry', () => {
     });
 
     test('calls fetch with Amplitude API endpoint and anonymous payload', async () => {
-      const fetchMock = mock(() =>
+      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
       );
       globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -106,7 +106,7 @@ describe('telemetry', () => {
 
     test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
       process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
-      const fetchMock = mock(() =>
+      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
       );
       globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -131,7 +131,8 @@ describe('telemetry', () => {
 
     /** Mock fetch, emit one event, and return every URL it was called with. */
     async function capturePostUrls(...args: Parameters<typeof sendTelemetryEvent>) {
-      const fetchMock = mock(() => Promise.resolve(new Response('{}', { status: 200 })));
+      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 })));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
       sendTelemetryEvent(...args);
       // Both sinks when they're both on; the tests that switch one off drain

@@ -109,8 +109,12 @@ export function gatherEnvInfo(): EnvInfo {
   return {
     platform: os.platform(),
     arch: os.arch(),
-    runtime_version:
-      typeof Bun !== 'undefined' ? `bun ${Bun.version}` : `node ${process.version}`,
+    // Read off globalThis so this file typechecks under tsconfigs without bun
+    // types (the expo app imports it directly).
+    runtime_version: (() => {
+      const bun = (globalThis as { Bun?: { version: string } }).Bun;
+      return bun ? `bun ${bun.version}` : `node ${process.version}`;
+    })(),
     os_version: os.release(),
   };
 }

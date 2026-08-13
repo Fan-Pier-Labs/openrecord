@@ -103,7 +103,7 @@ describe('withHostLimit', () => {
 
   it('admits queued callers in the order they arrived', async () => {
     const started: number[] = []
-    const gates = new Map<number, ReturnType<typeof deferred>>()
+    const gates = new Map<number, ReturnType<typeof deferred<void>>>()
 
     // Saturate the host, then queue three more behind it.
     const total = LIMIT + 3
