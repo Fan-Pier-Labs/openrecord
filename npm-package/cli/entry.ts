@@ -10,4 +10,4 @@ if (subcommand === 'mychart') {
   process.argv.splice(2, 1);
 }
 // eslint-disable-next-line no-restricted-syntax -- must stay dynamic: cli.ts runs main() at import time, and the argv splice above has to happen first (a static import would hoist past it)
-import('./cli');
+void import('./cli');

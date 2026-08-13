@@ -43,6 +43,7 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-floating-promises": "error",
       // No runtime import() in product code — a static import says what a
       // module needs where every reader and every bundler can see it. The
       // few load-bearing dynamic imports (module-cycle breakers, an
