@@ -80,7 +80,7 @@ for (const { discovery, mode, prefix, host } of CASES) {
       // reading real data off the session proves discovery landed somewhere
       // the rest of the scraper can use.
       const profile = await getMyChartProfile(result.mychartRequest)
-      expect(profile.name).toContain('Homer')
+      expect(profile?.name).toContain('Homer')
     }, 30_000)
   })
 }

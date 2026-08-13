@@ -5,6 +5,7 @@ import { myChartUserPassLogin, complete2faFlow, areCookiesValid } from '../../sc
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
 import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
 import { upcomingVisits, pastVisits } from '../../scrapers/myChart/visits/visits';
+import { isVisitsScrapeError } from '../../scrapers/myChart/visits/types';
 import { listLabResults } from '../../scrapers/myChart/labs_and_procedure_results/labResults';
 import { listConversations } from '../../scrapers/myChart/messages/conversations';
 import { getMedications } from '../../scrapers/myChart/medications';
@@ -602,7 +603,9 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
   subheader('Upcoming Visits');
   try {
     const upcoming = await upcomingVisits(mychartRequest);
-    if (upcoming) {
+    if (isVisitsScrapeError(upcoming)) {
+      console.log('    Error fetching upcoming visits:', upcoming.error);
+    } else {
       const allVisits = [
         ...(upcoming.LaterVisitsList || []),
         ...(upcoming.NextNDaysVisits || []),
@@ -633,7 +636,9 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
 
     const past = await pastVisits(mychartRequest, twoYearsAgo);
-    if (past && past.List) {
+    if (isVisitsScrapeError(past)) {
+      console.log('    Error fetching past visits:', past.error);
+    } else if (past.List) {
       let totalPast = 0;
       for (const [, orgVisits] of Object.entries(past.List)) {
         for (const visit of orgVisits.List.slice(0, 15)) {
