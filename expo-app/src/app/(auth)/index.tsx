@@ -61,7 +61,7 @@ export default function ChatScreen() {
     const q = params.ask;
     if (!q || handledAskRef.current === q) return;
     handledAskRef.current = q;
-    handleSend(q);
+    void handleSend(q);
     router.setParams({ ask: undefined });
   }, [params.ask]);
 
@@ -172,7 +172,7 @@ export default function ChatScreen() {
 
   function handlePickSkill(skill: Skill) {
     skillAdditionRef.current = skill.playbook;
-    handleSend(skill.kickoffMessage);
+    void handleSend(skill.kickoffMessage);
   }
 
   return (

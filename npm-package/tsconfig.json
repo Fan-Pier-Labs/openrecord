@@ -28,7 +28,9 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "examples/**/*",
+    "tsup.config.ts"
   ],
   "exclude": [
     "node_modules",

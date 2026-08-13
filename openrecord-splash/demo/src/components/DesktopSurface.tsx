@@ -39,7 +39,7 @@ type DesktopEntry = {
 };
 
 export type DesktopHandle = {
-  send: (text: string) => void;
+  send: (text: string) => void | Promise<void>;
 };
 
 type Props = {
@@ -65,7 +65,7 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
   const [confirm, setConfirm] = useState<{ write: PendingWrite; decide: (ok: boolean) => void } | null>(null);
 
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const sendRef = useRef<(text: string) => void>(() => {});
+  const sendRef = useRef<(text: string) => void | Promise<void>>(() => {});
 
   useEffect(() => {
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
@@ -220,7 +220,7 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
                 const text = draft.trim();
                 if (!text || busy) return;
                 setDraft('');
-                send(text);
+                void send(text);
               }
             }}
           />
@@ -235,7 +235,7 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
                 const text = draft.trim();
                 if (!text || busy) return;
                 setDraft('');
-                send(text);
+                void send(text);
               }}
             >
               ↑

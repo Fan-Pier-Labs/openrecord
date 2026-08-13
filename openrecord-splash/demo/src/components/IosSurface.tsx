@@ -26,7 +26,7 @@ export type ChatEntry = {
 };
 
 export type IosHandle = {
-  send: (text: string) => void;
+  send: (text: string) => void | Promise<void>;
 };
 
 type Props = {
@@ -68,7 +68,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // The turn handler is recreated each render; the imperative handle we hand
   // the parent has to call the latest one.
-  const sendRef = useRef<(text: string) => void>(() => {});
+  const sendRef = useRef<(text: string) => void | Promise<void>>(() => {});
 
   const alerts = useMemo(
     () =>
@@ -249,7 +249,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
             const text = draft.trim();
             if (!text || busy) return;
             setDraft('');
-            send(text);
+            void send(text);
           }}
         >
           <input
@@ -491,7 +491,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
               onClick={() => {
                 setSkillsOpen(false);
                 setActiveSkill(skill);
-                send(skill.kickoffMessage);
+                void send(skill.kickoffMessage);
               }}
             >
               <span className="ios-sheet-icon">{skill.icon}</span>
