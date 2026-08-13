@@ -5,7 +5,7 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 ## Key Files
 
 - `scrapers/myChart/eunity/imagingViewer.ts` — FDI context extraction, FdiData API, SAML chain following (uses `globalThis.fetch` for TLS fingerprinting compatibility)
-- `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`AMF3Writer`, `buildAmfCall()`, `initializeAmfSession()`, `downloadImagingStudyDirect()`)
+- `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`AMF3Writer`, `buildAmfCall()`, `initializeAmfSession()`, `downloadImagingDirect()`)
 - `scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (fallback approach)
 - `scrapers/myChart/labs_and_procedure_results/labResults.ts` — `getImagingResults()` and `listLabResults()`
 - `scrapers/myChart/labs_and_procedure_results/labtestresulttype.ts` — `ImagingResult` interface
