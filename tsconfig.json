@@ -18,6 +18,7 @@
     "types": ["bun", "node"],
     "strict": true,
     "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "sourceMap": false,

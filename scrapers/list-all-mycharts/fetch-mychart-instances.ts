@@ -69,7 +69,7 @@ async function fetchDirectory(): Promise<MyChartCustomer[]> {
   }
 
   // The JSON is single-quote escaped inside a JS string
-  const jsonStr = match[1].replace(/\\'/g, "'").replace(/\\"/g, '"');
+  const jsonStr = match[1]!.replace(/\\'/g, "'").replace(/\\"/g, '"'); // the one capture group is non-optional
   const directory = JSON.parse(jsonStr);
   const customers: MyChartCustomer[] = directory.Customers;
   logger.debug(`Found ${customers.length} MyChart instances`);

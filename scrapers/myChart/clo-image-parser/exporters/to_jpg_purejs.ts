@@ -23,7 +23,7 @@ export interface PureJsJpeg {
 export function grayscaleToRgba(gray: Uint8Array): Uint8Array {
   const out = new Uint8Array(gray.length * 4);
   for (let i = 0; i < gray.length; i++) {
-    const v = gray[i];
+    const v = gray[i]!; // i bounded by loop over gray.length; noUncheckedIndexedAccess
     const o = i * 4;
     out[o] = v;
     out[o + 1] = v;

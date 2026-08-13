@@ -59,7 +59,7 @@ describe('getCareTeam', () => {
     `
     const result = await getCareTeam(mockRequest(html))
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('Jane Doe, NP')
+    expect(result[0]!.name).toBe('Jane Doe, NP')
   })
 
   it('falls back to API when HTML has no structured care team data', async () => {

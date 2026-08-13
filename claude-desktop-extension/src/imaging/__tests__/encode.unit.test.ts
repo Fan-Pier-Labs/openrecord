@@ -37,7 +37,7 @@ describe('encodeStudyJpegs', () => {
     expect(result.returned).toBe(1);
     expect(result.errors).toEqual([]);
 
-    const img = result.images[0];
+    const img = result.images[0]!;
     expect(img.width).toBe(512);
     expect(img.height).toBe(512);
     expect(img.seriesDescription).toBe('PA VIEW');
@@ -59,9 +59,9 @@ describe('encodeStudyJpegs', () => {
     ]));
 
     expect(result.returned).toBe(1);
-    expect(result.images[0].width).toBeGreaterThan(0);
-    expect(result.images[0].height).toBeGreaterThan(0);
-    expect(result.images[0].bytes).toBeGreaterThan(1000);
+    expect(result.images[0]!.width).toBeGreaterThan(0);
+    expect(result.images[0]!.height).toBeGreaterThan(0);
+    expect(result.images[0]!.bytes).toBeGreaterThan(1000);
   });
 
   it('skips images without pixel data and captures per-image encode failures', () => {
@@ -79,8 +79,8 @@ describe('encodeStudyJpegs', () => {
     // the good one encodes; upstream errors are preserved.
     expect(result.totalImages).toBe(3);
     expect(result.returned).toBe(1);
-    expect(result.images[0].seriesDescription).toBe('GOOD');
-    expect(result.errors[0]).toBe('upstream warning');
+    expect(result.images[0]!.seriesDescription).toBe('GOOD');
+    expect(result.errors[0]!).toBe('upstream warning');
     expect(result.errors.some((e) => e.includes('CORRUPT'))).toBe(true);
   });
 });

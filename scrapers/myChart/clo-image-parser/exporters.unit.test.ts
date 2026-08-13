@@ -82,7 +82,7 @@ function readPng16Pixels(pngBuf: Buffer): { pixels: number[]; bitDepth: number; 
     if (type === "IHDR") {
       width = pngBuf.readUInt32BE(pos + 8);
       height = pngBuf.readUInt32BE(pos + 12);
-      bitDepth = pngBuf[pos + 8 + 8];
+      bitDepth = pngBuf[pos + 8 + 8]!;
     }
     if (type === "IDAT") {
       idatChunks.push(pngBuf.subarray(pos + 8, pos + 8 + len));
@@ -101,7 +101,7 @@ function readPng16Pixels(pngBuf: Buffer): { pixels: number[]; bitDepth: number; 
       if (bitDepth === 16) {
         pixels.push(decompressed.readUInt16BE(offset));
       } else {
-        pixels.push(decompressed[offset]);
+        pixels.push(decompressed[offset]!);
       }
     }
   }
@@ -157,7 +157,7 @@ describe("encode16bitPng", () => {
     // doesn't declare it.
     expect((info as typeof info & { depth?: string }).depth).toBe("ushort");
     for (let i = 0; i < 4; i++) {
-      expect(data.readUInt16LE(i * 2)).toBe(pixels[i]);
+      expect(data.readUInt16LE(i * 2)).toBe(pixels[i]!);
     }
   });
 
@@ -214,8 +214,8 @@ describe("convertCloToBitmap16", () => {
     const bitmap16 = makeGradientBitmap16();
     let min = 65535, max = 0;
     for (let i = 0; i < bitmap16.pixels.length; i++) {
-      if (bitmap16.pixels[i] < min) min = bitmap16.pixels[i];
-      if (bitmap16.pixels[i] > max) max = bitmap16.pixels[i];
+      if (bitmap16.pixels[i]! < min) min = bitmap16.pixels[i]!;
+      if (bitmap16.pixels[i]! > max) max = bitmap16.pixels[i]!;
     }
     expect(min).toBeGreaterThanOrEqual(0);
     expect(max).toBeLessThanOrEqual(65535);
@@ -239,7 +239,7 @@ describe("convertCloToBitmap16", () => {
     const downsampled = to8bit(bitmap16.pixels, false);
     let maxDiff = 0;
     for (let i = 0; i < bitmap8.pixels.length; i++) {
-      const diff = Math.abs(downsampled[i] - bitmap8.pixels[i]);
+      const diff = Math.abs(downsampled[i]! - bitmap8.pixels[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(1);
@@ -356,7 +356,7 @@ describe("to_jpg_purejs", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < bitmap.pixels.length; i++) {
-      const diff = Math.abs(decoded.data[i * 4] - bitmap.pixels[i]);
+      const diff = Math.abs(decoded.data[i * 4]! - bitmap.pixels[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Quality-100 JPEG should stay very close to the source pixels.
@@ -375,7 +375,7 @@ describe("to_jpg_purejs", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < pureJsPixels.data.length; i++) {
-      const diff = Math.abs(pureJsPixels.data[i] - sharpPixels.data[i]);
+      const diff = Math.abs(pureJsPixels.data[i]! - sharpPixels.data[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Two quality-100 encoders over identical windowed pixels: near-identical.
@@ -441,7 +441,7 @@ describe("convertBitmap16ToJpg", () => {
     // At quality 100, JPEG should be very close to source
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(5);
@@ -656,7 +656,7 @@ describe("convertBitmap16ToAvif", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Lossless AVIF at 8-bit should be very close
@@ -672,7 +672,7 @@ describe("convertBitmap16ToAvif", () => {
 
     let sumSq = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = data[i] - expected8[i];
+      const diff = data[i]! - expected8[i]!;
       sumSq += diff * diff;
     }
     const rmse = Math.sqrt(sumSq / data.length);
@@ -778,7 +778,7 @@ describe("convertBitmap16ToTiff", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < data.length; i++) {
-      const diff = Math.abs(data[i] - expected8[i]);
+      const diff = Math.abs(data[i]! - expected8[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     expect(maxDiff).toBeLessThanOrEqual(1);

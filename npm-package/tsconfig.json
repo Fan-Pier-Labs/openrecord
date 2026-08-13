@@ -11,6 +11,7 @@
     "outDir": "./dist",
     "rootDir": "..",
     "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "noImplicitAny": true,

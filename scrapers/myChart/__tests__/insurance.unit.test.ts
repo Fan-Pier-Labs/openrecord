@@ -44,8 +44,8 @@ describe('getInsurance', () => {
     `
     const result = await getInsurance(mockRequest(html))
     expect(result.coverages).toHaveLength(2)
-    expect(result.coverages[0].planName).toBe('Medical Plan')
-    expect(result.coverages[1].planName).toBe('Dental Plan')
+    expect(result.coverages[0]!.planName).toBe('Medical Plan')
+    expect(result.coverages[1]!.planName).toBe('Dental Plan')
   })
 
   it('reports hasCoverages=false when page says no coverages', async () => {

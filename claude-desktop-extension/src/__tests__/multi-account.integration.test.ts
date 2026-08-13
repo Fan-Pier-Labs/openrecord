@@ -48,7 +48,7 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
   if (!handler) throw new Error(`tool ${name} is not registered`)
   return handler(args)
 }
-const parse = (result: ToolResult) => JSON.parse(result.content[0].text)
+const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)
 
 beforeAll(async () => {
   await resetFakeMyChart(HOST)
@@ -106,8 +106,8 @@ describe('two logins on one hostname', () => {
   it('a bare hostname is no match — the error lists the real ids', async () => {
     const result = await call('get_profile', { account: HOST })
     expect(result.isError).toBe(true)
-    expect(result.content[0].text).toContain(`homer@${HOST}`)
-    expect(result.content[0].text).toContain(`marge@${HOST}`)
+    expect(result.content[0]!.text).toContain(`homer@${HOST}`)
+    expect(result.content[0]!.text).toContain(`marge@${HOST}`)
   })
 
   it('each qualified id reads its own chart', async () => {

@@ -23,7 +23,7 @@ export function parsePaymentUrl(html: string): { id: string, context: string } |
   const match = html.match(regex);
   if (match) {
     // Remove the leading '~/'
-    const urlStr = match[1].replace(/^~\//, '');
+    const urlStr = match[1]!.replace(/^~\//, ''); // the one capture group is non-optional
     // Split into path and query string
     let [, queryString] = urlStr.split('?');
     if (!queryString) {

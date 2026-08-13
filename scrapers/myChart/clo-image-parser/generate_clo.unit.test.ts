@@ -229,13 +229,13 @@ describe("encode → decode round-trip", () => {
     for (let i = 0; i < width * height; i++) {
       windowed[i] = Math.max(
         0,
-        Math.min(65535, Math.round((img[i] / 65536) * 65535))
+        Math.min(65535, Math.round((img[i]! / 65536) * 65535))
       );
-      if (windowed[i] > maxWindowed) maxWindowed = windowed[i];
+      if (windowed[i]! > maxWindowed) maxWindowed = windowed[i]!;
     }
     const result = new Uint8Array(width * height);
     for (let i = 0; i < width * height; i++) {
-      result[i] = Math.round((windowed[i] / maxWindowed) * 255);
+      result[i] = Math.round((windowed[i]! / maxWindowed) * 255);
     }
     return result;
   }
@@ -247,7 +247,7 @@ describe("encode → decode round-trip", () => {
     let maxDiff = 0;
     let exact = 0;
     for (let i = 0; i < expected.length; i++) {
-      const diff = Math.abs(actual[i] - expected[i]);
+      const diff = Math.abs(actual[i]! - expected[i]!);
       if (diff > maxDiff) maxDiff = diff;
       if (diff === 0) exact++;
     }
@@ -368,7 +368,7 @@ describe("encode → decode round-trip", () => {
     );
 
     const expected = expected8bit(img, width, height);
-    for (let i = 0; i < expected.length; i++) expected[i] = 255 - expected[i];
+    for (let i = 0; i < expected.length; i++) expected[i] = 255 - expected[i]!;
 
     const result = compare(bitmap.pixels, expected);
     expect(result.maxDiff).toBe(0);

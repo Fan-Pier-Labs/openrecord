@@ -62,7 +62,7 @@ describe('the registry itself', () => {
     // is the point — it replaced a regex that only caught one spelling.
     // @ts-expect-error — Property 'run' does not exist on type 'Capability'.
     void CAPABILITIES[0].run;
-    expect(Object.keys(CAPABILITIES[0])).toContain('id');
+    expect(Object.keys(CAPABILITIES[0]!)).toContain('id');
   });
 
   it('names every parameter and says what it is for', () => {

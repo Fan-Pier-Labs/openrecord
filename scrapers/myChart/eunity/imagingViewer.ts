@@ -224,7 +224,7 @@ export async function followSamlChain(
         const metaMatch = html.match(/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i) ||
                           html.match(/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i);
         if (metaMatch) {
-          url = new URL(metaMatch[1], url).href;
+          url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess
           method = 'GET';
           body = undefined;
           contentType = undefined;
@@ -241,7 +241,7 @@ export async function followSamlChain(
             // Variable reference — look for the var declaration
             const varMatch = html.match(/var\s+url\s*=\s*'([^']+)'/);
             if (varMatch) {
-              targetUrl = varMatch[1].replace(/&amp;/g, '&');
+              targetUrl = varMatch[1]!.replace(/&amp;/g, '&'); // pattern has one mandatory capture group; noUncheckedIndexedAccess
             }
           }
           if (targetUrl) {

@@ -106,7 +106,7 @@ export async function runListProxyTargets(mychartRequest: MyChartRequest): Promi
     const byName = targets.filter(
       (target) => compareProfileNames(target.displayName, verified.profileName!) === 'match',
     );
-    if (byName.length === 1) active = byName[0];
+    if (byName.length === 1) active = byName[0]!;
   }
 
   return {

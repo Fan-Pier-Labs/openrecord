@@ -346,7 +346,8 @@ export function parseAmfResponse(buf: Buffer): AmfResponse | null {
 
   if (buf[pos] === 0x04) { // Integer
     pos++;
-    code = buf[pos] & 0x7F;
+    // Byte reads are `!`-asserted: positions are bounded by the scan loop above; noUncheckedIndexedAccess.
+    code = buf[pos]! & 0x7F;
     pos++;
   }
 
@@ -358,11 +359,11 @@ export function parseAmfResponse(buf: Buffer): AmfResponse | null {
       pos++;
       // Read U29 string length
       let len: number;
-      if (buf[pos] < 0x80) {
-        len = buf[pos] >> 1;
+      if (buf[pos]! < 0x80) {
+        len = buf[pos]! >> 1;
         pos++;
       } else {
-        len = ((buf[pos] & 0x7F) << 7) | buf[pos + 1];
+        len = ((buf[pos]! & 0x7F) << 7) | buf[pos + 1]!;
         len >>= 1;
         pos += 2;
       }
@@ -437,9 +438,10 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
       if (!accession && arg.includes('|')) {
         const parts = arg.split('|');
         if (parts.length >= 3) {
-          accession = parts[0];
-          serviceInstance = parts[1];
-          patientId = parts[2];
+          // Length checked above; `!` for noUncheckedIndexedAccess.
+          accession = parts[0]!;
+          serviceInstance = parts[1]!;
+          patientId = parts[2]!;
         }
       }
     }
@@ -451,19 +453,19 @@ export function parseEunityStudyParams(viewerUrl: string, viewerBody?: string): 
     // Extract accessionNumber from JSON: "accessionNumber":"E48330984"
     if (!accession) {
       const accMatch = viewerBody.match(/"accessionNumber"\s*:\s*"([^"]+)"/);
-      if (accMatch) accession = accMatch[1];
+      if (accMatch) accession = accMatch[1]!;
     }
 
     // Extract serviceInstance from JSON: "serviceInstance":"EXAMPLEstudystrategy"
     if (!serviceInstance) {
       const siMatch = viewerBody.match(/"serviceInstance"\s*:\s*"([^"]+)"/);
-      if (siMatch) serviceInstance = siMatch[1];
+      if (siMatch) serviceInstance = siMatch[1]!;
     }
 
     // Extract patientId from JSON: "patientId":"<MRN>$$$<site>"
     if (!patientId) {
       const pidMatch = viewerBody.match(/"patientId"\s*:\s*"([^"]+)"/);
-      if (pidMatch) patientId = pidMatch[1];
+      if (pidMatch) patientId = pidMatch[1]!;
     }
   }
 
@@ -527,6 +529,9 @@ export function parseStudySeriesFromAmfStructured(amfBuf: Buffer, accession?: st
     (accession ? studies.find((s) => s.accessionNumber === accession && seriesOf(s).length > 0) : undefined) ??
     studies.find((s) => seriesOf(s).length > 0) ??
     studies[0];
+  // An empty study list previously crashed on `study.uid`; null is this
+  // function's failure value for a response it can't use.
+  if (!study) return null;
 
   const studyUID = study.uid;
   if (typeof studyUID !== 'string' || !studyUID) return null;
@@ -623,7 +628,7 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   logger.debug(`      [AMF-PARSE] ${uniqueUIDs.length} unique study-related UIDs from ${uidOccurrences.length} occurrences`);
 
   // Study UID: the first UID in the response (AMF always starts with study-level data)
-  const studyUID = uniqueUIDs[0];
+  const studyUID = uniqueUIDs[0]!; // uidOccurrences checked non-empty above; noUncheckedIndexedAccess
 
   // Detect series vs instance UIDs using positional structure analysis.
   //
@@ -671,7 +676,7 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   for (const sg of subGroups) {
     if (sg.uids.length === 1) {
       // Single UID — likely a series UID (or a standalone instance like Scout)
-      const uid = sg.uids[0];
+      const uid = sg.uids[0]!; // length === 1 checked above; noUncheckedIndexedAccess
       // If the previous "series" had no instances, it was actually an instance itself
       // Add it to the current series
       if (currentSeriesUID && seriesInstances.get(currentSeriesUID)!.size === 0) {
@@ -746,12 +751,12 @@ export function parseStudySeriesFromAmf(amfBuf: Buffer): ParsedStudyInfo | null 
   const series: ParsedStudyInfo['series'] = [];
   let seriesIdx = 0;
   for (let si = 0; si < candidateSeriesUIDs.length; si++) {
-    const seriesUID = candidateSeriesUIDs[si];
+    const seriesUID = candidateSeriesUIDs[si]!; // si bounded by loop; noUncheckedIndexedAccess
     const instances = seriesInstances.get(seriesUID)!;
     const seriesPos = firstPosition.get(seriesUID) ?? 0;
     // Search for descriptions between this series and the next one
     const nextSeriesPos = si + 1 < candidateSeriesUIDs.length
-      ? (firstPosition.get(candidateSeriesUIDs[si + 1]) ?? text.length)
+      ? (firstPosition.get(candidateSeriesUIDs[si + 1]!) ?? text.length)
       : text.length;
 
     // Find series description: look for readable strings between this series and the next
@@ -820,7 +825,7 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
   if (allUIDs.length === 0) return null;
 
   // Study UID: the first UID in the response (AMF always starts with study-level data)
-  const studyUID = allUIDs[0];
+  const studyUID = allUIDs[0]!; // allUIDs.length checked non-zero above; noUncheckedIndexedAccess
   const otherUIDs = allUIDs.filter(uid => uid !== studyUID);
 
   if (otherUIDs.length === 0) return { studyUID, series: [] };
@@ -840,8 +845,8 @@ function parseStudySeriesFromAmfLegacy(amfBuf: Buffer): ParsedStudyInfo | null {
 
   const series: ParsedStudyInfo['series'] = [];
   for (let i = 0; i + 1 < otherUIDs.length; i += 2) {
-    const seriesUID = otherUIDs[i];
-    const instanceUID = otherUIDs[i + 1];
+    const seriesUID = otherUIDs[i]!; // i + 1 < length per loop condition; noUncheckedIndexedAccess
+    const instanceUID = otherUIDs[i + 1]!;
     const seriesPos = uidPositions.get(seriesUID) ?? 0;
 
     let bestDesc = `Series ${Math.floor(i / 2) + 1}`;
@@ -889,7 +894,7 @@ export function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceIns
     const valuePattern = /([A-Z][A-Za-z0-9]{5,}(?:Bundle|Strategy|strategy))/g;
     let match;
     while ((match = valuePattern.exec(region)) !== null) {
-      const val = match[1];
+      const val = match[1]!; // pattern has one mandatory capture group; noUncheckedIndexedAccess
       if (val !== originalServiceInstance && !val.startsWith('ServiceInstance')) {
         return val;
       }
@@ -901,7 +906,7 @@ export function extractServiceInstanceFromAmf(amfBuf: Buffer, originalServiceIns
   const globalPattern = /([A-Z][A-Za-z0-9]{4,}Bundle|[A-Z][A-Za-z0-9]{4,}[Ss]trategy)/g;
   let match;
   while ((match = globalPattern.exec(text)) !== null) {
-    const val = match[1];
+    const val = match[1]!; // pattern has one mandatory capture group; noUncheckedIndexedAccess
     if (val !== originalServiceInstance) {
       return val;
     }

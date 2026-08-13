@@ -288,11 +288,12 @@ export function resolveTopic(
   topics: MessageTopic[],
   query: string | undefined,
 ): { topic: MessageTopic; substituted: boolean } {
-  if (topics.length === 0) throw new Error('No message topics are available on this MyChart.');
+  const firstTopic = topics[0];
+  if (!firstTopic) throw new Error('No message topics are available on this MyChart.');
   const wanted = (query ?? '').toLowerCase().trim();
-  if (!wanted) return { topic: topics[0], substituted: false };
+  if (!wanted) return { topic: firstTopic, substituted: false };
   const match = topics.find((t) => t.displayName.toLowerCase().includes(wanted));
-  return match ? { topic: match, substituted: false } : { topic: topics[0], substituted: true };
+  return match ? { topic: match, substituted: false } : { topic: firstTopic, substituted: true };
 }
 
 // ── Small shared helpers ────────────────────────────────────────────────────

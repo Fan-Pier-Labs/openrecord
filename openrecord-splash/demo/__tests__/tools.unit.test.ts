@@ -75,8 +75,8 @@ describe('session isolation', () => {
     meds[0].name = 'Tampered';
     meds[0].refillsRemaining = 999;
 
-    expect(run(createSession(), 'get_medications')[0].name).toBe(data.medications[0].name);
-    expect(data.medications[0].refillsRemaining).toBe(3);
+    expect(run(createSession(), 'get_medications')[0]!.name).toBe(data.medications[0]!.name);
+    expect(data.medications[0]!.refillsRemaining).toBe(3);
   });
 
   test('two sessions do not share state', () => {
@@ -313,7 +313,7 @@ describe('session and imaging', () => {
   test('get_xray_image returns an attachment the UI can render', () => {
     const result = run(createSession(), 'get_xray_image', { imaging_index: 0 });
     expect(result.attachment.kind).toBe('xray');
-    expect(result.study).toBe(data.imagingResults[0].study);
+    expect(result.study).toBe(data.imagingResults[0]!.study);
   });
 
   test('get_xray_image rejects an out-of-range index', () => {

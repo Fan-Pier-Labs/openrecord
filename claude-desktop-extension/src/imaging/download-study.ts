@@ -54,7 +54,7 @@ export function encodeStudyJpegs(payload: StudyImagePayload): DownloadStudyJpegs
   const images: StudyJpeg[] = [];
 
   for (let i = 0; i < withPixels.length; i++) {
-    const img = withPixels[i];
+    const img = withPixels[i]!; // i bounded by loop over withPixels.length; noUncheckedIndexedAccess
     try {
       const encoded = convertCloToJpgPureJs(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       images.push({

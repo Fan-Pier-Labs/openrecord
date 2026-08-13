@@ -33,7 +33,7 @@ describe("SCHEMA_SQL", () => {
       .query<{ id: string; dismissed_at: string | null }, []>("SELECT id, dismissed_at FROM alerts")
       .all();
     expect(rows).toHaveLength(1);
-    expect(rows[0].dismissed_at).toBe("2026-01-01T00:00:00Z");
+    expect(rows[0]!.dismissed_at).toBe("2026-01-01T00:00:00Z");
 
     // What the home screen actually asks for.
     const active = db.query("SELECT * FROM alerts WHERE dismissed_at IS NULL").all();
@@ -65,7 +65,7 @@ describe("SCHEMA_SQL", () => {
     const verbs = SCHEMA_SQL.split(';')
       .map((s) => s.trim())
       .filter(Boolean)
-      .map((s) => s.split(/\s+/)[0].toUpperCase());
+      .map((s) => s.split(/\s+/)[0]!.toUpperCase());
 
     expect(verbs.length).toBeGreaterThan(0);
     expect(verbs).not.toContain('DROP');
