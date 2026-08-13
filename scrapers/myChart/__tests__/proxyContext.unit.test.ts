@@ -759,7 +759,7 @@ describe('withProxyTarget', () => {
     req.makeRequest = ((config: RequestConfig) => {
       if (config.url?.includes('switchcontext')) switches += 1
       return original.call(req, config)
-    }) as typeof req.makeRequest
+    })
 
     await withProxyTarget(req, 'Bart Simpson', async () => state.activeId)
     expect(switches).toBe(0)

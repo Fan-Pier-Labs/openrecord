@@ -281,7 +281,7 @@ export function registerAllTools(server: McpServer): void {
     {
       title: 'List configured accounts',
       description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `hostname` as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
-      inputSchema: {} as ZodRawShape,
+      inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {

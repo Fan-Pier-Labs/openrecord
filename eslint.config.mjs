@@ -54,6 +54,7 @@ export default [
         disallowTypeAnnotations: false,
       }],
       "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All

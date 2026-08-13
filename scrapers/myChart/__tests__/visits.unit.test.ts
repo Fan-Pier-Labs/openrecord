@@ -16,7 +16,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 
@@ -90,7 +90,7 @@ describe('upcomingVisits', () => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
       return new Response(r.body, { status: 200 })
-    }) as typeof req.transport
+    })
 
     await upcomingVisits(req)
 
@@ -164,7 +164,7 @@ describe('pastVisits', () => {
       calls.push({ url: url.toString(), init })
       const r = responses[callIndex++]
       return new Response(r.body, { status: 200 })
-    }) as typeof req.transport
+    })
 
     const oldestDate = new Date('2023-06-15T00:00:00.000Z')
     await pastVisits(req, oldestDate)
