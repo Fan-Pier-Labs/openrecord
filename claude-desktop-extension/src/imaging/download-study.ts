@@ -65,7 +65,7 @@ export function encodeStudyJpegs(
   const images: StudyJpeg[] = [];
 
   for (let i = 0; i < Math.min(withPixels.length, maxImages); i++) {
-    const img = withPixels[i];
+    const img = withPixels[i]!; // i bounded by loop over withPixels.length; noUncheckedIndexedAccess
     try {
       const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       const encoded = encodeCloAsJpeg(bitmap, jpegQuality);
