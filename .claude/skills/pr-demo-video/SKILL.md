@@ -156,8 +156,14 @@ not involved.
    ```
 
    Pick a Metro port not in use by other sessions. The build takes several minutes —
-   start it early. The app's built-in **Springfield General Hospital (test)** instance
-   points at the deployed fake-mychart, so no local server is needed for chart data.
+   start it early. While it builds, start fake-mychart locally (`cd fake-mychart &&
+   bun run dev`, port 4000; reuse an already-running one if the PR doesn't change
+   fake-mychart itself). **Connect the app to it via "Don't see yours? Enter hostname
+   manually" → `localhost:4000`** — the simulator shares the Mac's network, and the
+   app speaks plain HTTP to dotless hostnames. This beats the built-in Springfield
+   General entry (which points at the deployed fake-mychart) because it needs no
+   internet, its DNS can't flake, and the demo runs against the PR's own fake-mychart
+   code.
 
 3. **Stage the starting state before recording.** Drive the app with maestro-cli to the
    screen where the demo begins (sign-in, account setup) *first* — the video should
@@ -278,10 +284,6 @@ Lessons from real runs of the iOS path:
   Podfile.lock"**: run `pod install` in `expo-app/ios` with
   `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` set — CocoaPods crashes in a shell without a
   UTF-8 locale.
-- **The app can't reach `fake-mychart.fanpierlabs.com`**: the deployed instance may not
-  resolve. Start fake-mychart locally and connect via "Don't see yours? Enter hostname
-  manually" → `localhost:4000` — the simulator shares the Mac's network, and the app
-  uses plain HTTP for dotless hostnames.
 - **Taps silently do nothing on one screen**: the dev-build LogBox toast ("Open
   debugger to view warnings") swallows taps near the bottom of the screen. Dismiss it
   (its ✕ sits at roughly point (369, 810) on an iPhone 17) before recording, and
