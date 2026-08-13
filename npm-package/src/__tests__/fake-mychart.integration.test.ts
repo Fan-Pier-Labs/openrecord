@@ -147,10 +147,10 @@ test('downloadImagingStudyDirect → decode → export produces a valid JPEG', a
   expect(firstImage.wrapperData).toBeDefined();
 
   // Two steps: decode the CLO, then encode the bitmap.
-  const bitmap = convertCloToBitmap(firstImage.pixelData!, firstImage.wrapperData!);
+  const bitmap = convertCloToBitmap(firstImage.pixelData!, firstImage.wrapperData);
   const jpeg = await convertBitmapToJpg(bitmap);
   expect(Buffer.isBuffer(jpeg)).toBe(true);
-  const buf = jpeg as Buffer;
+  const buf = jpeg;
   expect(buf.byteLength).toBeGreaterThan(1000);
   // JPEG magic: starts with FF D8, ends with FF D9.
   expect(buf[0]).toBe(0xff);
