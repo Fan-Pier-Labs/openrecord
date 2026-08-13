@@ -242,57 +242,6 @@ describe('scraperFetch', () => {
       // Every other test in this file assumes the Node/Bun branch. If this
       // ever flips, the jar assertions above are testing nothing.
       expect(PLATFORM_OWNS_COOKIES).toBe(false)
-      // The browser branch is keyed on `document`, which Bun does not define —
-      // that is what keeps this false here while the web export takes the
-      // other path.
-      expect(typeof document).toBe('undefined')
-    })
-
-    it('opts a browser into its own cookie store, since a jar cannot work there', async () => {
-      // `Cookie` is a forbidden header in the fetch spec, so on the web export
-      // the jar is not just redundant, it is unusable: MyChart is cross-origin
-      // and the default `credentials: 'same-origin'` sends and stores nothing,
-      // which reads as a login that succeeds and then has no session.
-      const seen: RequestInit[] = []
-      const realFetch = globalThis.fetch
-      const g = globalThis as { document?: unknown; window?: unknown }
-      const realDocument = g.document
-      const realWindow = g.window
-      g.document = {}
-      g.window = g
-      globalThis.fetch = (async (_url: string, init: RequestInit) => {
-        seen.push(init)
-        return new Response('ok')
-      }) as unknown as typeof globalThis.fetch
-      try {
-        await scraperFetch('https://mychart.example.org/Home')
-        expect(seen[0]?.credentials).toBe('include')
-        // The browser block still goes out underneath it.
-        expect((seen[0]?.headers as Record<string, string>)['User-Agent']).toBe(
-          BROWSER_HEADERS['User-Agent'],
-        )
-      } finally {
-        globalThis.fetch = realFetch
-        if (realDocument === undefined) delete g.document
-        else g.document = realDocument
-        if (realWindow === undefined) delete g.window
-        else g.window = realWindow
-      }
-    })
-
-    it('sends no credentials off-browser, where the jar is doing the work', async () => {
-      const seen: RequestInit[] = []
-      const realFetch = globalThis.fetch
-      globalThis.fetch = (async (_url: string, init: RequestInit) => {
-        seen.push(init)
-        return new Response('ok')
-      }) as unknown as typeof globalThis.fetch
-      try {
-        await scraperFetch('https://mychart.example.org/Home')
-        expect(seen[0]?.credentials).toBeUndefined()
-      } finally {
-        globalThis.fetch = realFetch
-      }
     })
 
     it('sends everything to the test transport once one is installed', async () => {
@@ -453,10 +402,14 @@ describe('scrapers have exactly one outbound path', () => {
 })
 
 /**
- * The 30s cap on eUnity image downloads is the only caller of this, and it runs
- * on device — where React Native's `abort-controller` polyfill provides the
- * constructor but not the static `AbortSignal.timeout`, which is the whole
- * reason the fallback exists.
+ * The 30s cap on eUnity image downloads is the only caller of this, and it
+ * runs on device — where React Native polyfills `AbortSignal` with the
+ * `abort-controller` package, which has the constructor but not the static
+ * `timeout()`. That gap is the whole reason the fallback exists, so it is the
+ * branch worth pinning.
+ *
+ * These moved here when `eunity/fetch.ts` was folded into http.ts; they are
+ * still the only coverage the polyfill has.
  */
 describe('abortAfter', () => {
   it('returns a signal that is not yet aborted', () => {

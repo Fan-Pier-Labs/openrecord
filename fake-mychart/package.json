@@ -13,7 +13,6 @@
     "next": "^16.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "totp-generator": "^2.0.1",
     "uuid": "^14.0.1"
   },
   "devDependencies": {

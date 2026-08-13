@@ -19,30 +19,6 @@ const googleSigninPlugin: [string, { iosUrlScheme: string }] = [
   { iosUrlScheme },
 ];
 
-// E2E test builds (Maestro / Playwright) talk to local servers over plain
-// HTTP (fake-mychart + the mock AI backend), which release builds block by
-// default on both platforms. EXPO_PUBLIC_E2E=1 is only ever set by the test
-// tooling, so production builds keep the strict transport security defaults.
-const isE2eBuild = process.env.EXPO_PUBLIC_E2E === "1";
-
-const e2ePlugins: (string | [string, object])[] = isE2eBuild
-  ? [
-      // The iOS side of this (modular headers for google-signin's Firebase
-      // pods) is now unconditional — see ./plugins/withModularHeaders — so
-      // only the Android cleartext knob is left to flip for E2E.
-      ["expo-build-properties", { android: { usesCleartextTraffic: true } }],
-    ]
-  : [];
-
-const e2eInfoPlist = isE2eBuild
-  ? {
-      NSAppTransportSecurity: {
-        NSAllowsArbitraryLoads: true,
-        NSAllowsLocalNetworking: true,
-      },
-    }
-  : {};
-
 const config: ExpoConfig = {
   name: "OpenRecord",
   slug: "openrecord",
@@ -64,7 +40,6 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSFaceIDUsageDescription: "OpenRecord uses Face ID to protect your health data.",
-      ...e2eInfoPlist,
     },
   },
   android: {
@@ -85,7 +60,6 @@ const config: ExpoConfig = {
     // Enables `use_modular_headers!` so google-signin's Firebase pods
     // (AppCheckCore / RecaptchaInterop) compile as static libraries.
     "./plugins/withModularHeaders",
-    ...e2ePlugins,
   ],
   extra: {
     eas: {

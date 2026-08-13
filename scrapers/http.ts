@@ -68,20 +68,6 @@ const expoFetch: Transport | undefined = (() => {
 })();
 
 /**
- * Whether we're running inside a browser (the Expo web export, which the
- * Playwright E2E drives). React Native defines `navigator` but never
- * `document`, and neither Node nor Bun defines either.
- *
- * Read per call rather than captured at import, for the same reason
- * `globalThis.fetch` is: it keeps the branch reachable from a test without
- * re-importing the module into a second instance, which would leave the real
- * one's browser path permanently uncovered.
- */
-function isBrowser(): boolean {
-  return typeof document !== 'undefined' && typeof window !== 'undefined';
-}
-
-/**
  * Whether the platform keeps its own cookie store.
  *
  * On React Native that's iOS's `HTTPCookieStorage`, wired into the fetch the
@@ -93,16 +79,9 @@ function isBrowser(): boolean {
  * session rather than a crash: React Native's own `navigator` marker, and the
  * fact that `expo/fetch` resolved at all. Both hold in the app, neither holds
  * under Node or Bun.
- *
- * A browser counts too, and not because it is convenient: the fetch spec makes
- * `Cookie` a forbidden header, so a jar there is not merely redundant, it is
- * unusable — every `Cookie` we set would be dropped on the floor and the
- * session would never stick. The browser's own store is the only one that can
- * work, which is what {@link resolveTransport} opts into with `credentials`.
  */
 export const PLATFORM_OWNS_COOKIES: boolean =
   expoFetch !== undefined ||
-  isBrowser() ||
   (typeof navigator !== 'undefined' &&
     (navigator as { product?: string }).product === 'ReactNative');
 
@@ -136,10 +115,6 @@ export function setTestTransport(fn: Transport | null): void {
  *  3. **The platform owns the cookies** — use the runtime's own fetch, the one
  *     its cookie store is actually attached to. Substituting a different
  *     networking stack here would send every request out with no session.
- *     In a browser that store is only consulted when the request opts in:
- *     MyChart is a different origin from wherever the app is served, and a
- *     cross-origin fetch defaults to `credentials: 'same-origin'`, which sends
- *     and stores nothing. Without this the session silently never sticks.
  *
  * `globalThis.fetch` is read per call rather than captured at import, so a test
  * that swaps the global still intercepts.
@@ -148,9 +123,6 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
   if (testTransport) return testTransport;
   if (override) return override;
   if (cookieJar && expoFetch) return expoFetch;
-  if (isBrowser()) {
-    return (url, init) => globalThis.fetch(url, { ...init, credentials: 'include' });
-  }
   return (url, init) => globalThis.fetch(url, init);
 }
 

@@ -188,9 +188,9 @@ describe('silentLogin', () => {
   });
 
   it('surfaces a rejected password as a login failure, not as a missing credential', async () => {
-    // The two read very differently to a client deciding whether to prompt:
+    // The two read very differently to a client deciding what to do next:
     // "no stored credentials" means ask for them, a rejection means the ones
-    // stored are wrong.
+    // already stored are wrong.
     fakeMyChart({ passwordLogin: 'invalid' });
     const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
     expect(outcome.state).toBe('failed');

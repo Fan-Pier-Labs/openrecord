@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
-import { SPLASH_ASSETS } from '../vite.config';
+import { SPLASH_ASSETS } from '../splash-assets';
 
 const read = (rel: string) => readFileSync(`${import.meta.dir}/../${rel}`, 'utf8');
 
