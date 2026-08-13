@@ -543,7 +543,7 @@ export async function runTurn({
   const onError = callbacks.onError ?? (() => {});
   // No dialog wired means no writes. Fail shut: the alternative is a surface
   // that silently runs them unconfirmed, which is the bug this exists to stop.
-  const onConfirmWrite = callbacks.onConfirmWrite ?? (async () => false);
+  const onConfirmWrite = callbacks.onConfirmWrite ?? (() => Promise.resolve(false));
 
   const executed: ToolRecord[] = [];
 

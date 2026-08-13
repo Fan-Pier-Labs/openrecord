@@ -246,7 +246,7 @@ async function main() {
   logger.debug("Done!");
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   logger.error(err);
   process.exit(1);
 });
