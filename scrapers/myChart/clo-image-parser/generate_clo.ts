@@ -516,7 +516,10 @@ export interface WrapperMetadata {
   isSigned?: number;
   rescaleSlope?: number;
   rescaleIntercept?: number;
-  /** DICOM patient position, encoded as calibration.orientation.positionPatient. */
+  /**
+   * DICOM patient position, encoded as calibration.orientation.positionPatient.
+   * Cross-sectional slices (CT/MR) carry it; projection images (X-rays) don't.
+   */
   positionPatient?: { x: number; y: number; z: number };
   /**
    * VOI LUT, with the table itself an AMF3 byte array — the shape real

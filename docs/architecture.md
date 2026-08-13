@@ -108,8 +108,10 @@ answer depended on which client they asked.
   *before* dispatching and run the media capability directly, which made `download_imaging_study`
   the one tool that skipped the assertion.
 - **`rendersMedia`** marks the one capability (`download_imaging_study`) whose payload isn't JSON:
-  it returns raw CLO bytes because each client encodes them differently — pure-JS jpeg-js in the
-  MCPB, an on-device decoder in the app, sharp in the CLI. **Clients branch on the flag, never on
+  it returns raw CLO bytes because the encode step is the client's, not the capability's — the CLI
+  uses the sharp-backed exporter, while the MCPB and the mobile app share the pure-JS one
+  (`convertCloToJpgPureJs`, `scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs.ts`), because
+  neither can load a native module. **Clients branch on the flag, never on
   the id** — a second media capability must not require editing five call sites, and
   `capability-parity.unit.test.ts` fails if an id check reappears. The branch decides how to render
   the payload; it sits after the dispatch, never in place of it. The CLI never prints image
