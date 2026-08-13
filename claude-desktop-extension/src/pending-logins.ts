@@ -8,7 +8,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 
 interface PendingLogin {
   hostname: string;

@@ -81,6 +81,21 @@ parse the imported files — resolution alone wasn't enough, it needed a parser
 mapping. Config subtleties like that go in a comment next to the config, with the
 canary method named.
 
+**Check the canary file itself parsed.** When canarying many checks at once from
+one file, a single syntax error in it makes the linter report a parse error and
+nothing else — every other planted violation silently goes unreported, and the run
+looks like the checks all fired clean. So assert on the *set of check names that
+fired* against the set you planted, never on the exit code or a total count. Two
+outcomes come out of that diff, and they mean opposite things:
+
+- **A check stayed silent and the planted violation was wrong.** Fix the canary — a
+  check can legitimately exempt the shape you planted (a rule that permits the
+  parenthesized form of what it bans, say).
+- **A check stayed silent because it cannot fire here at all.** Drop it rather than
+  enabling it as decoration. A ban on syntax the compiler already rejects earlier in
+  the pipeline can never trigger, and shipping it implies a guarantee that isn't
+  real.
+
 ### 3. Triage by whether code changes at all
 
 The batching line is code changes, not violation count:

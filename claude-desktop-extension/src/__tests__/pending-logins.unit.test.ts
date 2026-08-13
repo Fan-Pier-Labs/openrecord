@@ -7,7 +7,7 @@
  * waiting out the 10-minute expiry.
  */
 import { describe, it, expect, beforeEach, afterEach, setSystemTime } from 'bun:test'
-import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
+import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest'
 import { addPending, takePending, discardPending } from '../pending-logins'
 
 const TTL_MS = 10 * 60_000
