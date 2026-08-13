@@ -26,8 +26,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/login';
-import { MyChartRequest } from '../myChart/myChartRequest';
+import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/auth/login';
+import { MyChartRequest } from '../myChart/core/myChartRequest';
 import { platformFetch } from '../http';
 import { logger, setLogSink, silenceLogger } from '../../shared/logger';
 
