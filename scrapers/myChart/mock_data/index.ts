@@ -1,4 +1,4 @@
-import { RequestConfig } from '../types';
+import { type RequestConfig } from '../types';
 import { billing_page_section, bills_details_html_page, bills_visit_list, get_pdf, payment_list, statement_list } from './bills';
 import { firstPathPart } from './firstPathPart'
 import { getTestDetails, getTestResultsList, test_results_html_page } from './labs';

@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { MyChartRequest } from '../../myChartRequest';
+import { type MyChartRequest } from '../../myChartRequest';
 import { myChartUserPassLogin } from '../../login';
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../makeAuthenticatedRequest';
 import { wireSilentReauthentication } from '../../silentLogin';
