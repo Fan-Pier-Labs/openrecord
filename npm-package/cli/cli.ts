@@ -177,7 +177,7 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
     // Output directory for capabilities that produce images (rendersMedia).
-    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i];
+    else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
   }
   return parsed;
 }

@@ -64,7 +64,7 @@ describe('renderCliHelp', () => {
     expect(parsed.size).toBeGreaterThan(20);
 
     const help = renderCliHelp();
-    const undocumented = [...parsed].filter((flag) => !help.includes(flag)).sort();
+    const undocumented = [...parsed].filter((flag) => !help.includes(flag!)).sort();
     expect(undocumented).toEqual([]);
   });
 
