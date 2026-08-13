@@ -1178,16 +1178,3 @@ export async function login_TEST(hostname: string): Promise<MyChartRequest> {
 
   return mychartRequest
 }
-
-
-async function test() { 
-
-
-
-
-
-}
-
-if (import.meta.main) {
-  test()
-}

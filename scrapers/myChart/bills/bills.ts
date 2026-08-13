@@ -1,6 +1,5 @@
 
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import * as cheerio from 'cheerio';
 import fs from 'fs';
@@ -219,23 +218,4 @@ export async function getBillingStatementPDFs(mychartRequest: MyChartRequest, bi
       logger.debug('Saved', name)
     }
   }
-}
-
-
-
-
-async function test() {
-
-  const mychartRequest = await login_TEST('mychart.example.org')
-
-  const results = await getBillingHistory(mychartRequest)
-
-  logger.debug(results)
-}
-
-
-if (import.meta.main) {
-  // This script is being run directly
-  // We will call the main function
-  test()
 }

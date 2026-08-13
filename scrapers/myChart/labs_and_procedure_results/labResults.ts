@@ -1,7 +1,6 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
 import { LabResultsList } from "./labtypes";
-import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { extractFdiContext, getImageViewerSamlUrl, followSamlChain } from "../eunity/imagingViewer";
@@ -276,25 +275,4 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
   }
 
   return allResults;
-}
-
-
-async function test() {
-  const mychartRequest = await login_TEST('mychart.example.org')
-
-  const labresults = await listLabResults(mychartRequest)
-
-  // To fetch a single result instead, pass its opaque record id:
-  //   const verificationtoken = await getRequestVerificationToken(mychartRequest)
-  //   const labresults = await getLabResult(mychartRequest, '<WP-… result id>', verificationtoken)
-
-  logger.debug(JSON.stringify(labresults, null, 2))
-
-
-}
-
-if (import.meta.main) {
-
-  test()
-
 }

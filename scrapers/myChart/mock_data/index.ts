@@ -53,17 +53,3 @@ export async function mockRequest(inputUrl: string, config: RequestConfig): Prom
   console.log('no mock data found for', pathname)
   process.exit(1)
 }
-
-
-
-async function test() {
-
-  const response = await mockRequest('https://mychart.example.org/Authentication/Login', {})
-
-  console.log(response)
-
-}
-
-if (import.meta.main) {
-  test()
-}
