@@ -397,6 +397,14 @@ bun run test:integration
 
 ## Adding New Endpoints
 
+**Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a
+convenience mock. Replicate the real API's response shapes, field names and casing, pagination (page
+sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules
+(e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never
+simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the
+fake returns 10, and the fixture is sized around that. When you discover how a real endpoint
+behaves, update the fake to match it exactly.
+
 To add a new endpoint:
 
 1. Add fake data to `src/data/homer.ts`
