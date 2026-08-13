@@ -113,10 +113,6 @@ No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out.
 
-A separate dev-mode env var, `OPENRECORD_MOCK_DATA=1`, switches the
-scrapers' HTTP layer over to canned mock responses (was previously
-`MOCK_DATA`; renamed for namespacing). Don't set this in production.
-
 ## License
 
 Proprietary source-available license (see `LICENSE`). Viewing and personal/educational use permitted; no commercial use, redistribution, SaaS offerings, or competing products without written permission from Fan Pier Labs.
