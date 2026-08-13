@@ -1,8 +1,7 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
-import { LabResultsList } from "./labtypes";
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { type HistoricalResultsResponse, type ImagingResult, type LabTestResult, type LabTestResultWithHistory, type ReportContent, type ReportDetails } from "./labtestresulttype";
+import { type LabResultsList } from "./labtypes";
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../eunity/imagingViewer";
 import { logger } from '../../../shared/logger';
@@ -28,7 +27,7 @@ async function getReportContent(mychartRequest: MyChartRequest, reportDetails: R
     "method": "POST",
   });
 
-  return await res.json();
+  return res.json();
 }
 
 async function getRequestVerificationToken(mychartRequest: MyChartRequest) {
@@ -279,25 +278,4 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
   }
 
   return allResults;
-}
-
-
-async function test() {
-  const mychartRequest = await login_TEST('mychart.example.org')
-
-  const labresults = await listLabResults(mychartRequest)
-
-  // To fetch a single result instead, pass its opaque record id:
-  //   const verificationtoken = await getRequestVerificationToken(mychartRequest)
-  //   const labresults = await getLabResult(mychartRequest, '<WP-… result id>', verificationtoken)
-
-  logger.debug(JSON.stringify(labresults, null, 2))
-
-
-}
-
-if (import.meta.main) {
-
-  test()
-
 }

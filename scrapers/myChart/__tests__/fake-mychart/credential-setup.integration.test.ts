@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { setupTotp, disableTotp } from '../../setupTotp'
 import { setupPasskey, listPasskeys, deletePasskey } from '../../setupPasskey'
 import { myChartPasskeyLogin } from '../../login'
@@ -47,7 +47,7 @@ async function serverSaysTotpEnabled(req: MyChartRequest): Promise<boolean> {
   const resp = await req.makeRequest({
     path: '/api/secondary-validation/GetTwoFactorInfo',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
     body: '{}',
   })
   const info = await resp.json() as { IsTotpEnabled?: boolean }
@@ -81,7 +81,7 @@ describe('setupTotp against fake-mychart', () => {
     const verify = await req.makeRequest({
       path: '/api/secondary-validation/VerifyCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: JSON.stringify({ Code: code }),
     })
     expect(verify.status).toBe(200)
@@ -94,14 +94,14 @@ describe('setupTotp against fake-mychart', () => {
     await req.makeRequest({
       path: '/api/secondary-validation/TotpQrCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: '{}',
     })
 
     const verify = await req.makeRequest({
       path: '/api/secondary-validation/VerifyCode',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: JSON.stringify({ Code: '000000' }),
     })
     expect(verify.status).not.toBe(200)

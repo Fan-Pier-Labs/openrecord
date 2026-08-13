@@ -1,3 +1,6 @@
+/// <reference types="bun" />
+// ^ These run under `bun test`, not in the app: the reference pulls in
+// bun:test module declarations without adding Bun globals to the app config.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -31,7 +34,7 @@ function extractInteractiveTags(file: string, source: string): Tag[] {
   const tags: Tag[] = [];
   const open = new RegExp(`<(${INTERACTIVE.join("|")})(?=[\\s/>])`, "g");
   for (const match of source.matchAll(open)) {
-    const start = match.index!;
+    const start = match.index;
     // Skip type positions like useRef<TextInput>(null): JSX `<` follows
     // whitespace or an opening bracket, never an identifier character.
     const before = source[start - 1];
@@ -57,7 +60,7 @@ function extractInteractiveTags(file: string, source: string): Tag[] {
     }
     expect(end).toBeGreaterThan(start); // unterminated tag means the scanner broke
     const line = source.slice(0, start).split("\n").length;
-    tags.push({ file, line, component: match[1]!, text: source.slice(start, end + 1) });
+    tags.push({ file, line, component: match[1], text: source.slice(start, end + 1) });
   }
   return tags;
 }

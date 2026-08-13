@@ -7,7 +7,7 @@
  * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
-import { MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
+import { type MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
@@ -27,6 +27,7 @@ import {
   type CapabilityContext,
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
+import { TOTP } from "totp-generator";
 import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
@@ -66,10 +67,11 @@ const initialMemoryStarted = new Set<string>();
 function maybeKickoffInitialMemory(accountId: string): void {
   if (initialMemoryStarted.has(accountId)) return;
   initialMemoryStarted.add(accountId);
-  (async () => {
+  void (async () => {
     try {
       const existing = await getMemorySummary(accountId);
       if (existing) return;
+      // eslint-disable-next-line no-restricted-syntax -- deliberate cold-start deferral: keeps the AI client + memory module out of the initial bundle path
       const { buildInitialMemory } = await import("@/lib/memory/builder");
       await buildInitialMemory(accountId);
     } catch (err) {
@@ -160,7 +162,6 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
     if (result.state === "need_2fa") {
       // If we have a TOTP secret, auto-complete 2FA
       if (account.totpSecret) {
-        const { TOTP } = await import("totp-generator");
         const cleanSecret = account.totpSecret.replace(/\s+/g, "").toUpperCase();
         const { otp } = await TOTP.generate(cleanSecret);
 

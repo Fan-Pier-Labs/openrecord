@@ -61,7 +61,7 @@ export default function ChatScreen() {
     const q = params.ask;
     if (!q || handledAskRef.current === q) return;
     handledAskRef.current = q;
-    handleSend(q);
+    void handleSend(q);
     router.setParams({ ask: undefined });
   }, [params.ask]);
 
@@ -126,7 +126,7 @@ export default function ChatScreen() {
           setIsStreaming(false);
           setActiveTool(null);
 
-          await addMessage(currentChatId!, "assistant", finalText);
+          await addMessage(currentChatId, "assistant", finalText);
 
           if (!titleSetRef.current) {
             const transcript: ChatMessage[] = [
@@ -139,7 +139,7 @@ export default function ChatScreen() {
             const aiTitle = await generateChatTitle(transcript);
             if (aiTitle) {
               titleSetRef.current = true;
-              await updateChatTitle(currentChatId!, aiTitle);
+              await updateChatTitle(currentChatId, aiTitle);
             }
           }
 
@@ -172,7 +172,7 @@ export default function ChatScreen() {
 
   function handlePickSkill(skill: Skill) {
     skillAdditionRef.current = skill.playbook;
-    handleSend(skill.kickoffMessage);
+    void handleSend(skill.kickoffMessage);
   }
 
   return (

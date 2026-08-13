@@ -13,11 +13,11 @@
  * emergency-contact writes had no coverage on the mobile path at all.
  *
  * The fake-mychart Next.js server must be running on localhost:4000 (or
- * FAKE_MYCHART_HOST). Locally: `cd fake-mychart && bun run dev`.
+ * FAKE_MYCHART_HOST). Locally: `cd fake-mychart && PORT=4000 bun run dev`.
  */
 
 import { describe, it, expect, beforeAll } from 'bun:test'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { myChartUserPassLogin } from '../../login'
 import { setMountMode, resetFakeMyChart } from './mountMode'
 import {

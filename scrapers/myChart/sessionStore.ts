@@ -14,7 +14,8 @@
  *   stop();
  */
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
+import { renewMyChartSession } from './sessionRenewal';
 import { logger } from '../../shared/logger';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 1000; // 30 seconds, matches MyChart's own JS interval
@@ -107,7 +108,7 @@ class SessionStore {
       return () => this.stopKeepalive();
     }
     logger.debug(`[keepalive] Starting keepalive (every ${KEEPALIVE_INTERVAL_MS / 1000}s)`);
-    this.intervalHandle = setInterval(() => this.runKeepalive(), KEEPALIVE_INTERVAL_MS);
+    this.intervalHandle = setInterval(() => void this.runKeepalive(), KEEPALIVE_INTERVAL_MS);
     // The heartbeat must never be the thing holding a process open — a CLI run
     // that finished its scrape should exit, not ping forever. unref doesn't
     // exist on React Native's timers, where there is no process to hold open.
@@ -249,13 +250,11 @@ class SessionStore {
    * the request's reauthenticate hook — keeping the session alive "as long as
    * possible" includes logging back in when a hospital expires it despite the
    * pings (absolute timeouts exist server-side). Single-flighted with any
-   * concurrent scraper-triggered renewal by renewMyChartSession. Dynamic
-   * import because makeAuthenticatedRequest imports this module.
+   * concurrent scraper-triggered renewal by renewMyChartSession.
    */
   private async tryRenew(entry: SessionEntry): Promise<boolean> {
     if (!entry.request.reauthenticate) return false;
     try {
-      const { renewMyChartSession } = await import('./makeAuthenticatedRequest');
       return await renewMyChartSession(entry.request);
     } catch (err) {
       logger.error(`[keepalive] ${entry.hostname}: renewal attempt failed —`, err);

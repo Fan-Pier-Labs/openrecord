@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert as RNAlert, Linkin
 import { getActiveAlerts, dismissAlert, type Alert } from "@/lib/storage/database";
 import { regenerateAlerts } from "@/lib/alerts/generator";
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
+import { fireAndForget } from "@/lib/fire-and-forget";
 
 type Props = {
   onDoAlert: (prompt: string) => void;
@@ -19,7 +20,7 @@ export function AlertsCard({ onDoAlert }: Props) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    fireAndForget(refresh(), "alerts:refresh");
     regenerateAlerts()
       .then(() => refresh())
       .catch((err) => console.warn("[alerts] regenerate failed:", err.message));
@@ -51,7 +52,9 @@ export function AlertsCard({ onDoAlert }: Props) {
           {
             text: "Request",
             style: "default",
-            onPress: async () => {
+            // Sync wrapper: RN's Alert typing expects a void handler, and the
+            // async body already owns its errors (try/catch/finally).
+            onPress: () => void (async () => {
               setBusyId(alert.id);
               try {
                 const result = (await executeScraperTool("request_refill", {
@@ -70,7 +73,7 @@ export function AlertsCard({ onDoAlert }: Props) {
               } finally {
                 setBusyId(null);
               }
-            },
+            })(),
           },
         ],
       );

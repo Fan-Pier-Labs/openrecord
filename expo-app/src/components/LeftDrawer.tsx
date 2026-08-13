@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { getChats, deleteChat, searchChats, type Chat } from "@/lib/storage/database";
+import { fireAndForget } from "@/lib/fire-and-forget";
 
 const DRAWER_WIDTH = Math.min(320, Dimensions.get("window").width * 0.82);
 const INITIAL_VISIBLE = 8;
@@ -42,12 +43,12 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
   }, [searchQuery]);
 
   useEffect(() => {
-    if (visible) loadChats();
+    if (visible) fireAndForget(loadChats(), "drawer:loadChats");
   }, [visible, loadChats]);
 
   useFocusEffect(
     useCallback(() => {
-      loadChats();
+      fireAndForget(loadChats(), "drawer:loadChats");
     }, [loadChats])
   );
 
@@ -135,9 +136,11 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          await deleteChat(chat.id);
-          await loadChats();
+        onPress: () => {
+          void (async () => {
+            await deleteChat(chat.id);
+            await loadChats();
+          })();
         },
       },
     ]);

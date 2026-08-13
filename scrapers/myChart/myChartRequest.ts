@@ -2,7 +2,7 @@ import { CookieJar } from 'tough-cookie'
 import fs from 'fs';
 import {mockRequest} from './mock_data/index'
 import { OPENRECORD_MOCK_DATA } from '../../shared/env';
-import { RequestConfig } from './types';
+import { type RequestConfig } from './types';
 import { logger } from '../../shared/logger';
 import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../http';
 
@@ -82,6 +82,17 @@ export class MyChartRequest {
    * renewed session would silently read the wrong patient's chart.
    */
   activeProxyTarget?: { id: string; isSelf: boolean; displayName: string };
+
+  /**
+   * Re-runs the verified proxy switch that produced `activeProxyTarget`,
+   * with autoRenew: false. Armed by proxyContext together with
+   * `activeProxyTarget`; called by session renewal (`sessionRenewal.ts`)
+   * after a silent re-login, which resets MyChart's server-side context to
+   * the account holder. A closure on the request — rather than an import of
+   * proxyContext from the renewal path — so the renewal module stays a leaf
+   * and the module graph stays acyclic.
+   */
+  restoreProxyContext?: () => Promise<void>;
 
   constructor(hostname: string, options?: string | MyChartRequestOptions) {
     // Support old signature: new MyChartRequest(hostname, protocol?)
@@ -286,7 +297,7 @@ export class MyChartRequest {
       // 307/308 exist precisely to preserve the method and body; everything
       // else turns into a GET, which is what browsers do with a 302 too.
       const preserveMethod = response.status === 307 || response.status === 308;
-      return await this.makeRequest({
+      return this.makeRequest({
         ...config,
         url: newLocation,
         method: preserveMethod ? config.method : 'GET',

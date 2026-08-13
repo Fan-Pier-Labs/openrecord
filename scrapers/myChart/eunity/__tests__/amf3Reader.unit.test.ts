@@ -4,7 +4,7 @@ import {
   collectAmf3Objects,
   unwrapAmf3,
   isAmf3Externalizable,
-  Amf3Object,
+  type Amf3Object,
 } from '../amf3Reader';
 import { AMF3Writer, parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';
 
@@ -16,10 +16,10 @@ describe('decodeAmf3 — scalars and strings', () => {
   it('round-trips a sealed typed object with strings, integers and booleans', () => {
     const w = new AMF3Writer();
     w.writeTypedObject('com.example.Thing', ['name', 'count', 'good', 'missing'], [
-      (w) => w.writeString('hello'),
-      (w) => w.writeInteger(42),
-      (w) => w.writeTrue(),
-      (w) => w.writeNull(),
+      (w1) => w1.writeString('hello'),
+      (w1) => w1.writeInteger(42),
+      (w1) => w1.writeTrue(),
+      (w1) => w1.writeNull(),
     ]);
     const obj = decodeAmf3(w.toBuffer()) as Amf3Object;
     expect(obj.__class).toBe('com.example.Thing');
@@ -32,8 +32,8 @@ describe('decodeAmf3 — scalars and strings', () => {
   it('resolves string references (same string written twice)', () => {
     const w = new AMF3Writer();
     w.writeArray([
-      (w) => w.writeString('repeated'),
-      (w) => w.writeString('repeated'), // writer emits a reference here
+      (w1) => w1.writeString('repeated'),
+      (w1) => w1.writeString('repeated'), // writer emits a reference here
     ]);
     const arr = decodeAmf3(w.toBuffer()) as unknown[];
     expect(arr).toEqual(['repeated', 'repeated']);
@@ -41,8 +41,8 @@ describe('decodeAmf3 — scalars and strings', () => {
 
   it('decodes dynamic objects', () => {
     const w = new AMF3Writer();
-    w.writeDynamicObject('', ['sealed'], [(w) => w.writeInteger(1)], [
-      ['extra', (w) => w.writeString('dyn')],
+    w.writeDynamicObject('', ['sealed'], [(w1) => w1.writeInteger(1)], [
+      ['extra', (w1) => w1.writeString('dyn')],
     ]);
     const obj = decodeAmf3(w.toBuffer()) as Amf3Object;
     expect(obj.sealed).toBe(1);
@@ -114,7 +114,7 @@ describe('decodeAmf3 — reference tables', () => {
 
   it('throws on an unknown externalizable class', () => {
     const w = new AMF3Writer();
-    w.writeExternalizableObject('com.example.Mystery', (w) => w.writeBE32(0));
+    w.writeExternalizableObject('com.example.Mystery', (w1) => w1.writeBE32(0));
     expect(() => decodeAmf3(w.toBuffer())).toThrow('com.example.Mystery');
   });
 
@@ -126,8 +126,8 @@ describe('decodeAmf3 — reference tables', () => {
 describe('decodeAmf3 — externalizable wrappers', () => {
   it('unwraps ArrayCollection', () => {
     const w = new AMF3Writer();
-    w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w) =>
-      w.writeArray([(w) => w.writeInteger(7)]),
+    w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w1) =>
+      w1.writeArray([(w2) => w2.writeInteger(7)]),
     );
     const ext = decodeAmf3(w.toBuffer());
     expect(isAmf3Externalizable(ext)).toBe(true);
@@ -162,14 +162,14 @@ interface FakeStudy {
  * → Series → images ArrayCollection → Image.
  */
 function buildStudyListMetaResponse(studies: FakeStudy[]): Buffer {
-  const w = new AMF3Writer();
+  const root = new AMF3Writer();
   const writeCollection = (items: ((w: AMF3Writer) => void)[]) => (w: AMF3Writer) =>
-    w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w) => w.writeArray(items));
+    w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w1) => w1.writeArray(items));
 
   const writeImage = (img: { uid: string; instanceNumber: number }) => (w: AMF3Writer) =>
     w.writeTypedObject('com.clientoutlook.data.Image', ['uid', 'instanceNumber'], [
-      (w) => w.writeString(img.uid),
-      (w) => w.writeInteger(img.instanceNumber),
+      (w1) => w1.writeString(img.uid),
+      (w1) => w1.writeInteger(img.instanceNumber),
     ]);
 
   const writeSeries = (s: FakeSeries) => (w: AMF3Writer) =>
@@ -177,9 +177,9 @@ function buildStudyListMetaResponse(studies: FakeStudy[]): Buffer {
       'com.clientoutlook.data.Series',
       ['uid', 'description', 'frameOfReferenceUID', 'images'],
       [
-        (w) => w.writeString(s.uid),
-        (w) => w.writeString(s.description),
-        (w) => (s.frameOfReferenceUID ? w.writeString(s.frameOfReferenceUID) : w.writeNull()),
+        (w1) => w1.writeString(s.uid),
+        (w1) => w1.writeString(s.description),
+        (w1) => (s.frameOfReferenceUID ? w1.writeString(s.frameOfReferenceUID) : w1.writeNull()),
         writeCollection(s.instances.map(writeImage)),
       ],
     );
@@ -189,42 +189,42 @@ function buildStudyListMetaResponse(studies: FakeStudy[]): Buffer {
       'com.clientoutlook.data.Study',
       ['uid', 'accessionNumber', 'description', 'series'],
       [
-        (w) => w.writeString(st.uid),
-        (w) => w.writeString(st.accessionNumber),
-        (w) => w.writeString('STUDY DESCRIPTION'),
+        (w1) => w1.writeString(st.uid),
+        (w1) => w1.writeString(st.accessionNumber),
+        (w1) => w1.writeString('STUDY DESCRIPTION'),
         writeCollection(st.series.map(writeSeries)),
       ],
     );
 
-  w.writeTypedObject(
+  root.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
     ['messageType', 'messageID', 'body'],
     [
-      (w) => w.writeString('response'),
-      (w) => w.writeString('HTTPSimpleLoader_1'),
-      (w) =>
-        w.writeTypedObject('com.clientoutlook.web.metaservices.AmfServicesResponse', ['code', 'response'], [
-          (w) => w.writeInteger(0),
-          (w) =>
-            w.writeExternalizableObject('com.clientoutlook.web.metaservices.StudyListResponse', (w) => {
-              w.writeBE32(2);
-              w.writeTypedObject('com.clientoutlook.data.DataRequestStatus', ['statusCode'], [
-                (w) => w.writeInteger(0),
+      (w1) => w1.writeString('response'),
+      (w1) => w1.writeString('HTTPSimpleLoader_1'),
+      (w1) =>
+        w1.writeTypedObject('com.clientoutlook.web.metaservices.AmfServicesResponse', ['code', 'response'], [
+          (w2) => w2.writeInteger(0),
+          (w2) =>
+            w2.writeExternalizableObject('com.clientoutlook.web.metaservices.StudyListResponse', (w3) => {
+              w3.writeBE32(2);
+              w3.writeTypedObject('com.clientoutlook.data.DataRequestStatus', ['statusCode'], [
+                (w4) => w4.writeInteger(0),
               ]);
-              w.writeString('1.0.0');
-              w.writeBE32(0xeb);
-              w.writeTypedObject('', ['studySelectors', 'seriesSelectors', 'studyList', 'hangingProtocols', 'relevantStudyList'], [
-                (w) => w.writeNull(),
-                (w) => w.writeNull(),
+              w3.writeString('1.0.0');
+              w3.writeBE32(0xeb);
+              w3.writeTypedObject('', ['studySelectors', 'seriesSelectors', 'studyList', 'hangingProtocols', 'relevantStudyList'], [
+                (w4) => w4.writeNull(),
+                (w4) => w4.writeNull(),
                 writeCollection(studies.map(writeStudy)),
-                (w) => w.writeNull(),
-                (w) => w.writeNull(),
+                (w4) => w4.writeNull(),
+                (w4) => w4.writeNull(),
               ]);
             }),
         ]),
     ],
   );
-  return w.toBuffer();
+  return root.toBuffer();
 }
 
 describe('parseStudySeriesFromAmfStructured', () => {

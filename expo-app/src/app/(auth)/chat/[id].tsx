@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChatBubble, ToolCallIndicator } from "@/components/ChatBubble";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import { ChatInput } from "@/components/ChatInput";
 import { LeftDrawer } from "@/components/LeftDrawer";
 import { sendMessage, type ChatMessage } from "@/lib/ai/claude-client";
@@ -46,15 +47,18 @@ export default function ChatDetailScreen() {
 
   useEffect(() => {
     if (chatId) {
-      loadMessages();
-      getChat(chatId).then((c) => {
-        titleSetRef.current = !!c && c.title !== "New Chat";
-      });
+      fireAndForget(loadMessages(), "chat:loadMessages");
+      fireAndForget(
+        getChat(chatId).then((c) => {
+          titleSetRef.current = !!c && c.title !== "New Chat";
+        }),
+        "chat:getChat",
+      );
     }
   }, [chatId]);
 
   async function loadMessages() {
-    const dbMessages = await getMessages(chatId!);
+    const dbMessages = await getMessages(chatId);
     setMessages(
       dbMessages
         .filter((m): m is Message & { role: "user" | "assistant" } =>
@@ -79,7 +83,7 @@ export default function ChatDetailScreen() {
       content: text,
     };
     setMessages((prev) => [...prev, userMsg]);
-    await addMessage(chatId!, "user", text);
+    await addMessage(chatId, "user", text);
     scrollToBottom();
 
     const assistantId = (Date.now() + 1).toString();
@@ -120,7 +124,7 @@ export default function ChatDetailScreen() {
           );
           setIsStreaming(false);
           setActiveTool(null);
-          await addMessage(chatId!, "assistant", finalText);
+          await addMessage(chatId, "assistant", finalText);
 
           if (!titleSetRef.current) {
             const transcript: ChatMessage[] = [
@@ -133,7 +137,7 @@ export default function ChatDetailScreen() {
             const aiTitle = await generateChatTitle(transcript);
             if (aiTitle) {
               titleSetRef.current = true;
-              await updateChatTitle(chatId!, aiTitle);
+              await updateChatTitle(chatId, aiTitle);
             }
           }
 

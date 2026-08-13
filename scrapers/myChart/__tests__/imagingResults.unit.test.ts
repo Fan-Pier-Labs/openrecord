@@ -10,7 +10,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.transport = mock(async () => {
     const r = responses[i++]
     return new Response(r.body, { status: 200 })
-  }) as typeof req.transport
+  })
   return req
 }
 

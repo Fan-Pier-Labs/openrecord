@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { MyChartRequest } from "./myChartRequest";
+import { type MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
 
@@ -21,8 +21,14 @@ type OrderResponse = {
   facilityName?: string;
 }
 
+// Real GetUpcomingOrders responses are keyed MAPS — `orderList` holds the
+// orders by id, with `orderGroupList`/`providerList` alongside — never a bare
+// `orders` array. (An earlier version read `orders`, which only the fake
+// served, so this scraper returned nothing against every real instance. The
+// order VALUE shape is modelled from the fake — every captured real account
+// had the maps empty.)
 type GetUpcomingOrdersResponse = {
-  orders?: OrderResponse[];
+  orderList?: Record<string, OrderResponse>;
 }
 
 export async function getUpcomingOrders(mychartRequest: MyChartRequest): Promise<UpcomingOrder[]> {
@@ -47,7 +53,7 @@ export async function getUpcomingOrders(mychartRequest: MyChartRequest): Promise
 
   const json: GetUpcomingOrdersResponse = await resp.json();
 
-  return (json.orders || []).map((o: OrderResponse) => ({
+  return Object.values(json.orderList || {}).map((o: OrderResponse) => ({
     orderName: o.orderName || '',
     orderType: o.orderType || '',
     status: o.status || '',

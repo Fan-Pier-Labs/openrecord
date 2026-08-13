@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 
 import fs from 'fs';
 import { getRequestVerificationTokenFromBody } from "./util";
+import { changeDirToPackageRoot } from "../../shared/util";
 import { sendTelemetryEvent } from "../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
@@ -897,15 +898,15 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
   let invalidCode = false;
 
-  for (const code of sortedCodes) {
-    logger.debug('Trying code with score', code.score)
+  for (const candidate of sortedCodes) {
+    logger.debug('Trying code with score', candidate.score)
     const resp = await mychartRequest.makeRequest({
       path: "/Authentication/SecondaryValidation/Validate?noCache=" + Math.random(),
       "headers": { 
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         '__RequestVerificationToken': requestVerificationToken,
       },
-      "body": "TwoFactorCode=" + code.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
+      "body": "TwoFactorCode=" + candidate.code + "&RememberMe=checked&IsPostLogin2FA=false&EnrollDeviceTrackingOnRemember=false&DeviceId=&Workflow=1&isTOTP=" + (isTOTP ? "true" : "false"),
       "method": "POST",
     });
 
@@ -941,7 +942,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
     if (respBody.TwoFactorCodeFailReason === 'codewrong') {
       // wrong code!
-      logger.debug('wrong code! score:', code.score)
+      logger.debug('wrong code! score:', candidate.score)
       invalidCode = true;
     }
   }
@@ -1106,8 +1107,8 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
 
 export async function areCookiesValid(mychartRequest: MyChartRequest): Promise<boolean> {
   const res = await mychartRequest.makeRequest({path: '/Home', followRedirects: false})
-  logger.debug("are cookies valid?", res.status == 200, res.headers.get('Location'))
-  return res.status == 200
+  logger.debug("are cookies valid?", res.status === 200, res.headers.get('Location'))
+  return res.status === 200
 }
 
 async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, user: string, pass: string}): Promise<MyChartRequest> {
@@ -1128,8 +1129,7 @@ async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, u
 
 
 export async function login_TEST(hostname: string): Promise<MyChartRequest> {
-  const { changeDirToPackageRoot } = await import("../../shared/util");
-  await changeDirToPackageRoot()
+  changeDirToPackageRoot()
 
 
   let mychartRequest = new MyChartRequest(hostname);
@@ -1177,17 +1177,4 @@ export async function login_TEST(hostname: string): Promise<MyChartRequest> {
   await mychartRequest.saveCookies_TEST('cookies.json');  
 
   return mychartRequest
-}
-
-
-async function test() { 
-
-
-
-
-
-}
-
-if (import.meta.main) {
-  test()
 }

@@ -22,15 +22,15 @@ const fakeFs = {
     typeof p === 'string' && p.startsWith('/repo') ? present.has(p) : realExistsSync(p),
   default: realFs,
 }
-mock.module('fs', () => fakeFs)
-mock.module('node:fs', () => fakeFs)
+await mock.module('fs', () => fakeFs)
+await mock.module('node:fs', () => fakeFs)
 
 const realCwd = process.cwd
 const realChdir = process.chdir
 process.cwd = () => cwd
 process.chdir = ((dir: string) => {
   cwd = dir
-}) as typeof process.chdir
+})
 
 afterAll(() => {
   process.cwd = realCwd

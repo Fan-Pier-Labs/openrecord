@@ -1,4 +1,4 @@
-import { RequestConfig } from '../types';
+import { type RequestConfig } from '../types';
 import { billing_page_section, bills_details_html_page, bills_visit_list, get_pdf, payment_list, statement_list } from './bills';
 import { firstPathPart } from './firstPathPart'
 import { getTestDetails, getTestResultsList, test_results_html_page } from './labs';
@@ -50,20 +50,8 @@ export async function mockRequest(inputUrl: string, config: RequestConfig): Prom
     }
   }
 
-  console.log('no mock data found for', pathname)
-  process.exit(1)
-}
-
-
-
-async function test() {
-
-  const response = await mockRequest('https://mychart.example.org/Authentication/Login', {})
-
-  console.log(response)
-
-}
-
-if (import.meta.main) {
-  test()
+  // Throw, never exit: this runs inside whatever process installed it (an MCP
+  // server, the app, a test runner), and an unmapped fixture path must not
+  // take the host down with it.
+  throw new Error(`No mock data found for ${pathname}. Add a MockData entry for it in scrapers/myChart/mock_data/.`)
 }

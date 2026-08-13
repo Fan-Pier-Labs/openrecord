@@ -1,8 +1,7 @@
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { type MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
-import { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
+import { type PastVisitsContainer, type Visit, type VisitListContainer, type VisitsScrapeError } from "./types";
 import { logger } from '../../../shared/logger';
 
 
@@ -182,13 +181,4 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
   }
 
   return merged;
-}
-
-
-
-if (import.meta.main) {
-  (async () => {
-    const mychartRequest = await login_TEST('mychart.example.org')
-    await pastVisits(mychartRequest, new Date('2025-01-01T00:30:50.183Z'))
-  })()
 }

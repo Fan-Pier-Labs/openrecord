@@ -3,13 +3,13 @@
  *
  * The fake-mychart Next.js server must be running on localhost:4000 before
  * these tests are executed. In CI this is handled by the workflow; locally
- * run `cd fake-mychart && bun run dev` first.
+ * run `cd fake-mychart && PORT=4000 bun run dev` first.
  *
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { platformFetch } from '../../../http'
 import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'

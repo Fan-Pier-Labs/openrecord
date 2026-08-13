@@ -42,10 +42,8 @@ export async function prefetchInstances(): Promise<void> {
   // Prefetch the first ~50 logos so the picker initial paint is instant.
   const head = instances.slice(0, 50);
   await Promise.all(
-    head.map((i) =>
-      i.logoUrl
-        ? fetch(i.logoUrl, { method: "HEAD" }).catch(() => undefined)
-        : undefined,
+    head.flatMap((i) =>
+      i.logoUrl ? [fetch(i.logoUrl, { method: "HEAD" }).catch(() => undefined)] : [],
     ),
   );
 }

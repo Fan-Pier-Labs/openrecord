@@ -8,6 +8,29 @@ import { rendersProxyAnchors } from './proxy';
 // slash comes from the prefix when there is one and from the route otherwise.
 const MP = mountPrefix;
 
+// The fake now enforces __RequestVerificationToken on every /api/* POST, the
+// way real instances do. Real MyChart's own page JS attaches the token to its
+// API calls; this wrapper does the same for every fetch these pages issue, so
+// each inline script doesn't have to repeat the header plumbing.
+const CSRF_FETCH_SNIPPET = `<script>
+  (function () {
+    var originalFetch = window.fetch;
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      if ((opts.method || 'GET').toUpperCase() === 'POST') {
+        var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');
+        if (el) {
+          opts.headers = opts.headers || {};
+          if (!opts.headers['__RequestVerificationToken']) {
+            opts.headers['__RequestVerificationToken'] = el.value;
+          }
+        }
+      }
+      return originalFetch.call(this, url, opts);
+    };
+  })();
+</script>`;
+
 // ─── CSS ──────────────────────────────────────────────────────────────
 const PORTAL_CSS = `
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -187,6 +210,7 @@ function portalLayout(title: string, activePath: string, bodyContent: string): s
 </head>
 <body>
   <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
+  ${CSRF_FETCH_SNIPPET}
   <header class="mc-header">
     <div class="logo">My<span>Chart</span></div>
     <div class="user-info">
@@ -213,6 +237,7 @@ function basePageShell(title: string, bodyContent: string): string {
 </head>
 <body>
   <div class='hidden' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
+  ${CSRF_FETCH_SNIPPET}
   ${bodyContent}
 </body>
 </html>`;
@@ -1111,7 +1136,7 @@ export function visitsPage(): string {
         fetch('${MP()}/Visits/VisitsList/LoadUpcoming', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
         fetch('${MP()}/Visits/VisitsList/LoadPast', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
       ]).then(([up, past]) => {
-        visitData.upcoming = (up.LaterVisitsList || []).concat(up.EarlierVisitsList || []);
+        visitData.upcoming = (up.InProgressVisits || []).concat(up.NextNDaysVisits || [], up.LaterVisitsList || []);
         // LoadPast now returns the real MyChart shape: visits live under
         // List[orgId].List (one page). Flatten across orgs for the demo view.
         visitData.past = Object.values(past.List || {}).flatMap(o => o.List || []);
@@ -1273,13 +1298,13 @@ export function goalsPage(): string {
         fetch('${MP()}/api/goals/loadpatientgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
       ]).then(([ct, pt]) => {
         var html = '<h2>Care Team Goals</h2>';
-        var ctGoals = ct.goals || [];
+        var ctGoals = ct.careTeamGoals || [];
         html += ctGoals.map(g => {
           var badge = g.status === 'In Progress' ? 'badge-blue' : g.status === 'Completed' ? 'badge-green' : 'badge-gray';
           return '<div class="card"><h3>' + g.name + '</h3><div class="detail">' + g.description + '</div><div class="meta"><span class="badge ' + badge + '">' + g.status + '</span> | Target: ' + g.targetDate + '</div></div>';
         }).join('');
         html += '<h2>My Goals</h2>';
-        var ptGoals = pt.goals || [];
+        var ptGoals = pt.patientGoals || [];
         html += ptGoals.map(g => {
           var badge = g.status === 'In Progress' ? 'badge-blue' : g.status === 'Completed' ? 'badge-green' : 'badge-gray';
           return '<div class="card"><h3>' + g.name + '</h3><div class="detail">' + g.description + '</div><div class="meta"><span class="badge ' + badge + '">' + g.status + '</span> | Target: ' + g.targetDate + '</div></div>';
@@ -1356,11 +1381,11 @@ export function educationPage(): string {
     <script>
       fetch('${MP()}/api/education/getpateducationtitles', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
-          var titles = data.educationTitles || [];
+          var titles = Array.isArray(data) ? data : [];
           document.getElementById('content').innerHTML = titles.length === 0 ? '<p>No education materials.</p>' :
             titles.map(t => '<div class="card">' +
-              '<h3>' + t.title + '</h3>' +
-              '<div class="meta"><span class="badge badge-blue">' + t.category + '</span> | Assigned: ' + t.assignedDate + ' | ' + t.providerName + '</div>' +
+              '<h3>' + t.displayName + '</h3>' +
+              '<div class="meta">Assigned: ' + t.assignedDate + ' | ' + t.numTopics + ' topics</div>' +
             '</div>').join('');
         });
     </script>
@@ -1375,12 +1400,12 @@ export function emergencyContactsPage(): string {
     <script>
       fetch('${MP()}/api/personalinformation/getrelationships', { method: 'POST', credentials: 'same-origin' })
         .then(r => r.json()).then(data => {
-          var contacts = data.relationships || [];
+          var contacts = data.contacts || [];
           document.getElementById('content').innerHTML = contacts.length === 0 ? '<p>No emergency contacts.</p>' :
             '<div class="card-grid">' + contacts.map(c => '<div class="card">' +
-              '<h3>' + c.name + '</h3>' +
-              '<div class="detail">' + c.relationshipType + '</div>' +
-              '<div class="meta">\u{1F4DE} ' + c.phoneNumber + '</div>' +
+              '<h3>' + c.formattedName + '</h3>' +
+              '<div class="detail">' + ((c.relationToPatient || {}).name || '') + '</div>' +
+              '<div class="meta">\u{1F4DE} ' + ((((c.contactInformation || {}).phoneNumbers || [])[0] || {}).phoneNumber || '') + '</div>' +
             '</div>').join('') + '</div>';
         });
     </script>

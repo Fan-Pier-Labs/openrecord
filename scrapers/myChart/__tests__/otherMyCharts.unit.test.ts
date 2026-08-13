@@ -27,7 +27,7 @@ function mockRequest(manageHtml: string, orgList: unknown) {
       return new Response(JSON.stringify(orgList), { status: 200 })
     }
     return new Response(manageHtml, { status: 200 })
-  }) as typeof req.transport
+  })
 
   return { req, posts }
 }
