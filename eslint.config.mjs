@@ -40,6 +40,10 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // A bare `.sort()` stringifies every element first, so numbers come out
+      // [1, 10, 2] and Dates sort by their English text. Only an array that is
+      // already string[] may sort without a comparator.
+      "@typescript-eslint/require-array-sort-compare": "error",
       // Round-4 zero-violation set — enabling these required NO code changes.
       // Each zero was canary-verified: a planted violation fires before the
       // zero is trusted.
