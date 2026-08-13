@@ -986,13 +986,13 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     if (flowsheets.length === 0) {
       console.log('    No vitals data found.');
     }
-    for (const fs of flowsheets) {
-      console.log(`\n      ${fs.name}`);
-      for (const reading of fs.readings.slice(0, 10)) {
+    for (const flowsheet of flowsheets) {
+      console.log(`\n      ${flowsheet.name}`);
+      for (const reading of flowsheet.readings.slice(0, 10)) {
         console.log(`        ${reading.date}: ${reading.value} ${reading.units}`);
       }
-      if (fs.readings.length > 10) {
-        console.log(`        ... and ${fs.readings.length - 10} more readings`);
+      if (flowsheet.readings.length > 10) {
+        console.log(`        ... and ${flowsheet.readings.length - 10} more readings`);
       }
     }
   } catch (err) {
