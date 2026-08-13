@@ -29,6 +29,20 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Round-4 zero-violation set — enabling these required NO code changes.
+      // Each zero was canary-verified: a planted violation fires before the
+      // zero is trusted.
+      "@typescript-eslint/no-unnecessary-type-arguments": "error",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+      "@typescript-eslint/prefer-string-starts-ends-with": "error",
+      "@typescript-eslint/no-implied-eval": "error",
+      "@typescript-eslint/no-array-delete": "error",
+      "@typescript-eslint/no-duplicate-type-constituents": "error",
+      "@typescript-eslint/no-redundant-type-constituents": "error",
+      "@typescript-eslint/prefer-reduce-type-parameter": "error",
+      "@typescript-eslint/no-for-in-array": "error",
+      "@typescript-eslint/no-meaningless-void-operator": "error",
+      "@typescript-eslint/no-mixed-enums": "error",
       // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
       // semantics are preserved, and downgrades to a suggestion when the
       // expression VALUE changes (null/'' vs undefined) — those were
