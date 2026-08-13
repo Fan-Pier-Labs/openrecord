@@ -13,7 +13,7 @@ The CLI caches serialized MyChart sessions to `.cookie-cache/<hostname>.json` af
 - Cache dir: `.cookie-cache/` (gitignored, project root)
 - `--no-cache` flag: skips loading cached cookies (still saves after login)
 - Implementation: `tryLoadCachedSession()` / `saveCachedSession()` in `npm-package/cli/cli.ts`
-- Uses `MyChartRequest.serialize()` / `unserialize()` from `scrapers/myChart/myChartRequest.ts`
+- Uses `MyChartRequest.serialize()` / `unserialize()` from `scrapers/myChart/core/myChartRequest.ts`
 
 ## Credential Resolution
 
