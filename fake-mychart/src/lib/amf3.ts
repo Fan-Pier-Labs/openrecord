@@ -27,7 +27,25 @@ export class Amf3Writer {
   writeNull() { this.buf.push(0x01); }
   writeFalse() { this.buf.push(0x02); }
   writeTrue() { this.buf.push(0x03); }
-  writeInteger(value: number) { this.buf.push(0x04); this.writeU29(value); }
+  /**
+   * AMF3 integer. Negative values go out as their 29-bit two's complement
+   * (-1 → 0x1FFFFFFF), which is how real wrappers carry the ImagePhaseInfo
+   * "undefined" sentinels; a spec-correct reader sign-extends them back.
+   */
+  writeInteger(value: number) { this.buf.push(0x04); this.writeU29(value & 0x1fffffff); }
+
+  /** AMF3 byte array — how real wrappers carry a VOI LUT table. */
+  writeByteArray(bytes: Buffer) {
+    this.buf.push(0x0c);
+    this.writeU29((bytes.length << 1) | 1);
+    for (const b of bytes) this.buf.push(b);
+  }
+  writeDouble(value: number) {
+    this.buf.push(0x05);
+    const b = Buffer.alloc(8);
+    b.writeDoubleBE(value);
+    this.buf.push(...b);
+  }
   writeString(str: string) { this.buf.push(0x06); this.writeStringValue(str); }
 
   /** String value without the 0x06 marker; maintains the reference table. */
