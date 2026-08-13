@@ -50,7 +50,7 @@ describe('downloadStudyJpegs (download_imaging_study tool)', () => {
     expect(result.images.length).toBe(result.returned);
     expect(result.totalImages).toBeGreaterThan(0);
 
-    const first = result.images[0];
+    const first = result.images[0]!; // result.returned asserted > 0 above; noUncheckedIndexedAccess
     expect(first.width).toBeGreaterThan(0);
     expect(first.height).toBeGreaterThan(0);
     expect(first.bytes).toBeGreaterThan(1000);

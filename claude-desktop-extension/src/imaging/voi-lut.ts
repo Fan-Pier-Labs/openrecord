@@ -13,26 +13,28 @@
  * is unavailable.
  */
 export function to8bit(pixels16: Uint16Array): Uint8Array {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < pixels16.length; i++) {
-    const v = pixels16[i];
+    const v = pixels16[i]!;
     if (v < min) min = v;
     if (v > max) max = v;
   }
   const range = max - min || 1;
   const out = new Uint8Array(pixels16.length);
   for (let i = 0; i < pixels16.length; i++) {
-    out[i] = Math.round(((pixels16[i] - min) / range) * 255);
+    out[i] = Math.round(((pixels16[i]! - min) / range) * 255);
   }
   return out;
 }
 
 /** Grayscale → RGBA (alpha = 255). jpeg-js encode wants RGBA. */
 export function grayscaleToRgba(gray: Uint8Array): Uint8Array {
+  // Index accesses are `!`-asserted: bounds are established by the loop structure; noUncheckedIndexedAccess.
   const out = new Uint8Array(gray.length * 4);
   for (let i = 0; i < gray.length; i++) {
-    const v = gray[i];
+    const v = gray[i]!;
     const o = i * 4;
     out[o] = v;
     out[o + 1] = v;
