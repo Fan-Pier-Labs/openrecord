@@ -15,11 +15,11 @@
  * something you asked for by name rather than something you got by pressing
  * enter. Point it at fake-mychart (`localhost:<port>`) unless you mean it.
  */
-import { login_TEST } from '../scrapers/myChart/login';
-import { getMyChartProfile } from '../scrapers/myChart/profile';
-import { getBillingHistory } from '../scrapers/myChart/bills/bills';
-import { listLabResults } from '../scrapers/myChart/labs_and_procedure_results/labResults';
-import { pastVisits } from '../scrapers/myChart/visits/visits';
+import { login_TEST } from '../scrapers/myChart/auth/login';
+import { getMyChartProfile } from '../scrapers/myChart/chart/profile';
+import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
+import { listLabResults } from '../scrapers/myChart/chart/labs/labResults';
+import { pastVisits } from '../scrapers/myChart/chart/visits/visits';
 import { logger } from '../shared/logger';
 
 type Session = Awaited<ReturnType<typeof login_TEST>>;
