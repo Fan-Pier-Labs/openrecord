@@ -2038,7 +2038,7 @@ async function main() {
     for (const session of sessions) {
       const creds = credentialsList.find(c => c.hostname === session.hostname);
       const password = creds && 'password' in creds ? creds.password : undefined;
-      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output))) ok = false;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}, cliArgs.output, cliArgs.patient))) ok = false;
     }
     closeRL();
     process.exit(ok ? 0 : 1);
