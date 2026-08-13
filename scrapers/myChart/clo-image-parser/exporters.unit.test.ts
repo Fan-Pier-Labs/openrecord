@@ -356,7 +356,7 @@ describe("to_jpg_purejs", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < bitmap.pixels.length; i++) {
-      const diff = Math.abs(decoded.data[i * 4] - bitmap.pixels[i]);
+      const diff = Math.abs(decoded.data[i * 4]! - bitmap.pixels[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Quality-100 JPEG should stay very close to the source pixels.
@@ -375,7 +375,7 @@ describe("to_jpg_purejs", () => {
 
     let maxDiff = 0;
     for (let i = 0; i < pureJsPixels.data.length; i++) {
-      const diff = Math.abs(pureJsPixels.data[i] - sharpPixels.data[i]);
+      const diff = Math.abs(pureJsPixels.data[i]! - sharpPixels.data[i]!);
       if (diff > maxDiff) maxDiff = diff;
     }
     // Two quality-100 encoders over identical windowed pixels: near-identical.
