@@ -48,6 +48,7 @@ import { requestMedicationRefill } from '../../medicationRefill'
 import { getImagingResults } from '../../labs_and_procedure_results/labResults'
 import { followSamlChain } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
+import { readPatientPosition, sortByPatientPosition } from '../../clo-image-parser/sortByPatientPosition'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
 // One fake server stands in for both real MyChart deployment shapes, so every
@@ -598,6 +599,57 @@ for (const mode of MOUNT_MODES) {
       for (const img of result.images) {
         expect(img.seriesDescription).not.toBe('SeriesSelector')
       }
+    }, 60_000)
+
+    it('CT slices carry per-instance patient positions that sort them anatomically', async () => {
+      const results = await getImagingResults(session)
+      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      expect(ct?.fdiContext).toBeDefined()
+
+      const result = await downloadImagingStudyDirect(
+        session,
+        ct!.fdiContext!,
+        'Homer CT Head',
+        '/tmp/fake-mychart-test-ct-order',
+        { skipFileWrite: true },
+      )
+      expect(result.errors).toHaveLength(0)
+
+      // AXIAL: 5 slices, each with its OWN wrapper — a real eUnity server
+      // answers CLOWRAPPER per instance, not per series.
+      const axialBase = '1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666'
+      const axial = result.images.filter(i => i.seriesDescription === 'AXIAL')
+      expect(axial.length).toBe(5)
+      const distinctWrappers = new Set(axial.map(i => i.wrapperData!.toString('base64')))
+      expect(distinctWrappers.size).toBe(5)
+
+      // The fake serves AXIAL z DESCENDING against instance number, so
+      // anatomical order is the reverse of instance order — a sort that
+      // silently no-ops (e.g. wrappers stop carrying positions) fails here.
+      const sortedAxial = sortByPatientPosition(axial)
+      expect(sortedAxial.sortedBy).toBe('z')
+      expect(sortedAxial.rangeMm).toBe(160)
+      expect(sortedAxial.images.map(i => i.instanceUID)).toEqual(
+        [5, 4, 3, 2, 1].map(n => `${axialBase}.${n}`),
+      )
+      const zs = sortedAxial.images.map(i => readPatientPosition(i.wrapperData!)!.z)
+      expect(zs).toEqual([40, 80, 120, 160, 200])
+
+      // BONE RECON: z ascending with instance number — sorting keeps order.
+      const boneBase = '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333'
+      const bone = result.images.filter(i => i.seriesDescription === 'BONE RECON')
+      expect(bone.length).toBe(3)
+      const sortedBone = sortByPatientPosition(bone)
+      expect(sortedBone.sortedBy).toBe('z')
+      expect(sortedBone.images.map(i => i.instanceUID)).toEqual(
+        [1, 2, 3].map(n => `${boneBase}.${n}`),
+      )
+
+      // SCOUT is a projection image served from the shared per-series
+      // wrapper — no patient position, and the sort must leave it alone.
+      const scout = result.images.find(i => i.seriesDescription === 'SCOUT')
+      expect(scout).toBeDefined()
+      expect(readPatientPosition(scout!.wrapperData!)).toBeNull()
     }, 60_000)
   })
 }

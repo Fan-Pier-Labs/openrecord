@@ -490,6 +490,13 @@ export interface WrapperMetadata {
   isSigned?: number;
   rescaleSlope?: number;
   rescaleIntercept?: number;
+  /**
+   * DICOM Image Position (Patient) in mm — encoded as
+   * `calibration.orientation.positionPatient`, the nested shape real eUnity
+   * wrappers use (see docs/clo-format.md). Cross-sectional slices carry it;
+   * projection images (X-rays) don't.
+   */
+  positionPatient?: { x: number; y: number; z: number };
 }
 
 export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
@@ -517,6 +524,20 @@ export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
   }
   if (metadata.rescaleIntercept !== undefined) {
     obj.rescaleIntercept = metadata.rescaleIntercept;
+  }
+  if (metadata.positionPatient) {
+    obj.calibration = {
+      _class: "com.clientoutlook.data.ImageCalibration",
+      orientation: {
+        _class: "com.clientoutlook.data.OrientationPatient",
+        positionPatient: {
+          _class: "com.clientoutlook.data.ImagePositionPatient",
+          position_x: metadata.positionPatient.x,
+          position_y: metadata.positionPatient.y,
+          position_z: metadata.positionPatient.z,
+        },
+      },
+    };
   }
 
   const writer = new AMF3Writer();

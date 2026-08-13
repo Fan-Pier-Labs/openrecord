@@ -28,6 +28,12 @@ export class Amf3Writer {
   writeFalse() { this.buf.push(0x02); }
   writeTrue() { this.buf.push(0x03); }
   writeInteger(value: number) { this.buf.push(0x04); this.writeU29(value); }
+  writeDouble(value: number) {
+    this.buf.push(0x05);
+    const b = Buffer.alloc(8);
+    b.writeDoubleBE(value);
+    this.buf.push(...b);
+  }
   writeString(str: string) { this.buf.push(0x06); this.writeStringValue(str); }
 
   /** String value without the 0x06 marker; maintains the reference table. */

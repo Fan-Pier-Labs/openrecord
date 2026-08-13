@@ -42,8 +42,7 @@ import { getImagingResults } from '../../scrapers/myChart/labs_and_procedure_res
 import { downloadImagingStudyDirect } from '../../scrapers/myChart/eunity/imagingDirectDownload';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
-import { AMF3Reader } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
-import { inflateSync } from 'zlib';
+import { sortByPatientPosition } from '../../scrapers/myChart/clo-image-parser/sortByPatientPosition';
 import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
 import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
 import { discoverProxyTargets, switchProxyTarget, verifyActiveProxyTarget, findProxyTarget, checkProxyContext } from '../../scrapers/myChart/proxyContext';
@@ -1828,38 +1827,10 @@ async function main() {
 
                 // Sort multi-slice series by anatomical position (from wrapper metadata)
                 if (multiSlice) {
-                  try {
-                    const positions: Array<{ idx: number; x: number; y: number; z: number }> = [];
-                    for (let i = 0; i < seriesImages.length; i++) {
-                      const img = seriesImages[i]!; // loop bound guarantees the index
-                      if (!img.wrapperData) { positions.push({ idx: i, x: 0, y: 0, z: 0 }); continue; }
-                      try {
-                        const wrapBuf = Buffer.isBuffer(img.wrapperData) ? img.wrapperData : Buffer.from(img.wrapperData);
-                        if (wrapBuf.subarray(0, 12).toString() !== 'CLOHEADERZ01') { positions.push({ idx: i, x: 0, y: 0, z: 0 }); continue; }
-                        const decompressed = inflateSync(wrapBuf.subarray(16));
-                        const reader = new AMF3Reader(decompressed);
-                        const meta = reader.readValue();
-                        const pos = meta?.calibration?.orientation?.positionPatient;
-                        if (pos) {
-                          positions.push({ idx: i, x: pos.position_x ?? 0, y: pos.position_y ?? 0, z: pos.position_z ?? 0 });
-                        } else {
-                          positions.push({ idx: i, x: 0, y: 0, z: 0 });
-                        }
-                      } catch { positions.push({ idx: i, x: 0, y: 0, z: 0 }); }
-                    }
-                    // Sort by the axis with the most variation
-                    const xs = positions.map(p => p.x), ys = positions.map(p => p.y), zs = positions.map(p => p.z);
-                    const range = (arr: number[]) => Math.max(...arr) - Math.min(...arr);
-                    const rx = range(xs), ry = range(ys), rz = range(zs);
-                    if (rx > 0.1 || ry > 0.1 || rz > 0.1) {
-                      const sortKey = rx >= ry && rx >= rz ? 'x' : ry >= rz ? 'y' : 'z';
-                      positions.sort((a, b) => a[sortKey] - b[sortKey]);
-                      const sorted = positions.map(p => seriesImages[p.idx]!); // idx values come from this same array
-                      for (let i = 0; i < sorted.length; i++) seriesImages[i] = sorted[i]!;
-                      console.log(`          Sorted ${seriesImages.length} slices by ${sortKey}-position (range: ${Math.max(rx, ry, rz).toFixed(1)}mm)`);
-                    }
-                  } catch (err) {
-                    console.log(`          Slice sorting failed, using download order: ${(err as Error).message}`);
+                  const sorted = sortByPatientPosition(seriesImages);
+                  if (sorted.sortedBy) {
+                    for (let i = 0; i < sorted.images.length; i++) seriesImages[i] = sorted.images[i]!;
+                    console.log(`          Sorted ${seriesImages.length} slices by ${sorted.sortedBy}-position (range: ${sorted.rangeMm.toFixed(1)}mm)`);
                   }
                 }
 
