@@ -80,7 +80,6 @@ openrecord/
   fake-mychart/              # Fake MyChart server for development and CI
   openrecord-splash/         # Static splash site + in-browser interactive demo
   openrecord-demo-lambda/    # Lambda backing the demo's AI chat
-  newsletter-lambda/         # Lambda capturing waitlist signups
 ```
 
 The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions.

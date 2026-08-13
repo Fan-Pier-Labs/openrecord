@@ -20,6 +20,7 @@ import { type MyChartRequest } from '../myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
+import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
 
 // ─── AMF3 Writer ───
 
@@ -35,7 +36,7 @@ import { logger } from '../../../shared/logger';
  * Protocol reverse-engineered from captured browser AMF traffic via
  * Playwright CDP Fetch domain interception.
  */
-class AMF3Writer {
+export class AMF3Writer {
   private readonly buf: number[] = [];
   private readonly stringTable: string[] = [];
 
@@ -488,7 +489,99 @@ interface ParsedStudyInfo {
 
 
 /**
+ * Parse the getStudyListMeta response *structurally* with the AMF3 reader:
+ * decode the typed-object tree and walk Study → series → images, so every
+ * (seriesUID, instanceUID) pair and series description is exact.
+ *
+ * This is the primary parser. The positional heuristic below remains as the
+ * fallback for responses the reader can't decode (e.g. an externalizable
+ * class we haven't seen). The heuristic mispaired UIDs on Mass General
+ * Brigham multi-slice studies — it took a frameOfReferenceUID for the series UID and
+ * the real series UIDs for instances, so every CustomImageServlet request
+ * came back CLOERROR "Failed to find image in any supplied providers".
+ *
+ * @param accession When the response carries several studies (priors in
+ * relevantStudyList), picks the one whose accessionNumber matches; otherwise
+ * the first study with image series wins.
+ */
+export function parseStudySeriesFromAmfStructured(amfBuf: Buffer, accession?: string): ParsedStudyInfo | null {
+  let root: unknown;
+  try {
+    root = decodeAmf3(amfBuf);
+  } catch (err) {
+    logger.debug(`      [AMF-PARSE] Structured decode failed: ${(err as Error).message}`);
+    return null;
+  }
+
+  const studies = collectAmf3Objects(root, 'com.clientoutlook.data.Study');
+  if (studies.length === 0) return null;
+
+  const seriesOf = (study: Amf3Object): Amf3Object[] => {
+    const arr = unwrapAmf3(study.series);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((s): s is Amf3Object =>
+      typeof s === 'object' && s !== null && typeof (s as Amf3Object).uid === 'string' && !!(s as Amf3Object).uid);
+  };
+
+  const study =
+    (accession ? studies.find((s) => s.accessionNumber === accession && seriesOf(s).length > 0) : undefined) ??
+    studies.find((s) => seriesOf(s).length > 0) ??
+    studies[0];
+
+  const studyUID = study.uid;
+  if (typeof studyUID !== 'string' || !studyUID) return null;
+
+  const series: ParsedStudyInfo['series'] = [];
+  let seriesCount = 0;
+  for (const s of seriesOf(study)) {
+    seriesCount++;
+    const seriesUID = s.uid as string;
+    const description = typeof s.description === 'string' && s.description.trim()
+      ? s.description.trim()
+      : `Series ${seriesCount}`;
+
+    const images = unwrapAmf3(s.images);
+    const instances = (Array.isArray(images) ? images : [])
+      .filter((img): img is Amf3Object =>
+        typeof img === 'object' && img !== null && typeof (img as Amf3Object).uid === 'string' && !!(img as Amf3Object).uid)
+      .sort((a, b) => (Number(a.instanceNumber) || 0) - (Number(b.instanceNumber) || 0));
+
+    for (const img of instances) {
+      series.push({ seriesUID, instanceUID: img.uid as string, seriesDescription: description });
+    }
+    logger.debug(`      [AMF-PARSE] ${description}: ${instances.length} instances`);
+  }
+
+  if (series.length === 0) return null;
+  logger.debug(`      [AMF-PARSE] Structured parse: ${series.length} (seriesUID, instanceUID) entries across ${seriesCount} series`);
+  return { studyUID, series };
+}
+
+/**
+ * Parse the study/series/instance tree from a getStudyListMeta response:
+ * structured AMF3 decode first, positional heuristic as fallback.
+ *
+ * The fallback is loud on purpose. The heuristic is the parser that mispaired
+ * UIDs on Mass General Brigham multi-slice studies and produced a silent
+ * zero-image result, so when it runs, the log says so — a future zero-image
+ * report must be diagnosable to "the strict reader couldn't decode this
+ * response" in one step rather than rediscovered from scratch.
+ */
+function parseStudySeries(amfBuf: Buffer, accession: string): ParsedStudyInfo | null {
+  const structured = parseStudySeriesFromAmfStructured(amfBuf, accession);
+  if (structured) return structured;
+  logger.warn(
+    '      [AMF-PARSE] Structured AMF3 decode failed; falling back to the positional UID heuristic. ' +
+    'UID pairing may be wrong on multi-slice studies — capture this response and extend amf3Reader.ts.',
+  );
+  return parseStudySeriesFromAmf(amfBuf);
+}
+
+/**
  * Parse the AMF getStudyListMeta response to extract study UID and series info.
+ *
+ * Positional-heuristic fallback for responses {@link parseStudySeriesFromAmfStructured}
+ * can't decode.
  *
  * The AMF response contains a structured list where series UIDs appear as boundaries,
  * followed by their instance UIDs. For multi-slice studies (CT scans), each series
@@ -927,7 +1020,7 @@ export async function initEunitySession(
   if (!amfResult) return null;
 
   const { amfBuf, effectiveServiceInstance } = amfResult;
-  const studyInfo = parseStudySeriesFromAmf(amfBuf);
+  const studyInfo = parseStudySeries(amfBuf, studyParams.accession);
   if (!studyInfo || studyInfo.series.length === 0) return null;
 
   return {
@@ -1419,8 +1512,9 @@ export async function downloadImagingStudyDirect(
       studyParams.serviceInstance = effectiveServiceInstance;
     }
 
-    // Step 5: Parse series info from AMF response
-    const studyInfo = parseStudySeriesFromAmf(amfResponse);
+    // Step 5: Parse series info from AMF response — structured AMF3 decode
+    // first, positional heuristic as loud fallback
+    const studyInfo = parseStudySeries(amfResponse, studyParams.accession);
     if (!studyInfo || studyInfo.series.length === 0) {
       result.errors.push('Could not parse series info from AMF response');
       return result;

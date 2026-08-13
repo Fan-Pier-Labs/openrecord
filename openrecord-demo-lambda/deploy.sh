@@ -8,10 +8,10 @@
 # takes { system, messages } from the browser and proxies to Gemini. See
 # `src/handler.mjs` for the abuse controls.
 #
-# Why API Gateway instead of a Lambda Function URL? Same reason as
-# newsletter-lambda: this account blocks unauthenticated (auth-type NONE)
-# Function URL access, so a public Function URL 403s even when configured
-# correctly. API Gateway invokes the Lambda as apigateway.amazonaws.com.
+# Why API Gateway instead of a Lambda Function URL? This account blocks
+# unauthenticated (auth-type NONE) Function URL access, so a public Function
+# URL 403s even when configured correctly. API Gateway invokes the Lambda as
+# apigateway.amazonaws.com.
 #
 # The Gemini key is read once at deploy time from the existing GEMINI_API_KEY
 # secret and set as a function env var, so the Lambda itself needs no
