@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     'setup-ui',
     'ui://openrecord/setup',
     { title: 'Connect MyChart (Setup Widget)', mimeType: SETUP_UI_MIME_TYPE },
-    async () => ({
+    () => ({
       contents: [{
         uri: 'ui://openrecord/setup',
         mimeType: SETUP_UI_MIME_TYPE,
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
   process.stdin.on('close', shutdown);
 }
 
-main().catch(err => {
+main().catch((err: unknown) => {
   console.error('[openrecord] fatal:', err);
   process.exit(1);
 });
