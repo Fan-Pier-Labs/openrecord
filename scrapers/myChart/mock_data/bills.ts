@@ -1,4 +1,4 @@
-import { MockData } from "./types";
+import { type MockData } from "./types";
 
 export const get_pdf: MockData = {
   path: ['/MyChartPRD/Billing/Details/DownloadFromBlob'],
