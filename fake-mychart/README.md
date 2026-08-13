@@ -180,8 +180,14 @@ Reset clears all sessions, restores the seeded conversations and emergency conta
 ```bash
 cd fake-mychart
 bun install
-bun run dev    # Development mode → http://localhost:4000
+bun run dev    # Development mode → a random port in 4000-5000, printed at startup
 ```
+
+The dev port is random so several agents/worktrees can each run their own
+fake-mychart instead of sharing one instance's RAM. `PORT=4000 bun run dev` pins
+it — which is what the examples below, and any suite defaulting to
+`localhost:4000`, expect. `bun run fake-mychart` from the repo root is the same
+script.
 
 For production builds:
 ```bash
@@ -396,6 +402,14 @@ bun run test:integration
 ```
 
 ## Adding New Endpoints
+
+**Fidelity rule — the fake MUST behave EXACTLY like real MyChart.** It is a faithful stand-in, not a
+convenience mock. Replicate the real API's response shapes, field names and casing, pagination (page
+sizes, `HasMoreData`/`SerializedIndex` continuation), status codes, and server-side enforcement rules
+(e.g. WebAuthn signature-counter monotonicity) precisely as observed on a real instance. Never
+simplify a contract just to make a test easier — if real MyChart returns 10 results per page, the
+fake returns 10, and the fixture is sized around that. When you discover how a real endpoint
+behaves, update the fake to match it exactly.
 
 To add a new endpoint:
 
