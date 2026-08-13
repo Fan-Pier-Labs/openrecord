@@ -2,17 +2,15 @@
  * Encode a downloaded imaging study as JPEGs.
  *
  * The download itself is the shared `download_imaging_study` capability
- * (`shared/capabilities.ts`), which returns raw CLO bytes — every client has to
- * encode those itself, because the MCPB ships no native image dependency and
- * uses the pure-JS CLO→JPEG path (convertCloToBitmap16 + jpeg-js) where the
- * CLI uses sharp and the mobile app uses its own decoder. This module is that
- * MCPB-specific encoding step, kept out of tool registration so it can be
+ * (`shared/capabilities.ts`), which returns raw CLO bytes. Encoding is the
+ * shared pure-JS exporter (`convertCloToJpgPureJs`) — the same code path the
+ * Expo app uses, so an X-ray renders identically in every client. This module
+ * is just the MCPB glue around it, kept out of tool registration so it can be
  * unit-tested against fake-mychart without standing up an MCP server.
  */
 import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
-import { convertCloToBitmap16 } from '../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
-import { encodeCloAsJpeg } from './jpeg-encoder';
+import { convertCloToJpgPureJs } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import {
   encodeImageId,
   executeCapability,
@@ -58,14 +56,13 @@ export function encodeStudyJpegs(payload: StudyImagePayload): DownloadStudyJpegs
   for (let i = 0; i < withPixels.length; i++) {
     const img = withPixels[i];
     try {
-      const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
-      const encoded = encodeCloAsJpeg(bitmap);
+      const encoded = convertCloToJpgPureJs(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
       images.push({
         index: i,
         seriesDescription: img.seriesDescription,
         width: encoded.width,
         height: encoded.height,
-        bytes: encoded.bytes,
+        bytes: encoded.buffer.length,
         jpegBase64: Buffer.from(encoded.buffer).toString('base64'),
       });
     } catch (err) {
