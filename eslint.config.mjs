@@ -43,6 +43,17 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      // No runtime import() in product code — a static import says what a
+      // module needs where every reader and every bundler can see it. The
+      // few load-bearing dynamic imports (module-cycle breakers, an
+      // import-order requirement, deliberate cold-start deferral) carry a
+      // line-level disable with the reason. Test files are exempt below:
+      // they import dynamically to control mock/module ordering.
+      "no-restricted-syntax": ["error", {
+        selector: "ImportExpression",
+        message: "No runtime import() in product code — use a static import, or disable this line with a comment saying why the dynamic import is load-bearing.",
+      }],
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
@@ -66,6 +77,10 @@ export default [
     files: ["**/*.test.ts", "**/__tests__/**"],
     rules: {
       "@typescript-eslint/await-thenable": "off",
+      // Tests import dynamically on purpose: mock.module must be installed
+      // before the module under test loads, and the parity suite re-imports
+      // client surfaces to get fresh registrations.
+      "no-restricted-syntax": "off",
     },
   },
   {rules: {

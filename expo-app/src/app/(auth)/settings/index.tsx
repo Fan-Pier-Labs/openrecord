@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
+  addMyChartAccount,
   getMyChartAccounts,
   removeMyChartAccount,
   getAiProvider,
@@ -38,7 +40,7 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadSettings();
+      fireAndForget(loadSettings(), "settings:load");
     }, [])
   );
 
@@ -139,7 +141,6 @@ export default function SettingsScreen() {
       return;
     }
 
-    const { addMyChartAccount } = await import("@/lib/storage/secure-store");
     await addMyChartAccount({
       hostname: newHostname.trim(),
       username: newUsername.trim(),

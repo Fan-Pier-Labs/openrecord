@@ -88,7 +88,7 @@ async function getPasskeysFromFakeMychart(): Promise<unknown[]> {
   const cookieValue = await loginToFakeMychart();
   const res = await fetch(`${FAKE_MYCHART_URL}/MyChart/api/passkey-management/LoadPasskeyInfo`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue },
+    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue, '__RequestVerificationToken': 'tok-test' },
     body: '{}',
   });
   const data = await res.json() as { passkeys?: unknown[] };
@@ -99,14 +99,14 @@ async function deleteAllPasskeysFromFakeMychart(): Promise<void> {
   const cookieValue = await loginToFakeMychart();
   const res = await fetch(`${FAKE_MYCHART_URL}/MyChart/api/passkey-management/LoadPasskeyInfo`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue },
+    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue, '__RequestVerificationToken': 'tok-test' },
     body: '{}',
   });
   const data = await res.json() as { passkeys?: Array<{ rawId: string }> };
   for (const pk of data.passkeys || []) {
     await fetch(`${FAKE_MYCHART_URL}/MyChart/api/passkey-management/DeletePasskey`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue },
+      headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue, '__RequestVerificationToken': 'tok-test' },
       body: JSON.stringify({ rawId: pk.rawId }),
     });
   }
@@ -116,7 +116,7 @@ async function getTotpStatusFromFakeMychart(): Promise<boolean> {
   const cookieValue = await loginToFakeMychart();
   const res = await fetch(`${FAKE_MYCHART_URL}/MyChart/api/secondary-validation/GetTwoFactorInfo`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue },
+    headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue, '__RequestVerificationToken': 'tok-test' },
     body: '{}',
   });
   const data = await res.json() as { IsTotpEnabled?: boolean };

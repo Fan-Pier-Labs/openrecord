@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import {
   getMemorySummary,
   listInsights,
@@ -48,7 +49,7 @@ export default function InsightsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      fireAndForget(load(), "insights:load");
     }, [load]),
   );
 
