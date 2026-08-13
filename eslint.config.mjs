@@ -40,6 +40,10 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // A `.map`/`.filter`/`.reduce` callback that falls off its end yields
+      // `undefined` for that element and the array quietly fills with holes —
+      // a callback run only for its side effects belongs in `.forEach`.
+      "array-callback-return": "error",
       // Round-4 zero-violation set — enabling these required NO code changes.
       // Each zero was canary-verified: a planted violation fires before the
       // zero is trusted.
