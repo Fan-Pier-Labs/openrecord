@@ -25,8 +25,8 @@ const fakeFs = {
 await mock.module('fs', () => fakeFs)
 await mock.module('node:fs', () => fakeFs)
 
-const realCwd = process.cwd
-const realChdir = process.chdir
+const realCwd = process.cwd.bind(process)
+const realChdir = process.chdir.bind(process)
 process.cwd = () => cwd
 process.chdir = ((dir: string) => {
   cwd = dir
