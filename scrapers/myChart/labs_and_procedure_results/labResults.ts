@@ -4,7 +4,7 @@ import { LabResultsList } from "./labtypes";
 import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
-import { extractFdiContext, getImageViewerSamlUrl, followSamlChain } from "../eunity/imagingViewer";
+import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../eunity/imagingViewer";
 import { logger } from '../../../shared/logger';
 
 
@@ -237,33 +237,36 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
             imagingResult.orderProvider = firstResult.orderMetadata.orderProviderName || '';
           }
 
-          // Extract FDI context from report content HTML (for image viewer access)
+          // Extract FDI context (for image viewer access) — from the report
+          // content HTML, or from the structured fdiLink some instances (e.g.
+          // Mass General Brigham) serve instead of a data-fdi-context attribute.
           for (const r of labResult.results ?? []) {
-            if (r.reportDetails?.reportContent?.reportContent) {
-              const fdi = extractFdiContext(r.reportDetails.reportContent.reportContent);
-              if (fdi) {
-                imagingResult.fdiContext = fdi;
+            const reportHtml = r.reportDetails?.reportContent?.reportContent;
+            const fdi =
+              (reportHtml ? extractFdiContext(reportHtml) : null) ??
+              (r.fdiLink?.redirectUrl ? extractFdiContextFromFdiLink(r.fdiLink.redirectUrl) : null);
+            if (fdi) {
+              imagingResult.fdiContext = fdi;
 
-                // Get the SAML URL for the image viewer
-                try {
-                  const session = await getImageViewerSamlUrl(mychartRequest, fdi);
-                  if (session) {
-                    imagingResult.samlUrl = session.samlUrl;
+              // Get the SAML URL for the image viewer
+              try {
+                const session = await getImageViewerSamlUrl(mychartRequest, fdi);
+                if (session) {
+                  imagingResult.samlUrl = session.samlUrl;
 
-                    // Optionally follow the SAML chain to get the eUnity viewer URL
-                    if (options?.followSaml) {
-                      const viewerSession = await followSamlChain(mychartRequest, session.samlUrl);
-                      if (viewerSession) {
-                        imagingResult.viewerUrl = viewerSession.viewerUrl;
-                      }
+                  // Optionally follow the SAML chain to get the eUnity viewer URL
+                  if (options?.followSaml) {
+                    const viewerSession = await followSamlChain(mychartRequest, session.samlUrl);
+                    if (viewerSession) {
+                      imagingResult.viewerUrl = viewerSession.viewerUrl;
                     }
                   }
-                } catch (err) {
-                  logger.debug('Error getting viewer URL:', (err as Error).message);
                 }
-
-                break; // Only need FDI from one result
+              } catch (err) {
+                logger.debug('Error getting viewer URL:', (err as Error).message);
               }
+
+              break; // Only need FDI from one result
             }
           }
 

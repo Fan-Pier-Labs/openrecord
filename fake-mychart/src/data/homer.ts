@@ -1837,6 +1837,11 @@ export const ctLabResultDetails = {
         reportContext: '',
         reportVars: { ordId: 'ORD-CT-001', ordDat: 'ORD-CT-001-DAT' },
       },
+      // Mass General Brigham shape: the viewer link is a structured fdiLink on
+      // the result — the report HTML carries no data-fdi-context at all. The
+      // X-ray result below keeps the data-fdi-context shape, so both viewer
+      // discovery paths stay covered.
+      fdiLink: { redirectUrl: '/Extensibility/Redirection/FdiRedirection?fdi=FDI-CT-001&ord=ORD-CT-001' },
       scans: [],
       imageStudies: [
         {
@@ -1868,8 +1873,10 @@ export const ctLabResultDetails = {
   hideEncInfo: false,
 };
 
+// No data-fdi-context here on purpose: the CT result advertises its viewer
+// via the structured fdiLink above (the Mass General Brigham shape).
 export const ctReportContent = {
-  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p><div data-fdi-context='${JSON.stringify({ fdi: 'FDI-CT-001', ord: 'ORD-CT-001' })}'><a href="#">View Images</a></div></div>`,
+  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>`,
   reportCss: '',
 };
 

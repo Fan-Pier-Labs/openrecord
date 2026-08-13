@@ -348,13 +348,15 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 |-------|--------|---------|
 | `/MyChart/api/test-results/GetWidgetList?groupType=2` | POST | Lists imaging studies (X-ray skull, CT head) |
 | `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportID` |
-| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` |
+| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
 | `/MyChart/Extensibility/Redirection/FdiData` | POST | Bridge: returns `{url, launchmode, IsFdiPost}` pointing at `/e/saml-sts` |
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
-| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response with study/series/instance UIDs. Required before `CustomImageServlet` returns image bytes. |
+| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built by `src/lib/amf3.ts`. |
 | `/e/CustomImageServlet` | POST | Returns pre-generated CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) keyed by `seriesUID` |
+
+The two imaging studies deliberately advertise their viewer differently, matching the two shapes seen on real instances: the X-ray's report HTML embeds `data-fdi-context`, while the CT result carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`) and its report HTML has no fdi markup at all — the Mass General Brigham shape. Both scraper discovery paths stay covered.
 
 ### CLO image data
 

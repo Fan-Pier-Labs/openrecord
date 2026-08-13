@@ -21,6 +21,7 @@ export interface LabResult {
   reportDetails: ReportDetails
   scans: Scan[]
   imageStudies: ImageStudy[]
+  fdiLink?: FdiLink
   indicators: unknown[]
   geneticProfileLink: string
   shareEverywhereLogin: boolean
@@ -116,6 +117,17 @@ export interface ImageStudy {
   modality: string;
   viewerUrl: string;
   numberOfImages: number;
+}
+
+/**
+ * Link to the external image viewer, served by some instances (observed on
+ * Mass General Brigham) instead of a `data-fdi-context` attribute in the
+ * report HTML. The redirectUrl is a relative MyChart path of the form
+ * `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…` — the same fdi/ord
+ * pair the FdiData API takes.
+ */
+export interface FdiLink {
+  redirectUrl: string;
 }
 
 export interface Addendum {
