@@ -11,6 +11,7 @@
  * 7. RemoveComposeId - cleanup
  */
 
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { MyChartRequest } from '../myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../util';
 
@@ -58,7 +59,7 @@ async function makeApiRequest(
   body: unknown,
   token: string,
 ): Promise<{ status: number; json: unknown }> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path,
     method: 'POST',
     headers: {
@@ -79,7 +80,7 @@ async function makeApiRequest(
 
 /** Get the request verification token needed for all API calls */
 export async function getVerificationToken(mychartRequest: MyChartRequest): Promise<string | undefined> {
-  const res = await mychartRequest.makeRequest({ path: '/app/communication-center' });
+  const res = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
   const html = await res.text();
   return getRequestVerificationTokenFromBody(html);
 }

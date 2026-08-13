@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -23,7 +24,7 @@ type GetEducationResponse = {
 }
 
 export async function getEducationMaterials(mychartRequest: MyChartRequest): Promise<EducationMaterial[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/education' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/education' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -32,7 +33,7 @@ export async function getEducationMaterials(mychartRequest: MyChartRequest): Pro
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/education/GetPatEducationTitles',
     method: 'POST',
     headers: {

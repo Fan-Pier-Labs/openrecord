@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -70,7 +71,7 @@ const MAX_PAGES = 100; // safety bound for accounts with long histories
  * into one Flowsheet per vital type.
  */
 export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowsheet[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/track-my-health' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/track-my-health' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -81,7 +82,7 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
 
   const headers = { 'Content-Type': 'application/json', '__RequestVerificationToken': token };
 
-  const listResp = await mychartRequest.makeRequest({
+  const listResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/track-my-health/GetFlowsheets',
     method: 'POST',
     headers,
@@ -107,7 +108,7 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
     let endInstantIso = defaultEndInstantIso();
 
     for (let page = 0; page < MAX_PAGES; page++) {
-      const rResp = await mychartRequest.makeRequest({
+      const rResp = await makeAuthenticatedRequest(mychartRequest, {
         path: '/api/track-my-health/GetFlowsheetReadings',
         method: 'POST',
         headers,

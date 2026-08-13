@@ -18,6 +18,8 @@ import {
   type TwoFaDeliveryInfo,
 } from '../../scrapers/myChart/login';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
+import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/silentLogin';
+import { sessionStore } from '../../scrapers/myChart/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/profile';
@@ -99,8 +101,6 @@ import {
   type CapabilityContext,
 } from '../../shared/capabilities';
 
-const KEEPALIVE_INTERVAL_MS = 30 * 1000;
-
 /** Options accepted by every `MyChartClient.connect*` factory. */
 export interface MyChartClientOptions {
   hostname: string;
@@ -108,6 +108,13 @@ export interface MyChartClientOptions {
   protocol?: 'http' | 'https';
   /** Run a background keepalive ping every 30s. Default `true`. */
   keepalive?: boolean;
+  /**
+   * When the session expires mid-call, silently re-login with the connect
+   * credentials and retry. Default `true`. With it off (or after
+   * `fromSerialized`, which has no credentials to renew with), an expired
+   * session surfaces as a `SessionExpiredError`.
+   */
+  autoRenew?: boolean;
 }
 
 export interface ConnectArgs extends MyChartClientOptions {
@@ -115,6 +122,8 @@ export interface ConnectArgs extends MyChartClientOptions {
   pass: string;
   /** If true, skip MyChart's "send 2FA code" step (used when the consumer wants to drive delivery itself). */
   skipSendCode?: boolean;
+  /** TOTP secret used to auto-complete 2FA during a silent re-login. */
+  totpSecret?: string;
 }
 
 export type ConnectResult =
@@ -145,14 +154,15 @@ export class MyChartClient {
   /** The underlying request/session. Public for power users; usually you don't need it. */
   readonly request: MyChartRequest;
 
-  private readonly opts: MyChartClientOptions;
-  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
   private constructor(request: MyChartRequest, opts: MyChartClientOptions) {
     this.request = request;
-    this.opts = opts;
-    if (opts.keepalive !== false) {
+    if (opts.keepalive === false) {
+      // The shared keepalive would otherwise enroll this session on its first
+      // authenticated request; honor the opt-out at the source.
+      request.disableAutoKeepalive = true;
+    } else {
       this.startKeepalive();
     }
   }
@@ -173,7 +183,13 @@ export class MyChartClient {
       pass: args.pass,
       skipSendCode: args.skipSendCode,
     });
-    return MyChartClient.wrapLoginResult(result, args);
+    return MyChartClient.wrapLoginResult(result, args, () => ({
+      hostname: args.hostname,
+      username: args.user,
+      password: args.pass,
+      totpSecret: args.totpSecret,
+      protocol: args.protocol,
+    }));
   }
 
   /**
@@ -185,7 +201,13 @@ export class MyChartClient {
       protocol: args.protocol,
       credential: args.credential,
     });
-    return MyChartClient.wrapLoginResult(result, args);
+    // A silent re-login mutates the credential's WebAuthn signature counter in
+    // place; the caller already owns the object and its persistence.
+    return MyChartClient.wrapLoginResult(result, args, () => ({
+      hostname: args.hostname,
+      passkey: args.credential,
+      protocol: args.protocol,
+    }));
   }
 
   /**
@@ -205,9 +227,20 @@ export class MyChartClient {
     });
   }
 
-  private static wrapLoginResult(result: LoginResult, opts: MyChartClientOptions): ConnectResult {
+  private static wrapLoginResult(
+    result: LoginResult,
+    opts: MyChartClientOptions,
+    renewParams?: () => SilentLoginParams,
+  ): ConnectResult {
+    const wireRenewal = (client: MyChartClient) => {
+      if (opts.autoRenew === false || !renewParams) return;
+      wireSilentReauthentication(client.request, renewParams);
+    };
+
     if (result.state === 'logged_in') {
-      return { state: 'connected', client: new MyChartClient(result.mychartRequest, opts) };
+      const client = new MyChartClient(result.mychartRequest, opts);
+      wireRenewal(client);
+      return { state: 'connected', client };
     }
     if (result.state === 'need_2fa') {
       // Don't start keepalive on a pending session — only after 2FA completes.
@@ -225,8 +258,12 @@ export class MyChartClient {
           if (r.state !== 'logged_in') {
             throw new Error(`2FA failed: state=${r.state}`);
           }
-          // Promote: start keepalive now that we're authenticated.
-          if (opts.keepalive !== false) pendingClient.startKeepalive();
+          // Promote: start keepalive + renewal now that we're authenticated.
+          if (opts.keepalive !== false) {
+            pendingClient.request.disableAutoKeepalive = false;
+            pendingClient.startKeepalive();
+          }
+          wireRenewal(pendingClient);
           return pendingClient;
         },
       };
@@ -247,42 +284,22 @@ export class MyChartClient {
     return areCookiesValid(this.request);
   }
 
-  /** Stop the keepalive timer and prevent further method calls. Idempotent. */
+  /** Stop the keepalive pings and prevent further method calls. Idempotent. */
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    if (this.keepaliveTimer) {
-      clearInterval(this.keepaliveTimer);
-      this.keepaliveTimer = null;
-    }
-  }
-
-  private startKeepalive() {
-    if (this.keepaliveTimer || this.closed) return;
-    this.keepaliveTimer = setInterval(() => {
-      // Don't await — we don't want the timer to drift. If a ping fails, the
-      // next call will surface the auth failure.
-      this.runKeepalivePing().catch(() => {});
-    }, KEEPALIVE_INTERVAL_MS);
-    // Don't keep the event loop alive just because of the keepalive timer.
-    if (typeof this.keepaliveTimer === 'object' && this.keepaliveTimer && 'unref' in this.keepaliveTimer) {
-      (this.keepaliveTimer as { unref: () => void }).unref();
-    }
+    sessionStore.unregister(this.request);
   }
 
   /**
-   * Pings MyChart's two keepalive endpoints. Mirrors the official client's
-   * 30s interval so server-side session timers stay armed.
+   * Enroll in the shared keepalive: MyChart's two keepalive endpoints pinged
+   * on the official client's 30s cadence, with automatic renewal when a
+   * heartbeat finds the session dead (if renewal credentials are wired). The
+   * shared interval is unref'd, so it never holds the event loop open.
    */
-  private async runKeepalivePing(): Promise<void> {
-    try {
-      await Promise.all([
-        this.request.makeRequest({ path: '/Home/KeepAlive', followRedirects: false }),
-        this.request.makeRequest({ path: '/keepalive.asp', followRedirects: false }),
-      ]);
-    } catch {
-      // Swallow — next user-driven request will surface real auth issues.
-    }
+  private startKeepalive() {
+    if (this.closed) return;
+    sessionStore.registerForKeepalive(this.request);
   }
 
   private req(): MyChartRequest {

@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
@@ -9,7 +10,7 @@ export type CareTeamMember = {
 }
 
 export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareTeamMember[]> {
-  const resp = await mychartRequest.makeRequest({ path: '/Clinical/CareTeam' });
+  const resp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/CareTeam' });
   const html = await resp.text();
   const $ = cheerio.load(html);
 
@@ -33,7 +34,7 @@ export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareT
   const token = getRequestVerificationTokenFromBody(html);
   if (token) {
     try {
-      const apiResp = await mychartRequest.makeRequest({
+      const apiResp = await makeAuthenticatedRequest(mychartRequest, {
         path: '/api/medicaladvicerequests/GetMedicalAdviceRequestRecipients',
         method: 'POST',
         headers: {

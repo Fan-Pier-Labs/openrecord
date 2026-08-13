@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -25,7 +26,7 @@ type LoadDocumentsResponse = {
 };
 
 export async function getDocuments(mychartRequest: MyChartRequest): Promise<Document[]> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/documents' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/documents' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -34,7 +35,7 @@ export async function getDocuments(mychartRequest: MyChartRequest): Promise<Docu
     return [];
   }
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/documents/viewer/LoadOtherDocuments',
     method: 'POST',
     headers: {
