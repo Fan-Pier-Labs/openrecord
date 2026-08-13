@@ -13,7 +13,7 @@ type AuthState = {
 const AuthContext = createContext<AuthState>({
   isAuthenticated: false,
   isLoading: true,
-  authenticate: async () => false,
+  authenticate: () => Promise.resolve(false),
   setSetupComplete: () => {},
 });
 
