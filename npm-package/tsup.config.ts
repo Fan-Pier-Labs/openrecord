@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup';
+import { chmod } from 'node:fs/promises';
 
 // Two builds:
 // 1. The library (`src/index.ts` → ESM + CJS + .d.ts).
@@ -38,7 +39,6 @@ export default defineConfig([
     noExternal: [/scrapers[\\/]myChart/, /cli[\\/]/, /shared[\\/]/, /read-local-passwords/],
     // chmod the output so it's executable as a bin.
     onSuccess: async () => {
-      const { chmod } = await import('node:fs/promises');
       try {
         await chmod('dist/cli.cjs', 0o755);
       } catch {

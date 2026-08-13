@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 
 import fs from 'fs';
 import { getRequestVerificationTokenFromBody } from "./util";
+import { changeDirToPackageRoot } from "../../shared/util";
 import { sendTelemetryEvent } from "../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
@@ -1128,7 +1129,6 @@ async function myChartRawLogin_TEST({hostname, user, pass}: {hostname: string, u
 
 
 export async function login_TEST(hostname: string): Promise<MyChartRequest> {
-  const { changeDirToPackageRoot } = await import("../../shared/util");
   changeDirToPackageRoot()
 
 
