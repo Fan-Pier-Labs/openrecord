@@ -1,10 +1,27 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach, afterAll, setSystemTime } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { savePasskeyCredential, loadPasskeyCredential } from '../passkeyStore';
 import type { PasskeyCredential } from '../../../scrapers/myChart/softwareAuthenticator';
 
 const PASSKEY_DIR = path.join(process.cwd(), '.passkey-credentials');
+
+/**
+ * The archive name is `hostname.<ISO timestamp>.json`, so two saves in the same
+ * millisecond archive to the same path and the second rename eats the first.
+ * The clock is faked and stepped by hand instead of sleeping between saves:
+ * a real 10ms sleep only made the collision unlikely, and "unlikely" on a
+ * loaded CI box is the definition of a flake.
+ */
+const CLOCK_START = new Date('2026-03-01T12:00:00.000Z');
+let clock = CLOCK_START.getTime();
+
+/** Move the faked clock forward, so the next archive gets its own filename. */
+function advanceClock(ms = 1000): void {
+  clock += ms;
+  setSystemTime(new Date(clock));
+}
 
 function makeCredential(overrides: Partial<PasskeyCredential> = {}): PasskeyCredential {
   return {
@@ -18,7 +35,19 @@ function makeCredential(overrides: Partial<PasskeyCredential> = {}): PasskeyCred
 }
 
 describe('passkeyStore', () => {
-  const testHostname = `test-passkey-${Date.now()}`;
+  // Random rather than time-derived: the clock is frozen below, so a
+  // timestamped name would be the same on every run and leftovers from a
+  // crashed one would throw the archive counts off.
+  const testHostname = `test-passkey-${randomUUID()}`;
+
+  beforeEach(() => {
+    clock = CLOCK_START.getTime();
+    setSystemTime(CLOCK_START);
+  });
+
+  afterAll(() => {
+    setSystemTime();
+  });
 
   afterEach(async () => {
     // Clean up test files
@@ -81,9 +110,9 @@ describe('passkeyStore', () => {
 
   it('handles triple save with multiple archives', async () => {
     await savePasskeyCredential(testHostname, makeCredential({ signCount: 1 }));
-    await new Promise(r => setTimeout(r, 10)); // ensure different timestamps
+    advanceClock(); // each archive needs its own timestamped filename
     await savePasskeyCredential(testHostname, makeCredential({ signCount: 2 }));
-    await new Promise(r => setTimeout(r, 10));
+    advanceClock();
     await savePasskeyCredential(testHostname, makeCredential({ signCount: 3 }));
 
     const loaded = await loadPasskeyCredential(testHostname);

@@ -3,7 +3,9 @@
  *
  * The proxy hands back a whole turn at once, so the UI reveals it on a timer to
  * match the rate a model would have produced it. The pacing maths is pure and
- * tested here; `streamText` itself is exercised through a fake clock.
+ * tested here directly; `streamText` is driven at a rate high enough that it
+ * finishes within a frame or two, and cancellation is triggered from the update
+ * callback rather than by waiting out a wall-clock delay.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -94,15 +96,41 @@ describe('streamText', () => {
   test('aborting part-way stops without jumping to the full text', async () => {
     const controller = new AbortController();
     const seen: string[] = [];
-    const done = streamText('a'.repeat(4000), (v) => seen.push(v), {
-      charsPerSecond: 400,
-      signal: controller.signal,
-    });
-    setTimeout(() => controller.abort(), 60);
-    await done;
+    // Abort on the first painted frame rather than after a fixed wall-clock
+    // delay. What's under test is what happens *after* an abort, and hanging
+    // that on "60ms should be long enough to have painted something, but short
+    // enough not to have finished" makes it a race on both ends.
+    await streamText(
+      'a'.repeat(4000),
+      (v) => {
+        seen.push(v);
+        controller.abort();
+      },
+      { charsPerSecond: 400, signal: controller.signal },
+    );
 
     // Cancelling means the caller is replacing the message; it must not be
     // "helpfully" completed first.
-    expect(seen.at(-1)?.length ?? 0).toBeLessThan(4000);
+    expect(seen).not.toBeEmpty();
+    expect(seen.at(-1)!.length).toBeLessThan(4000);
+  });
+
+  test('an abort raised from onUpdate stops the reveal for good', async () => {
+    const controller = new AbortController();
+    const seen: string[] = [];
+    await streamText('b'.repeat(4000), (v) => { seen.push(v); controller.abort(); }, {
+      charsPerSecond: 400,
+      signal: controller.signal,
+    });
+    const atAbort = seen.length;
+
+    // Nothing more may be painted once the reveal has been cancelled — an
+    // aborted stream that keeps ticking writes into a message the caller has
+    // already replaced. This is the one wait here that has to be real: proving
+    // an absence needs elapsed frames. Three of them is plenty, and the failure
+    // mode is one-sided — a loaded machine can only ever make this pass, never
+    // flake red.
+    await new Promise((r) => setTimeout(r, 3 * 16));
+    expect(seen.length).toBe(atAbort);
   });
 });

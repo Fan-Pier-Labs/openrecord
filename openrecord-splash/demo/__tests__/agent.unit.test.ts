@@ -15,6 +15,7 @@ import {
   isDraftRequest,
   extractToolCalls,
   isExclusiveTool,
+  resolveWriteDetails,
   runTurn,
   stripProtocolChatter,
 } from '../src/agent';
@@ -35,6 +36,16 @@ function scriptedModel(turns: string[]) {
 }
 
 const respond = (text: string) => JSON.stringify({ tool: 'respond', args: { text } });
+
+/**
+ * The loop's cosmetic tool latency, turned off.
+ *
+ * `runTurn` sleeps for `toolLatencyMs(tool)` before each call so the demo's
+ * activity panel is visible long enough to read; nothing here is testing that.
+ * Left on, this suite spends ~11 real seconds asleep — and every test added
+ * makes it worse — waiting out a delay whose only job is to be seen by a human.
+ */
+const noLatency = () => 0;
 
 /** Answers the write-confirmation dialog. Records what it was shown. */
 function dialog(answer: boolean) {
@@ -249,6 +260,50 @@ describe('describeWrite', () => {
       expect(shown.description).not.toContain(spec.name);
     }
   });
+
+  test('appends resolved details after the literal payload', () => {
+    const shown = describeWrite({
+      tool: 'book_appointment',
+      args: { slot_id: 'slot-001', reason: 'Follow-up' },
+      details: [{ label: 'Provider', value: 'Dr. Julius Hibbert' }],
+    });
+    expect(shown.fields).toEqual([
+      { label: 'Slot id', value: 'slot-001' },
+      { label: 'Reason', value: 'Follow-up' },
+      { label: 'Provider', value: 'Dr. Julius Hibbert' },
+    ]);
+  });
+});
+
+describe('resolveWriteDetails', () => {
+  test('a booking dialog says who, when and where — not just an opaque slot id', () => {
+    const session = createSession();
+    const offer = session.availableAppointments[0];
+    const slot = offer.slots[0];
+
+    const details = resolveWriteDetails(session, 'book_appointment', { slot_id: slot.slotId });
+    expect(details).toEqual([
+      { label: 'Provider', value: offer.provider },
+      { label: 'Visit type', value: offer.visitType },
+      { label: 'When', value: `${slot.date} at ${slot.time}` },
+      { label: 'Location', value: offer.location },
+    ]);
+  });
+
+  test('an invented slot id gets called out instead of shown bare', () => {
+    // Observed live: the model passed slot_id "56789". The dialog should let
+    // the user decline a booking that cannot succeed.
+    const details = resolveWriteDetails(createSession(), 'book_appointment', { slot_id: '56789' });
+    expect(details).toEqual([
+      { label: 'Warning', value: '"56789" is not one of the open slot ids — this booking will fail.' },
+    ]);
+  });
+
+  test('non-booking writes add nothing — their args are already readable', () => {
+    const session = createSession();
+    expect(resolveWriteDetails(session, 'send_message', { recipient_name: 'Dr. Hibbert' })).toEqual([]);
+    expect(resolveWriteDetails(session, 'request_refill', { medication_name: 'Metformin' })).toEqual([]);
+  });
 });
 
 describe('buildSystemPrompt', () => {
@@ -284,7 +339,12 @@ describe('buildSystemPrompt', () => {
 });
 
 describe('runTurn', () => {
-  const base = () => ({ session: createSession(), userText: 'what are my meds?', history: [] });
+  const base = () => ({
+    session: createSession(),
+    userText: 'what are my meds?',
+    history: [],
+    toolLatency: noLatency,
+  });
 
   test('a respond-only turn returns its text with no tool calls', async () => {
     const model = scriptedModel([respond('Here you go.')]);
@@ -484,7 +544,7 @@ describe('runTurn', () => {
       callbacks: d,
     });
 
-    expect(d.shown).toEqual([{ tool: 'send_message', args }]);
+    expect(d.shown).toEqual([{ tool: 'send_message', args, details: [] }]);
     expect(result.toolCalls).toHaveLength(0);
     expect(session.messages).toEqual(before);
     expect(result.text).toBe('Okay, I have not sent it.');
@@ -715,6 +775,7 @@ describe('a failing model surfaces an error rather than inventing an answer', ()
         session: createSession(),
         userText: 'show me my lab results',
         history: [],
+        toolLatency: noLatency,
         complete: dead,
         callbacks: { onError: (err: Error) => (notified = err) },
       }),
@@ -738,6 +799,7 @@ describe('a failing model surfaces an error rather than inventing an answer', ()
         session: createSession(),
         userText: 'meds?',
         history: [],
+        toolLatency: noLatency,
         complete: flaky,
         callbacks: { onToolEnd: (r: Any) => records.push(r.tool) },
       }),

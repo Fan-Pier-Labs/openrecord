@@ -173,7 +173,7 @@ CI runs the web E2E on every PR (`expo-web-e2e` in `checks.yml` — fast, no nat
 
 A complete OpenRecord session running in the browser against a fictional patient (Homer Simpson), so people can try the product before installing anything. Re-creates **both clients** — the iOS app and the Claude Desktop extension — sharing one session, so a refill requested on the phone shows up in the desktop chat.
 
-**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored). React and its types resolve from the **root** `package.json` — the demo's own manifest is script-only.
+**React 19 + TypeScript, built with Vite.** `strict` everywhere; `npx tsc --noEmit` runs as part of the build and of `deploy.sh`, so the demo cannot ship with a type error. Build output goes to `openrecord-splash/dist/` (gitignored). React, its types, and the build toolchain (`vite`, `@vitejs/plugin-react`, `@types/bun`) resolve from the **root** `package.json` — the demo's own manifest is script-only.
 
 Logic modules — framework-free and fully unit-tested:
 
