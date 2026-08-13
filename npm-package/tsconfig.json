@@ -12,6 +12,12 @@
     "rootDir": "..",
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
+    // Round-5 zero-violation set: all four measured 0 errors in every project.
+    // Pure checks — they change what tsc rejects, never what it emits.
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "noImplicitOverride": true,

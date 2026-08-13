@@ -128,7 +128,10 @@ export function parseWrapper(input: string | Buffer): CloMetadata {
       if (typeof result.isSigned === "number") {
         metadata.is_signed = Math.floor(result.isSigned);
       }
-      if (typeof result.windowCenter === "number" && result.windowCenter > 0) {
+      // A window centre is signed — CT lung windows sit near -600, and dose
+      // report / scout frames commonly come through at -512. Only the width
+      // has to be positive.
+      if (typeof result.windowCenter === "number" && Number.isFinite(result.windowCenter)) {
         metadata.window_center = result.windowCenter;
       }
       if (typeof result.windowWidth === "number" && result.windowWidth > 0) {
@@ -577,14 +580,23 @@ export function applyVoiLut(img16: Uint16Array, h: number, w: number, metadata: 
     return result;
   }
 
-  if (metadata.window_center && metadata.window_width && metadata.window_center > 0 && metadata.window_width > 0) {
+  if (typeof metadata.window_center === "number" && metadata.window_width && metadata.window_width > 0) {
+    // The window is expressed in output units (Hounsfield for CT), but img16
+    // holds *stored* values. Run each pixel through the modality LUT first
+    // rather than comparing the two directly — with a typical intercept of
+    // -1024, a narrow soft-tissue window (centre 50, width 150) against raw
+    // stored values clips everything above 125, saturating the tissue to white
+    // and leaving only air with any gradation.
+    const slope = metadata.rescale_slope || 1;
+    const intercept = metadata.rescale_intercept ?? 0;
     const lower = metadata.window_center - metadata.window_width / 2;
     const upper = metadata.window_center + metadata.window_width / 2;
     const bits = metadata.voi_lut_bits || 16;
     const maxOut = (1 << bits) - 1;
     const result = new Uint16Array(h * w);
     for (let i = 0; i < h * w; i++) {
-      const v = (img16[i]! - lower) / (upper - lower) * maxOut;
+      const value = img16[i]! * slope + intercept;
+      const v = (value - lower) / (upper - lower) * maxOut;
       result[i] = Math.max(0, Math.min(maxOut, Math.round(v)));
     }
     return result;
