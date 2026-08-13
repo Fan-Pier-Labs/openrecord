@@ -30,6 +30,7 @@ The eUnity viewer uses raw AMF3 typed objects (NOT standard Flex RemotingMessage
 - **Request body:** `com.clientoutlook.web.metaservices.AmfServicesRequest` (service, method, args)
 - **Response body:** `com.clientoutlook.web.metaservices.AmfServicesResponse` (code: int, response: string|null)
 - AMF `getStudyListMeta` call is REQUIRED before `CustomImageServlet` will serve images (otherwise 403)
+- The parsed instance list can lead with pseudo-instances (the viewer's `SeriesSelector` entries) that answer every pixel request with a ~226-byte `CLOERROR`; some (series, instance) pairings from the positional AMF parse are also invalid and fail the same way. `downloadImagingStudyDirect` therefore counts its `maxImages` budget in *successful* downloads (`downloadUpToQuota`), walking past junk instances instead of spending the budget on them — slicing the first `maxImages` entries used to return zero images with zero errors on studies that lead with `SeriesSelector`.
 - See `scrapers/myChart/eunity/docs/EUNITY_PROTOCOL.md` for full protocol details
 
 ## Example Health System-Specific Notes

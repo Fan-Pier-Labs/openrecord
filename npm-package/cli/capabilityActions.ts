@@ -117,9 +117,24 @@ export function coerceCapabilityArgs(
   return out;
 }
 
-/** Raw image bytes would swamp a terminal; summarize them instead. */
+/**
+ * Raw image bytes would swamp a terminal; summarize them instead.
+ *
+ * JSON.stringify calls `toJSON()` *before* the replacer sees a value, so a
+ * Node `Buffer` arrives here as `{type: 'Buffer', data: [...]}`, not as a
+ * `Uint8Array` — both shapes must be caught or a single downloaded image
+ * prints as tens of thousands of lines of byte values.
+ */
 export function jsonSafeReplacer(_key: string, value: unknown): unknown {
   if (value instanceof Uint8Array) return `<${value.length} bytes>`;
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'Buffer' &&
+    Array.isArray((value as { data?: unknown }).data)
+  ) {
+    return `<${(value as { data: unknown[] }).data.length} bytes>`;
+  }
   return value;
 }
 

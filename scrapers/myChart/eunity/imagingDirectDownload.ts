@@ -966,6 +966,35 @@ export async function downloadSingleImage(
 
 // ─── Image Download ───
 
+/**
+ * Run `downloadOne` over `items` in parallel batches of `concurrency`,
+ * stopping as soon as `quota` calls have returned true (or the list runs out).
+ *
+ * The quota counts *successes*, not attempts: eUnity's instance list can lead
+ * with pseudo-instances (the viewer's "SeriesSelector" entries) that answer
+ * every pixel request with CLOERROR, and a quota spent on attempts downloads
+ * exactly those and returns zero images. A batch is never wider than the
+ * remaining quota, so the result can't overshoot it either — a failed slot
+ * widens the pool for the next batch instead of shrinking the result.
+ */
+export async function downloadUpToQuota<T>(
+  items: readonly T[],
+  quota: number,
+  concurrency: number,
+  downloadOne: (item: T) => Promise<boolean>,
+): Promise<{ succeeded: number; attempted: number }> {
+  let succeeded = 0;
+  let next = 0;
+  while (next < items.length && succeeded < quota) {
+    const batchSize = Math.min(concurrency, quota - succeeded, items.length - next);
+    const batch = items.slice(next, next + batchSize);
+    next += batchSize;
+    const outcomes = await Promise.all(batch.map((item) => downloadOne(item)));
+    for (const ok of outcomes) if (ok) succeeded++;
+  }
+  return { succeeded, attempted: next };
+}
+
 export interface SeriesInfo {
   seriesUID: string;
   description: string;
@@ -1441,14 +1470,19 @@ export async function downloadImagingStudyDirect(
 
     // Step 6: Download images — each (seriesUID, instanceUID) pair is a separate image.
     // Download in parallel batches for speed (CT scans can have 700+ slices).
+    //
+    // downloadUpToQuota walks the whole instance list until maxImages
+    // downloads have *succeeded*: some instances are junk (CLOERROR
+    // pseudo-instances, mispaired UIDs from the positional AMF parse), and
+    // slicing the first maxImages entries used to spend the entire default
+    // budget on them — returning zero images with zero errors.
     const maxImages = options?.maxImages ?? Infinity;
     const concurrency = options?.concurrency ?? 5;
-    const seriesToDownload = studyInfo.series.slice(0, maxImages);
     const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
     const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
     let completed = 0;
 
-    async function downloadOne(series: NonNullable<typeof studyInfo>['series'][0]): Promise<void> {
+    async function downloadOne(series: NonNullable<typeof studyInfo>['series'][0]): Promise<boolean> {
       try {
         const { data } = await downloadImage(session!.cookieJar, baseUrl, {
           studyUID: studyInfo!.studyUID,
@@ -1460,31 +1494,30 @@ export async function downloadImagingStudyDirect(
 
         completed++;
         if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
-          if (completed % 50 === 0 || completed === seriesToDownload.length) {
-            logger.debug(`      [${completed}/${seriesToDownload.length}] Progress...`);
+          if (completed % 50 === 0) {
+            logger.debug(`      [${completed} tried] Progress...`);
           }
-          return;
+          return false;
         }
 
         const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         if (skipFileWrite) {
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
-          if (haarIdx >= 0) {
-            const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
-            const embeddedPixelData = data.subarray(haarIdx);
-            result.images.push({
-              filePath: '',
-              sizeBytes: embeddedPixelData.length,
-              seriesUID: series.seriesUID,
-              instanceUID: series.instanceUID,
-              seriesDescription: series.seriesDescription,
-              accessionNumber: studyParams!.accession,
-              format: 'CLHAAR',
-              pixelData: Buffer.from(embeddedPixelData),
-              wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
-            });
-          }
+          if (haarIdx < 0) return false;
+          const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
+          const embeddedPixelData = data.subarray(haarIdx);
+          result.images.push({
+            filePath: '',
+            sizeBytes: embeddedPixelData.length,
+            seriesUID: series.seriesUID,
+            instanceUID: series.instanceUID,
+            seriesDescription: series.seriesDescription,
+            accessionNumber: studyParams!.accession,
+            format: 'CLHAAR',
+            pixelData: Buffer.from(embeddedPixelData),
+            wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
+          });
         } else {
           const ext = isCloFormat(data) ? '.clo' : '.bin';
           const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
@@ -1526,20 +1559,24 @@ export async function downloadImagingStudyDirect(
           }
         }
 
-        if (completed % 50 === 0 || completed === seriesToDownload.length) {
-          logger.debug(`      [${completed}/${seriesToDownload.length}] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
+        if (completed % 50 === 0) {
+          logger.debug(`      [${completed} tried] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
         }
+        return true;
       } catch (err) {
         completed++;
         result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
+        return false;
       }
     }
 
-    // Run downloads in parallel batches
-    logger.debug(`      Downloading ${seriesToDownload.length} images (concurrency: ${concurrency})...`);
-    for (let i = 0; i < seriesToDownload.length; i += concurrency) {
-      const batch = seriesToDownload.slice(i, i + concurrency);
-      await Promise.all(batch.map(s => downloadOne(s)));
+    logger.debug(`      Downloading up to ${Number.isFinite(maxImages) ? maxImages : 'all'} of ${studyInfo.series.length} instances (concurrency: ${concurrency})...`);
+    const { succeeded, attempted } = await downloadUpToQuota(studyInfo.series, maxImages, concurrency, downloadOne);
+    logger.debug(`      Downloaded ${succeeded} images (${attempted} instances tried)`);
+    if (succeeded === 0 && attempted > 0 && result.errors.length === 0) {
+      result.errors.push(
+        `No downloadable images: all ${attempted} instances returned empty or error responses from the image server.`,
+      );
     }
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);
