@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { SPLASH_ASSETS } from './splash-assets';
 
 /**
  * Dev-only: serve the splash page from the parent directory at `/index.html`.
@@ -16,6 +17,11 @@ function splashPage(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = (req.url ?? '').split('?')[0];
+        if (SPLASH_ASSETS[url]) {
+          res.setHeader('content-type', SPLASH_ASSETS[url]);
+          res.end(readFileSync(`${__dirname}/..${url}`));
+          return;
+        }
         if (url !== '/' && url !== '/index.html') return next();
         res.setHeader('content-type', 'text/html; charset=utf-8');
         res.end(readFileSync(`${__dirname}/../index.html`, 'utf8'));
