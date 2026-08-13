@@ -66,7 +66,7 @@ const initialMemoryStarted = new Set<string>();
 function maybeKickoffInitialMemory(accountId: string): void {
   if (initialMemoryStarted.has(accountId)) return;
   initialMemoryStarted.add(accountId);
-  (async () => {
+  void (async () => {
     try {
       const existing = await getMemorySummary(accountId);
       if (existing) return;

@@ -249,7 +249,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
             const text = draft.trim();
             if (!text || busy) return;
             setDraft('');
-            send(text);
+            void send(text);
           }}
         >
           <input
@@ -491,7 +491,7 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
               onClick={() => {
                 setSkillsOpen(false);
                 setActiveSkill(skill);
-                send(skill.kickoffMessage);
+                void send(skill.kickoffMessage);
               }}
             >
               <span className="ios-sheet-icon">{skill.icon}</span>

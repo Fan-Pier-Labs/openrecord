@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import * as LocalAuthentication from "expo-local-authentication";
 import { getSecureValue } from "@/lib/storage/secure-store";
 
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkSetupAndAuth();
+    fireAndForget(checkSetupAndAuth(), "auth:checkSetupAndAuth");
   }, []);
 
   async function checkSetupAndAuth() {
