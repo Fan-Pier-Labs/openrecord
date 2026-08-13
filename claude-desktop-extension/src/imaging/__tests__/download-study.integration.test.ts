@@ -10,9 +10,9 @@
  * Run with: bun run test (from this package, with fake-mychart up)
  */
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { myChartUserPassLogin } from '../../../../scrapers/myChart/login';
-import { getImagingResults } from '../../../../scrapers/myChart/labs_and_procedure_results/labResults';
-import type { MyChartRequest } from '../../../../scrapers/myChart/myChartRequest';
+import { myChartUserPassLogin } from '../../../../scrapers/myChart/auth/login';
+import { getImagingResults } from '../../../../scrapers/myChart/chart/labs/labResults';
+import type { MyChartRequest } from '../../../../scrapers/myChart/core/myChartRequest';
 import { downloadStudyJpegs } from '../download-study';
 
 // Assumes a fake-mychart server is running at FAKE_MYCHART_HOST (CI starts one;

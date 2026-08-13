@@ -16,9 +16,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import { myChartUserPassLogin, complete2faFlow } from '../../login'
-import { getMyChartProfile } from '../../profile'
-import { setupTotp } from '../../setupTotp'
+import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
+import { getMyChartProfile } from '../../chart/profile'
+import { setupTotp } from '../../auth/setupTotp'
 import { setRequireTerms, resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
