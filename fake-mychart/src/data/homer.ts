@@ -1964,12 +1964,37 @@ export const ctImaging = {
       instanceUIDs: generateInstanceUIDs('1.3.51.0.7.100000001.11111.22222.33333.44444.55555.66666', 5),
       seriesDescription: 'AXIAL',
       cloPrefix: 'checkerboard_512x512',
+      // Per-slice DICOM Image Position (Patient), in mm, one entry per
+      // instance — each instance's CLOWRAPPER carries its own position, like
+      // a real eUnity server. z runs DESCENDING against instance number
+      // (superior-first acquisition), so instance order ≠ anatomical order
+      // and a client that skips position sorting is observably wrong.
+      slicePositions: [
+        { x: -125, y: -125, z: 200 },
+        { x: -125, y: -125, z: 160 },
+        { x: -125, y: -125, z: 120 },
+        { x: -125, y: -125, z: 80 },
+        { x: -125, y: -125, z: 40 },
+      ],
+      // These wrappers additionally carry the constructs a flat scalar object
+      // never reaches, each a distinct AMF3 decode path: a VOI LUT whose table
+      // is a byte array, annotation overlays inside externalizable
+      // ArrayCollection nodes, and ImagePhaseInfo -1 sentinels (negative
+      // integers, which only a sign-extending reader gets right).
+      richWrapperMetadata: true,
     },
     {
       seriesUID: '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333',
       instanceUIDs: generateInstanceUIDs('1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333', 3),
       seriesDescription: 'BONE RECON',
       cloPrefix: 'gradient_h_512x512',
+      // z ASCENDING with instance number — the common case, so both
+      // directions are covered.
+      slicePositions: [
+        { x: -125, y: -125, z: 40 },
+        { x: -125, y: -125, z: 80 },
+        { x: -125, y: -125, z: 120 },
+      ],
     },
     {
       seriesUID: '1.3.51.0.7.300000003.44444.55555.66666.77777.88888.99999',

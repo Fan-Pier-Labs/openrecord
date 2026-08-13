@@ -68,12 +68,19 @@ export class AMF3Writer {
   writeValue(v: any) {
     if (v === null || v === undefined) {
       this.writeU8(0x01); // undefined
+    } else if (Buffer.isBuffer(v)) {
+      this.writeU8(0x0c); // byte array — how real wrappers carry a VOI LUT table
+      this.writeU29((v.length << 1) | 1);
+      this.parts.push(v);
     } else if (typeof v === "boolean") {
       this.writeU8(v ? 0x03 : 0x02);
     } else if (typeof v === "number") {
-      if (Number.isInteger(v) && v >= 0 && v < 0x20000000) {
+      if (Number.isInteger(v) && v >= -0x10000000 && v < 0x20000000) {
+        // Negative integers encode as their 29-bit two's complement (e.g. -1 →
+        // 0x1FFFFFFF) — how real wrappers carry the ImagePhaseInfo "undefined"
+        // sentinels. The reader sign-extends them back.
         this.writeU8(0x04); // integer
-        this.writeU29(v);
+        this.writeU29(v & 0x1fffffff);
       } else {
         this.writeU8(0x05); // double
         this.writeDouble(v);
@@ -81,13 +88,27 @@ export class AMF3Writer {
     } else if (typeof v === "string") {
       this.writeU8(0x06); // string
       this.writeString(v);
-    } else if (typeof v === "object" && !Array.isArray(v)) {
+    } else if (Array.isArray(v)) {
+      this.writeU8(0x09); // dense array
+      this.writeU29((v.length << 1) | 1);
+      this.writeString(""); // empty associative section
+      for (const item of v) this.writeValue(item);
+    } else if (typeof v === "object") {
       this.writeObject(v);
     }
   }
 
   private writeObject(obj: Record<string, any>) {
     this.writeU8(0x0a); // object marker
+    if (obj._externalizable) {
+      // Externalizable object: traits 0x07, class name, then the class's own
+      // body. The only body shape real CLO wrappers use is the
+      // ArrayCollection/ObjectProxy one — exactly one wrapped AMF3 value.
+      this.writeU29(0x07);
+      this.writeString(obj._class || "");
+      this.writeValue(obj._value);
+      return;
+    }
     const keys = Object.keys(obj).filter((k) => k !== "_class");
     const className = obj._class || "";
     // Inline traits: (memberCount << 4) | dynamic(0) << 3 | externalizable(0) << 2 | 0b11
@@ -101,6 +122,11 @@ export class AMF3Writer {
       this.writeValue(obj[key]);
     }
   }
+}
+
+/** An ArrayCollection node, matching how real wrappers carry annotation text arrays. */
+export function arrayCollection(items: any[]): Record<string, any> {
+  return { _class: "flex.messaging.io.ArrayCollection", _externalizable: true, _value: items };
 }
 
 // ==================== Zigzag Encode ====================
@@ -492,6 +518,54 @@ export interface WrapperMetadata {
   rescaleIntercept?: number;
   /** DICOM patient position, encoded as calibration.orientation.positionPatient. */
   positionPatient?: { x: number; y: number; z: number };
+  /**
+   * VOI LUT, with the table itself an AMF3 byte array — the shape real
+   * cross-sectional wrappers use (see docs/clo-format.md).
+   */
+  voiLut?: {
+    lut: Buffer;
+    elements: number;
+    start: number;
+    bits: number;
+    lutIsLittleEndian: number;
+  };
+  /**
+   * ImagePhaseInfo block. Real wrappers use -1 (a negative AMF3 integer,
+   * wire-encoded as 0x1FFFFFFF) for "undefined" — pass -1 here to reproduce
+   * that, which is what exercises reader sign extension.
+   */
+  imagePhaseInfo?: {
+    inStackPositionNumber: number;
+    stackID: string;
+    temporalPositionIdentifier: number;
+    numberOfTemporalPositions: number;
+  };
+  /**
+   * Adds the annotation overlay block: template-string arrays wrapped in
+   * externalizable flex.messaging.io.ArrayCollection nodes, like every real
+   * wrapper observed.
+   */
+  includeAnnotationOverlays?: boolean;
+}
+
+/** Overlay template strings as real wrappers carry them — placeholders, no PHI. */
+const OVERLAY_TEXTS: Record<string, string[]> = {
+  topLeft: ["%PATIENT_NAME%", "%PATIENT_ID%"],
+  topRight: ["%STUDY_DESCRIPTION%", "%STUDY_DATE%"],
+  bottomLeft: ["SE #: %SERIES_NUMBER%", "W\\L : %WINDOW_LEVEL%"],
+  bottomRight: ["%INSTITUTION_NAME%", "Zoom: %ZOOM_FACTOR%"],
+  topLeftAlwaysVisible: [],
+  topRightAlwaysVisible: [],
+  bottomLeftAlwaysVisible: ["%LOSSY_COMPRESSION%"],
+  bottomRightAlwaysVisible: [],
+};
+
+function buildAnnotationOverlay(): Record<string, any> {
+  const overlay: Record<string, any> = { _class: "com.clientoutlook.data.Annotation" };
+  for (const [position, texts] of Object.entries(OVERLAY_TEXTS)) {
+    overlay[position] = arrayCollection(texts);
+  }
+  return overlay;
 }
 
 export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
@@ -522,15 +596,32 @@ export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
   }
   if (metadata.positionPatient) {
     // The nesting the real viewer produces and readPatientPosition consumes.
+    // Class names match docs/clo-format.md.
     obj.calibration = {
+      _class: "com.clientoutlook.data.ImageCalibration",
       orientation: {
+        _class: "com.clientoutlook.data.OrientationPatient",
         positionPatient: {
+          _class: "com.clientoutlook.data.ImagePositionPatient",
           position_x: metadata.positionPatient.x,
           position_y: metadata.positionPatient.y,
           position_z: metadata.positionPatient.z,
         },
       },
     };
+  }
+  if (metadata.voiLut !== undefined) {
+    obj.voiLut = { ...metadata.voiLut };
+  }
+  if (metadata.imagePhaseInfo !== undefined) {
+    obj.imagePhaseInfo = {
+      _class: "com.clientoutlook.data.ImagePhaseInfo",
+      ...metadata.imagePhaseInfo,
+    };
+  }
+  if (metadata.includeAnnotationOverlays) {
+    obj.annotationOverlay = buildAnnotationOverlay();
+    obj.annotationOverlayMPR = buildAnnotationOverlay();
   }
 
   const writer = new AMF3Writer();
