@@ -76,7 +76,7 @@ export async function getPreventiveCare(mychartRequest: MyChartRequest): Promise
 
       // Look ahead for "Previously done:" lines
       for (let j = i + 2; j < Math.min(i + 6, lines.length); j++) {
-        const prevMatch = lines[j]!.match(/Previously done: (.+)/); // j < lines.length per loop bound
+        const prevMatch = /Previously done: (.+)/.exec((lines[j]!)); // j < lines.length per loop bound
         if (prevMatch) {
           previouslyDone.push(...prevMatch[1]!.split(',').map(d => d.trim()));
           break;

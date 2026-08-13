@@ -221,8 +221,8 @@ export async function followSamlChain(
         if (html.length < 3000) logger.debug(`  [SAML] Body: ${html.substring(0, 2000)}`);
 
         // Check for meta-refresh: <meta http-equiv="refresh" content="0;URL='https://...'">
-        const metaMatch = html.match(/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i) ||
-                          html.match(/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i);
+        const metaMatch = (/http-equiv="refresh"\s+content="[^"]*URL='([^']+)'/i.exec(html)) ||
+                          (/http-equiv="refresh"\s+content="[^"]*url=([^"'\s>]+)/i.exec(html));
         if (metaMatch) {
           url = new URL(metaMatch[1]!, url).href; // both patterns have one mandatory capture group; noUncheckedIndexedAccess
           method = 'GET';
@@ -233,13 +233,13 @@ export async function followSamlChain(
 
         // Check for JavaScript redirect (e.g. window.location.href = '...')
         // The redirecttoviewer page uses JS to redirect to eUnity
-        const jsRedirectMatch = html.match(/(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i);
+        const jsRedirectMatch = /(?:window|document)\.location\.href\s*=\s*(?:url\d*|'([^']+)'|"([^"]+)")/i.exec(html);
         if (jsRedirectMatch) {
           // If it's a variable reference (url2, url3), extract the URL from the var declaration
           let targetUrl = jsRedirectMatch[1] || jsRedirectMatch[2];
           if (!targetUrl) {
             // Variable reference — look for the var declaration
-            const varMatch = html.match(/var\s+url\s*=\s*'([^']+)'/);
+            const varMatch = /var\s+url\s*=\s*'([^']+)'/.exec(html);
             if (varMatch) {
               targetUrl = varMatch[1]!.replace(/&amp;/g, '&'); // pattern has one mandatory capture group; noUncheckedIndexedAccess
             }
