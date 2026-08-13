@@ -40,8 +40,13 @@ typescript
 .claude/worktrees/
 
 # PII: these files are important for reverse engineering but contain real patient data
-scrapers/myChart/clo-to-jpg-converter/wasm/viewer.html
-scrapers/myChart/clo-to-jpg-converter/input_study_one/amf_metadata.bin
+# (MRN, DOB, physician name). Matched by BASENAME, not by path, deliberately —
+# these were pinned to scrapers/myChart/clo-to-jpg-converter/, a directory that
+# has since been renamed twice, so the guard silently stopped matching anything
+# while still reading as if it protected something. A slightly broad PII rule is
+# the right failure direction; re-pull the files under any name and they stay out.
+**/viewer.html
+**/amf_metadata.bin
 *.clo
 # Allow synthetic (non-PII) CLO test images for fake-mychart
 !fake-mychart/src/data/clo-images/*.clo

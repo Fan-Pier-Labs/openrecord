@@ -243,6 +243,20 @@ than the name, until something trusts the extension. Teaching that wrapper every
 have made a second dispatch list to keep in step with `exporters/`, so it is gone instead.
 
 The intermediate bitmap is also where you apply your own VOI LUT / windowing.
+
+### `files-pulled-from-mychart/` is eUnity's own viewer, not ours
+
+~6.9 MB of Dart-compiled JS and WASM downloaded verbatim off a real instance's `/e/viewer/`, kept as
+reference material for the reverse engineering that produced `clo_to_bitmap.ts`. **Nothing imports
+it, none of it is bundled, and it must stay that way** — decode behaviour belongs in
+`clo_to_bitmap.ts` where a test can reach it.
+
+It was called `wasm/`, which read like a build input and duly got flagged as 6.9 MB of unreferenced
+dead code — true, and beside the point. It is also third-party code vendored into a proprietary
+repo, so its redistribution terms want settling before it goes anywhere public. The `viewer.html`
+from the same directory carries a real MRN, DOB and physician name and is gitignored **by basename**
+(`**/viewer.html`), because the old path-pinned rule pointed at a directory renamed out from under it
+and had quietly stopped matching anything.
 `dev-scripts/clo-to-jpg.ts` wires the two steps together for terminal use.
 
 ## Client notes
