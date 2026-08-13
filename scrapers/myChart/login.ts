@@ -194,7 +194,7 @@ export function parseScriptRedirectTarget(html: string, baseUrl: string): URL | 
     ?? html.match(/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i);
   if (!match) return null;
   try {
-    return new URL(match[1], baseUrl);
+    return new URL(match[1]!, baseUrl); // both patterns have one non-optional capture group
   } catch {
     return null;
   }
@@ -579,7 +579,8 @@ export function parseLoginPageFields(html: string) {
 /** The name MyChart's login controller JS gives the username credential. */
 export function usernameFieldFromControllerJs(js: string): 'LoginIdentifier' | 'Username' {
   const credMatch = js.match(/Credentials:\s*\{([^}]{0,300})\}/);
-  if (credMatch && credMatch[1].includes('Username') && !credMatch[1].includes('LoginIdentifier')) {
+  const creds = credMatch?.[1];
+  if (creds && creds.includes('Username') && !creds.includes('LoginIdentifier')) {
     return 'Username';
   }
   return 'LoginIdentifier';
@@ -627,7 +628,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
@@ -989,7 +990,7 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
     throw new Error(`${hostname} is not supported.`);
   }
 
-  const hostnameWithoutPort = hostname.split(':')[0];
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
   const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);

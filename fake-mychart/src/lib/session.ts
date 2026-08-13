@@ -30,7 +30,7 @@ export function createSession(username: string | null = null): string {
 function getSessionId(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
   const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 export function validateSession(cookieHeader: string | null): boolean {
