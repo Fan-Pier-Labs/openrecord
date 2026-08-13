@@ -154,6 +154,11 @@ jobs:
       - run: cd expo-app/e2e/web && bun install
       - name: Build fake-mychart
         run: cd fake-mychart && bun install && bun run build
+      # The e2e harness (mock AI server, static server, specs) has its own
+      # tsconfig — it runs under bun/Playwright, not React Native, so the
+      # app's typecheck excludes it and this job checks it instead.
+      - name: Typecheck E2E harness
+        run: cd expo-app/e2e/web && bun run typecheck
       - name: Export expo app to web (E2E build)
         run: cd expo-app/e2e/web && bun run export
       - name: Install Playwright chromium

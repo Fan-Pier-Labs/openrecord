@@ -2,7 +2,6 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
@@ -15,6 +14,7 @@
   ],
   "exclude": [
     "node_modules",
-    "**/__tests__/**"
+    "**/__tests__/**",
+    "e2e"
   ]
 }

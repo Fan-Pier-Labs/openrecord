@@ -348,7 +348,7 @@ describe('scraperFetch', () => {
       globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         seen.push(init ?? {})
         return new Response('ok', { status: 200 })
-      }) as typeof globalThis.fetch
+      }) as unknown as typeof globalThis.fetch
 
       const g = globalThis as { document?: unknown; window?: unknown }
       const hadDocument = 'document' in g

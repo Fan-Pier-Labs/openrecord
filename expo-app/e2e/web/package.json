@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "export": "cd ../.. && EXPO_PUBLIC_E2E=1 EXPO_PUBLIC_BACKEND_URL=http://localhost:4600 bunx expo export --platform web --output-dir dist",
-    "test": "playwright test"
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit -p .."
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0"
