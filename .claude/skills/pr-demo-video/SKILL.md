@@ -1,13 +1,14 @@
 ---
 name: pr-demo-video
-description: Record a narrated Playwright video demo of a pull request's changes and post it to the PR as an embedded video comment. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
+description: Record a narrated video demo of a pull request's changes — Playwright for web surfaces, the iOS simulator (maestro-cli + simctl screen recording) for expo-app changes — and post it to the PR as an embedded video comment. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
 ---
 
 # PR Demo Video
 
-Given a PR number, understand what the PR changes, run the app under Playwright with
-video recording, drive a short demo of the change, convert the recording to mp4, and
-post it to the PR as an embedded video comment.
+Given a PR number, understand what the PR changes, run the app with video recording —
+Playwright for web surfaces, the iOS simulator for `expo-app/` changes — drive a short
+demo of the change, convert the recording to mp4, and post it to the PR as an embedded
+video comment.
 
 Two pieces of tooling do the heavy lifting — do not reimplement either:
 
@@ -45,7 +46,7 @@ Pick the demo surface:
 | `scrapers/`, `fake-mychart/`, capabilities, auth/session flows | fake-mychart UI at `localhost:4000` (login `homer`/`donuts123`, TOTP user `marge`/`donuts123`, code `123456`) |
 | `openrecord-splash/` | the splash (`index.html`) or the interactive demo (`/demo.html` via `npx vite` in `openrecord-splash/demo`) |
 | CLI / npm package | run the CLI against fake-mychart; if there's nothing browser-visible, consider a browser demo of the fake-mychart pages the CLI hits |
-| `expo-app/` | not browser-runnable — demo the shared scraper behavior through fake-mychart, and say so in the comment |
+| `expo-app/` | the real app in the iOS simulator, driven by maestro-cli and recorded with `simctl` — skip Steps 2–3 below and follow "iOS demos" instead |
 | Pure refactor / CI / docs | often still demoable as "the flow still works" — if genuinely nothing can be shown, tell the user instead of forcing a pointless video |
 
 ## Step 2 — Check out the PR and start the app
@@ -135,6 +136,48 @@ ffmpeg -y -i <video.webm> -vf fps=1 /tmp/pr-demo-<N>-frames/f%03d.png
 
 Read several frames (start / middle / end). If the feature isn't clearly visible,
 fix the script and re-record. Iterate until the frames tell the PR's story.
+
+## iOS demos (expo-app changes)
+
+When the PR touches `expo-app/`, demo the real app in the iOS simulator instead of a
+browser. The division of labor: **maestro-cli drives the app** (per the repo's
+simulator rules — one-shot commands, never multi-step YAML, never the macOS mouse) and
+**`xcrun simctl io recordVideo` records the screen** natively to h264. Playwright is
+not involved.
+
+1. **Own a fresh simulator** — follow the "Starting a sim session" recipe in CLAUDE.md
+   exactly (create `claude-<date>-<random>`, boot, `open -a Simulator`, export
+   `MAESTRO_UDID`). Never record or drive another session's sim.
+
+2. **Build the PR's app onto it** from the PR worktree:
+
+   ```bash
+   cd /tmp/pr-demo-<N>/expo-app && bun install && bunx expo run:ios --device "$MAESTRO_UDID" --port 8083
+   ```
+
+   Pick a Metro port not in use by other sessions. The build takes several minutes —
+   start it early. The app's built-in **Springfield General Hospital (test)** instance
+   points at the deployed fake-mychart, so no local server is needed for chart data.
+
+3. **Stage the starting state before recording.** Drive the app with maestro-cli to the
+   screen where the demo begins (sign-in, account setup) *first* — the video should
+   open on the interesting part, not on setup. Note the AI chat requires Google
+   sign-in; if the sim isn't signed in, demo non-AI surfaces or ask the user.
+
+4. **Record while driving.** Start the recorder in the background, run the demo beats,
+   then stop it with SIGINT — SIGINT finalizes the file, SIGKILL corrupts it:
+
+   ```bash
+   xcrun simctl io "$MAESTRO_UDID" recordVideo --codec h264 /tmp/pr-demo-<N>.mov & REC_PID=$!
+   # ...maestro-cli tap / fill / scroll through the beats, sleeping 1–2s
+   # between steps; check /tmp/maestro-last.png after each to verify state
+   kill -INT $REC_PID; wait $REC_PID
+   ```
+
+5. **Same tail as the web path**: convert the .mov with the Step 4 ffmpeg command
+   (output is portrait ~1206×2622 — fine as-is), frame-verify with Step 3's extraction,
+   upload with Steps 5–6. When done, `xcrun simctl shutdown "$MAESTRO_UDID" && xcrun
+   simctl delete "$MAESTRO_UDID"`.
 
 ## Step 4 — Convert to mp4
 
