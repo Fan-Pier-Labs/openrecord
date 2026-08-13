@@ -6,12 +6,12 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { encodeWrapperFile } from './generate_clo';
 import { readPatientPosition, sortImagesByPatientPosition } from './sortByPatientPosition';
+import { encodeCloWrapper } from '../../../shared/cloWrapper';
 
 function wrapperAt(x: number, y: number, z: number): Uint8Array {
   return new Uint8Array(
-    encodeWrapperFile({
+    encodeCloWrapper({
       photometricInterpretation: 'MONOCHROME2',
       bitsStored: 16,
       positionPatient: { x, y, z },
@@ -33,7 +33,7 @@ describe('readPatientPosition', () => {
   });
 
   it('returns null for wrappers without a position, garbage, and truncated data', () => {
-    const noPosition = new Uint8Array(encodeWrapperFile({ photometricInterpretation: 'MONOCHROME2' }));
+    const noPosition = new Uint8Array(encodeCloWrapper({ photometricInterpretation: 'MONOCHROME2' }));
     expect(readPatientPosition(noPosition)).toBeNull();
     expect(readPatientPosition(new Uint8Array([1, 2, 3]))).toBeNull();
     expect(readPatientPosition(new Uint8Array(Buffer.from('CLOHEADERZ01____not-zlib')))).toBeNull();

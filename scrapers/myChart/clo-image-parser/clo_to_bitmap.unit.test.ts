@@ -15,8 +15,9 @@ import {
 } from "./clo_to_bitmap";
 import { convertBitmapToJpg } from "./exporters/to_jpg";
 import { convertBitmapToWebp } from "./exporters/to_webp";
-import { encodePixelFile, encodeWrapperFile } from "./generate_clo";
+import { encodePixelFile } from "./generate_clo";
 import type { Bitmap } from "./clo_to_bitmap";
+import { encodeCloWrapper } from "../../../shared/cloWrapper";
 
 // ==================== parsePixelHeader ====================
 
@@ -225,7 +226,7 @@ describe("parseWrapper", () => {
     const lut = Buffer.alloc(8);
     for (let i = 0; i < 4; i++) lut.writeUInt16LE(1000 + i, i * 2);
 
-    const wrapper = encodeWrapperFile({
+    const wrapper = encodeCloWrapper({
       photometricInterpretation: "MONOCHROME2",
       voiLut: { lut, elements: 4, start: 100, bits: 16, lutIsLittleEndian: 1 },
     });
@@ -338,7 +339,7 @@ describe("convertBitmapToWebp", () => {
 describe("synthetic CLO round-trip", () => {
   function makeClo(img: Uint16Array, w: number, h: number) {
     const pixelData = encodePixelFile(img, w, h);
-    const wrapperData = encodeWrapperFile({
+    const wrapperData = encodeCloWrapper({
       photometricInterpretation: "MONOCHROME2",
       bitsStored: 16,
       windowCenter: 32768,

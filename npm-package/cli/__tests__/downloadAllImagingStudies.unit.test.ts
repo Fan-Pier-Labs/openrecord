@@ -17,10 +17,10 @@ import type { StudyImagePayload } from '../../../shared/capabilities';
 import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
 import {
   encodePixelFile,
-  encodeWrapperFile,
   generateCheckerboard,
 } from '../../../scrapers/myChart/clo-image-parser/generate_clo';
 import { resetLogSink, silenceLogger } from '../../../shared/logger';
+import { encodeCloWrapper } from '../../../shared/cloWrapper';
 
 const actual = await import('../../../shared/capabilities');
 
@@ -49,7 +49,7 @@ const session = { hostname: 'mychart.example.org', request: new MyChartRequest('
 const SIZE = 512;
 const PIXEL_DATA = new Uint8Array(encodePixelFile(generateCheckerboard(SIZE, SIZE), SIZE, SIZE));
 const WRAPPER_DATA = new Uint8Array(
-  encodeWrapperFile({
+  encodeCloWrapper({
     photometricInterpretation: 'MONOCHROME2',
     bitsStored: 16,
     windowCenter: 32768,
