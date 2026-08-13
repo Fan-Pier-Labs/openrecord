@@ -152,6 +152,23 @@ export interface Capability {
   kind: CapabilityKind;
   /** Grouping for help output and tool-list ordering. */
   group: string;
+  /**
+   * A capability that is real, supported and rarely what anyone wants.
+   *
+   * MyChart's surface is not evenly valuable: labs, medications, visit notes
+   * and messages are the reason to connect an account at all, while goals,
+   * education pamphlets, care journeys and the emergency-contact writes are
+   * endpoints most charts leave empty and most callers never reach for. Listing
+   * all of them at equal weight buries the useful ones — a person skims past
+   * them and a model picks a plausible-looking wrong tool out of the noise.
+   *
+   * So this is a *presentation* flag, never a capability flag: nothing here
+   * changes what {@link executeCapability} will run, and every id stays
+   * available in every client. It only decides what a listing shows first.
+   * The CLI hides these behind `--help --show-all`; see
+   * {@link COMMON_CAPABILITIES}.
+   */
+  lessFrequentlyUsed?: boolean;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to
@@ -437,6 +454,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Care team goals and patient-set goals.',
     kind: 'read',
     group: 'Profile',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getGoals(request),
   },
@@ -629,6 +647,9 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Topics/categories a new message can be filed under.',
     kind: 'read',
     group: 'Messages',
+    // send_message resolves the topic itself and reports any substitution, so
+    // listing them up front is rarely a step anyone needs to take.
+    lessFrequentlyUsed: true,
     params: [],
     run: async (request) => ({ topics: await getMessageTopics(request, await messagingToken(request)) }),
   },
@@ -694,6 +715,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Delete a message conversation from the inbox.',
     kind: 'write',
     group: 'Messages',
+    lessFrequentlyUsed: true,
     params: [{ name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true }],
     run: (request, args) => deleteMessage(request, requireStr(args, 'conversation_id')),
   },
@@ -743,6 +765,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Letters from providers. Each entry carries the hnoId/csn needed by get_letter_details.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getLetters(request),
   },
@@ -752,6 +775,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'The full contents of one letter listed by get_letters.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [
       { name: 'hno_id', type: 'string', description: 'hnoId from the chosen get_letters entry.', required: true },
       { name: 'csn', type: 'string', description: 'csn from the chosen get_letters entry.', required: true },
@@ -782,6 +806,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Open and completed questionnaires / health assessments.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getQuestionnaires(request),
   },
@@ -791,6 +816,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Care journeys and care plans.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getCareJourneys(request),
   },
@@ -800,6 +826,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Recent account activity feed items.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getActivityFeed(request),
   },
@@ -809,6 +836,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Patient education materials assigned by the care team.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getEducationMaterials(request),
   },
@@ -818,6 +846,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Electronic Health Information export templates this instance offers.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getEhiExportTemplates(request),
   },
@@ -827,6 +856,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'MyChart accounts at other organizations that are linked to this one.',
     kind: 'read',
     group: 'Care',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getLinkedMyChartAccounts(request),
   },
@@ -838,6 +868,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Emergency contacts on file.',
     kind: 'read',
     group: 'Emergency contacts',
+    lessFrequentlyUsed: true,
     params: [],
     run: (request) => getEmergencyContacts(request),
   },
@@ -847,6 +878,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Add a new emergency contact to the record.',
     kind: 'write',
     group: 'Emergency contacts',
+    lessFrequentlyUsed: true,
     params: [
       { name: 'name', type: 'string', description: 'Contact’s full name.', required: true },
       { name: 'relationship_type', type: 'string', description: 'Relationship, e.g. "Spouse", "Parent", "Sibling", "Friend".', required: true },
@@ -865,6 +897,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Update an existing emergency contact. Only the fields you pass are changed.',
     kind: 'write',
     group: 'Emergency contacts',
+    lessFrequentlyUsed: true,
     params: [
       { name: 'id', type: 'string', description: 'Contact id from get_emergency_contacts.', required: true },
       { name: 'name', type: 'string', description: 'New name.' },
@@ -885,6 +918,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Remove an emergency contact by id.',
     kind: 'write',
     group: 'Emergency contacts',
+    lessFrequentlyUsed: true,
     params: [{ name: 'id', type: 'string', description: 'Contact id from get_emergency_contacts.', required: true }],
     run: (request, args) => removeEmergencyContact(request, requireStr(args, 'id')),
   },
@@ -956,6 +990,10 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Register a passkey on this MyChart account so future logins skip the password and the 2FA prompt.',
     kind: 'account',
     group: 'Account security',
+    // The whole group is a sign-in setting rather than a chart operation, and
+    // the CLI drives all five from dedicated flags (`--set-up-passkey`,
+    // `--set-up-totp`, …) that the help text lists in their own section.
+    lessFrequentlyUsed: true,
     params: [],
     run: async (request, _args, ctx) => {
       const credential = await setupPasskey(request);
@@ -973,6 +1011,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'List the passkeys registered on this MyChart account.',
     kind: 'account',
     group: 'Account security',
+    lessFrequentlyUsed: true,
     params: [],
     run: async (request) => {
       const passkeys = await listPasskeys(request);
@@ -986,6 +1025,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Delete a passkey from the MyChart account by rawId, or every registered passkey when no id is given.',
     kind: 'account',
     group: 'Account security',
+    lessFrequentlyUsed: true,
     params: [{ name: 'raw_id', type: 'string', description: 'rawId from list_passkeys. Omit to delete every passkey on the account.' }],
     run: async (request, args) => {
       const rawId = optStr(args, 'raw_id');
@@ -1011,6 +1051,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Turn on authenticator-app (TOTP) two-factor authentication and store the secret locally so future logins can generate their own codes.',
     kind: 'account',
     group: 'Account security',
+    lessFrequentlyUsed: true,
     params: [],
     run: async (request, _args, ctx) => {
       if (!ctx?.password) throw new Error('The account password is required to set up TOTP.');
@@ -1026,6 +1067,7 @@ export const CAPABILITIES: readonly Capability[] = [
     description: 'Turn off authenticator-app (TOTP) two-factor authentication on this MyChart account.',
     kind: 'account',
     group: 'Account security',
+    lessFrequentlyUsed: true,
     params: [],
     run: async (request, _args, ctx) => {
       if (!ctx?.password) throw new Error('The account password is required to disable TOTP.');
@@ -1044,6 +1086,21 @@ export const CAPABILITY_IDS: readonly string[] = CAPABILITIES.map((c) => c.id);
 
 /** The read + write capabilities — everything a model may be offered as a tool. */
 export const AGENT_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.kind !== 'account');
+
+/**
+ * The capabilities a listing shows first — everything not marked
+ * {@link Capability.lessFrequentlyUsed}.
+ *
+ * Nothing filters on this to decide what it will *run*; it only decides what a
+ * listing leads with. The CLI's `--help` prints these and points at
+ * `--help --show-all` for the rest.
+ */
+export const COMMON_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => !c.lessFrequentlyUsed);
+
+/** The remainder — real, supported, and rarely what anyone wants. */
+export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(
+  (c) => c.lessFrequentlyUsed,
+);
 
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);

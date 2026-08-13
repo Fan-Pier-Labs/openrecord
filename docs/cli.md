@@ -54,12 +54,48 @@ entry, the mobile app offers one agent tool per entry, and the CLI gets one
 capability cannot exist in one and be missing from another.
 
 ```bash
+mychart-cli --help
+```
+
+```bash
 mychart-cli --list-capabilities
 ```
 
-Prints every capability grouped by area, with the arguments it takes. A `!`
-marks a command that changes something — a write to the chart, or the account's
-own sign-in settings.
+`--help` prints usage and every flag, then the capability listing;
+`--list-capabilities` prints the listing on its own. Capabilities are grouped by
+area, with the arguments each takes. A `!` marks a command that changes
+something — a write to the chart, or the account's own sign-in settings.
+
+### `--show-all`
+
+MyChart's surface is not evenly valuable. Labs, medications, visit notes and
+messages are the reason to connect an account; goals, education materials, care
+journeys, letters, the emergency-contact writes and the account's own sign-in
+settings are endpoints most charts leave empty and most callers never reach
+for. Listing all of them at equal weight buries the useful ones — a person
+skims past them, and a model picks a plausible-looking wrong tool out of the
+noise.
+
+So both listings show the commonly-used capabilities by default and name the
+count they held back:
+
+```
+  20 less-frequently-used capabilities are hidden. Show them with:
+      mychart-cli --list-capabilities --show-all
+```
+
+```bash
+mychart-cli --help --show-all
+```
+
+appends them under a **Less frequently used** heading rather than mixing them
+back in, so the default listing keeps its shape.
+
+**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities.ts`
+decides what a listing leads with and nothing else: a hidden capability is
+still registered in every client, still runs as `--action <id>`, and still
+takes the same arguments. Moving one in or out of the hidden set is a judgment
+call about usefulness, never a change to what the CLI can do.
 
 Arguments are supplied with repeated `--arg name=value`:
 

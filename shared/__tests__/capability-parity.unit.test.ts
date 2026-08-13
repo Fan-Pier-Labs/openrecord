@@ -20,6 +20,8 @@ import {
   CAPABILITIES,
   CAPABILITY_IDS,
   AGENT_CAPABILITIES,
+  COMMON_CAPABILITIES,
+  LESS_FREQUENTLY_USED_CAPABILITIES,
 } from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
@@ -234,9 +236,9 @@ describe('rendersMedia', () => {
 // ── 3. CLI ─────────────────────────────────────────────────────────────────
 
 describe('CLI', () => {
-  it('lists every capability under --list-capabilities', async () => {
+  it('lists every capability under --list-capabilities --show-all', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const id of ALL) {
       expect(listing).toContain(id);
     }
@@ -244,11 +246,25 @@ describe('CLI', () => {
 
   it('documents every argument each capability accepts', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
-    const listing = renderCapabilityList();
+    const listing = renderCapabilityList({ showAll: true });
     for (const capability of CAPABILITIES) {
       for (const param of capability.params) {
         expect(listing).toContain(`--arg ${param.name}=<${param.type}>`);
       }
+    }
+  });
+
+  // The default listing is the useful subset. Hiding an entry is a
+  // presentation choice and nothing more — `--action` still runs it, which the
+  // "resolves every capability id" case below covers for the whole registry.
+  it('leads with the commonly-used capabilities and holds the rest back', async () => {
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
+    const listing = renderCapabilityList();
+    for (const capability of COMMON_CAPABILITIES) {
+      expect(listing).toContain(capability.id);
+    }
+    for (const capability of LESS_FREQUENTLY_USED_CAPABILITIES) {
+      expect(listing).not.toContain(capability.id);
     }
   });
 
