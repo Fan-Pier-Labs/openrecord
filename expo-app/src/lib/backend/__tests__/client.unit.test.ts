@@ -25,8 +25,8 @@ let seen: { url: string; init: RequestInit }[] = [];
 beforeEach(() => {
   idToken = "test-id-token";
   seen = [];
-  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-    seen.push({ url: url.toString(), init: init ?? {} });
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    seen.push({ url, init: init ?? {} });
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
 });

@@ -317,8 +317,8 @@ describe("free tier — the backend completer", () => {
     let seenUrl = "";
     let seenAuth = "";
     let seenBody: { system?: string; messages?: unknown; model?: string } = {};
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-      seenUrl = url.toString();
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      seenUrl = url;
       seenAuth = new Headers(init?.headers).get("Authorization") ?? "";
       seenBody = JSON.parse((init?.body as string) ?? "{}");
       return new Response(JSON.stringify({ text: "from the lambda" }), { status: 200 });

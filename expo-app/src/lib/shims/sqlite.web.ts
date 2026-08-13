@@ -9,6 +9,13 @@
 
 type Row = Record<string, unknown>;
 
+/** Cell → text for LIKE/ORDER BY. Rows hold primitives; objects render empty. */
+function cellText(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+
 // Simple in-memory table storage backed by localStorage
 const tables: Record<string, Row[]> = {};
 
@@ -147,12 +154,12 @@ class WebSQLiteDatabase {
         } else if (conditions.includes("id = ?")) {
           filtered = filtered.filter((r) => r.id === params[0]);
         } else if (conditions.includes("LIKE")) {
-          const pattern = String(params[0] || "").replace(/%/g, "").toLowerCase();
+          const pattern = cellText(params[0]).replace(/%/g, "").toLowerCase();
           if (pattern) {
             filtered = filtered.filter(
               (r) =>
-                String(r.title || "").toLowerCase().includes(pattern) ||
-                String(r.content || "").toLowerCase().includes(pattern)
+                cellText(r.title).toLowerCase().includes(pattern) ||
+                cellText(r.content).toLowerCase().includes(pattern)
             );
           }
         }
@@ -166,8 +173,8 @@ class WebSQLiteDatabase {
       if (orderMatch && col) {
         const desc = orderMatch[2]?.toUpperCase() === "DESC";
         filtered.sort((a, b) => {
-          const va = String(a[col] || "");
-          const vb = String(b[col] || "");
+          const va = cellText(a[col]);
+          const vb = cellText(b[col]);
           return desc ? vb.localeCompare(va) : va.localeCompare(vb);
         });
       }
