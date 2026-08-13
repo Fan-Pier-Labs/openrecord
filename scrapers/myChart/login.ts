@@ -193,8 +193,8 @@ export function looksLikeSignedOutPage(html: string): boolean {
  */
 export function parseScriptRedirectTarget(html: string, baseUrl: string): URL | null {
   // window.location = "…" / window.location.href = '…' / location.replace("…")
-  const match = html.match(/\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i)
-    ?? html.match(/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i);
+  const match = (/\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i.exec(html))
+    ?? (/\b(?:window\.)?location\.(?:replace|assign)\s*\(\s*["']([^"']+)["']\s*\)/i.exec(html));
   if (!match) return null;
   try {
     return new URL(match[1]!, baseUrl); // both patterns have one non-optional capture group
@@ -528,14 +528,14 @@ export function parse2faDeliveryMethods(html: string): {
       hasEmail = true;
       // Try to extract masked email from button text or nearby elements
       const fullText = $(el).text().trim();
-      const emailMatch = fullText.match(/[\w*]+\*+[\w*]*@[\w.]+/);
+      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(fullText);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (text.includes('text') || text.includes('phone') || text.includes('sms')) {
       hasSms = true;
       // Try to extract masked phone from button text or nearby elements
       const fullText = $(el).text().trim();
-      const phoneMatch = fullText.match(/[\d*][\d*-]+[\d*]/);
+      const phoneMatch = /[\d*][\d*-]+[\d*]/.exec(fullText);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });
@@ -544,11 +544,11 @@ export function parse2faDeliveryMethods(html: string): {
   $('p, span, div').each((_, el) => {
     const text = $(el).text();
     if (!emailContact) {
-      const emailMatch = text.match(/[\w*]+\*+[\w*]*@[\w.]+/);
+      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(text);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (!smsContact) {
-      const phoneMatch = text.match(/\*{2,}[\d*-]*\d{4}/);
+      const phoneMatch = /\*{2,}[\d*-]*\d{4}/.exec(text);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });
@@ -581,7 +581,7 @@ export function parseLoginPageFields(html: string) {
 
 /** The name MyChart's login controller JS gives the username credential. */
 export function usernameFieldFromControllerJs(js: string): 'LoginIdentifier' | 'Username' {
-  const credMatch = js.match(/Credentials:\s*\{([^}]{0,300})\}/);
+  const credMatch = /Credentials:\s*\{([^}]{0,300})\}/.exec(js);
   const creds = credMatch?.[1];
   if (creds && creds.includes('Username') && !creds.includes('LoginIdentifier')) {
     return 'Username';

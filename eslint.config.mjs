@@ -29,6 +29,10 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `str.match(re)` and `re.exec(str)` are identical for non-global
+      // regexes, and exec is the clearer read; the rule declines to convert
+      // /g patterns, where the two genuinely differ.
+      "@typescript-eslint/prefer-regexp-exec": "error",
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
