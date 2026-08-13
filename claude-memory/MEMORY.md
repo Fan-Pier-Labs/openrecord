@@ -48,7 +48,7 @@ MyChart has TWO separate timeout mechanisms:
 
 For our scraper: only the server-side keepalive matters. The client-side timer is browser JS only. Fixed in PR #59 — sessionStore now calls both `/Home/KeepAlive` and `/keepalive.asp` every 30s.
 
-The globalThis singleton pattern is required for the sessionStore in Next.js — each API route is bundled separately, so module-level singletons create separate instances. See `scrapers/myChart/sessionStore.ts`.
+The globalThis singleton pattern is required for the sessionStore in Next.js — each API route is bundled separately, so module-level singletons create separate instances. See `scrapers/myChart/core/sessionStore.ts`.
 
 ## Playwright Virtual Authenticator for Passkey Login
 
@@ -94,7 +94,7 @@ MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Remov
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`
 - CLI at `cli/cli.ts` with `--host`, `--user`, `--pass`, `--2fa`, `--action` args
-- Primary test target is the MyChart instance configured in creds.json
+- Real-account testing goes through the CLI's credential resolution + cookie cache (`docs/cli.md`), not a creds.json in the repo root
 
 ## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)

@@ -9,9 +9,9 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { myChartPasskeyLogin } from '../scrapers/myChart/login';
-import { passkeyLoginWithCounterRetry } from '../scrapers/myChart/passkeyLoginRetry';
-import { serializeCredential, deserializeCredential } from '../scrapers/myChart/softwareAuthenticator';
+import { myChartPasskeyLogin } from '../scrapers/myChart/auth/login';
+import { passkeyLoginWithCounterRetry } from '../scrapers/myChart/auth/passkeyLoginRetry';
+import { serializeCredential, deserializeCredential } from '../scrapers/myChart/auth/softwareAuthenticator';
 import { initEunitySession } from '../scrapers/myChart/eunity/imagingDirectDownload';
 import { decodeImageId } from '../shared/capabilities';
 import { scraperFetch } from '../scrapers/http';
