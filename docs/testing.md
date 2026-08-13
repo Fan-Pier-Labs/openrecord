@@ -97,7 +97,7 @@ covers the same ground through the built binary.
 
 **Credential-setup test coverage.** `setupTotp.ts` and `setupPasskey.ts` are covered at three
 levels, because no single one reaches everything:
-`scrapers/myChart/__tests__/setupTotp.unit.test.ts` and `setupPasskey.unit.test.ts` are unit tests
+`scrapers/myChart/auth/__tests__/setupTotp.unit.test.ts` and `setupPasskey.unit.test.ts` are unit tests
 over a mocked transport (`__tests__/mockMyChartRequest.ts` swaps `transport`, so real URL building,
 default headers and the host limiter still run) and are the **only** place the per-instance response
 variants are exercised — the four CSRF-token formats plus the empty-body `/Home` fallback, the eight

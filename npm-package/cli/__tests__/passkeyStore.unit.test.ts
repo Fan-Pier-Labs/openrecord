@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { savePasskeyCredential, loadPasskeyCredential } from '../passkeyStore';
-import type { PasskeyCredential } from '../../../scrapers/myChart/softwareAuthenticator';
+import type { PasskeyCredential } from '../../../scrapers/myChart/auth/softwareAuthenticator';
 
 const PASSKEY_DIR = path.join(process.cwd(), '.passkey-credentials');
 

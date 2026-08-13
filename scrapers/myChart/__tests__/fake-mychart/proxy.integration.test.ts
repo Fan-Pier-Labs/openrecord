@@ -10,15 +10,15 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import type { MyChartRequest } from '../../myChartRequest'
-import { myChartUserPassLogin, complete2faFlow } from '../../login'
-import { getMyChartProfile } from '../../profile'
-import { getMedications } from '../../medications'
+import type { MyChartRequest } from '../../core/myChartRequest'
+import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
+import { getMyChartProfile } from '../../chart/profile'
+import { getMedications } from '../../chart/medications'
 import {
   assertProxyReadContext,
   runListProxyTargets,
   runSwitchProxyTarget,
-} from '../../proxyTools'
+} from '../../proxy/proxyTools'
 import { setMountMode, resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
