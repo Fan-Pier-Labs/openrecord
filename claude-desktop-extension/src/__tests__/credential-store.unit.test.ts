@@ -166,6 +166,70 @@ describe('sessions', () => {
   })
 })
 
+describe('upsertAccount identity change cascade', () => {
+  // Passkeys and sessions are keyed by hostname alone. If setting up a NEW
+  // username on an existing hostname left the old user's files behind, the
+  // silent-login ladder would try the saved passkey first and authenticate as
+  // the PREVIOUS user while accounts.json names the new one — the wrong-patient
+  // failure class. A leftover passkey also makes auto-registration return
+  // `already_saved`, so the new user would never get a passkey of their own.
+  const seed = (username: string) => {
+    store.upsertAccount(account('mychart.example.org', username))
+    store.saveAccountPasskey('mychart.example.org', `{"cred":"${username}"}`)
+    store.saveAccountSession('mychart.example.org', `cookies-${username}`)
+  }
+
+  it('keeps the passkey and session when the same username re-registers', () => {
+    seed('homer')
+    store.upsertAccount(account('mychart.example.org', 'homer'))
+
+    expect(store.readAccountPasskey('mychart.example.org')).toBe('{"cred":"homer"}')
+    expect(store.readAccountSession('mychart.example.org')).toBe('cookies-homer')
+  })
+
+  it('treats a case-only username difference as the same user', () => {
+    // MyChart logins are case-insensitive; "Homer" is not a different patient.
+    seed('homer')
+    store.upsertAccount(account('mychart.example.org', '  Homer '))
+
+    expect(store.readAccountPasskey('mychart.example.org')).toBe('{"cred":"homer"}')
+    expect(store.readAccountSession('mychart.example.org')).toBe('cookies-homer')
+  })
+
+  it('clears the passkey and session when a different username takes over the hostname', () => {
+    seed('homer')
+    store.upsertAccount(account('mychart.example.org', 'marge'))
+
+    const accounts = store.readAccounts()
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0].username).toBe('marge')
+    // No passkey left means tryAutoRegisterPasskey's `already_saved` gate does
+    // not fire, so the new user gets a fresh registration on this login.
+    expect(store.readAccountPasskey('mychart.example.org')).toBeUndefined()
+    expect(store.readAccountSession('mychart.example.org')).toBeUndefined()
+  })
+
+  it('leaves another hostname\'s passkey and session alone', () => {
+    seed('homer')
+    store.upsertAccount(account('other.example.org', 'homer'))
+    store.saveAccountPasskey('other.example.org', '{"cred":"other"}')
+    store.saveAccountSession('other.example.org', 'cookies-other')
+
+    store.upsertAccount(account('mychart.example.org', 'marge'))
+
+    expect(store.readAccountPasskey('other.example.org')).toBe('{"cred":"other"}')
+    expect(store.readAccountSession('other.example.org')).toBe('cookies-other')
+  })
+
+  it('cascades however the hostname is spelled', () => {
+    seed('homer')
+    store.upsertAccount(account('HTTPS://MyChart.Example.ORG/MyChart', 'marge'))
+
+    expect(store.readAccountPasskey('mychart.example.org')).toBeUndefined()
+    expect(store.readAccountSession('mychart.example.org')).toBeUndefined()
+  })
+})
+
 describe('removeAccount cascade', () => {
   it('takes the passkey and session with it', () => {
     // Leaving either behind would let a "removed" account silently auto-login.

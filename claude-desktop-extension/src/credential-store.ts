@@ -58,12 +58,32 @@ export function saveAccounts(accounts: AccountConfig[]): void {
   try { fs.chmodSync(ACCOUNTS_PATH, 0o600); } catch { /* best effort */ }
 }
 
+/** MyChart usernames are case-insensitive, so "Homer" and "homer" are the same login. */
+function sameUsername(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export function upsertAccount(account: AccountConfig): void {
   const accounts = readAccounts();
   const normalized = normalizeHostname(account.hostname);
   const idx = accounts.findIndex(a => normalizeHostname(a.hostname) === normalized);
   const merged = { ...account, hostname: normalized };
-  if (idx >= 0) accounts[idx] = merged; else accounts.push(merged);
+  if (idx >= 0) {
+    // Passkeys and sessions are keyed by hostname alone, so replacing the row
+    // with a DIFFERENT user's credentials must take the old user's files with
+    // it: the silent-login ladder tries the saved passkey first, and a leftover
+    // one authenticates as the previous user while accounts.json names the new
+    // one — every later scrape would read the wrong patient's chart. Clearing
+    // the passkey also lets auto-registration mint one for the new user instead
+    // of short-circuiting on `already_saved`.
+    if (!sameUsername(accounts[idx].username, merged.username)) {
+      clearAccountPasskey(normalized);
+      clearAccountSession(normalized);
+    }
+    accounts[idx] = merged;
+  } else {
+    accounts.push(merged);
+  }
   saveAccounts(accounts);
 }
 
