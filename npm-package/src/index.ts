@@ -123,20 +123,14 @@ export {
 } from '../../scrapers/myChart/eunity/imagingDirectDownload';
 
 // ─── CLO image conversion ────────────────────────────────────────────────
-// Turn raw CLO bytes from `downloadImagingStudyDirect` into JPEG / PNG /
-// AVIF / TIFF / WebP. Goes through an intermediate 16-bit Bitmap so callers
-// can apply their own VOI LUT / windowing before encoding if they want.
+// Two steps, deliberately not one: decode the raw CLO bytes from
+// `downloadImagingStudyDirect` into a Bitmap, then hand that Bitmap to the
+// exporter for the format you want. The intermediate is the point — it is where
+// you apply your own VOI LUT / windowing, and it is what keeps the format
+// choice at the call site instead of inferred from a filename.
 export {
-  convertCloToJpg,
   convertCloToBitmap,
   convertCloToBitmap16,
-  convertBitmapToJpg,
-  convertBitmapToWebp,
-  convertBitmap16ToJpg,
-  convertBitmap16ToPng,
-  convertBitmap16ToAvif,
-  convertBitmap16ToTiff,
-  convertBitmap16ToWebp,
   parseWrapper,
   applyVoiLut,
   to8bit,
@@ -144,11 +138,29 @@ export {
   type Bitmap,
   type Bitmap16,
   type CloMetadata,
+} from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
+
+export {
+  convertBitmap16ToJpg,
+  convertBitmapToJpg,
   type JpgOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
+export {
+  convertBitmap16ToWebp,
+  convertBitmapToWebp,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_webp';
+export {
+  convertBitmap16ToPng,
   type PngOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_png';
+export {
+  convertBitmap16ToAvif,
   type AvifOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_avif';
+export {
+  convertBitmap16ToTiff,
   type TiffOptions,
-} from '../../scrapers/myChart/clo-image-parser/clo_to_jpg';
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_tiff';
 
 // ─── Visits ───────────────────────────────────────────────────────────────
 export { upcomingVisits, pastVisits } from '../../scrapers/myChart/visits/visits';

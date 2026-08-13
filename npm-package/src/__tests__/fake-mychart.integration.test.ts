@@ -27,7 +27,8 @@ const {
   MyChartClient,
   MyChartRequest,
   getMedications,
-  convertCloToJpg,
+  convertCloToBitmap,
+  convertBitmapToJpg,
 } = await import('../../dist/index.js') as typeof import('../../dist/index.js');
 
 const HOSTNAME = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
@@ -119,7 +120,7 @@ test('close() prevents further calls', async () => {
   expect(() => throwaway.getProfile()).toThrow('closed');
 });
 
-test('downloadImagingStudyDirect → convertCloToJpg produces a valid JPEG', async () => {
+test('downloadImagingStudyDirect → decode → export produces a valid JPEG', async () => {
   const imagingResults = await client.getImagingResults();
   expect(Array.isArray(imagingResults)).toBe(true);
 
@@ -145,10 +146,9 @@ test('downloadImagingStudyDirect → convertCloToJpg produces a valid JPEG', asy
   expect(firstImage.pixelData!.length).toBeGreaterThan(0);
   expect(firstImage.wrapperData).toBeDefined();
 
-  const jpeg = await convertCloToJpg({
-    pixelData: firstImage.pixelData!,
-    wrapperData: firstImage.wrapperData!,
-  });
+  // Two steps: decode the CLO, then encode the bitmap.
+  const bitmap = convertCloToBitmap(firstImage.pixelData!, firstImage.wrapperData!);
+  const jpeg = await convertBitmapToJpg(bitmap);
   expect(Buffer.isBuffer(jpeg)).toBe(true);
   const buf = jpeg as Buffer;
   expect(buf.byteLength).toBeGreaterThan(1000);

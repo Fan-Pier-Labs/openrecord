@@ -65,8 +65,6 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   eunity/imagingViewer.ts (59%/79%), eunity/imagingDirectDownload.ts (72%/87%)
 #     — the imaging pipeline. Needs a live eUnity server or large binary
 #       fixtures. The CLO decoder underneath it is covered normally.
-#   clo-image-parser/clo_to_jpg.ts (31%/75%)
-#     — the uncovered half is the multi-format export path (avif/tiff/webp).
 #   claude-desktop-extension/src/tools.ts (47%/56%)
 #     — the per-tool handler bodies, each needing its scraper mocked.
 #       Registration shape and the shared error path are covered.
@@ -91,7 +89,6 @@ coveragePathIgnorePatterns = [
   "claude-desktop-extension/src/session-manager.ts",
   "scrapers/myChart/eunity/imagingViewer.ts",
   "scrapers/myChart/eunity/imagingDirectDownload.ts",
-  "**/clo-image-parser/clo_to_jpg.ts",
   "npm-package/src/client.ts",
   "npm-package/cli/capabilityActions.ts",
   "openrecord-demo-lambda/src/spend.mjs",
