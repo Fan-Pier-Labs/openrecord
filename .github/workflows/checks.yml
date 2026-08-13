@@ -45,6 +45,11 @@ jobs:
         run: cd expo-app && bun install
       - name: Install npm-package deps
         run: cd npm-package && bun install
+      # tests/integration/ci is part of the ROOT tsconfig project (no separate
+      # tsconfig on purpose), so both eslint and `bun run typecheck` below need
+      # its playwright types resolvable.
+      - name: Install CI integration test deps
+        run: cd tests/integration/ci && bun install
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'

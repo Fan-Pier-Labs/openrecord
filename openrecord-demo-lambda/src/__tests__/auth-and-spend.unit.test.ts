@@ -10,11 +10,8 @@
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { generateKeyPairSync, createSign } from 'node:crypto';
-// @ts-expect-error — zero-dep ES module, no type declarations by design
 import { verifyGoogleIdToken, _setCertsForTest } from '../google-auth.mjs';
-// @ts-expect-error — zero-dep ES module, no type declarations by design
 import { handler, _spendStore } from '../handler.mjs';
-// @ts-expect-error — zero-dep ES module, no type declarations by design
 import { estimateCostMicros, monthKey, ledgerKey, createMemorySpendStore } from '../spend.mjs';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

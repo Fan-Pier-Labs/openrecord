@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import { handler } from "../handler.mjs";
+import { handler as rawHandler } from "../handler.mjs";
+
+/**
+ * The response as API Gateway sees it. TS infers a per-branch union from the
+ * .mjs handler, which makes branch-specific fields (`body`) unreachable in
+ * assertions — this is the one shape every branch conforms to.
+ */
+type LambdaResponse = { statusCode: number; headers?: Record<string, string>; body?: string };
+const handler = rawHandler as (event: unknown) => Promise<LambdaResponse>;
 
 type LambdaEvent = {
   requestContext?: { http?: { method?: string; sourceIp?: string } };
@@ -32,7 +40,7 @@ describe("newsletter handler", () => {
   it("accepts a valid POST and logs the signup", async () => {
     const res = await handler(postEvent(JSON.stringify({ name: "Test User", email: "test@example.com" })));
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(JSON.parse(res.body!)).toEqual({ ok: true });
     expect(logSpy).toHaveBeenCalledTimes(1);
     const logged = JSON.parse(logSpy.mock.calls[0][0] as string);
     expect(logged.type).toBe("newsletter_signup");
@@ -84,7 +92,7 @@ describe("newsletter handler", () => {
       postEvent(JSON.stringify({ name: "Bot", email: "bot@example.com", company: "Spam Inc" })),
     );
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(JSON.parse(res.body!)).toEqual({ ok: true });
     expect(logSpy).not.toHaveBeenCalled();
   });
 });
