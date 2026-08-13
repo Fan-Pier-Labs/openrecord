@@ -18,6 +18,7 @@
     "types": ["bun", "node"],
     "strict": true,
     "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
     "sourceMap": false,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
