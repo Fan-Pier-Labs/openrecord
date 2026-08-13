@@ -33,6 +33,9 @@ export default [
       // regexes, and exec is the clearer read; the rule declines to convert
       // /g patterns, where the two genuinely differ.
       "@typescript-eslint/prefer-regexp-exec": "error",
+      // An async function that never awaits is either needlessly promise-typed
+      // or missing the await it was written for; both deserve a look.
+      "@typescript-eslint/require-await": "error",
       // Round-4 zero-violation set — enabling these required NO code changes.
       // Each zero was canary-verified: a planted violation fires before the
       // zero is trusted.
@@ -59,6 +62,8 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect
@@ -120,6 +125,10 @@ export default [
     files: ["**/*.test.ts", "**/__tests__/**"],
     rules: {
       "@typescript-eslint/await-thenable": "off",
+      // Test mocks are declared async to match Promise-typed callback
+      // signatures (Transport, route handlers); an await-less async there is
+      // the point, not an accident.
+      "@typescript-eslint/require-await": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
       // Tests import dynamically on purpose: mock.module must be installed
       // before the module under test loads, and the parity suite re-imports
