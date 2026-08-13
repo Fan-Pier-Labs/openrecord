@@ -57,6 +57,21 @@ jobs:
       FAKE_MYCHART_HOST: localhost:4000
     steps:
       - uses: actions/checkout@v4
+      # One fake-mychart for every integration suite in the repo. This used to be
+      # two servers in two jobs: this one, and a natively-built one started just
+      # for the scraper suites, because the compose service ran with
+      # FAKE_MYCHART_ACCEPT_ANY=true and those suites assert a bad password is
+      # rejected. The knob was never needed — everything signs in as the seeded
+      # homer — so it's gone and the jobs are one.
+      #
+      # Started in the background here — it needs nothing but the checkout, and
+      # the image build is about as long as every install/build step below put
+      # together, so running it concurrently roughly halves the job's setup
+      # time. "Wait for services" below is the synchronization point.
+      - name: Start services in background
+        run: |
+          docker compose -f docker-compose.ci.yaml up -d --build --wait > /tmp/compose-up.log 2>&1 &
+          echo $! > /tmp/compose-up.pid
       - uses: oven-sh/setup-bun@v2
         id: bun
         continue-on-error: true
@@ -83,28 +98,33 @@ jobs:
       # build has to happen before anything runs.
       - name: Build npm-package CLI binary
         run: cd npm-package && bun run build
-      # One fake-mychart for every integration suite in the repo. This used to be
-      # two servers in two jobs: this one, and a natively-built one started just
-      # for the scraper suites, because the compose service ran with
-      # FAKE_MYCHART_ACCEPT_ANY=true and those suites assert a bad password is
-      # rejected. The knob was never needed — everything signs in as the seeded
-      # homer — so it's gone and the jobs are one.
-      - name: Start services
-        run: docker compose -f docker-compose.ci.yaml up -d --build --wait
+      # The backgrounded compose exit code is lost with its shell, so wait for
+      # the process to finish, show its log, then re-run the same command in the
+      # foreground: a no-op returning in seconds when the background run
+      # succeeded (image built, container healthy), a visible retry from cached
+      # layers when it didn't.
+      - name: Wait for services
+        run: |
+          while kill -0 "$(cat /tmp/compose-up.pid)" 2>/dev/null; do sleep 1; done
+          cat /tmp/compose-up.log
+          docker compose -f docker-compose.ci.yaml up -d --build --wait
         timeout-minutes: 10
-      - name: Run integration tests
-        run: bun run test:integration
+      # The one test-running step: `test:coverage` is `bun run test` and
+      # `bun run test:integration` in one process (the gate has to see both
+      # suites at once — see bunfig.toml), so a separate `test:integration` run
+      # beforehand would execute every integration suite a second time for no
+      # extra signal. Test failures and threshold failures both surface here.
+      #
       # The gate lives here, not in the `build` job, because it measures the unit
       # suite AND the integration suites together, in one process. Splitting them
       # would count every scraper that is only exercised end-to-end as uncovered,
       # making the percentage an artifact of which suite happened to run. This is
       # the only job with the server, the built CLI and every package's deps, so
       # it is the only place the gate can measure everything.
-      - name: Check code coverage (Bun coverageThreshold, 75% per file)
+      - name: Run integration tests + coverage gate (Bun coverageThreshold, 75% per file)
         run: bun run test:coverage
       - name: Dump logs on failure
         if: failure()
         run: docker compose -f docker-compose.ci.yaml logs
-      - name: Tear down
-        if: always()
-        run: docker compose -f docker-compose.ci.yaml down -v
+      # No teardown step: the runner is ephemeral, so `down -v` only added ~10s
+      # of nothing to every run.

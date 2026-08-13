@@ -924,6 +924,12 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       if (body.orderKey === 'GRP-CT') {
         return json(ds.ctLabResultDetails);
       }
+      if (body.orderKey === 'GRP-CMP') {
+        return json(ds.cmpLabResultsDetails);
+      }
+      if (body.orderKey === 'GRP-CBC') {
+        return json(ds.cbcLabResultsDetails);
+      }
     } catch { /* fall through */ }
     return json(ds.labResultsDetails);
   }
