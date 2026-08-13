@@ -50,8 +50,19 @@ describe('the registry itself', () => {
       expect(capability.title.length).toBeGreaterThan(0);
       expect(capability.description.length).toBeGreaterThan(15);
       expect(capability.group.length).toBeGreaterThan(0);
-      expect(typeof capability.run).toBe('function');
+      // `run` is deliberately absent from the public type, so it is reached
+      // here the way only a test may: through the value, not the type.
+      expect(typeof (capability as unknown as { run: unknown }).run).toBe('function');
     }
+  });
+
+  it('does not expose `run` on the public Capability type', () => {
+    // The enforcement for "every dispatch goes through executeCapability".
+    // If `run` ever returns to the exported type this stops compiling, which
+    // is the point — it replaced a regex that only caught one spelling.
+    // @ts-expect-error — Property 'run' does not exist on type 'Capability'.
+    void CAPABILITIES[0].run;
+    expect(Object.keys(CAPABILITIES[0])).toContain('id');
   });
 
   it('names every parameter and says what it is for', () => {
