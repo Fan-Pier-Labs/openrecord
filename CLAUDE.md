@@ -66,7 +66,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper |
-| `bun run cli --list-capabilities` | Every capability and the arguments it takes |
+| `bun run cli --help [--show-all]` | Usage, every flag, and the capability listing |
+| `bun run cli --list-capabilities [--show-all]` | The commonly-used capabilities and their arguments; `--show-all` adds the less-frequently-used ones |
 | `bun run cli --host <host> --action <id> [--arg name=value ...]` | Run any capability and print JSON |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
@@ -98,9 +99,10 @@ selects on the suffix and nothing else.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 
-- **CI also boot-smokes the Android build**: the `android-emulator` job builds a release APK and
-  runs `expo-app/e2e/android-smoke.yaml` on an emulator. The build must never be able to reach a
-  real model — see [`docs/testing.md`](docs/testing.md#android-emulator-smoke-test).
+- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
+  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
+  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
+  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 

@@ -9,6 +9,8 @@
     "rootDir": "..",
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "strictNullChecks": true,
     "noImplicitAny": true,
     "esModuleInterop": true,

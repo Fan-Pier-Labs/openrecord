@@ -14,10 +14,12 @@ export type CloJpegResult = {
   height: number;
 };
 
+// Medical images always encode at quality 100 — there is deliberately no knob
+// to degrade them.
 export function cloToJpegBase64(
   pixelData: Buffer,
   wrapperData?: Buffer,
-  quality = 85,
+  quality = 100,
 ): CloJpegResult {
   const { pixels, width, height } = convertCloToBitmap(pixelData, wrapperData);
 

@@ -29,7 +29,7 @@
  *   register_passkey(account)                      // optional: skip 2FA on future sessions
  */
 
-import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
+import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { type MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 
@@ -137,8 +137,8 @@ const ACCOUNT_SCHEMA = z
   );
 
 /** Translate one registry parameter into its zod equivalent. */
-function zodForParam(param: CapabilityParam): ZodTypeAny {
-  let schema: ZodTypeAny;
+function zodForParam(param: CapabilityParam): z.ZodType {
+  let schema: z.ZodType;
   switch (param.type) {
     case 'number': {
       let n = z.number();
@@ -188,7 +188,7 @@ function contextFor(ref: string): CapabilityContext {
  * disconnect_account already is.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
-  const shape: Record<string, ZodTypeAny> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
+  const shape: Record<string, z.ZodType> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
   // Which patient the call is about, for accounts with proxy access to family
   // members' charts. executeCapability asserts it — or the account holder,
   // when omitted — before the capability runs, so a read refuses rather than
@@ -240,9 +240,7 @@ async function imagingResult(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const payload = (await capability.run(session, args)) as StudyImagePayload;
-  const maxImages = typeof args.max_images === 'number' ? args.max_images : undefined;
-  const jpegQuality = typeof args.jpeg_quality === 'number' ? args.jpeg_quality : undefined;
-  const result = encodeStudyJpegs(payload, { maxImages, jpegQuality });
+  const result = encodeStudyJpegs(payload);
 
   const content: ToolContent[] = [
     {

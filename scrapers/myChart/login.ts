@@ -618,7 +618,13 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
   if (!hostname || !user || !pass) {
-    logger.debug('missing hostname, user, or pass', {hostname, user, pass})
+    // Which one is missing, never the values: the sink is whatever the host
+    // wired up, and a plaintext password belongs in none of them.
+    logger.debug('missing hostname, user, or pass', {
+      hostname: hostname || '(missing)',
+      user: user ? '(present)' : '(missing)',
+      pass: pass ? '(present)' : '(missing)',
+    })
     throw new Error('Missing hostname, user, or pass')
   }
 

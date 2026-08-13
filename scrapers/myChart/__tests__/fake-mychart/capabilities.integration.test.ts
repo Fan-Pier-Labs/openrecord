@@ -133,7 +133,6 @@ describe('capability registry against fake-mychart', () => {
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
       image_id: withImages!.image_id,
-      max_images: 1,
     })) as StudyImagePayload
 
     expect(payload.images.length).toBeGreaterThan(0)
@@ -150,7 +149,6 @@ describe('capability registry against fake-mychart', () => {
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
       imaging_index: withImages!.index,
-      max_images: 1,
     })) as StudyImagePayload
     expect(payload.images.length).toBeGreaterThan(0)
   }, 60_000)
@@ -158,6 +156,32 @@ describe('capability registry against fake-mychart', () => {
   it('is reachable under its old mobile name, so saved chats keep working', () => {
     expect(getCapability('get_xray_image')?.id).toBe('download_imaging_study')
   })
+
+  it('downloads every real image when the study leads with SeriesSelector junk', async () => {
+    // The fake's CT study mirrors real eUnity: its instance list starts with
+    // three "SeriesSelector" pseudo-instances that answer CLOERROR. Those must
+    // be skipped — never returned as images, and never allowed to turn the
+    // whole download into an empty result — while every instance that does
+    // carry pixel data comes back.
+    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
+      image_id?: string
+      orderName: string
+    }>
+    const ct = results.find((r) => r.image_id && r.orderName.includes('CT'))
+    expect(ct).toBeDefined()
+
+    const payload = (await executeCapability(session, 'download_imaging_study', {
+      image_id: ct!.image_id,
+    })) as StudyImagePayload
+
+    expect(payload.errors).toHaveLength(0)
+    // The CT study seeds 9 real instances (5 AXIAL + 3 BONE RECON + 1 SCOUT).
+    expect(payload.images.length).toBeGreaterThanOrEqual(9)
+    for (const image of payload.images) {
+      expect(image.seriesDescription).not.toBe('SeriesSelector')
+      expect(image.pixelData?.length ?? 0).toBeGreaterThan(0)
+    }
+  }, 60_000)
 
   // ── Writes ────────────────────────────────────────────────────────────────
 

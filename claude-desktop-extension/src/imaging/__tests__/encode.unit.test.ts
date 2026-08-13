@@ -33,7 +33,7 @@ describe('CLO → JPEG encode path', () => {
     expect(bitmap.height).toBe(512);
     expect(bitmap.pixels.length).toBe(512 * 512);
 
-    const encoded = encodeCloAsJpeg(bitmap, 85);
+    const encoded = encodeCloAsJpeg(bitmap);
     expect(encoded.width).toBe(512);
     expect(encoded.height).toBe(512);
     expect(encoded.bytes).toBeGreaterThan(1000);
@@ -68,7 +68,7 @@ describe('CLO → JPEG encode path', () => {
     expect(bitmap.width).toBeGreaterThan(0);
     expect(bitmap.height).toBeGreaterThan(0);
 
-    const encoded = encodeCloAsJpeg(bitmap, 85);
+    const encoded = encodeCloAsJpeg(bitmap);
     expect(encoded.bytes).toBeGreaterThan(1000);
     expect(encoded.buffer[0]).toBe(0xff);
     expect(encoded.buffer[1]).toBe(0xd8);

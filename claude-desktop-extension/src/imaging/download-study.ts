@@ -33,7 +33,7 @@ export interface DownloadStudyJpegsResult {
   studyName: string;
   /** Total image instances the study contains. */
   totalImages: number;
-  /** How many images were encoded and returned (capped by maxImages). */
+  /** How many images were encoded and returned. */
   returned: number;
   images: StudyJpeg[];
   /** Non-fatal errors from the download/encode pipeline. */
@@ -42,10 +42,6 @@ export interface DownloadStudyJpegsResult {
 
 export interface DownloadStudyJpegsOptions {
   studyName?: string;
-  /** Max images to download and encode (default 3). */
-  maxImages?: number;
-  /** JPEG quality 1-100 (default 85). */
-  jpegQuality?: number;
 }
 
 /**
@@ -53,22 +49,16 @@ export interface DownloadStudyJpegsOptions {
  * as JPEGs. Pure — no network — so the tool handler can call the capability
  * once and hand its payload straight here.
  */
-export function encodeStudyJpegs(
-  payload: StudyImagePayload,
-  opts: { maxImages?: number; jpegQuality?: number } = {},
-): DownloadStudyJpegsResult {
-  const maxImages = opts.maxImages ?? 3;
-  const jpegQuality = opts.jpegQuality ?? 85;
-
+export function encodeStudyJpegs(payload: StudyImagePayload): DownloadStudyJpegsResult {
   const errors = [...payload.errors];
   const withPixels = payload.images.filter((img) => img.pixelData && img.pixelData.length > 0);
   const images: StudyJpeg[] = [];
 
-  for (let i = 0; i < Math.min(withPixels.length, maxImages); i++) {
+  for (let i = 0; i < withPixels.length; i++) {
     const img = withPixels[i]!; // i bounded by loop over withPixels.length; noUncheckedIndexedAccess
     try {
       const bitmap = convertCloToBitmap16(Buffer.from(img.pixelData!), img.wrapperData ? Buffer.from(img.wrapperData) : undefined);
-      const encoded = encodeCloAsJpeg(bitmap, jpegQuality);
+      const encoded = encodeCloAsJpeg(bitmap);
       images.push({
         index: i,
         seriesDescription: img.seriesDescription,
@@ -93,7 +83,7 @@ export function encodeStudyJpegs(
 
 /**
  * Resolve a fresh image-viewer session from `fdiContext`, download the study's
- * CLO image data over HTTP, and encode the first `maxImages` images as JPEGs.
+ * CLO image data over HTTP, and encode every image as a JPEG.
  *
  * `fdiContext` ({ fdi, ord }) comes from an entry returned by
  * `getImagingResults` — it is durable report-identifier data, so a fresh
@@ -104,7 +94,6 @@ export async function downloadStudyJpegs(
   fdiContext: FdiContext,
   opts: DownloadStudyJpegsOptions = {},
 ): Promise<DownloadStudyJpegsResult> {
-  const maxImages = opts.maxImages ?? 3;
   const capability = getCapability('download_imaging_study');
   if (!capability?.rendersMedia) {
     throw new Error('The imaging-download capability is missing from the registry.');
@@ -112,8 +101,7 @@ export async function downloadStudyJpegs(
   const payload = (await capability.run(req, {
     image_id: encodeImageId(fdiContext),
     study_name: opts.studyName ?? 'imaging study',
-    max_images: maxImages,
   })) as StudyImagePayload;
 
-  return encodeStudyJpegs(payload, { maxImages, jpegQuality: opts.jpegQuality });
+  return encodeStudyJpegs(payload);
 }
