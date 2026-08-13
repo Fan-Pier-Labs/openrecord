@@ -51,6 +51,7 @@ jobs:
       # assertions as vacuous because everything is already `any`).
       - name: Build npm-package (lint needs dist types)
         run: cd npm-package && bun run build
+      - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
       # Root tsconfig covers scrapers/, shared/, npm-package/cli/ and
