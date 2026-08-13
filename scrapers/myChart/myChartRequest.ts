@@ -128,16 +128,17 @@ export class MyChartRequest {
     };
   }
 
-  async serialize(): Promise<string> {
-    return JSON.stringify({
+  // Promise-typed for API stability (npm-package exposes it); the work is synchronous.
+  serialize(): Promise<string> {
+    return Promise.resolve(JSON.stringify({
       firstPathPart: this.firstPathPart,
       hostname: this.hostname,
       protocol: this.protocol,
       cookies: this.cookieJar.serializeSync()
-    })
+    }))
   }
 
-  static async unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
+  static unserialize(serializedData: string, options?: MyChartRequestOptions): Promise<MyChartRequest | null> {
     try {
       const data = JSON.parse(serializedData);
       // firstPathPart is null for root-mounted instances, so check for presence
@@ -148,7 +149,7 @@ export class MyChartRequest {
         if (Object.keys(data.cookies).length > 0) {
           request.cookieJar = CookieJar.deserializeSync(data.cookies);
         }
-        return request;
+        return Promise.resolve(request);
       } else {
         // `data` holds the serialized cookie jar — log its shape, never its contents.
         logger.error(
@@ -159,7 +160,7 @@ export class MyChartRequest {
     } catch (error) {
       logger.error('Error unserializing MyChartRequest:', error);
     }
-    return null;
+    return Promise.resolve(null);
   }
 
   setFirstPathPart(firstPathPart: string | null) {

@@ -83,7 +83,7 @@ export default function SettingsScreen() {
     await loadSettings();
   }
 
-  async function handleDeleteAccount(account: StoredMyChartAccount) {
+  function handleDeleteAccount(account: StoredMyChartAccount) {
     Alert.alert(
       "Remove Account",
       `Remove ${account.hostname}? This will delete stored credentials and passkeys.`,
@@ -111,7 +111,7 @@ export default function SettingsScreen() {
    * offered to the model — the CLI drives them from flags and the app drives
    * them from here. Every one is confirmed first and its outcome reported.
    */
-  async function runAccountCapability(
+  function runAccountCapability(
     account: StoredMyChartAccount,
     capabilityId: string,
     prompt: { title: string; body: string; confirm: string; destructive?: boolean },
