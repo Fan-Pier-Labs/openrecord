@@ -103,6 +103,9 @@ export default [
         selector: "ImportExpression",
         message: "No runtime import() in product code — use a static import, or disable this line with a comment saying why the dynamic import is load-bearing.",
       }],
+      // A non-primitive in a string position renders "[object Object]" — in a
+      // health-data app that's garbage where a patient's data should be.
+      "@typescript-eslint/no-base-to-string": "error",
       // A void-returning call in value position (`return console.log(x)`,
       // `const y = arr.push(v)`) reads as if it produced something; splitting
       // it into statement + bare return/binding-free call says what actually

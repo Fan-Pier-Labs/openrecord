@@ -1,8 +1,8 @@
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
-import type { BillingAccount } from "../../../../scrapers/myChart/bills/types";
-import type { MedicationsResult, Medication } from "../../../../scrapers/myChart/medications";
-import type { LabTestResultWithHistory } from "../../../../scrapers/myChart/labs_and_procedure_results/labtestresulttype";
+import type { BillingAccount } from "../../../../scrapers/myChart/chart/bills/types";
+import type { MedicationsResult, Medication } from "../../../../scrapers/myChart/chart/medications";
+import type { LabTestResultWithHistory } from "../../../../scrapers/myChart/chart/labs/labtestresulttype";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;
 

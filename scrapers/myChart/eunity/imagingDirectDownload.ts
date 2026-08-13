@@ -16,7 +16,7 @@
 import type * as tough from 'tough-cookie';
 import * as fs from 'fs';
 import * as path from 'path';
-import { type MyChartRequest } from '../myChartRequest';
+import { type MyChartRequest } from '../core/myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
 import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';

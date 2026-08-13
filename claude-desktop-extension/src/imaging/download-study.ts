@@ -8,7 +8,7 @@
  * is just the MCPB glue around it, kept out of tool registration so it can be
  * unit-tested against fake-mychart without standing up an MCP server.
  */
-import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
+import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
 import { convertCloToJpgPureJs } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import {
