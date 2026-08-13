@@ -29,6 +29,8 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Referencing a class method without its receiver silently loses `this`.
+      "@typescript-eslint/unbound-method": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",
