@@ -7,9 +7,11 @@
 const fs = {
   readFileSync: () => { throw new Error("fs.readFileSync not available in React Native"); },
   promises: {
-    readFile: async () => { throw new Error("fs.promises.readFile not available in React Native"); },
-    writeFile: async () => { throw new Error("fs.promises.writeFile not available in React Native"); },
-    mkdir: async () => { throw new Error("fs.promises.mkdir not available in React Native"); },
+    // Promise.reject (not a sync throw) so callers observe the same rejected
+    // promise fs.promises would produce.
+    readFile: () => Promise.reject(new Error("fs.promises.readFile not available in React Native")),
+    writeFile: () => Promise.reject(new Error("fs.promises.writeFile not available in React Native")),
+    mkdir: () => Promise.reject(new Error("fs.promises.mkdir not available in React Native")),
   },
   existsSync: () => false,
 };

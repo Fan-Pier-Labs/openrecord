@@ -73,7 +73,7 @@ export default function InsightsScreen() {
     }
   }
 
-  async function handleAsk(question: string) {
+  function handleAsk(question: string) {
     router.push({ pathname: "/(auth)", params: { ask: question } });
   }
 

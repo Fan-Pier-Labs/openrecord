@@ -29,6 +29,9 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // An async function that never awaits is either needlessly promise-typed
+      // or missing the await it was written for; both deserve a look.
+      "@typescript-eslint/require-await": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",
@@ -88,6 +91,10 @@ export default [
     files: ["**/*.test.ts", "**/__tests__/**"],
     rules: {
       "@typescript-eslint/await-thenable": "off",
+      // Test mocks are declared async to match Promise-typed callback
+      // signatures (Transport, route handlers); an await-less async there is
+      // the point, not an accident.
+      "@typescript-eslint/require-await": "off",
       // Tests import dynamically on purpose: mock.module must be installed
       // before the module under test loads, and the parity suite re-imports
       // client surfaces to get fresh registrations.

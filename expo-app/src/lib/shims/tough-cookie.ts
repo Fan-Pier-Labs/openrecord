@@ -13,8 +13,8 @@
  * - iOS fetch automatically sends/receives cookies
  */
 export class CookieJar {
-  async getCookieString(_url: string): Promise<string> {
-    return "";
+  getCookieString(_url: string): Promise<string> {
+    return Promise.resolve("");
   }
 
   async setCookie(_cookie: string, _url: string): Promise<void> {
@@ -29,12 +29,12 @@ export class CookieJar {
     return new CookieJar();
   }
 
-  async serialize(): Promise<{ cookies: never[] }> {
-    return { cookies: [] };
+  serialize(): Promise<{ cookies: never[] }> {
+    return Promise.resolve({ cookies: [] });
   }
 
-  static async deserialize(_data: unknown): Promise<CookieJar> {
-    return new CookieJar();
+  static deserialize(_data: unknown): Promise<CookieJar> {
+    return Promise.resolve(new CookieJar());
   }
 }
 

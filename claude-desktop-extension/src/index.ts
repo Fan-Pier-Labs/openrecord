@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     'setup-ui',
     'ui://openrecord/setup',
     { title: 'Connect MyChart (Setup Widget)', mimeType: SETUP_UI_MIME_TYPE },
-    async () => ({
+    () => ({
       contents: [{
         uri: 'ui://openrecord/setup',
         mimeType: SETUP_UI_MIME_TYPE,

@@ -10,14 +10,16 @@ export type SecureStoreOptions = {
   keychainAccessible?: number;
 };
 
-export async function getItemAsync(key: string, _options?: SecureStoreOptions): Promise<string | null> {
-  return localStorage.getItem(`secure_${key}`);
+export function getItemAsync(key: string, _options?: SecureStoreOptions): Promise<string | null> {
+  return Promise.resolve(localStorage.getItem(`secure_${key}`));
 }
 
-export async function setItemAsync(key: string, value: string, _options?: SecureStoreOptions): Promise<void> {
+export function setItemAsync(key: string, value: string, _options?: SecureStoreOptions): Promise<void> {
   localStorage.setItem(`secure_${key}`, value);
+  return Promise.resolve();
 }
 
-export async function deleteItemAsync(key: string, _options?: SecureStoreOptions): Promise<void> {
+export function deleteItemAsync(key: string, _options?: SecureStoreOptions): Promise<void> {
   localStorage.removeItem(`secure_${key}`);
+  return Promise.resolve();
 }

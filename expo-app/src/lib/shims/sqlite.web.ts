@@ -28,7 +28,7 @@ function saveTable(name: string) {
 }
 
 class WebSQLiteDatabase {
-  async execAsync(_sql: string): Promise<void> {
+  execAsync(_sql: string): Promise<void> {
     // CREATE TABLE statements — just ensure tables exist
     const createMatch = _sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/gi);
     if (createMatch) {
@@ -37,9 +37,15 @@ class WebSQLiteDatabase {
         loadTable(tableName);
       }
     }
+    return Promise.resolve();
   }
 
-  async runAsync(sql: string, ...params: unknown[]): Promise<{ changes: number }> {
+  // Promise-typed to match expo-sqlite's API; the storage itself is synchronous.
+  runAsync(sql: string, ...params: unknown[]): Promise<{ changes: number }> {
+    return Promise.resolve(this.runSync(sql, params));
+  }
+
+  private runSync(sql: string, params: unknown[]): { changes: number } {
     const sqlLower = sql.trim().toLowerCase();
 
     if (sqlLower.startsWith("insert into")) {
@@ -110,7 +116,12 @@ class WebSQLiteDatabase {
     return { changes: 0 };
   }
 
-  async getAllAsync<T>(sql: string, ...params: unknown[]): Promise<T[]> {
+  // Promise-typed to match expo-sqlite's API; the storage itself is synchronous.
+  getAllAsync<T>(sql: string, ...params: unknown[]): Promise<T[]> {
+    return Promise.resolve(this.getAllSync<T>(sql, params));
+  }
+
+  private getAllSync<T>(sql: string, params: unknown[]): T[] {
     const table = sql.match(/FROM (\w+)/i)?.[1];
     if (!table) return [];
     const rows = loadTable(table);
@@ -161,6 +172,6 @@ class WebSQLiteDatabase {
   }
 }
 
-export async function openDatabaseAsync(_name: string): Promise<WebSQLiteDatabase> {
-  return new WebSQLiteDatabase();
+export function openDatabaseAsync(_name: string): Promise<WebSQLiteDatabase> {
+  return Promise.resolve(new WebSQLiteDatabase());
 }

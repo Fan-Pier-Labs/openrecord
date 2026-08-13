@@ -3,18 +3,18 @@
  * Web shim for expo-local-authentication — always succeeds.
  */
 
-export async function hasHardwareAsync(): Promise<boolean> {
-  return false;
+export function hasHardwareAsync(): Promise<boolean> {
+  return Promise.resolve(false);
 }
 
-export async function isEnrolledAsync(): Promise<boolean> {
-  return false;
+export function isEnrolledAsync(): Promise<boolean> {
+  return Promise.resolve(false);
 }
 
-export async function authenticateAsync(_options?: {
+export function authenticateAsync(_options?: {
   promptMessage?: string;
   fallbackLabel?: string;
   disableDeviceFallback?: boolean;
 }): Promise<{ success: boolean }> {
-  return { success: true };
+  return Promise.resolve({ success: true });
 }
