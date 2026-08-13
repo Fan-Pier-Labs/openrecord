@@ -329,9 +329,9 @@ Request/response use AMF3 binary serialization with typed objects:
 | File | Purpose |
 |------|---------|
 | `scrapers/myChart/clo-image-parser/clo_to_bitmap.ts` | Core CLO decoder + AMF3Reader |
-| `scrapers/myChart/clo-image-parser/clo_to_jpg.ts` | Convenience wrapper (CLO → JPEG/PNG/WebP) |
 | `scrapers/myChart/clo-image-parser/generate_clo.ts` | CLO encoder for testing |
-| `scrapers/myChart/clo-image-parser/exporters/` | Format-specific exporters (JPEG, PNG, AVIF, TIFF, WebP) |
+| `scrapers/myChart/clo-image-parser/exporters/` | Format-specific exporters (JPEG, PNG, AVIF, TIFF, WebP) — step two, after decoding to a bitmap |
+| `dev-scripts/clo-to-jpg.ts` | Terminal wrapper wiring both steps together |
 | `scrapers/myChart/eunity/imagingDirectDownload.ts` | Direct HTTP download pipeline |
 | `scrapers/myChart/clo-image-parser/wasm/` | eUnity's original WASM/Dart viewer code (reference) |
 

@@ -22,8 +22,8 @@ import {
   parseTileKey,
   zigzagDecode,
   convertCloToBitmap,
-  convertCloToJpg,
-} from "./clo_to_jpg";
+} from "./clo_to_bitmap";
+import { convertBitmapToJpg } from "./exporters/to_jpg";
 
 // ==================== AMF3Writer ====================
 
@@ -385,9 +385,8 @@ describe("encode → decode round-trip", () => {
   }, 60000);
 
   /**
-   * The same round-trip taken all the way through convertCloToJpg, which
-   * encodes the decoded bitmap as JPEG (note: it only special-cases `.webp`,
-   * so every other extension gets JPEG bytes regardless of its name).
+   * The same round-trip taken on through the JPEG exporter: decode the CLO to a
+   * bitmap, then encode that bitmap.
    *
    * Tolerance is 1, not 0, and that is a property of JPEG rather than of this
    * codec: even at quality 100 libjpeg still does a DCT with quantisation, so
@@ -412,11 +411,11 @@ describe("encode → decode round-trip", () => {
       const wrapperData = encodeWrapperFile(ROUND_TRIP_WRAPPER);
 
       const outPath = `/tmp/test_generate_clo_${name}.jpg`;
-      await convertCloToJpg({
-        pixelData: Buffer.from(pixelData),
-        outputPath: outPath,
-        wrapperData: Buffer.from(wrapperData),
-      });
+      const bitmap = convertCloToBitmap(
+        Buffer.from(pixelData),
+        Buffer.from(wrapperData),
+      );
+      await convertBitmapToJpg(bitmap, outPath);
 
       const { data, info } = await sharp(outPath)
         .grayscale()
@@ -435,22 +434,19 @@ describe("encode → decode round-trip", () => {
     }
   }, 30000);
 
-  it("returns JPEG buffer when outputPath is null", async () => {
+  it("returns a JPEG buffer when the exporter is given no output path", async () => {
     const img = generateCheckerboard(512, 512);
     const pixelData = encodePixelFile(img, 512, 512);
-    const wrapperData = encodeWrapperFile({
-      photometricInterpretation: "MONOCHROME2",
-      bitsStored: 16,
-      windowCenter: 32768,
-      windowWidth: 65536,
-    });
+    const wrapperData = encodeWrapperFile(ROUND_TRIP_WRAPPER);
 
-    const result = await convertCloToJpg({
-      pixelData: Buffer.from(pixelData),
-      wrapperData: Buffer.from(wrapperData),
-    });
+    const bitmap = convertCloToBitmap(
+      Buffer.from(pixelData),
+      Buffer.from(wrapperData),
+    );
+    const result = await convertBitmapToJpg(bitmap);
+
     expect(Buffer.isBuffer(result)).toBe(true);
-    const meta = await sharp(result as Buffer).metadata();
+    const meta = await sharp(result).metadata();
     expect(meta.format).toBe("jpeg");
     expect(meta.width).toBe(512);
     expect(meta.height).toBe(512);

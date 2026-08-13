@@ -38,7 +38,8 @@ import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/
 import { getConversationMessages } from '../../scrapers/myChart/messages/messageThreads';
 import { getImagingResults } from '../../scrapers/myChart/labs_and_procedure_results/labResults';
 import { downloadImagingStudyDirect } from '../../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../../scrapers/myChart/clo-image-parser/clo_to_jpg';
+import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
+import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { AMF3Reader } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { inflateSync } from 'zlib';
 import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
@@ -1861,7 +1862,12 @@ async function main() {
                         console.log(`          Saved CLO: ${multiSlice ? `${safeDesc}/${cloBase}_wrapper.clo` : `${cloBase}_wrapper.clo`}`);
                       }
                     }
-                    await convertCloToJpg({ pixelData: img.pixelData!, outputPath: jpgPath, wrapperData: img.wrapperData });
+                    // Decode, then export — the CLI picks JPEG explicitly
+                    // rather than the format being inferred from jpgPath.
+                    await convertBitmapToJpg(
+                      convertCloToBitmap(img.pixelData!, img.wrapperData),
+                      jpgPath,
+                    );
                     const stat = await fs.promises.stat(jpgPath);
                     if (!multiSlice || i === 0 || i === seriesImages.length - 1) {
                       console.log(`          Saved: ${multiSlice ? `${safeDesc}/${fileName}` : fileName} (${(stat.size / 1024).toFixed(0)} KB) - ${img.seriesDescription}`);
