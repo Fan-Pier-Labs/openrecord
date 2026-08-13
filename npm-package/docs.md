@@ -18,14 +18,13 @@ scraper. Construct it via one of three factories.
 class MyChartClient {
   static connect(args: ConnectArgs): Promise<ConnectResult>;
   static connectWithPasskey(args: MyChartClientOptions & { credential: PasskeyCredential }): Promise<ConnectResult>;
-  static fromSerialized(json: string, opts?: { fetchFn?, keepalive?: boolean }): Promise<MyChartClient | null>;
+  static fromSerialized(json: string, opts?: { keepalive?: boolean }): Promise<MyChartClient | null>;
   static totpCode(secret: string): Promise<string>;
 }
 
 interface MyChartClientOptions {
   hostname: string;
   protocol?: 'http' | 'https';                                    // default: 'https' (auto-'http' for hosts without a dot)
-  fetchFn?: (url: string, init: RequestInit) => Promise<Response>;
   keepalive?: boolean;                                            // default: true
 }
 
