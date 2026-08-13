@@ -60,6 +60,8 @@ export default [
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
       // A template literal wrapping one string and nothing else is just quotes.
       "@typescript-eslint/no-unnecessary-template-expression": "error",
+      // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect

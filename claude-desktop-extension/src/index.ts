@@ -109,7 +109,7 @@ async function main(): Promise<void> {
   process.stdin.on('close', shutdown);
 }
 
-main().catch(err => {
+main().catch((err: unknown) => {
   console.error('[openrecord] fatal:', err);
   process.exit(1);
 });
