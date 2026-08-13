@@ -92,10 +92,12 @@ export default function SettingsScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: async () => {
-            await removeMyChartAccount(account.id);
-            await deleteMemoryForAccount(account.id);
-            await loadSettings();
+          onPress: () => {
+            void (async () => {
+              await removeMyChartAccount(account.id);
+              await deleteMemoryForAccount(account.id);
+              await loadSettings();
+            })();
           },
         },
       ]
@@ -119,7 +121,9 @@ export default function SettingsScreen() {
       {
         text: prompt.confirm,
         style: prompt.destructive ? "destructive" : "default",
-        onPress: async () => {
+        // Sync wrapper: RN's Alert typing expects a void handler, and the
+        // async body already owns its errors (try/catch/finally).
+        onPress: () => void (async () => {
           setBusyAccountId(account.id);
           try {
             const result = await executeAccountCapability(account.id, capabilityId);
@@ -130,7 +134,7 @@ export default function SettingsScreen() {
           } finally {
             setBusyAccountId(null);
           }
-        },
+        })(),
       },
     ]);
   }
