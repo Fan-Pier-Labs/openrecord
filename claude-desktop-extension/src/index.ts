@@ -28,12 +28,14 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerAllTools } from './tools';
 import { clearAllSessions } from './session-manager';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE } from './ui';
+import { EXTENSION_VERSION } from './version';
+import { checkForUpdate } from './update-check';
 
 async function main(): Promise<void> {
   const server = new McpServer(
     {
       name: 'openrecord',
-      version: '0.1.0',
+      version: EXTENSION_VERSION,
     },
     {
       capabilities: { tools: {}, resources: {} },
@@ -98,6 +100,12 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  // Sideloaded .mcpb extensions have no auto-update, so check GitHub Releases
+  // ourselves (throttled to once per 24h). Fire-and-forget: by the time the
+  // first tool call lands, a found update is waiting as a one-shot notice
+  // that tools.ts appends to the result, and the model relays it to the user.
+  void checkForUpdate();
 
   // Clean up keepalive timers when the parent (Claude Desktop) closes stdio.
   const shutdown = () => {

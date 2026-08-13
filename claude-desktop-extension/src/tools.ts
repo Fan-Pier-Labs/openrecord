@@ -69,6 +69,7 @@ import {
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { encodeStudyJpegs } from './imaging/download-study';
+import { checkForUpdate, takeUpdateNotice, RELEASES_PAGE_URL } from './update-check';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -271,9 +272,36 @@ async function imagingResult(
   return { content };
 }
 
+// ── Update notice interception ──────────────────────────────────────────────
+
+/**
+ * Wrap every tool handler registered after this call so a pending update
+ * notice (see update-check.ts) is appended to the next successful tool
+ * result. Central on purpose: the notice must reach the conversation no
+ * matter which tool the model happens to call first, and a per-handler
+ * append is exactly the kind of hand-maintained list this file avoids.
+ */
+function installUpdateNotice(server: McpServer): void {
+  type AnyHandler = (...args: unknown[]) => Promise<ToolResult>;
+  type AnyRegister = (name: string, config: unknown, handler: AnyHandler) => unknown;
+  const realRegister = server.registerTool.bind(server) as unknown as AnyRegister;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (server as any).registerTool = (name: string, config: unknown, handler: AnyHandler) =>
+    realRegister(name, config, async (...handlerArgs: unknown[]) => {
+      const result = await handler(...handlerArgs);
+      const notice = takeUpdateNotice();
+      if (notice && result && !result.isError && Array.isArray(result.content)) {
+        result.content.push({ type: 'text', text: notice });
+      }
+      return result;
+    });
+}
+
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(server: McpServer): void {
+  installUpdateNotice(server);
+
   // ── Meta tools ────────────────────────────────────────────────────────────
 
   server.registerTool(
@@ -515,6 +543,35 @@ export function registerAllTools(server: McpServer): void {
       const known = findAccount(account);
       if (!removed && !known) return textResult(`No saved account for ${account}.`);
       return textResult(`Forgot ${normalizeHostname(account)}. Credentials, passkey, and session cache have been deleted from disk.`);
+    },
+  );
+
+  server.registerTool(
+    'check_for_updates',
+    {
+      title: 'Check for extension updates',
+      description: 'Check whether a newer version of the OpenRecord extension has been released. Sideloaded .mcpb extensions do not auto-update; updating means downloading the new openrecord.mcpb and opening it — saved accounts, passkeys and sessions are kept.',
+      inputSchema: {} as ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async () => {
+      const result = await checkForUpdate({ force: true });
+      return jsonResult({
+        installed_version: result.installedVersion,
+        latest_version: result.latestVersion,
+        update_available: result.updateAvailable,
+        download_url: result.downloadUrl,
+        releases_page: RELEASES_PAGE_URL,
+        ...(result.checkFailed
+          ? { check_failed: true, note: 'Could not reach GitHub to check for updates. Tell the user the check failed; do not guess whether an update exists.' }
+          : {}),
+        ...(result.updateAvailable
+          ? {
+              how_to_update:
+                'Download the new openrecord.mcpb and open it (double-click, or drag into Claude Desktop → Settings → Extensions). It upgrades in place; saved accounts, passkeys and sessions are kept.',
+            }
+          : {}),
+      });
     },
   );
 
