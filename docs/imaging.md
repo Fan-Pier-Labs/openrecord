@@ -5,9 +5,8 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 ## Key Files
 
 - `scrapers/myChart/eunity/imagingViewer.ts` — FDI context extraction, FdiData API, SAML chain following (uses `globalThis.fetch` for TLS fingerprinting compatibility)
-- `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`AMF3Writer`, `buildAmfCall()`, `initializeAmfSession()`, `downloadImagingDirect()`)
+- `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`AMF3Writer`, `buildAmfCall()`, `initializeAmfSession()`, `downloadImagingStudyDirect()`)
 - `scrapers/myChart/eunity/amf3Reader.ts` — Strict AMF3 decoder for the `getStudyListMeta` response; `parseStudySeriesFromAmfStructured()` walks the decoded Study → Series → Image tree for exact UID pairing (the positional heuristic `parseStudySeriesFromAmf` remains as fallback)
-- `scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (fallback approach)
 - `scrapers/myChart/chart/labs/labResults.ts` — `getImagingResults()` and `listLabResults()`
 - `scrapers/myChart/chart/labs/labtestresulttype.ts` — `ImagingResult` interface
 - `scrapers/myChart/eunity/docs/EUNITY_PROTOCOL.md` — Detailed eUnity AMF3 protocol reverse engineering notes
