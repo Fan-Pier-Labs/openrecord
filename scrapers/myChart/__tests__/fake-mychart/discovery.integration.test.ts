@@ -18,7 +18,7 @@
  * a chart, which is what catches a prefix that parses but doesn't resolve.
  *
  * The fake-mychart server must be running on localhost:4000 (or
- * FAKE_MYCHART_HOST). Locally: `cd fake-mychart && bun run dev`.
+ * FAKE_MYCHART_HOST). Locally: `cd fake-mychart && PORT=4000 bun run dev`.
  *
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/discovery.test.ts
  */
@@ -80,7 +80,7 @@ for (const { discovery, mode, prefix, host } of CASES) {
       // reading real data off the session proves discovery landed somewhere
       // the rest of the scraper can use.
       const profile = await getMyChartProfile(result.mychartRequest)
-      expect(profile.name).toContain('Homer')
+      expect(profile?.name).toContain('Homer')
     }, 30_000)
   })
 }

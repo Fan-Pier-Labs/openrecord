@@ -16,7 +16,6 @@ import { logger } from '../../../shared/logger';
 
 const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
 const CLOHEADERZ01_MAGIC = Buffer.from("CLOHEADERZ01");
-const MARKER = Buffer.from([0x35, 0xfa]);
 const TILE_SIZE = 256;
 
 // ==================== AMF3 Writer ====================
@@ -361,8 +360,6 @@ export function encodePixelFile(
   }
 
   // Now `current` is the coarsest LL approximation
-  const llH = levels[0][0];
-  const llW = levels[0][1];
 
   // Build the binary file
   const parts: Buffer[] = [];

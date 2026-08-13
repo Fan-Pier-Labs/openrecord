@@ -6,6 +6,9 @@
  *
  * `adoptSession` also starts a 30s keepalive interval per session. Every test
  * that adopts must clear the session afterwards or the process will not exit.
+ *
+ * Sessions are keyed by (hostname, username). The public API takes the
+ * account id — `username@hostname`, an exact match or nothing.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
 import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
@@ -20,6 +23,8 @@ afterAll(() => {
 
 beforeEach(() => {
   memfs.reset()
+  // Refs resolve against the account list, so tests register their accounts.
+  store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'donuts123' })
 })
 
 afterEach(() => {
@@ -35,56 +40,82 @@ function fakeSession(hostname = 'mychart.example.org') {
 }
 
 describe('isConnected', () => {
-  it('is false for a hostname that was never adopted', () => {
-    expect(sessionManager.isConnected('mychart.example.org')).toBe(false)
+  it('is false for an account that was never adopted', () => {
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(false)
   })
 
   it('is true after a session is adopted', async () => {
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    expect(sessionManager.isConnected('mychart.example.org')).toBe(true)
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(true)
   })
 
-  it('matches regardless of how the hostname is written', async () => {
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    expect(sessionManager.isConnected('HTTPS://MyChart.Example.ORG/MyChart')).toBe(true)
+  it('matches the id regardless of spelling', async () => {
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(sessionManager.isConnected('HOMER@MyChart.Example.ORG')).toBe(true)
+  })
+
+  it('does not resolve a bare hostname', async () => {
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(sessionManager.isConnected('mychart.example.org')).toBe(false)
+  })
+
+  it('is per login, not per hostname', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'donuts123' })
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(true)
+    expect(sessionManager.isConnected('marge@mychart.example.org')).toBe(false)
   })
 
   it('is false again after the session is cleared', async () => {
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    sessionManager.clearSession('mychart.example.org')
-    expect(sessionManager.isConnected('mychart.example.org')).toBe(false)
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    sessionManager.clearSession('homer@mychart.example.org')
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(false)
   })
 })
 
 describe('adoptSession', () => {
-  it('persists the cookie state to disk', async () => {
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    expect(store.readAccountSession('mychart.example.org')).toBeDefined()
+  it('persists the cookie state to disk under the login', async () => {
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(store.readAccountSession('mychart.example.org', 'homer')).toBeDefined()
   })
 
   it('keeps accounts independent', async () => {
-    await sessionManager.adoptSession('a.example.org', fakeSession('a.example.org'))
-    await sessionManager.adoptSession('b.example.org', fakeSession('b.example.org'))
+    store.upsertAccount({ hostname: 'a.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'b.example.org', username: 'homer', password: 'x' })
+    await sessionManager.adoptSession('a.example.org', 'homer', fakeSession('a.example.org'))
+    await sessionManager.adoptSession('b.example.org', 'homer', fakeSession('b.example.org'))
 
-    expect(sessionManager.isConnected('a.example.org')).toBe(true)
-    expect(sessionManager.isConnected('b.example.org')).toBe(true)
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(true)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(true)
 
-    sessionManager.clearSession('a.example.org')
-    expect(sessionManager.isConnected('a.example.org')).toBe(false)
-    expect(sessionManager.isConnected('b.example.org')).toBe(true)
+    sessionManager.clearSession('homer@a.example.org')
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(true)
   })
 
-  it('replaces an existing session for the same host', async () => {
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    expect(sessionManager.isConnected('mychart.example.org')).toBe(true)
+  it('keeps two logins on one hostname independent', async () => {
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'x' })
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    await sessionManager.adoptSession('mychart.example.org', 'marge', fakeSession())
+
+    sessionManager.clearSession('homer@mychart.example.org')
+
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(false)
+    expect(sessionManager.isConnected('marge@mychart.example.org')).toBe(true)
+  })
+
+  it('replaces an existing session for the same login', async () => {
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(true)
   })
 })
 
 describe('persistSession', () => {
-  it('writes serialized cookie state under the normalized hostname', async () => {
-    await sessionManager.persistSession('HTTPS://MyChart.Example.ORG/', fakeSession())
-    expect(store.readAccountSession('mychart.example.org')).toBeDefined()
+  it('writes serialized cookie state under the normalized hostname and username', async () => {
+    await sessionManager.persistSession('HTTPS://MyChart.Example.ORG/', ' Homer ', fakeSession())
+    expect(store.readAccountSession('mychart.example.org', 'homer')).toBeDefined()
   })
 
   it('swallows a serialization failure rather than breaking the caller', async () => {
@@ -94,19 +125,23 @@ describe('persistSession', () => {
       throw new Error('boom')
     }) as typeof req.serialize
 
-    await expect(sessionManager.persistSession('mychart.example.org', req)).resolves.toBeUndefined()
+    await expect(
+      sessionManager.persistSession('mychart.example.org', 'homer', req),
+    ).resolves.toBeUndefined()
   })
 })
 
 describe('clearAllSessions', () => {
   it('disconnects every account', async () => {
-    await sessionManager.adoptSession('a.example.org', fakeSession('a.example.org'))
-    await sessionManager.adoptSession('b.example.org', fakeSession('b.example.org'))
+    store.upsertAccount({ hostname: 'a.example.org', username: 'homer', password: 'x' })
+    store.upsertAccount({ hostname: 'b.example.org', username: 'homer', password: 'x' })
+    await sessionManager.adoptSession('a.example.org', 'homer', fakeSession('a.example.org'))
+    await sessionManager.adoptSession('b.example.org', 'homer', fakeSession('b.example.org'))
 
     sessionManager.clearAllSessions()
 
-    expect(sessionManager.isConnected('a.example.org')).toBe(false)
-    expect(sessionManager.isConnected('b.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(false)
   })
 
   it('is safe to call when nothing is connected', () => {
@@ -115,48 +150,49 @@ describe('clearAllSessions', () => {
 })
 
 describe('clearSession', () => {
-  it('is safe for an unknown hostname', () => {
+  it('is safe for an unknown account', () => {
     expect(() => sessionManager.clearSession('nope.example.org')).not.toThrow()
   })
 
   it('leaves the on-disk session cache alone', async () => {
     // clearSession drops the in-memory entry; the cookie cache is what lets the
     // next call skip a full login, so it must survive.
-    await sessionManager.adoptSession('mychart.example.org', fakeSession())
-    sessionManager.clearSession('mychart.example.org')
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    sessionManager.clearSession('homer@mychart.example.org')
 
-    expect(store.readAccountSession('mychart.example.org')).toBeDefined()
+    expect(store.readAccountSession('mychart.example.org', 'homer')).toBeDefined()
   })
 })
 
 describe('resolveSession', () => {
-  it('rejects an empty hostname with a message naming the fix', async () => {
+  it('rejects an empty ref with a message naming the fix', async () => {
     await expect(sessionManager.resolveSession('')).rejects.toThrow('account is required')
   })
 
   it('tells the user to run setup when nothing is configured', async () => {
-    await expect(sessionManager.resolveSession('mychart.example.org')).rejects.toThrow(
+    memfs.reset() // drop the beforeEach account
+    await expect(sessionManager.resolveSession('homer@mychart.example.org')).rejects.toThrow(
       'No MyChart accounts configured',
     )
   })
 
-  it('lists the configured accounts when the requested one is unknown', async () => {
-    store.upsertAccount({ hostname: 'a.example.org', username: 'homer', password: 'donuts123' })
+  it('lists the configured account ids when the requested one is unknown', async () => {
+    await expect(sessionManager.resolveSession('homer@b.example.org')).rejects.toThrow(
+      /not configured. Configured accounts: homer@mychart\.example\.org/,
+    )
+  })
 
-    await expect(sessionManager.resolveSession('b.example.org')).rejects.toThrow(
-      /not configured. Configured accounts: a\.example\.org/,
+  it('rejects a bare hostname, listing the real ids', async () => {
+    // Hostname alone never names a login — even when only one exists for it.
+    await expect(sessionManager.resolveSession('mychart.example.org')).rejects.toThrow(
+      /not configured. Configured accounts: homer@mychart\.example\.org/,
     )
   })
 
   it('reuses an adopted session instead of logging in again', async () => {
-    store.upsertAccount({
-      hostname: 'mychart.example.org',
-      username: 'homer',
-      password: 'donuts123',
-    })
     const adopted = fakeSession()
-    await sessionManager.adoptSession('mychart.example.org', adopted)
+    await sessionManager.adoptSession('mychart.example.org', 'homer', adopted)
 
-    expect(await sessionManager.resolveSession('mychart.example.org')).toBe(adopted)
+    expect(await sessionManager.resolveSession('homer@mychart.example.org')).toBe(adopted)
   })
 })

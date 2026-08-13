@@ -3,25 +3,37 @@
  *
  * Entries hold a live MyChartRequest plus the user's password while they read a
  * code off their phone, so the behaviour that matters is that an id is
- * single-use and that nothing outlives its TTL. `Date.now` is stubbed rather
- * than waiting out the 10-minute expiry.
+ * single-use and that nothing outlives its TTL. The clock is faked rather than
+ * waiting out the 10-minute expiry.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
+import { describe, it, expect, beforeEach, afterEach, setSystemTime } from 'bun:test'
 import type { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
 import { addPending, takePending, discardPending } from '../pending-logins'
 
 const TTL_MS = 10 * 60_000
 
-const realNow = Date.now
-let now = 1_000_000
+const START = new Date('2026-03-01T12:00:00.000Z').getTime()
+let now = START
+
+/**
+ * Move the faked clock forward.
+ *
+ * `setSystemTime` rather than reassigning `Date.now`: it fakes the whole Date
+ * surface, so the store is free to read the clock any way it likes without
+ * these tests quietly reverting to real time and taking ten minutes to notice.
+ */
+function advance(ms: number): void {
+  now += ms
+  setSystemTime(new Date(now))
+}
 
 beforeEach(() => {
-  now = 1_000_000
-  Date.now = () => now
+  now = START
+  setSystemTime(new Date(now))
 })
 
 afterEach(() => {
-  Date.now = realNow
+  setSystemTime()
 })
 
 const session = () => ({}) as MyChartRequest
@@ -79,14 +91,14 @@ describe('takePending', () => {
 describe('expiry', () => {
   it('still resolves just before the TTL elapses', () => {
     const id = addPending(entry())
-    now += TTL_MS - 1
+    advance(TTL_MS - 1)
 
     expect(takePending(id)).not.toBeNull()
   })
 
   it('drops an entry once the TTL has passed', () => {
     const id = addPending(entry())
-    now += TTL_MS + 1
+    advance(TTL_MS + 1)
 
     expect(takePending(id)).toBeNull()
   })
@@ -95,7 +107,7 @@ describe('expiry', () => {
     // gc runs on add, so a stale password does not sit in memory indefinitely
     // just because nobody called takePending.
     const stale = addPending(entry('stale'))
-    now += TTL_MS + 1
+    advance(TTL_MS + 1)
     addPending(entry('fresh'))
 
     expect(takePending(stale)).toBeNull()
@@ -103,7 +115,7 @@ describe('expiry', () => {
 
   it('leaves an unexpired entry alone while sweeping', () => {
     const old = addPending(entry('old'))
-    now += TTL_MS - 1
+    advance(TTL_MS - 1)
     addPending(entry('new'))
 
     expect(takePending(old)?.username).toBe('old')

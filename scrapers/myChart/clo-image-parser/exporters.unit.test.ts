@@ -20,10 +20,7 @@ import {
   encodePixelFile,
   encodeWrapperFile,
   generateGradientH,
-  generateGradientV,
   generateCheckerboard,
-  generateCircle,
-  generateDiagonal,
 } from "./generate_clo";
 
 // ==================== Helpers ====================
@@ -150,7 +147,9 @@ describe("encode16bitPng", () => {
       .toBuffer({ resolveWithObject: true });
 
     expect(info.channels).toBe(1);
-    expect(info.depth).toBe("ushort");
+    // sharp reports `depth` on raw output at runtime, but its OutputInfo type
+    // doesn't declare it.
+    expect((info as typeof info & { depth?: string }).depth).toBe("ushort");
     for (let i = 0; i < 4; i++) {
       expect(data.readUInt16LE(i * 2)).toBe(pixels[i]);
     }

@@ -507,6 +507,15 @@ export type RunTurnOptions = {
   memoryDigest?: string | null;
   surface?: Surface;
   signal?: AbortSignal;
+  /**
+   * How long to pretend each tool call took, in milliseconds.
+   *
+   * The delay is cosmetic — it exists so the tool-call indicator is visible —
+   * so it is the one thing in the loop a caller can turn off. Tests pass
+   * `() => 0`; without that, a suite that only cares about the loop's control
+   * flow spends ten real seconds asleep and gets slower with every test added.
+   */
+  toolLatency?: (tool: string) => number;
 };
 
 /** Runs a batch of parsed calls against the local record, in parallel. */
@@ -523,6 +532,7 @@ export async function runTurn({
   memoryDigest = null,
   surface = 'ios',
   signal,
+  toolLatency = toolLatencyMs,
 }: RunTurnOptions): Promise<TurnResult> {
   const onToolStart = callbacks.onToolStart ?? (() => {});
   const onToolEnd = callbacks.onToolEnd ?? (() => {});
@@ -538,7 +548,7 @@ export async function runTurn({
       calls.map(async (call) => {
         onToolStart(call);
         const started = Date.now();
-        await sleep(toolLatencyMs(call.tool));
+        await sleep(toolLatency(call.tool));
         const result = executeTool(session, call.tool, call.args);
         const record: ToolRecord = { tool: call.tool, args: call.args, result, ms: Date.now() - started };
         executed.push(record);

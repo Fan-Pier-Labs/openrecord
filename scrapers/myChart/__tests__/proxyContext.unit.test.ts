@@ -93,7 +93,7 @@ describe('proxyContext', () => {
   it('discovers proxy targets from ProxySwitch JSON', async () => {
     const req = requestWithMockedResponses((config) => {
       expect(config.path).toStartWith('/ProxySwitch?noCache=')
-      expect(config.headers['X-Requested-With']).toBe('XMLHttpRequest')
+      expect(config.headers?.['X-Requested-With']).toBe('XMLHttpRequest')
       return jsonResponse(proxySwitchPayload())
     })
 

@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
     zIndex: 20,
   },
