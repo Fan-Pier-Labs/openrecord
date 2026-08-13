@@ -37,13 +37,15 @@ export function utf8Bytes(text: string): number[] {
 export function utf8String(bytes: number[]): string {
   let out = '';
   for (let i = 0; i < bytes.length; ) {
-    const b = bytes[i];
+    // The loop condition guarantees bytes[i] exists; continuation bytes past a
+    // truncated sequence read as 0, matching the previous implicit coercion.
+    const b = bytes[i]!;
     let code: number;
     if (b < 0x80) { code = b; i += 1; }
-    else if (b < 0xe0) { code = ((b & 0x1f) << 6) | (bytes[i + 1] & 0x3f); i += 2; }
-    else if (b < 0xf0) { code = ((b & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f); i += 3; }
+    else if (b < 0xe0) { code = ((b & 0x1f) << 6) | ((bytes[i + 1] ?? 0) & 0x3f); i += 2; }
+    else if (b < 0xf0) { code = ((b & 0x0f) << 12) | (((bytes[i + 1] ?? 0) & 0x3f) << 6) | ((bytes[i + 2] ?? 0) & 0x3f); i += 3; }
     else {
-      code = ((b & 0x07) << 18) | ((bytes[i + 1] & 0x3f) << 12) | ((bytes[i + 2] & 0x3f) << 6) | (bytes[i + 3] & 0x3f);
+      code = ((b & 0x07) << 18) | (((bytes[i + 1] ?? 0) & 0x3f) << 12) | (((bytes[i + 2] ?? 0) & 0x3f) << 6) | ((bytes[i + 3] ?? 0) & 0x3f);
       i += 4;
     }
     if (code > 0xffff) {
@@ -61,7 +63,7 @@ export function base64UrlEncode(text: string): string {
   const bytes = utf8Bytes(text);
   let out = '';
   for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i];
+    const b0 = bytes[i]!; // loop condition guarantees i < bytes.length
     const b1 = bytes[i + 1];
     const b2 = bytes[i + 2];
     out += ALPHABET[b0 >> 2];

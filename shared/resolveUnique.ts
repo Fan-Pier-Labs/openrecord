@@ -76,7 +76,7 @@ export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueO
   // 1. Exact match, case- and whitespace-insensitive. A correct name always
   //    wins, no matter how many other entries happen to contain it.
   const exact = items.filter((item) => namesOf(item).includes(wanted));
-  if (exact.length === 1) return exact[0];
+  if (exact.length === 1) return exact[0]!;
   if (exact.length > 1) {
     throw new Error(
       `More than one ${label} is called "${query}": ${exact.map(getName).join(', ')}. ` +
@@ -98,5 +98,5 @@ export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueO
       `Multiple ${label}s match "${query}": ${partial.map(getName).join(', ')}. Be more specific.`,
     );
   }
-  return partial[0];
+  return partial[0]!; // lengths 0 and >1 were ruled out above
 }
