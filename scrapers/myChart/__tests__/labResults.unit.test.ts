@@ -182,7 +182,7 @@ describe('partial-failure handling', () => {
 
     const result = await listLabResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].orderName).toBe('Lab')
+    expect(result[0]!.orderName).toBe('Lab')
   })
 
   it('tolerates a group list that is not JSON at all', async () => {

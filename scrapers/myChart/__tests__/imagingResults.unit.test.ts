@@ -124,8 +124,8 @@ describe('getImagingResults', () => {
 
     const result = await getImagingResults(req)
     expect(result).toHaveLength(1)
-    expect(result[0].fdiContext).toEqual({ fdi, ord })
-    expect(result[0].samlUrl).toBe('https://sts.example.org/SamlResponseHtml?o=1')
+    expect(result[0]!.fdiContext).toEqual({ fdi, ord })
+    expect(result[0]!.samlUrl).toBe('https://sts.example.org/SamlResponseHtml?o=1')
   })
 })
 

@@ -101,7 +101,7 @@ export class Amf3Reader {
 
   private byte(): number {
     if (this.pos >= this.buf.length) throw new Error('AMF3: unexpected end of buffer');
-    return this.buf[this.pos++];
+    return this.buf[this.pos++]!; // bounds-checked above; noUncheckedIndexedAccess
   }
 
   /** Variable-length 29-bit unsigned integer (1–4 bytes; the 4th byte contributes 8 bits). */
@@ -136,7 +136,7 @@ export class Amf3Reader {
     if ((u29 & 1) === 0) {
       const ref = u29 >> 1;
       if (ref >= this.strings.length) throw new Error(`AMF3: string reference ${ref} out of range`);
-      return this.strings[ref];
+      return this.strings[ref]!; // ref bounds-checked above
     }
     const len = u29 >> 1;
     if (this.pos + len > this.buf.length) throw new Error('AMF3: unexpected end of buffer');
@@ -274,7 +274,7 @@ export class Amf3Reader {
     if ((u29 & 2) === 0) {
       const ref = u29 >> 2;
       if (ref >= this.traitsTable.length) throw new Error(`AMF3: traits reference ${ref} out of range`);
-      traits = this.traitsTable[ref];
+      traits = this.traitsTable[ref]!; // ref bounds-checked above
     } else {
       traits = {
         externalizable: (u29 & 4) !== 0,

@@ -529,6 +529,9 @@ export function parseStudySeriesFromAmfStructured(amfBuf: Buffer, accession?: st
     (accession ? studies.find((s) => s.accessionNumber === accession && seriesOf(s).length > 0) : undefined) ??
     studies.find((s) => seriesOf(s).length > 0) ??
     studies[0];
+  // An empty study list previously crashed on `study.uid`; null is this
+  // function's failure value for a response it can't use.
+  if (!study) return null;
 
   const studyUID = study.uid;
   if (typeof studyUID !== 'string' || !studyUID) return null;
