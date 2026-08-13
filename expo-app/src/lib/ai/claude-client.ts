@@ -59,14 +59,14 @@ function buildSystemPrompt(
   skillAddition?: string | null,
 ): string {
   const toolList = renderToolList();
-  const memorySection = memoryDigest && memoryDigest.trim()
+  const memorySection = memoryDigest?.trim()
     ? [
         "Patient digest from prior sessions and MyChart records (use this so you don't have to refetch obvious info; verify with tools when the user asks for current data):",
         memoryDigest.length > 4000 ? memoryDigest.slice(0, 4000) + "\n…(digest truncated)…" : memoryDigest,
         "",
       ].join("\n")
     : "";
-  const skillSection = skillAddition && skillAddition.trim()
+  const skillSection = skillAddition?.trim()
     ? [
         "The user invoked a specific skill. Follow this playbook for the rest of the conversation — it overrides the generic guidance above when there's a conflict, but the JSON output protocol and write-confirmation rules still apply:",
         skillAddition,
@@ -398,7 +398,7 @@ export async function sendMessage(
 
     // `respond` terminates the loop and surfaces text to the user.
     const soleCall = calls.length === 1 ? calls[0] : undefined;
-    if (soleCall && soleCall.tool === RESPOND_TOOL) {
+    if (soleCall?.tool === RESPOND_TOOL) {
       const text = typeof soleCall.args.text === "string" ? (soleCall.args.text) : "";
       let finalText = text;
       for (const id of pendingImageIds) {

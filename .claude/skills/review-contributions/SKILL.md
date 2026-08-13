@@ -213,8 +213,10 @@ Post the verdict as an issue comment (Step 5 covers tone/format).
 A technically-perfect PR that takes the product somewhere we don't want is **not** a good PR.
 Decide direction **first**; if it's wrong, quality is moot.
 
-Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, `LICENSE`,
-and `docs/MYCHART_FEATURES.md`. In short, this product is:
+Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, and
+`LICENSE`. For what the product covers, the capability registry (`shared/capabilities.ts`) is the
+single source of truth; `docs/MYCHART_FEATURES.md` lists only the features we deliberately don't
+scrape. In short, this product is:
 
 - A **patient-controlled health-data aggregator** for Epic MyChart portals: scrape and consolidate
   a person's *own* medical records across 30+ categories.

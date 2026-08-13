@@ -81,11 +81,16 @@ parse the imported files — resolution alone wasn't enough, it needed a parser
 mapping. Config subtleties like that go in a comment next to the config, with the
 canary method named.
 
-### 3. Triage by count and by fix character
+### 3. Triage by whether code changes at all
 
-- **Zero or a handful of violations, or purely mechanical** → batch into one
-  "trivial checks" PR.
-- **More than that, or fixes need judgment** → one PR per check.
+The batching line is code changes, not violation count:
+
+- **Zero code changes** (the check passes as-is — config-only enablement) → batch
+  freely with other zero-code-change enablements into one "no-op enablements" PR.
+- **ANY code change required, even one line** → its own PR, one check per PR. A
+  reviewer approving "turn on a rule that already passes" should never also be
+  approving code edits riding along, and a single-rule PR is what makes the
+  per-fix behavior analysis checkable.
 - **False-positive-heavy** → scope the check (file-pattern override with a comment
   explaining why) rather than dropping it — a rule off in one directory with a
   reason beats a rule off everywhere silently.

@@ -3,10 +3,9 @@
  * capability listing.
  *
  * This lives outside `cli.ts` for the same reason `capabilityActions.ts` does:
- * `cli.ts` runs `main()` the moment it is imported, so anything a test needs to
- * read has to be importable on its own. The help text is exactly that — a test
- * asserts that the default listing leads with the useful capabilities and holds
- * the rest back, which is only checkable if rendering it costs nothing.
+ * a test asserts that the default listing leads with the useful capabilities
+ * and holds the rest back, and rendering the text should cost nothing beyond
+ * importing this module.
  */
 
 import { renderCapabilityList, type CapabilityListOptions } from './capabilityActions';
@@ -46,11 +45,17 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '    --action <id>              Any id from the listing below',
     '    --arg name=value           A capability argument; repeat for each one',
     '',
-    '  The hand-written actions, which prompt and print more prettily than the JSON above:',
+    '  The interactive actions, which prompt for whatever is not given as a flag:',
     '    --action send-message [--subject <s>] [--message <m>]',
     '    --action send-reply --conversation-id <id> [--message <m>]',
-    '    --action get-thread --conversation-id <id>',
-    '    --action request-refill | get-imaging | list-proxies | keep-alive-test',
+    '    --action keep-alive-test   Hold the session open, pinging KeepAlive until Ctrl+C',
+    '',
+    '  Older dashed spellings, still accepted — each is an alias for a registry capability:',
+    '    --action get-imaging       Every imaging study, downloaded and decoded to JPEGs',
+    '    --action get-thread --conversation-id <id>       One conversation\'s messages',
+    '    --action delete-message --conversation-id <id>   Delete a conversation from the inbox',
+    '    --action request-refill --arg medication_name=…  Request a medication refill',
+    '    --action list-proxies                            Patient records this account can reach',
     '',
     "  The account's own sign-in settings:",
     '    --set-up-passkey           Register a passkey and save it locally',
