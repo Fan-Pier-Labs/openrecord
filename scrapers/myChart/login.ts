@@ -137,7 +137,10 @@ export function parseFirstPathPartFromInput(input: string): string | null {
   try {
     const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
     const part = parsed.pathname.split('/').filter(Boolean)[0];
-    if (!part || !part.toLowerCase().includes('mychart')) {
+    // `part` is `.split('/').filter(Boolean)[0]`-shaped: undefined or a
+    // non-empty string, never '' — so `!part?.…` and the old `!part || !part.…`
+    // take identical branches.
+    if (!part?.toLowerCase().includes('mychart')) {
       return null;
     }
     return part;
@@ -289,7 +292,7 @@ export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest:
       }
 
       const finalPathPart = finalUrl.pathname.split('/').filter(Boolean)[0];
-      if ((finalPathPart && finalPathPart.toLowerCase() === candidate.toLowerCase()) && looksLikeLoginPage(html)) {
+      if (finalPathPart?.toLowerCase() === candidate.toLowerCase() && looksLikeLoginPage(html)) {
         logger.debug('Recovered firstPathPart by probing common login path:', finalPathPart || candidate);
         return finalPathPart || candidate;
       }

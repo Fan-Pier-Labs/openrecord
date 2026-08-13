@@ -142,7 +142,7 @@ export async function runSwitchProxyTarget(
   mychartRequest: MyChartRequest,
   patient: string,
 ): Promise<SwitchProxyTargetResult> {
-  if (!patient || !patient.trim()) {
+  if (!patient?.trim()) {
     throw new Error(
       'Pass the patient to switch to — a name from list_proxy_targets, or "me" for the account holder\'s own record.',
     );
