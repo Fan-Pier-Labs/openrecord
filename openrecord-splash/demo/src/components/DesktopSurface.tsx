@@ -220,7 +220,7 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
                 const text = draft.trim();
                 if (!text || busy) return;
                 setDraft('');
-                send(text);
+                void send(text);
               }
             }}
           />
@@ -235,7 +235,7 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
                 const text = draft.trim();
                 if (!text || busy) return;
                 setDraft('');
-                send(text);
+                void send(text);
               }}
             >
               ↑

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import { fireAndForget } from "@/lib/fire-and-forget";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { initDatabase } from "@/lib/storage/database";
@@ -54,9 +55,9 @@ function RootLayoutNav() {
     }
 
     // Run once on mount (covers cold start) and on every transition to active.
-    maybeRefreshAll();
+    fireAndForget(maybeRefreshAll(), "memory:refresh");
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") maybeRefreshAll();
+      if (state === "active") fireAndForget(maybeRefreshAll(), "memory:refresh");
     });
     return () => sub.remove();
   }, [isAuthenticated]);
@@ -73,7 +74,11 @@ export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    initDatabase().then(() => setDbReady(true));
+    // A failed init would otherwise leave the app stuck on the null screen
+    // with no trace of why.
+    initDatabase()
+      .then(() => setDbReady(true))
+      .catch((err) => console.error("[db] initDatabase failed:", err));
   }, []);
 
   if (!dbReady) return null;
