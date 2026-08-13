@@ -37,6 +37,13 @@ spec has no update-feed field. So this extension checks for updates itself:
   Claude Desktop upgrades the extension in place. Credentials, passkeys and
   sessions live in `~/.openrecord-mcpb/`, outside the bundle, so they survive
   every upgrade (and uninstall/reinstall too).
+- **Opting out**: the check is notify-only — nothing is ever downloaded or
+  executed automatically — but it is also the one outbound connection this
+  server makes on its own (`api.github.com`, at most once per day), so it has
+  an off switch: the **Disable update checks** toggle in the extension's
+  settings in Claude Desktop (or the `OPENRECORD_DISABLE_UPDATE_CHECK` env
+  var directly). Disabled means no update traffic at all; `check_for_updates`
+  then reports that checks are off instead of fetching.
 
 The check is deliberately failure-silent: no network, a rate-limited API, or a
 garbage response all degrade to "no notice" — an update check must never break

@@ -46,6 +46,21 @@ export interface UpdateCheckResult {
   downloadUrl: string | null;
   /** True when GitHub could not be reached or answered garbage. */
   checkFailed: boolean;
+  /** True when OPENRECORD_DISABLE_UPDATE_CHECK suppressed the check. */
+  disabled: boolean;
+}
+
+/**
+ * The opt-out. This server's pitch is that health data stays local, so the
+ * one outbound connection it makes on its own (api.github.com, once per 24h)
+ * has an off switch: the `disable_update_check` toggle in the extension's
+ * settings (wired through manifest.json user_config), or this env var
+ * directly. Disabled means NO update traffic at all — the explicit
+ * check_for_updates tool reports "disabled" instead of fetching.
+ */
+export function updateCheckDisabled(): boolean {
+  const value = (process.env.OPENRECORD_DISABLE_UPDATE_CHECK ?? '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 }
 
 interface UpdateState {
@@ -110,6 +125,17 @@ export function _resetForTests(): void {
 export async function checkForUpdate(
   opts: { force?: boolean; fetchFn?: typeof fetch } = {},
 ): Promise<UpdateCheckResult> {
+  if (updateCheckDisabled()) {
+    return {
+      installedVersion: EXTENSION_VERSION,
+      latestVersion: null,
+      updateAvailable: false,
+      downloadUrl: null,
+      checkFailed: false,
+      disabled: true,
+    };
+  }
+
   const now = Date.now();
   let latestVersion: string | null = null;
   let downloadUrl: string | null = null;
@@ -146,6 +172,7 @@ export async function checkForUpdate(
     updateAvailable,
     downloadUrl,
     checkFailed,
+    disabled: false,
   };
 }
 
@@ -168,11 +195,17 @@ async function fetchLatestMcpbRelease(
     if (release.draft || release.prerelease) continue;
     const tag = release.tag_name ?? '';
     if (!tag.startsWith(TAG_PREFIX)) continue;
+    // The version string ends up interpolated into a notice the model reads,
+    // so nothing but digits and dots is allowed through — a tag like
+    // `mcpb-v9.9.9-<anything>` must not carry its suffix into the
+    // conversation. Network text never reaches the model unvalidated.
+    const version = tag.slice(TAG_PREFIX.length);
+    if (!/^\d+(\.\d+){0,3}$/.test(version)) continue;
     const asset = (release.assets ?? []).find(
       a => a.name?.endsWith('.mcpb') && a.browser_download_url,
     );
     return {
-      latestVersion: tag.slice(TAG_PREFIX.length),
+      latestVersion: version,
       downloadUrl: asset?.browser_download_url ?? release.html_url ?? null,
     };
   }

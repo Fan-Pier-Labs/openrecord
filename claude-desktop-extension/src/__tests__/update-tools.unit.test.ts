@@ -85,6 +85,24 @@ describe('check_for_updates tool', () => {
     }
   });
 
+  test('the handler reports checks as disabled without touching the network', async () => {
+    const tools = captureTools();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error('must not be called');
+    }) as unknown as typeof globalThis.fetch;
+    process.env.OPENRECORD_DISABLE_UPDATE_CHECK = '1';
+    try {
+      const result = await tools.get('check_for_updates')!.handler({});
+      const payload = JSON.parse(result.content[0].text ?? '{}') as Record<string, unknown>;
+      expect(payload.update_checks).toBe('disabled');
+      expect(payload.installed_version).toBe(EXTENSION_VERSION);
+    } finally {
+      delete process.env.OPENRECORD_DISABLE_UPDATE_CHECK;
+      globalThis.fetch = realFetch;
+    }
+  });
+
   test('the handler reports an honest failure when GitHub is unreachable', async () => {
     const tools = captureTools();
     const realFetch = globalThis.fetch;

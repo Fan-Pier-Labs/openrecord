@@ -210,7 +210,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       inputSchema: shape as any,
       annotations,
     },
-    async (args: Record<string, unknown>) => {
+    withUpdateNotice(async (args: Record<string, unknown>) => {
       try {
         const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
@@ -225,7 +225,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 }
 
@@ -279,36 +279,32 @@ async function imagingResult(
   return { content };
 }
 
-// ── Update notice interception ──────────────────────────────────────────────
+// ── Update notice ───────────────────────────────────────────────────────────
 
 /**
- * Wrap every tool handler registered after this call so a pending update
- * notice (see update-check.ts) is appended to the next successful tool
- * result. Central on purpose: the notice must reach the conversation no
- * matter which tool the model happens to call first, and a per-handler
- * append is exactly the kind of hand-maintained list this file avoids.
+ * Wrap a tool handler so a pending update notice (see update-check.ts) is
+ * appended to its successful result. The notice is one-shot, so it rides on
+ * whichever wrapped tool the model happens to call first after the startup
+ * check resolves. Every registration in this file wraps its handler —
+ * capability tools get it via registerCapabilityTool, so only the
+ * hand-written meta tools name it explicitly.
  */
-function installUpdateNotice(server: McpServer): void {
-  type AnyHandler = (...args: unknown[]) => Promise<ToolResult>;
-  type AnyRegister = (name: string, config: unknown, handler: AnyHandler) => unknown;
-  const realRegister = server.registerTool.bind(server) as unknown as AnyRegister;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (server as any).registerTool = (name: string, config: unknown, handler: AnyHandler) =>
-    realRegister(name, config, async (...handlerArgs: unknown[]) => {
-      const result = await handler(...handlerArgs);
-      const notice = takeUpdateNotice();
-      if (notice && result && !result.isError && Array.isArray(result.content)) {
-        result.content.push({ type: 'text', text: notice });
-      }
-      return result;
-    });
+function withUpdateNotice<Args extends unknown[]>(
+  handler: (...args: Args) => Promise<ToolResult>,
+): (...args: Args) => Promise<ToolResult> {
+  return async (...args) => {
+    const result = await handler(...args);
+    const notice = takeUpdateNotice();
+    if (notice && !result.isError) {
+      result.content.push({ type: 'text', text: notice });
+    }
+    return result;
+  };
 }
 
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(server: McpServer): void {
-  installUpdateNotice(server);
-
   // ── Meta tools ────────────────────────────────────────────────────────────
 
   server.registerTool(
@@ -319,7 +315,7 @@ export function registerAllTools(server: McpServer): void {
       inputSchema: {} as ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
+    withUpdateNotice(async () => {
       const accounts = readAccounts();
       const accountList = accounts.map(a => ({
         account: accountId(a),
@@ -357,7 +353,7 @@ export function registerAllTools(server: McpServer): void {
       }
 
       return result;
-    },
+    }),
   );
 
   server.registerTool(
@@ -369,14 +365,14 @@ export function registerAllTools(server: McpServer): void {
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
     },
-    async () => ({
+    withUpdateNotice(async () => ({
       content: [
         {
           type: 'text',
           text: 'Enter your MyChart hostname, username, and password in the widget to connect your account.',
         },
       ],
-    }),
+    })),
   );
 
   server.registerTool(
@@ -390,14 +386,14 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ query, limit }) => {
+    withUpdateNotice(async ({ query, limit }) => {
       const matches = searchInstances(query, limit ?? 10);
       return jsonResult({
         query,
         count: matches.length,
         matches: matches.map(m => ({ hostname: m.hostname, name: m.name, logoUrl: m.logoUrl, loginUrl: m.url })),
       });
-    },
+    }),
   );
 
   server.registerTool(
@@ -412,7 +408,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ hostname, username, password }) => {
+    withUpdateNotice(async ({ hostname, username, password }) => {
       try {
         const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
 
@@ -464,7 +460,7 @@ export function registerAllTools(server: McpServer): void {
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 
   server.registerTool(
@@ -478,7 +474,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ pending_id, code }) => {
+    withUpdateNotice(async ({ pending_id, code }) => {
       const pending = takePending(pending_id);
       if (!pending) {
         return errorResult('pending_id is unknown or has expired (10-minute TTL). Call setup_account again to start over.');
@@ -527,7 +523,7 @@ export function registerAllTools(server: McpServer): void {
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 
   // register_passkey is NOT declared here — it is a capability
@@ -544,14 +540,14 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
-    async ({ account }) => {
+    withUpdateNotice(async ({ account }) => {
       const match = lookupAccount(account);
       if (!match) return textResult(`No saved account for ${account}.`);
       const id = accountId(match);
       clearSession(id);
       removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
-    },
+    }),
   );
 
   server.registerTool(
@@ -562,8 +558,15 @@ export function registerAllTools(server: McpServer): void {
       inputSchema: {} as ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async () => {
+    withUpdateNotice(async () => {
       const result = await checkForUpdate({ force: true });
+      if (result.disabled) {
+        return jsonResult({
+          installed_version: result.installedVersion,
+          update_checks: 'disabled',
+          note: 'Update checks are turned off (the disable_update_check extension setting / OPENRECORD_DISABLE_UPDATE_CHECK). No network request was made. The user can check manually at ' + RELEASES_PAGE_URL,
+        });
+      }
       return jsonResult({
         installed_version: result.installedVersion,
         latest_version: result.latestVersion,
@@ -580,7 +583,7 @@ export function registerAllTools(server: McpServer): void {
             }
           : {}),
       });
-    },
+    }),
   );
 
   // ── Capability tools ──────────────────────────────────────────────────────

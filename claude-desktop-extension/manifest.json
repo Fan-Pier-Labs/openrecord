@@ -20,7 +20,19 @@
     "entry_point": "dist/server.cjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/server.cjs"]
+      "args": ["${__dirname}/dist/server.cjs"],
+      "env": {
+        "OPENRECORD_DISABLE_UPDATE_CHECK": "${user_config.disable_update_check}"
+      }
+    }
+  },
+  "user_config": {
+    "disable_update_check": {
+      "type": "boolean",
+      "title": "Disable update checks",
+      "description": "Stop the extension from contacting GitHub (api.github.com, at most once per day) to see whether a newer version has been released. Nothing is ever downloaded or installed automatically either way.",
+      "default": false,
+      "required": false
     }
   },
   "tools": [
