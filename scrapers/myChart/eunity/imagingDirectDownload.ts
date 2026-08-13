@@ -180,20 +180,23 @@ function buildAmfCall(
   method: string,
   parameters: ((w: AMF3Writer) => void)[],
 ): Buffer {
+  // Every callback is invoked with the writer itself (see writeTypedObject /
+  // writeArray / writeExternalizableObject: they all pass `this`), so the
+  // nested callbacks close over the one `w` instead of re-binding it per level.
   const w = new AMF3Writer();
   w.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
     ['messageID', 'messageType', 'body'],
     [
-      (w) => w.writeString(messageID),
-      (w) => w.writeString('call'),
-      (w) => w.writeTypedObject(
+      () => w.writeString(messageID),
+      () => w.writeString('call'),
+      () => w.writeTypedObject(
         'com.clientoutlook.web.metaservices.AmfServicesRequest',
         ['service', 'method', 'parameters'],
         [
-          (w2) => w2.writeString(service),
-          (w2) => w2.writeString(method),
-          (w2) => w2.writeArray(parameters),
+          () => w.writeString(service),
+          () => w.writeString(method),
+          () => w.writeArray(parameters),
         ],
       ),
     ],
@@ -227,10 +230,13 @@ export function buildGetStudyListMetaRequest(
 ): Buffer {
   return buildAmfCall('HTTPSimpleLoader_1', 'StudyService', 'getStudyListMeta', [
     (w) => {
+      // Every nested callback below receives this same writer (the writer
+      // methods all invoke callbacks with `this`), so they close over `w`
+      // rather than re-binding it at each nesting level.
       // StudyListRequest is Externalizable — custom binary format
       w.writeExternalizableObject(
         'com.clientoutlook.web.metaservices.StudyListRequest',
-        (w) => {
+        () => {
           // 4-byte big-endian header (observed value: 2)
           w.writeBE32(2);
           // Method qualifier string
@@ -244,15 +250,15 @@ export function buildGetStudyListMetaRequest(
             ['notUsed', 'requestedPHI', 'environment'],
             [
               // notUsed: true
-              (w) => w.writeTrue(),
+              () => w.writeTrue(),
               // requestedPHI: ArrayCollection wrapping RequestedPHI objects
-              (w) => {
+              () => {
                 // ArrayCollection is Externalizable — wraps a standard AMF3 array
                 w.writeExternalizableObject(
                   'flex.messaging.io.ArrayCollection',
-                  (w) => {
+                  () => {
                     w.writeArray([
-                      (w) => {
+                      () => {
                         // RequestedPHI sealed object (8 members)
                         w.writeTypedObject(
                           'com.clientoutlook.data.RequestedPHI',
@@ -267,14 +273,14 @@ export function buildGetStudyListMetaRequest(
                             'originalServiceInstance',
                           ],
                           [
-                            (w) => w.writeString(patientId),        // e.g. "<MRN>$$$<site>"
-                            (w) => w.writeNull(),                    // studyUID: null
-                            (w) => w.writeString(accession),         // e.g. "E48330984"
-                            (w) => w.writeString(''),                // serviceInstanceParameter: empty
-                            (w) => w.writeNull(),                    // serviceInstanceProperties: null
-                            (w) => w.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
-                            (w) => w.writeString(''),                // originalServiceInstanceParameter: empty
-                            (w) => w.writeString(serviceInstance),   // originalServiceInstance: same
+                            () => w.writeString(patientId),        // e.g. "<MRN>$$$<site>"
+                            () => w.writeNull(),                    // studyUID: null
+                            () => w.writeString(accession),         // e.g. "E48330984"
+                            () => w.writeString(''),                // serviceInstanceParameter: empty
+                            () => w.writeNull(),                    // serviceInstanceProperties: null
+                            () => w.writeString(serviceInstance),   // e.g. "EXAMPLEstudystrategy"
+                            () => w.writeString(''),                // originalServiceInstanceParameter: empty
+                            () => w.writeString(serviceInstance),   // originalServiceInstance: same
                           ],
                         );
                       },
@@ -283,17 +289,17 @@ export function buildGetStudyListMetaRequest(
                 );
               },
               // environment: Environment sealed object (6 members)
-              (w) => {
+              () => {
                 w.writeTypedObject(
                   'com.clientoutlook.data.hangingprotocol.Environment',
                   ['levelValue', 'level', 'user', 'roles', 'device', 'numberOfScreens'],
                   [
-                    (w) => w.writeNull(),           // levelValue: null
-                    (w) => w.writeInteger(0),        // level: 0
-                    (w) => w.writeNull(),           // user: null
-                    (w) => w.writeNull(),           // roles: null
-                    (w) => w.writeString('WEB'),    // device: "WEB"
-                    (w) => w.writeString('1'),      // numberOfScreens: "1"
+                    () => w.writeNull(),           // levelValue: null
+                    () => w.writeInteger(0),        // level: 0
+                    () => w.writeNull(),           // user: null
+                    () => w.writeNull(),           // roles: null
+                    () => w.writeString('WEB'),    // device: "WEB"
+                    () => w.writeString('1'),      // numberOfScreens: "1"
                   ],
                 );
               },
