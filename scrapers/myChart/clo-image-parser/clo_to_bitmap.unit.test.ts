@@ -206,6 +206,41 @@ describe("applyVoiLut", () => {
     const result = applyVoiLut(img, 1, 3, {});
     expect(result).toBe(img);
   });
+
+  it("maps the window through the modality LUT before comparing stored values", () => {
+    // A narrow soft-tissue CT window: centre 50 HU, width 150, stored values
+    // offset by intercept -1024. Comparing 50 against raw stored values clips
+    // everything above 125 and saturates the tissue to white.
+    const metadata = { window_center: 50, window_width: 150, rescale_slope: 1, rescale_intercept: -1024 };
+    // stored 999/1074/1149 == -25/50/125 HU == window floor/centre/ceiling.
+    const img = new Uint16Array([999, 1074, 1149]);
+    const result = applyVoiLut(img, 1, 3, metadata);
+    expect(result[0]).toBe(0);
+    expect(result[1]).toBe(32768);
+    expect(result[2]).toBe(65535);
+  });
+
+  it("honours a negative window centre", () => {
+    // Dose report and scout frames come through at centre -512.
+    const metadata = { window_center: -512, window_width: 1024, rescale_slope: 1, rescale_intercept: -1024 };
+    // stored 0/512/1024 == -1024/-512/0 HU.
+    const img = new Uint16Array([0, 512, 1024]);
+    const result = applyVoiLut(img, 1, 3, metadata);
+    expect(result[0]).toBe(0);
+    expect(result[1]).toBe(32768);
+    expect(result[2]).toBe(65535);
+  });
+
+  it("inverts the ramp when the rescale slope is negative", () => {
+    // slope -1 means a higher stored value is a *lower* output value, so
+    // brightness has to fall as the stored value rises.
+    const metadata = { window_center: 0, window_width: 200, rescale_slope: -1, rescale_intercept: 0 };
+    const img = new Uint16Array([0, 50, 100]);
+    const result = applyVoiLut(img, 1, 3, metadata);
+    expect(result[0]).toBe(32768); // 0 HU — mid window
+    expect(result[1]).toBe(16384); // -50 HU
+    expect(result[2]).toBe(0); // -100 HU — window floor
+  });
 });
 
 // ==================== parseWrapper ====================
