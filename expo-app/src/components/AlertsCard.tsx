@@ -23,7 +23,12 @@ export function AlertsCard({ onDoAlert }: Props) {
     fireAndForget(refresh(), "alerts:refresh");
     regenerateAlerts()
       .then(() => refresh())
-      .catch((err) => console.warn("[alerts] regenerate failed:", err.message));
+      .catch((err: unknown) =>
+        console.warn(
+          "[alerts] regenerate failed:",
+          err instanceof Error ? err.message : err,
+        ),
+      );
   }, [refresh]);
 
   if (alerts.length === 0) return null;

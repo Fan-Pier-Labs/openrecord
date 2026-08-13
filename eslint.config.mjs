@@ -41,6 +41,8 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect
