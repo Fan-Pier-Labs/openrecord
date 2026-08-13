@@ -1,0 +1,5 @@
+.btn { background: #1a5276; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.btn:hover { background: #1a6fa5; }
+.btn-danger { background: #c0392b; }
+.btn-danger:hover { background: #e74c3c; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
