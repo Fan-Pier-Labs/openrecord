@@ -1,3 +1,17 @@
+/**
+ * Returned by upcomingVisits/pastVisits instead of a container when the visits
+ * pages can't be scraped (e.g. no CSRF token on the visits list page).
+ */
+export interface VisitsScrapeError {
+  visits: never[];
+  error: string;
+}
+
+/** Narrows a visits result to the error shape so containers can be used safely. */
+export function isVisitsScrapeError(result: unknown): result is VisitsScrapeError {
+  return typeof result === 'object' && result !== null && 'error' in result;
+}
+
 export interface OrganizationLink {
   OrganizationId: string;
   OrganizationName: string;

@@ -43,6 +43,7 @@ Proprietary source-available license (see `LICENSE`). Viewing and personal/educa
 ## Key Commands
 
 - `bun run lint` — Run ESLint
+- `bun run typecheck` — Typecheck the shared core (`scrapers/`, `shared/`, `npm-package/cli/`, `read-local-passwords/`) against the root tsconfig. **Strict mode is on** (`strict: true` plus `noUnusedLocals`/`noUnusedParameters`/`noImplicitReturns`); CI runs this on every push, alongside `cd expo-app && bun run typecheck` and `cd npm-package && bun run typecheck` (the latter needs `bun run build` first — its integration test imports the built `dist/` bundle on purpose). The desktop extension and fake-mychart typecheck via their builds as before. All five packages are on TypeScript 6: `moduleResolution: "Node"`, `baseUrl`, and paths without a leading `./` no longer parse, so don't reintroduce them.
 - `bun run test` — Run every `*.unit.test.ts` in the repo (scrapers, shared, CLI, expo-app libs, desktop extension, lambdas, splash demo). **Needs `cd claude-desktop-extension && bun install` first** — the capability-parity test imports the extension's real `registerAllTools`, so it needs `zod` and the MCP SDK from that package. Without them you get `Cannot find package 'zod'` and five failing parity tests.
 - `bun run test:unit` — Alias for `bun run test`
 - `bun run test:coverage` — Run the unit **and** integration suites with coverage and enforce the 75% minimum (see Code Coverage Gate)

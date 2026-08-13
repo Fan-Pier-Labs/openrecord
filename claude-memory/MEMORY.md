@@ -109,3 +109,21 @@ MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Remov
 - Removed 2026-08: `web/` (Next.js app) and `openclaw-plugin/`
 - Tests: `bun run test` (all unit suites from repo root)
 - Node 25 + ESLint crashes (SIGABRT) — pre-existing issue, not refactor-related
+
+## TypeScript 6 Migration Gotchas (2026-08-12)
+
+- TS 6 removed `moduleResolution: "Node"` (node10), `baseUrl`, and non-relative
+  `paths` entries — configs using them fail to parse at all, so a CI job that
+  never ran tsc hid this. Root tsconfig now: `module: "preserve"`,
+  `moduleResolution: "bundler"`, `target: "es2022"`, `types: ["bun", "node"]`
+  (without the explicit `types`, `bun:test` fails to resolve), full `strict`.
+- Expo SDK 57 removed top-level `splash` (now the `expo-splash-screen` plugin),
+  `newArchEnabled`, and `android.edgeToEdgeEnabled` from `ExpoConfig`.
+- React Native (expo-app's version) removed `StyleSheet.absoluteFillObject` at
+  runtime too — spreading it silently yields `undefined`. Use
+  `StyleSheet.absoluteFill`.
+- bun:test typing quirk: calling a generic-defaulted method inline inside
+  `expect(...)` (e.g. `expect(call.json()).toEqual(...)`) collapses inference to
+  `Matchers<undefined>` — pass an explicit type arg (`json<{...}>()`).
+- bun's `Mock<...>` can't be cast straight to `typeof fetch` (Bun's fetch has
+  `preconnect`); use `as unknown as typeof globalThis.fetch`.

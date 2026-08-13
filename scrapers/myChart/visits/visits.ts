@@ -2,11 +2,11 @@ import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
-import { PastVisitsContainer, Visit, VisitListContainer } from "./types";
+import { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
 import { logger } from '../../../shared/logger';
 
 
-export async function upcomingVisits(myChartRequest: MyChartRequest) {
+export async function upcomingVisits(myChartRequest: MyChartRequest): Promise<VisitListContainer | VisitsScrapeError> {
 
   const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
@@ -111,7 +111,7 @@ function visitTimestamp(visit: Visit): number | null {
  * shape; `HasMoreData` on the merged result reflects whether visits older than
  * the requested window remain.
  */
-export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date) {
+export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date): Promise<PastVisitsContainer | VisitsScrapeError> {
 
   const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
 
