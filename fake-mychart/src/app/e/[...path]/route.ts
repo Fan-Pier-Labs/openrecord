@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { deflateSync } from 'zlib';
 import * as homer from '@/data/homer';
 import { Amf3Writer } from '@/lib/amf3';
 
@@ -199,6 +200,7 @@ function buildAmfResponse(study: StudyData): Buffer {
   return w.toBuffer();
 }
 
+
 // ─── Real CLO Image Data ─────────────────────────────────────────────
 // Pre-generated images for Homer's skull X-rays and CT scan.
 // Each series maps to a different CLO image file.
@@ -207,8 +209,16 @@ const CLO_DATA_DIR = join(process.cwd(), 'src/data/clo-images');
 // Per-series CLO data keyed by seriesUID
 const seriesCloData = new Map<string, { wrapper: Buffer; pixel: Buffer }>();
 
-// Load X-ray series CLO data
-for (const s of homer.imaging.series) {
+// Series that answer every image request with a CLOERROR payload — eUnity's
+// pseudo-series (e.g. the viewer's "SeriesSelector" entries), which appear in
+// the AMF study metadata like real series but carry no pixel data.
+const cloErrorSeriesUIDs = new Set<string>();
+
+for (const s of [...homer.imaging.series, ...homer.ctImaging.series]) {
+  if ((s as { cloError?: boolean }).cloError) {
+    cloErrorSeriesUIDs.add(s.seriesUID);
+    continue;
+  }
   const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
   const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
   const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
@@ -218,16 +228,24 @@ for (const s of homer.imaging.series) {
   });
 }
 
-// Load CT series CLO data
-for (const s of homer.ctImaging.series) {
-  const prefix = (s as { cloPrefix?: string }).cloPrefix ?? 'checkerboard_512x512';
-  const wrapperBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_wrapper.clo`));
-  const pixelBuf = readFileSync(join(CLO_DATA_DIR, `${prefix}_pixel.clo`));
-  seriesCloData.set(s.seriesUID, {
-    wrapper: Buffer.concat([wrapperBuf, pixelBuf]),
-    pixel: pixelBuf,
-  });
+/**
+ * The payload a real eUnity server returns for a pseudo-instance: HTTP 200,
+ * `Content-Type: application/cloerror`, 226 bytes — an ASCII `CLOERROR#Z##`
+ * magic, a 4-byte length, a zlib-deflated error message, zero-padded.
+ * Observed on a real instance; the scrapers detect it by the magic prefix
+ * (and by the body being under 256 bytes), never by parsing the message.
+ */
+function buildCloErrorPayload(): Buffer {
+  const magic = Buffer.from('CLOERROR#Z##');
+  const message = deflateSync(Buffer.from('The requested object has no image data on this service instance.'));
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(message.length);
+  const body = Buffer.concat([magic, length, message]);
+  // Real payloads are 226 bytes; pad (or in the unlikely case, trim) to match.
+  if (body.length >= 226) return body.subarray(0, 226);
+  return Buffer.concat([body, Buffer.alloc(226 - body.length)]);
 }
+const CLO_ERROR_PAYLOAD = buildCloErrorPayload();
 
 // Fallback to first X-ray series for unmatched requests
 const defaultSeries = homer.imaging.series[0];
@@ -336,13 +354,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const requestType = formParams.get('requestType');
     const seriesUID = formParams.get('seriesUID') ?? '';
 
+    // Pseudo-series (SeriesSelector) answer 200 + application/cloerror for
+    // every request type, exactly like a real eUnity server.
+    if (cloErrorSeriesUIDs.has(seriesUID)) {
+      return binary(CLO_ERROR_PAYLOAD, { 'Content-Type': 'application/cloerror' });
+    }
+
     // Look up per-series image data, fall back to default
     const clo = seriesCloData.get(seriesUID) ?? defaultClo;
 
     if (requestType === 'CLOWRAPPER') {
-      return binary(clo.wrapper);
+      return binary(clo.wrapper, { 'Content-Type': 'application/clowrapper' });
     } else if (requestType === 'CLOPIXEL') {
-      return binary(clo.pixel);
+      return binary(clo.pixel, { 'Content-Type': 'application/clopixel' });
     } else {
       return new NextResponse('CLOERROR: unsupported request type', { status: 400 });
     }
