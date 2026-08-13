@@ -11,11 +11,11 @@ import { SCHEMA_SQL } from "../schema";
 
 /** A launch: open the database and apply the schema, as initDatabase does. */
 function applySchema(db: Database): void {
-  db.exec(SCHEMA_SQL);
+  db.run(SCHEMA_SQL);
 }
 
 function seedDismissedAlert(db: Database): void {
-  db.exec(`
+  db.run(`
     INSERT INTO alerts (id, type, title, description, cta_label, action_kind, dedup_key, dismissed_at)
     VALUES ('a1', 'bill', 'A bill is due', 'Pay it', 'Pay', 'open_url', 'bill:1', '2026-01-01T00:00:00Z');
   `);
@@ -44,8 +44,8 @@ describe("SCHEMA_SQL", () => {
   it("keeps every other table's rows across a relaunch too", () => {
     const db = new Database(":memory:");
     applySchema(db);
-    db.exec(`INSERT INTO chats (id, title) VALUES ('c1', 'Kept');`);
-    db.exec(`
+    db.run(`INSERT INTO chats (id, title) VALUES ('c1', 'Kept');`);
+    db.run(`
       INSERT INTO memory_summary (account_id, summary_md, facts_json, generated_at, generator_model)
       VALUES ('acct', '# notes', '[]', '2026-01-01', 'test-model');
     `);
