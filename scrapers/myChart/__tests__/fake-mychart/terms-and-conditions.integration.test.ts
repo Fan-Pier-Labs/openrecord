@@ -52,7 +52,7 @@ describe('terms-and-conditions auto-accept', () => {
   it('the fake really is gating on terms (canary for the rest of this suite)', async () => {
     const loginPage = await fetch(`http://${HOST}/MyChart/Authentication/Login`)
     const cookie = loginPage.headers.getSetCookie().map(c => c.split(';')[0]).join('; ')
-    const token = (await loginPage.text()).match(/name="__RequestVerificationToken"[^>]*value="([^"]*)"/)?.[1]
+    const token = (/name="__RequestVerificationToken"[^>]*value="([^"]*)"/.exec((await loginPage.text())))?.[1]
     expect(token).toBeTruthy()
 
     const b64 = (s: string) => Buffer.from(s).toString('base64')

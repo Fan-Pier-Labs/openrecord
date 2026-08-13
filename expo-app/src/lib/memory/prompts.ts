@@ -169,7 +169,7 @@ export function parseExtractorResponse(raw: string): Array<{ category: string; t
 
 function extractJsonObject(raw: string): unknown {
   const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
   const candidate = fenced?.[1]?.trim() ?? trimmed;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
@@ -183,7 +183,7 @@ function extractJsonObject(raw: string): unknown {
 
 function extractJsonArray(raw: string): unknown {
   const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
   const candidate = fenced?.[1]?.trim() ?? trimmed;
   const start = candidate.indexOf("[");
   const end = candidate.lastIndexOf("]");

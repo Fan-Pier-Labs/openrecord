@@ -122,7 +122,7 @@ export function parseProfileHtml(body: string): ProfileData | null {
 
   // Full format: Name | DOB | MRN | PCP (most MyChart instances)
   const fullRegex = /Name: (.+) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4}) \| MRN: (\d+) \| PCP: (.*)/;
-  const fullMatch = printheaderDiv.match(fullRegex)
+  const fullMatch = fullRegex.exec(printheaderDiv)
   if (fullMatch) {
     return {
       // All four capture groups are non-optional, so they exist on any match.
@@ -135,12 +135,12 @@ export function parseProfileHtml(body: string): ProfileData | null {
 
   // Partial format: Name | DOB only (e.g. MyChart Central at central.mychart.org)
   const partialRegex = /Name: (.+?) \| DOB: (\d{1,2}\/\d{1,2}\/\d{4})/;
-  const partialMatch = printheaderDiv.match(partialRegex)
+  const partialMatch = partialRegex.exec(printheaderDiv)
   if (partialMatch) {
     // Try to pick up MRN and PCP if present after DOB with different formats
-    const afterDob = printheaderDiv.slice(partialMatch.index! + partialMatch[0].length)
-    const mrnMatch = afterDob.match(/MRN:\s*(\d+)/)
-    const pcpMatch = afterDob.match(/PCP:\s*(.*)/)
+    const afterDob = printheaderDiv.slice(partialMatch.index + partialMatch[0].length)
+    const mrnMatch = /MRN:\s*(\d+)/.exec(afterDob)
+    const pcpMatch = /PCP:\s*(.*)/.exec(afterDob)
     return {
       // Both capture groups are non-optional, so they exist on any match.
       name: partialMatch[1]!.trim(),

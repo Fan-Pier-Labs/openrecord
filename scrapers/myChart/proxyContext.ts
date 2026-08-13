@@ -191,8 +191,8 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
   let match: RegExpExecArray | null;
   while ((match = scriptRegex.exec(html)) !== null) {
     const block = match[1]!; // the regex's one capture group is non-optional
-    const displayName = block.match(/displayName:"([^"]+)"/)?.[1] || '';
-    const id = block.match(/\{type:"INTERNAL",value:"([^"]+)"\}/)?.[1] || '';
+    const displayName = (/displayName:"([^"]+)"/.exec(block))?.[1] || '';
+    const id = (/\{type:"INTERNAL",value:"([^"]+)"\}/.exec(block))?.[1] || '';
     if (!displayName) continue;
     // Prefer an explicit self flag (`isSelf:!0` once minified). Falling back to
     // "has no id" is a last resort and is known to be wrong wherever the
