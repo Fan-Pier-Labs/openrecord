@@ -61,10 +61,10 @@ export async function getActivityFeed(mychartRequest: MyChartRequest): Promise<A
 
   const json: FetchItemFeedResponse = await resp.json();
 
-  const items = (json.singleItemFeedViewModels || []).flatMap((vm) => [
-    ...(vm.feedItems || []),
-    ...(vm.todayItems || []),
-    ...(vm.forYouItems || []),
+  const items = (json.singleItemFeedViewModels ?? []).flatMap((vm) => [
+    ...(vm.feedItems ?? []),
+    ...(vm.todayItems ?? []),
+    ...(vm.forYouItems ?? []),
   ]);
 
   return items.map((item: FeedItemResponse) => ({

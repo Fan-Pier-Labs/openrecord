@@ -55,7 +55,7 @@ export async function getReferrals(mychartRequest: MyChartRequest): Promise<Refe
 
   const json: ListReferralsResponse = await resp.json();
 
-  return (json.referralList || []).map((ref: ReferralResponse) => ({
+  return (json.referralList ?? []).map((ref: ReferralResponse) => ({
     internalId: ref.internalId || '',
     externalId: ref.externalId || '',
     status: ref.status || '',

@@ -58,7 +58,7 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   return {
     conversationId: json.conversationId || conversationId,
     subject: json.subject || '',
-    messages: (json.messages || []).map((msg: MessageResponse) => ({
+    messages: (json.messages ?? []).map((msg: MessageResponse) => ({
       messageId: msg.messageId || '',
       senderName: msg.senderName || '',
       sentDate: msg.sentDate || '',

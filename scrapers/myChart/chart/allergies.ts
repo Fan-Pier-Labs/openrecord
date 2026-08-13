@@ -64,7 +64,7 @@ export async function getAllergies(mychartRequest: MyChartRequest): Promise<Alle
 
   const json: LoadAllergiesResponse = await resp.json();
 
-  const allergies: Allergy[] = (json.dataList || []).map((item: AllergyDataListEntry) => ({
+  const allergies: Allergy[] = (json.dataList ?? []).map((item: AllergyDataListEntry) => ({
     name: item.allergyItem?.name || item.name || '',
     id: item.allergyItem?.id || item.id || '',
     formattedDateNoted: item.allergyItem?.formattedDateNoted || item.formattedDateNoted || '',
