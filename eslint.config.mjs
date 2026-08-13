@@ -90,6 +90,12 @@ export default [
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
       }],
+      // Companion to the rule above: when EVERY specifier is inline-`type`,
+      // `verbatimModuleSyntax` (on in all five projects) still emits a runtime
+      // `import "./x"`, keeping the module edge and its side effects alive for
+      // something that was only ever a type. Hoisting the marker to the
+      // statement drops the edge.
+      "@typescript-eslint/no-import-type-side-effects": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All
