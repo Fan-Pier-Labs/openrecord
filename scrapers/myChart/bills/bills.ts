@@ -237,5 +237,5 @@ async function test() {
 if (import.meta.main) {
   // This script is being run directly
   // We will call the main function
-  test()
+  void test()
 }
