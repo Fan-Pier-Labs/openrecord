@@ -13,6 +13,12 @@ real scraper logins against fake-mychart, the chat tool loop, history,
 settings — in seconds. The Maestro suites do full native builds (~30-45 min)
 and are run on demand.
 
+Two more kinds of Maestro flow sit at this directory's root, outside the
+deterministic `flows/` suite — see
+[android-smoke.yaml](#android-smokeyaml--the-only-flow-ci-runs-unprompted) and
+[the hand-run flows](#hand-run-flows-at-the-directory-root) below before
+touching either.
+
 > **Known issue**: Release simulator builds currently launch to a blank
 > screen — the JS bundle executes (DB init, keychain reads) but React mounts
 > no views, with no error logged. Debug builds via `expo run:ios` work. Until
@@ -81,6 +87,32 @@ aren't already listening, and leaves servers it didn't start untouched.
    always `123456`), then real passkey registration against fake-mychart
    using the on-device software authenticator.
 
+## `android-smoke.yaml` — the only flow CI runs unprompted
+
+Run by the `emulator` tier of `.github/workflows/android-smoke.yml`, by explicit path:
+
+```
+cd expo-app && maestro test e2e/android-smoke.yaml
+```
+
+**It must never be able to reach a real model.** The flow stops at the Google sign-in gate, the
+release build strips the `__DEV__` skip button that would get past it, and the workflow bakes a dead
+`EXPO_PUBLIC_BACKEND_URL`. All three layers are load-bearing — see
+[`docs/testing.md`](../../docs/testing.md#android-smoke-tests) before extending it.
+
+## Hand-run flows at the directory root
+
+`alerts.yaml`, `chat-tool-call.yaml`, `drawer.yaml`, `keyboard.yaml`, `signin.yaml`.
+
+Local development flows. They assume an already-authenticated app pointed at a running
+`fake-mychart`, and several start from the home screen rather than a cold boot, so they are not
+self-contained. `chat-tool-call.yaml` **sends a real chat message and expects a model response** —
+which is exactly why it is not, and must not become, part of the CI tier above. (The deterministic
+`flows/` suite covers the same ground against the mock AI server.)
+
+If you ever replace CI's explicit path with a glob over this directory, the hand-run flows come
+with it. Don't. The manual `Mobile E2E` workflow globs `flows/` only.
+
 ## Web-specific notes
 
 - Native modules are mapped to `src/lib/shims/*.web.ts` by `metro.config.js`
@@ -88,8 +120,8 @@ aren't already listening, and leaves servers it didn't start untouched.
   biometrics, throw-on-use crypto/google-signin).
 - Browser scraping needs CORS: fake-mychart only sends CORS headers when
   started with `FAKE_MYCHART_CORS=true` (kept off otherwise — real MyChart
-  sends none, and the fake must stay faithful). The session manager adds
-  `credentials: "include"` to scraper fetches on web so the MyChart session
+  sends none, and the fake must stay faithful). `scrapers/http.ts`'s default
+  transport adds `credentials: "include"` on web so the MyChart session
   cookie sticks cross-origin.
 - expo-router keeps stacked screens mounted-but-hidden on web; assert with
   `.filter({ visible: true })` when text exists on more than one screen.
