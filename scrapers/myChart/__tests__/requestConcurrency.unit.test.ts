@@ -13,7 +13,10 @@ import { silenceLogger, resetLogSink } from '../../../shared/logger'
  * deadlocking on redirects.
  */
 
-const tick = () => new Promise((r) => setTimeout(r, 0))
+const tick = () =>
+  new Promise((r) => {
+    setTimeout(r, 0)
+  })
 
 function deferred<T = void>() {
   let resolve!: (value: T) => void

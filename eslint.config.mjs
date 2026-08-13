@@ -126,6 +126,12 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // A promise executor's return value is discarded, so `new Promise(r =>
+      // setTimeout(r, ms))` quietly throws away a timer handle — and the same
+      // shorthand around an async call throws away the promise, leaving the
+      // rejection unhandled and the executor's own resolve never reached.
+      // Braces around the body make the discard explicit.
+      "no-promise-executor-return": "error",
     },
   },
   // bun-types declares the `.rejects`/`.resolves` matchers as returning void,
