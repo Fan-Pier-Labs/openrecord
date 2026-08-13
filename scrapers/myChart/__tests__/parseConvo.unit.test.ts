@@ -35,7 +35,7 @@ describe('parseConvo', () => {
         author: { wprKey: 'WPR1' },
       })],
     }))
-    expect(result.messages[0].message).toBe('Hello doctor, I have a question.')
+    expect(result.messages[0]!.message).toBe('Hello doctor, I have a question.')
   })
 
   it('handles plain text bodies (no HTML)', () => {
@@ -48,7 +48,7 @@ describe('parseConvo', () => {
         author: { wprKey: 'WPR1' },
       })],
     }))
-    expect(result.messages[0].message).toBe('Just plain text message')
+    expect(result.messages[0]!.message).toBe('Just plain text message')
   })
 
   it('handles complex HTML with links, lists, and divs', () => {
@@ -70,11 +70,11 @@ describe('parseConvo', () => {
         author: { empKey: 'EMP1' },
       })],
     }))
-    expect(result.messages[0].message).toContain('Dear Patient')
-    expect(result.messages[0].message).toContain('Take medication A')
-    expect(result.messages[0].message).toContain('Take medication B')
-    expect(result.messages[0].message).toContain('this link')
-    expect(result.messages[0].message).not.toContain('<')
+    expect(result.messages[0]!.message).toContain('Dear Patient')
+    expect(result.messages[0]!.message).toContain('Take medication A')
+    expect(result.messages[0]!.message).toContain('Take medication B')
+    expect(result.messages[0]!.message).toContain('this link')
+    expect(result.messages[0]!.message).not.toContain('<')
   })
 
   it('trims whitespace from extracted text', () => {
@@ -87,7 +87,7 @@ describe('parseConvo', () => {
         author: { wprKey: 'WPR1' },
       })],
     }))
-    expect(result.messages[0].message).toBe('Trimmed message')
+    expect(result.messages[0]!.message).toBe('Trimmed message')
   })
 
   it('maps provider users correctly', () => {
@@ -134,7 +134,7 @@ describe('parseConvo', () => {
         author: { wprKey: 'WPR1' },
       })],
     }))
-    expect(result.messages[0].userId).toBe('WPR1')
+    expect(result.messages[0]!.userId).toBe('WPR1')
   })
 
   it('uses empKey for provider message userId when wprKey is absent', () => {
@@ -147,7 +147,7 @@ describe('parseConvo', () => {
         author: { empKey: 'EMP1' },
       })],
     }))
-    expect(result.messages[0].userId).toBe('EMP1')
+    expect(result.messages[0]!.userId).toBe('EMP1')
   })
 
   it('prefers wprKey over empKey when both present', () => {
@@ -159,7 +159,7 @@ describe('parseConvo', () => {
         author: { wprKey: 'WPR_PREF', empKey: 'EMP_FALL' },
       })],
     }))
-    expect(result.messages[0].userId).toBe('WPR_PREF')
+    expect(result.messages[0]!.userId).toBe('WPR_PREF')
   })
 
   it('preserves conversation metadata', () => {
@@ -179,10 +179,10 @@ describe('parseConvo', () => {
       ],
     }))
     expect(result.messages).toHaveLength(3)
-    expect(result.messages[0].message).toBe('First message')
-    expect(result.messages[1].message).toBe('Second message')
-    expect(result.messages[2].message).toBe('Third message')
-    expect(result.messages[0].timestamp).toBe('2024-01-01T08:00:00Z')
+    expect(result.messages[0]!.message).toBe('First message')
+    expect(result.messages[1]!.message).toBe('Second message')
+    expect(result.messages[2]!.message).toBe('Third message')
+    expect(result.messages[0]!.timestamp).toBe('2024-01-01T08:00:00Z')
   })
 
   it('handles empty messages array', () => {
@@ -194,7 +194,7 @@ describe('parseConvo', () => {
       viewers: { v1: viewer('W', 'P') },
       messages: [message({ wmgId: 'm1', deliveryInstantISO: '2024-01-01T00:00:00Z', body: '', author: { wprKey: 'W' } })],
     }))
-    expect(result.messages[0].message).toBe('')
+    expect(result.messages[0]!.message).toBe('')
   })
 
   it('handles HTML entities in message body', () => {
@@ -207,8 +207,8 @@ describe('parseConvo', () => {
         author: { wprKey: 'W' },
       })],
     }))
-    expect(result.messages[0].message).toContain('Temperature > 100')
-    expect(result.messages[0].message).toContain('& rising')
+    expect(result.messages[0]!.message).toContain('Temperature > 100')
+    expect(result.messages[0]!.message).toContain('& rising')
   })
 
   it('handles <br> tags as whitespace', () => {
@@ -222,8 +222,8 @@ describe('parseConvo', () => {
       })],
     }))
     // cheerio $.text() joins text nodes; <br> contributes nothing
-    expect(result.messages[0].message).toContain('Line one')
-    expect(result.messages[0].message).toContain('Line two')
-    expect(result.messages[0].message).toContain('Line three')
+    expect(result.messages[0]!.message).toContain('Line one')
+    expect(result.messages[0]!.message).toContain('Line two')
+    expect(result.messages[0]!.message).toContain('Line three')
   })
 })

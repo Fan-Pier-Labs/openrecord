@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -65,7 +65,7 @@ describe('getMedicalHistory', () => {
     expect(result.surgicalHistory.surgeries).toHaveLength(1)
     expect(result.surgicalHistory.notes).toBe('No complications.')
     expect(result.familyHistory.familyMembers).toHaveLength(2)
-    expect(result.familyHistory.familyMembers[0].conditions).toEqual(['Diabetes', 'Heart Disease'])
+    expect(result.familyHistory.familyMembers[0]!.conditions).toEqual(['Diabetes', 'Heart Disease'])
   })
 
   it('filters empty/whitespace conditions', async () => {
@@ -81,7 +81,7 @@ describe('getMedicalHistory', () => {
     ])
 
     const result = await getMedicalHistory(req)
-    expect(result.familyHistory.familyMembers[0].conditions).toEqual(['Asthma', 'Diabetes'])
+    expect(result.familyHistory.familyMembers[0]!.conditions).toEqual(['Asthma', 'Diabetes'])
   })
 
   it('handles missing sections gracefully', async () => {

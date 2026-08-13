@@ -94,7 +94,7 @@ describe('capability registry against fake-mychart', () => {
         }
         const note = notes.notes[0]
         expect(note).toBeDefined()
-        return { csn, lrp_id: notes.lrpId, hno_id: note.hnoId, hno_dat: note.hnoDat }
+        return { csn, lrp_id: notes.lrpId, hno_id: note!.hnoId, hno_dat: note!.hnoDat }
       },
     },
     {
@@ -109,7 +109,7 @@ describe('capability registry against fake-mychart', () => {
           csn: string
         }>
         expect(letters.length).toBeGreaterThan(0)
-        return { hno_id: letters[0].hnoId, csn: letters[0].csn }
+        return { hno_id: letters[0]!.hnoId, csn: letters[0]!.csn }
       },
     },
   ]
@@ -137,7 +137,7 @@ describe('capability registry against fake-mychart', () => {
     })) as StudyImagePayload
 
     expect(payload.images.length).toBeGreaterThan(0)
-    expect(payload.images[0].pixelData?.length ?? 0).toBeGreaterThan(0)
+    expect(payload.images[0]!.pixelData?.length ?? 0).toBeGreaterThan(0)
   }, 60_000)
 
   it('accepts imaging_index as well as image_id, which is how the mobile app calls it', async () => {
@@ -168,7 +168,7 @@ describe('capability registry against fake-mychart', () => {
     expect(recipients.length).toBeGreaterThan(0)
 
     const result = (await executeCapability(session, 'send_message', {
-      recipient_name: recipients[0].displayName,
+      recipient_name: recipients[0]!.displayName,
       topic: 'Medical Question',
       subject: 'Capability registry test',
       message: 'Sent by the capability parity suite.',

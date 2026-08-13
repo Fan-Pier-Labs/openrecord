@@ -10,7 +10,7 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
+    return new Response(r!.body, { status: r!.status ?? 200 })
   })
   return req
 }
@@ -23,7 +23,7 @@ function mockRequestWithCapture(responses: Array<{ body: string; status?: number
   req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: url.toString(), init })
     const r = responses[i++]
-    return new Response(r.body, { status: r.status ?? 200 })
+    return new Response(r!.body, { status: r!.status ?? 200 })
   })
   return { req, calls }
 }
@@ -85,8 +85,8 @@ describe('sendReply', () => {
 
     // Verify the send request (4th call, index 3)
     const sendCall = calls[3]
-    expect(sendCall.url).toContain('/api/conversations/SendReply')
-    const sendBody = JSON.parse(sendCall.init!.body as string)
+    expect(sendCall!.url).toContain('/api/conversations/SendReply')
+    const sendBody = JSON.parse(sendCall!.init!.body as string)
     expect(sendBody.conversationId).toBe('WP-convo1')
     expect(sendBody.messageBody).toEqual(['can you find when my last appointment was'])
     expect(sendBody.viewers).toEqual([{ wprId: 'WP-wpr1' }])
@@ -97,7 +97,7 @@ describe('sendReply', () => {
 
     // Verify cleanup (5th call, index 4)
     const cleanupCall = calls[4]
-    expect(cleanupCall.url).toContain('/api/conversations/RemoveComposeId')
+    expect(cleanupCall!.url).toContain('/api/conversations/RemoveComposeId')
   })
 
   it('returns error on non-200 response', async () => {
@@ -132,7 +132,7 @@ describe('sendReply', () => {
       messageBody: 'Test reply',
     })
 
-    const sendBody = JSON.parse(calls[3].init!.body as string)
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(sendBody).not.toHaveProperty('recipient')
     expect(sendBody).not.toHaveProperty('topic')
     expect(sendBody).not.toHaveProperty('messageSubject')
@@ -159,7 +159,7 @@ describe('sendReply', () => {
       messageBody: 'Test',
     })
 
-    const sendBody = JSON.parse(calls[3].init!.body as string)
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(sendBody.viewers).toEqual([{ wprId: 'WP-self' }])
   })
 
@@ -178,10 +178,10 @@ describe('sendReply', () => {
       organizationId: 'WP-org1',
     })
 
-    const viewersBody = JSON.parse(calls[1].init!.body as string)
+    const viewersBody = JSON.parse(calls[1]!.init!.body as string)
     expect(viewersBody.organizationId).toBe('WP-org1')
 
-    const sendBody = JSON.parse(calls[3].init!.body as string)
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(sendBody.organizationId).toBe('WP-org1')
   })
 
@@ -199,7 +199,7 @@ describe('sendReply', () => {
       messageBody: 'plain text message',
     })
 
-    const sendBody = JSON.parse(calls[3].init!.body as string)
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(Array.isArray(sendBody.messageBody)).toBe(true)
     expect(sendBody.messageBody).toEqual(['plain text message'])
   })

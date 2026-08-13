@@ -222,20 +222,20 @@ for (const mode of MOUNT_MODES) {
 
       // Fake-mychart serves these in [Nov-2025, undated, Jan-2026] order.
       // The scraper must reorder them: newest first, undated tail.
-      expect(result[0].dateISO).toBe('2026-01-10T16:00:00Z')
-      expect(result[0].reason).toContain('Annual Physical')
-      expect(result[1].dateISO).toBe('2025-11-20T16:00:00Z')
-      expect(result[1].reason).toContain('ER Visit')
-      expect(result[2].dateISO).toBe('')
-      expect(result[2].reason).toContain('Sector 7G')
+      expect(result[0]!.dateISO).toBe('2026-01-10T16:00:00Z')
+      expect(result[0]!.reason).toContain('Annual Physical')
+      expect(result[1]!.dateISO).toBe('2025-11-20T16:00:00Z')
+      expect(result[1]!.reason).toContain('ER Visit')
+      expect(result[2]!.dateISO).toBe('')
+      expect(result[2]!.reason).toContain('Sector 7G')
     }, 10_000)
 
     it('getEmergencyContacts returns contacts', async () => {
       const result = await getEmergencyContacts(session)
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBeGreaterThan(0)
-      expect(result[0].name).toBe('Marge Simpson')
-      expect(result[0].id).toBeDefined()
+      expect(result[0]!.name).toBe('Marge Simpson')
+      expect(result[0]!.id).toBeDefined()
     }, 10_000)
 
     it('addEmergencyContact adds a new contact', async () => {
@@ -482,7 +482,7 @@ for (const mode of MOUNT_MODES) {
       expect(lipid!.key).toBe('RES-LIPID')
       expect(cbc!.key).toBe('RES-CBC')
 
-      const componentNames = (r: typeof cmp) => r!.results[0].resultComponents.map(c => c.componentInfo.name)
+      const componentNames = (r: typeof cmp) => r!.results[0]!.resultComponents.map(c => c.componentInfo.name)
       expect(componentNames(cmp)).toContain('Glucose')
       expect(componentNames(lipid)).toContain('Total Cholesterol')
       expect(componentNames(cbc)).toContain('Hemoglobin')
@@ -558,9 +558,9 @@ for (const mode of MOUNT_MODES) {
       expect(result.errors).toHaveLength(0)
       expect(result.images.length).toBeGreaterThan(0)
       const img = result.images[0]
-      expect(img.format).toBe('CLHAAR')
-      expect(img.pixelData).toBeDefined()
-      expect(img.pixelData!.length).toBeGreaterThan(0)
+      expect(img!.format).toBe('CLHAAR')
+      expect(img!.pixelData).toBeDefined()
+      expect(img!.pixelData!.length).toBeGreaterThan(0)
     }, 60_000)
 
     it('downloadImagingStudyDirect downloads CT multi-slice images', async () => {

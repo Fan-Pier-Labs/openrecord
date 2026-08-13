@@ -8,7 +8,7 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r.body, { status: 200 })
+    return new Response(r!.body, { status: 200 })
   })
   return req
 }
@@ -63,7 +63,7 @@ describe('getAllergies', () => {
       reaction: 'Hives',
       severity: 'Moderate',
     })
-    expect(result.allergies[1].name).toBe('Peanuts')
+    expect(result.allergies[1]!.name).toBe('Peanuts')
   })
 
   it('handles empty dataList', async () => {
@@ -97,6 +97,6 @@ describe('getAllergies', () => {
       },
     ])
     const result = await getAllergies(req)
-    expect(result.allergies[0].name).toBe('Latex')
+    expect(result.allergies[0]!.name).toBe('Latex')
   })
 })

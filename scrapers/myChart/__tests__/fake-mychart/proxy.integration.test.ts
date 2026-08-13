@@ -128,7 +128,7 @@ describe('proxy tools against fake-mychart', () => {
     // surface even when there is nothing to switch to.
     const listed = await runListProxyTargets(marge)
     expect(listed.count).toBe(1)
-    expect(listed.patients[0].is_self).toBe(true)
+    expect(listed.patients[0]!.is_self).toBe(true)
     expect(listed.message).toContain('No other patient records')
 
     await expect(assertProxyReadContext(marge)).resolves.toBeUndefined()

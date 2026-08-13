@@ -69,7 +69,7 @@ describe('getLinkedMyChartAccounts', () => {
     })
 
     const [account] = await getLinkedMyChartAccounts(req)
-    expect(account.lastEncounter).toBeNull()
+    expect(account!.lastEncounter).toBeNull()
   })
 
   it('returns an empty list when the account has no linked organizations', async () => {
@@ -91,7 +91,7 @@ describe('getLinkedMyChartAccounts', () => {
     await getLinkedMyChartAccounts(req)
 
     expect(posts).toHaveLength(1)
-    const { url, init } = posts[0]
+    const { url, init } = posts[0]!
     expect(init.method).toBe('POST')
     expect(init.body).toBe('controllerType=2&showDXROrgInMO=false')
 

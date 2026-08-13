@@ -149,8 +149,8 @@ describe('mobile app', () => {
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
-      expect(WRITE_TOOL_META[id].title.length).toBeGreaterThan(0);
-      expect(WRITE_TOOL_META[id].description.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.title.length).toBeGreaterThan(0);
+      expect(WRITE_TOOL_META[id]!.description.length).toBeGreaterThan(0);
     }
   });
 
