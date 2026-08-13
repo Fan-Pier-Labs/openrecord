@@ -360,7 +360,7 @@ All mutations persist in RAM until the server restarts.
 
 ## Login Flow
 
-The fake server replicates the exact login flow that `scrapers/myChart/login.ts` expects:
+The fake server replicates the exact login flow that `scrapers/myChart/auth/login.ts` expects:
 
 ```
 1. GET /                                    → 302 to /MyChart/ (firstPathPart = "MyChart")

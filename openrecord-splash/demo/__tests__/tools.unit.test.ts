@@ -243,8 +243,10 @@ describe('appointments', () => {
     const session = createSession();
     const slot = run(session, 'get_available_appointments')[0].slots[0];
     run(session, 'book_appointment', { slot_id: slot.slotId });
-    const dates = run(session, 'get_upcoming_visits').map((v: Result) => v.date);
-    expect([...dates].sort()).toEqual(dates);
+    const dates: string[] = run(session, 'get_upcoming_visits').map((v: Result) => v.date);
+    // Same comparator `book_appointment` re-sorts the list with. The dates are
+    // ISO `YYYY-MM-DD`, so this ordering is chronological.
+    expect([...dates].sort((a, b) => a.localeCompare(b))).toEqual(dates);
   });
 
   test('the colonoscopy alert card can actually be fulfilled', () => {

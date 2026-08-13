@@ -1,4 +1,4 @@
-import { type PasswordStoreEntryWithKey } from './types';
+import type { PasswordStoreEntryWithKey } from './types';
 
 export function getMyChartAccounts(): Promise<PasswordStoreEntryWithKey[]> {
   return Promise.resolve([]);
