@@ -85,6 +85,17 @@ interface AMF3Traits {
   members: string[];
 }
 
+/**
+ * Lenient AMF3 reader for CLO *wrapper metadata* — best-effort by design, so
+ * a truncated or partially-corrupt wrapper still yields the windowing
+ * metadata it carries (parseWrapper has a text-based fallback behind it).
+ *
+ * One of three AMF3 readers in the repo, each with different failure
+ * semantics on purpose — see the header of eunity/amf3Reader.ts (the strict
+ * production decoder for getStudyListMeta responses) before deduplicating.
+ * The third, in eunity/__tests__/imagingDirectDownload.unit.test.ts, is a
+ * deliberately independent oracle and must stay separate.
+ */
 export class AMF3Reader {
   private data: Buffer;
   private pos: number;
