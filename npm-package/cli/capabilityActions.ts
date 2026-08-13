@@ -26,6 +26,7 @@ import {
   executeCapability,
   getCapability,
   type Capability,
+  type CapabilityArgs,
   type CapabilityContext,
   type StudyImagePayload,
 } from '../../shared/capabilities';
@@ -182,9 +183,9 @@ export async function capabilityContext(
 export function coerceCapabilityArgs(
   capability: Capability,
   args: Record<string, string>,
-): Record<string, unknown> {
+): CapabilityArgs {
   const known = new Map(capability.params.map((p) => [p.name, p]));
-  const out: Record<string, unknown> = {};
+  const out: CapabilityArgs = {};
 
   for (const [name, raw] of Object.entries(args)) {
     const param = known.get(name);

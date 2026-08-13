@@ -25,13 +25,14 @@ import {
   CAPABILITY_IDS,
   executeCapability,
   getCapability,
+  type CapabilityArgs,
   type StudyImagePayload,
 } from '../../../../shared/capabilities'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
 /** Arguments for the capabilities that need one, filled in from live data. */
-type ArgSupplier = (session: MyChartRequest) => Promise<Record<string, unknown>>
+type ArgSupplier = (session: MyChartRequest) => Promise<CapabilityArgs>
 
 describe('capability registry against fake-mychart', () => {
   let session: MyChartRequest
