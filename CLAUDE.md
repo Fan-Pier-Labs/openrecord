@@ -100,9 +100,10 @@ selects on the suffix and nothing else.
 - **The expo app also has E2E suites**: Playwright against the web export on every PR
   (`expo-web-e2e`), Maestro device flows on demand (`.github/workflows/mobile-e2e.yml`).
 
-- **CI also boot-smokes the Android build**: the `android-emulator` job builds a release APK and
-  runs `expo-app/e2e/android-smoke.yaml` on an emulator. The build must never be able to reach a
-  real model — see [`docs/testing.md`](docs/testing.md#android-emulator-smoke-test).
+- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
+  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
+  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
+  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, expo unit/E2E layers, known gaps:
 [`docs/testing.md`](docs/testing.md).
