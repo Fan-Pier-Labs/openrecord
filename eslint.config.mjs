@@ -29,6 +29,20 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // Round-4 zero-violation set — enabling these required NO code changes.
+      // Each zero was canary-verified: a planted violation fires before the
+      // zero is trusted.
+      "@typescript-eslint/no-unnecessary-type-arguments": "error",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+      "@typescript-eslint/prefer-string-starts-ends-with": "error",
+      "@typescript-eslint/no-implied-eval": "error",
+      "@typescript-eslint/no-array-delete": "error",
+      "@typescript-eslint/no-duplicate-type-constituents": "error",
+      "@typescript-eslint/no-redundant-type-constituents": "error",
+      "@typescript-eslint/prefer-reduce-type-parameter": "error",
+      "@typescript-eslint/no-for-in-array": "error",
+      "@typescript-eslint/no-meaningless-void-operator": "error",
+      "@typescript-eslint/no-mixed-enums": "error",
       // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
       // semantics are preserved, and downgrades to a suggestion when the
       // expression VALUE changes (null/'' vs undefined) — those were
@@ -73,6 +87,13 @@ export default [
       // A non-primitive in a string position renders "[object Object]" — in a
       // health-data app that's garbage where a patient's data should be.
       "@typescript-eslint/no-base-to-string": "error",
+      // A void-returning call in value position (`return console.log(x)`,
+      // `const y = arr.push(v)`) reads as if it produced something; splitting
+      // it into statement + bare return/binding-free call says what actually
+      // happens. `ignoreArrowShorthand` keeps the idiomatic concise arrow
+      // `() => doVoidThing()` — wrapping every callback in braces is noise,
+      // and the void-typed context already ignores the value.
+      "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
@@ -90,12 +111,15 @@ export default [
   },
   // bun-types declares the `.rejects`/`.resolves` matchers as returning void,
   // but at runtime they return promises that MUST be awaited — so in test
-  // files await-thenable flags ~67 awaits that are all load-bearing. Off until
-  // bun-types types them as thenable.
+  // files await-thenable flags ~67 awaits that are all load-bearing, and
+  // no-confusing-void-expression flags the same `await expect(...)` sites
+  // (awaiting a "void" expression) — 80 of its 81 repo-wide hits were exactly
+  // this. Both off until bun-types types the matchers as thenable.
   {
     files: ["**/*.test.ts", "**/__tests__/**"],
     rules: {
       "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
       // Tests import dynamically on purpose: mock.module must be installed
       // before the module under test loads, and the parity suite re-imports
       // client surfaces to get fresh registrations.

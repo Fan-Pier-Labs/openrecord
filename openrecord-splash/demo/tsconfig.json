@@ -9,6 +9,8 @@
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "noUnusedLocals": true,
