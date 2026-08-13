@@ -269,6 +269,17 @@ The intermediate bitmap is also where you apply your own VOI LUT / windowing.
   hostname-only or fuzzy fallback. Ships a built-in
   **Springfield General Hospital (test)** instance pointing at `fake-mychart.fanpierlabs.com`. See
   `claude-desktop-extension/README.md`.
+  - **Updates**: sideloaded `.mcpb` files have no auto-update channel (only directory-installed
+    extensions auto-update, and the manifest spec has no update-feed field), so the extension checks
+    GitHub Releases itself. Releasing = push a `mcpb-v<version>` tag;
+    `.github/workflows/release-mcpb.yml` verifies the tag matches `manifest.json`, builds, and
+    publishes the release with `openrecord.mcpb` attached. `src/update-check.ts` polls for the
+    newest `mcpb-v*` release (≤1 live check/24h, state in `~/.openrecord-mcpb/update-check.json`,
+    failure-silent, notify-only — nothing is downloaded or executed) and hands a one-shot notice
+    appended to the next tool result so Claude relays it; the `check_for_updates` meta tool checks
+    on demand. **The version is single-sourced**: `manifest.json` is the source of truth,
+    `src/version.ts` exports it as `EXTENSION_VERSION`, `package.json` must match
+    (`version-sync.unit.test.ts`), and `bun dev-scripts/bump-mcpb-version.ts <version>` bumps both.
 - **Mobile app** (`expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the
   registry and kept free of React Native imports so tests can read it;
   `src/lib/scrapers/session-manager.ts` dispatches every one through `executeCapability`, and

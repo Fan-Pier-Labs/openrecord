@@ -1,0 +1,57 @@
+# Publishes the Claude Desktop extension as a GitHub Release.
+#
+# Sideloaded .mcpb files have no auto-update channel (Claude Desktop only
+# auto-updates directory-installed extensions), so the extension's own update
+# check (claude-desktop-extension/src/update-check.ts) looks for GitHub
+# releases tagged `mcpb-v*` — this workflow is what creates them, with
+# openrecord.mcpb attached as the download the update notice points at.
+#
+# To cut a release:
+#   1. bun dev-scripts/bump-mcpb-version.ts 0.2.0   # syncs manifest.json + package.json
+#   2. Land that change on main via a PR.
+#   3. git tag mcpb-v0.2.0 && git push origin mcpb-v0.2.0
+name: Release MCPB
+
+on:
+  push:
+    tags: ['mcpb-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release openrecord.mcpb
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The tag names the release the update checker will see; the manifest
+      # names the version the installed extension reports. If they disagree,
+      # every install from this release would immediately claim an update
+      # exists (or never see one), so a mismatch fails the release.
+      - name: Verify tag matches manifest version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#mcpb-v}"
+          MANIFEST_VERSION=$(node -p "require('./claude-desktop-extension/manifest.json').version")
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest.json version $MANIFEST_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Build extension
+        run: cd claude-desktop-extension && bun install && bun run pack
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            claude-desktop-extension/openrecord.mcpb \
+            --title "OpenRecord Claude Desktop extension v${GITHUB_REF_NAME#mcpb-v}" \
+            --notes "Download **openrecord.mcpb** below and open it to install — or to upgrade an existing install in place (saved accounts, passkeys and sessions are kept). Installed copies notice this release within a day and tell you in-chat; \`check_for_updates\` checks immediately."

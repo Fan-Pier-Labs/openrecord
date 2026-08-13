@@ -15,6 +15,33 @@ bun run pack          # builds dist/server.cjs and produces openrecord.mcpb
 
 Then double-click `openrecord.mcpb` (or drag it into Claude Desktop → Settings → Extensions).
 
+## Updates
+
+Sideloaded `.mcpb` extensions have no auto-update channel — Claude Desktop only
+auto-updates extensions installed from the Anthropic directory, and the manifest
+spec has no update-feed field. So this extension checks for updates itself:
+
+- **Releasing**: pushing a `mcpb-v<version>` tag runs
+  `.github/workflows/release-mcpb.yml`, which verifies the tag matches
+  `manifest.json`, builds the bundle, and publishes a GitHub Release with
+  `openrecord.mcpb` attached. Bump the version first with
+  `bun dev-scripts/bump-mcpb-version.ts <version>` (syncs `manifest.json` +
+  `package.json`; `version-sync.unit.test.ts` fails the build if they drift).
+- **Noticing**: on startup the server checks the repo's GitHub Releases for the
+  newest `mcpb-v*` tag (at most one live check per 24h, state in
+  `~/.openrecord-mcpb/update-check.json`). When a newer release exists, a
+  one-line notice is appended to the next tool result, so Claude tells the user
+  where to download the new bundle. The `check_for_updates` tool does an
+  immediate, throttle-free check on demand.
+- **Installing an update**: download the new `openrecord.mcpb` and open it —
+  Claude Desktop upgrades the extension in place. Credentials, passkeys and
+  sessions live in `~/.openrecord-mcpb/`, outside the bundle, so they survive
+  every upgrade (and uninstall/reinstall too).
+
+The check is deliberately failure-silent: no network, a rate-limited API, or a
+garbage response all degrade to "no notice" — an update check must never break
+a health-data tool call.
+
 ## Use
 
 After installing, open a new Claude chat and say:
