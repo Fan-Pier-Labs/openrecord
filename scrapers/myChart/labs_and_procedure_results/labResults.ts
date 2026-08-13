@@ -1,4 +1,4 @@
-import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
+import { makeAuthenticatedRequest, SessionExpiredError } from '../makeAuthenticatedRequest';
 import { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
 import { LabResultsList } from "./labtypes";
 import { login_TEST } from "../login";
@@ -111,42 +111,63 @@ export async function listLabResults(mychartRequest: MyChartRequest): Promise<La
 
   // Fetch all group types (0-3) to capture all test results including blood panels
   for (const groupType of [0, 1, 2, 3]) {
-    try {
-      const messages = await makeAuthenticatedRequest(mychartRequest, {
-        path: '/api/test-results/GetList',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          '__RequestVerificationToken': requestVerificationToken,
-        },
-        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
-        method: 'POST',
-      });
+    const out = await fetchResultGroupList(mychartRequest, groupType, requestVerificationToken);
+    if (!out) continue;
 
-      if (!messages.ok) continue;
+    // Outside the swallow: these are results the instance says exist, so a
+    // failure here would return a short list indistinguishable from a
+    // complete one — "you have 39 results" when you have 60.
+    for (const newResultGroup of out.newResultGroups || []) {
+      if (seenKeys.has(newResultGroup.key)) continue;
+      seenKeys.add(newResultGroup.key);
 
-      const out = await messages.json() as LabResultsList;
+      const labResult: LabTestResultWithHistory = await getLabResult(mychartRequest, newResultGroup.key, requestVerificationToken);
+      logger.debug('got detail back:', labResult.orderName)
 
-      for (const newResultGroup of out.newResultGroups || []) {
-        if (seenKeys.has(newResultGroup.key)) continue;
-        seenKeys.add(newResultGroup.key);
-
-        const labResult: LabTestResultWithHistory = await getLabResult(mychartRequest, newResultGroup.key, requestVerificationToken);
-        logger.debug('got detail back:', labResult.orderName)
-
-        // Fetch historical trend data for this order
-        const history = await getHistoricalResults(mychartRequest, newResultGroup.key, requestVerificationToken);
-        if (history) {
-          labResult.historicalResults = history;
-        }
-
-        allresults.push(labResult)
+      // Fetch historical trend data for this order
+      const history = await getHistoricalResults(mychartRequest, newResultGroup.key, requestVerificationToken);
+      if (history) {
+        labResult.historicalResults = history;
       }
-    } catch {
-      // Some group types may not be supported by this MyChart instance
+
+      allresults.push(labResult)
     }
   }
 
   return allresults;
+}
+
+/**
+ * One `/api/test-results/GetList` page, or null when this instance does not
+ * serve that group type. Group types 0-3 are probed speculatively, so a
+ * failure here is expected — which is why it is the ONLY failure swallowed on
+ * this path. A `SessionExpiredError` still propagates: reporting a dead
+ * session as "unsupported group type" turns it into an empty chart.
+ */
+async function fetchResultGroupList(
+  mychartRequest: MyChartRequest,
+  groupType: number,
+  requestVerificationToken: string,
+): Promise<LabResultsList | null> {
+  try {
+    const resp = await makeAuthenticatedRequest(mychartRequest, {
+      path: '/api/test-results/GetList',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        '__RequestVerificationToken': requestVerificationToken,
+      },
+      body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
+      method: 'POST',
+    });
+
+    if (!resp.ok) return null;
+
+    return await resp.json() as LabResultsList;
+  } catch (err) {
+    if (err instanceof SessionExpiredError) throw err;
+    logger.debug(`test-results GetList failed for groupType ${groupType}:`, (err as Error).message);
+    return null;
+  }
 }
 
 
@@ -163,115 +184,101 @@ export async function getImagingResults(mychartRequest: MyChartRequest, options?
   const seenKeys = new Set<string>();
 
   for (const groupType of [0, 1, 2, 3]) {
-    try {
-      const resp = await makeAuthenticatedRequest(mychartRequest, {
-        path: '/api/test-results/GetList',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          '__RequestVerificationToken': requestVerificationToken,
-        },
-        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
-        method: 'POST',
-      });
+    const out = await fetchResultGroupList(mychartRequest, groupType, requestVerificationToken);
+    if (!out) continue;
 
-      if (!resp.ok) continue;
+    // Outside the swallow, as in listLabResults.
+    for (const resultGroup of out.newResultGroups || []) {
+      if (seenKeys.has(resultGroup.key)) continue;
+      seenKeys.add(resultGroup.key);
 
-      const out = await resp.json() as LabResultsList;
+      const labResult = await getLabResult(mychartRequest, resultGroup.key, requestVerificationToken);
 
-      for (const resultGroup of out.newResultGroups || []) {
-        if (seenKeys.has(resultGroup.key)) continue;
-        seenKeys.add(resultGroup.key);
+      // Check if this result has imaging content (structured data or keyword match)
+      const nameLower = labResult.orderName?.toLowerCase() ?? '';
+      const isImagingByName =
+        nameLower.includes('x-ray') || nameLower.includes('xray') || nameLower.includes('xr ') ||
+        nameLower.includes('mri') || nameLower.includes('ct ') || nameLower.includes('ct,') ||
+        nameLower.includes('imaging') || nameLower.includes('radiology') ||
+        nameLower.includes('ultrasound') || nameLower.includes('fluoroscop') ||
+        nameLower.includes('arthrogram') || nameLower.includes('mammogram') ||
+        nameLower.includes('oct,') || nameLower.includes('oct ') ||
+        nameLower.includes('pathology') || nameLower.includes('excision');
+      const hasImagingData = labResult.results?.some(r =>
+        (r.imageStudies && r.imageStudies.length > 0) ||
+        (r.scans && r.scans.length > 0) ||
+        r.studyResult?.narrative?.hasContent ||
+        r.studyResult?.impression?.hasContent ||
+        r.reportDetails?.reportID
+      );
+      const hasImaging = isImagingByName || hasImagingData;
 
-        const labResult = await getLabResult(mychartRequest, resultGroup.key, requestVerificationToken);
+      if (hasImaging) {
+        const imagingResult: ImagingResult = { ...labResult };
 
-        // Check if this result has imaging content (structured data or keyword match)
-        const nameLower = labResult.orderName?.toLowerCase() ?? '';
-        const isImagingByName =
-          nameLower.includes('x-ray') || nameLower.includes('xray') || nameLower.includes('xr ') ||
-          nameLower.includes('mri') || nameLower.includes('ct ') || nameLower.includes('ct,') ||
-          nameLower.includes('imaging') || nameLower.includes('radiology') ||
-          nameLower.includes('ultrasound') || nameLower.includes('fluoroscop') ||
-          nameLower.includes('arthrogram') || nameLower.includes('mammogram') ||
-          nameLower.includes('oct,') || nameLower.includes('oct ') ||
-          nameLower.includes('pathology') || nameLower.includes('excision');
-        const hasImagingData = labResult.results?.some(r =>
-          (r.imageStudies && r.imageStudies.length > 0) ||
-          (r.scans && r.scans.length > 0) ||
-          r.studyResult?.narrative?.hasContent ||
-          r.studyResult?.impression?.hasContent ||
-          r.reportDetails?.reportID
-        );
-        const hasImaging = isImagingByName || hasImagingData;
-
-        if (hasImaging) {
-          const imagingResult: ImagingResult = { ...labResult };
-
-          // Extract report text from narrative + impression
-          const reportParts: string[] = [];
-          const narrativeParts: string[] = [];
-          const impressionParts: string[] = [];
-          for (const r of labResult.results ?? []) {
-            if (r.studyResult?.narrative?.hasContent) {
-              reportParts.push(r.studyResult.narrative.contentAsString);
-              narrativeParts.push(r.studyResult.narrative.contentAsString);
-            }
-            if (r.studyResult?.impression?.hasContent) {
-              reportParts.push('IMPRESSION: ' + r.studyResult.impression.contentAsString);
-              impressionParts.push(r.studyResult.impression.contentAsString);
-            }
+        // Extract report text from narrative + impression
+        const reportParts: string[] = [];
+        const narrativeParts: string[] = [];
+        const impressionParts: string[] = [];
+        for (const r of labResult.results ?? []) {
+          if (r.studyResult?.narrative?.hasContent) {
+            reportParts.push(r.studyResult.narrative.contentAsString);
+            narrativeParts.push(r.studyResult.narrative.contentAsString);
           }
-          if (reportParts.length > 0) {
-            imagingResult.reportText = reportParts.join('\n\n');
+          if (r.studyResult?.impression?.hasContent) {
+            reportParts.push('IMPRESSION: ' + r.studyResult.impression.contentAsString);
+            impressionParts.push(r.studyResult.impression.contentAsString);
           }
-          if (narrativeParts.length > 0) {
-            imagingResult.narrative = narrativeParts.join('\n\n');
-          }
-          if (impressionParts.length > 0) {
-            imagingResult.impression = impressionParts.join('\n\n');
-          }
+        }
+        if (reportParts.length > 0) {
+          imagingResult.reportText = reportParts.join('\n\n');
+        }
+        if (narrativeParts.length > 0) {
+          imagingResult.narrative = narrativeParts.join('\n\n');
+        }
+        if (impressionParts.length > 0) {
+          imagingResult.impression = impressionParts.join('\n\n');
+        }
 
-          // Extract provider and date from first result
-          const firstResult = labResult.results?.[0];
-          if (firstResult?.orderMetadata) {
-            imagingResult.resultDate = firstResult.orderMetadata.resultTimestampDisplay || '';
-            imagingResult.orderProvider = firstResult.orderMetadata.orderProviderName || '';
-          }
+        // Extract provider and date from first result
+        const firstResult = labResult.results?.[0];
+        if (firstResult?.orderMetadata) {
+          imagingResult.resultDate = firstResult.orderMetadata.resultTimestampDisplay || '';
+          imagingResult.orderProvider = firstResult.orderMetadata.orderProviderName || '';
+        }
 
-          // Extract FDI context from report content HTML (for image viewer access)
-          for (const r of labResult.results ?? []) {
-            if (r.reportDetails?.reportContent?.reportContent) {
-              const fdi = extractFdiContext(r.reportDetails.reportContent.reportContent);
-              if (fdi) {
-                imagingResult.fdiContext = fdi;
+        // Extract FDI context from report content HTML (for image viewer access)
+        for (const r of labResult.results ?? []) {
+          if (r.reportDetails?.reportContent?.reportContent) {
+            const fdi = extractFdiContext(r.reportDetails.reportContent.reportContent);
+            if (fdi) {
+              imagingResult.fdiContext = fdi;
 
-                // Get the SAML URL for the image viewer
-                try {
-                  const session = await getImageViewerSamlUrl(mychartRequest, fdi);
-                  if (session) {
-                    imagingResult.samlUrl = session.samlUrl;
+              // Get the SAML URL for the image viewer
+              try {
+                const session = await getImageViewerSamlUrl(mychartRequest, fdi);
+                if (session) {
+                  imagingResult.samlUrl = session.samlUrl;
 
-                    // Optionally follow the SAML chain to get the eUnity viewer URL
-                    if (options?.followSaml) {
-                      const viewerSession = await followSamlChain(mychartRequest, session.samlUrl);
-                      if (viewerSession) {
-                        imagingResult.viewerUrl = viewerSession.viewerUrl;
-                      }
+                  // Optionally follow the SAML chain to get the eUnity viewer URL
+                  if (options?.followSaml) {
+                    const viewerSession = await followSamlChain(mychartRequest, session.samlUrl);
+                    if (viewerSession) {
+                      imagingResult.viewerUrl = viewerSession.viewerUrl;
                     }
                   }
-                } catch (err) {
-                  logger.debug('Error getting viewer URL:', (err as Error).message);
                 }
-
-                break; // Only need FDI from one result
+              } catch (err) {
+                logger.debug('Error getting viewer URL:', (err as Error).message);
               }
+
+              break; // Only need FDI from one result
             }
           }
-
-          allResults.push(imagingResult);
         }
+
+        allResults.push(imagingResult);
       }
-    } catch {
-      // Some group types may not be supported by this MyChart instance
     }
   }
 
