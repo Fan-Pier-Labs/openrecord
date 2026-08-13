@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
+import { type MyChartRequest } from "../core/myChartRequest";
 import * as cheerio from 'cheerio';
 
 export type PreventiveCareItem = {

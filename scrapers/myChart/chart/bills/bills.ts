@@ -1,12 +1,12 @@
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../../core/myChartRequest";
+import { type MyChartRequest } from "../../core/myChartRequest";
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
 import { date2dte } from "./utils";
 // import '../../../util'
-import type { BillingAccount, BillingDetails, BillingVisit, PaymentListResponse, StatementItem, StatementListResponse } from "./types";
+import { type BillingAccount, type BillingDetails, type BillingVisit, type PaymentListResponse, type StatementItem, type StatementListResponse } from "./types";
 import { mkdirp } from 'mkdirp';
 import { logger } from '../../../../shared/logger';
 

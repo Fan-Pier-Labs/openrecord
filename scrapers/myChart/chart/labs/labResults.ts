@@ -1,7 +1,7 @@
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
-import type { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
-import type { LabResultsList } from "./labtypes";
-import type { MyChartRequest } from "../../core/myChartRequest";
+import { type HistoricalResultsResponse, type ImagingResult, type LabTestResult, type LabTestResultWithHistory, type ReportContent, type ReportDetails } from "./labtestresulttype";
+import { type LabResultsList } from "./labtypes";
+import { type MyChartRequest } from "../../core/myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../../core/util";
 import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../../eunity/imagingViewer";
 import { logger } from '../../../../shared/logger';

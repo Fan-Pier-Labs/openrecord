@@ -14,7 +14,7 @@
  *   stop();
  */
 
-import type { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { renewMyChartSession } from './sessionRenewal';
 import { logger } from '../../../shared/logger';
 

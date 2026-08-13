@@ -1,6 +1,5 @@
 import { CookieJar } from 'tough-cookie'
-import fs from 'fs';
-import type { RequestConfig } from './types';
+import { type RequestConfig } from './types';
 import { logger } from '../../../shared/logger';
 import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../../http';
 
@@ -201,30 +200,6 @@ export class MyChartRequest {
     this.firstPathPart = other.firstPathPart;
   }
 
-
-  // Save the current state of the cookie jar to a JSON file.
-  // Only used for local testing.
-  public async saveCookies_TEST(filePath: string): Promise<void> {
-    const serializedJar = this.cookieJar.serializeSync();
-    await fs.promises.writeFile(filePath, JSON.stringify(serializedJar, null, 2));
-  }
-
-  // Load cookies from a JSON file into the cookie jar.
-  // Only used for local testing.
-  public async loadCookies_TEST(filePath: string): Promise<void> {
-    let data;
-    try {
-      data = await fs.promises.readFile(filePath, 'utf8');
-    }
-    catch (e) {
-      logger.debug('Error loading cookies:', e);
-      return
-    }
-    const serializedJar = JSON.parse(data);
-
-    // Deserialize into a new CookieJar instance
-    this.cookieJar = CookieJar.deserializeSync(serializedJar);
-  }
 
   // Make a request with the given config.
   // Returns the raw response object.

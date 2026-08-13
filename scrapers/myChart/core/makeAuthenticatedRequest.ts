@@ -26,8 +26,8 @@
  * promise.
  */
 
-import type { MyChartRequest } from './myChartRequest';
-import type { RequestConfig } from './types';
+import { type MyChartRequest } from './myChartRequest';
+import { type RequestConfig } from './types';
 import { looksLikeSignedOutPage } from '../auth/login';
 import { sessionStore } from './sessionStore';
 import { renewMyChartSession } from './sessionRenewal';

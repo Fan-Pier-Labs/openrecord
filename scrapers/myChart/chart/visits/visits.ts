@@ -1,7 +1,7 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../../core/myChartRequest";
+import { type MyChartRequest } from "../../core/myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../../core/util";
-import type { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
+import { type PastVisitsContainer, type Visit, type VisitListContainer, type VisitsScrapeError } from "./types";
 import { logger } from '../../../../shared/logger';
 
 

@@ -12,7 +12,7 @@
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from '../../core/myChartRequest';
+import { type MyChartRequest } from '../../core/myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../../core/util';
 
 export type MessageRecipient = {

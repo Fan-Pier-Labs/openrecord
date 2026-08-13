@@ -1,4 +1,4 @@
-import type { MyChartRequest } from "../core/myChartRequest";
+import { type MyChartRequest } from "../core/myChartRequest";
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from "../core/makeAuthenticatedRequest";
 import { getRequestVerificationTokenFromBody } from "../core/util";
 import * as cheerio from 'cheerio';
