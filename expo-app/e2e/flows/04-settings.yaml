@@ -24,7 +24,7 @@ appId: com.fanpierlabs.openrecord
 - assertVisible: "homer"
 # Backend session written by the E2E onboarding skip.
 - assertVisible: "dev@openrecord.local"
-# Spend info comes from the mock AI server's GET /api/ai.
+# Spend info comes from the mock AI server's spend GET.
 - assertVisible: '.*\$1\.23 of \$50\.00.*'
 - assertVisible: "Free tier"
 # AI provider sub-screen.

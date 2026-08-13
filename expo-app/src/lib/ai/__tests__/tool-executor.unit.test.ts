@@ -78,7 +78,8 @@ describe("write tools", () => {
     const result = await executeLocalTool("send_message", input);
 
     expect(alertCalls).toHaveLength(1);
-    expect(alertCalls[0].title).toBe("Confirm: Send Message");
+    // The title comes from the capability registry entry's `title`.
+    expect(alertCalls[0].title).toBe("Confirm: Send a message");
     // The exact payload is shown to the user — minus the instance plumbing.
     expect(alertCalls[0].message).toContain("Please send an itemized statement.");
     expect(alertCalls[0].message).not.toContain("localhost:4000");

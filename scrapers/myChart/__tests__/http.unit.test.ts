@@ -337,6 +337,39 @@ describe('scraperFetch', () => {
 
       expect(seenUserAgent).toBe(BROWSER_HEADERS['User-Agent'])
     })
+
+    it('opts into credentials in a web browser, and stays silent everywhere else', async () => {
+      // In the Expo web export the browser owns the cookie store, but a
+      // cross-origin fetch only sends and stores cookies with
+      // credentials: 'include' — without it the MyChart session cookie is
+      // silently dropped and every post-login request arrives signed out.
+      const realFetch = globalThis.fetch
+      const seen: RequestInit[] = []
+      globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+        seen.push(init ?? {})
+        return new Response('ok', { status: 200 })
+      }) as typeof globalThis.fetch
+
+      const g = globalThis as { document?: unknown; window?: unknown }
+      const hadDocument = 'document' in g
+      const hadWindow = 'window' in g
+
+      try {
+        // Not a browser (no DOM): no credentials mode is forced.
+        await platformFetch('https://mychart.example.org/Home', {})
+        expect(seen[0].credentials).toBeUndefined()
+
+        // Simulate the web export's environment: DOM globals present.
+        g.document = {}
+        g.window = g.window ?? {}
+        await platformFetch('https://mychart.example.org/Home', {})
+        expect(seen[1].credentials).toBe('include')
+      } finally {
+        globalThis.fetch = realFetch
+        if (!hadDocument) delete g.document
+        if (!hadWindow) delete g.window
+      }
+    })
   })
 })
 

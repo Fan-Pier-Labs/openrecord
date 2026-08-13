@@ -32,11 +32,15 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
   // sessions can walk the rest of the onboarding flow without an OAuth
   // round-trip. Stripped from production bundles by the DEV_OR_E2E gate.
   // E2E builds also get a fake backend session so the free-tier AI path
-  // works against the mock AI server the test run points the app at.
+  // works against the mock AI server the test run points the app at. The
+  // token must be a decodable JWT with a far-future exp — getFreshIdToken
+  // treats anything else as expired and tries a silent Google re-sign-in,
+  // which cannot succeed in a test build.
   async function handleDevSkip() {
     if (IS_E2E) {
       await setBackendSession({
-        token: "e2e-test-token",
+        idToken:
+          "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJlMmUtdXNlciIsImVtYWlsIjoiZGV2QG9wZW5yZWNvcmQubG9jYWwiLCJuYW1lIjoiRTJFIFRlc3RlciIsImV4cCI6NDEwMjQ0NDgwMH0.e2e",
         user: { id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" },
       });
     }

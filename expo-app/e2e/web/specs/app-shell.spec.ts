@@ -10,8 +10,13 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     // Mirror what onboarding writes (secure-store.web prefixes with secure_).
+    // The token must be a decodable JWT with a far-future exp, or
+    // getFreshIdToken treats it as expired and the free-tier AI path bails.
     localStorage.setItem("secure_setup_complete", "true");
-    localStorage.setItem("secure_backend_session_token", "e2e-test-token");
+    localStorage.setItem(
+      "secure_google_id_token",
+      "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJlMmUtdXNlciIsImVtYWlsIjoiZGV2QG9wZW5yZWNvcmQubG9jYWwiLCJuYW1lIjoiRTJFIFRlc3RlciIsImV4cCI6NDEwMjQ0NDgwMH0.e2e",
+    );
     localStorage.setItem(
       "secure_backend_user",
       JSON.stringify({ id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" }),
@@ -81,9 +86,9 @@ test("settings show the backend session and AI spend from the mock server", asyn
   await expect(page.getByText("MyChart Accounts")).toBeVisible();
   await expect(page.getByText("No accounts added yet.")).toBeVisible();
   await expect(page.getByText("dev@openrecord.local")).toBeVisible();
-  // GET /api/ai on the mock server reports $1.23 of $50.00.
+  // The mock server's spend GET reports $1.23 of $50.00.
   await expect(page.getByText(/\$1\.23 of \$50\.00/)).toBeVisible();
-  await expect(page.getByText("Free tier")).toBeVisible();
+  await expect(page.getByTestId("settings-ai-provider").getByText("Free tier")).toBeVisible();
 
   // AI provider sub-screen and back. (Stacked screens stay mounted but
   // hidden on web, so assert on content unique to the AI screen and use

@@ -1,5 +1,5 @@
 /**
- * Deterministic mock of the backend AI endpoint (POST /api/ai) for E2E runs.
+ * Deterministic mock of the backend AI Lambda (POST /) for E2E runs.
  *
  * E2E builds are exported with EXPO_PUBLIC_BACKEND_URL pointing here and a
  * fake backend session token (set by the onboarding E2E skip), so the app's
@@ -113,7 +113,9 @@ const server = Bun.serve({
       return Response.json({ status: "ok" }, { headers: cors });
     }
 
-    if (url.pathname === "/api/ai") {
+    // The real Lambda serves both the completion POST and the spend GET at
+    // the root of its API-gateway URL (see openrecord-demo-lambda/README.md).
+    if (url.pathname === "/") {
       const auth = request.headers.get("authorization") ?? "";
       if (!auth.startsWith("Bearer ")) {
         return Response.json({ error: "unauthorized" }, { status: 401, headers: cors });
@@ -133,11 +135,12 @@ const server = Bun.serve({
 
       if (request.method === "POST") {
         const body = (await request.json()) as AiRequest;
-        const content = completeChat(body);
+        const text = completeChat(body);
         console.log(
-          `[mock-ai] ${body.messages.length} msg(s) → ${content.slice(0, 100)}`,
+          `[mock-ai] ${body.messages.length} msg(s) → ${text.slice(0, 100)}`,
         );
-        return Response.json({ content }, { headers: cors });
+        // Contract: { system, messages, model? } → { text }.
+        return Response.json({ text }, { headers: cors });
       }
     }
 

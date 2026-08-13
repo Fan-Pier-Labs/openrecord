@@ -11,15 +11,32 @@ mock.module("expo-constants", () => ({
   default: { expoConfig: { extra: { backendUrl: "http://localhost:9999" } } },
 }));
 
+/** Provider under test; individual tests flip it to exercise other completers. */
+let activeProvider = "gemini";
+
 mock.module("@/lib/storage/secure-store", () => ({
-  getAiProvider: async () => "gemini",
+  getAiProvider: async () => activeProvider,
   getGeminiApiKey: async () => "test-key",
   getOpenAiApiKey: async () => null,
   getClaudeApiKey: async () => null,
 }));
 
+// AI is gated behind Google sign-in for every provider (BYO keys included),
+// so the scripted runs need a signed-in session even though the Gemini key
+// path never sends the token anywhere.
 mock.module("@/lib/backend/session", () => ({
-  getBackendSession: async () => null,
+  getBackendSession: async () => ({
+    idToken: "test-id-token",
+    user: { id: "test-user", email: "test@example.com" },
+  }),
+}));
+
+// claude-client imports getFreshIdToken, whose real module pulls in
+// @react-native-google-signin (and with it react-native, which bun can't
+// parse). The BYO-key paths never send the token; the free-tier path
+// attaches it as the Bearer credential.
+mock.module("@/lib/backend/google-signin", () => ({
+  getFreshIdToken: async () => "fresh-id-token",
 }));
 
 const { sendMessage, oneShotComplete } = await import("@/lib/ai/claude-client");
@@ -45,6 +62,7 @@ function geminiFetchStub(): typeof fetch {
 }
 
 beforeEach(() => {
+  activeProvider = "gemini";
   modelTurns = [];
   requests = [];
   globalThis.fetch = geminiFetchStub();
@@ -287,5 +305,56 @@ describe("oneShotComplete", () => {
     // Mini tier picks the cheap Gemini model.
     const url = "gemini-2.5-flash-lite";
     void url; // model is encoded in the URL, which the stub ignores
+  });
+});
+
+describe("free tier — the backend completer", () => {
+  // Contract with the AI Lambda: POST { system, messages, model? } with the
+  // Google ID token as Bearer auth → { text }.
+  test("POSTs to the Lambda with the ID token and returns its text", async () => {
+    activeProvider = "free";
+    let seenUrl = "";
+    let seenAuth = "";
+    let seenBody: { system?: string; messages?: unknown; model?: string } = {};
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      seenUrl = url.toString();
+      seenAuth = new Headers(init?.headers).get("Authorization") ?? "";
+      seenBody = JSON.parse((init?.body as string) ?? "{}");
+      return new Response(JSON.stringify({ text: "from the lambda" }), { status: 200 });
+    }) as typeof fetch;
+
+    const out = await oneShotComplete(
+      [{ role: "user", content: "hi" }],
+      "You are a test.",
+    );
+
+    expect(out).toBe("from the lambda");
+    expect(seenUrl).toBe("http://localhost:9999");
+    expect(seenAuth).toBe("Bearer fresh-id-token");
+    expect(seenBody.system).toBe("You are a test.");
+    expect(seenBody.model).toBe("gemini-2.5-flash");
+    expect(seenBody.messages).toEqual([{ role: "user", content: "hi" }]);
+  });
+
+  test("a 401 reads as an expired sign-in, a 402 as used-up credit", async () => {
+    activeProvider = "free";
+    for (const [status, needle] of [
+      [401, "sign-in expired"],
+      [402, "monthly AI credit is used up"],
+    ] as const) {
+      globalThis.fetch = (async () => new Response("", { status })) as typeof fetch;
+      await expect(
+        oneShotComplete([{ role: "user", content: "hi" }], "sys"),
+      ).rejects.toThrow(needle);
+    }
+  });
+
+  test("other upstream failures surface the status and body", async () => {
+    activeProvider = "free";
+    globalThis.fetch = (async () =>
+      new Response("boom", { status: 500 })) as typeof fetch;
+    await expect(
+      oneShotComplete([{ role: "user", content: "hi" }], "sys"),
+    ).rejects.toThrow("Backend AI error 500: boom");
   });
 });
