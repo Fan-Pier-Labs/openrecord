@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import { type MyChartRequest } from '../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../core/util';
+import { fetchSessionCsrfToken } from '../core/csrf';
 import {
   createCredential,
   type MyChartCreationOptions,
@@ -12,68 +12,6 @@ import { logger } from '../../../shared/logger';
 // these endpoints carry WebAuthn challenges, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-}
-
-/**
- * Get a CSRF token required for MyChart API endpoints.
- *
- * The /Home/CSRFToken endpoint returns different formats across instances:
- *   - JSON: { "Token": "..." }
- *   - Plain string: just the token value
- *   - HTML page with a hidden __RequestVerificationToken input
- *   - Empty body (e.g. Denver Health)
- *
- * If the endpoint returns empty, falls back to extracting the token
- * from the /Home page HTML.
- */
-async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/Home/CSRFToken?noCache=' + Math.random(),
-  });
-  logger.debug('  CSRFToken response status:', res.status);
-  const body = await res.text();
-  if (body.toLowerCase().includes('termsconditions') || body.toLowerCase().includes('terms and conditions')) {
-    logger.debug('  CSRF token request landed on Terms & Conditions page');
-    return null;
-  }
-  // Try JSON format: { "Token": "..." } or { "token": "..." }
-  const trimmed = body.trim();
-  if (trimmed.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      const token = parsed.Token ?? parsed.token ?? parsed.RequestVerificationToken ?? parsed.requestVerificationToken;
-      if (token) {
-        logger.debug('  Got CSRF token from JSON response');
-        return token;
-      }
-    } catch {
-      // not valid JSON, fall through
-    }
-  }
-  // Try plain string (the entire response body is the token)
-  if (trimmed && !trimmed.includes('<') && trimmed.length > 10) {
-    logger.debug('  Got CSRF token as plain string');
-    return trimmed;
-  }
-  // Try HTML hidden input
-  const token = getRequestVerificationTokenFromBody(body);
-  if (token) return token;
-
-  // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
-  logger.debug('  CSRFToken endpoint returned no token (length:', body.length, '), trying /Home page fallback');
-  try {
-    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
-    const homeBody = await homeRes.text();
-    const homeToken = getRequestVerificationTokenFromBody(homeBody);
-    if (homeToken) {
-      logger.debug('  Got CSRF token from /Home page fallback');
-      return homeToken;
-    }
-    logger.debug('  Could not extract CSRF token from /Home page either');
-  } catch (err) {
-    logger.debug('  /Home page fallback failed:', err);
-  }
-  return null;
 }
 
 /**
@@ -91,7 +29,7 @@ async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | nu
 export async function setupPasskey(mychartRequest: MyChartRequest): Promise<PasskeyCredential | null> {
 
   // Get CSRF token for API requests
-  const csrfToken = await getCSRFToken(mychartRequest);
+  const csrfToken = await fetchSessionCsrfToken(mychartRequest);
   if (!csrfToken) {
     logger.debug('  Could not get CSRF token.');
     return null;
@@ -181,7 +119,7 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
  * List passkeys registered on a MyChart account.
  */
 export async function listPasskeys(mychartRequest: MyChartRequest): Promise<unknown[] | null> {
-  const csrfToken = await getCSRFToken(mychartRequest);
+  const csrfToken = await fetchSessionCsrfToken(mychartRequest);
   if (!csrfToken) return null;
 
   const origin = `${mychartRequest.protocol}://${mychartRequest.hostname}`;
@@ -216,7 +154,7 @@ export async function listPasskeys(mychartRequest: MyChartRequest): Promise<unkn
  * Delete a passkey from a MyChart account.
  */
 export async function deletePasskey(mychartRequest: MyChartRequest, rawId: string): Promise<boolean> {
-  const csrfToken = await getCSRFToken(mychartRequest);
+  const csrfToken = await fetchSessionCsrfToken(mychartRequest);
   if (!csrfToken) return false;
 
   const origin = `${mychartRequest.protocol}://${mychartRequest.hostname}`;
