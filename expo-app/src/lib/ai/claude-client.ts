@@ -396,7 +396,7 @@ export async function sendMessage(
 
     // `respond` terminates the loop and surfaces text to the user.
     if (calls.length === 1 && calls[0].tool === RESPOND_TOOL) {
-      const text = typeof calls[0].args.text === "string" ? (calls[0].args.text as string) : "";
+      const text = typeof calls[0].args.text === "string" ? (calls[0].args.text) : "";
       let finalText = text;
       for (const id of pendingImageIds) {
         if (!finalText.includes(`[image:${id}]`)) {

@@ -166,7 +166,7 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
   }
-  return parsed as CliArgs;
+  return parsed;
 }
 
 const cliArgs = parseArgs();

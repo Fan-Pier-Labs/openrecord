@@ -126,7 +126,7 @@ export default function ChatScreen() {
           setIsStreaming(false);
           setActiveTool(null);
 
-          await addMessage(currentChatId!, "assistant", finalText);
+          await addMessage(currentChatId, "assistant", finalText);
 
           if (!titleSetRef.current) {
             const transcript: ChatMessage[] = [
@@ -139,7 +139,7 @@ export default function ChatScreen() {
             const aiTitle = await generateChatTitle(transcript);
             if (aiTitle) {
               titleSetRef.current = true;
-              await updateChatTitle(currentChatId!, aiTitle);
+              await updateChatTitle(currentChatId, aiTitle);
             }
           }
 

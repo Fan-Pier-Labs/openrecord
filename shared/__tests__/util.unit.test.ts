@@ -30,7 +30,7 @@ const realChdir = process.chdir
 process.cwd = () => cwd
 process.chdir = ((dir: string) => {
   cwd = dir
-}) as typeof process.chdir
+})
 
 afterAll(() => {
   process.cwd = realCwd

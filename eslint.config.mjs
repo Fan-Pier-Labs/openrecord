@@ -43,6 +43,7 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
