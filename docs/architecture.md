@@ -4,7 +4,7 @@ Why the load-bearing pieces are shaped the way they are. `CLAUDE.md` carries the
 rule for each of these; this file carries the reasoning, which is what you need when you are
 about to change one.
 
-## Authenticated requests & session expiry (`scrapers/myChart/makeAuthenticatedRequest.ts`)
+## Authenticated requests & session expiry (`scrapers/myChart/core/makeAuthenticatedRequest.ts`)
 
 **Every post-login scraper call goes through `makeAuthenticatedRequest(request, config)`, never
 raw `request.makeRequest`.** MyChart answers an expired session by bouncing the request to the
@@ -29,7 +29,7 @@ Raw `makeRequest` remains the transport for the pre-login world: mount discovery
 terms, keepalive pings. That is also what makes renewal deadlock-free — the renewal path itself
 only issues raw or `autoRenew: false` calls.
 
-## Silent login ladder (`scrapers/myChart/silentLogin.ts`)
+## Silent login ladder (`scrapers/myChart/auth/silentLogin.ts`)
 
 The shared non-interactive login behind every client's `reauthenticate` hook: saved passkey (with
 WebAuthn signature-counter retry) → username/password → TOTP-secret 2FA. Anything needing a human
@@ -45,7 +45,7 @@ desktop extension (`manageSession` in `claude-desktop-extension/src/session-mana
 app (`manageSession` in `expo-app/src/lib/scrapers/session-manager.ts`), and the npm library
 (`MyChartClient` wires it from connect args; `autoRenew: false` opts out).
 
-## Keepalive heartbeats (`scrapers/myChart/sessionStore.ts`)
+## Keepalive heartbeats (`scrapers/myChart/core/sessionStore.ts`)
 
 The single keepalive implementation — the desktop extension's, Expo app's and npm client's bespoke
 per-entry intervals were collapsed onto it. `makeAuthenticatedRequest` auto-registers a session
@@ -97,7 +97,7 @@ answer depended on which client they asked.
   to guess when a name is ambiguous**, listing the candidates instead.
 - **The active-patient guard runs in `executeCapability`, not per client.** Every chart-touching
   capability accepts an optional `patient` and asserts, via `assertProxyReadContext`
-  (`scrapers/myChart/proxyTools.ts`), that MyChart is on the patient the call is about — refusing
+  (`scrapers/myChart/proxy/proxyTools.ts`), that MyChart is on the patient the call is about — refusing
   with the `switch_proxy_target` call that fixes it rather than returning the wrong family member's
   chart. Omitting `patient` means the account holder, explicitly. The `Patients` group and the
   `account`-kind capabilities are exempt: guarding "you must already be on patient X" in front of
@@ -198,7 +198,7 @@ specifically; it times out if the permit is ever moved to wrap the whole call. K
 actually being contacted, so a cross-host redirect gets its own budget instead of spending the
 vanity hostname's.
 
-## Mount discovery (`scrapers/myChart/login.ts`)
+## Mount discovery (`scrapers/myChart/auth/login.ts`)
 
 `determineFirstPathPart` works out where MyChart lives on a hostname — the prefix its routes sit
 under (`/MyChart`, `/UCSFMyChart`, `prd`, or nothing for a root-mounted instance) and which host
@@ -217,7 +217,7 @@ and switch the active patient. **MyChart's active patient is server-side session
 per-request patient parameter — so callers must name the patient they mean rather than relying on a
 previous switch.**
 
-`withProxyTarget(request, patient, fn)` in `scrapers/myChart/proxyContext.ts` is the primitive;
+`withProxyTarget(request, patient, fn)` in `scrapers/myChart/proxy/proxyContext.ts` is the primitive;
 `findProxyTarget` resolves a name, partial name, id or `me` and refuses to guess when ambiguous.
 
 **The CLI is deliberately conservative: reads never mutate.** `--patient "<name>"` (names only,
@@ -230,7 +230,7 @@ and organization-specific, so switch tools accept `self: true` to return to the 
 rather than requiring a looked-up id.
 
 **All clients expose proxy support with the CLI's semantics.** The desktop extension and the mobile
-app share `scrapers/myChart/proxyTools.ts`, a thin client layer over `proxyContext.ts`:
+app share `scrapers/myChart/proxy/proxyTools.ts`, a thin client layer over `proxyContext.ts`:
 `runListProxyTargets` / `runSwitchProxyTarget` back the `list_proxy_targets` /
 `switch_proxy_target` agent tools (extension: `claude-desktop-extension/src/tools.ts`; app: declared
 in `expo-app/src/lib/ai/tool-catalog.ts`, dispatched in
@@ -247,7 +247,7 @@ holder's caches.
 Note an account with no proxy access can still surface a single self-only entry on `/ProxySwitch` —
 a one-entry list is "nothing to switch", not an error.
 
-Tests: `scrapers/myChart/__tests__/proxyTools.unit.test.ts` (mocked),
+Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `scrapers/myChart/__tests__/fake-mychart/proxy.integration.test.ts` (end to end),
 `claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
 `expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).

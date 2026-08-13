@@ -4,7 +4,7 @@
  *
  *   bun dev-scripts/dte-dates.ts
  */
-import { dte2date, date2dte } from '../scrapers/myChart/bills/utils';
+import { dte2date, date2dte } from '../scrapers/myChart/chart/bills/utils';
 import { logger } from '../shared/logger';
 
 logger.debug('dte 18600 =', dte2date(18600));

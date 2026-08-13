@@ -7,13 +7,13 @@
  * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
-import { type MyChartRequest } from "../../../../scrapers/myChart/myChartRequest";
+import type { MyChartRequest } from "../../../../scrapers/myChart/core/myChartRequest";
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
   complete2faFlow,
   type TwoFaDeliveryInfo,
-} from "../../../../scrapers/myChart/login";
+} from "../../../../scrapers/myChart/auth/login";
 
 // Every scraper this app can run comes from the shared capability registry —
 // see `shared/capabilities.ts`. It is a static import graph, which is what
@@ -39,11 +39,11 @@ import {
 import {
   deserializeCredential,
   serializeCredential,
-} from "../../../../scrapers/myChart/softwareAuthenticator";
-import { setupPasskey } from "../../../../scrapers/myChart/setupPasskey";
-import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/passkeyLoginRetry";
-import { wireSilentReauthentication } from "../../../../scrapers/myChart/silentLogin";
-import { sessionStore } from "../../../../scrapers/myChart/sessionStore";
+} from "../../../../scrapers/myChart/auth/softwareAuthenticator";
+import { setupPasskey } from "../../../../scrapers/myChart/auth/setupPasskey";
+import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/auth/passkeyLoginRetry";
+import { wireSilentReauthentication } from "../../../../scrapers/myChart/auth/silentLogin";
+import { sessionStore } from "../../../../scrapers/myChart/core/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
 
 type SessionEntry = {

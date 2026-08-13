@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { StudyImagePayload } from '../../../shared/capabilities';
-import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
+import { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
 import {
   encodePixelFile,
   generateCheckerboard,

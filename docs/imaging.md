@@ -9,8 +9,8 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 - `shared/amf3Writer.ts` — The repo's only AMF3 writer; also used by fake-mychart, so a request frame and the server's answer are built by one encoder
 - `scrapers/myChart/eunity/amf3Reader.ts` — Strict AMF3 decoder for the `getStudyListMeta` response; `parseStudySeriesFromAmfStructured()` walks the decoded Study → Series → Image tree for exact UID pairing (the positional heuristic `parseStudySeriesFromAmf` remains as fallback)
 - `scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (fallback approach)
-- `scrapers/myChart/labs_and_procedure_results/labResults.ts` — `getImagingResults()` and `listLabResults()`
-- `scrapers/myChart/labs_and_procedure_results/labtestresulttype.ts` — `ImagingResult` interface
+- `scrapers/myChart/chart/labs/labResults.ts` — `getImagingResults()` and `listLabResults()`
+- `scrapers/myChart/chart/labs/labtestresulttype.ts` — `ImagingResult` interface
 - `scrapers/myChart/eunity/docs/EUNITY_PROTOCOL.md` — Detailed eUnity AMF3 protocol reverse engineering notes
 - `scrapers/myChart/eunity/docs/DICOM_DOWNLOAD_NOTES.md` — High-level DICOM download architecture notes
 
