@@ -29,13 +29,14 @@ export default [
             "expo-app/src/__tests__/*.ts",
             "expo-app/src/lib/ai/__tests__/*.ts",
             "expo-app/src/lib/memory/__tests__/*.ts",
+            "expo-app/src/lib/storage/__tests__/*.ts",
             "newsletter-lambda/src/__tests__/*.ts",
             "openrecord-demo-lambda/src/__tests__/*.ts",
             "openrecord-splash/__tests__/*.ts",
             "tests/*.ts",
             "tests/integration/ci/*.ts",
           ],
-          // The default cap is 8; the globs above match 18 files today.
+          // The default cap is 8; the globs above match 19 files today.
           maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 24,
         },
         tsconfigRootDir: import.meta.dirname,
