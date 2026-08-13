@@ -83,7 +83,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
   for (const raw of lines) {
     const line = raw.replace(/\s+$/, '');
 
-    const image = line.match(IMAGE_TOKEN);
+    const image = IMAGE_TOKEN.exec(line);
     if (image) {
       flushAll();
       // Group 1 is non-optional in IMAGE_TOKEN, so it is present on any match.
@@ -96,7 +96,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const heading = line.match(/^(#{1,4})\s+(.*)$/);
+    const heading = /^(#{1,4})\s+(.*)$/.exec(line);
     if (heading) {
       flushAll();
       // Both groups are non-optional, so they are present on any match.
@@ -104,7 +104,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
     if (bullet) {
       flushParagraph();
       flushQuote();
@@ -112,7 +112,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const quoted = line.match(/^>\s?(.*)$/);
+    const quoted = /^>\s?(.*)$/.exec(line);
     if (quoted) {
       flushParagraph();
       flushList();

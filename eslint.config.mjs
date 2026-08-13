@@ -29,6 +29,10 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `str.match(re)` and `re.exec(str)` are identical for non-global
+      // regexes, and exec is the clearer read; the rule declines to convert
+      // /g patterns, where the two genuinely differ.
+      "@typescript-eslint/prefer-regexp-exec": "error",
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
@@ -58,6 +62,10 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // A template literal wrapping one string and nothing else is just quotes.
+      "@typescript-eslint/no-unnecessary-template-expression": "error",
+      // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       "@typescript-eslint/no-floating-promises": "error",
       // Type-only imports vanish at compile time; marking them keeps a
       // bundler/transpiler from pulling a module in (or keeping a side-effect
