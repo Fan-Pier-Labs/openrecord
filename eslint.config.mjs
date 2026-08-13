@@ -41,6 +41,10 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // A `.map`/`.filter`/`.reduce` callback that falls off its end yields
+      // `undefined` for that element and the array quietly fills with holes —
+      // a callback run only for its side effects belongs in `.forEach`.
+      "array-callback-return": "error",
       // A bare `.sort()` stringifies every element first, so numbers come out
       // [1, 10, 2] and Dates sort by their English text. Only an array that is
       // already string[] may sort without a comparator.
