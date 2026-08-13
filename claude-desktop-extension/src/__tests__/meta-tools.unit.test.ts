@@ -109,10 +109,10 @@ describe('list_accounts', () => {
 })
 
 describe('disconnect_account', () => {
-  it('removes a configured account by bare hostname when unambiguous', async () => {
+  it('removes a configured account by its id', async () => {
     store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
 
-    await call('disconnect_account', { account: 'mychart.example.org' })
+    await call('disconnect_account', { account: 'homer@mychart.example.org' })
 
     expect(store.findAccount('mychart.example.org', 'homer')).toBeUndefined()
   })
@@ -122,7 +122,7 @@ describe('disconnect_account', () => {
     store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"abc"}')
     store.saveAccountSession('mychart.example.org', 'homer', 'cookies')
 
-    await call('disconnect_account', { account: 'mychart.example.org' })
+    await call('disconnect_account', { account: 'homer@mychart.example.org' })
 
     expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBeUndefined()
     expect(store.readAccountSession('mychart.example.org', 'homer')).toBeUndefined()
@@ -140,20 +140,18 @@ describe('disconnect_account', () => {
     expect(store.readAccountPasskey('mychart.example.org', 'marge')).toBe('{"cred":"marges"}')
   })
 
-  it('refuses a bare hostname shared by several logins, naming the candidates', async () => {
+  it('does not treat a bare hostname as a match', async () => {
+    // Hostname alone never names a login: forgetting is per identity.
     store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
-    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'y' })
 
     const result = await call('disconnect_account', { account: 'mychart.example.org' })
 
-    expect(result.isError).toBe(true)
-    expect(text(result)).toContain('homer@mychart.example.org')
-    expect(text(result)).toContain('marge@mychart.example.org')
-    expect(store.readAccounts()).toHaveLength(2)
+    expect(text(result)).toContain('No saved account')
+    expect(store.readAccounts()).toHaveLength(1)
   })
 
   it('is not an error to disconnect something that was never connected', async () => {
-    const result = await call('disconnect_account', { account: 'nope.example.org' })
+    const result = await call('disconnect_account', { account: 'nobody@nope.example.org' })
     expect(result.content[0].text).toBeTruthy()
   })
 })

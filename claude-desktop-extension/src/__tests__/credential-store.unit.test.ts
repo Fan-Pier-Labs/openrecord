@@ -154,52 +154,41 @@ describe('accounts', () => {
 })
 
 describe('lookupAccount', () => {
+  // A perfect username@hostname match or nothing. No hostname-only or fuzzy
+  // fallback exists: a ref that "nearly" names a login resolving to some
+  // other user would be the wrong-identity failure this store prevents.
   beforeEach(() => {
     store.upsertAccount(account('mychart.example.org', 'homer'))
     store.upsertAccount(account('mychart.example.org', 'marge'))
     store.upsertAccount(account('solo.example.org', 'lisa'))
   })
 
-  it('resolves a qualified username@hostname id', () => {
-    const result = store.lookupAccount('marge@mychart.example.org')
-    expect(result.state).toBe('found')
-    expect(result.state === 'found' && result.account.username).toBe('marge')
+  it('resolves a username@hostname id', () => {
+    expect(store.lookupAccount('marge@mychart.example.org')?.username).toBe('marge')
   })
 
-  it('matches the qualified id case-insensitively', () => {
-    const result = store.lookupAccount('MARGE@MyChart.Example.ORG')
-    expect(result.state === 'found' && result.account.username).toBe('marge')
+  it('matches case-insensitively', () => {
+    expect(store.lookupAccount('MARGE@MyChart.Example.ORG')?.username).toBe('marge')
   })
 
   it('splits on the LAST @ so email usernames work', () => {
     store.upsertAccount({ hostname: 'solo.example.org', username: 'lisa@simpsons.com', password: 'x' })
-    const result = store.lookupAccount('lisa@simpsons.com@solo.example.org')
-    expect(result.state === 'found' && result.account.username).toBe('lisa@simpsons.com')
+    expect(store.lookupAccount('lisa@simpsons.com@solo.example.org')?.username).toBe(
+      'lisa@simpsons.com',
+    )
   })
 
-  it('resolves a bare hostname when only one login is saved for it', () => {
-    const result = store.lookupAccount('solo.example.org')
-    expect(result.state === 'found' && result.account.username).toBe('lisa')
+  it('does not resolve a bare hostname, even an unambiguous one', () => {
+    expect(store.lookupAccount('solo.example.org')).toBeUndefined()
   })
 
-  it('refuses to guess between several logins on one hostname', () => {
-    const result = store.lookupAccount('mychart.example.org')
-    expect(result.state).toBe('ambiguous')
-    expect(result.state === 'ambiguous' && result.candidates.sort()).toEqual([
-      'homer@mychart.example.org',
-      'marge@mychart.example.org',
-    ])
+  it('does not resolve a known hostname with an unknown user', () => {
+    expect(store.lookupAccount('bart@solo.example.org')).toBeUndefined()
   })
 
-  it('does NOT fall back to the hostname when a qualified id names an unknown user', () => {
-    // "bart@solo.example.org" silently resolving to lisa's account would be the
-    // wrong-identity failure the qualified form exists to prevent.
-    expect(store.lookupAccount('bart@solo.example.org').state).toBe('not_found')
-  })
-
-  it('reports not_found for an unknown hostname and an empty ref', () => {
-    expect(store.lookupAccount('nope.example.org').state).toBe('not_found')
-    expect(store.lookupAccount('').state).toBe('not_found')
+  it('returns nothing for an unknown hostname and an empty ref', () => {
+    expect(store.lookupAccount('lisa@nope.example.org')).toBeUndefined()
+    expect(store.lookupAccount('')).toBeUndefined()
   })
 })
 
@@ -318,77 +307,6 @@ describe('a second login never disturbs the first', () => {
     expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBe('{"cred":"homers"}')
     expect(store.readAccountSession('mychart.example.org', 'homer')).toBe('homers-cookies')
     expect(store.readAccounts()).toHaveLength(1)
-  })
-})
-
-describe('legacy flat-file migration', () => {
-  // Older versions stored one account per hostname with flat
-  // passkeys/<hostname>.json files. Those must keep working — a passkey is the
-  // user's ticket past 2FA — and get attributed to the hostname's single
-  // pre-existing account, which is the only account the old format could hold.
-  const legacyPasskey = path.join(store._paths.PASSKEYS_DIR, 'mychart.example.org.json')
-  const legacySession = path.join(store._paths.SESSIONS_DIR, 'mychart.example.org.json')
-
-  const seedLegacy = () => {
-    memfs.put(store._paths.ACCOUNTS_PATH, JSON.stringify({
-      accounts: [{ hostname: 'mychart.example.org', username: 'homer', password: 'donuts123' }],
-    }))
-    memfs.put(legacyPasskey, JSON.stringify({ passkey: '{"cred":"legacy"}' }))
-    memfs.put(legacySession, 'legacy-cookies')
-  }
-
-  it('serves and moves a legacy passkey for the hostname\'s one account', () => {
-    seedLegacy()
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBe('{"cred":"legacy"}')
-    expect(memfs.exists(legacyPasskey)).toBe(false)
-    expect(memfs.read(passkeyFile('mychart.example.org', 'homer'))).toContain('legacy')
-  })
-
-  it('serves and moves a legacy session the same way', () => {
-    seedLegacy()
-    expect(store.readAccountSession('mychart.example.org', 'homer')).toBe('legacy-cookies')
-    expect(memfs.exists(legacySession)).toBe(false)
-  })
-
-  it('migrates before a second account appears, so attribution stays unambiguous', () => {
-    seedLegacy()
-    store.upsertAccount(account('mychart.example.org', 'marge'))
-
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBe('{"cred":"legacy"}')
-    expect(store.readAccountPasskey('mychart.example.org', 'marge')).toBeUndefined()
-    expect(memfs.exists(legacyPasskey)).toBe(false)
-  })
-
-  it('never hands a legacy file to a different username', () => {
-    seedLegacy()
-    expect(store.readAccountPasskey('mychart.example.org', 'marge')).toBeUndefined()
-    // Homer's legacy passkey was migrated to HIS path, not marge's.
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBe('{"cred":"legacy"}')
-  })
-
-  it('does not let a stale legacy file overwrite a newer per-user file', () => {
-    // A per-user file can only have been written by this version, so it is
-    // newer than any flat file — overwriting it would roll a re-saved
-    // passkey's WebAuthn signature counter back.
-    seedLegacy()
-    store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"fresh"}')
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBe('{"cred":"fresh"}')
-    expect(memfs.exists(legacyPasskey)).toBe(false)
-  })
-
-  it('clearing takes an unmigrated legacy file with it', () => {
-    // onPasskeyInvalid clears the passkey; a surviving legacy copy would be
-    // re-adopted by the next read and retried forever.
-    seedLegacy()
-    store.clearAccountPasskey('mychart.example.org', 'homer')
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBeUndefined()
-    expect(memfs.exists(legacyPasskey)).toBe(false)
-  })
-
-  it('leaves a legacy file alone when no account claims the hostname', () => {
-    memfs.put(legacyPasskey, JSON.stringify({ passkey: '{"cred":"orphan"}' }))
-    expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBeUndefined()
-    expect(memfs.exists(legacyPasskey)).toBe(true)
   })
 })
 

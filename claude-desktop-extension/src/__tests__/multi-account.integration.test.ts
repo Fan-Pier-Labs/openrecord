@@ -103,7 +103,7 @@ describe('two logins on one hostname', () => {
     expect(accounts.every((a: { hasPasskey: boolean }) => a.hasPasskey)).toBe(true)
   }, 60_000)
 
-  it('a bare-hostname account ref now refuses to guess between them', async () => {
+  it('a bare hostname is no match — the error lists the real ids', async () => {
     const result = await call('get_profile', { account: HOST })
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain(`homer@${HOST}`)

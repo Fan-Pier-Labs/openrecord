@@ -16,12 +16,6 @@
  *
  * Hostname is lowercased + trimmed before being used in a path; usernames are
  * matched case-insensitively (MyChart logins are) and percent-encoded on disk.
- *
- * Older versions stored one account per hostname with flat
- * passkeys/<hostname>.json and sessions/<hostname>.json files. Those are
- * migrated to the per-user layout the first time they are read or the account
- * list is written — attribution is safe because the old format could only ever
- * hold one username per hostname.
  */
 
 import * as fs from 'fs';
@@ -39,11 +33,6 @@ export interface AccountConfig {
   password: string;
   totpSecret?: string;
 }
-
-export type AccountLookup =
-  | { state: 'found'; account: AccountConfig }
-  | { state: 'not_found' }
-  | { state: 'ambiguous'; candidates: string[] };
 
 export function normalizeHostname(hostname: string): string {
   const trimmed = hostname.toLowerCase().trim();
@@ -67,9 +56,9 @@ function usernameKey(username: string): string {
 }
 
 /**
- * The canonical account id: `username@hostname`, e.g. `homer@mychart.example.org`.
- * This is what list_accounts returns and what tools accept as `account`. A bare
- * hostname is also accepted wherever it is unambiguous (see lookupAccount).
+ * The account id: `username@hostname`, e.g. `homer@mychart.example.org`.
+ * This is what list_accounts returns and the only thing tools accept as
+ * `account`.
  */
 export function accountId(account: Pick<AccountConfig, 'hostname' | 'username'>): string {
   return `${account.username.trim()}@${normalizeHostname(account.hostname)}`;
@@ -107,30 +96,17 @@ export function findAccount(hostname: string, username: string): AccountConfig |
 }
 
 /**
- * Resolve an `account` argument to a stored account. Accepts the canonical
- * `username@hostname` id (split on the LAST '@', since usernames can be email
- * addresses) or a bare hostname when only one account is stored for it.
- *
- * A bare hostname with several accounts is `ambiguous`, never a guess — the
- * candidates list is the qualified ids to retry with. A ref containing '@'
- * that matches no account is `not_found` rather than falling back to its
- * hostname part: "nobody@host" silently resolving to a different user is
- * exactly the wrong-identity failure this store exists to prevent.
+ * Resolve an `account` argument: the id is `username@hostname`, split on the
+ * LAST '@' since usernames can be email addresses. A perfect hostname +
+ * username match or nothing — there is deliberately no hostname-only or fuzzy
+ * fallback, because a ref that "nearly" names a login resolving to some other
+ * user is the wrong-identity failure this store exists to prevent.
  */
-export function lookupAccount(ref: string): AccountLookup {
+export function lookupAccount(ref: string): AccountConfig | undefined {
   const trimmed = ref.trim();
-  if (!trimmed) return { state: 'not_found' };
-
-  if (trimmed.includes('@')) {
-    const at = trimmed.lastIndexOf('@');
-    const account = findAccount(trimmed.slice(at + 1), trimmed.slice(0, at));
-    return account ? { state: 'found', account } : { state: 'not_found' };
-  }
-
-  const matches = accountsForHostname(trimmed);
-  if (matches.length === 1) return { state: 'found', account: matches[0] };
-  if (matches.length > 1) return { state: 'ambiguous', candidates: matches.map(accountId) };
-  return { state: 'not_found' };
+  const at = trimmed.lastIndexOf('@');
+  if (at < 0) return undefined;
+  return findAccount(trimmed.slice(at + 1), trimmed.slice(0, at));
 }
 
 /**
@@ -142,7 +118,6 @@ export function lookupAccount(ref: string): AccountLookup {
  */
 export function upsertAccount(account: AccountConfig): void {
   const normalized = normalizeHostname(account.hostname);
-  migrateLegacyFiles(normalized);
   const accounts = readAccounts();
   const idx = accounts.findIndex(
     a => normalizeHostname(a.hostname) === normalized && sameUsername(a.username, account.username),
@@ -154,7 +129,6 @@ export function upsertAccount(account: AccountConfig): void {
 
 export function removeAccount(hostname: string, username: string): boolean {
   const normalized = normalizeHostname(hostname);
-  migrateLegacyFiles(normalized);
   const accounts = readAccounts();
   const filtered = accounts.filter(
     a => !(normalizeHostname(a.hostname) === normalized && sameUsername(a.username, username)),
@@ -192,7 +166,6 @@ function passkeyPath(hostname: string, username: string): string {
 }
 
 export function readAccountPasskey(hostname: string, username: string): string | undefined {
-  migrateLegacyFiles(hostname);
   try {
     const data = JSON.parse(fs.readFileSync(passkeyPath(hostname, username), 'utf-8'));
     return data?.passkey || undefined;
@@ -202,7 +175,6 @@ export function readAccountPasskey(hostname: string, username: string): string |
 }
 
 export function saveAccountPasskey(hostname: string, username: string, serialized: string): void {
-  migrateLegacyFiles(hostname);
   const p = passkeyPath(hostname, username);
   ensureDir(path.dirname(p));
   fs.writeFileSync(p, JSON.stringify({ passkey: serialized }, null, 2));
@@ -210,9 +182,6 @@ export function saveAccountPasskey(hostname: string, username: string, serialize
 }
 
 export function clearAccountPasskey(hostname: string, username: string): void {
-  // Migrate first so a legacy flat file belonging to this user is cleared too,
-  // instead of surviving to be re-adopted by the next read.
-  migrateLegacyFiles(hostname);
   try { fs.unlinkSync(passkeyPath(hostname, username)); } catch { /* ignore */ }
 }
 
@@ -223,7 +192,6 @@ function sessionPath(hostname: string, username: string): string {
 }
 
 export function readAccountSession(hostname: string, username: string): string | undefined {
-  migrateLegacyFiles(hostname);
   try {
     return fs.readFileSync(sessionPath(hostname, username), 'utf-8');
   } catch {
@@ -232,7 +200,6 @@ export function readAccountSession(hostname: string, username: string): string |
 }
 
 export function saveAccountSession(hostname: string, username: string, serialized: string): void {
-  migrateLegacyFiles(hostname);
   const p = sessionPath(hostname, username);
   ensureDir(path.dirname(p));
   fs.writeFileSync(p, serialized);
@@ -240,54 +207,7 @@ export function saveAccountSession(hostname: string, username: string, serialize
 }
 
 export function clearAccountSession(hostname: string, username: string): void {
-  migrateLegacyFiles(hostname);
   try { fs.unlinkSync(sessionPath(hostname, username)); } catch { /* ignore */ }
-}
-
-// ── Legacy layout migration ─────────────────────────────────────────────────
-
-/**
- * Move a pre-multi-account flat file (passkeys/<hostname>.json,
- * sessions/<hostname>.json) to the per-user layout. The old format stored
- * exactly one account per hostname, so whenever exactly one row exists for the
- * hostname, the flat file is that user's — anything else leaves the file alone
- * rather than guess (it keeps working the moment the ambiguity resolves, and
- * login data is never deleted).
- *
- * Runs lazily from the read paths and from upsertAccount — the latter matters
- * because it is what makes a second row appear: migrating first means the flat
- * file is attributed while the store is still unambiguous.
- */
-function migrateLegacyFiles(hostname: string): void {
-  const normalized = normalizeHostname(hostname);
-  const owners = readAccounts().filter(a => normalizeHostname(a.hostname) === normalized);
-  if (owners.length !== 1) return;
-  const username = owners[0].username;
-
-  for (const [dir, target] of [
-    [PASSKEYS_DIR, passkeyPath(normalized, username)],
-    [SESSIONS_DIR, sessionPath(normalized, username)],
-  ] as const) {
-    const legacy = path.join(dir, `${normalized}.json`);
-    let content: string;
-    try {
-      content = fs.readFileSync(legacy, 'utf-8');
-    } catch {
-      continue; // no legacy file for this hostname
-    }
-    // A per-user file that already exists is NEWER than the flat file (it can
-    // only have been written by this version) — keep it and drop the stale
-    // duplicate, or a later migration would roll a re-saved passkey's WebAuthn
-    // signature counter back.
-    let targetExists = true;
-    try { fs.readFileSync(target, 'utf-8'); } catch { targetExists = false; }
-    if (!targetExists) {
-      ensureDir(path.dirname(target));
-      fs.writeFileSync(target, content);
-      try { fs.chmodSync(target, 0o600); } catch { /* best effort */ }
-    }
-    try { fs.unlinkSync(legacy); } catch { /* ignore */ }
-  }
 }
 
 // ── Diagnostics ─────────────────────────────────────────────────────────────

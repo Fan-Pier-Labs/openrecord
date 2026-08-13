@@ -7,9 +7,8 @@
  * `adoptSession` also starts a 30s keepalive interval per session. Every test
  * that adopts must clear the session afterwards or the process will not exit.
  *
- * Sessions are keyed by (hostname, username). The public API takes an account
- * ref — `username@hostname`, or a bare hostname when that resolves to exactly
- * one saved login.
+ * Sessions are keyed by (hostname, username). The public API takes the
+ * account id — `username@hostname`, an exact match or nothing.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
 import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
@@ -50,9 +49,14 @@ describe('isConnected', () => {
     expect(sessionManager.isConnected('homer@mychart.example.org')).toBe(true)
   })
 
-  it('resolves a bare hostname when only one login is saved for it', async () => {
+  it('matches the id regardless of spelling', async () => {
     await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
-    expect(sessionManager.isConnected('HTTPS://MyChart.Example.ORG/MyChart')).toBe(true)
+    expect(sessionManager.isConnected('HOMER@MyChart.Example.ORG')).toBe(true)
+  })
+
+  it('does not resolve a bare hostname', async () => {
+    await sessionManager.adoptSession('mychart.example.org', 'homer', fakeSession())
+    expect(sessionManager.isConnected('mychart.example.org')).toBe(false)
   })
 
   it('is per login, not per hostname', async () => {
@@ -82,12 +86,12 @@ describe('adoptSession', () => {
     await sessionManager.adoptSession('a.example.org', 'homer', fakeSession('a.example.org'))
     await sessionManager.adoptSession('b.example.org', 'homer', fakeSession('b.example.org'))
 
-    expect(sessionManager.isConnected('a.example.org')).toBe(true)
-    expect(sessionManager.isConnected('b.example.org')).toBe(true)
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(true)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(true)
 
-    sessionManager.clearSession('a.example.org')
-    expect(sessionManager.isConnected('a.example.org')).toBe(false)
-    expect(sessionManager.isConnected('b.example.org')).toBe(true)
+    sessionManager.clearSession('homer@a.example.org')
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(true)
   })
 
   it('keeps two logins on one hostname independent', async () => {
@@ -136,8 +140,8 @@ describe('clearAllSessions', () => {
 
     sessionManager.clearAllSessions()
 
-    expect(sessionManager.isConnected('a.example.org')).toBe(false)
-    expect(sessionManager.isConnected('b.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@a.example.org')).toBe(false)
+    expect(sessionManager.isConnected('homer@b.example.org')).toBe(false)
   })
 
   it('is safe to call when nothing is connected', () => {
@@ -167,22 +171,21 @@ describe('resolveSession', () => {
 
   it('tells the user to run setup when nothing is configured', async () => {
     memfs.reset() // drop the beforeEach account
-    await expect(sessionManager.resolveSession('mychart.example.org')).rejects.toThrow(
+    await expect(sessionManager.resolveSession('homer@mychart.example.org')).rejects.toThrow(
       'No MyChart accounts configured',
     )
   })
 
   it('lists the configured account ids when the requested one is unknown', async () => {
-    await expect(sessionManager.resolveSession('b.example.org')).rejects.toThrow(
+    await expect(sessionManager.resolveSession('homer@b.example.org')).rejects.toThrow(
       /not configured. Configured accounts: homer@mychart\.example\.org/,
     )
   })
 
-  it('refuses a bare hostname that several logins share, naming them', async () => {
-    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'x' })
-
+  it('rejects a bare hostname, listing the real ids', async () => {
+    // Hostname alone never names a login — even when only one exists for it.
     await expect(sessionManager.resolveSession('mychart.example.org')).rejects.toThrow(
-      /matches several saved logins: homer@mychart\.example\.org, marge@mychart\.example\.org/,
+      /not configured. Configured accounts: homer@mychart\.example\.org/,
     )
   })
 
@@ -191,12 +194,5 @@ describe('resolveSession', () => {
     await sessionManager.adoptSession('mychart.example.org', 'homer', adopted)
 
     expect(await sessionManager.resolveSession('homer@mychart.example.org')).toBe(adopted)
-  })
-
-  it('resolves a bare hostname to its one login\'s session', async () => {
-    const adopted = fakeSession()
-    await sessionManager.adoptSession('mychart.example.org', 'homer', adopted)
-
-    expect(await sessionManager.resolveSession('mychart.example.org')).toBe(adopted)
   })
 })

@@ -132,7 +132,9 @@ async function tryAutoRegisterPasskey(
  */
 const ACCOUNT_SCHEMA = z
   .string()
-  .describe(`${ACCOUNT_PARAM.description} Get the exact value from list_accounts.`);
+  .describe(
+    'Which connected MyChart account to use, as `username@hostname`. Get the exact value from the `account` field of list_accounts.',
+  );
 
 /** Translate one registry parameter into its zod equivalent. */
 function zodForParam(param: CapabilityParam): ZodTypeAny {
@@ -164,12 +166,12 @@ function zodForParam(param: CapabilityParam): ZodTypeAny {
  * store; the registry never knows where any of it lives.
  */
 function contextFor(ref: string): CapabilityContext {
-  const lookup = lookupAccount(ref);
-  if (lookup.state !== 'found') return {};
-  const { hostname, username } = lookup.account;
+  const account = lookupAccount(ref);
+  if (!account) return {};
+  const { hostname, username } = account;
   return {
-    password: lookup.account.password,
-    totpSecret: lookup.account.totpSecret,
+    password: account.password,
+    totpSecret: account.totpSecret,
     saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
     savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
   };
@@ -285,7 +287,7 @@ export function registerAllTools(server: McpServer): void {
     'list_accounts',
     {
       title: 'List configured accounts',
-      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool; a bare hostname also works when only one login is saved for it. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
+      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
       inputSchema: {} as ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -510,21 +512,16 @@ export function registerAllTools(server: McpServer): void {
       title: 'Forget a MyChart account',
       description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this login only — other usernames saved for the same hostname are untouched.',
       inputSchema: {
-        account: z.string().describe('Account id from list_accounts (`username@hostname`; a bare hostname works when only one login is saved for it).'),
+        account: z.string().describe('Account id from list_accounts (`username@hostname`).'),
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     async ({ account }) => {
-      const lookup = lookupAccount(account);
-      if (lookup.state === 'ambiguous') {
-        return errorResult(
-          `"${account}" matches several saved logins: ${lookup.candidates.join(', ')}. Pass the one to forget.`,
-        );
-      }
-      if (lookup.state === 'not_found') return textResult(`No saved account for ${account}.`);
-      const id = accountId(lookup.account);
+      const match = lookupAccount(account);
+      if (!match) return textResult(`No saved account for ${account}.`);
+      const id = accountId(match);
       clearSession(id);
-      removeAccount(lookup.account.hostname, lookup.account.username);
+      removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
     },
   );
