@@ -1,3 +1,6 @@
+/// <reference types="bun" />
+// ^ These run under `bun test`, not in the app: the reference pulls in
+// bun:test module declarations without adding Bun globals to the app config.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

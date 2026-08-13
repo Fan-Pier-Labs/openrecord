@@ -51,6 +51,11 @@ jobs:
       # assertions as vacuous because everything is already `any`).
       - name: Build npm-package (lint needs dist types)
         run: cd npm-package && bun run build
+      # tests/integration/ci is part of the ROOT tsconfig project (no separate
+      # tsconfig on purpose), so both eslint and `bun run typecheck` below need
+      # its playwright types resolvable.
+      - name: Install CI integration test deps
+        run: cd tests/integration/ci && bun install
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
