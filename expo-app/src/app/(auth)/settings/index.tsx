@@ -38,7 +38,7 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadSettings();
+      void loadSettings();
     }, [])
   );
 

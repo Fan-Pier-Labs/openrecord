@@ -45,7 +45,7 @@ export default function AiSettings() {
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
+      void (async () => {
         setProvider(await getAiProvider());
         setOpenaiKeyLocal((await getOpenAiApiKey()) || "");
         setAnthropicKeyLocal((await getClaudeApiKey()) || "");

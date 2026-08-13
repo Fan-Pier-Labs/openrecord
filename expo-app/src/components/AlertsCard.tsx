@@ -19,7 +19,7 @@ export function AlertsCard({ onDoAlert }: Props) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
     regenerateAlerts()
       .then(() => refresh())
       .catch((err) => console.warn("[alerts] regenerate failed:", err.message));

@@ -1189,5 +1189,5 @@ async function test() {
 }
 
 if (import.meta.main) {
-  test()
+  void test()
 }

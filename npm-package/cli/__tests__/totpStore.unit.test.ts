@@ -45,8 +45,8 @@ const fakeFs = {
     },
   },
 }
-mock.module('fs', () => fakeFs)
-mock.module('node:fs', () => fakeFs)
+await mock.module('fs', () => fakeFs)
+await mock.module('node:fs', () => fakeFs)
 
 const { saveTotpSecret, loadTotpSecret } = await import('../totpStore')
 

@@ -42,12 +42,12 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
   }, [searchQuery]);
 
   useEffect(() => {
-    if (visible) loadChats();
+    if (visible) void loadChats();
   }, [visible, loadChats]);
 
   useFocusEffect(
     useCallback(() => {
-      loadChats();
+      void loadChats();
     }, [loadChats])
   );
 

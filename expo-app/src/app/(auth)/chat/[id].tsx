@@ -46,8 +46,8 @@ export default function ChatDetailScreen() {
 
   useEffect(() => {
     if (chatId) {
-      loadMessages();
-      getChat(chatId).then((c) => {
+      void loadMessages();
+      void getChat(chatId).then((c) => {
         titleSetRef.current = !!c && c.title !== "New Chat";
       });
     }
