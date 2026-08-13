@@ -36,8 +36,8 @@ import { logger } from '../../../shared/logger';
  * Playwright CDP Fetch domain interception.
  */
 class AMF3Writer {
-  private buf: number[] = [];
-  private stringTable: string[] = [];
+  private readonly buf: number[] = [];
+  private readonly stringTable: string[] = [];
 
   writeU29(value: number) {
     if (value < 0x80) {

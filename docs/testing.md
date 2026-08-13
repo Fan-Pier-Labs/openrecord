@@ -25,6 +25,11 @@ app code too, where Hermes has no Bun. Don't reach for Bun APIs in `expo-app/src
 `@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
 `.rejects`/`.resolves` matchers as `void`, but awaiting them is load-bearing at runtime.
 
+`import-x/no-cycle` guards `scrapers/` + `shared/` — #263 made the session-renewal graph
+acyclic and the rule keeps it that way. Its two settings are both load-bearing: the TS resolver
+so `./foo` finds `foo.ts`, and the parsers map so the rule can parse imported TS files (without
+it, no-cycle silently reports nothing).
+
 ## Test suites
 
 **A test file's *filename* decides which suite it belongs to, not its folder.** Every test file in

@@ -26,7 +26,7 @@ class HostSemaphore {
   private active = 0;
 
   /** Resolvers for callers waiting on a permit, oldest first. */
-  private waiters: Array<() => void> = [];
+  private readonly waiters: Array<() => void> = [];
 
   constructor(readonly limit: number) {}
 
