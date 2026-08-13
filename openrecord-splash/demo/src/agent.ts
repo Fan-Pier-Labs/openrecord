@@ -324,7 +324,11 @@ export function resolveWriteDetails(
   args: ToolArgs,
 ): { label: string; value: string }[] {
   if (tool !== 'book_appointment') return [];
-  const slotId = String(args.slot_id ?? '');
+  // A non-string slot_id can't match any slot, but the warning row below
+  // quotes it back — JSON shows the patient what the model actually sent,
+  // where String() would have shown "[object Object]".
+  const raw = args.slot_id;
+  const slotId = typeof raw === 'string' ? raw : raw == null ? '' : JSON.stringify(raw);
   for (const offer of session.availableAppointments) {
     const slot = offer.slots.find((s) => s.slotId === slotId);
     if (!slot) continue;
@@ -626,7 +630,11 @@ export async function runTurn({
         });
         continue;
       }
-      const spoken = String(respondCall.args.text ?? '').trim();
+      // Only a string is a reply. Anything else is a malformed respond and is
+      // treated as empty — the old String() coercion would have shown the
+      // patient "[object Object]" as the assistant's answer.
+      const spokenValue = respondCall.args.text;
+      const spoken = typeof spokenValue === 'string' ? spokenValue.trim() : '';
       // An empty respond after a write is the model signing off, not chatter.
       if (!spoken) return { text: 'Done.', toolCalls: executed };
 

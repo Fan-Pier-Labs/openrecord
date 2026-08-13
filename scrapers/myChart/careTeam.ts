@@ -67,14 +67,22 @@ export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareT
          wrapper?.providers ?? wrapper?.ProviderList ?? wrapper?.providerList);
     const list: unknown[] = Array.isArray(unwrapped) ? unwrapped : [];
 
+    // Only a primitive is a usable field value — a nested object here used to
+    // stringify as "[object Object]" and land in the record as a provider name.
+    const field = (v: unknown): string => {
+      if (typeof v === 'string') return v.trim();
+      if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+      return '';
+    };
+
     for (const item of list) {
       const r = item as Record<string, unknown>;
-      const name = String(r.displayName ?? r.DisplayName ?? r.name ?? r.Name ?? '').trim();
+      const name = field(r.displayName ?? r.DisplayName ?? r.name ?? r.Name);
       if (!name) continue;
       members.push({
         name,
-        role: String(r.pcpTypeDisplayName ?? r.PcpTypeDisplayName ?? r.role ?? r.Role ?? '').trim(),
-        specialty: String(r.specialty ?? r.Specialty ?? '').trim(),
+        role: field(r.pcpTypeDisplayName ?? r.PcpTypeDisplayName ?? r.role ?? r.Role),
+        specialty: field(r.specialty ?? r.Specialty),
       });
     }
   }

@@ -9,8 +9,8 @@ function mockRequest(responses: Array<{ body: string }>) {
   req.firstPathPart = 'MyChart'
   const captured: Array<{ url: string; body?: string }> = []
   let i = 0
-  req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
-    captured.push({ url: String(url), body: init?.body ? String(init.body) : undefined })
+  req.transport = mock(async (url: string, init?: RequestInit) => {
+    captured.push({ url, body: typeof init?.body === 'string' && init.body ? init.body : undefined })
     const r = responses[Math.min(i++, responses.length - 1)]
     return new Response(r!.body, { status: 200 })
   })
@@ -70,7 +70,7 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   const routeCounters: Record<string, number> = {}
-  req.transport = mock(async (url: string | URL | Request) => {
+  req.transport = mock(async (url: string) => {
     const urlStr = url.toString()
     // Also check the body for API path when it's in the URL
     for (const pattern of Object.keys(routes)) {
@@ -103,7 +103,7 @@ function requestFailingOnDetail(
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let listCalls = 0
-  req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+  req.transport = mock(async (url: string, init?: RequestInit) => {
     const urlStr = url.toString()
     if (urlStr.includes('/app/test-results')) {
       return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
@@ -116,7 +116,7 @@ function requestFailingOnDetail(
       return new Response(body, { status: 200 })
     }
     if (urlStr.includes('GetDetails')) {
-      const orderKey = JSON.parse(String(init?.body ?? '{}')).orderKey
+      const orderKey = JSON.parse(typeof init?.body === 'string' ? init.body : '{}').orderKey
       if (orderKey === failDetailFor) fail()
       return new Response(JSON.stringify({ orderName: `Order ${orderKey}` }), { status: 200 })
     }
@@ -161,7 +161,7 @@ describe('partial-failure handling', () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
     let listCalls = 0
-    req.transport = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string) => {
       const urlStr = url.toString()
       if (urlStr.includes('/app/test-results')) {
         return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
@@ -188,7 +188,7 @@ describe('partial-failure handling', () => {
   it('tolerates a group list that is not JSON at all', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    req.transport = mock(async (url: string | URL | Request) => {
+    req.transport = mock(async (url: string) => {
       const urlStr = url.toString()
       if (urlStr.includes('/app/test-results')) {
         return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
@@ -388,7 +388,7 @@ describe('listLabResults', () => {
     req.firstPathPart = 'MyChart'
     const calls: Array<{ url: string; init?: RequestInit }> = []
 
-    req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    req.transport = mock(async (url: string, init?: RequestInit) => {
       const urlStr = url.toString()
       calls.push({ url: urlStr, init })
       if (urlStr.includes('/app/test-results')) {

@@ -74,7 +74,7 @@ describe('makeRequest per-host concurrency', () => {
     const req = new MyChartRequest('mychart.example.org')
     const hops = 3
 
-    req.transport = (async (url: string | URL | Request) => {
+    req.transport = (async (url: string) => {
       const href = url.toString()
       const hop = Number(new URL(href).searchParams.get('hop') ?? '0')
       // Yield, so a naive implementation reliably saturates before any
@@ -108,7 +108,7 @@ describe('makeRequest per-host concurrency', () => {
     // its own budget instead of spending the vanity hostname's.
     const req = new MyChartRequest('patients.mycslink.org')
 
-    req.transport = (async (url: string | URL | Request) => {
+    req.transport = (async (url: string) => {
       const href = url.toString()
       if (href.includes('patients.mycslink.org')) {
         return new Response('', {

@@ -206,10 +206,22 @@ interface CapabilityImpl extends Capability {
 
 // ── Argument coercion ───────────────────────────────────────────────────────
 
+/**
+ * Coerce one argument value to a string. Model/CLI args are untyped, so an
+ * object can arrive where a string was expected — JSON keeps what the caller
+ * actually sent, where the old String() coercion sent "[object Object]" to
+ * MyChart.
+ */
+function coerce(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+  return JSON.stringify(v) ?? '';
+}
+
 function str(args: CapabilityArgs, name: string, fallback = ''): string {
   const v = args[name];
   if (v === undefined || v === null) return fallback;
-  return String(v);
+  return coerce(v);
 }
 
 function requireStr(args: CapabilityArgs, name: string): string {
@@ -221,7 +233,7 @@ function requireStr(args: CapabilityArgs, name: string): string {
 function optStr(args: CapabilityArgs, name: string): string | undefined {
   const v = args[name];
   if (v === undefined || v === null || v === '') return undefined;
-  return String(v);
+  return coerce(v);
 }
 
 function num(args: CapabilityArgs, name: string, fallback: number): number {

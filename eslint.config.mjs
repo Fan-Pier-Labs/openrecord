@@ -65,6 +65,9 @@ export default [
         selector: "ImportExpression",
         message: "No runtime import() in product code — use a static import, or disable this line with a comment saying why the dynamic import is load-bearing.",
       }],
+      // A non-primitive in a string position renders "[object Object]" — in a
+      // health-data app that's garbage where a patient's data should be.
+      "@typescript-eslint/no-base-to-string": "error",
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/restrict-plus-operands": "error",

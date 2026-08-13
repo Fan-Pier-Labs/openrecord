@@ -27,6 +27,18 @@ function saveTable(name: string) {
   localStorage.setItem(`sqlite_${name}`, JSON.stringify(tables[name] || []));
 }
 
+/**
+ * Cell value → comparable/matchable text. Rows hold whatever was inserted;
+ * only primitives are meaningful as LIKE patterns or sort keys — an object
+ * used to coerce to "[object Object]" and match/sort as that literal string.
+ */
+function text(v: unknown): string {
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") return String(v);
+  return "";
+}
+
 class WebSQLiteDatabase {
   async execAsync(_sql: string): Promise<void> {
     // CREATE TABLE statements — just ensure tables exist
@@ -126,12 +138,12 @@ class WebSQLiteDatabase {
         } else if (conditions.includes("id = ?")) {
           filtered = filtered.filter((r) => r.id === params[0]);
         } else if (conditions.includes("LIKE")) {
-          const pattern = String(params[0] || "").replace(/%/g, "").toLowerCase();
+          const pattern = text(params[0]).replace(/%/g, "").toLowerCase();
           if (pattern) {
             filtered = filtered.filter(
               (r) =>
-                String(r.title || "").toLowerCase().includes(pattern) ||
-                String(r.content || "").toLowerCase().includes(pattern)
+                text(r.title).toLowerCase().includes(pattern) ||
+                text(r.content).toLowerCase().includes(pattern)
             );
           }
         }
@@ -145,8 +157,8 @@ class WebSQLiteDatabase {
       if (orderMatch && col) {
         const desc = orderMatch[2]?.toUpperCase() === "DESC";
         filtered.sort((a, b) => {
-          const va = String(a[col] || "");
-          const vb = String(b[col] || "");
+          const va = text(a[col]);
+          const vb = text(b[col]);
           return desc ? vb.localeCompare(va) : va.localeCompare(vb);
         });
       }

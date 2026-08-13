@@ -307,7 +307,7 @@ describe('scraperFetch', () => {
       // stubs the global, and break Expo's fetch swap at startup.
       const realFetch = globalThis.fetch
       let called = ''
-      globalThis.fetch = mock(async (url: string | URL | Request) => {
+      globalThis.fetch = mock(async (url: string) => {
         called = url.toString()
         return new Response('ok', { status: 200 })
       }) as unknown as typeof globalThis.fetch
@@ -324,7 +324,7 @@ describe('scraperFetch', () => {
     it('is what scraperFetch uses when no transport is supplied', async () => {
       const realFetch = globalThis.fetch
       let seenUserAgent = ''
-      globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
         seenUserAgent = (init?.headers as Record<string, string>)['User-Agent']!
         return new Response('ok', { status: 200 })
       }) as unknown as typeof globalThis.fetch

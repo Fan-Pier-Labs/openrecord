@@ -196,7 +196,14 @@ export function getToolSpec(name: string): ToolSpec | undefined {
 
 function str(args: ToolArgs, key: string): string {
   const value = args[key];
-  return value === undefined || value === null ? '' : String(value);
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  // Model args are untyped; JSON keeps what the model actually sent where
+  // String() on an object would have stored "[object Object]".
+  return JSON.stringify(value) ?? '';
 }
 
 function num(args: ToolArgs, key: string, fallback: number): number {

@@ -119,7 +119,7 @@ describe('acceptTermsAndConditions', () => {
 
       req.transport = mock(async (_url: string, config: RequestInit) => {
         if (config?.method === 'POST') {
-          postBody = String(config.body)
+          postBody = typeof config.body === 'string' ? config.body : ''
         }
         if (!config?.method || config.method === 'GET') {
           return new Response(buildTermsPage({
