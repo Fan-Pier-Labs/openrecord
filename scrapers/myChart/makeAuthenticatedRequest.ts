@@ -31,7 +31,6 @@ import { type RequestConfig } from './types';
 import { looksLikeSignedOutPage } from './login';
 import { sessionStore } from './sessionStore';
 import { renewMyChartSession } from './sessionRenewal';
-import { OPENRECORD_MOCK_DATA } from '../../shared/env';
 
 // Re-exported for callers that treat this module as the session-expiry
 // surface (the npm package's index, tests). The implementation lives in
@@ -129,7 +128,6 @@ async function requestDetectingSignOut(
  * interval never holds a process open (see sessionStore).
  */
 function registerKeepalive(mychartRequest: MyChartRequest) {
-  if (OPENRECORD_MOCK_DATA) return;
   if (mychartRequest.disableAutoKeepalive) return;
   sessionStore.registerForKeepalive(mychartRequest);
 }

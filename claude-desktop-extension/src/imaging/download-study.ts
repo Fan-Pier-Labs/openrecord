@@ -15,6 +15,7 @@ import { convertCloToBitmap16 } from '../../../scrapers/myChart/clo-image-parser
 import { encodeCloAsJpeg } from './jpeg-encoder';
 import {
   encodeImageId,
+  executeCapability,
   getCapability,
   type StudyImagePayload,
 } from '../../../shared/capabilities';
@@ -98,7 +99,12 @@ export async function downloadStudyJpegs(
   if (!capability?.rendersMedia) {
     throw new Error('The imaging-download capability is missing from the registry.');
   }
-  const payload = (await capability.run(req, {
+  // executeCapability, not the implementation: this asserts which patient's
+  // chart is active before downloading anything. Reaching `run` here was a
+  // live bypass — the regex that was supposed to prevent it only scanned three
+  // other files, and this reached `run` via getCapability rather than by the
+  // one spelling it matched.
+  const payload = (await executeCapability(req, capability.id, {
     image_id: encodeImageId(fdiContext),
     study_name: opts.studyName ?? 'imaging study',
   })) as StudyImagePayload;

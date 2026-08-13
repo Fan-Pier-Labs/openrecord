@@ -233,6 +233,40 @@ describe('rendersMedia', () => {
   });
 });
 
+// ── No client dispatches around executeCapability ──────────────────────────
+
+/**
+ * `executeCapability` is where the active-patient assertion lives, so a client
+ * reaching `capability.run` itself has silently opted out of it. The extension
+ * and the CLI both did, for the one capability returning bytes instead of
+ * JSON — making `download_imaging_study` the single tool that would hand back
+ * a family member's images when the session was parked on their chart.
+ */
+describe('capability dispatch', () => {
+  // This used to be a regex over three client source files. It is now the type
+  // system's job: `run` is absent from the exported `Capability`, so reaching
+  // it is a compile error in every client, whatever the spelling. See
+  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // assertion in capabilities.unit.test.ts.
+  //
+  // What remains here is the positive half — that each client actually calls
+  // the guarded entry point — which the type system cannot express.
+  const CLIENT_SOURCES = [
+    'claude-desktop-extension/src/tools.ts',
+    'expo-app/src/lib/scrapers/session-manager.ts',
+    'npm-package/cli/capabilityActions.ts',
+  ];
+
+  for (const relativePath of CLIENT_SOURCES) {
+    it(`${relativePath} dispatches through executeCapability`, async () => {
+      const source = await Bun.file(
+        new URL(`../../${relativePath}`, import.meta.url).pathname,
+      ).text();
+      expect(source).toContain('executeCapability(');
+    });
+  }
+});
+
 // ── 3. CLI ─────────────────────────────────────────────────────────────────
 
 describe('CLI', () => {

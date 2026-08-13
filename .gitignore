@@ -62,3 +62,13 @@ openrecord-splash/dist/
 # Anchored: a bare `coverage` would also swallow tests/coverage/, the gate's own
 # test directory, and silently keep it out of the repo.
 /coverage
+
+# TLS keys/certs, env files with secrets, and TS build caches must never be
+# committed from anywhere in the tree. Basename rules on purpose: five PRs in
+# a row picked up a stray web/ directory carrying a localhost key and a Sentry
+# auth token, each fixed by re-cutting the branch — which cleans the symptom
+# and leaves the files on disk for the next branch. `.env` alone (line above)
+# misses variants like `.env.sentry-build-plugin`.
+*.pem
+.env.*
+*.tsbuildinfo

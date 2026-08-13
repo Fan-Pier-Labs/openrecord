@@ -8,7 +8,6 @@ import { date2dte } from "./utils";
 // import '../../../util'
 import { type BillingAccount, type BillingDetails, type BillingVisit, type PaymentListResponse, type StatementItem, type StatementListResponse } from "./types";
 import { mkdirp } from 'mkdirp';
-import { OPENRECORD_MOCK_DATA } from '../../../shared/env';
 import { logger } from '../../../shared/logger';
 
 
@@ -210,12 +209,7 @@ export async function getBillingStatementPDFs(mychartRequest: MyChartRequest, bi
 
     // Write the buffer to a file
     await mkdirp('pdfs')
-    if (OPENRECORD_MOCK_DATA) {
-      logger.debug("not saving xlxs", name, " to disk b/c its mock data mode")
-    }
-    else {
-      await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
-      logger.debug('Saved', name)
-    }
+    await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
+    logger.debug('Saved', name)
   }
 }

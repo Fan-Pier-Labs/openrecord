@@ -1,6 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test'
 import { listLabResults, getImagingResults } from '../labs_and_procedure_results/labResults'
 import { MyChartRequest } from '../myChartRequest'
+import { SessionExpiredError } from '../makeAuthenticatedRequest'
 
 // Capture every request the scraper makes so we can assert on the GetList body.
 function mockRequest(responses: Array<{ body: string }>) {
@@ -88,6 +89,117 @@ function routedRequest(routes: Record<string, Array<{ body: string; status?: num
 
 const emptyList = { body: JSON.stringify({ newResultGroups: [] }) }
 const emptyHistory = { body: JSON.stringify(null), status: 200 }
+
+/**
+ * A portal that lists `keys` results and then fails the detail fetch for
+ * `failDetailFor` — the shape of a session dying, or a proxy hiccuping, part
+ * way through a long scrape.
+ */
+function requestFailingOnDetail(
+  keys: string[],
+  failDetailFor: string,
+  fail: () => never = () => { throw new Error('connection reset') },
+) {
+  const req = new MyChartRequest('mychart.example.com')
+  req.firstPathPart = 'MyChart'
+  let listCalls = 0
+  req.transport = mock(async (url: string | URL | Request, init?: RequestInit) => {
+    const urlStr = url.toString()
+    if (urlStr.includes('/app/test-results')) {
+      return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
+    }
+    if (urlStr.includes('GetList')) {
+      // Only groupType 0 has anything; the rest are empty, as on a real instance.
+      const body = listCalls++ === 0
+        ? JSON.stringify({ newResultGroups: keys.map((key) => ({ key })) })
+        : JSON.stringify({ newResultGroups: [] })
+      return new Response(body, { status: 200 })
+    }
+    if (urlStr.includes('GetDetails')) {
+      const orderKey = JSON.parse(String(init?.body ?? '{}')).orderKey
+      if (orderKey === failDetailFor) fail()
+      return new Response(JSON.stringify({ orderName: `Order ${orderKey}` }), { status: 200 })
+    }
+    if (urlStr.includes('GetMultipleHistoricalResultComponents')) {
+      return new Response(JSON.stringify(null), { status: 200 })
+    }
+    return new Response('', { status: 404 })
+  })
+  return req
+}
+
+/**
+ * A failure part way through a result list must not come back as a shorter
+ * list. The bare `catch {}` around the whole per-group loop body meant a
+ * transient failure on result 2 of 3 returned result 1 and nothing else —
+ * a truncated chart that reads exactly like a complete one.
+ */
+describe('partial-failure handling', () => {
+  it('listLabResults throws rather than truncating when a detail fetch fails', async () => {
+    const req = requestFailingOnDetail(['order-1', 'order-2', 'order-3'], 'order-2')
+
+    await expect(listLabResults(req)).rejects.toThrow('connection reset')
+  })
+
+  it('listLabResults propagates a SessionExpiredError instead of reporting an empty chart', async () => {
+    const req = requestFailingOnDetail(['order-1', 'order-2'], 'order-2', () => {
+      throw new SessionExpiredError()
+    })
+
+    await expect(listLabResults(req)).rejects.toBeInstanceOf(SessionExpiredError)
+  })
+
+  it('getImagingResults throws rather than truncating when a detail fetch fails', async () => {
+    const req = requestFailingOnDetail(['study-1', 'study-2'], 'study-2')
+
+    await expect(getImagingResults(req)).rejects.toThrow('connection reset')
+  })
+
+  it('still tolerates a group type this instance does not serve', async () => {
+    // The one failure that IS expected: group types 0-3 are probed
+    // speculatively, so a 404 on one of them is not an error.
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    let listCalls = 0
+    req.transport = mock(async (url: string | URL | Request) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('/app/test-results')) {
+        return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
+      }
+      if (urlStr.includes('GetList')) {
+        // groupType 0 is unsupported here; groupType 1 has the data.
+        if (listCalls++ === 0) return new Response('Not Found', { status: 404 })
+        const body = listCalls === 2
+          ? JSON.stringify({ newResultGroups: [{ key: 'order-1' }] })
+          : JSON.stringify({ newResultGroups: [] })
+        return new Response(body, { status: 200 })
+      }
+      if (urlStr.includes('GetDetails')) {
+        return new Response(JSON.stringify({ orderName: 'Lab' }), { status: 200 })
+      }
+      return new Response(JSON.stringify(null), { status: 200 })
+    })
+
+    const result = await listLabResults(req)
+    expect(result).toHaveLength(1)
+    expect(result[0].orderName).toBe('Lab')
+  })
+
+  it('tolerates a group list that is not JSON at all', async () => {
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    req.transport = mock(async (url: string | URL | Request) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('/app/test-results')) {
+        return new Response('<input name="__RequestVerificationToken" value="tok123" />', { status: 200 })
+      }
+      if (urlStr.includes('GetList')) return new Response('<html>not json</html>', { status: 200 })
+      return new Response('', { status: 404 })
+    })
+
+    await expect(listLabResults(req)).resolves.toEqual([])
+  })
+})
 
 describe('listLabResults', () => {
   it('returns empty array when no token found', async () => {
