@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from "./myChartRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import { logger } from '../../shared/logger';
@@ -37,7 +38,7 @@ type FetchH2GHeaderResponse = {
 }
 
 export async function getHealthSummary(mychartRequest: MyChartRequest): Promise<HealthSummary> {
-  const pageResp = await mychartRequest.makeRequest({ path: '/app/health-summary' });
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/health-summary' });
   const html = await pageResp.text();
   const token = getRequestVerificationTokenFromBody(html);
 
@@ -47,7 +48,7 @@ export async function getHealthSummary(mychartRequest: MyChartRequest): Promise<
   }
 
   const [summaryResp, headerResp] = await Promise.all([
-    mychartRequest.makeRequest({
+    makeAuthenticatedRequest(mychartRequest, {
       path: '/api/health-summary/FetchHealthSummary',
       method: 'POST',
       headers: {
@@ -56,7 +57,7 @@ export async function getHealthSummary(mychartRequest: MyChartRequest): Promise<
       },
       body: JSON.stringify({}),
     }),
-    mychartRequest.makeRequest({
+    makeAuthenticatedRequest(mychartRequest, {
       path: '/api/health-summary/FetchH2GHeader',
       method: 'POST',
       headers: {

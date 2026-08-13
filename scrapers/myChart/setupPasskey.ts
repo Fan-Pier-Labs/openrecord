@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
 import { MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import {
@@ -7,9 +8,10 @@ import {
 } from './softwareAuthenticator';
 import { logger } from '../../shared/logger';
 
+// Deliberately status-only: the headers carry Set-Cookie and the bodies of
+// these endpoints carry WebAuthn challenges, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-  logger.debug(`  ${label} response headers:`, Object.fromEntries(resp.headers.entries()));
 }
 
 /**
@@ -25,7 +27,7 @@ function logUnexpectedResponse(label: string, resp: Response) {
  * from the /Home page HTML.
  */
 async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await mychartRequest.makeRequest({
+  const res = await makeAuthenticatedRequest(mychartRequest, {
     path: '/Home/CSRFToken?noCache=' + Math.random(),
   });
   logger.debug('  CSRFToken response status:', res.status);
@@ -60,7 +62,7 @@ async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | nu
   // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
   logger.debug('  CSRFToken endpoint returned no token (length:', body.length, '), trying /Home page fallback');
   try {
-    const homeRes = await mychartRequest.makeRequest({ path: '/Home' });
+    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
     const homeBody = await homeRes.text();
     const homeToken = getRequestVerificationTokenFromBody(homeBody);
     if (homeToken) {
@@ -109,7 +111,7 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
 
   // Step 1: Get WebAuthn creation options
   logger.debug('  Requesting passkey creation options...');
-  const createReqResp = await mychartRequest.makeRequest({
+  const createReqResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/passkey-management/GenerateCreateRequest',
     method: 'POST',
     headers: apiHeaders,
@@ -117,20 +119,18 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   });
   if (createReqResp.status !== 200) {
     logUnexpectedResponse('GenerateCreateRequest', createReqResp);
-    const body = await createReqResp.text();
-    logger.debug('  GenerateCreateRequest response body:', body);
     return null;
   }
   const createReqResult = await createReqResp.json();
 
   if (!createReqResult.success && !createReqResult.Success) {
-    logger.debug('  GenerateCreateRequest failed:', JSON.stringify(createReqResult));
+    logger.debug('  GenerateCreateRequest failed. Keys:', Object.keys(createReqResult).join(', '));
     return null;
   }
 
   const creationOptions: MyChartCreationOptions = createReqResult.data || createReqResult.Data;
   if (!creationOptions || !creationOptions.challenge) {
-    logger.debug('  Invalid creation options:', JSON.stringify(createReqResult));
+    logger.debug('  Invalid creation options — no challenge in the response.');
     return null;
   }
 
@@ -147,7 +147,7 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
 
   // Step 3: Submit credential to MyChart
   logger.debug('  Registering passkey with MyChart...');
-  const createPasskeyResp = await mychartRequest.makeRequest({
+  const createPasskeyResp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/passkey-management/CreatePasskey',
     method: 'POST',
     headers: apiHeaders,
@@ -155,13 +155,11 @@ export async function setupPasskey(mychartRequest: MyChartRequest): Promise<Pass
   });
   if (createPasskeyResp.status !== 200) {
     logUnexpectedResponse('CreatePasskey', createPasskeyResp);
-    const body = await createPasskeyResp.text();
-    logger.debug('  CreatePasskey response body:', body);
     return null;
   }
 
   const createPasskeyResult = await createPasskeyResp.json();
-  logger.debug('  CreatePasskey response:', JSON.stringify(createPasskeyResult));
+  logger.debug('  CreatePasskey response keys:', Object.keys(createPasskeyResult).join(', '));
 
   // Check for success — the response should contain passkey metadata
   if (createPasskeyResult.rawId || createPasskeyResult.RawId || createPasskeyResult.success || createPasskeyResult.Success) {
@@ -198,7 +196,7 @@ export async function listPasskeys(mychartRequest: MyChartRequest): Promise<unkn
     'Sec-Fetch-Site': 'same-origin',
   };
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/passkey-management/LoadPasskeyInfo',
     method: 'POST',
     headers: apiHeaders,
@@ -233,7 +231,7 @@ export async function deletePasskey(mychartRequest: MyChartRequest, rawId: strin
     'Sec-Fetch-Site': 'same-origin',
   };
 
-  const resp = await mychartRequest.makeRequest({
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/passkey-management/DeletePasskey',
     method: 'POST',
     headers: apiHeaders,

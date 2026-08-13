@@ -1,3 +1,4 @@
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { MyChartRequest } from "../myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../util";
 import { logger } from '../../../shared/logger';
@@ -30,7 +31,7 @@ export async function listConversations(mychartRequest: MyChartRequest): Promise
 
 
   // Go to the communication center
-  const communicationCenterRes = await mychartRequest.makeRequest({ path: '/app/communication-center' })
+  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' })
   const requestVerificationToken = getRequestVerificationTokenFromBody(await communicationCenterRes.text())
 
   if (!requestVerificationToken) {
@@ -39,7 +40,7 @@ export async function listConversations(mychartRequest: MyChartRequest): Promise
   }
 
 
-  const messages = await mychartRequest.makeRequest({
+  const messages = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/conversations/GetConversationList',
     "headers": {
       "Content-Type": "application/json; charset=utf-8",

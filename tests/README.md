@@ -1,27 +1,60 @@
 # Tests
 
-End-to-end and integration tests for the mychart-connector project. Unit
-tests live alongside their source files (`*.test.ts`); this folder is for
-larger integration suites that need real services running.
+Test files live next to the code they cover, all over the repo. **What sorts
+them into suites is the filename, not the folder** — every test file ends in one
+of three kinds:
 
-## Layout
+| Suffix | Needs | Runs in CI |
+| --- | --- | --- |
+| `*.unit.test.ts` | nothing — no network, no server, no credentials | yes (`bun run test`) |
+| `*.integration.test.ts` | the fake-mychart server from `docker-compose.ci.yaml` | yes (`bun run test:integration`) |
+| `*.real-mychart.test.ts` | credentials for a **real** MyChart account | **never** (`bun run test:real-mychart`, by hand) |
+
+Every `test*` script in every `package.json` selects on those suffixes and
+nothing else — no script names a directory of tests, let alone an individual
+file. Two consequences worth knowing:
+
+- **The real-MyChart suite is out of CI by construction.** Nothing in the
+  workflow globs `.real-mychart`, and `suite-naming.unit.test.ts` reads the
+  workflow files and fails if that ever changes.
+- **A test file that forgets its suffix never runs**, and a suite that never
+  runs looks exactly like one that passes. `tests/suite-naming.unit.test.ts`
+  fails the build on any unsuffixed `*.test.ts`, so that mistake surfaces
+  immediately.
+
+There is no allowlist and no exception. A suite that genuinely cannot run
+belongs behind `it.skip`, where the reporter still counts it, never behind a
+filename that makes it invisible.
+
+## This folder
 
 ```
 tests/
+├── suite-naming.unit.test.ts       # the guard described above
 └── integration/
     └── ci/                         # CI integration suite (Docker Compose)
-        ├── integration.test.ts         # Full user-journey suite (API)
-        ├── cli-passkey.test.ts         # CLI passkey setup/removal against fake-mychart
-        ├── fake-mychart-passkey-ui.test.ts  # Browser-driven passkey UI test (Playwright)
-        ├── toggle-ui.test.ts           # Browser-driven instance enable/disable toggle (Playwright)
-        └── package.json                # Local deps for this suite
+        ├── cli-passkey.integration.test.ts          # CLI passkey setup/removal
+        ├── fake-mychart-passkey-ui.integration.test.ts  # Playwright passkey UI test
+        └── package.json            # Playwright, needed only by this suite
 ```
 
 ## `tests/integration/ci/`
 
-Runs the full user journey against the services defined in
-`docker-compose.ci.yaml` (PostgreSQL 18, fake-mychart, web app). See the
-top-level `CLAUDE.md` for the full list of scenarios.
+Runs against the fake-mychart service defined in `docker-compose.ci.yaml`
+(served on `localhost:4000`) — the same one every other integration suite uses.
+`cli-passkey.integration.test.ts` also needs the CLI binary built first
+(`cd npm-package && bun run build`).
+
+There is no script scoped to this directory. `bun run test:integration` runs it
+with everything else; that was the point of merging the two suites, and the
+compose service dropped `FAKE_MYCHART_ACCEPT_ANY=true` — which nothing needed,
+and which the suites asserting a bad password is rejected would have failed
+against — so one server can serve them all.
+
+**Every suite sharing that server resets it in its own `beforeAll`.** Bun runs
+test files in directory-entry order, which shifts whenever a file is added or
+renamed, so anything that depends on a neighbour having run first breaks for
+reasons that look nothing like the cause.
 
 ### Running locally
 
@@ -29,8 +62,11 @@ top-level `CLAUDE.md` for the full list of scenarios.
 # Start services
 docker compose -f docker-compose.ci.yaml up -d --build --wait
 
-# Run the suite
-bun run test:ci-integration
+# Build the CLI binary the passkey test spawns
+cd npm-package && bun run build && cd ..
+
+# Run every integration suite
+bun run test:integration
 
 # Tear down
 docker compose -f docker-compose.ci.yaml down -v
@@ -40,34 +76,6 @@ docker compose -f docker-compose.ci.yaml down -v
 
 `tests/integration/ci/package.json` pulls in:
 
-- `pg` — direct PostgreSQL access (e.g. to extract password-reset tokens
-  from the `verification` table).
-- `@better-auth/utils` — shared with the web app for auth helpers.
-- `playwright` — **only used by the two `*-ui.test.ts` files** to drive a
-  real Chromium instance. The passkey UI test specifically needs
-  Playwright's WebAuthn virtual authenticator (a CDP feature) — plain
-  `fetch` can't replicate it. The toggle test could in principle be
-  replaced by an API test + a small RTL component test.
-
-### Future cleanup: consider dropping Playwright
-
-Playwright is a heavy install (downloads a full Chromium binary on
-`bun install`) and noticeably slows down CI for what is otherwise a
-fast, API-driven suite. Options:
-
-1. **Move the UI tests to their own package** (e.g.
-   `tests/integration/ci-ui/`) so `tests/integration/ci/` stays
-   fetch-only. The CLI/API tests then install in seconds.
-2. **Drop `toggle-ui.test.ts` entirely** and cover the instance
-   enable/disable toggle via an API test against
-   `PATCH /api/mychart-instances/:id` plus a unit/component test for the
-   visual states. Keep the passkey UI test if you want true browser
-   coverage of the WebAuthn flow.
-3. **Drop both `*-ui.test.ts` files** if browser coverage isn't worth
-   the install cost — the underlying functionality is already exercised
-   by `integration.test.ts` (passkey API) and `cli-passkey.test.ts`
-   (CLI passkey flow).
-
-Option 1 or 2 is probably the right call: keeping Playwright off the
-critical-path test image makes the common case much faster while
-preserving the WebAuthn coverage.
+- `playwright` — drives a real Chromium instance for the passkey UI test,
+  which needs Playwright's WebAuthn virtual authenticator (a CDP feature) —
+  plain `fetch` can't replicate it.

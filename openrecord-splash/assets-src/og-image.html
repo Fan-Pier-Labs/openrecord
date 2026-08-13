@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!--
+  Source for openrecord-splash/og-image.png (1200x630 social share card).
+  Rendered to PNG by ../generate-assets.sh — edit here, never edit the PNG.
+  Visual language deliberately mirrors index.html: same palette, same Inter
+  type, same soft blob + grid background.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1a1a24;
+    --slate-900: #0f172a;
+    --slate-600: #475569;
+    --slate-500: #64748b;
+    --slate-400: #94a3b8;
+    --slate-300: #cbd5e1;
+    --slate-200: #e2e8f0;
+    --blue-600: #2563eb;
+    --emerald-500: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f7f9fc;
+    color: var(--slate-900);
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ---- Background (mirrors the splash's bg-canvas) ---- */
+  .bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(15,23,42,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,23,42,0.045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+  }
+  .blob { position: absolute; border-radius: 9999px; filter: blur(90px); }
+  .blob.a { width: 620px; height: 620px; top: -220px; left: -160px; background: rgba(37,99,235,0.14); }
+  .blob.b { width: 560px; height: 560px; bottom: -260px; right: -120px; background: rgba(16,185,129,0.16); }
+
+  /* ---- Content ---- */
+  .card {
+    position: relative;
+    height: 100%;
+    padding: 72px 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .top { display: flex; align-items: center; gap: 18px; }
+  .mark { width: 64px; height: 64px; border-radius: 18px; box-shadow: 0 10px 26px rgba(15,23,42,0.16); }
+  .wordmark { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+
+  h1 {
+    font-size: 92px;
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 26px;
+  }
+  h1 .swap { color: var(--slate-300); display: inline-flex; align-items: center; margin: 0 10px; }
+  .sub {
+    font-size: 30px;
+    font-weight: 300;
+    color: #5a5a6a;
+    line-height: 1.35;
+    max-width: 900px;
+  }
+
+  .bottom { display: flex; align-items: center; justify-content: space-between; }
+  .badges { display: flex; gap: 10px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: 9999px;
+    font-size: 17px; font-weight: 500; letter-spacing: .01em;
+  }
+  .badge.blue { background: rgba(239,246,255,0.9); border: 1px solid rgba(191,219,254,0.9); color: var(--blue-600); }
+  .badge.emerald { background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; }
+  .badge.slate { background: rgba(248,250,252,0.9); border: 1px solid var(--slate-200); color: var(--slate-600); }
+  .domain { font-size: 19px; font-weight: 500; color: var(--slate-400); letter-spacing: .01em; }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="blob a"></div>
+  <div class="blob b"></div>
+
+  <div class="card">
+    <div class="top">
+      <img class="mark" src="../icon.svg" alt="" />
+      <span class="wordmark">OpenRecord</span>
+    </div>
+
+    <div>
+      <h1>
+        Claude
+        <span class="swap">
+          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+        </span>
+        MyChart.
+      </h1>
+      <p class="sub">Manage your health data with AI. Read records, send messages,<br />book appointments, and request refills &mdash; all from Claude.</p>
+    </div>
+
+    <div class="bottom">
+      <div class="badges">
+        <span class="badge blue">Open-source</span>
+        <span class="badge emerald">Your data stays yours</span>
+        <span class="badge slate">2 minute setup</span>
+      </div>
+      <span class="domain">openrecord.fanpierlabs.com</span>
+    </div>
+  </div>
+
+  <script>
+    // ?domain=0 renders the card without the marketing domain — used for the
+    // web app's own og-image.png, which is served from whatever host a
+    // deployment (Fargate, Railway, self-hosted) happens to run on.
+    if (new URLSearchParams(location.search).get('domain') === '0') {
+      document.querySelector('.domain').remove();
+    }
+  </script>
+</body>
+</html>

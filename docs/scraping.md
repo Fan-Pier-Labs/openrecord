@@ -7,8 +7,7 @@
 - Fetch passwords from the browser keystore
 - Do not ask the user for 2FA codes — retrieve them automatically via the Resend API (see [CLI docs](cli.md#automatic-2fa-via-resend))
 - Session expiration: a 302 redirect to the Login page means cookies are dead
-- **Passkey auto-login**: The web app stores passkey credentials (encrypted) per MyChart instance. Auto-connect prefers passkey login (bypasses 2FA entirely), falling back to username/password/TOTP. Users set up passkeys via a "Setup Passkey" button on the instance card. If a passkey fails (e.g. revoked on the portal), it is auto-cleared from the DB.
-  - Key files: `web/src/lib/mcp/auto-connect.ts`, `web/src/app/api/mychart-instances/[id]/setup-passkey/route.ts`
+- **Passkey auto-login**: Passkey credentials can be registered per MyChart instance and preferred at login (bypasses 2FA entirely), falling back to username/password/TOTP. The CLI stores them via `npm-package/cli/passkeyStore.ts`.
   - Scraper layer: `scrapers/myChart/setupPasskey.ts` (registration), `scrapers/myChart/login.ts` (`myChartPasskeyLogin`), `scrapers/myChart/softwareAuthenticator.ts` (software WebAuthn)
 
 ## Scraping Tips

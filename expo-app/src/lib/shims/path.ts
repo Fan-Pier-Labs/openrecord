@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Stub for Node's `path` module. Only used by shared/util.ts (changeDirToPackageRoot)
  * which is never called at runtime in the mobile app.

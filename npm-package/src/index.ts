@@ -33,6 +33,19 @@ export {
   type TwoFaDeliveryInfo,
 } from '../../scrapers/myChart/login';
 
+export {
+  makeAuthenticatedRequest,
+  renewMyChartSession,
+  SessionExpiredError,
+  type AuthenticatedRequestOptions,
+} from '../../scrapers/myChart/makeAuthenticatedRequest';
+export {
+  silentLogin,
+  wireSilentReauthentication,
+  type SilentLoginParams,
+  type SilentLoginOutcome,
+} from '../../scrapers/myChart/silentLogin';
+
 export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/totp';
 export {
   setupTotp,
@@ -56,6 +69,13 @@ export {
   getEmail,
   type ProfileData,
 } from '../../scrapers/myChart/profile';
+export {
+  discoverProxyTargets,
+  switchProxyTarget,
+  verifyActiveProxyTarget,
+  compareProfileNames,
+  type ProxyTarget,
+} from '../../scrapers/myChart/proxyContext';
 
 // ─── Health summary / vitals ──────────────────────────────────────────────
 export {
@@ -116,20 +136,14 @@ export {
 } from '../../scrapers/myChart/eunity/imagingDirectDownload';
 
 // ─── CLO image conversion ────────────────────────────────────────────────
-// Turn raw CLO bytes from `downloadImagingStudyDirect` into JPEG / PNG /
-// AVIF / TIFF / WebP. Goes through an intermediate 16-bit Bitmap so callers
-// can apply their own VOI LUT / windowing before encoding if they want.
+// Two steps, deliberately not one: decode the raw CLO bytes from
+// `downloadImagingStudyDirect` into a Bitmap, then hand that Bitmap to the
+// exporter for the format you want. The intermediate is the point — it is where
+// you apply your own VOI LUT / windowing, and it is what keeps the format
+// choice at the call site instead of inferred from a filename.
 export {
-  convertCloToJpg,
   convertCloToBitmap,
   convertCloToBitmap16,
-  convertBitmapToJpg,
-  convertBitmapToWebp,
-  convertBitmap16ToJpg,
-  convertBitmap16ToPng,
-  convertBitmap16ToAvif,
-  convertBitmap16ToTiff,
-  convertBitmap16ToWebp,
   parseWrapper,
   applyVoiLut,
   to8bit,
@@ -137,11 +151,29 @@ export {
   type Bitmap,
   type Bitmap16,
   type CloMetadata,
+} from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
+
+export {
+  convertBitmap16ToJpg,
+  convertBitmapToJpg,
   type JpgOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
+export {
+  convertBitmap16ToWebp,
+  convertBitmapToWebp,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_webp';
+export {
+  convertBitmap16ToPng,
   type PngOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_png';
+export {
+  convertBitmap16ToAvif,
   type AvifOptions,
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_avif';
+export {
+  convertBitmap16ToTiff,
   type TiffOptions,
-} from '../../scrapers/myChart/clo-image-parser/clo_to_jpg';
+} from '../../scrapers/myChart/clo-image-parser/exporters/to_tiff';
 
 // ─── Visits ───────────────────────────────────────────────────────────────
 export { upcomingVisits, pastVisits } from '../../scrapers/myChart/visits/visits';
@@ -254,6 +286,52 @@ export {
   getEhiExportTemplates,
   type EhiTemplate,
 } from '../../scrapers/myChart/ehiExport';
+
+// ─── Visit notes ─────────────────────────────────────────────────────────
+export {
+  getVisitNotes,
+  getNoteContent,
+  getVisitAVS,
+  type VisitNote,
+  type GetVisitNotesResult,
+  type NoteContent,
+} from '../../scrapers/myChart/notes/notes';
+
+// ─── Capability registry ─────────────────────────────────────────────────
+// The single source of truth for what OpenRecord can do with a MyChart
+// account. The CLI, the Claude Desktop extension and the mobile app all derive
+// their tool lists from it; exported here so consumers can build their own
+// tool layer against exactly the same set.
+export { resolveUnique, type ResolveUniqueOptions } from '../../shared/resolveUnique';
+export {
+  base64UrlEncode,
+  base64UrlDecode,
+} from '../../shared/base64url';
+export {
+  ACCOUNT_PARAM,
+  ACCOUNT_PARAM_NAMES,
+  PATIENT_PARAM,
+  readAccountArg,
+  acceptsPatientParam,
+  CAPABILITIES,
+  CAPABILITY_IDS,
+  AGENT_CAPABILITIES,
+  WRITE_CAPABILITY_IDS,
+  getCapability,
+  capabilitiesByGroup,
+  executeCapability,
+  describeCapability,
+  encodeImageId,
+  decodeImageId,
+  resolveRecipient,
+  resolveTopic,
+  type Capability,
+  type CapabilityArgs,
+  type CapabilityContext,
+  type CapabilityKind,
+  type CapabilityParam,
+  type StudyImagePayload,
+} from '../../shared/capabilities';
 
 // ─── High-level client ───────────────────────────────────────────────────
 export {

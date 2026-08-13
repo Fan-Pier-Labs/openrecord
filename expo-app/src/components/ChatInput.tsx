@@ -22,7 +22,7 @@ export function ChatInput({ onSend, disabled }: Props) {
       <TextInput
         ref={inputRef}
         testID="chat-input"
-        accessibilityLabel="Chat message input"
+        accessibilityLabel="Message input"
         style={styles.input}
         placeholder="Ask about your health data..."
         placeholderTextColor="#999"

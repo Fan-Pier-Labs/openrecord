@@ -38,11 +38,13 @@ import { getLinkedMyChartAccounts } from '../../scrapers/myChart/other_mycharts/
 import { getConversationMessages } from '../../scrapers/myChart/messages/messageThreads';
 import { getImagingResults } from '../../scrapers/myChart/labs_and_procedure_results/labResults';
 import { downloadImagingStudyDirect } from '../../scrapers/myChart/eunity/imagingDirectDownload';
-import { convertCloToJpg } from '../../scrapers/myChart/clo-image-parser/clo_to_jpg';
+import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
+import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { AMF3Reader } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { inflateSync } from 'zlib';
 import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
 import { requestMedicationRefill } from '../../scrapers/myChart/medicationRefill';
+import { discoverProxyTargets, switchProxyTarget, verifyActiveProxyTarget, findProxyTarget, checkProxyContext } from '../../scrapers/myChart/proxyContext';
 import { sessionStore } from '../../scrapers/myChart/sessionStore';
 import { generateTotpCode } from '../../scrapers/myChart/totp';
 import { setupTotp, disableTotp } from '../../scrapers/myChart/setupTotp';
@@ -51,10 +53,13 @@ import { myChartPasskeyLogin } from '../../scrapers/myChart/login';
 import { setupPasskey, listPasskeys, deletePasskey } from '../../scrapers/myChart/setupPasskey';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/passkeyLoginRetry';
+import { wireSilentReauthentication } from '../../scrapers/myChart/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import { isBlockedInstance } from '../../scrapers/myChart/blockedInstances';
+import { CAPABILITIES, getCapability } from '../../shared/capabilities';
+import { renderCapabilityList, runCapabilityAction } from './capabilityActions';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -92,21 +97,50 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --read-login-from-browser               (auto-pick first MyChart account from browsers)
 //   npx tsx src/cli.ts --host <hostname> --action send-message  (send a new message)
 //   npx tsx src/cli.ts --host <hostname> --action send-reply --conversation-id <id> --message <msg>
+//   npx tsx src/cli.ts --host <hostname> --action list-proxies                 (list accessible patient records)
+//   npx tsx src/cli.ts --host <hostname> --patient "Bart Simpson"            (read a proxy patient's chart)
+//   npx tsx src/cli.ts --host <hostname> --switch "Bart Simpson"             (change MyChart's active patient)
+//   npx tsx src/cli.ts --list-capabilities                                   (every capability and its arguments)
+//   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
+//
+// `--action` accepts any id from the shared capability registry
+// (`shared/capabilities.ts`) and prints its result as JSON, with parameters
+// supplied by repeated `--arg name=value`. That is what keeps the CLI from
+// drifting behind the extension and the app: a capability added there is a CLI
+// command the same day, with no flag plumbing to remember.
 
 interface CliArgs {
   host?: string; user?: string; pass?: string; twofa?: string;
   nocache?: boolean; readLoginFromBrowser?: boolean; action?: string;
   conversationId?: string; message?: string; subject?: string;
+  patient?: string; switchPatient?: string;
   setupTotp?: boolean; useSavedTotp?: boolean; disableTotp?: boolean;
   setupPasskey?: boolean; usePasskey?: boolean; listPasskeys?: boolean;
   deletePasskey?: boolean; local?: boolean; saveClo?: boolean;
+  listCapabilities?: boolean;
+  /** Repeated `--arg name=value` pairs, passed straight to the capability. */
+  capabilityArgs?: Record<string, string>;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const parsed: Record<string, string | boolean> = {};
+  const parsed: Record<string, string | boolean | Record<string, string>> = {};
+  const capabilityArgs: Record<string, string> = {};
+  parsed.capabilityArgs = capabilityArgs;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
+    if (args[i] === '--list-capabilities') parsed.listCapabilities = true;
+    // `--arg name=value`, repeatable. Whatever the chosen capability declares
+    // in the shared registry is what this accepts — no per-flag plumbing.
+    else if (args[i] === '--arg' && args[i + 1]) {
+      const pair = args[++i];
+      const eq = pair.indexOf('=');
+      if (eq <= 0) {
+        console.error(`  --arg expects name=value, got "${pair}".`);
+        process.exit(1);
+      }
+      capabilityArgs[pair.slice(0, eq)] = pair.slice(eq + 1);
+    }
+    else if (args[i] === '--host' && args[i + 1]) parsed.host = args[++i];
     else if (args[i] === '--user' && args[i + 1]) parsed.user = args[++i];
     else if (args[i] === '--pass' && args[i + 1]) parsed.pass = args[++i];
     else if (args[i] === '--2fa' && args[i + 1]) parsed.twofa = args[++i];
@@ -116,6 +150,11 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--conversation-id' && args[i + 1]) parsed.conversationId = args[++i];
     else if (args[i] === '--message' && args[i + 1]) parsed.message = args[++i];
     else if (args[i] === '--subject' && args[i + 1]) parsed.subject = args[++i];
+    // Which patient's chart to read. A name (full or partial), a record id, or
+    // "me". Applies to every action; see resolvePatientContext().
+    else if (args[i] === '--patient' && args[i + 1]) parsed.patient = args[++i];
+    // The one command that changes MyChart's server-side active patient.
+    else if (args[i] === '--switch' && args[i + 1]) parsed.switchPatient = args[++i];
     else if (args[i] === '--set-up-totp') parsed.setupTotp = true;
     else if (args[i] === '--use-saved-totp') parsed.useSavedTotp = true;
     else if (args[i] === '--disable-totp') parsed.disableTotp = true;
@@ -288,6 +327,25 @@ type LoginCredentials =
 
 // ─── Step 2: Login ───
 
+/**
+ * Wire automatic session renewal: when a scrape's session expires mid-run,
+ * makeAuthenticatedRequest calls this hook to silently log back in with
+ * whatever non-interactive credentials exist (passkey, password, saved TOTP
+ * secret) and refresh the cookie cache. Stores are re-read at renewal time so
+ * a passkey or TOTP secret saved after login still counts.
+ */
+function wireCliSessionRenewal(mychartRequest: MyChartRequest, creds: LoginCredentials) {
+  wireSilentReauthentication(mychartRequest, async () => ({
+    hostname: creds.hostname,
+    username: 'username' in creds ? creds.username : undefined,
+    password: 'password' in creds ? creds.password : undefined,
+    totpSecret: ('totp' in creds ? creds.totp : undefined) ?? await loadTotpSecret(creds.hostname),
+    passkey: 'passkey' in creds ? creds.passkey : await loadPasskeyCredential(creds.hostname),
+    protocol: cliArgs.local ? 'http' : undefined,
+    onPasskeyUsed: (credential) => savePasskeyCredential(creds.hostname, credential),
+  }), (renewed) => saveCachedSession(creds.hostname, renewed));
+}
+
 async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
   if (isBlockedInstance(creds.hostname)) {
     console.log(`\n  ✗ ${creds.hostname} is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.`);
@@ -301,6 +359,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     const cached = await tryLoadCachedSession(creds.hostname);
     if (cached) {
       console.log('  Using cached session (skipping login).');
+      wireCliSessionRenewal(cached, creds);
       return cached;
     }
   }
@@ -327,6 +386,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         // starts from the right place and doesn't have to retry.
         await savePasskeyCredential(creds.hostname, creds.passkey);
         await saveCachedSession(creds.hostname, passkeyResult.mychartRequest);
+        wireCliSessionRenewal(passkeyResult.mychartRequest, creds);
         return passkeyResult.mychartRequest;
       }
 
@@ -378,7 +438,9 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
       if (useTotpSecret) {
         // Generate TOTP code locally — no email, no waiting
         const totpCode = await generateTotpCode(useTotpSecret);
-        console.log(`  Generated TOTP code: ${totpCode}`);
+        // The code is submitted programmatically — printing it only puts a
+        // live credential in the terminal scrollback.
+        console.log('  Generated TOTP code locally.');
         twofaCodeArray = [{ code: totpCode, score: 1 }];
       } else if (cliArgs.twofa) {
         console.log('  Using 2FA code from --2fa arg');
@@ -439,6 +501,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
 
     console.log('  Logged in successfully!');
     await saveCachedSession(creds.hostname, mychartRequest);
+    wireCliSessionRenewal(mychartRequest, creds);
     return mychartRequest;
   } catch (err) {
     console.error('  Login failed:', (err as Error).message);
@@ -1255,11 +1318,18 @@ async function main() {
   sendTelemetryEvent('cli_started', {
     action: cliArgs.action || 'default',
     host: cliArgs.host || 'unknown',
-  });
+  }, 'cli');
 
   // Fire-and-forget update check — never blocks or breaks the CLI
   const { version } = await import('../package.json');
   void checkForUpdate({ currentVersion: version, packageName: 'cli' });
+
+  // Listing what the CLI can do needs no account and no network.
+  if (cliArgs.listCapabilities) {
+    console.log(renderCapabilityList());
+    closeRL();
+    return;
+  }
 
   header('MyChart Scraper - Terminal');
 
@@ -1361,6 +1431,108 @@ async function main() {
   }
 
   console.log(`\n  Successfully logged in to ${sessions.length} account(s).`);
+
+  // ── Explicit patient switch: the ONLY command that changes MyChart state ──
+  //
+  // MyChart's active patient lives in the server-side session, so changing it
+  // is a real mutation. It gets its own deliberate command rather than
+  // happening as a side effect of a read.
+  if (cliArgs.switchPatient !== undefined) {
+    for (const session of sessions) {
+      header(`Switching patient record: ${session.hostname}`);
+      try {
+        const targets = await discoverProxyTargets(session.request);
+        if (targets.length === 0) {
+          console.log('  This account has access to only its own record — nothing to switch.');
+          continue;
+        }
+        const wanted = findProxyTarget(targets, cliArgs.switchPatient);
+        const result = await switchProxyTarget(
+          session.request,
+          wanted.isSelf ? { self: true } : { id: wanted.id },
+          { discoveredTargets: targets },
+        );
+        console.log(`  Now viewing: ${result.target.displayName}${result.target.isSelf ? ' (your own record)' : ''}`);
+        console.log(`  Profile confirms: ${result.verifiedProfileName ?? 'unknown'} (DOB ${result.verifiedDob ?? 'unknown'})`);
+      } catch (err) {
+        console.log(`  Switch failed: ${(err as Error).message}`);
+        closeRL();
+        process.exit(1);
+      }
+    }
+    closeRL();
+    return;
+  }
+
+  // ── Every other command asserts which patient it is reading, and refuses ──
+  //
+  // Reads never mutate. If MyChart is pointed at a different patient than this
+  // command is about, stop and say so rather than switching silently — a read
+  // that quietly changes server state is how you end up scraping the wrong
+  // person's chart without noticing.
+  //
+  // No --patient means the account holder, stated explicitly, because the CLI
+  // resumes sessions from cached cookies and would otherwise inherit whichever
+  // patient an earlier invocation left behind.
+  // The patient-record commands are the exception: asserting "you must already
+  // be on patient X" before letting someone list the records or switch to one
+  // would make those commands unusable exactly when they are needed.
+  const actionIsAboutPatients =
+    cliArgs.action === 'list-proxies' || getCapability(cliArgs.action ?? '')?.group === 'Patients';
+
+  if (!actionIsAboutPatients) {
+    for (const session of sessions) {
+      let check;
+      try {
+        check = await checkProxyContext(session.request, cliArgs.patient);
+      } catch (err) {
+        const why = (err as Error).message;
+        if (cliArgs.patient) {
+          // A specific patient was asked for and we can't confirm we're on
+          // them. Refusing is the whole point.
+          console.log(`\n  ${why}`);
+          closeRL();
+          process.exit(1);
+        }
+        // Nobody asked for a proxy patient. Most accounts have no proxy access
+        // at all, and two of the three discovery surfaces are inferred rather
+        // than captured from a real instance — so a parsing miss here must not
+        // break an ordinary scrape that has nothing to do with this feature.
+        console.log(`  Note: could not determine the active patient on ${session.hostname} (${why}). Continuing.`);
+        continue;
+      }
+
+      // Single-record account: no proxy surface, nothing to assert.
+      if (!check.wanted) {
+        if (cliArgs.patient) {
+          console.log(`\n  ${session.hostname} has access to only one patient record, so --patient cannot be used.`);
+          closeRL();
+          process.exit(1);
+        }
+        continue;
+      }
+
+      if (check.active) {
+        console.log(`  Reading ${session.hostname} as: ${check.wanted.displayName}${check.wanted.isSelf ? ' (your own record)' : ''}`);
+        continue;
+      }
+
+      const host = session.hostname;
+      const wantedName = check.wanted.displayName;
+      const currentName = check.current
+        ? check.current.displayName
+        : 'an unknown patient (this MyChart does not report which record is active)';
+
+      console.log(`\n  Refusing to read: ${host} is currently on ${currentName}, but this command is about ${wantedName}.`);
+      console.log('\n  The active patient is stored on MyChart\'s server, so it has to be changed');
+      console.log('  deliberately — reading never changes it. Run:');
+      console.log(`\n    mychart-cli --host ${host} --action list-proxies     # every patient name on this account`);
+      console.log(`    mychart-cli --host ${host} --switch ${JSON.stringify(wantedName)}`);
+      console.log('\n  then re-run this command.');
+      closeRL();
+      process.exit(1);
+    }
+  }
 
   // Handle --set-up-totp: enable TOTP authenticator app and save the secret
   if (cliArgs.setupTotp) {
@@ -1471,6 +1643,32 @@ async function main() {
           console.log(`  Failed to delete passkey: ${rawId}`);
         }
       }
+    }
+    closeRL();
+    return;
+  }
+
+  // Handle list-proxies action: which patient records can this account reach?
+  if (cliArgs.action === 'list-proxies') {
+    for (const session of sessions) {
+      header(`Patient records: ${session.hostname}`);
+      const targets = await discoverProxyTargets(session.request);
+      if (targets.length === 0) {
+        console.log('  This account has access to only its own record.');
+        continue;
+      }
+      const active = await verifyActiveProxyTarget(session.request, { proxyTargets: targets });
+      for (const target of targets) {
+        // A blank isSelected is not "inactive" when the portal never said which
+        // record is active — don't print a marker we can't stand behind.
+        const marker = !target.selectionKnown ? '?' : (target.isSelected ? '*' : ' ');
+        console.log(`  ${marker} ${target.displayName}${target.isSelf ? '  (your own record)' : ''}`);
+        console.log(`      --patient ${JSON.stringify(target.displayName)}`);
+      }
+      if (!active.selectionKnown) {
+        console.log('  (This instance does not report which record is active; ? marks unknown.)');
+      }
+      console.log(`  Profile currently shown: ${active.profileName ?? 'unknown'}`);
     }
     closeRL();
     return;
@@ -1664,7 +1862,12 @@ async function main() {
                         console.log(`          Saved CLO: ${multiSlice ? `${safeDesc}/${cloBase}_wrapper.clo` : `${cloBase}_wrapper.clo`}`);
                       }
                     }
-                    await convertCloToJpg({ pixelData: img.pixelData!, outputPath: jpgPath, wrapperData: img.wrapperData });
+                    // Decode, then export — the CLI picks JPEG explicitly
+                    // rather than the format being inferred from jpgPath.
+                    await convertBitmapToJpg(
+                      convertCloToBitmap(img.pixelData!, img.wrapperData),
+                      jpgPath,
+                    );
                     const stat = await fs.promises.stat(jpgPath);
                     if (!multiSlice || i === 0 || i === seriesImages.length - 1) {
                       console.log(`          Saved: ${multiSlice ? `${safeDesc}/${fileName}` : fileName} (${(stat.size / 1024).toFixed(0)} KB) - ${img.seriesDescription}`);
@@ -1793,6 +1996,28 @@ async function main() {
     await sessionStore.runKeepalive();
     sessionStore.startKeepalive();
     return;
+  }
+
+  // Any capability from the shared registry, by id. Runs after the bespoke
+  // actions above so their nicer output is preserved, and before the default
+  // full scrape.
+  if (cliArgs.action) {
+    const capability = getCapability(cliArgs.action);
+    if (!capability) {
+      console.log(`\n  Unknown --action "${cliArgs.action}".`);
+      console.log(`  Capabilities: ${CAPABILITIES.map(c => c.id).join(', ')}`);
+      console.log('  Run  mychart-cli --list-capabilities  for the full list with arguments.');
+      closeRL();
+      process.exit(1);
+    }
+    let ok = true;
+    for (const session of sessions) {
+      const creds = credentialsList.find(c => c.hostname === session.hostname);
+      const password = creds && 'password' in creds ? creds.password : undefined;
+      if (!(await runCapabilityAction(capability, session, password, cliArgs.capabilityArgs ?? {}))) ok = false;
+    }
+    closeRL();
+    process.exit(ok ? 0 : 1);
   }
 
   for (const session of sessions) {

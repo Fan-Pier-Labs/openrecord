@@ -1,31 +1,20 @@
 /**
  * Local tool executor — runs MyChart scrapers on-device.
  *
- * Read-only scrapers run immediately. Write tools (send_message,
- * send_reply, request_refill, …) require a user confirmation popup
- * showing the exact payload before they execute, similar to the
- * Claude mobile app.
+ * Read-only scrapers run immediately. Write tools — every `kind: 'write'`
+ * entry in the shared capability registry, surfaced here as WRITE_TOOL_META —
+ * require a user confirmation popup showing the exact payload before they
+ * execute, similar to the Claude mobile app.
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
-
-const WRITE_TOOLS: Record<string, { title: string; description: string }> = {
-  send_message: {
-    title: "Send Message",
-    description: "Sends a new message to a MyChart provider.",
-  },
-  send_reply: {
-    title: "Send Reply",
-    description: "Replies to an existing MyChart conversation.",
-  },
-  request_refill: {
-    title: "Request Refill",
-    description: "Submits a medication refill request to MyChart.",
-  },
-};
+import { WRITE_TOOL_META } from "./tool-catalog";
+import { ACCOUNT_PARAM_NAMES } from "../../../../shared/capabilities";
 
 function formatArgs(input: Record<string, unknown>): string {
-  const entries = Object.entries(input).filter(([k]) => k !== "instance");
+  // Which account it is going to is context, not payload — the patient is
+  // confirming the message, not the hostname. Both spellings are filtered.
+  const entries = Object.entries(input).filter(([k]) => !ACCOUNT_PARAM_NAMES.includes(k));
   if (entries.length === 0) return "(no arguments)";
   return entries
     .map(([k, v]) => {
@@ -39,7 +28,7 @@ function confirmWrite(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<boolean> {
-  const meta = WRITE_TOOLS[toolName];
+  const meta = WRITE_TOOL_META[toolName];
   if (!meta) return Promise.resolve(true);
   const body = `${meta.description}\n\n${formatArgs(input)}`;
   return new Promise((resolve) => {
@@ -48,7 +37,7 @@ function confirmWrite(
       body,
       [
         { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-        { text: "Send", style: "destructive", onPress: () => resolve(true) },
+        { text: meta.confirmLabel ?? "Send", style: "destructive", onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     );
@@ -60,7 +49,7 @@ export async function executeLocalTool(
   input: Record<string, unknown>,
 ): Promise<string> {
   try {
-    if (WRITE_TOOLS[toolName]) {
+    if (WRITE_TOOL_META[toolName]) {
       const ok = await confirmWrite(toolName, input);
       if (!ok) {
         return JSON.stringify({

@@ -1,7 +1,11 @@
 import Constants from "expo-constants";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
-import { backendUrl } from "./client";
-import { setBackendSession, type BackendUser } from "./session";
+import {
+  getBackendSession,
+  setBackendSession,
+  clearBackendSession,
+  type BackendUser,
+} from "./session";
 
 let configured = false;
 
@@ -20,15 +24,43 @@ function configure() {
   GoogleSignin.configure({
     webClientId,
     iosClientId,
-    // Ask for an ID token so the backend can verify the Google identity.
+    // Ask for an ID token so the AI Lambda can verify the Google identity.
     offlineAccess: false,
   });
   configured = true;
 }
 
+type IdTokenClaims = {
+  sub?: string;
+  email?: string;
+  name?: string;
+  exp?: number;
+};
+
+function decodeClaims(idToken: string): IdTokenClaims {
+  try {
+    const payload = idToken.split(".")[1] ?? "";
+    const json = globalThis.atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json) as IdTokenClaims;
+  } catch {
+    return {};
+  }
+}
+
+async function storeSessionFromToken(idToken: string): Promise<BackendUser> {
+  const claims = decodeClaims(idToken);
+  if (!claims.sub || !claims.email) {
+    throw new Error("Google sign-in returned an unusable ID token.");
+  }
+  const user: BackendUser = { id: claims.sub, email: claims.email, name: claims.name };
+  await setBackendSession({ idToken, user });
+  return user;
+}
+
 /**
- * Open the native Google sign-in sheet, forward the resulting ID token
- * to the backend, and persist the returned session token.
+ * Open the native Google sign-in sheet and persist the resulting ID token.
+ * The token itself is what the AI Lambda verifies — there is no separate
+ * backend session to establish.
  */
 export async function signInWithGoogle(): Promise<BackendUser> {
   configure();
@@ -43,55 +75,34 @@ export async function signInWithGoogle(): Promise<BackendUser> {
   if (!idToken) {
     throw new Error("Google sign-in did not return an ID token.");
   }
+  return storeSessionFromToken(idToken);
+}
 
-  const response = await fetch(backendUrl("/api/auth/sign-in/social"), {
-    method: "POST",
-    credentials: "omit",
-    redirect: "manual",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: "openrecord://",
-    },
-    body: JSON.stringify({
-      provider: "google",
-      idToken: { token: idToken },
-      disableRedirect: true,
-    }),
-  });
+/**
+ * Return a Google ID token that is still valid for at least a minute,
+ * silently re-signing-in to refresh an expired one (Google ID tokens live
+ * ~1 hour). Returns null when there is no session or the silent refresh
+ * fails — the caller should send the user back to sign-in.
+ */
+export async function getFreshIdToken(): Promise<string | null> {
+  const session = await getBackendSession();
+  if (!session) return null;
 
-  if (!response.ok && response.type !== "opaqueredirect") {
-    const body = await response.text();
-    throw new Error(`Backend sign-in failed (${response.status}): ${body}`);
+  const exp = decodeClaims(session.idToken).exp ?? 0;
+  if (exp * 1000 > Date.now() + 60_000) return session.idToken;
+
+  try {
+    configure();
+    const result = await GoogleSignin.signInSilently();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = (result as any).data ?? result;
+    const idToken: string | undefined = payload?.idToken;
+    if (!idToken) return null;
+    await storeSessionFromToken(idToken);
+    return idToken;
+  } catch {
+    return null;
   }
-
-  const sessionToken =
-    response.headers.get("set-auth-token") ??
-    response.headers.get("Set-Auth-Token") ??
-    "";
-
-  const rawBody = await response.text();
-  let data: { token?: string; session?: { token?: string }; user?: { id?: string; email?: string; name?: string } } = {};
-  if (rawBody) {
-    try {
-      data = JSON.parse(rawBody);
-    } catch {
-      // Server returned a non-JSON body (e.g. HTML redirect page). Fall back
-      // to the bearer-token header if present.
-    }
-  }
-
-  const token: string = sessionToken || data?.token || data?.session?.token || "";
-  if (!token) {
-    throw new Error("Backend did not return a session token.");
-  }
-
-  const backendUser: BackendUser = {
-    id: data?.user?.id ?? "",
-    email: data?.user?.email ?? "",
-    name: data?.user?.name,
-  };
-  await setBackendSession({ token, user: backendUser });
-  return backendUser;
 }
 
 export async function signOutFromGoogle(): Promise<void> {
@@ -100,6 +111,7 @@ export async function signOutFromGoogle(): Promise<void> {
   } catch {
     // ignore
   }
+  await clearBackendSession();
 }
 
 export { statusCodes as googleStatusCodes };

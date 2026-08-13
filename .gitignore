@@ -49,3 +49,11 @@ scrapers/myChart/clo-to-jpg-converter/input_study_one/amf_metadata.bin
 # Downloaded MyChart logos (large, stored in S3)
 scrapers/list-all-mycharts/logos/
 .next/
+
+# Vite build output for the OpenRecord splash demo
+openrecord-splash/dist/
+
+# Coverage reports written by `bun run test:coverage`.
+# Anchored: a bare `coverage` would also swallow tests/coverage/, the gate's own
+# test directory, and silently keep it out of the repo.
+/coverage

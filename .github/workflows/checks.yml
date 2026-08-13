@@ -15,158 +15,93 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+      # setup-bun downloads from the GitHub release CDN, which intermittently
+      # answers 503 or hangs up. Retry once before failing the job.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
-      - run: cd web && bun install
+      # Before the unit suite, not after it: `bun run test` scans the whole repo
+      # for *.unit.test.ts, which reaches
+      # claude-desktop-extension/src/__tests__, and the capability-parity test
+      # imports the extension's real registerAllTools to check it registers a
+      # tool per capability. Both need the extension's own dependencies (zod,
+      # the MCP SDK), so they have to be installed first.
+      - name: Install Claude Desktop extension deps
+        run: cd claude-desktop-extension && bun install
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-      - run: cd web && npx eslint .
-        env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
-      - run: bun run test
       - name: Typecheck & build Claude Desktop extension
-        run: cd claude-desktop-extension && bun install && bun run build
-      - run: cd web && bun --bun next build
-      - run: docker build .
-        timeout-minutes: 20
-
-  web-server-smoke:
-    name: Web server smoke test
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install
-      - run: cd web && bun install
-      - name: Build web app
-        run: cd web && bun --bun next build
-      - name: Start web server and verify health check
-        run: |
-          cd web && PORT=3000 bun run start &
-          SERVER_PID=$!
-
-          # Wait for server to be ready (up to 30s)
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "Server ready after ${i}s"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "Server failed to start within 30s"
-              kill $SERVER_PID 2>/dev/null || true
-              exit 1
-            fi
-            sleep 1
-          done
-
-          # Verify health endpoint response
-          RESPONSE=$(curl -sf http://localhost:3000/api/health)
-          echo "Health check response: $RESPONSE"
-          echo "$RESPONSE" | grep -q '"status":"ok"'
-
-          # Verify the home page loads (redirects to login when unauthenticated)
-          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/)
-          echo "Home page status: $HTTP_CODE"
-          if [ "$HTTP_CODE" -ne 200 ] && [ "$HTTP_CODE" -ne 307 ]; then
-            echo "Expected 200 or 307, got $HTTP_CODE"
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
-          fi
-
-          # Clean up
-          kill $SERVER_PID 2>/dev/null || true
-          echo "Web server smoke test passed"
-
-  fake-mychart:
-    name: Fake MyChart integration tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install
-      - name: Install fake-mychart deps
-        run: cd fake-mychart && bun install
-      - name: Build & start fake-mychart server
-        run: |
-          cd fake-mychart && bun run build && PORT=4000 bun run start &
-          # Wait for server to be ready
-          for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/ | grep -q '302'; then
-              echo "Server ready"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "Server failed to start within 30s"
-              exit 1
-            fi
-            echo "Waiting for server... ($i)"
-            sleep 1
-          done
-      - name: Run scrapers against fake-mychart
-        run: bun run test:fake-mychart
-      - name: Run Claude Desktop extension tests against fake-mychart
-        run: cd claude-desktop-extension && bun install && bun test
-        env:
-          FAKE_MYCHART_HOST: localhost:4000
-      - name: Install npm-package deps
-        run: cd npm-package && bun install
-      - name: Build npm-package
-        run: cd npm-package && bun run build
-      - name: Run npm-package tests against local fake-mychart
-        run: cd npm-package && bun run test
-        env:
-          FAKE_MYCHART_HOST: localhost:4000
-
-  fake-mychart-terms:
-    name: Fake MyChart T&C integration tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install
-      - name: Install fake-mychart deps
-        run: cd fake-mychart && bun install
-      - name: Build & start fake-mychart server with T&C required
-        run: |
-          cd fake-mychart && bun run build
-          FAKE_MYCHART_REQUIRE_TERMS=true PORT=4001 bun run start &
-          # Wait for server to be ready
-          for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w '%{http_code}' http://localhost:4001/ | grep -q '302'; then
-              echo "Server ready"
-              break
-            fi
-            echo "Waiting for server... ($i)"
-            sleep 1
-          done
-      - name: Run T&C integration tests
-        run: FAKE_MYCHART_TERMS_HOST=localhost:4001 bun run test:fake-mychart-terms
+        run: cd claude-desktop-extension && bun run build
+      - run: bun run test
 
   integration:
-    name: Integration tests (Docker Compose)
+    name: Integration tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    # Job-level, not per-step: every integration suite in the repo now runs in
+    # this one job, and the previous shape — the env var on the individual test
+    # steps — is exactly what broke when they merged. One suite defaulted to the
+    # hosted fake-mychart and went out to the public internet.
+    env:
+      FAKE_MYCHART_HOST: localhost:4000
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+        with:
+          bun-version-file: .bun-version
+      - uses: oven-sh/setup-bun@v2
+        if: steps.bun.outcome == 'failure'
+        with:
+          bun-version-file: .bun-version
       - run: bun install
-      - run: cd tests/integration/ci && bun install
+      # Every package whose sources the integration suites or the coverage gate
+      # touch. The extension's deps are needed twice over: its imaging suite
+      # imports jpeg-js, and without them its modules fail to import and drop
+      # out of the coverage report entirely, which reads ~1.5 points high.
+      - name: Install package deps
+        run: |
+          cd claude-desktop-extension && bun install && cd ..
+          cd npm-package && bun install && cd ..
+          cd tests/integration/ci && bun install
       - name: Install Playwright browsers
         run: cd tests/integration/ci && bunx playwright install --with-deps chromium
+      # npm-package's integration suite imports the BUILT `dist/index.js` on
+      # purpose — it exists to test what consumers actually install — so the
+      # build has to happen before anything runs.
       - name: Build npm-package CLI binary
-        run: cd npm-package && bun install && bun run build
+        run: cd npm-package && bun run build
+      # One fake-mychart for every integration suite in the repo. This used to be
+      # two servers in two jobs: this one, and a natively-built one started just
+      # for the scraper suites, because the compose service ran with
+      # FAKE_MYCHART_ACCEPT_ANY=true and those suites assert a bad password is
+      # rejected. The knob was never needed — everything signs in as the seeded
+      # homer — so it's gone and the jobs are one.
       - name: Start services
         run: docker compose -f docker-compose.ci.yaml up -d --build --wait
         timeout-minutes: 10
       - name: Run integration tests
-        run: bun run test:ci-integration
+        run: bun run test:integration
+      # The gate lives here, not in the `build` job, because it measures the unit
+      # suite AND the integration suites together, in one process. Splitting them
+      # would count every scraper that is only exercised end-to-end as uncovered,
+      # making the percentage an artifact of which suite happened to run. This is
+      # the only job with the server, the built CLI and every package's deps, so
+      # it is the only place the gate can measure everything.
+      - name: Check code coverage (Bun coverageThreshold, 75% per file)
+        run: bun run test:coverage
       - name: Dump logs on failure
         if: failure()
         run: docker compose -f docker-compose.ci.yaml logs

@@ -22,6 +22,10 @@ type Step = "welcome" | "google" | "picker" | "mychart" | "twofa" | "passkey";
  * delivery label) and renders one step component at a time. Each step
  * owns its own UI-local state (form fields, in-flight flags) and reports
  * back through callbacks.
+ *
+ * Google sign-in is required: AI (including BYO keys) is gated behind it,
+ * and it is what unlocks the $50/month included AI credit — the Lambda
+ * verifies the Google ID token server-side.
  */
 export default function OnboardingScreen() {
   const { setSetupComplete } = useAuth();
@@ -31,7 +35,7 @@ export default function OnboardingScreen() {
   const [account, setAccount] = useState<StoredMyChartAccount | null>(null);
   const [twoFaDelivery, setTwoFaDelivery] = useState<string>("your inbox");
 
-  // Dev shortcut: BYO Claude key + backend session → straight to chat.
+  // Dev shortcut: BYO Claude key + Google session → straight to chat.
   // Also pre-warm the MyChart instance list so the picker is instant.
   useEffect(() => {
     (async () => {

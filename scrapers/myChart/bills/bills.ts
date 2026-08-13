@@ -1,4 +1,5 @@
 
+import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { login_TEST } from "../login";
 import { MyChartRequest } from "../myChartRequest";
 import * as cheerio from 'cheerio';
@@ -87,7 +88,7 @@ export function parseBillingAccountsHtml(html: string, hostname: string): Billin
 }
 
 async function listBillingAccounts(mychartRequest: MyChartRequest): Promise<BillingAccount[]> {
-  const communicationCenterRes = await mychartRequest.makeRequest({ path: '/Billing/Summary' })
+  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Billing/Summary' })
   const html = await communicationCenterRes.text()
   return parseBillingAccountsHtml(html, mychartRequest.hostname);
 }
@@ -100,7 +101,7 @@ async function getBillingAccountDetails(mychartRequest: MyChartRequest, billingA
   logger.debug('100 years ago:', date100YearsAgo);
   logger.debug('1 year from now:', date1YearFromNow);
 
-  const results = await mychartRequest.makeRequest({ path: `/Billing/Details/GetVisits?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&filterOption=1&searchStartDTE=${date2dte(date100YearsAgo)}&searchStopDTE=${date2dte(date1YearFromNow)}&cid=` })
+  const results = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/GetVisits?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&filterOption=1&searchStartDTE=${date2dte(date100YearsAgo)}&searchStopDTE=${date2dte(date1YearFromNow)}&cid=` })
 
   const json = await results.json() as BillingDetails
 
@@ -111,7 +112,7 @@ async function getBillingAccountDetails(mychartRequest: MyChartRequest, billingA
 
 export async function getPaymentList(mychartRequest: MyChartRequest, billingAccount: BillingAccount): Promise<PaymentListResponse> {
 
-  const paymentListResponse = await mychartRequest.makeRequest({ path: `/Billing/Details/LoadPaymentList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&searchStartDTE=&searchEndDTE=&cid=` })
+  const paymentListResponse = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/LoadPaymentList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&searchStartDTE=&searchEndDTE=&cid=` })
 
   const paymentList = await paymentListResponse.json() as PaymentListResponse;
 
@@ -120,7 +121,7 @@ export async function getPaymentList(mychartRequest: MyChartRequest, billingAcco
 
 export async function getStatementList(mychartRequest: MyChartRequest, billingAccount: BillingAccount): Promise<StatementListResponse> {
 
-  const statementsResponse = await mychartRequest.makeRequest({ path: `/Billing/Details/GetStatementList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&cid=` })
+  const statementsResponse = await makeAuthenticatedRequest(mychartRequest, { path: `/Billing/Details/GetStatementList?noCache=${Math.random()}&id=${billingAccount.id}&context=${billingAccount.context}&cid=` })
 
   const statements = await statementsResponse.json() as StatementListResponse;
 
@@ -132,7 +133,7 @@ export async function getEncBillingId(mychartRequest: MyChartRequest, billingAcc
 
   const path = `/Billing/Details?ID=${billingAccount.id}&Context=${billingAccount.context}`
 
-  const res = await mychartRequest.makeRequest({ path })
+  const res = await makeAuthenticatedRequest(mychartRequest, { path })
 
   const body = await res.text()
 
@@ -149,7 +150,7 @@ export async function saveStatementPdf(mychartRequest: MyChartRequest, encId: st
 
   const path = `/Billing/Details/DownloadFromBlob/?type=1&id=${statement.RecordID}&earId=${encId}&billSys=${statement.EncBillingSystem}&fileKey=${statement.ImagePath}&token=${encodeURIComponent(statement.Token)}&fileName=Statement_${statement.DateDisplay}&DocExt=PDF&PesId=&cid=`
 
-  const statementPdf = await mychartRequest.makeRequest({ path: path })
+  const statementPdf = await makeAuthenticatedRequest(mychartRequest, { path: path })
 
   const pdfArrayBuffer = await statementPdf.arrayBuffer()
 

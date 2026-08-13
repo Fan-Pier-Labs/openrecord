@@ -9,10 +9,7 @@ import { logger } from '../../../shared/logger';
 // returns a more reasonable format for the data without some of the extra fields that are not needed.
 
 
-const json = JSON.parse(fs.readFileSync('./sample_data/convo.json', 'utf-8'))
-
-
-function parseConvo(json: InputFormat): Conversation {
+export function parseConvo(json: InputFormat): Conversation {
   const messages = json.messages;
 
   const plainTextMessages: Message[] = []
@@ -68,4 +65,9 @@ function parseConvo(json: InputFormat): Conversation {
 
 
 
-logger.debug(JSON.stringify(parseConvo(json), null, 4))
+// Manual exploration entry point: `bun scrapers/myChart/messages/parseConvo.ts`.
+// Guarded so importing this module (e.g. from tests) has no side effects.
+if (import.meta.main) {
+  const json = JSON.parse(fs.readFileSync('./sample_data/convo.json', 'utf-8'))
+  logger.debug(JSON.stringify(parseConvo(json), null, 4))
+}
