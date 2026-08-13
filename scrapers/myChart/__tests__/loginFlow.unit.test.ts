@@ -209,7 +209,10 @@ describe('credential encoding', () => {
 
     const encoded = postedCredentials(calls).LoginIdentifier
     expect(() => btoa(user)).toThrow()
-    // UTF-8-aware base64 decode (the deprecated escape/atob trick, minus escape).
+    // UTF-8-aware base64 decode. Replaces the deprecated
+    // decodeURIComponent(escape(atob(...))) trick — identical for valid UTF-8;
+    // on malformed bytes the old form threw where this yields replacement
+    // characters, and either way this assertion fails.
     expect(Buffer.from(encoded, 'base64').toString('utf8')).toBe(user)
   })
 })
