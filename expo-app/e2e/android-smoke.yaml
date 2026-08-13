@@ -1,0 +1,39 @@
+# Android emulator boot-smoke test, run in CI by the `android-emulator` job in
+# .github/workflows/checks.yml against a release APK built with
+# `expo prebuild` + `gradlew assembleRelease`.
+#
+# What it proves: the Android build compiles, the app cold-boots on a real
+# emulator without a native crash (Hermes, quick-crypto/nitro-modules,
+# reanimated, screens, secure-store, sqlite all initialize), the JS bundle
+# loads, the onboarding welcome screen renders, and expo-router navigation
+# works.
+#
+# What it deliberately never does: sign in, connect an account, or send a chat
+# message. NO AI/LLM CALL CAN HAPPEN IN THIS FLOW — the flow stops at the
+# Google sign-in gate (the release build strips the __DEV__ skip button, so
+# everything past it is unreachable), no API keys exist on the emulator, and
+# the CI job additionally bakes EXPO_PUBLIC_BACKEND_URL to a dead localhost
+# port so the APK under test could not reach the real AI Lambda even if a code
+# path tried.
+appId: com.fanpierlabs.openrecord
+---
+- launchApp:
+    clearState: true
+
+# First cold start of a release build: JS bundle parse + splash. Give it time.
+- extendedWaitUntil:
+    visible: "Your health records, in your pocket"
+    timeout: 60000
+- assertVisible: "OpenRecord"
+- takeScreenshot: e2e-welcome
+
+# Navigate: welcome -> Google sign-in step. This is the last screen reachable
+# without real credentials; the flow asserts it and stops.
+- tapOn:
+    id: "welcome-get-started"
+- extendedWaitUntil:
+    visible: "Sign in with Google"
+    timeout: 15000
+- assertVisible:
+    id: "google-continue"
+- takeScreenshot: e2e-google-step
