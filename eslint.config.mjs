@@ -29,6 +29,8 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `indexOf(...) !== -1` and single-token regex tests read clearer as `.includes(...)`.
+      "@typescript-eslint/prefer-includes": "error",
       // Referencing a class method without its receiver silently loses `this`.
       "@typescript-eslint/unbound-method": "error",
       // `str.match(re)` and `re.exec(str)` are identical for non-global
