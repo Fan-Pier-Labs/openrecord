@@ -26,8 +26,8 @@
  * promise.
  */
 
-import { MyChartRequest } from './myChartRequest';
-import { RequestConfig } from './types';
+import { type MyChartRequest } from './myChartRequest';
+import { type RequestConfig } from './types';
 import { looksLikeSignedOutPage } from './login';
 import { sessionStore } from './sessionStore';
 import { OPENRECORD_MOCK_DATA } from '../../shared/env';

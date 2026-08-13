@@ -1,5 +1,5 @@
-import { VisitListContainer } from "../visits/types";
-import { MockData } from "./types";
+import { type VisitListContainer } from "../visits/types";
+import { type MockData } from "./types";
 
 
 const visits: VisitListContainer = {

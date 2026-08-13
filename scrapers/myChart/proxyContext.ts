@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-import { MyChartRequest } from './myChartRequest';
+import { type MyChartRequest } from './myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
 import { getMyChartProfile } from './profile';
 import { logger } from '../../shared/logger';

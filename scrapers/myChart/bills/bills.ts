@@ -1,13 +1,13 @@
 
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
 import { login_TEST } from "../login";
-import { MyChartRequest } from "../myChartRequest";
+import { type MyChartRequest } from "../myChartRequest";
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
 import { date2dte } from "./utils";
 // import '../../../util'
-import { BillingAccount, BillingDetails, BillingVisit, PaymentListResponse, StatementItem, StatementListResponse } from "./types";
+import { type BillingAccount, type BillingDetails, type BillingVisit, type PaymentListResponse, type StatementItem, type StatementListResponse } from "./types";
 import { mkdirp } from 'mkdirp';
 import { OPENRECORD_MOCK_DATA } from '../../../shared/env';
 import { logger } from '../../../shared/logger';

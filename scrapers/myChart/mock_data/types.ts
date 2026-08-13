@@ -1,4 +1,4 @@
-import { RequestConfig } from "../types"
+import { type RequestConfig } from "../types"
  
 export type MockDataResponse = {
   headers: {

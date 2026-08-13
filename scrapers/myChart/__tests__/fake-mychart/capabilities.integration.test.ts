@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'bun:test'
-import { MyChartRequest } from '../../myChartRequest'
+import { type MyChartRequest } from '../../myChartRequest'
 import { myChartUserPassLogin } from '../../login'
 import { setMountMode, resetFakeMyChart } from './mountMode'
 import {

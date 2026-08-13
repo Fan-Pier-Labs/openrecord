@@ -1,5 +1,5 @@
-import { AccountStatus } from "./accounts";
-import { BillingDetails } from "../scrapers/myChart/bills/types";
+import { type AccountStatus } from "./accounts";
+import { type BillingDetails } from "../scrapers/myChart/bills/types";
 
 export type CommonMyChartAccount = {
   hostname: string;

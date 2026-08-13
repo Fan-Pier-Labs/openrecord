@@ -22,7 +22,7 @@ import { getLetters } from '../../scrapers/myChart/letters';
 import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import { dte2date } from '../../scrapers/myChart/bills/utils';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
-import { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
+import { type PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../../scrapers/myChart/messages/sendMessage';
 import { sendReply } from '../../scrapers/myChart/messages/sendReply';
 import { getVitals } from '../../scrapers/myChart/vitals';
