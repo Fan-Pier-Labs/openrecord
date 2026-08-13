@@ -65,7 +65,6 @@ import { deleteMessage } from '../../scrapers/myChart/messages/deleteMessage';
 
 import { getBillingHistory } from '../../scrapers/myChart/bills/bills';
 
-import { getCareTeam } from '../../scrapers/myChart/careTeam';
 import { getReferrals } from '../../scrapers/myChart/referrals';
 import { getInsurance } from '../../scrapers/myChart/insurance';
 import { getDocuments } from '../../scrapers/myChart/documents';
@@ -423,7 +422,6 @@ export class MyChartClient {
   getBillingHistory() { return getBillingHistory(this.req()); }
 
   // ── Care coordination ──────────────────────────────────────────────────
-  getCareTeam()           { return getCareTeam(this.req()); }
   getReferrals()          { return getReferrals(this.req()); }
   getInsurance()          { return getInsurance(this.req()); }
   getDocuments()          { return getDocuments(this.req()); }

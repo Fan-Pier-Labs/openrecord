@@ -29,7 +29,6 @@ import { getHealthIssues } from '../../healthIssues'
 import { getImmunizations } from '../../immunizations'
 import { getVitals } from '../../vitals'
 import { getInsurance } from '../../insurance'
-import { getCareTeam } from '../../careTeam'
 import { getReferrals } from '../../referrals'
 import { getMedicalHistory } from '../../medicalHistory'
 import { getPreventiveCare } from '../../preventiveCare'
@@ -188,12 +187,6 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.coverages)).toBe(true)
       expect(result.coverages.length).toBeGreaterThan(0)
       expect(result.hasCoverages).toBe(true)
-    }, 10_000)
-
-    it('getCareTeam returns care team members', async () => {
-      const result = await getCareTeam(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
@@ -632,6 +625,16 @@ for (const mode of MOUNT_MODES) {
         [5, 4, 3, 2, 1].map(n => `${axialBase}.${n}`),
       )
       expect(sortedAxial.map(i => readPatientPosition(i.wrapperData!)!.z)).toEqual([40, 80, 120, 160, 200])
+
+      // BONE RECON runs z ASCENDING with instance number — the other
+      // direction, where a correct sort is a no-op. Asserting it too is what
+      // separates "sorted anatomically" from "reversed unconditionally".
+      const boneBase = '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333'
+      const bone = result.images.filter(i => i.seriesDescription === 'BONE RECON')
+      expect(bone.length).toBe(3)
+      expect(sortImagesByPatientPosition(bone).map(i => i.instanceUID)).toEqual(
+        [1, 2, 3].map(n => `${boneBase}.${n}`),
+      )
 
       // SCOUT is a projection image served from the shared per-series wrapper
       // — no patient position, and the sort must leave it alone.
