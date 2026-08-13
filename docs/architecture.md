@@ -93,7 +93,14 @@ answer depended on which client they asked.
   it returns raw CLO bytes because each client encodes them differently — pure-JS jpeg-js in the
   MCPB, an on-device decoder in the app, sharp in the CLI. **Clients branch on the flag, never on
   the id** — a second media capability must not require editing five call sites, and
-  `capability-parity.unit.test.ts` fails if an id check reappears.
+  `capability-parity.unit.test.ts` fails if an id check reappears. The CLI never prints image
+  bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
+  prints the file paths (`writeStudyImages` in `npm-package/cli/capabilityActions.ts`). The
+  download budget counts *successful* images, not attempts (`downloadUpToQuota` in
+  `scrapers/myChart/eunity/imagingDirectDownload.ts`): real eUnity studies can lead with
+  `SeriesSelector` pseudo-instances that answer every pixel request with CLOERROR, and a budget
+  spent on attempts returns zero images on exactly those studies. fake-mychart's CT study
+  reproduces that shape.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still
