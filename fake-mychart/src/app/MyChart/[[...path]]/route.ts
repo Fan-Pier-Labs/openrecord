@@ -158,13 +158,14 @@ function activeEmergencyContacts(request: NextRequest): typeof homer.emergencyCo
     ? resolveActiveRecord(user, getActiveProxyId(request.headers.get('cookie')))
     : null;
   const recordId = active?.id ?? user?.selfProxyId ?? '';
-  if (!state.emergencyContactsByRecord[recordId]) {
-    state.emergencyContactsByRecord[recordId] = {
-      ...JSON.parse(JSON.stringify(homer.emergencyContacts)),
-      contacts: [],
-    };
-  }
-  return state.emergencyContactsByRecord[recordId];
+  const existing = state.emergencyContactsByRecord[recordId];
+  if (existing) return existing;
+  const created: typeof homer.emergencyContacts = {
+    ...JSON.parse(JSON.stringify(homer.emergencyContacts)),
+    contacts: [],
+  };
+  state.emergencyContactsByRecord[recordId] = created;
+  return created;
 }
 
 /**
@@ -965,8 +966,8 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       const idx = store.contacts.findIndex(
         (r) => r.id === body.id || r.formattedName === body.id
       );
-      if (idx === -1) return json({ error: 'Contact not found' }, 404);
-      const existing = store.contacts[idx];
+      const existing = idx === -1 ? undefined : store.contacts[idx];
+      if (!existing) return json({ error: 'Contact not found' }, 404);
       if (body.name) existing.formattedName = body.name;
       if (body.relationshipType) {
         existing.relationToPatient = { ...existing.relationToPatient, name: body.relationshipType, labelText: body.relationshipType };
@@ -1118,7 +1119,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       forwardedHost ||
       (hostHeader && !isLocalHost(hostHeader) ? hostHeader : null) ||
       url.host;
-    const hostName = host.split(':')[0];
+    const hostName = host.split(':')[0] ?? host;
     const isExternal = !isLocalHost(host) && hostName.includes('.');
     const proto = isExternal
       ? 'https'

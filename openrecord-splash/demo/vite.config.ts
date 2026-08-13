@@ -16,9 +16,10 @@ function splashPage(): Plugin {
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const url = (req.url ?? '').split('?')[0];
-        if (SPLASH_ASSETS[url]) {
-          res.setHeader('content-type', SPLASH_ASSETS[url]);
+        const url = (req.url ?? '').split('?')[0] ?? '';
+        const assetType = SPLASH_ASSETS[url];
+        if (assetType) {
+          res.setHeader('content-type', assetType);
           res.end(readFileSync(`${__dirname}/..${url}`));
           return;
         }
