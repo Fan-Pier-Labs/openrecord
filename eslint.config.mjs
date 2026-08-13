@@ -135,6 +135,12 @@ export default [
       // an empty object for a Map. Caught the header merge in scraperFetch,
       // the single point every outbound request in the product passes through.
       "@typescript-eslint/no-misused-spread": "error",
+      // A promise executor's return value is discarded, so `new Promise(r =>
+      // setTimeout(r, ms))` quietly throws away a timer handle — and the same
+      // shorthand around an async call throws away the promise, leaving the
+      // rejection unhandled and the executor's own resolve never reached.
+      // Braces around the body make the discard explicit.
+      "no-promise-executor-return": "error",
 
       // ── Round-5 zero-violation set ────────────────────────────────────────
       // Everything below was measured at 0 violations repo-wide and enabled
