@@ -1136,9 +1136,8 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
     }
     for (const mat of materials) {
       console.log(`      ${mat.title}`);
-      if (mat.category) item('  Category', mat.category);
       if (mat.assignedDate) item('  Assigned', mat.assignedDate);
-      if (mat.providerName) item('  Provider', mat.providerName);
+      if (mat.numTopics) item('  Topics', String(mat.numTopics));
     }
   } catch (err) {
     console.log('    Error fetching education materials:', (err as Error).message);
@@ -1152,7 +1151,7 @@ async function scrapeAll(mychartRequest: MyChartRequest, hostname: string) {
       console.log('    No EHI export templates found.');
     }
     for (const tmpl of templates) {
-      console.log(`      ${tmpl.name} (${tmpl.format})`);
+      console.log(`      ${tmpl.name}`);
       if (tmpl.description) item('  Description', tmpl.description);
     }
   } catch (err) {

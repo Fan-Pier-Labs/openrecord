@@ -26,11 +26,11 @@ describe('getEmergencyContacts', () => {
       { body: TOKEN_HTML },
       {
         body: JSON.stringify({
-          relationships: [
+          contacts: [
             {
-              name: 'Jane Doe',
-              relationshipType: 'Spouse',
-              phoneNumber: '555-1234',
+              formattedName: 'Jane Doe',
+              relationToPatient: { name: 'Spouse' },
+              contactInformation: { phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }] },
               isEmergencyContact: true,
             },
           ],
@@ -51,7 +51,7 @@ describe('getEmergencyContacts', () => {
   it('handles missing fields with defaults', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
-      { body: JSON.stringify({ relationships: [{}] }) },
+      { body: JSON.stringify({ contacts: [{}] }) },
     ])
 
     const result = await getEmergencyContacts(req)
@@ -59,14 +59,14 @@ describe('getEmergencyContacts', () => {
       name: '',
       relationshipType: '',
       phoneNumber: '',
-      isEmergencyContact: false,
+      isEmergencyContact: true,
     })
   })
 
   it('handles empty relationships list', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
-      { body: JSON.stringify({ relationships: [] }) },
+      { body: JSON.stringify({ contacts: [] }) },
     ])
     expect(await getEmergencyContacts(req)).toEqual([])
   })
