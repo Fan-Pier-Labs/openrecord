@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest';
-import { type MyChartRequest } from './myChartRequest';
+import type { MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { generateTotpCode } from './totp';
 import { logger } from '../../shared/logger';

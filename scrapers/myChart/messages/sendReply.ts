@@ -10,7 +10,7 @@
  */
 
 import { makeAuthenticatedRequest } from '../makeAuthenticatedRequest';
-import { type MyChartRequest } from '../myChartRequest';
+import type { MyChartRequest } from '../myChartRequest';
 import { getVerificationToken } from './sendMessage';
 
 export type SendReplyParams = {

@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { type MyChartRequest } from './myChartRequest';
+import type { MyChartRequest } from './myChartRequest';
 import { getRequestVerificationTokenFromBody } from './util';
 import { logger } from '../../shared/logger';
 

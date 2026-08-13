@@ -15,7 +15,7 @@
  * the wrapper calls.
  */
 
-import { type MyChartRequest } from './myChartRequest';
+import type { MyChartRequest } from './myChartRequest';
 import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from './login';
 import { passkeyLoginWithCounterRetry } from './passkeyLoginRetry';
 import { generateTotpCode } from './totp';

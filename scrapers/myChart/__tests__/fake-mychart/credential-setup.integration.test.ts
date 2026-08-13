@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../login'
-import { type MyChartRequest } from '../../myChartRequest'
+import type { MyChartRequest } from '../../myChartRequest'
 import { setupTotp, disableTotp } from '../../setupTotp'
 import { setupPasskey, listPasskeys, deletePasskey } from '../../setupPasskey'
 import { myChartPasskeyLogin } from '../../login'

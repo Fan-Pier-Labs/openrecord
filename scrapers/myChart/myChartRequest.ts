@@ -1,6 +1,6 @@
 import { CookieJar } from 'tough-cookie'
 import fs from 'fs';
-import { type RequestConfig } from './types';
+import type { RequestConfig } from './types';
 import { logger } from '../../shared/logger';
 import { PLATFORM_OWNS_COOKIES, scraperFetch, type Transport } from '../http';
 

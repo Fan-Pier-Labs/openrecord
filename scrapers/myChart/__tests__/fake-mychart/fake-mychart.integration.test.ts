@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { inflateSync } from 'zlib'
-import { type MyChartRequest } from '../../myChartRequest'
+import type { MyChartRequest } from '../../myChartRequest'
 import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-image-parser/sortByPatientPosition'
 import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
 import { Amf3Reader } from '../../eunity/amf3Reader'

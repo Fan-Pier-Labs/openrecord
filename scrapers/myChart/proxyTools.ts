@@ -14,7 +14,7 @@
  * call fixes it. Both clients register the tools under those names.
  */
 
-import { type MyChartRequest } from './myChartRequest';
+import type { MyChartRequest } from './myChartRequest';
 import {
   checkProxyContext,
   compareProfileNames,

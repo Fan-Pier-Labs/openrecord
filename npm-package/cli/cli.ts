@@ -5,7 +5,7 @@ import { version as CLI_VERSION } from '../package.json';
 import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/login';
 import { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
-import { type PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
+import type { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../../scrapers/myChart/messages/sendMessage';
 import { sendReply } from '../../scrapers/myChart/messages/sendReply';
 import { listConversations } from '../../scrapers/myChart/messages/conversations';
