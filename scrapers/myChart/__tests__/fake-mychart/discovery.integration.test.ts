@@ -18,7 +18,7 @@
  * a chart, which is what catches a prefix that parses but doesn't resolve.
  *
  * The fake-mychart server must be running on localhost:4000 (or
- * FAKE_MYCHART_HOST). Locally: `cd fake-mychart && bun run dev`.
+ * FAKE_MYCHART_HOST). Locally: `PORT=4000 bun run fake-mychart` (the dev port is random without PORT).
  *
  * Run with: bun test scrapers/myChart/__tests__/fake-mychart/discovery.test.ts
  */

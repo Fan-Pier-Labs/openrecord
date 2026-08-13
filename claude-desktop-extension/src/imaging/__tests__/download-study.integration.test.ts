@@ -6,7 +6,7 @@
  * the correct argument shape) → pixelData/wrapperData → CLO→JPEG base64.
  *
  * The fake-mychart server must be running on localhost:4000 first:
- *   cd fake-mychart && bun run dev
+ *   PORT=4000 bun run fake-mychart   # the dev port is random without PORT
  * Run with: bun run test (from this package, with fake-mychart up)
  */
 import { describe, it, expect, beforeAll } from 'bun:test';
@@ -16,7 +16,8 @@ import type { MyChartRequest } from '../../../../scrapers/myChart/myChartRequest
 import { downloadStudyJpegs } from '../download-study';
 
 // Assumes a fake-mychart server is running at FAKE_MYCHART_HOST (CI starts one;
-// locally run `cd fake-mychart && bun run dev`). Fails loudly if it isn't.
+// locally run `PORT=4000 bun run fake-mychart` from the repo root — the dev
+// port is random without PORT). Fails loudly if it isn't.
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
 let session: MyChartRequest;

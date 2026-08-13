@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4000",
+    "dev": "bun scripts/dev-server.ts",
+    "test": "bun test --isolate .unit.test.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

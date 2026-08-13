@@ -133,7 +133,8 @@ profile page.
 
 `POST /mode` flips the server between real MyChart shapes without a restart.
 Independent knobs; every field is optional and omitted ones are left alone, so a
-caller that cares about one doesn't silently reset the others.
+caller that cares about one doesn't silently reset the others. (`4000` below
+stands in for whichever port your dev server printed — see [Running](#running).)
 
 ```bash
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"mode":"root"}'
@@ -180,14 +181,35 @@ Reset clears all sessions, restores the seeded conversations and emergency conta
 ```bash
 cd fake-mychart
 bun install
-bun run dev    # Development mode → http://localhost:4000
+bun run dev    # Development mode → a random free port in 4000-5000
 ```
+
+`bun run fake-mychart` from the repo root does the same thing.
+
+**The dev port is random on purpose**, drawn from 4000-5000 and printed in the
+banner the server prints on startup:
+
+```
+  fake-mychart → http://localhost:4681
+  host for scrapers/CLI: localhost:4681  (--protocol http)
+```
+
+A fixed port meant one fake-mychart per machine — a second agent, worktree or
+terminal starting its own either failed to bind or, worse, silently talked to
+the first one's RAM and saw another session's mutations. Each run now gets its
+own server. Pin it with `PORT=4000 bun run dev` (or `FAKE_MYCHART_PORT`) when
+something needs a known port. **The examples below all say `4000`; substitute
+the port your run printed.**
 
 For production builds:
 ```bash
 bun run build
-bun run start  # Production mode → http://localhost:4000
+bun run start          # Production mode → http://localhost:3000
+bun run start -p 4000  # …or on a port you choose
 ```
+
+Production is deliberately left on Next's own default — `docker-compose.ci.yaml`
+and the Fargate deployment both set `PORT` and expect to be obeyed.
 
 ## Connecting Scrapers
 

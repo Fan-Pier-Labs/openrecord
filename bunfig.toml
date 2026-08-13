@@ -7,7 +7,9 @@
 # it needs a fake-mychart on :4000, which is why the CI step lives in the
 # `fake-mychart` job. Measuring only the unit suite counted every scraper that is
 # covered end-to-end as untested and put the number ~10 points low. Run it
-# locally with `cd fake-mychart && bun run dev` first.
+# locally with `docker compose -f docker-compose.ci.yaml up -d --build --wait`
+# first — the suites expect :4000, which is the compose service's fixed host
+# port; `bun run fake-mychart` picks a random dev port and won't serve them.
 # `tests/integration/ci` stays out: it drives the built CLI binary as a
 # subprocess, so nothing there is instrumented.
 
