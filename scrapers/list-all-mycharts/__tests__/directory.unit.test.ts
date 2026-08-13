@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 
 import { setTestTransport } from '../../http';
 import {
-  DEFAULT_LOGO_URL,
+  defaultLogoUrl,
   fetchMyChartDirectory,
   fetchMyChartIcon,
   logoUrlFor,
@@ -78,8 +78,29 @@ describe('logoUrlFor', () => {
 
   it('falls back to the generic logo when there is neither', () => {
     expect(logoUrlFor({ slgId: '920-1', name: 'El Camino', loginUrl: 'https://x.example/' })).toBe(
-      DEFAULT_LOGO_URL,
+      defaultLogoUrl(),
     );
+  });
+
+  it('resolves against another media base when given one', () => {
+    // What a client pointed at fake-mychart does: the record is an id and a
+    // filename, so the base is the only thing that decides where it resolves.
+    const base = 'http://localhost:4000/mychartdotorg';
+    expect(
+      logoUrlFor(
+        {
+          slgId: '1-1',
+          name: 'X',
+          loginUrl: 'https://x.example/',
+          logo: { imageId: 'IMG', fileName: 'f.png', subAreaName: 'organizations' },
+        },
+        base,
+      ),
+    ).toBe(`${base}/directus/organizations/IMG/f.png`);
+    expect(logoUrlFor({ slgId: '958', name: 'Mayo Clinic', loginUrl: 'https://x.example/' }, base)).toBe(
+      `${base}/site/en-us/images/login/custom/mayoClinic.png`,
+    );
+    expect(defaultLogoUrl(base)).toBe(`${base}/site/en-us/images/login/default.png`);
   });
 });
 

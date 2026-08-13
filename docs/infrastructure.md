@@ -131,10 +131,6 @@ the app's agent loops stay identical.
 
 ## S3 buckets (us-east-2)
 
-- **mychart-connector** (`arn:aws:s3:::mychart-connector`) — `mychart-logos/` holds a now-unused
-  mirror of the MyChart instance logos. The bucket is private, so no client could ever read it;
-  every one of them loads logos from Epic's public CDN instead (`scrapers/list-all-mycharts/directory.ts`).
-  Nothing writes to it any more.
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`) — the static splash and
   demo. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC).
 

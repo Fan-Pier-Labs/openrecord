@@ -7,10 +7,10 @@
  * refresh themselves from {@link fetchMyChartDirectory} — this script only
  * exists so the seed doesn't rot.
  *
- * Logos are not downloaded or mirrored. They used to be copied into
- * `s3://mychart-connector/mychart-logos/`, which no client could read (the
- * bucket is private and the clients run on other people's machines), so every
- * one of them was already loading logos from Epic. See `fetchMyChartIcon`.
+ * Logos are not downloaded or mirrored. This used to copy all ~1400 of them
+ * into a private S3 bucket that no client could read — they run on other
+ * people's machines with none of our credentials — so every one of them was
+ * already loading logos straight from Epic. See `fetchMyChartIcon`.
  *
  * Usage:
  *   bun scrapers/list-all-mycharts/fetch-mychart-instances.ts [--dry-run]

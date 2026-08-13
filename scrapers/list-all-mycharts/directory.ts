@@ -38,6 +38,10 @@
  * `scraperFetch`'s per-host permit is what paces a bulk fetch, and fetching
  * all ~1400 of them is 1400 gated round trips. Fetch the ones you are about to
  * show, not the whole set.
+ *
+ * The directory URL and the media base are both overridable, and both default
+ * to Epic's. fake-mychart serves the pair, which is what keeps CI off Epic
+ * entirely.
  */
 
 import { scraperFetch } from '../http';
@@ -46,10 +50,17 @@ import { scraperFetch } from '../http';
 export const MYCHART_DIRECTORY_API_URL =
   'https://www.mychart.org/cached-api/help/organizations/?locale=en-us&includeOrganizations=1';
 
-const MEDIA_BASE = 'https://media.epic.com/mychartdotorg';
+/**
+ * Where the directory's images live. A separate host from the directory
+ * itself, so it is a separate knob: {@link fetchMyChartDirectory} takes both,
+ * and fake-mychart serves both from its own origin.
+ */
+export const MYCHART_MEDIA_BASE = 'https://media.epic.com/mychartdotorg';
 
-/** Epic's generic logo, shown for an organization that has none of its own. */
-export const DEFAULT_LOGO_URL = `${MEDIA_BASE}/site/en-us/images/login/default.png`;
+/** The generic logo, shown for an organization that has none of its own. */
+export function defaultLogoUrl(mediaBase: string = MYCHART_MEDIA_BASE): string {
+  return `${mediaBase}/site/en-us/images/login/default.png`;
+}
 
 /**
  * Logos Epic ships as site assets rather than directory records, keyed by
@@ -97,7 +108,7 @@ export interface MyChartInstance {
   name: string;
   /** The portal's login URL. */
   url: string;
-  /** Absolute logo URL, always set — {@link DEFAULT_LOGO_URL} when unbranded. */
+  /** Absolute logo URL, always set — the generic one when unbranded. */
   logoUrl: string;
   /** Epic's directory id, e.g. "432-112". Survives a rename; the name doesn't. */
   slgId: string;
@@ -139,14 +150,17 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
 }
 
 /** The logo URL Epic's own picker would render for this organization. */
-export function logoUrlFor(org: DirectoryOrganization): string {
+export function logoUrlFor(
+  org: DirectoryOrganization,
+  mediaBase: string = MYCHART_MEDIA_BASE,
+): string {
   if (org.logo?.imageId && org.logo.fileName) {
     const area = org.logo.subAreaName || 'organizations';
-    return `${MEDIA_BASE}/directus/${area}/${org.logo.imageId}/${org.logo.fileName}`;
+    return `${mediaBase}/directus/${area}/${org.logo.imageId}/${org.logo.fileName}`;
   }
   const custom = CUSTOM_LOGOS[org.slgId];
-  if (custom) return `${MEDIA_BASE}/site/en-us/images/${custom}`;
-  return DEFAULT_LOGO_URL;
+  if (custom) return `${mediaBase}/site/en-us/images/${custom}`;
+  return defaultLogoUrl(mediaBase);
 }
 
 function asStringArray(value: unknown): string[] {
@@ -160,7 +174,7 @@ function asStringArray(value: unknown): string[] {
  * An entry with no `loginUrl` is dropped rather than defaulted: three of them
  * exist, and a picker row that navigates nowhere is worse than a missing row.
  */
-function toInstance(raw: unknown): MyChartInstance | null {
+function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const org = raw as Record<string, unknown>;
 
@@ -173,7 +187,7 @@ function toInstance(raw: unknown): MyChartInstance | null {
   return {
     name,
     url,
-    logoUrl: logoUrlFor({ slgId, name, loginUrl: url, logo }),
+    logoUrl: logoUrlFor({ slgId, name, loginUrl: url, logo }, mediaBase),
     slgId,
     aliases: asStringArray(org.aliases),
     states: asStringArray(org.states),
@@ -191,28 +205,38 @@ function toInstance(raw: unknown): MyChartInstance | null {
  * client exactly like "Epic has no organizations", which is the failure the
  * old HTML scrape spent months in.
  */
-export function parseDirectoryPayload(payload: unknown): MyChartInstance[] {
+export function parseDirectoryPayload(
+  payload: unknown,
+  mediaBase: string = MYCHART_MEDIA_BASE,
+): MyChartInstance[] {
   const organizations = (payload as { organizations?: unknown } | null)?.organizations;
   if (!Array.isArray(organizations)) {
     throw new Error(
       'MyChart directory response has no "organizations" array — the endpoint shape changed.',
     );
   }
-  return organizations.map(toInstance).filter((i): i is MyChartInstance => i !== null);
+  return organizations
+    .map((org) => toInstance(org, mediaBase))
+    .filter((i): i is MyChartInstance => i !== null);
 }
 
 /**
  * Fetch every MyChart instance Epic publishes. One request; ~1400 entries.
+ *
+ * Both endpoints are overridable, and they move together: an entry's `logo` is
+ * an id and a filename, not a URL, so a directory served from somewhere else
+ * has its images somewhere else too. Point them at fake-mychart and nothing
+ * touches Epic.
  */
 export async function fetchMyChartDirectory(
-  options: { directoryUrl?: string } = {},
+  options: { directoryUrl?: string; mediaBase?: string } = {},
 ): Promise<MyChartInstance[]> {
   const url = options.directoryUrl ?? MYCHART_DIRECTORY_API_URL;
   const response = await scraperFetch(url, { headers: { Accept: 'application/json' } });
   if (!response.ok) {
     throw new Error(`MyChart directory request failed: ${response.status} ${response.statusText}`);
   }
-  return parseDirectoryPayload(await response.json());
+  return parseDirectoryPayload(await response.json(), options.mediaBase);
 }
 
 /** A fetched logo, ready to render or to store. */

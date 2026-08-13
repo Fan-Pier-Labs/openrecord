@@ -449,9 +449,32 @@ point its first-boot refresh at localhost instead of Epic.
   the real endpoint. Without it you get the country/state dictionaries and nothing else.
 - `loginUrl` points back at this server, in its current mount mode, so an entry can be picked out of
   the directory and logged in to.
-- Logos stay on Epic's media host in the payload (that is what the real records resolve to). The
-  fake mirrors the media path at `/mychartdotorg/directus/<subArea>/<imageId>/<fileName>` for
-  fetching one directly; an unknown image 404s.
+- **Logos are served here too, so nothing reaches Epic.** A logo record is an `imageId` and a
+  `fileName`, never a URL — the client resolves it against a media base. This server mirrors both of
+  Epic's media paths and answers them with the checked-in placeholder images in
+  `src/data/directory-logos/`:
+
+  | Path | Stands in for |
+  | --- | --- |
+  | `/mychartdotorg/directus/<subArea>/<imageId>/<fileName>` | an organization's own logo |
+  | `/mychartdotorg/site/<locale>/images/login/default.png` | the generic logo |
+  | `/mychartdotorg/site/<locale>/images/login/custom/<name>.png` | the hand-placed logos (Mayo, Kaiser, …) |
+
+  Point a client at both halves and it never leaves this origin:
+
+  ```ts
+  fetchMyChartDirectory({
+    directoryUrl: `${base}/cached-api/help/organizations/?locale=en-us&includeOrganizations=1`,
+    mediaBase: `${base}/mychartdotorg`,
+  })
+  ```
+
+  An unknown image 404s rather than falling back to a placeholder — "this logo doesn't exist" is a
+  case every client has to handle, and a fake that always answers leaves it untested.
+
+  The two images are 240×88 PNGs (a cross and a wordmark bar on teal / grey), at roughly the aspect
+  ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
+  branding, and no hospital's trademark belongs in this repo.
 
 ## What's NOT Implemented
 

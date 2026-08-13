@@ -18,10 +18,12 @@ import { conformToShape } from '@/lib/shape';
  *    returns the help/country/state data and *no* `organizations` key at all.
  *    A client that forgets the parameter gets the same empty-looking success
  *    from the fake that it would get from Epic.
- *  - **Logos are not served from this origin.** The real payload carries
- *    Directus image records that resolve against `media.epic.com`, so that is
- *    what these carry too. The fake mirrors that media path separately (see
- *    `/mychartdotorg/directus/…`) rather than rewriting the records.
+ *  - **Logo records are ids, not URLs**, exactly as in the real payload — an
+ *    `imageId` and a `fileName` that a client resolves against a media base.
+ *    This server mirrors Epic's media paths under `/mychartdotorg/…` and
+ *    serves checked-in placeholder images from them, so a client pointed at
+ *    the fake (`fetchMyChartDirectory({ directoryUrl, mediaBase })`) gets
+ *    working logos without a single request leaving for Epic.
  *
  * One difference, and it is Next's, not a choice: mychart.org canonicalizes
  * *to* the trailing slash (`…/organizations?x` 308s to `…/organizations/?x`)
