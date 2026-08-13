@@ -120,7 +120,7 @@ describe('scraperFetch', () => {
       await jar.setCookie('session=abc; path=/', 'https://mychart.example.org/')
 
       const seen: (string | undefined)[] = []
-      const transport = async (url: string, init: RequestInit) => {
+      const transport = async (_url: string, init: RequestInit) => {
         seen.push((init.headers as Record<string, string>)['Cookie'])
         return new Response('', {
           status: 200,
@@ -273,7 +273,7 @@ describe('scraperFetch', () => {
       setTestTransport(null)
 
       const realFetch = globalThis.fetch
-      globalThis.fetch = mock(async () => new Response('real', { status: 200 })) as typeof globalThis.fetch
+      globalThis.fetch = mock(async () => new Response('real', { status: 200 })) as unknown as typeof globalThis.fetch
       try {
         const res = await scraperFetch('https://mychart.example.org/Home')
         expect(await res.text()).toBe('real')
@@ -310,7 +310,7 @@ describe('scraperFetch', () => {
       globalThis.fetch = mock(async (url: string | URL | Request) => {
         called = url.toString()
         return new Response('ok', { status: 200 })
-      }) as typeof globalThis.fetch
+      }) as unknown as typeof globalThis.fetch
 
       try {
         await platformFetch('https://mychart.example.org/Home', {})
@@ -327,7 +327,7 @@ describe('scraperFetch', () => {
       globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
         seenUserAgent = (init?.headers as Record<string, string>)['User-Agent']
         return new Response('ok', { status: 200 })
-      }) as typeof globalThis.fetch
+      }) as unknown as typeof globalThis.fetch
 
       try {
         await scraperFetch('https://mychart.example.org/Home')

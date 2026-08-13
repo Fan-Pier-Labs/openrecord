@@ -187,7 +187,7 @@ describe('setupTotp — successful setup', () => {
   it('POSTs the password under the field name MyChart expects', async () => {
     const { req, callTo } = createMockRequest(happyRoutes())
     await setupTotp(req, PASSWORD)
-    expect(callTo('/api/secondary-validation/VerifyPasswordAndUpdateContact').json())
+    expect(callTo('/api/secondary-validation/VerifyPasswordAndUpdateContact').json<{ Password: string }>())
       .toEqual({ Password: PASSWORD })
   })
 

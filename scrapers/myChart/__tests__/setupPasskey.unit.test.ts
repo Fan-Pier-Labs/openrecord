@@ -319,7 +319,7 @@ describe('listPasskeys', () => {
     const { req, callTo } = createMockRequest(listRoutes(() => jsonResponse({ passkeys })), { hostname: HOSTNAME })
 
     expect(await listPasskeys(req)).toEqual(passkeys)
-    expect(callTo('/api/passkey-management/LoadPasskeyInfo').json()).toEqual({ hostname: HOSTNAME })
+    expect(callTo('/api/passkey-management/LoadPasskeyInfo').json<{ hostname: string }>()).toEqual({ hostname: HOSTNAME })
   })
 
   it('returns the passkeys from a Pascal-cased response', async () => {
@@ -368,7 +368,7 @@ describe('deletePasskey', () => {
     )
 
     expect(await deletePasskey(req, 'raw-id-to-delete')).toBe(true)
-    expect(callTo('/api/passkey-management/DeletePasskey').json()).toEqual({ rawId: 'raw-id-to-delete' })
+    expect(callTo('/api/passkey-management/DeletePasskey').json<{ rawId: string }>()).toEqual({ rawId: 'raw-id-to-delete' })
   })
 
   it('reports failure when the endpoint errors', async () => {

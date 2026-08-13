@@ -5,6 +5,7 @@
   "scripts": {
     "fix": "eslint --fix",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "cli": "bun npm-package/cli/entry.ts",
     "test": "bun test --isolate .unit.test.ts",
     "test:integration": "bun test --isolate .integration.test.ts",

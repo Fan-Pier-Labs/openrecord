@@ -44,6 +44,7 @@ describe('listConversations', () => {
     ])
 
     const result = await listConversations(req)
+    if (!result?.threads) throw new Error('expected threads in result')
     expect(result.threads).toHaveLength(2)
     expect(result.threads[0].subject).toBe('Lab Results Question')
     expect(result.threads[0].senderName).toBe('Dr. Smith')
@@ -57,7 +58,7 @@ describe('listConversations', () => {
     ])
 
     const result = await listConversations(req)
-    expect(result.threads).toHaveLength(0)
+    expect(result?.threads).toHaveLength(0)
   })
 
   it('sends correct POST body with conversation params', async () => {
@@ -107,6 +108,7 @@ describe('listConversations', () => {
     ])
 
     const result = await listConversations(req)
+    if (!result) throw new Error('expected a result')
     expect(result.threads).toHaveLength(1)
     expect(result.totalCount).toBe(42)
     expect(result.hasMore).toBe(true)
