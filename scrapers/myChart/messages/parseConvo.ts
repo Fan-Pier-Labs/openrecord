@@ -1,8 +1,6 @@
 
-import fs from 'fs';
 import * as cheerio from 'cheerio';
-import { type Conversation, type InputFormat, type Message, type User } from '../types';
-import { logger } from '../../../shared/logger';
+import { Conversation, InputFormat, Message, User } from '../types';
 
 
 // This file parses the JSON response from the conersation details API and 
@@ -67,7 +65,3 @@ export function parseConvo(json: InputFormat): Conversation {
 
 // Manual exploration entry point: `bun scrapers/myChart/messages/parseConvo.ts`.
 // Guarded so importing this module (e.g. from tests) has no side effects.
-if (import.meta.main) {
-  const json = JSON.parse(fs.readFileSync('./sample_data/convo.json', 'utf-8'))
-  logger.debug(JSON.stringify(parseConvo(json), null, 4))
-}

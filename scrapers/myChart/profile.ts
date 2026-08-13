@@ -1,5 +1,4 @@
-import { login_TEST } from "./login";
-import { type MyChartRequest } from "./myChartRequest";
+import { MyChartRequest } from "./myChartRequest";
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from "./makeAuthenticatedRequest";
 import { getRequestVerificationTokenFromBody } from "./util";
 import * as cheerio from 'cheerio';
@@ -224,18 +223,4 @@ export async function getEmail(mychartRequest: MyChartRequest): Promise<string |
 
   return json.SecureCommunicationInfo.EmailAddress;
 
-}
-
-
-async function test() {
-  const mychartRequest = await login_TEST('mychart.example.org');
-  
-  const profile = await getMyChartProfile(mychartRequest)
-
-  logger.debug('getMedicalRecordNumber is', profile)
-}
-
-
-if (import.meta.main) {
-  void test();
 }
