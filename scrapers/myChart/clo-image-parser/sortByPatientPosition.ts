@@ -15,7 +15,7 @@
  */
 
 import { inflateSync } from 'zlib';
-import { AMF3Reader } from './clo_to_bitmap';
+import { Amf3Reader } from '../eunity/amf3Reader';
 
 const CLOHEADERZ01_MAGIC = Buffer.from('CLOHEADERZ01');
 
@@ -40,7 +40,10 @@ export function readPatientPosition(wrapperData: Uint8Array): PatientPosition | 
   try {
     const buf = Buffer.isBuffer(wrapperData) ? wrapperData : Buffer.from(wrapperData);
     if (buf.length < 16 || !buf.subarray(0, 12).equals(CLOHEADERZ01_MAGIC)) return null;
-    const meta = new AMF3Reader(inflateSync(buf.subarray(16))).readValue() as
+    // Strict decode (eunity/amf3Reader.ts — the repo's one AMF3 reader). A
+    // wrapper it can't parse throws, the catch below returns null, and the
+    // series keeps the server's order rather than being sorted on garbage.
+    const meta = new Amf3Reader(inflateSync(buf.subarray(16))).readValue() as
       | { calibration?: { orientation?: { positionPatient?: Record<string, unknown> } } }
       | undefined;
     const pos = meta?.calibration?.orientation?.positionPatient;
