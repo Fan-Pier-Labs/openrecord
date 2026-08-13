@@ -467,6 +467,27 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 30_000)
 
+    it('listLabResults returns distinct details per lab order, not one panel repeated', async () => {
+      const result = await listLabResults(session)
+
+      const names = result.map(r => r.orderName)
+      expect(names).toContain('Comprehensive Metabolic Panel')
+      expect(names).toContain('Lipid Panel')
+      expect(names).toContain('Complete Blood Count')
+
+      const cmp = result.find(r => r.orderName === 'Comprehensive Metabolic Panel')
+      const lipid = result.find(r => r.orderName === 'Lipid Panel')
+      const cbc = result.find(r => r.orderName === 'Complete Blood Count')
+      expect(cmp!.key).toBe('RES-CMP')
+      expect(lipid!.key).toBe('RES-LIPID')
+      expect(cbc!.key).toBe('RES-CBC')
+
+      const componentNames = (r: typeof cmp) => r!.results[0].resultComponents.map(c => c.componentInfo.name)
+      expect(componentNames(cmp)).toContain('Glucose')
+      expect(componentNames(lipid)).toContain('Total Cholesterol')
+      expect(componentNames(cbc)).toContain('Hemoglobin')
+    }, 30_000)
+
     it('listConversations returns conversations', async () => {
       const result = await listConversations(session)
       expect(result).toBeDefined()
