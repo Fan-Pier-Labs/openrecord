@@ -1,12 +1,11 @@
 /**
- * Decode an eUnity CLO image to a JPEG, entirely on-device.
+ * Decode an eUnity CLO image to a base64 JPEG, entirely on-device.
  *
- * Uses the pure-TS `convertCloToBitmap` from the shared parser (no sharp,
- * no native deps) and encodes the resulting 8-bit grayscale bitmap to a
- * JPEG with jpeg-js (also pure JS).
+ * Thin wrapper over the shared pure-JS exporter (no sharp, no native deps) —
+ * the same code path the Claude Desktop extension uses, so images render
+ * identically everywhere. Base64 is the shape the attachment store wants.
  */
-import jpeg from "jpeg-js";
-import { convertCloToBitmap } from "../../../../scrapers/myChart/clo-image-parser/clo_to_bitmap";
+import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 
 export type CloJpegResult = {
   base64: string;
@@ -14,27 +13,10 @@ export type CloJpegResult = {
   height: number;
 };
 
-// Medical images always encode at quality 100 — there is deliberately no knob
-// to degrade them.
 export function cloToJpegBase64(
   pixelData: Buffer,
   wrapperData?: Buffer,
-  quality = 100,
 ): CloJpegResult {
-  const { pixels, width, height } = convertCloToBitmap(pixelData, wrapperData);
-
-  // convertCloToBitmap returns 8-bit grayscale pixels. jpeg-js wants RGBA.
-  const rgba = new Uint8Array(width * height * 4);
-  for (let i = 0; i < pixels.length; i++) {
-    const v = pixels[i] ?? 0;
-    const j = i * 4;
-    rgba[j] = v;
-    rgba[j + 1] = v;
-    rgba[j + 2] = v;
-    rgba[j + 3] = 255;
-  }
-
-  const encoded = jpeg.encode({ data: rgba, width, height }, quality);
-  const base64 = Buffer.from(encoded.data).toString("base64");
-  return { base64, width, height };
+  const { buffer, width, height } = convertCloToJpgPureJs(pixelData, wrapperData);
+  return { base64: Buffer.from(buffer).toString("base64"), width, height };
 }

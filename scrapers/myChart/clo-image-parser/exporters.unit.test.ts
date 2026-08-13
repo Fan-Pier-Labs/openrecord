@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import sharp from "sharp";
 import { inflateSync } from "zlib";
+import jpegJs from "jpeg-js";
 
 import {
   convertCloToBitmap,
@@ -9,8 +10,13 @@ import {
   to8bit,
   to16bit,
 } from "./clo_to_bitmap";
-import type { Bitmap16 } from "./clo_to_bitmap";
-import { convertBitmap16ToJpg } from "./exporters/to_jpg";
+import type { Bitmap, Bitmap16 } from "./clo_to_bitmap";
+import { convertBitmap16ToJpg, convertBitmapToJpg } from "./exporters/to_jpg";
+import {
+  convertBitmapToJpgPureJs,
+  convertCloToJpgPureJs,
+  grayscaleToRgba,
+} from "./exporters/to_jpg_purejs";
 import { convertBitmap16ToPng } from "./exporters/to_png";
 import { convertBitmap16ToAvif } from "./exporters/to_avif";
 import { convertBitmap16ToTiff } from "./exporters/to_tiff";
@@ -299,6 +305,82 @@ describe("to16bit", () => {
     const result = to16bit(input, false);
     expect(result[0]).toBe(65535);
   });
+});
+
+// ==================== to_jpg_purejs ====================
+
+/** Synthetic gradient CLO pixel/wrapper pair for the pure-JS decode path. */
+function makeGradientClo(w = 512, h = 512): { pixelData: Buffer; wrapperData: Buffer } {
+  const img = generateGradientH(w, h);
+  return {
+    pixelData: Buffer.from(encodePixelFile(img, w, h)),
+    wrapperData: Buffer.from(encodeWrapperFile({
+      photometricInterpretation: "MONOCHROME2",
+      bitsStored: 16,
+      windowCenter: 32768,
+      windowWidth: 65536,
+    })),
+  };
+}
+
+describe("to_jpg_purejs", () => {
+  it("grayscaleToRgba repeats each sample into RGB with opaque alpha", () => {
+    const rgba = grayscaleToRgba(new Uint8Array([0, 128, 255]));
+    expect(Array.from(rgba)).toEqual([
+      0, 0, 0, 255,
+      128, 128, 128, 255,
+      255, 255, 255, 255,
+    ]);
+  });
+
+  it("encodes a valid JPEG from a synthetic CLO", () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const jpeg = convertCloToJpgPureJs(pixelData, wrapperData);
+    expect(jpeg.width).toBe(512);
+    expect(jpeg.height).toBe(512);
+    // JPEG magic: SOI (FFD8) … EOI (FFD9).
+    expect(jpeg.buffer[0]).toBe(0xff);
+    expect(jpeg.buffer[1]).toBe(0xd8);
+    expect(jpeg.buffer[jpeg.buffer.length - 2]).toBe(0xff);
+    expect(jpeg.buffer[jpeg.buffer.length - 1]).toBe(0xd9);
+  }, 30000);
+
+  it("JPEG content matches the canonical 8-bit bitmap", () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const bitmap = convertCloToBitmap(pixelData, wrapperData);
+    const jpeg = convertBitmapToJpgPureJs(bitmap);
+
+    const decoded = jpegJs.decode(jpeg.buffer, { useTArray: true });
+    expect(decoded.width).toBe(bitmap.width);
+    expect(decoded.height).toBe(bitmap.height);
+
+    let maxDiff = 0;
+    for (let i = 0; i < bitmap.pixels.length; i++) {
+      const diff = Math.abs(decoded.data[i * 4] - bitmap.pixels[i]);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    // Quality-100 JPEG should stay very close to the source pixels.
+    expect(maxDiff).toBeLessThanOrEqual(5);
+  }, 30000);
+
+  it("renders the same image as the sharp-backed CLI exporter", async () => {
+    const { pixelData, wrapperData } = makeGradientClo();
+    const bitmap: Bitmap = convertCloToBitmap(pixelData, wrapperData);
+
+    const pureJs = convertBitmapToJpgPureJs(bitmap);
+    const viaSharp = await convertBitmapToJpg(bitmap);
+
+    const pureJsPixels = await readGrayscale8(Buffer.from(pureJs.buffer));
+    const sharpPixels = await readGrayscale8(viaSharp);
+
+    let maxDiff = 0;
+    for (let i = 0; i < pureJsPixels.data.length; i++) {
+      const diff = Math.abs(pureJsPixels.data[i] - sharpPixels.data[i]);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    // Two quality-100 encoders over identical windowed pixels: near-identical.
+    expect(maxDiff).toBeLessThanOrEqual(5);
+  }, 30000);
 });
 
 // ==================== convertBitmap16ToJpg ====================
