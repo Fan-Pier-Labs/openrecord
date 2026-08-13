@@ -3,19 +3,19 @@
  *
  * Sideloaded .mcpb bundles have no auto-update channel: Claude Desktop only
  * auto-updates extensions installed from the Anthropic directory, and the
- * manifest spec has no update-feed field. So the server checks GitHub
- * Releases itself and tells the model, which tells the user — the closest
+ * manifest spec has no update-feed field. So the server checks our own
+ * distribution point and tells the model, which tells the user — the closest
  * thing to an update prompt an MCP server can produce.
  *
  * Mechanics:
- *   - Releases are GitHub Releases on Fan-Pier-Labs/openrecord whose tag
- *     starts with `mcpb-v` (other release trains share the repo, so the
- *     prefix is the filter — "latest release" alone would be wrong the day
- *     the npm package gets a GitHub release).
+ *   - Releases live on the splash site's S3 bucket, next to the page that
+ *     advertises the product: `mcpb/latest.json` names the current version
+ *     and its download URL, and `claude-desktop-extension/release.sh` is the
+ *     one thing that writes them. No third-party release infrastructure.
  *   - The check runs fire-and-forget at server startup, and at most once per
  *     24h across processes (state in ~/.openrecord-mcpb/update-check.json —
  *     Claude Desktop starts a fresh server process per session, so an
- *     in-memory throttle alone would re-hit GitHub every session).
+ *     in-memory throttle alone would re-poll every session).
  *   - A found update is surfaced ONCE per process: takeUpdateNotice() hands
  *     the notice line to the first successful tool result after the check
  *     resolves (tools.ts appends it centrally), and the explicit
@@ -29,10 +29,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { EXTENSION_VERSION } from './version';
 
-const REPO = 'Fan-Pier-Labs/openrecord';
-const RELEASES_API_URL = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
-export const RELEASES_PAGE_URL = `https://github.com/${REPO}/releases`;
-const TAG_PREFIX = 'mcpb-v';
+const SITE_ORIGIN = 'https://openrecord.fanpierlabs.com';
+const LATEST_JSON_URL = `${SITE_ORIGIN}/mcpb/latest.json`;
+/** Stable URL of the current bundle — release.sh overwrites it every release. */
+export const STABLE_DOWNLOAD_URL = `${SITE_ORIGIN}/mcpb/openrecord.mcpb`;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -44,7 +44,7 @@ export interface UpdateCheckResult {
   latestVersion: string | null;
   updateAvailable: boolean;
   downloadUrl: string | null;
-  /** True when GitHub could not be reached or answered garbage. */
+  /** True when the release manifest could not be reached or was garbage. */
   checkFailed: boolean;
   /** True when OPENRECORD_DISABLE_UPDATE_CHECK suppressed the check. */
   disabled: boolean;
@@ -52,8 +52,8 @@ export interface UpdateCheckResult {
 
 /**
  * The opt-out. This server's pitch is that health data stays local, so the
- * one outbound connection it makes on its own (api.github.com, once per 24h)
- * has an off switch: the `disable_update_check` toggle in the extension's
+ * one outbound connection it makes on its own (the release manifest on
+ * openrecord.fanpierlabs.com, once per 24h) has an off switch: the `disable_update_check` toggle in the extension's
  * settings (wired through manifest.json user_config), or this env var
  * directly. Disabled means NO update traffic at all — the explicit
  * check_for_updates tool reports "disabled" instead of fetching.
@@ -69,17 +69,10 @@ interface UpdateState {
   downloadUrl: string | null;
 }
 
-interface GithubAsset {
-  name?: string;
-  browser_download_url?: string;
-}
-
-interface GithubRelease {
-  tag_name?: string;
-  html_url?: string;
-  draft?: boolean;
-  prerelease?: boolean;
-  assets?: GithubAsset[];
+/** Shape of mcpb/latest.json, written by claude-desktop-extension/release.sh. */
+interface LatestManifest {
+  version?: string;
+  url?: string;
 }
 
 /**
@@ -119,8 +112,8 @@ export function _resetForTests(): void {
 }
 
 /**
- * Check GitHub for a newer mcpb release. Throttled to one live fetch per 24h
- * unless `force` (the check_for_updates tool). Never throws.
+ * Check the site's release manifest for a newer bundle. Throttled to one
+ * live fetch per 24h unless `force` (the check_for_updates tool). Never throws.
  */
 export async function checkForUpdate(
   opts: { force?: boolean; fetchFn?: typeof fetch } = {},
@@ -147,7 +140,7 @@ export async function checkForUpdate(
     downloadUrl = cached.downloadUrl;
   } else {
     try {
-      const fetched = await fetchLatestMcpbRelease(opts.fetchFn ?? globalThis.fetch);
+      const fetched = await fetchLatestManifest(opts.fetchFn ?? globalThis.fetch);
       latestVersion = fetched.latestVersion;
       downloadUrl = fetched.downloadUrl;
       writeState({ checkedAt: now, latestVersion, downloadUrl });
@@ -162,7 +155,7 @@ export async function checkForUpdate(
   if (updateAvailable) {
     pendingNotice =
       `An OpenRecord extension update is available: v${latestVersion} (installed: v${EXTENSION_VERSION}). ` +
-      `Let the user know they can update by downloading ${downloadUrl ?? RELEASES_PAGE_URL} ` +
+      `Let the user know they can update by downloading ${downloadUrl ?? STABLE_DOWNLOAD_URL} ` +
       'and opening the .mcpb file — it upgrades in place and keeps saved accounts, passkeys and sessions.';
   }
 
@@ -176,42 +169,34 @@ export async function checkForUpdate(
   };
 }
 
-async function fetchLatestMcpbRelease(
+async function fetchLatestManifest(
   fetchFn: typeof fetch,
 ): Promise<{ latestVersion: string | null; downloadUrl: string | null }> {
-  const res = await fetchFn(RELEASES_API_URL, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      'user-agent': `openrecord-mcpb/${EXTENSION_VERSION}`,
-    },
+  const res = await fetchFn(LATEST_JSON_URL, {
+    headers: { accept: 'application/json', 'user-agent': `openrecord-mcpb/${EXTENSION_VERSION}` },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`GitHub releases API returned ${res.status}`);
-  const releases = (await res.json()) as GithubRelease[];
-  if (!Array.isArray(releases)) throw new Error('unexpected releases payload');
-
-  // The API returns newest first; the first published mcpb-tagged release wins.
-  for (const release of releases) {
-    if (release.draft || release.prerelease) continue;
-    const tag = release.tag_name ?? '';
-    if (!tag.startsWith(TAG_PREFIX)) continue;
-    // The version string ends up interpolated into a notice the model reads,
-    // so nothing but digits and dots is allowed through — a tag like
-    // `mcpb-v9.9.9-<anything>` must not carry its suffix into the
-    // conversation. Network text never reaches the model unvalidated.
-    const version = tag.slice(TAG_PREFIX.length);
-    if (!/^\d+(\.\d+){0,3}$/.test(version)) continue;
-    const asset = (release.assets ?? []).find(
-      a => a.name?.endsWith('.mcpb') && a.browser_download_url,
-    );
-    return {
-      latestVersion: version,
-      downloadUrl: asset?.browser_download_url ?? release.html_url ?? null,
-    };
+  // 404/403 means no release has been published yet (or S3 answered for a
+  // missing key) — a legitimate "you're current", cached like any answer.
+  if (res.status === 404 || res.status === 403) {
+    return { latestVersion: null, downloadUrl: null };
   }
-  // No mcpb release published yet is a legitimate "you're current", not a
-  // failure — cache it like any other answer.
-  return { latestVersion: null, downloadUrl: null };
+  if (!res.ok) throw new Error(`release manifest returned ${res.status}`);
+  const manifest = (await res.json()) as LatestManifest;
+
+  // Both fields end up in a notice the model reads, so nothing unvalidated
+  // gets through: the version must be digits-and-dots, and the download URL
+  // must live on our own origin — a tampered manifest must not be able to
+  // put arbitrary text or a third-party link into the conversation.
+  const version = manifest?.version;
+  if (typeof version !== 'string' || !/^\d+(\.\d+){0,3}$/.test(version)) {
+    throw new Error('release manifest has no valid version');
+  }
+  const url =
+    typeof manifest.url === 'string' && manifest.url.startsWith(`${SITE_ORIGIN}/`)
+      ? manifest.url
+      : STABLE_DOWNLOAD_URL;
+  return { latestVersion: version, downloadUrl: url };
 }
 
 function readFreshState(now: number): UpdateState | null {

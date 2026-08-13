@@ -3,21 +3,34 @@
  * (manifest.json is the source of truth; package.json must mirror it —
  * version-sync.unit.test.ts fails the build if they drift).
  *
- * Usage: bun dev-scripts/bump-mcpb-version.ts 0.2.0
+ * Usage: bun dev-scripts/bump-mcpb-version.ts [patch|minor|major|<x.y.z>]
+ *        (default: patch)
  *
- * Then land the change and push the matching tag to release:
- *   git tag mcpb-v0.2.0 && git push origin mcpb-v0.2.0
+ * Normally run for you by `claude-desktop-extension/release.sh`, which also
+ * builds the bundle and publishes it to the splash site's S3 bucket.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const version = process.argv[2];
-if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
-  console.error('Usage: bun dev-scripts/bump-mcpb-version.ts <major.minor.patch>');
-  process.exit(1);
+const extensionRoot = path.join(import.meta.dir, '..', 'claude-desktop-extension');
+const manifestPath = path.join(extensionRoot, 'manifest.json');
+
+const current = (JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as { version: string }).version;
+
+function nextVersion(arg: string): string {
+  if (/^\d+\.\d+\.\d+$/.test(arg)) return arg;
+  const [major, minor, patch] = current.split('.').map(Number);
+  switch (arg) {
+    case 'major': return `${major + 1}.0.0`;
+    case 'minor': return `${major}.${minor + 1}.0`;
+    case 'patch': return `${major}.${minor}.${patch + 1}`;
+    default:
+      console.error('Usage: bun dev-scripts/bump-mcpb-version.ts [patch|minor|major|<x.y.z>]');
+      process.exit(1);
+  }
 }
 
-const extensionRoot = path.join(import.meta.dir, '..', 'claude-desktop-extension');
+const version = nextVersion(process.argv[2] ?? 'patch');
 
 for (const file of ['manifest.json', 'package.json']) {
   const filePath = path.join(extensionRoot, file);
@@ -34,5 +47,3 @@ for (const file of ['manifest.json', 'package.json']) {
   fs.writeFileSync(filePath, updated);
   console.log(`${file}: ${previous} -> ${version}`);
 }
-
-console.log(`\nNext: commit, merge, then \`git tag mcpb-v${version} && git push origin mcpb-v${version}\``);

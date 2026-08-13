@@ -147,7 +147,11 @@ blocks unauthenticated Lambda Function URLs. A hidden `company` honeypot field d
 - **mychart-connector** (`arn:aws:s3:::mychart-connector`) — `mychart-logos/` holds logos for all
   MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`.
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`) — the static splash and
-  demo. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC).
+  demo, plus `mcpb/` — the Claude Desktop extension's release channel
+  (`openrecord-<version>.mcpb` immutable artifacts, the stable `openrecord.mcpb`, and `latest.json`,
+  all written only by `claude-desktop-extension/release.sh`; installed extensions poll `latest.json`
+  for update notices). Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC). The splash deploy
+  uploads named files only, so it never touches `mcpb/`.
 
 ## Secrets (AWS Secrets Manager, us-east-2)
 

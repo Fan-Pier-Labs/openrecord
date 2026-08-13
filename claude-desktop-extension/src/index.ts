@@ -101,8 +101,9 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Sideloaded .mcpb extensions have no auto-update, so check GitHub Releases
-  // ourselves (throttled to once per 24h). Fire-and-forget: by the time the
+  // Sideloaded .mcpb extensions have no auto-update, so check our release
+  // manifest on the splash site ourselves (throttled to once per 24h).
+  // Fire-and-forget: by the time the
   // first tool call lands, a found update is waiting as a one-shot notice
   // that tools.ts appends to the result, and the model relays it to the user.
   void checkForUpdate();

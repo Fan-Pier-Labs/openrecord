@@ -11,6 +11,7 @@
     "dev:reload": "bun run build && node dev/dev-reload.mjs",
     "dev:proxy": "./node_modules/.bin/mcpmon --watch dist --ext cjs -- node dist/server.cjs",
     "pack": "bun run build && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
+    "release": "./release.sh",
     "smoke": "bun run build && node smoke.cjs",
     "test": "bun test --isolate .unit.test.ts .integration.test.ts"
   },

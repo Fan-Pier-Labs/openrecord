@@ -34,20 +34,10 @@ function captureTools(): Map<string, RegisteredTool> {
 function releasesFetch(version: string): typeof globalThis.fetch {
   return (async () =>
     new Response(
-      JSON.stringify([
-        {
-          tag_name: `mcpb-v${version}`,
-          html_url: `https://github.com/Fan-Pier-Labs/openrecord/releases/tag/mcpb-v${version}`,
-          draft: false,
-          prerelease: false,
-          assets: [
-            {
-              name: 'openrecord.mcpb',
-              browser_download_url: `https://github.com/Fan-Pier-Labs/openrecord/releases/download/mcpb-v${version}/openrecord.mcpb`,
-            },
-          ],
-        },
-      ]),
+      JSON.stringify({
+        version,
+        url: `https://openrecord.fanpierlabs.com/mcpb/openrecord-${version}.mcpb`,
+      }),
       { status: 200 },
     )) as unknown as typeof globalThis.fetch;
 }
@@ -78,7 +68,7 @@ describe('check_for_updates tool', () => {
       expect(payload.installed_version).toBe(EXTENSION_VERSION);
       expect(payload.latest_version).toBe('99.0.0');
       expect(payload.update_available).toBe(true);
-      expect(payload.download_url).toContain('openrecord.mcpb');
+      expect(payload.download_url).toContain('openrecord-99.0.0.mcpb');
       expect(payload.how_to_update).toBeDefined();
     } finally {
       globalThis.fetch = realFetch;
@@ -103,7 +93,7 @@ describe('check_for_updates tool', () => {
     }
   });
 
-  test('the handler reports an honest failure when GitHub is unreachable', async () => {
+  test('the handler reports an honest failure when the manifest is unreachable', async () => {
     const tools = captureTools();
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () => {

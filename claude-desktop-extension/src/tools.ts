@@ -70,7 +70,7 @@ import {
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { encodeStudyJpegs } from './imaging/download-study';
-import { checkForUpdate, takeUpdateNotice, RELEASES_PAGE_URL } from './update-check';
+import { checkForUpdate, takeUpdateNotice, STABLE_DOWNLOAD_URL } from './update-check';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -564,7 +564,7 @@ export function registerAllTools(server: McpServer): void {
         return jsonResult({
           installed_version: result.installedVersion,
           update_checks: 'disabled',
-          note: 'Update checks are turned off (the disable_update_check extension setting / OPENRECORD_DISABLE_UPDATE_CHECK). No network request was made. The user can check manually at ' + RELEASES_PAGE_URL,
+          note: 'Update checks are turned off (the disable_update_check extension setting / OPENRECORD_DISABLE_UPDATE_CHECK). No network request was made. The user can always download the current bundle manually from ' + STABLE_DOWNLOAD_URL,
         });
       }
       return jsonResult({
@@ -572,9 +572,8 @@ export function registerAllTools(server: McpServer): void {
         latest_version: result.latestVersion,
         update_available: result.updateAvailable,
         download_url: result.downloadUrl,
-        releases_page: RELEASES_PAGE_URL,
         ...(result.checkFailed
-          ? { check_failed: true, note: 'Could not reach GitHub to check for updates. Tell the user the check failed; do not guess whether an update exists.' }
+          ? { check_failed: true, note: 'Could not reach the release manifest to check for updates. Tell the user the check failed; do not guess whether an update exists.' }
           : {}),
         ...(result.updateAvailable
           ? {

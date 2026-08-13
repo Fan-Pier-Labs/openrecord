@@ -20,7 +20,7 @@ describe('extension version sync', () => {
     expect(EXTENSION_VERSION).toBe(manifest.version);
   });
 
-  test('the version is plain semver, matching the mcpb-v<version> tag scheme', () => {
+  test('the version is plain semver, matching the openrecord-<version>.mcpb artifact scheme', () => {
     expect(EXTENSION_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
