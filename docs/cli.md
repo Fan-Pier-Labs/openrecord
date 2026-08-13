@@ -77,6 +77,19 @@ the capability ignoring the request. Missing required arguments and
 out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
+Capabilities that produce images (`rendersMedia` in the registry — today
+`download_imaging_study`) never print image bytes to the terminal.
+`download_imaging_study` downloads **every** image in the study; the CLI
+decodes each raw CLO image and writes it as a quality-100 JPEG into
+`./imaging-output` (override the directory with `--output <dir>`), and prints
+a JSON summary with each file's path and dimensions so the images can be
+opened straight from Finder:
+
+```bash
+mychart-cli --host mychart.example.org --action download_imaging_study \
+  --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
+```
+
 Every chart-touching capability also accepts `--arg patient="<name>"`, the same
 assertion `--patient` applies to the rest of the CLI: the call refuses if
 MyChart is on a different record rather than reading the wrong chart. The

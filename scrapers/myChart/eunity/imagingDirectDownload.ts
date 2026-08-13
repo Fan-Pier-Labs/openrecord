@@ -982,7 +982,7 @@ export interface DirectDownloadResult {
   studyName: string;
   images: DirectDownloadedImage[];
   errors: string[];
-  /** Parsed series info from AMF response (available even with maxImages: 0) */
+  /** Parsed series info from the AMF response */
   seriesList?: SeriesInfo[];
 }
 
@@ -1000,9 +1000,7 @@ export interface DirectDownloadedImage {
 
 export interface DirectDownloadOptions {
   skipFileWrite?: boolean;
-  /** Stop after downloading this many images (default: unlimited). */
-  maxImages?: number;
-  /** Number of parallel downloads (default: 10). */
+  /** Number of parallel downloads (default: 5). */
   concurrency?: number;
 }
 
@@ -1429,7 +1427,7 @@ export async function downloadImagingStudyDirect(
     }
     logger.debug(`      Found ${studyInfo.series.length} series, studyUID: ${studyInfo.studyUID.substring(0, 30)}...`);
 
-    // Build series list summary (available even with maxImages: 0)
+    // Build series list summary
     const seriesMap = new Map<string, { description: string; count: number }>();
     for (const s of studyInfo.series) {
       const existing = seriesMap.get(s.seriesUID);
@@ -1445,11 +1443,12 @@ export async function downloadImagingStudyDirect(
       instanceCount: count,
     }));
 
-    // Step 6: Download images — each (seriesUID, instanceUID) pair is a separate image.
-    // Download in parallel batches for speed (CT scans can have 700+ slices).
-    const maxImages = options?.maxImages ?? Infinity;
+    // Step 6: Download every image — each (seriesUID, instanceUID) pair is a
+    // separate image. Downloaded in parallel batches for speed (CT scans can
+    // have 700+ slices). Instances that answer CLOERROR are skipped, never
+    // returned as images: eUnity's instance list can carry pseudo-instances
+    // (the viewer's "SeriesSelector" entries) that hold no pixel data.
     const concurrency = options?.concurrency ?? 5;
-    const seriesToDownload = studyInfo.series.slice(0, maxImages);
     const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
     const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
     let completed = 0;
@@ -1466,8 +1465,8 @@ export async function downloadImagingStudyDirect(
 
         completed++;
         if (data.length < 256 || (data.length > 8 && data.toString('ascii', 0, 8) === 'CLOERROR')) {
-          if (completed % 50 === 0 || completed === seriesToDownload.length) {
-            logger.debug(`      [${completed}/${seriesToDownload.length}] Progress...`);
+          if (completed % 50 === 0) {
+            logger.debug(`      [${completed} tried] Progress...`);
           }
           return;
         }
@@ -1476,21 +1475,20 @@ export async function downloadImagingStudyDirect(
 
         if (skipFileWrite) {
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
-          if (haarIdx >= 0) {
-            const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
-            const embeddedPixelData = data.subarray(haarIdx);
-            result.images.push({
-              filePath: '',
-              sizeBytes: embeddedPixelData.length,
-              seriesUID: series.seriesUID,
-              instanceUID: series.instanceUID,
-              seriesDescription: series.seriesDescription,
-              accessionNumber: studyParams!.accession,
-              format: 'CLHAAR',
-              pixelData: Buffer.from(embeddedPixelData),
-              wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
-            });
-          }
+          if (haarIdx < 0) return;
+          const wrapperMetadata = haarIdx > 0 ? data.subarray(0, haarIdx) : undefined;
+          const embeddedPixelData = data.subarray(haarIdx);
+          result.images.push({
+            filePath: '',
+            sizeBytes: embeddedPixelData.length,
+            seriesUID: series.seriesUID,
+            instanceUID: series.instanceUID,
+            seriesDescription: series.seriesDescription,
+            accessionNumber: studyParams!.accession,
+            format: 'CLHAAR',
+            pixelData: Buffer.from(embeddedPixelData),
+            wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
+          });
         } else {
           const ext = isCloFormat(data) ? '.clo' : '.bin';
           const fileName = `${safeName}_${safeDesc}_wrapper${ext}`;
@@ -1532,8 +1530,8 @@ export async function downloadImagingStudyDirect(
           }
         }
 
-        if (completed % 50 === 0 || completed === seriesToDownload.length) {
-          logger.debug(`      [${completed}/${seriesToDownload.length}] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
+        if (completed % 50 === 0) {
+          logger.debug(`      [${completed} tried] Downloaded ${(data.length / 1024).toFixed(0)} KB - ${series.seriesDescription}`);
         }
       } catch (err) {
         completed++;
@@ -1541,11 +1539,16 @@ export async function downloadImagingStudyDirect(
       }
     }
 
-    // Run downloads in parallel batches
-    logger.debug(`      Downloading ${seriesToDownload.length} images (concurrency: ${concurrency})...`);
-    for (let i = 0; i < seriesToDownload.length; i += concurrency) {
-      const batch = seriesToDownload.slice(i, i + concurrency);
-      await Promise.all(batch.map(s => downloadOne(s)));
+    logger.debug(`      Downloading ${studyInfo.series.length} instances (concurrency: ${concurrency})...`);
+    for (let i = 0; i < studyInfo.series.length; i += concurrency) {
+      const batch = studyInfo.series.slice(i, i + concurrency);
+      await Promise.all(batch.map((s) => downloadOne(s)));
+    }
+    logger.debug(`      Downloaded ${result.images.length} images (${studyInfo.series.length} instances tried)`);
+    if (result.images.length === 0 && result.errors.length === 0) {
+      result.errors.push(
+        `No downloadable images: all ${studyInfo.series.length} instances returned empty or error responses from the image server.`,
+      );
     }
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);
