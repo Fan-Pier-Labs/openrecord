@@ -17,27 +17,12 @@ export default [
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parserOptions: {
-        projectService: {
-          // Files no tsconfig includes: build configs, dev scripts, examples,
-          // and the test directories the package tsconfigs exclude. They lint
-          // against a default project instead of failing to parse.
-          allowDefaultProject: [
-            "claude-desktop-extension/tsup.config.ts",
-            "npm-package/tsup.config.ts",
-            "npm-package/examples/*.ts",
-            "dev-scripts/*.ts",
-            "expo-app/src/__tests__/*.ts",
-            "expo-app/src/lib/ai/__tests__/*.ts",
-            "expo-app/src/lib/memory/__tests__/*.ts",
-            "newsletter-lambda/src/__tests__/*.ts",
-            "openrecord-demo-lambda/src/__tests__/*.ts",
-            "openrecord-splash/__tests__/*.ts",
-            "tests/*.ts",
-            "tests/integration/ci/*.ts",
-          ],
-          // The default cap is 8; the globs above match 18 files today.
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 24,
-        },
+        // Deliberately no allowDefaultProject escape hatch: every TS file in
+        // the repo belongs to a real tsconfig project, so every file gets full
+        // type-aware linting. A new file outside every tsconfig fails lint
+        // with a "not found by the project service" error — the fix is to put
+        // it in a project, not to exempt it.
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },

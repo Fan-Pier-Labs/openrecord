@@ -116,6 +116,10 @@ jobs:
       # built dist/ bundle, so the typecheck needs it to exist.
       - name: Typecheck npm-package
         run: cd npm-package && bun run typecheck
+      # Own project (playwright resolves from this directory's node_modules,
+      # which only this job installs), so it typechecks here, not in `build`.
+      - name: Typecheck CI integration tests
+        run: cd tests/integration/ci && bunx tsc --noEmit
       # The backgrounded compose exit code is lost with its shell, so wait for
       # the process to finish, show its log, then re-run the same command in the
       # foreground: a no-op returning in seconds when the background run

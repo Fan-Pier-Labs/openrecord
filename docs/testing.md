@@ -7,9 +7,16 @@ its package's tsconfig, so every package's deps must be installed first (`expo-a
 `claude-desktop-extension`). A missing `node_modules` degrades imports to `any` and the type-aware
 rules silently stop seeing them — lint passes while checking less.
 
-Files no tsconfig includes (build configs, `dev-scripts/`, excluded test dirs) are listed in
-`allowDefaultProject` in `eslint.config.mjs`; a new stray file fails lint with a "not found by the
-project service" error until it's added there or to a tsconfig.
+**Every TS file in the repo belongs to a tsconfig project — there is deliberately no
+`allowDefaultProject` escape hatch.** A new file outside every tsconfig fails lint with a "not
+found by the project service" error; the fix is to put it in a project (root tsconfig's `include`,
+a package tsconfig, or `tests/integration/ci/tsconfig.json`), never to exempt it — an exempted file
+resolves without its package's `paths` and silently loses type-aware linting. The same projects
+back `bun run typecheck`, so nothing is excluded from typechecking either: expo-app checks its
+`__tests__` (they carry a `/// <reference types="bun" />` so bun:test resolves without adding Bun
+globals to the app config), npm-package checks `examples/` and `tsup.config.ts` (build `dist/`
+first — examples import the published package name), and the lambdas' tests ride the root
+tsconfig.
 
 `@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
 `.rejects`/`.resolves` matchers as `void`, but awaiting them is load-bearing at runtime.
