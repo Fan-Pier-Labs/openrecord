@@ -1,6 +1,24 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
 import { gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
 
+/** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
+type FetchMock = { mock: { calls: unknown[][] } };
+
+/**
+ * Let a fire-and-forget `sendTelemetryEvent` reach its `fetch` calls.
+ *
+ * There is no promise to await by design, so this drains the microtask queue
+ * until the expected fetches have been issued. It costs no real time, and it
+ * cannot pass by luck: a send that never fires leaves the count short and the
+ * assertion that follows fails, where the fixed 100ms sleep this replaced was
+ * simultaneously slow and a coin flip on a loaded CI box.
+ */
+async function drainSend(fetchMock: FetchMock, expected: number): Promise<void> {
+  for (let i = 0; i < 1000 && fetchMock.mock.calls.length < expected; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe('telemetry', () => {
   describe('gatherEnvInfo', () => {
     test('returns platform, arch, runtime_version, os_version', () => {
@@ -61,7 +79,7 @@ describe('telemetry', () => {
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       sendTelemetryEvent('test_event', { action: 'test' });
-      await new Promise((r) => setTimeout(r, 100));
+      await drainSend(fetchMock, 2);
 
       const amplitudeCall = fetchMock.mock.calls.find(
         (call) => typeof call[0] === 'string' && call[0].includes('amplitude.com')
@@ -94,7 +112,9 @@ describe('telemetry', () => {
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       sendTelemetryEvent('test_event');
-      await new Promise((r) => setTimeout(r, 100));
+      // Nothing to wait for — but drain anyway, so a regression that *does*
+      // fetch has every chance to show itself rather than racing the assertion.
+      await drainSend(fetchMock, 1);
 
       expect(fetchMock.mock.calls).toHaveLength(0);
     });
@@ -114,7 +134,9 @@ describe('telemetry', () => {
       const fetchMock = mock(() => Promise.resolve(new Response('{}', { status: 200 })));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
       sendTelemetryEvent(...args);
-      await new Promise((r) => setTimeout(r, 100));
+      // Both sinks when they're both on; the tests that switch one off drain
+      // the full budget instead, which is still instant.
+      await drainSend(fetchMock, 2);
       return {
         urls: fetchMock.mock.calls.map((call) => String(call[0])),
         calls: fetchMock.mock.calls,
@@ -200,7 +222,7 @@ describe('telemetry', () => {
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       expect(() => sendTelemetryEvent('test_event')).not.toThrow();
-      await new Promise((r) => setTimeout(r, 100));
+      await drainSend(fetchMock, 2);
 
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
