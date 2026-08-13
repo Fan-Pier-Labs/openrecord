@@ -128,9 +128,11 @@ export function DesktopSurface({ runTurn, onReady }: Props) {
 
   useEffect(() => {
     onReady({ send: (text) => sendRef.current(text) });
-    // Registered once on mount, deliberately: it reads live state through refs
-    // rather than closing over this render's values.
-  }, []);
+    // The handle itself is stable by construction: it reads live state through
+    // refs rather than closing over this render's values, so re-registering is
+    // a no-op. onReady is listed so a parent that swaps handlers actually gets
+    // the handle; App memoizes it, so in practice this runs once on mount.
+  }, [onReady]);
 
   /* ── Chat ───────────────────────────────────────────────────────── */
 

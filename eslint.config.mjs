@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
@@ -167,6 +168,25 @@ export default [
     },
     rules: {
       "import-x/no-cycle": "error",
+    },
+  },
+  // React client code only (the Expo app and the splash/demo page). An effect
+  // whose dep array omits a value it reads keeps running the closure from the
+  // render that created it: the callback it calls, the draft it sends, the
+  // router it navigates with are all the OLD ones, and nothing surfaces that —
+  // it looks like a message that silently went nowhere, or a navigation to a
+  // screen that no longer exists. The rule also flags the reverse (a dep the
+  // hook never reads), which is a dep array that has drifted from its body.
+  // Deliberately mount-only effects keep their empty array and carry a
+  // line-level disable saying why.
+  {
+    files: [
+      "expo-app/**/*.ts", "expo-app/**/*.tsx",
+      "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx",
+    ],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   {rules: {
