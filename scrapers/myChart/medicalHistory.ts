@@ -110,7 +110,7 @@ export async function getMedicalHistory(mychartRequest: MyChartRequest): Promise
       familyMembers: (json.familyHistoryAndStatus?.familyMembers || []).map((m: FamilyMemberResponse) => ({
         relationshipToPatientName: m.relationshipToPatientName || '',
         statusName: m.statusName || '',
-        conditions: (m.conditions || []).filter((c: string) => c && c.trim()),
+        conditions: (m.conditions || []).filter((c: string) => c?.trim()),
       })),
     },
   };

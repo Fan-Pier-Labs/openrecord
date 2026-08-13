@@ -143,7 +143,7 @@ export class MyChartRequest {
       const data = JSON.parse(serializedData);
       // firstPathPart is null for root-mounted instances, so check for presence
       // rather than truthiness.
-      if (data && data.hostname && data.firstPathPart !== undefined && data.cookies) {
+      if (data?.hostname && data.firstPathPart !== undefined && data.cookies) {
         const request = new MyChartRequest(data.hostname, { ...options, protocol: data.protocol });
         request.firstPathPart = data.firstPathPart;
         if (Object.keys(data.cookies).length > 0) {

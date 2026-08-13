@@ -19,6 +19,7 @@ import * as path from 'path';
 import { type MyChartRequest } from '../myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
 import { abortAfter, scraperFetch } from '../../http';
+import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';
 import { logger } from '../../../shared/logger';
 import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
 
@@ -949,11 +950,14 @@ async function initializeAmfSession(
   const amfBuf = Buffer.from(await res.arrayBuffer());
   const parsed = parseAmfResponse(amfBuf);
 
+  // Deliberately NOT `parsed?.code !== 0`: with no parse, `undefined !== 0` is
+  // true and would flip this into the error branch. "No parse" must stay
+  // "no error" here; only a parsed non-zero code is an upstream error.
   if (parsed && parsed.code !== 0) {
     logger.debug(`      [AMF] Error code=${parsed.code}: ${parsed.response ?? '(null)'}`);
   }
 
-  if (parsed && parsed.code === 0) {
+  if (parsed?.code === 0) {
     logger.debug(`      [AMF] Session initialized successfully (${amfBuf.length} bytes)`);
   }
 
@@ -1652,6 +1656,12 @@ export async function downloadImagingStudyDirect(
   } catch (err) {
     result.errors.push(`Fatal: ${(err as Error).message}`);
   }
+
+  // The parallel batches above complete in whatever order the image server
+  // answers, so this list is not even download order. Re-order each
+  // multi-slice series anatomically so every client hands back a stack that
+  // reads the way the scanner swept it.
+  result.images = sortImagesByPatientPosition(result.images);
 
   return result;
 }

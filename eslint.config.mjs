@@ -32,6 +32,11 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // `a && a.b` reads as `a?.b`; the rule only converts when truthiness
+      // semantics are preserved, and downgrades to a suggestion when the
+      // expression VALUE changes (null/'' vs undefined) — those were
+      // hand-verified (see the guard comments at the sites it must not touch).
+      "@typescript-eslint/prefer-optional-chain": "error",
       // Type-aware: flags calls to anything @deprecated in its declaration
       // (caught the MCP SDK rename and zod's retired ZodTypeAny on day one).
       "@typescript-eslint/no-deprecated": "error",
