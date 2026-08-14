@@ -1,9 +1,17 @@
-// Per-user monthly spend ledger for the signed-in tier.
+// The two counters that live in the shared DynamoDB table (created by
+// deploy.sh, name in SPEND_TABLE):
 //
-// One DynamoDB item per (Google sub × calendar month), atomically incremented
-// with the estimated cost of each call. Durable across cold starts, no
-// infrastructure beyond a single on-demand table (created by deploy.sh, name
-// in SPEND_TABLE).
+//   1. The per-user monthly spend ledger for the signed-in tier — one item per
+//      (Google sub × calendar month), atomically incremented with the
+//      estimated cost of each call.
+//   2. The global request counter for the rate limiter — one item per
+//      time window, atomically incremented on every call that gets past the
+//      per-IP gate, and reaped by DynamoDB TTL once the window is long gone.
+//
+// Both are durable across cold starts and shared by every concurrent Lambda
+// container, which is the whole point: an in-process counter caps each
+// container separately, so the real ceiling ends up being the cap times
+// however many containers Lambda decided to run.
 //
 // The AWS SDK v3 ships inside the Lambda Node runtime, so importing it adds
 // no package weight — but it isn't installed for local `bun test`, so the
@@ -32,6 +40,15 @@ export function monthKey(now = new Date()) {
 
 export function ledgerKey(sub, now = new Date()) {
   return `${sub}#${monthKey(now)}`;
+}
+
+/**
+ * The rate limiter's key for the window containing `nowMs`. Windows are fixed
+ * (floor to a multiple of the width) rather than sliding, so every container
+ * derives the same key from the same clock without coordinating.
+ */
+export function windowKey(nowMs, windowMs) {
+  return `global#${Math.floor(nowMs / windowMs) * windowMs}`;
 }
 
 /** DynamoDB-backed store. `table` in SPEND_TABLE's region. */
@@ -68,18 +85,47 @@ export function createDynamoSpendStore(table, region) {
         })
       );
     },
+    /**
+     * Atomically increment the counter at `key` and return its new value.
+     * `expiresAt` (epoch seconds) is written once and left alone on later
+     * bumps, so the item's TTL is anchored to the window that created it.
+     */
+    async bump(key, expiresAt) {
+      const { sdk, ddb } = await client();
+      const out = await ddb.send(
+        new sdk.UpdateItemCommand({
+          TableName: table,
+          Key: { pk: { S: key } },
+          UpdateExpression: 'SET expiresAt = if_not_exists(expiresAt, :ttl) ADD reqCount :one',
+          ExpressionAttributeValues: {
+            ':one': { N: '1' },
+            ':ttl': { N: String(expiresAt) },
+          },
+          ReturnValues: 'UPDATED_NEW',
+        })
+      );
+      return Number(out.Attributes?.reqCount?.N ?? 0);
+    },
   };
 }
 
 /** In-memory store for tests and for running without SPEND_TABLE configured. */
 export function createMemorySpendStore() {
   const ledger = new Map();
+  const counters = new Map();
   return {
     async get(key) {
       return ledger.get(key) ?? 0;
     },
     async add(key, micros) {
       ledger.set(key, (ledger.get(key) ?? 0) + micros);
+    },
+    async bump(key) {
+      // No TTL to honour here: every key is window-scoped, and a process that
+      // outlives enough windows to matter would have to run for months.
+      const next = (counters.get(key) ?? 0) + 1;
+      counters.set(key, next);
+      return next;
     },
   };
 }
