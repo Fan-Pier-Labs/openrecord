@@ -7,6 +7,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "cli": "bun npm-package/cli/entry.ts",
+    "pii-guard": "bun tools/pii-guard/cli.ts",
+    "pii-guard:install": "bun tools/pii-guard/install.ts",
     "fake-mychart": "cd fake-mychart && bun run dev",
     "test": "bun test --isolate .unit.test.ts",
     "test:integration": "bun test --isolate .integration.test.ts",

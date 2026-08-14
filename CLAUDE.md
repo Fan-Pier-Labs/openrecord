@@ -25,6 +25,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
 | `read-local-passwords/` | Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
+| `tools/` | Repo tooling that isn't product code — today, the PII guard behind the commit/PR hooks |
 
 ## Invariants
 
@@ -95,10 +96,8 @@ selects on the suffix and nothing else.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 
-- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
-  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
-  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
-  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
+- **CI also smokes the Android build in two tiers** — a fast prebuild on expo-app PRs, a weekly
+  emulator run. Neither may ever reach a real model: [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 
@@ -110,11 +109,11 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   `get-*`) are fine, as is running an official deploy script when asked to deploy. If a deploy fails
   partway and leaves orphan resources, **stop and ask** before cleaning up.
 - **NEVER use `git stash`.** Ask first.
-- **NEVER upload PII to git or GitHub.** Review staged changes before committing. Names, emails,
-  phone numbers, addresses, dates of birth, record numbers, patient ids, credentials — and also
-  **body parts, diagnoses, procedure names, series descriptions, and dates of medical events** taken
-  from real patient data. That applies to commit messages, PR descriptions, docs, and code comments,
-  not just code. Use generic examples.
+- **NEVER upload PII to git or GitHub** — names, emails, phones, addresses, dates of birth, record
+  numbers, patient ids, credentials, and **any diagnosis, procedure, body part or medical date** from
+  a real record. Commit messages, PR bodies, docs and comments count, not just code; use generic
+  examples. `bun run pii-guard:install` blocks it at commit time, masked values included —
+  [`tools/pii-guard`](tools/pii-guard/README.md).
 - **NEVER use `dangerouslySetInnerHTML`.** External HTML must be sanitized (DOMPurify) or parsed into
   a typed tree and rendered as React elements. This is a health data app — XSS is unacceptable.
 - **NEVER take over the user's mouse** to drive the simulator — see

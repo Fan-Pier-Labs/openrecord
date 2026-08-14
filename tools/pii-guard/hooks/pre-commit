@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# PII guard — refuses a commit whose staged diff contains real personal data.
+#
+# Installed into .git/hooks/pre-commit by tools/pii-guard/install.ts. It is a
+# shim on purpose: the logic lives in the working tree, under version control,
+# so a change to the rules ships with the branch rather than living in one
+# person's .git directory. Every worktree shares this file (they share the
+# common git directory), so `git rev-parse --show-toplevel` is what decides
+# which checkout's copy of the guard runs.
+#
+# Bypass with `PII_GUARD_SKIP=1 git commit` or `git commit --no-verify` when you
+# have looked at a finding and judged it wrong. That is a decision for a human;
+# the Claude Code hook denies the same switches to an agent.
+
+set -e
+
+if [ -n "$PII_GUARD_SKIP" ]; then
+  echo "pii-guard: skipped (PII_GUARD_SKIP is set)" >&2
+  exit 0
+fi
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+guard="$root/tools/pii-guard/cli.ts"
+
+# A branch from before the guard existed, or a checkout of a subtree, simply
+# has nothing to run. That is not a failure.
+[ -f "$guard" ] || exit 0
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "pii-guard: bun is not on PATH, so the PII check did not run." >&2
+  echo "pii-guard: install bun, or commit with PII_GUARD_SKIP=1 if you have checked the diff yourself." >&2
+  exit 1
+fi
+
+cd "$root"
+exec bun "$guard" --staged
