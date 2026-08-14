@@ -218,11 +218,27 @@ export function extractText(geminiResponse) {
   return parts.map((p) => p?.text ?? '').join('');
 }
 
+/**
+ * `Bearer <token>` from an Authorization header we did not write.
+ *
+ * `\s+` and `(.+)` both match spaces and tabs, so `Bearer` followed by a long
+ * whitespace run and no newline let the engine try every split of that run —
+ * quadratic work off a single attacker-supplied header. The first branch pins
+ * `\s+` to the whole run by requiring the token to start non-whitespace. The
+ * second is not a loosening: it preserves the one case where the old pattern
+ * needed to hand a character back, an all-whitespace tail whose last character
+ * is not a line terminator, which matched as a one-character token.
+ */
+const BEARER_RE = /^Bearer\s+(\S.*|.)$/i;
+
+/** @internal Exported for the ReDoS equivalence test only. */
+export const __bearerRe = BEARER_RE;
+
 /** Bearer-token → verified Google identity, or null when no token is sent. */
 async function authenticate(event) {
   const header =
     event?.headers?.authorization ?? event?.headers?.Authorization ?? '';
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  const match = BEARER_RE.exec(header.trim());
   if (!match) return null;
   const err401 = (message) => {
     const err = new Error(message);

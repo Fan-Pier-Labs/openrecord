@@ -53,6 +53,23 @@ export function parseInline(line: string): InlineSpan[] {
 
 const IMAGE_TOKEN = /^\[image:([a-z0-9_-]+)\]$/i;
 
+/**
+ * `#`-prefixed heading and `-`/`*` bullet, with the rest of the line captured.
+ *
+ * Both had `\s+` immediately before a `(.*)` that also matches spaces and tabs,
+ * so a line of nothing but whitespace made the engine try every division of it
+ * between the two — quadratic in the line length, on a line the model wrote.
+ * `(?!\s)` fixes `\s+` at the full whitespace run. That is the only division
+ * that can ever match: `(.*)$` here succeeds exactly when the remainder holds
+ * no line terminator, and handing a character back to `(.*)` only widens the
+ * remainder, so a shorter `\s+` can never rescue a failed longer one.
+ */
+const HEADING = /^(#{1,4})\s+(?!\s)(.*)$/;
+const BULLET = /^\s*[-*]\s+(?!\s)(.*)$/;
+
+/** @internal Exported for the ReDoS equivalence test only. */
+export const __linePatterns = { HEADING, BULLET };
+
 /** Parse a full assistant reply into blocks. */
 export function parseMarkdown(source: string | null | undefined): Block[] {
   const blocks: Block[] = [];
@@ -96,7 +113,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const heading = /^(#{1,4})\s+(.*)$/.exec(line);
+    const heading = HEADING.exec(line);
     if (heading) {
       flushAll();
       // Both groups are non-optional, so they are present on any match.
@@ -104,7 +121,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    const bullet = BULLET.exec(line);
     if (bullet) {
       flushParagraph();
       flushQuote();

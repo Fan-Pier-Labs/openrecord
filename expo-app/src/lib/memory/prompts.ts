@@ -167,9 +167,24 @@ export function parseExtractorResponse(raw: string): Array<{ category: string; t
     }));
 }
 
+/**
+ * The ```json … ``` fence a model wraps its answer in. `\s*` skips the newline
+ * after the opening fence; group 1 is the body.
+ *
+ * `\s*` and `[\s\S]*?` could both claim that whitespace, so a model reply with
+ * a long whitespace run and no closing fence made the engine try every split.
+ * `(?!\s)` pins `\s*` to the whole run, which is the only split that can ever
+ * win: a closing ``` never begins at a whitespace character, so shortening
+ * `\s*` cannot expose a fence the long match missed.
+ */
+const JSON_FENCE_RE = /```(?:json)?\s*(?!\s)([\s\S]*?)```/;
+
+/** @internal Exported for the ReDoS equivalence test only. */
+export const __jsonFenceRe = JSON_FENCE_RE;
+
 function extractJsonObject(raw: string): unknown {
   const trimmed = raw.trim();
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
+  const fenced = JSON_FENCE_RE.exec(trimmed);
   const candidate = fenced?.[1]?.trim() ?? trimmed;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
@@ -183,7 +198,7 @@ function extractJsonObject(raw: string): unknown {
 
 function extractJsonArray(raw: string): unknown {
   const trimmed = raw.trim();
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
+  const fenced = JSON_FENCE_RE.exec(trimmed);
   const candidate = fenced?.[1]?.trim() ?? trimmed;
   const start = candidate.indexOf("[");
   const end = candidate.lastIndexOf("]");

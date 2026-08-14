@@ -496,6 +496,37 @@ export type LoginResult = {
 }
 
 /**
+ * A masked email as MyChart prints it on the 2FA page — "ry***@gmail.com".
+ *
+ * Reads as: one leading character, a run of ordinary word characters, the
+ * first mask star, then anything up to the `@`. That is exactly the old
+ * `[\w*]+\*+[\w*]*@[\w.]+` — same language, same match — but written so no two
+ * adjacent quantifiers can both claim a `*`. The old spelling let all three
+ * parts split a run of stars between them, so a long run with no `@` (easy to
+ * plant in scraped portal HTML) took quartic time: 800 stars needed 25s.
+ *
+ * The lookbehind is the other half of the fix. Without it the engine retries
+ * at every offset inside a star run and the scan is still quadratic (1.8s on
+ * 50k stars). A match can never start mid-run — the star before it would have
+ * started an equally good match one character earlier — so refusing those
+ * offsets drops the scan to linear without changing any result.
+ */
+const MASKED_EMAIL_RE = /(?<![\w*])[\w*]\w*\*[\w*]*@[\w.]+/;
+
+/**
+ * A masked phone as MyChart prints it — "***-***-7204".
+ *
+ * `\*{2,}` and the `[\d*-]*` behind it both matched `*`, so the two shared out
+ * a star run every possible way before failing. Pinning the prefix at exactly
+ * two stars loses nothing: every extra star is still matched, by `[\d*-]*`.
+ * The lookbehind rules out starting mid-run, for the same reason as above.
+ */
+const MASKED_PHONE_RE = /(?<!\*)\*\*[\d*-]*\d{4}/;
+
+/** @internal Exported for the equivalence and timing tests only. */
+export const __maskedContactPatterns = { MASKED_EMAIL_RE, MASKED_PHONE_RE };
+
+/**
  * Parse the secondary validation (2FA) page to detect which delivery methods are available.
  * Real MyChart pages show buttons like "Email to me" or "Text to my phone".
  * Returns which methods are available and any masked contact info found near the buttons.
@@ -519,7 +550,7 @@ export function parse2faDeliveryMethods(html: string): {
       hasEmail = true;
       // Try to extract masked email from button text or nearby elements
       const fullText = $(el).text().trim();
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(fullText);
+      const emailMatch = MASKED_EMAIL_RE.exec(fullText);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (text.includes('text') || text.includes('phone') || text.includes('sms')) {
@@ -535,11 +566,11 @@ export function parse2faDeliveryMethods(html: string): {
   $('p, span, div').each((_, el) => {
     const text = $(el).text();
     if (!emailContact) {
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(text);
+      const emailMatch = MASKED_EMAIL_RE.exec(text);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (!smsContact) {
-      const phoneMatch = /\*{2,}[\d*-]*\d{4}/.exec(text);
+      const phoneMatch = MASKED_PHONE_RE.exec(text);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });
