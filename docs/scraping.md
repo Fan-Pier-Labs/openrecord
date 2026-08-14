@@ -8,7 +8,7 @@
 - Do not ask the user for 2FA codes — retrieve them automatically via the Resend API (see [CLI docs](cli.md#automatic-2fa-via-resend))
 - Session expiration: a 302 redirect to the Login page means cookies are dead
 - **Passkey auto-login**: Passkey credentials can be registered per MyChart instance and preferred at login (bypasses 2FA entirely), falling back to username/password/TOTP. The CLI stores them via `npm-package/cli/passkeyStore.ts`.
-  - Scraper layer: `scrapers/myChart/setupPasskey.ts` (registration), `scrapers/myChart/login.ts` (`myChartPasskeyLogin`), `scrapers/myChart/softwareAuthenticator.ts` (software WebAuthn)
+  - Scraper layer: `scrapers/myChart/auth/setupPasskey.ts` (registration), `scrapers/myChart/auth/login.ts` (`myChartPasskeyLogin`), `scrapers/myChart/auth/softwareAuthenticator.ts` (software WebAuthn)
 
 ## The instance directory (mychart.org)
 

@@ -24,7 +24,10 @@ function deferred<T = void>() {
 }
 
 /** Let the microtask queue drain so queued acquires can settle. */
-const tick = () => new Promise((r) => setTimeout(r, 0))
+const tick = () =>
+  new Promise((r) => {
+    setTimeout(r, 0)
+  })
 
 describe('hostKeyForUrl', () => {
   it('reduces a URL to its host', () => {

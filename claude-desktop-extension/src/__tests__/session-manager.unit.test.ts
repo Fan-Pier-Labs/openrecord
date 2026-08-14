@@ -11,7 +11,7 @@
  * account id — `username@hostname`, an exact match or nothing.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
-import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest'
+import { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest'
 import * as memfs from './memfs'
 
 const store = await import('../credential-store')
