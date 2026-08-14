@@ -71,6 +71,15 @@ For TS compiler options, pass the flag directly per project and count:
 EVERY tsconfig project (root, expo-app, npm-package, claude-desktop-extension,
 fake-mychart, openrecord-splash/demo), not just root.
 
+**First check whether the flag is already set**, per project:
+`grep -n '"<flag>"' tsconfig.json`. A flag that is already on reports 0 errors
+because it is already on, and that zero says nothing about the flag — it is the
+compiler-option version of a check that cannot fail. Enabling on the strength of
+it adds a duplicate key that reads as new coverage while changing nothing (JSON
+takes the last one, so it is silent rather than an error). Candidates are only the
+flags a project does NOT already set; if a flag is set in some projects and not
+others, say which in the PR body and count only the ones where it is genuinely new.
+
 ### 2. Prove the check can fail (the canary step)
 
 **A check that cannot fail is indistinguishable from a passing one.** Zero findings
