@@ -32,7 +32,7 @@ function buildFakeAmfBinary(opts: {
   parts.push(`\x06${opts.studyUID}`);
 
   // SOP Class UIDs (these should be filtered out)
-  for (const sop of opts.sopClassUIDs || ['1.2.840.10008.5.1.4.1.1.2']) {
+  for (const sop of opts.sopClassUIDs ?? ['1.2.840.10008.5.1.4.1.1.2']) {
     parts.push(`\x06${sop}`);
   }
 

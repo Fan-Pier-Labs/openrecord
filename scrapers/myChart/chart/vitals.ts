@@ -92,12 +92,12 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
 
   const flowsheets: Flowsheet[] = [];
 
-  for (const fs of list.flowsheets || []) {
+  for (const fs of list.flowsheets ?? []) {
     if (!fs.episodeId) continue;
 
     // Row metadata: id → { name, units }
     const rowMeta = new Map<string, { name: string; units: string }>();
-    for (const row of fs.rows || []) {
+    for (const row of fs.rows ?? []) {
       if (row.id) rowMeta.set(row.id, { name: row.name || '', units: row.unitsDisplayName || '' });
     }
 
@@ -119,13 +119,13 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
       if (!data) break;
 
       // Backfill row metadata from the readings response if GetFlowsheets omitted it.
-      for (const row of data.rows || []) {
+      for (const row of data.rows ?? []) {
         if (row.id && !rowMeta.has(row.id)) rowMeta.set(row.id, { name: row.name || '', units: row.unitsDisplayName || '' });
       }
 
       let oldestInstant: string | undefined;
 
-      for (const r of data.readings || []) {
+      for (const r of data.readings ?? []) {
         if (!r.rowId) continue;
         const instant = r.instantTakenIso || '';
         if (instant && (oldestInstant === undefined || instant < oldestInstant)) oldestInstant = instant;
@@ -136,7 +136,7 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
 
         const meta = rowMeta.get(r.rowId);
         const value = r.stringValue ?? (r.numericValue !== undefined && r.numericValue !== null ? String(r.numericValue) : '');
-        const readings = byRow.get(r.rowId) || [];
+        const readings = byRow.get(r.rowId) ?? [];
         readings.push({
           date: instant,
           value,

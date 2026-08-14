@@ -12,7 +12,7 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { generateKeyPairSync, createSign } from 'node:crypto';
 import { verifyGoogleIdToken, _setCertsForTest } from '../google-auth.mjs';
 import { handler, _spendStore } from '../handler.mjs';
-import { estimateCostMicros, monthKey, ledgerKey, createMemorySpendStore } from '../spend.mjs';
+import { estimateCostMicros, monthKey, ledgerKey, windowKey, createMemorySpendStore } from '../spend.mjs';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -159,6 +159,35 @@ describe('spend math', () => {
     await store.add('k', 100);
     await store.add('k', 50);
     expect(await store.get('k')).toBe(150);
+  });
+});
+
+describe('rate-limit counters', () => {
+  const WINDOW = 10 * 60 * 1000;
+
+  test('every instant inside a window maps to the same key', () => {
+    const start = 1_800_000_000_000;
+    expect(windowKey(start, WINDOW)).toBe(windowKey(start + WINDOW - 1, WINDOW));
+    expect(windowKey(start, WINDOW)).not.toBe(windowKey(start + WINDOW, WINDOW));
+  });
+
+  test('the key is derived from the clock alone, so containers agree', () => {
+    // Two containers, no shared state, same window → same DynamoDB item.
+    expect(windowKey(1_800_000_012_345, WINDOW)).toBe(windowKey(1_800_000_054_321, WINDOW));
+  });
+
+  test('bump returns the post-increment count', async () => {
+    const store = createMemorySpendStore();
+    expect(await store.bump('global#1')).toBe(1);
+    expect(await store.bump('global#1')).toBe(2);
+    expect(await store.bump('global#2')).toBe(1);
+  });
+
+  test('bumping never disturbs the spend ledger', async () => {
+    const store = createMemorySpendStore();
+    await store.add('user#2026-08', 500);
+    await store.bump('user#2026-08');
+    expect(await store.get('user#2026-08')).toBe(500);
   });
 });
 
