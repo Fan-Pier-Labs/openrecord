@@ -29,7 +29,6 @@ You should see (at minimum):
 - `./expo-app/package.json`
 - `./openrecord-splash/demo/package.json`
 - `./openrecord-demo-lambda/package.json`
-- `./tests/integration/ci/package.json`
 
 If `find` returns a file you don't recognize, include it anyway — never skip a package.json.
 
@@ -81,7 +80,6 @@ cd npm-package && bun install && cd ..
 cd fake-mychart && bun install && cd ..
 cd expo-app && bun install && cd ..
 cd claude-desktop-extension && bun install && cd ..
-cd tests/integration/ci && bun install && cd ../../..
 ```
 
 (Only the workspaces with their own `bun.lock` / `package-lock.json` / `yarn.lock` need a dedicated install — check for a lockfile in each folder first.)

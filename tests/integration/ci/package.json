@@ -1,7 +1,0 @@
-{
-  "name": "ci-integration-tests",
-  "private": true,
-  "dependencies": {
-    "playwright": "^1.62.1"
-  }
-}

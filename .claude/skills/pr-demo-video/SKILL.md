@@ -15,7 +15,7 @@ Two pieces of tooling do the heavy lifting — do not reimplement either:
 - **Playwright** (the library, not `playwright-cli`) records the video. This is the one
   sanctioned exception to the "always use playwright-cli" rule: video recording requires
   `recordVideo` on a browser context, which only the library exposes. Playwright is
-  already a dependency of `tests/integration/ci/` in this repo.
+  already a root devDependency in this repo.
 - **`gh-attach`** (`~/Desktop/code/cli-apps/gh-attach-cli`) handles the GitHub upload.
   GitHub's REST API has no attachment-upload endpoint; this tool reverse-engineers the
   web UI's flow (`POST /upload/policies/assets` → presigned S3 POST → finalize) riding
