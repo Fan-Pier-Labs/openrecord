@@ -24,10 +24,10 @@ import { convertBitmap16ToWebp } from "./exporters/to_webp";
 import { encode16bitPng } from "./exporters/png16";
 import {
   encodePixelFile,
-  encodeWrapperFile,
   generateGradientH,
   generateCheckerboard,
 } from "./generate_clo";
+import { encodeCloWrapper } from "../../../shared/cloWrapper";
 
 // ==================== Helpers ====================
 
@@ -39,7 +39,7 @@ function makeBitmap16(pixels: Uint16Array, width: number, height: number): Bitma
 function makeGradientBitmap16(w = 512, h = 512): Bitmap16 {
   const img = generateGradientH(w, h);
   const pixelData = encodePixelFile(img, w, h);
-  const wrapperData = encodeWrapperFile({
+  const wrapperData = encodeCloWrapper({
     photometricInterpretation: "MONOCHROME2",
     bitsStored: 16,
     windowCenter: 32768,
@@ -52,7 +52,7 @@ function makeGradientBitmap16(w = 512, h = 512): Bitmap16 {
 function makeCheckerboardBitmap16(w = 512, h = 512): Bitmap16 {
   const img = generateCheckerboard(w, h);
   const pixelData = encodePixelFile(img, w, h);
-  const wrapperData = encodeWrapperFile({
+  const wrapperData = encodeCloWrapper({
     photometricInterpretation: "MONOCHROME2",
     bitsStored: 16,
     windowCenter: 32768,
@@ -226,7 +226,7 @@ describe("convertCloToBitmap16", () => {
     const w = 512, h = 512;
     const img = generateGradientH(w, h);
     const pixelData = Buffer.from(encodePixelFile(img, w, h));
-    const wrapperData = Buffer.from(encodeWrapperFile({
+    const wrapperData = Buffer.from(encodeCloWrapper({
       photometricInterpretation: "MONOCHROME2",
       bitsStored: 16,
       windowCenter: 32768,
@@ -259,7 +259,7 @@ describe("convertCloToBitmap16", () => {
     const w = 512, h = 512;
     const img = generateGradientH(w, h);
     const pixelData = Buffer.from(encodePixelFile(img, w, h));
-    const wrapperData = Buffer.from(encodeWrapperFile({
+    const wrapperData = Buffer.from(encodeCloWrapper({
       photometricInterpretation: "MONOCHROME2",
       bitsStored: 16,
       windowCenter: 32768,
@@ -314,7 +314,7 @@ function makeGradientClo(w = 512, h = 512): { pixelData: Buffer; wrapperData: Bu
   const img = generateGradientH(w, h);
   return {
     pixelData: Buffer.from(encodePixelFile(img, w, h)),
-    wrapperData: Buffer.from(encodeWrapperFile({
+    wrapperData: Buffer.from(encodeCloWrapper({
       photometricInterpretation: "MONOCHROME2",
       bitsStored: 16,
       windowCenter: 32768,

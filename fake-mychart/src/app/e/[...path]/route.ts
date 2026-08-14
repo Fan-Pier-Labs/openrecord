@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { deflateSync } from 'zlib';
 import * as homer from '@/data/homer';
-import { Amf3Writer } from '@/lib/amf3';
+import { Amf3Writer } from '@shared/amf3Writer';
 import { buildCloWrapper } from '@/lib/cloWrapper';
 
 // ─── In-memory eUnity sessions ──────────────────────────────────────

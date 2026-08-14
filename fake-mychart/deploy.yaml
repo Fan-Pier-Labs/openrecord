@@ -1,6 +1,9 @@
 platform: "fargate"
 app_name: "fake-mychart"
-dockerfile: "Dockerfile"
+# Built from the repo root (the deploy tool builds with the cwd as the
+# Docker context, and `bun run deploy` chdirs there) so the image can carry
+# shared/ alongside fake-mychart/.
+dockerfile: "fake-mychart/Dockerfile"
 aws:
   profile: "fanpierlabs"
   region: "us-east-2"
