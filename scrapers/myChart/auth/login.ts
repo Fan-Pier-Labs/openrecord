@@ -519,7 +519,7 @@ export function parse2faDeliveryMethods(html: string): {
       hasEmail = true;
       // Try to extract masked email from button text or nearby elements
       const fullText = $(el).text().trim();
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(fullText);
+      const emailMatch = /[\w*]+\*[\w*]*@[\w.]+/.exec(fullText);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (text.includes('text') || text.includes('phone') || text.includes('sms')) {
@@ -535,11 +535,11 @@ export function parse2faDeliveryMethods(html: string): {
   $('p, span, div').each((_, el) => {
     const text = $(el).text();
     if (!emailContact) {
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(text);
+      const emailMatch = /[\w*]+\*[\w*]*@[\w.]+/.exec(text);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (!smsContact) {
-      const phoneMatch = /\*{2,}[\d*-]*\d{4}/.exec(text);
+      const phoneMatch = /\*{2}[\d*-]*\d{4}/.exec(text);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });

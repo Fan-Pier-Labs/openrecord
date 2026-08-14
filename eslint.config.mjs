@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import regexpPlugin from "eslint-plugin-regexp";
 
 
 export default [
@@ -342,6 +343,15 @@ export default [
     rules: {
       "react-hooks/rules-of-hooks": "error",
     },
+  },
+  // `[\w*]+\*+` reads as "then one or more stars", but `*` is already in the
+  // preceding class, so the second quantifier adds nothing to what the pattern
+  // matches and only widens the backtracking the engine has to explore. The
+  // three sites are the 2FA masked-contact scrapers; each rewrite was checked
+  // to keep the same matched substring, not just the same language.
+  {
+    plugins: { regexp: regexpPlugin },
+    rules: { "regexp/optimal-quantifier-concatenation": "error" },
   },
   {rules: {
     "@typescript-eslint/no-explicit-any": "error",
