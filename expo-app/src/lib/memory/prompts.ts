@@ -167,13 +167,21 @@ export function parseExtractorResponse(raw: string): Array<{ category: string; t
     }));
 }
 
-function extractJsonObject(raw: string): unknown {
-  const trimmed = raw.trim();
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
-  const candidate = fenced?.[1]?.trim() ?? trimmed;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) return null;
+/**
+ * The ```json … ``` fence a model wraps its answer in; group 1 is the body,
+ * which the caller trims. There is deliberately no `\s*` after the opening
+ * fence: it and `[\s\S]*?` could both claim the same whitespace, so an
+ * unterminated fence made the engine try every division of it.
+ */
+const JSON_FENCE_RE = /```(?:json)?([\s\S]*?)```/;
+
+/** The model is told to return bare JSON, but sometimes fences it or adds prose. */
+function extractJson(raw: string, open: string, close: string): unknown {
+  const fenced = JSON_FENCE_RE.exec(raw.trim());
+  const candidate = (fenced?.[1] ?? raw).trim();
+  const start = candidate.indexOf(open);
+  const end = candidate.lastIndexOf(close);
+  if (start === -1 || end <= start) return null;
   try {
     return JSON.parse(candidate.slice(start, end + 1));
   } catch {
@@ -181,16 +189,5 @@ function extractJsonObject(raw: string): unknown {
   }
 }
 
-function extractJsonArray(raw: string): unknown {
-  const trimmed = raw.trim();
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(trimmed);
-  const candidate = fenced?.[1]?.trim() ?? trimmed;
-  const start = candidate.indexOf("[");
-  const end = candidate.lastIndexOf("]");
-  if (start === -1 || end === -1 || end <= start) return null;
-  try {
-    return JSON.parse(candidate.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-}
+const extractJsonObject = (raw: string) => extractJson(raw, "{", "}");
+const extractJsonArray = (raw: string) => extractJson(raw, "[", "]");
