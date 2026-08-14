@@ -145,6 +145,11 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // Spreading a Map, Set, class instance, function or array into an object
+      // produces something other than what it reads as — indices for an array,
+      // an empty object for a Map. Caught the header merge in scraperFetch,
+      // the single point every outbound request in the product passes through.
+      "@typescript-eslint/no-misused-spread": "error",
       // A promise executor's return value is discarded, so `new Promise(r =>
       // setTimeout(r, ms))` quietly throws away a timer handle — and the same
       // shorthand around an async call throws away the promise, leaving the
