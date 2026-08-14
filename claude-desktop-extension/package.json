@@ -10,10 +10,10 @@
     "dev": "tsup --watch",
     "dev:reload": "bun run build && node dev/dev-reload.mjs",
     "dev:proxy": "./node_modules/.bin/mcpmon --watch dist --ext cjs -- node dist/server.cjs",
-    "pack": "bun run build && bun run fetch-binaries && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
+    "pack": "bun install --os='*' --cpu='*' && bun run build && bun run verify-binaries && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
     "smoke": "bun run build && node smoke.cjs",
     "test": "bun test --isolate .unit.test.ts .integration.test.ts",
-    "fetch-binaries": "node scripts/fetch-native-binaries.mjs"
+    "verify-binaries": "node scripts/verify-native-binaries.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -33,5 +33,11 @@
     "mcpmon": "^1.0.1",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring-darwin-arm64": "^1.3.0",
+    "@napi-rs/keyring-darwin-x64": "^1.3.0",
+    "@napi-rs/keyring-win32-x64-msvc": "^1.3.0",
+    "@napi-rs/keyring-win32-arm64-msvc": "^1.3.0"
   }
 }

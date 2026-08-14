@@ -1,12 +1,12 @@
 /**
- * OS-keystore storage for the MCPB's highest-value secrets.
+ * OS-keystore storage for the MCPB's secrets — passwords, TOTP secrets, passkeys.
  *
- * A passkey is a raw ECDSA P-256 private key that logs into a medical record
- * without a password and without 2FA. In a plaintext file under the home
- * directory it rides along into Time Machine snapshots, cloud-synced home
- * directories and any backup tarball, and macOS grants no TCC protection to
- * `~/.openrecord-mcpb`. Handing it to the OS keystore encrypts it at rest and
- * scopes it to the logged-in user.
+ * All three are credentials to a medical record, and a passkey is the sharpest
+ * of them: a raw ECDSA P-256 private key that logs in without a password and
+ * without 2FA. In plaintext files under the home directory they ride along into
+ * Time Machine snapshots, cloud-synced home directories and any backup tarball,
+ * and macOS grants no TCC protection to `~/.openrecord-mcpb`. Handing them to
+ * the OS keystore encrypts them at rest and scopes them to the logged-in user.
  *
  * **What this does not buy.** On every platform the keystore is unlocked
  * whenever the user is logged in, and the item is readable by anything running

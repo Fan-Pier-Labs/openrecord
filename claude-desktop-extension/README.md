@@ -109,21 +109,33 @@ different family member's record than the one the call is about.
   code path the mobile app uses. The exception is
   [`@napi-rs/keyring`](https://www.npmjs.com/package/@napi-rs/keyring), the
   native binding used to reach the OS credential store — see below.
-- **Passkeys live in the OS keystore** — the macOS Keychain, Windows Credential
-  Manager, or the Secret Service on Linux, under service `openrecord-mcpb` with
-  one item per identity (`passkey:<hostname>:<username>`). A passkey is a raw
-  P-256 private key that logs in with neither password nor 2FA, so it is the one
-  secret worth keeping out of a file that rides along into backups. If the
-  keystore is unavailable the store falls back to the 0600 file below and says
-  so in `list_accounts`'s `passkeyStorage` field. `OPENRECORD_SECRET_BACKEND`
-  overrides the choice: `file` to opt out, `os` to fail rather than fall back.
-- **Everything else is local files** at `~/.openrecord-mcpb/`, keyed by
-  (hostname, username) so several logins on one hostname never share or
-  overwrite each other's identity:
-  - `accounts.json` — username/password rows (file mode 0600)
-  - `passkeys/<hostname>/<username>.json` — keystore fallback only; a file left
-    here by an older version is migrated into the keystore on first read
-  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast resume
+- **Secrets live in the OS keystore** — the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux, under service `openrecord-mcpb`,
+  three items per identity:
+  - `password:<hostname>:<username>`
+  - `totp:<hostname>:<username>`
+  - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
+    neither password nor 2FA
+
+  If the keystore is unavailable the store falls back to the 0600 files below
+  and says so in `list_accounts`'s `secretStorage` field, so a downgrade to
+  plaintext is visible rather than silent. `OPENRECORD_SECRET_BACKEND` overrides
+  the choice: `file` to opt out, `os` to fail rather than fall back.
+
+  **Migration happens on read.** The first read after upgrading moves a secret
+  out of its old file location into the keystore and deletes the plaintext copy,
+  so nobody has to log in again — and `accounts.json` loses its inline
+  `password`/`totpSecret` the first time the account is touched.
+- **What stays on disk** at `~/.openrecord-mcpb/`, keyed by (hostname, username)
+  so several logins on one hostname never share or overwrite each other's
+  identity:
+  - `accounts.json` — the index of which logins exist (mode 0600). Also holds
+    `password`/`totpSecret` inline when there is no keystore, which is where
+    every pre-keystore install left them
+  - `passkeys/<hostname>/<username>.json` — keystore fallback only
+  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast
+    resume. Cookies are bearer credentials too, but they expire and the
+    silent-login ladder just re-mints them
 - **Not a single-file bundle any more** — a `.node` binary cannot be inlined
   into a CJS file, so `dist/server.cjs` ships alongside
   `node_modules/@napi-rs/`. `bun run pack` force-installs all four platform
