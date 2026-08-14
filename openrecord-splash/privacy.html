@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — OpenRecord</title>
+  <meta name="description" content="How OpenRecord handles your health data: what stays on your device, what reaches an AI model, and what Fan Pier Labs can and cannot see." />
+  <link rel="canonical" href="https://openrecord.fanpierlabs.com/privacy.html" />
+  <meta name="theme-color" content="#f7f9fc" />
+
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <meta property="og:title" content="Privacy Policy — OpenRecord" />
+  <meta property="og:description" content="How OpenRecord handles your health data: what stays on your device, what reaches an AI model, and what Fan Pier Labs can and cannot see." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://openrecord.fanpierlabs.com/privacy.html" />
+  <meta property="og:site_name" content="OpenRecord" />
+  <meta property="og:image" content="https://openrecord.fanpierlabs.com/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --slate-50: #f8fafc;
+      --blue-600: #2563eb;
+      --amber-700: #b45309;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f9fc;
+      color: var(--slate-700);
+      font-weight: 300;
+      line-height: 1.7;
+      padding: 0 24px 96px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    header { padding: 32px 0 48px; }
+    .back { font-size: 15px; color: var(--blue-600); text-decoration: none; }
+    .back:hover { text-decoration: underline; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--slate-900);
+      margin: 32px 0 12px;
+    }
+    .updated { font-size: 14px; color: var(--slate-500); }
+    h2 {
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--slate-900);
+      margin: 48px 0 12px;
+    }
+    h3 { font-size: 17px; font-weight: 600; color: var(--slate-900); margin: 28px 0 8px; }
+    p { margin-bottom: 16px; font-size: 16px; }
+    ul { margin: 0 0 16px 20px; }
+    li { margin-bottom: 8px; font-size: 16px; }
+    a { color: var(--blue-600); }
+    strong { font-weight: 600; color: var(--slate-900); }
+    .lede {
+      font-size: 18px;
+      color: var(--slate-700);
+      border-left: 3px solid var(--slate-300);
+      padding-left: 20px;
+      margin: 32px 0;
+    }
+    .callout {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-radius: 16px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .callout h3 { margin-top: 0; color: var(--amber-700); }
+    .callout p:last-child { margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 15px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--slate-200); vertical-align: top; }
+    th { font-weight: 600; color: var(--slate-900); }
+    .table-scroll { overflow-x: auto; }
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--slate-200);
+      font-size: 14px;
+      color: var(--slate-500);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="back" href="/">← OpenRecord</a>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated 14 August 2026</p>
+    </header>
+
+    <main>
+      <p class="lede">
+        OpenRecord is software you run yourself. It signs in to your Epic MyChart patient portal from
+        your own device and reads your records there. Fan Pier Labs does not operate a server that
+        holds your medical records, and there is no OpenRecord account containing a copy of them.
+        The one place your health information leaves your device is when you ask an AI model a
+        question about it — that is described in full below.
+      </p>
+
+      <h2>Who this covers</h2>
+      <p>
+        This policy is from Fan Pier Labs ("we"), and covers the OpenRecord Claude Desktop extension,
+        the OpenRecord iPhone app, the <code>mychart-cli</code> command-line tool and library, and the
+        website at openrecord.fanpierlabs.com including its demo.
+      </p>
+      <p>
+        It does not cover MyChart itself. Your health system and Epic hold your medical record and
+        decide what happens to it; their notice of privacy practices governs that, not this document.
+        It also does not cover the AI provider you choose — see below.
+      </p>
+
+      <h2>What stays on your device</h2>
+      <p>
+        Everything OpenRecord reads from your portal is stored on the device that read it, and it is
+        the only copy OpenRecord makes:
+      </p>
+      <ul>
+        <li>Your MyChart username, password, TOTP secret and any passkey you register.</li>
+        <li>The session cookies that keep you signed in to your portal.</li>
+        <li>Any records, documents or images you download.</li>
+      </ul>
+      <p>
+        On iPhone, credentials are held in the iOS Keychain, restricted to that device and readable
+        only while it is unlocked. On desktop, the Claude Desktop extension keeps them in
+        <code>~/.openrecord-mcpb/</code> and the command-line tool keeps them in the directory you run
+        it from, in files whose permissions are set to your user account only. Anyone with
+        administrator access to your computer, or with your unlocked device, can read them — the same
+        as any other application data on your machine.
+      </p>
+      <p>
+        Disconnecting an account in any client deletes that account's stored credentials, passkey and
+        session from the device.
+      </p>
+
+      <div class="callout">
+        <h3>The exception: AI calls</h3>
+        <p>
+          OpenRecord is built to answer questions about your health record, and no AI model can answer
+          a question about information it has not been given. When you ask one, the parts of your
+          record needed to answer are sent to that model, which runs on a computer belonging to
+          whoever provides it.
+        </p>
+        <p>
+          <strong>This is the moment your health information leaves your device.</strong> Which company
+          receives it depends on the client you are using and how you have configured it.
+        </p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>How you use OpenRecord</th><th>Where your prompt goes</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Claude Desktop extension</td>
+              <td>Anthropic, through your own Claude account, under Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.</td>
+            </tr>
+            <tr>
+              <td>iPhone app, included free tier</td>
+              <td>An AI proxy operated by Fan Pier Labs on AWS, which forwards it to Google's Gemini API.</td>
+            </tr>
+            <tr>
+              <td>iPhone app with your own API key</td>
+              <td>Straight to the provider whose key you supplied. Nothing passes through Fan Pier Labs.</td>
+            </tr>
+            <tr>
+              <td>Command-line tool and library</td>
+              <td>Nowhere by default — it does not call a model. If you build something on top of the library, that is your call to make.</td>
+            </tr>
+            <tr>
+              <td>Website demo</td>
+              <td>The same proxy, but with a fictional patient record. The demo never connects to a real portal.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        We have no business associate agreement with Google or any other model provider, and the free
+        tier should not be treated as a HIPAA-compliant channel. If that matters for your situation,
+        use the Claude Desktop extension or supply your own API key, so your data goes to a provider
+        you have your own relationship with.
+      </p>
+
+      <h2>What our AI proxy records</h2>
+      <p>
+        When the iPhone app's free tier or the website demo calls a model, our proxy sees the request
+        in order to forward it. It writes the following to its logs: the model name, the number of
+        messages, input and output token counts, whether the caller was signed in, and a timestamp.
+        <strong>It does not log the contents of your prompt or the model's reply.</strong>
+      </p>
+      <p>Alongside that it keeps:</p>
+      <ul>
+        <li>
+          <strong>A spend ledger</strong> — for signed-in users, a running total of the estimated cost
+          of your calls for the current calendar month, stored against the identifier Google issues for
+          your account. This is what enforces the included monthly credit.
+        </li>
+        <li>
+          <strong>Rate-limiting counters</strong> — a short-lived count of requests per source address,
+          and a total request count per ten-minute window, both discarded shortly afterwards.
+        </li>
+      </ul>
+      <p>
+        Google receives the prompt itself and handles it under its own API terms and retention policy.
+      </p>
+
+      <h2>Signing in with Google</h2>
+      <p>
+        The iPhone app asks you to sign in with Google. We receive your email address and Google's
+        account identifier, and use them for exactly two things: to confirm you are who the app says
+        you are when it calls the AI proxy, and to meter your monthly AI credit. Your Google account is
+        deliberately separate from your MyChart login — signing in to OpenRecord gives us no access to
+        your portal.
+      </p>
+
+      <h2>The website</h2>
+      <p>
+        The site is static files on Amazon S3 served through Amazon CloudFront. AWS records standard
+        request logs, which include IP addresses. There are no analytics services, advertising
+        networks, or third-party tracking scripts on the site, and none in any OpenRecord client.
+      </p>
+      <p>
+        If you enter your email address in the waitlist form, we store it and use it to tell you when
+        OpenRecord ships. Ask us and we will delete it.
+      </p>
+
+      <h2>What we never do</h2>
+      <ul>
+        <li>We do not sell your personal information, and we do not share it with advertisers or data brokers.</li>
+        <li>We do not use your health information to train AI models, and we do not send it anywhere except as described above.</li>
+        <li>We do not have a copy of your medical record to hand over, look at, or lose.</li>
+      </ul>
+
+      <h2>Deleting your data</h2>
+      <p>
+        Your records and credentials are on your device, so removing them is in your hands: disconnect
+        the account in the client, or delete the app and its stored data. To have your waitlist email
+        or AI spend ledger deleted, write to us at the address below.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        OpenRecord is not directed at children under 13 and we do not knowingly collect their personal
+        information. Adults with proxy access to a child's or another adult's MyChart record can read
+        it through OpenRecord exactly as they can through MyChart, and are responsible for that use.
+      </p>
+
+      <h2>Not medical advice</h2>
+      <p>
+        OpenRecord and any AI model it talks to can be wrong, can miss things, and can misread a
+        result. Nothing either produces is medical advice or a substitute for your clinician. Do not
+        use it to make a treatment decision on your own.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        If this policy changes in a way that affects what happens to your data, we will update the date
+        at the top and note the change on this page.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy, or a request to delete something we hold:
+        <a href="mailto:privacy@fanpierlabs.com">privacy@fanpierlabs.com</a>.
+      </p>
+    </main>
+
+    <footer>
+      Fan Pier Labs · <a href="/">openrecord.fanpierlabs.com</a> ·
+      <a href="https://github.com/Fan-Pier-Labs/openrecord" target="_blank" rel="noopener noreferrer">Source</a>
+    </footer>
+  </div>
+</body>
+</html>
