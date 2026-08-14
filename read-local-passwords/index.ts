@@ -39,9 +39,9 @@ export async function getAllBrowserLogins(): Promise<PasswordStoreEntry[]> {
 }
 
 /**
- * The saved logins that look like MyChart accounts, each tagged with how
- * confident we are. Entries we could not confirm come back as `unverified`
- * rather than being dropped — see `myChartFilter.ts`.
+ * The saved logins confirmed to be MyChart accounts, each tagged with how it
+ * was confirmed. Anything we could not confirm is dropped — see
+ * `myChartFilter.ts`.
  */
 export async function findMyChartCandidates(
   options: { probeUnknownHosts?: boolean } = {},
@@ -50,13 +50,9 @@ export async function findMyChartCandidates(
 }
 
 /**
- * Confirmed MyChart accounts only.
- *
- * The long-standing entry point, kept for the CLI's `--read-login-from-browser`.
- * It intentionally hides `unverified` entries: a non-interactive caller has
- * nobody to ask, so it should act only on what was actually confirmed.
+ * Confirmed MyChart accounts, in the shape the CLI's
+ * `--read-login-from-browser` has always expected.
  */
 export async function getMyChartAccounts(): Promise<PasswordStoreEntryWithKey[]> {
-  const candidates = await findMyChartCandidates();
-  return candidates.filter(candidate => candidate.confidence !== 'unverified');
+  return findMyChartCandidates();
 }

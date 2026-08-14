@@ -11,6 +11,8 @@ minutes, because tool results are sent to the model.
 Consent is the OS prompt. On macOS the master key lives in the login Keychain, so the first scan
 raises *"…wants to access your keychain"*. That prompt is deliberately not suppressed.
 
+Only accounts that can be **confirmed** are returned; see below.
+
 Supported on **macOS and Windows**. Linux returns nothing (Chromium there uses kwallet/gnome-keyring
 or an unencrypted fallback, and Claude Desktop does not ship on Linux).
 
@@ -48,7 +50,7 @@ counted as corrupt.
 
 ## Deciding what is actually MyChart
 
-`myChartFilter.ts` combines two checks as a **union**, never as a filter that silently discards:
+`myChartFilter.ts` combines two checks as a union:
 
 1. **Directory match** — the hostname is one of the ~1300 known instances in
    `scrapers/list-all-mycharts/mychart-instances.json`. Offline and exact, so it runs against every
@@ -61,12 +63,9 @@ the *old* domain, and the 302 chain lands on the new one, which the directory do
 outcome is recorded as a directory match, and results are deduped on the **resolved** hostname so an
 old domain and its successor collapse into one account.
 
-Anything that passes neither is returned as `unverified` rather than dropped. Both checks have real
-blind spots — the directory misses self-hosted and newly-added instances; the probe misses hosts that
-are down, geo-blocked, VPN-only, or whose old domain has stopped resolving. A silent drop is
-indistinguishable from *"you have no saved MyChart passwords"*, which is the worst way for this to
-fail, so the MCPB shows them separately and lets the user choose. `getMyChartAccounts()` (the CLI's
-entry point) returns confirmed matches only, because a non-interactive caller has nobody to ask.
+Anything that passes neither is dropped. A host we cannot reach is a host we cannot log into, so
+offering it would buy the user a failed login rather than an account — and there is always
+`setup_account` for anything this misses, plus a later re-run for a portal that happened to be down.
 
 A URL only qualifies for probing if it looks like a patient portal. A naive `epic` substring search
 pulls in a games storefront and a ski pass from a real password store; both are dropped outright.

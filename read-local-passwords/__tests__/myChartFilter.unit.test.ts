@@ -5,13 +5,13 @@ import { classifyMyChartEntries } from '../myChartFilter';
 import type { PasswordStoreEntry } from '../types';
 
 /**
- * The classifier is the part of browser import that decides what the user is
- * shown, so these tests pin the two rules it exists to enforce: a saved
- * credential is never silently discarded, and a host that redirects into a
- * known instance is the *same* account as that instance, not a second one.
+ * The classifier decides which saved passwords become offerable accounts, so
+ * these tests pin the two rules it enforces: only confirmed portals are
+ * returned, and a host that redirects into a known instance is the *same*
+ * account as that instance, not a second one.
  *
  * `mychart.uchealth.org` and `mychart.bmc.org` are real entries in the bundled
- * directory; `not-a-portal.example` deliberately is not.
+ * directory; the `.example` hosts deliberately are not.
  */
 
 const KNOWN_HOST = 'mychart.uchealth.org';
@@ -63,10 +63,7 @@ describe('classifyMyChartEntries', () => {
 
   it('does not mistake a lookalike domain for a portal', async () => {
     // Real trap, taken from an actual password store: a naive "epic" substring
-    // search pulls in a games storefront and a ski pass. They are dropped
-    // outright rather than shown as unverified — the unverified tier is for
-    // portal-shaped hosts we could not confirm, not for everything that ever
-    // shared three letters with "Epic".
+    // search pulls in a games storefront and a ski pass.
     let requests = 0;
     respond(() => {
       requests++;
@@ -78,6 +75,7 @@ describe('classifyMyChartEntries', () => {
       entry({ url: 'https://www.epicpass.com/account/create-account.aspx' }),
     ]);
 
+    // Dropped without even a probe: the URL never looked like a portal.
     expect(results).toHaveLength(0);
     expect(requests).toBe(0);
   });
@@ -105,43 +103,43 @@ describe('classifyMyChartEntries', () => {
     expect(candidate!.hostname).toBe(KNOWN_HOST);
   });
 
-  it('keeps a portal-shaped host that never answers, rather than dropping it', async () => {
-    // The case the whole `unverified` tier exists for: the password is real,
-    // but the old domain has stopped resolving, so we cannot prove anything.
+  it('drops a portal-shaped host that never answers', async () => {
+    // A host we cannot reach is a host we cannot log into, so offering it would
+    // only buy the user a failed attempt. They can re-run the import later.
     setTestTransport(async () => {
       throw new Error('ENOTFOUND');
     });
 
-    const [candidate] = await classifyMyChartEntries([entry({ url: 'https://mychart.gone.example/MyChart/' })]);
+    const results = await classifyMyChartEntries([entry({ url: 'https://mychart.gone.example/MyChart/' })]);
 
-    expect(candidate!.confidence).toBe('unverified');
-    expect(candidate!.unverifiedReason).toMatch(/did not respond/);
-    expect(candidate!.pass).toBe('donuts123');
+    expect(results).toHaveLength(0);
   });
 
-  it('reports a host that answers but serves no Epic login page', async () => {
+  it('drops a host that answers but serves no Epic login page', async () => {
     respond(() => new Response('<html>parked domain</html>', { status: 200 }));
 
-    const [candidate] = await classifyMyChartEntries([entry({ url: 'https://patientportal.parked.example/' })]);
+    const results = await classifyMyChartEntries([entry({ url: 'https://patientportal.parked.example/' })]);
 
-    expect(candidate!.confidence).toBe('unverified');
-    expect(candidate!.unverifiedReason).toMatch(/no Epic login page/);
+    expect(results).toHaveLength(0);
   });
 
-  it('makes no requests at all when host checks are disabled', async () => {
+  it('makes no requests, and returns only directory hits, when host checks are off', async () => {
     let requests = 0;
     respond(() => {
       requests++;
       return loginPage();
     });
 
-    const [candidate] = await classifyMyChartEntries(
-      [entry({ url: 'https://mychart.unknown.example/MyChart/' })],
+    const results = await classifyMyChartEntries(
+      [
+        entry({ url: 'https://mychart.unknown.example/MyChart/' }),
+        entry({ url: `https://${KNOWN_HOST}/MyChart/` }),
+      ],
       { probeUnknownHosts: false },
     );
 
     expect(requests).toBe(0);
-    expect(candidate!.confidence).toBe('unverified');
+    expect(results.map(r => r.hostname)).toEqual([KNOWN_HOST]);
   });
 
   it('collapses an old domain and its successor into one account', async () => {
@@ -188,17 +186,14 @@ describe('classifyMyChartEntries', () => {
     expect(results).toHaveLength(0);
   });
 
-  it('sorts confirmed accounts ahead of unverified ones', async () => {
-    setTestTransport(async () => {
-      throw new Error('ENOTFOUND');
-    });
+  it('sorts directory matches ahead of probed ones', async () => {
+    respond(url => (url.includes('newportal.example') ? loginPage() : new Response('', { status: 404 })));
 
     const results = await classifyMyChartEntries([
-      entry({ url: 'https://mychart.gone.example/MyChart/' }),
+      entry({ url: 'https://mychart.newportal.example/MyChart/' }),
       entry({ url: `https://${OTHER_KNOWN_HOST}/MyChart/` }),
     ]);
 
-    expect(results[0]!.confidence).toBe('directory');
-    expect(results[results.length - 1]!.confidence).toBe('unverified');
+    expect(results.map(r => r.confidence)).toEqual(['directory', 'probed']);
   });
 });

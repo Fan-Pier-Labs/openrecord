@@ -14,16 +14,17 @@ export interface PasswordStoreEntry {
 export type PasswordStoreEntryWithKey = PasswordStoreEntry & { key: string };
 
 /**
- * How confident we are that an entry is really an Epic MyChart login.
+ * How an entry was confirmed to be an Epic MyChart login.
  *
  * `directory` — the hostname is in `mychart-instances.json`. Confirmed offline,
  *   no network involved.
  * `probed`    — not in the directory, but following its redirects landed on a
  *   page that serves Epic's login markup.
- * `unverified` — neither check passed. Deliberately still surfaced: see
- *   `classifyMyChartEntries`.
+ *
+ * There is no "maybe" tier: an entry we cannot confirm is dropped. See
+ * `classifyMyChartEntries`.
  */
-export type MyChartConfidence = 'directory' | 'probed' | 'unverified';
+export type MyChartConfidence = 'directory' | 'probed';
 
 export interface MyChartCandidate extends PasswordStoreEntryWithKey {
   confidence: MyChartConfidence;
@@ -31,8 +32,6 @@ export interface MyChartCandidate extends PasswordStoreEntryWithKey {
   hostname: string;
   /** Display name from the directory, when the host is a known instance. */
   instanceName?: string;
-  /** Why an `unverified` entry failed, for the UI to explain rather than hide. */
-  unverifiedReason?: string;
 }
 
 export interface IPasswordExtractor {

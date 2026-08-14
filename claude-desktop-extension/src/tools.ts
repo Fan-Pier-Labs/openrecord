@@ -462,13 +462,13 @@ export function registerAllTools(server: McpServer): void {
       description:
         "Scan this machine's browser password stores (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins the user has already saved, so they do not have to type a password. " +
         'Read-only, and it may raise the OS keychain permission prompt. ' +
-        'Returns `confirmed` (the host is a known Epic instance, or its login page was verified) and `unverified` (a saved password that looks like a patient portal but could not be confirmed — the host may be down, VPN-only, or a retired domain). ' +
-        'Passwords are NEVER returned: each entry carries an opaque `import_id`. Show the list to the user, let them choose, then call connect_imported_account with the chosen id. Present `unverified` entries as unconfirmed, and never connect one without asking first.',
+        'Returns only accounts confirmed to be MyChart portals — a known Epic instance, or one whose login page was verified. ' +
+        'Passwords are NEVER returned: each entry carries an opaque `import_id`. Show the list to the user, let them choose, then call connect_imported_account with the chosen id.',
       inputSchema: {
         check_unknown_hosts: z
           .boolean()
           .optional()
-          .describe('Default true. When false, no network requests are made and any host that is not already a known MyChart instance is reported as unverified.'),
+          .describe('Default true. When false, no network requests are made and only hostnames already in the bundled MyChart directory are returned.'),
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -479,12 +479,13 @@ export function registerAllTools(server: McpServer): void {
         if (!scan.supported) {
           return jsonResult({ supported: false, message: 'Reading browser password stores is only supported on macOS and Windows.' });
         }
-        if (scan.confirmed.length === 0 && scan.unverified.length === 0) {
+        if (scan.accounts.length === 0) {
           return jsonResult({
             supported: true,
-            confirmed: [],
-            unverified: [],
-            message: 'No saved MyChart logins were found in this machine\'s browsers. Set the account up with setup_account instead.',
+            accounts: [],
+            message:
+              "No saved MyChart logins were confirmed in this machine's browsers. Set the account up with setup_account instead. " +
+              'If the user believes they have one saved, their portal may have been unreachable just now — this tool can be run again later.',
           });
         }
 

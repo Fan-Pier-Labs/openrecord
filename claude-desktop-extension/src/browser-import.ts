@@ -38,8 +38,6 @@ export interface ImportedAccountSummary {
   source?: string;
   confidence: MyChartCandidate['confidence'];
   instance_name?: string;
-  /** Present only for `unverified` entries: why we could not confirm the host. */
-  unverified_reason?: string;
 }
 
 function summarize(candidate: MyChartCandidate): ImportedAccountSummary {
@@ -50,26 +48,24 @@ function summarize(candidate: MyChartCandidate): ImportedAccountSummary {
     ...(candidate.source ? { source: candidate.source } : {}),
     confidence: candidate.confidence,
     ...(candidate.instanceName ? { instance_name: candidate.instanceName } : {}),
-    ...(candidate.unverifiedReason ? { unverified_reason: candidate.unverifiedReason } : {}),
   };
 }
 
 export interface ScanResult {
   supported: boolean;
-  confirmed: ImportedAccountSummary[];
-  unverified: ImportedAccountSummary[];
+  accounts: ImportedAccountSummary[];
 }
 
 /**
  * Scan the local browser password stores for MyChart logins.
  *
- * `confirmed` and `unverified` are kept apart rather than merged: an unverified
- * entry is a real saved password we simply could not prove belongs to an Epic
- * portal (host down, VPN-only, a domain that has since been retired), and
- * hiding it would be indistinguishable from finding nothing at all.
+ * Only accounts we could confirm are returned. A saved password for a host that
+ * does not answer is a login we could not perform anyway, so offering it would
+ * buy the user a failed attempt instead of an account; `setup_account` is there
+ * for anything this misses, and a later re-run picks up a portal that was down.
  */
 export async function scanBrowserPasswords(options: { probeUnknownHosts?: boolean } = {}): Promise<ScanResult> {
-  if (!isSupportedPlatform()) return { supported: false, confirmed: [], unverified: [] };
+  if (!isSupportedPlatform()) return { supported: false, accounts: [] };
 
   evictExpired();
   const candidates = await findMyChartCandidates(options);
@@ -77,11 +73,7 @@ export async function scanBrowserPasswords(options: { probeUnknownHosts?: boolea
   const expiresAt = Date.now() + TTL_MS;
   for (const candidate of candidates) held.set(candidate.key, { candidate, expiresAt });
 
-  return {
-    supported: true,
-    confirmed: candidates.filter(c => c.confidence !== 'unverified').map(summarize),
-    unverified: candidates.filter(c => c.confidence === 'unverified').map(summarize),
-  };
+  return { supported: true, accounts: candidates.map(summarize) };
 }
 
 /** Redeem an id from the last scan. Returns undefined once it has expired. */

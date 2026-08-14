@@ -23,10 +23,9 @@ The CLI caches serialized MyChart sessions to `.cookie-cache/<hostname>.json` af
 
 Browser discovery is read-only and macOS/Windows only. It reads the OS-held master key
 (macOS Keychain, or DPAPI on Windows) — on macOS that raises the system's own permission
-prompt, which is the consent gate. The CLI acts only on **confirmed** matches: a hostname in
-the bundled MyChart directory, or one whose redirect chain lands on an Epic login page.
-Portal-shaped hosts that could not be confirmed are dropped here rather than guessed at,
-because a non-interactive run has nobody to ask; the MCPB surfaces them instead. See
+prompt, which is the consent gate. Only **confirmed** matches are used: a hostname in the
+bundled MyChart directory, or one whose redirect chain lands on an Epic login page. Anything
+else is dropped rather than guessed at — pass `--user`/`--pass` for those. See
 [`read-local-passwords/README.md`](../read-local-passwords/README.md).
 - `--2fa <code>` — provides a 2FA code for non-interactive use; otherwise the CLI prompts interactively for the 6-digit code
 
