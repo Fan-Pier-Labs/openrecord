@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "python3 node_modules/deploy/main.py --config deploy.yaml"
+    "deploy": "cd .. && python3 fake-mychart/node_modules/deploy/main.py --config fake-mychart/deploy.yaml"
   },
   "dependencies": {
     "next": "^16.3.0",

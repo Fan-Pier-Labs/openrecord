@@ -113,7 +113,7 @@ The eUnity viewer exposes a rich JS API:
 The `imagingDirectDownload.ts` module implements direct HTTP image download without Playwright:
 
 ```typescript
-// Full pipeline implemented in downloadImagingDirect():
+// Full pipeline implemented in downloadImagingStudyDirect():
 // 1. Follow SAML chain → get JSESSIONID on eunity.example.org
 // 2. POST AMF3 getStudyListMeta to AmfServicesServlet → initialize session
 // 3. POST to CustomImageServlet → download CLHAAR/CLWAVE binary data

@@ -139,6 +139,7 @@ claude-desktop-extension/
 ├── manifest.json           # MCPB manifest (see https://github.com/modelcontextprotocol/mcpb)
 ├── package.json
 ├── tsup.config.ts          # single-file CJS bundle for Claude Desktop's Node
+├── smoke.mjs               # boots the built bundle and speaks MCP to it
 ├── icon.png                # 256×256 extension icon
 └── src/
     ├── index.ts            # stdio entry
@@ -156,8 +157,20 @@ claude-desktop-extension/
 bun run typecheck  # tsc --noEmit — catches type errors esbuild silently skips
 bun run build      # tsc --noEmit, then tsup → dist/server.cjs
 bun run dev        # tsup watch mode — rebuilds dist/server.cjs on every save
+bun run smoke      # build, then boot the bundle and speak MCP to it (see below)
 bun run pack       # build + run `mcpb pack` → openrecord.mcpb
 ```
+
+> **Smoke test.** Everything else in this package tests the TypeScript sources
+> in-process; `bun run smoke` is the only check that runs the *bundle* the way
+> Claude Desktop does — `node dist/server.cjs`, then a real `initialize` /
+> `tools/list` / `tools/call` exchange over stdio. It runs from a staged copy
+> containing only what `.mcpbignore` ships (the manifest and `dist/`), so a
+> dependency left external to the bundle fails here instead of on a patient's
+> machine; run in place, the repo's `node_modules` would quietly satisfy it. It
+> also parses every line the server writes to stdout, which is where the
+> "stdout carries JSON-RPC and nothing else" rule gets enforced. CI runs it in
+> place of a bare `bun run build`.
 
 > **Type checking.** tsup bundles with esbuild, which strips types without
 > checking them — so type errors (wrong function arguments, missing fields)

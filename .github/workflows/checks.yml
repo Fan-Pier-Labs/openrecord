@@ -51,6 +51,13 @@ jobs:
       # assertions as vacuous because everything is already `any`).
       - name: Build npm-package (lint needs dist types)
         run: cd npm-package && bun run build
+      # mychart-cli is published, so its package.json exports map is a public
+      # contract that nothing else here checks: tsc only ever sees the source.
+      # publint validates the map, attw resolves the package the way a consumer
+      # would in all four module modes. This caught the types resolving as ESM
+      # for CJS consumers while the JavaScript they got was CJS.
+      - name: Check the published package surface (publint + attw)
+        run: cd npm-package && bun run check:publish
       # tests/integration/ci is part of the ROOT tsconfig project (no separate
       # tsconfig on purpose), so both eslint and `bun run typecheck` below need
       # its playwright types resolvable.
@@ -66,8 +73,14 @@ jobs:
         run: bun run typecheck
       - name: Typecheck Expo app
         run: cd expo-app && bun run typecheck
-      - name: Typecheck & build Claude Desktop extension
-        run: cd claude-desktop-extension && bun run build
+      # `smoke` is `build` plus a boot check: it starts the built bundle as an
+      # MCP stdio server and does a real initialize / tools/list / tools/call
+      # exchange, from a staged copy holding only what the .mcpb ships. It is
+      # the only thing here that would notice a dependency that resolves at
+      # build time and not at runtime, or a stray stdout write breaking the
+      # JSON-RPC framing. Needs the setup-node above — it runs `node`, not bun.
+      - name: Typecheck, build & smoke-test Claude Desktop extension
+        run: cd claude-desktop-extension && bun run smoke
       - run: bun run test
 
   integration:

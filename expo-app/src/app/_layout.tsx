@@ -5,6 +5,7 @@ import { fireAndForget } from "@/lib/fire-and-forget";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { initDatabase } from "@/lib/storage/database";
+import { initInstances } from "@/lib/mychart-instances";
 import { getMyChartAccounts } from "@/lib/storage/secure-store";
 
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h per account
@@ -25,7 +26,7 @@ function RootLayoutNav() {
     } else if (isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)");
     }
-  }, [isAuthenticated, segments, isLoading]);
+  }, [isAuthenticated, segments, isLoading, router]);
 
   // Background memory refresh on app foreground. Debounced per-account
   // to once every REFRESH_INTERVAL_MS so we don't hammer scrapers or AI.
@@ -81,7 +82,13 @@ export default function RootLayout() {
     // A failed init would otherwise leave the app stuck on the null screen
     // with no trace of why.
     initDatabase()
-      .then(() => setDbReady(true))
+      .then(() => {
+        setDbReady(true);
+        // Cached list first, then a background refresh from Epic's directory
+        // if it's stale. Not awaited: the picker always has the bundled seed,
+        // so nothing here should hold up the first screen.
+        fireAndForget(initInstances(), "instances:init");
+      })
       .catch((err: unknown) => console.error("[db] initDatabase failed:", err));
   }, []);
 

@@ -131,8 +131,6 @@ the app's agent loops stay identical.
 
 ## S3 buckets (us-east-2)
 
-- **mychart-connector** (`arn:aws:s3:::mychart-connector`) — `mychart-logos/` holds logos for all
-  MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`.
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`) — the static splash and
   demo. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC).
 
