@@ -3,8 +3,8 @@
  *
  * Decodes the raw AMF3 typed-object stream eUnity's AmfServicesServlet
  * returns (see docs/EUNITY_PROTOCOL.md — no AMF0 envelope, no Flex
- * RemotingMessage). This is the counterpart of the AMF3Writer in
- * imagingDirectDownload.ts, and exists so the getStudyListMeta response can
+ * RemotingMessage). This is the counterpart of the shared Amf3Writer
+ * (shared/amf3Writer.ts), and exists so the getStudyListMeta response can
  * be parsed *structurally* — Study → Series → Image — instead of scanning the
  * binary for UID-shaped strings and guessing which is which. The guessing
  * broke on Mass General Brigham multi-slice studies, where a series'
@@ -73,9 +73,9 @@ const EXTERNALIZABLE_READERS: Record<string, (r: Amf3Reader) => unknown> = {
   'flex.messaging.io.ObjectProxy': (r) => r.readValue(),
   // StudyListRequest externalizes as: a 4-byte big-endian format header
   // (value 2), a method-qualifier string ("getStudyList"), a version string
-  // ("1.2.0"), then the payload object. Mirrors the layout the AMF3Writer in
-  // imagingDirectDownload.ts emits; the writer test decodes its frames back
-  // through this reader.
+  // ("1.2.0"), then the payload object. Mirrors the layout
+  // buildGetStudyListMetaRequest emits (imagingDirectDownload.ts); the writer
+  // test decodes its frames back through this reader.
   'com.clientoutlook.web.metaservices.StudyListRequest': (r) => ({
     header: r.readBE32(),
     qualifier: r.readValue(),

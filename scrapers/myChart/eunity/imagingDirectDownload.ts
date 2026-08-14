@@ -22,143 +22,7 @@ import { abortAfter, scraperFetch } from '../../http';
 import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';
 import { logger } from '../../../shared/logger';
 import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
-
-// ─── AMF3 Writer ───
-
-/**
- * AMF3 binary writer for constructing eUnity API requests.
- *
- * Supports the full AMF3 subset used by eUnity's WASM viewer:
- * - Typed objects (sealed, dynamic, externalizable)
- * - Arrays, strings, integers, booleans, null
- * - String reference table for deduplication
- * - Externalizable objects (ArrayCollection, StudyListRequest)
- *
- * Protocol reverse-engineered from captured browser AMF traffic via
- * Playwright CDP Fetch domain interception.
- */
-export class AMF3Writer {
-  private readonly buf: number[] = [];
-  private readonly stringTable: string[] = [];
-
-  writeU29(value: number) {
-    if (value < 0x80) {
-      this.buf.push(value);
-    } else if (value < 0x4000) {
-      this.buf.push(((value >> 7) & 0x7F) | 0x80);
-      this.buf.push(value & 0x7F);
-    } else if (value < 0x200000) {
-      this.buf.push(((value >> 14) & 0x7F) | 0x80);
-      this.buf.push(((value >> 7) & 0x7F) | 0x80);
-      this.buf.push(value & 0x7F);
-    } else {
-      this.buf.push(((value >> 22) & 0x7F) | 0x80);
-      this.buf.push(((value >> 15) & 0x7F) | 0x80);
-      this.buf.push(((value >> 8) & 0x7F) | 0x80);
-      this.buf.push(value & 0xFF);
-    }
-  }
-
-  writeNull() { this.buf.push(0x01); }
-  writeTrue() { this.buf.push(0x03); }
-  writeFalse() { this.buf.push(0x02); }
-  writeInteger(value: number) { this.buf.push(0x04); this.writeU29(value); }
-
-  writeString(str: string) { this.buf.push(0x06); this.writeStringValue(str); }
-
-  /** Write a string value (without the 0x06 marker). Handles string reference table. */
-  writeStringValue(str: string) {
-    if (str === '') {
-      // Empty string is always inline (U29 = 0x01 = length 0, inline bit set)
-      this.writeU29(1);
-      return;
-    }
-    // Check if string is already in the reference table
-    const refIdx = this.stringTable.indexOf(str);
-    if (refIdx >= 0) {
-      this.writeU29(refIdx << 1); // reference: index << 1, inline bit = 0
-      return;
-    }
-    // Inline string: add to table, then write
-    this.stringTable.push(str);
-    const bytes = Buffer.from(str, 'utf-8');
-    this.writeU29((bytes.length << 1) | 1);
-    this.buf.push(...bytes);
-  }
-
-  /** Write a 32-bit big-endian integer directly (for Externalizable headers). */
-  writeBE32(value: number) {
-    this.buf.push((value >> 24) & 0xFF);
-    this.buf.push((value >> 16) & 0xFF);
-    this.buf.push((value >> 8) & 0xFF);
-    this.buf.push(value & 0xFF);
-  }
-
-  /**
-   * Write a typed AMF3 object with sealed members (non-dynamic, non-externalizable).
-   * Traits bits: 0x03 | (memberCount << 4)
-   */
-  writeTypedObject(
-    className: string,
-    sealedMembers: string[],
-    values: ((w: AMF3Writer) => void)[],
-  ) {
-    this.buf.push(0x0a);
-    const traits = 0x03 | (sealedMembers.length << 4);
-    this.writeU29(traits);
-    this.writeStringValue(className);
-    for (const name of sealedMembers) this.writeStringValue(name);
-    for (const valueFn of values) valueFn(this);
-  }
-
-  /**
-   * Write a dynamic AMF3 object (sealed members + dynamic key-value pairs).
-   * Traits bits: 0x0B | (sealedMemberCount << 4) (dynamic bit = 0x04 set, inline bits = 0x03)
-   */
-  writeDynamicObject(
-    className: string,
-    sealedMembers: string[],
-    sealedValues: ((w: AMF3Writer) => void)[],
-    dynamicPairs: [string, (w: AMF3Writer) => void][],
-  ) {
-    this.buf.push(0x0a);
-    const traits = 0x0B | (sealedMembers.length << 4); // 0x03 | 0x08 (dynamic bit)
-    this.writeU29(traits);
-    this.writeStringValue(className);
-    for (const name of sealedMembers) this.writeStringValue(name);
-    for (const valueFn of sealedValues) valueFn(this);
-    // Dynamic key-value pairs, terminated by empty string
-    for (const [key, valueFn] of dynamicPairs) {
-      this.writeStringValue(key);
-      valueFn(this);
-    }
-    this.writeStringValue(''); // empty string terminates dynamic section
-  }
-
-  /**
-   * Write an Externalizable AMF3 object.
-   * Traits bits: 0x07 (inline + externalizable bits).
-   * The bodyFn writes the custom serialized data.
-   */
-  writeExternalizableObject(
-    className: string,
-    bodyFn: (w: AMF3Writer) => void,
-  ) {
-    this.buf.push(0x0a);
-    this.writeU29(0x07); // externalizable: inline=1, ext=1, dynamic=1 → bits 0,1,2 all set
-    this.writeStringValue(className);
-    bodyFn(this);
-  }
-
-  writeArray(items: ((w: AMF3Writer) => void)[]) {
-    this.buf.push(0x09);
-    this.writeU29((items.length << 1) | 1);
-    this.writeStringValue(''); // empty associative
-    for (const item of items) item(this);
-  }
-
-  toBuffer(): Buffer { return Buffer.from(this.buf); }
-}
+import { Amf3Writer } from '../../../shared/amf3Writer';
 
 // ─── AMF3 Request Construction ───
 
@@ -180,12 +44,12 @@ function buildAmfCall(
   messageID: string,
   service: string,
   method: string,
-  parameters: ((w: AMF3Writer) => void)[],
+  parameters: ((w: Amf3Writer) => void)[],
 ): Buffer {
   // Callback params are numbered by nesting depth (w1, w2, …): each callback
   // writes to exactly the writer it is handed, so the code stays correct by
   // construction even if a writer method ever hands down a sub-writer.
-  const w = new AMF3Writer();
+  const w = new Amf3Writer();
   w.writeTypedObject(
     'com.clientoutlook.web.metaservices.AmfServicesMessage',
     ['messageID', 'messageType', 'body'],

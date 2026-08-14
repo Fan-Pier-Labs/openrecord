@@ -74,6 +74,9 @@ fi
 echo "==> Uploading the splash page"
 # Short TTL: the HTML is the entry point and must pick up new asset hashes.
 upload_built "$SRC_DIR/index.html" "index.html" "public, max-age=300"
+# The privacy policy is linked from the splash page and the app stores, so it
+# ships with it — a 404 here is a broken promise, not a broken page.
+upload_built "$SRC_DIR/privacy.html" "privacy.html" "public, max-age=300"
 
 echo "==> Uploading the demo"
 upload_built "$BUILD_DIR/demo.html" "demo.html" "public, max-age=300"
@@ -97,7 +100,7 @@ echo "==> Invalidating CloudFront ($DIST_ID)"
 # new paths every build, so they never need invalidating.
 "${AWS[@]}" cloudfront create-invalidation \
   --distribution-id "$DIST_ID" \
-  --paths "/index.html" "/demo.html" "/" "/og-image.png" "/icon.svg" "/icon-192.png" \
+  --paths "/index.html" "/demo.html" "/privacy.html" "/" "/og-image.png" "/icon.svg" "/icon-192.png" \
           "/icon-512.png" "/apple-touch-icon.png" "/favicon.ico" "/manifest.json" \
   --query 'Invalidation.{Id:Id,Status:Status}' --output table
 

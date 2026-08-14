@@ -1,0 +1,18 @@
+# Applies to every build whose context is the repo root — Dockerfile.dev (the
+# devcontainer) and fake-mychart/Dockerfile, which needs the root as its context
+# so the image can carry shared/ alongside fake-mychart/.
+#
+# Both images install their own dependencies and build their own output, so
+# nothing here is load-bearing for either build; keeping it out just stops the
+# context from carrying hundreds of megabytes of regenerable files.
+node_modules
+**/node_modules
+.git
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# Agent worktrees are full checkouts of this repo — including them would make
+# the build context recursive.
+.claude/worktrees

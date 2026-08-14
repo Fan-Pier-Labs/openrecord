@@ -26,6 +26,19 @@ export const styles = StyleSheet.create({
     maxWidth: 320,
   },
   bodyEm: { color: "#000", fontWeight: "600" },
+  disclosureCard: {
+    width: "100%",
+    backgroundColor: "#f7f7f7",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  disclosureItem: {
+    fontSize: 14,
+    color: "#444",
+    lineHeight: 20,
+  },
   metaText: {
     fontSize: 13,
     color: "#888",
@@ -173,6 +186,9 @@ export const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 12,
     backgroundColor: "#fff",
+  },
+  selectedInstanceLogoFallback: {
+    backgroundColor: "#eee",
   },
   selectedInstanceName: {
     fontSize: 15,
