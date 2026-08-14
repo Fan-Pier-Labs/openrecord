@@ -1,0 +1,9 @@
+body { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.verify-box { background: #fff; border-radius: 12px; padding: 40px; width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); text-align: center; }
+.verify-box h2 { margin-bottom: 8px; }
+.verify-box p { color: #666; font-size: 14px; margin-bottom: 20px; }
+.verify-box input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 20px; text-align: center; letter-spacing: 8px; margin-bottom: 16px; }
+.verify-box button { width: 100%; padding: 12px; background: #1a5276; color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+.method-btn { background: #2980b9; }
+.method-btn:hover { background: #1a5276; }
+.hidden { display: none; }

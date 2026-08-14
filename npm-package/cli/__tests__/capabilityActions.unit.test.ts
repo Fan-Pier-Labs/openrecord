@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 import { jsonSafeReplacer, runCapabilityAction } from '../capabilityActions';
-import { MyChartRequest } from '../../../scrapers/myChart/myChartRequest';
-import type { RequestConfig } from '../../../scrapers/myChart/types';
+import { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
+import type { RequestConfig } from '../../../scrapers/myChart/core/types';
 import { CAPABILITIES } from '../../../shared/capabilities';
 import { resetLogSink, silenceLogger } from '../../../shared/logger';
 

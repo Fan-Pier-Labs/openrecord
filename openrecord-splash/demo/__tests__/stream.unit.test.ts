@@ -130,7 +130,9 @@ describe('streamText', () => {
     // an absence needs elapsed frames. Three of them is plenty, and the failure
     // mode is one-sided — a loaded machine can only ever make this pass, never
     // flake red.
-    await new Promise((r) => setTimeout(r, 3 * 16));
+    await new Promise((r) => {
+      setTimeout(r, 3 * 16);
+    });
     expect(seen.length).toBe(atAbort);
   });
 });

@@ -494,7 +494,10 @@ export function createProxyCompleter(endpoint: string): CompleteFn {
  * Agent loop
  * ------------------------------------------------------------------ */
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 export type RunTurnOptions = {
   /** Mutable record from `createSession()`. */
