@@ -15,10 +15,16 @@ scripts/
 # rather than `node_modules/**` so the tree stays walkable. Collapsing any of
 # that silently ships zero native files.
 #
-# The platform list is here rather than in the install, because `bun install
-# --os='*' --cpu='*'` (what `bun run pack` runs) resolves every slice
-# @napi-rs/keyring offers, including ~9 MB of Linux and FreeBSD builds Claude
-# Desktop has no use for. This is where we choose the four that ship.
+# WHY FOUR PLATFORMS AND NOT JUST THIS MACHINE'S: openrecord.mcpb is published
+# for people to download, so one artifact built on one machine has to work on
+# every machine that installs it. Whoever packs it gets `bun install` resolving
+# only their own slice, which is why `bun run pack` overrides with
+# `bun install --os='*' --cpu='*'` first.
+#
+# That override resolves EVERY slice @napi-rs/keyring offers, including ~9 MB of
+# Linux and FreeBSD builds Claude Desktop has no use for. This list is where the
+# four that ship are chosen. Claude Desktop is macOS + Windows only; a Linux
+# user of the raw server falls back to the file, which still works.
 node_modules/*
 !node_modules/@napi-rs
 node_modules/@napi-rs/*

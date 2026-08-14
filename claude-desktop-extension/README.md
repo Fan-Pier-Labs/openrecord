@@ -138,21 +138,29 @@ different family member's record than the one the call is about.
     silent-login ladder just re-mints them
 - **Not a single-file bundle any more** — a `.node` binary cannot be inlined
   into a CJS file, so `dist/server.cjs` ships alongside
-  `node_modules/@napi-rs/`.
+  `node_modules/@napi-rs/`. The `.mcpb` went from 1.0 MB to 2.8 MB.
 
-  `@napi-rs/keyring` is a normal `dependencies` entry. Its *binaries* are
-  twelve separate packages it lists in its own `optionalDependencies`, gated on
-  `os`/`cpu` — the standard way prebuilt-binary packages ship (esbuild has 26,
-  rollup 27). A normal `bun install` resolves just the slice matching your
-  machine, which is what you want day to day.
+  **It is still one download that works everywhere.** The artifact carries all
+  four platform binaries — macOS arm64/x64, Windows x64/arm64 — and
+  `@napi-rs/keyring`'s loader is a `process.platform`/`process.arch` switch that
+  requires the matching one at startup. There is no per-platform build and
+  nothing for a user to choose.
 
-  Packing needs four at once, so `bun run pack` runs
-  `bun install --os='*' --cpu='*'` first. That resolves *every* slice including
-  ~9 MB of Linux and FreeBSD builds, so `.mcpbignore` names the four that ship
-  (macOS arm64/x64, Windows x64/arm64) and `scripts/verify-native-binaries.mjs`
-  refuses to pack if one is missing — a missing binary means plaintext
-  credentials on that platform with no other symptom. Linux is not bundled:
-  Claude Desktop has no Linux build, and the fallback covers it.
+  Getting all four onto one machine is the only wrinkle. They are twelve
+  separate packages `@napi-rs/keyring` lists in its own `optionalDependencies`,
+  gated on `os`/`cpu` — the standard way prebuilt-binary packages ship (esbuild
+  has 26, rollup 27) — so a normal `bun install` resolves only the slice
+  matching the machine doing the install. `bun run pack` therefore overrides
+  with `bun install --os='*' --cpu='*'`, `.mcpbignore` picks the four to keep
+  out of the twelve that pulls, and `scripts/verify-native-binaries.mjs`
+  **refuses to pack** if one is missing. That last check matters because the
+  failure is otherwise invisible: a `.mcpb` packed after a plain `bun install`
+  looks fine, installs fine, and silently stores credentials in plaintext for
+  everyone not on the packer's platform.
+
+  Linux is not included (Claude Desktop has no Linux build, and the file
+  fallback covers the raw server). Adding it is two lines in `.mcpbignore`, at
+  about +9 MB.
 
 ## File layout
 
