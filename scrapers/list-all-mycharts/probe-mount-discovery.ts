@@ -26,8 +26,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/login';
-import { MyChartRequest } from '../myChart/myChartRequest';
+import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/auth/login';
+import { MyChartRequest } from '../myChart/core/myChartRequest';
 import { platformFetch } from '../http';
 import { logger, setLogSink, silenceLogger } from '../../shared/logger';
 
@@ -114,7 +114,9 @@ export async function probeHost(entry: HostEntry): Promise<ProbeResult> {
     const req = timeBoundedRequest(entry.host);
     await Promise.race([
       determineFirstPathPart(req),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('host timed out')), HOST_TIMEOUT_MS)),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('host timed out')), HOST_TIMEOUT_MS)
+      }),
     ]);
 
     result.found = req.firstPathPart;

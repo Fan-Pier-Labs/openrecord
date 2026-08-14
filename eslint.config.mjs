@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
@@ -29,6 +30,10 @@ export default [
     },
     rules: {
       "@typescript-eslint/await-thenable": "error",
+      // `indexOf(...) !== -1` and single-token regex tests read clearer as `.includes(...)`.
+      "@typescript-eslint/prefer-includes": "error",
+      // Referencing a class method without its receiver silently loses `this`.
+      "@typescript-eslint/unbound-method": "error",
       // `str.match(re)` and `re.exec(str)` are identical for non-global
       // regexes, and exec is the clearer read; the rule declines to convert
       // /g patterns, where the two genuinely differ.
@@ -36,6 +41,18 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // `parseInt(s)` reads as "parse a decimal number", but the radix comes
+      // from the string: "0x10" is 16, not 0. Every call says which base it
+      // meant.
+      "radix": "error",
+      // A `.map`/`.filter`/`.reduce` callback that falls off its end yields
+      // `undefined` for that element and the array quietly fills with holes —
+      // a callback run only for its side effects belongs in `.forEach`.
+      "array-callback-return": "error",
+      // A bare `.sort()` stringifies every element first, so numbers come out
+      // [1, 10, 2] and Dates sort by their English text. Only an array that is
+      // already string[] may sort without a comparator.
+      "@typescript-eslint/require-array-sort-compare": "error",
       // Round-4 zero-violation set — enabling these required NO code changes.
       // Each zero was canary-verified: a planted violation fires before the
       // zero is trusted.
@@ -62,6 +79,10 @@ export default [
       // readonly so mutation shows up in review.
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      // `.filter(p)[0]` builds a whole array to keep one element — `.find(p)`.
+      "@typescript-eslint/prefer-find": "error",
+      // `x as T` where `T` is just the non-null of x reads clearer as `x!`.
+      "@typescript-eslint/non-nullable-type-assertion-style": "error",
       // A template literal wrapping one string and nothing else is just quotes.
       "@typescript-eslint/no-unnecessary-template-expression": "error",
       // `.catch(err => …)` gets `unknown`, matching useUnknownInCatchVariables.
@@ -78,6 +99,12 @@ export default [
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
       }],
+      // Companion to the rule above: when EVERY specifier is inline-`type`,
+      // `verbatimModuleSyntax` (on in all five projects) still emits a runtime
+      // `import "./x"`, keeping the module edge and its side effects alive for
+      // something that was only ever a type. Hoisting the marker to the
+      // statement drops the edge.
+      "@typescript-eslint/no-import-type-side-effects": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All
@@ -95,6 +122,9 @@ export default [
         selector: "ImportExpression",
         message: "No runtime import() in product code — use a static import, or disable this line with a comment saying why the dynamic import is load-bearing.",
       }],
+      // A non-primitive in a string position renders "[object Object]" — in a
+      // health-data app that's garbage where a patient's data should be.
+      "@typescript-eslint/no-base-to-string": "error",
       // A void-returning call in value position (`return console.log(x)`,
       // `const y = arr.push(v)`) reads as if it produced something; splitting
       // it into statement + bare return/binding-free call says what actually
@@ -115,6 +145,119 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // Spreading a Map, Set, class instance, function or array into an object
+      // produces something other than what it reads as — indices for an array,
+      // an empty object for a Map. Caught the header merge in scraperFetch,
+      // the single point every outbound request in the product passes through.
+      "@typescript-eslint/no-misused-spread": "error",
+      // A promise executor's return value is discarded, so `new Promise(r =>
+      // setTimeout(r, ms))` quietly throws away a timer handle — and the same
+      // shorthand around an async call throws away the promise, leaving the
+      // rejection unhandled and the executor's own resolve never reached.
+      // Braces around the body make the discard explicit.
+      "no-promise-executor-return": "error",
+
+      // ── Round-5 zero-violation set ────────────────────────────────────────
+      // Everything below was measured at 0 violations repo-wide and enabled
+      // without touching a line of product code. Each was canary-verified: a
+      // planted violation fires before the zero is trusted, because a rule
+      // that silently matches nothing is indistinguishable from a clean repo.
+      // These are ratchets — they cost nothing today and stop the first
+      // instance from arriving.
+
+      // Legacy and injection-shaped APIs. All of these are absent today; the
+      // ban is so the first `eval`, `new Function(userInput)` or
+      // `javascript:` URL has to be argued for in review rather than merged.
+      // This is a health-data app parsing untrusted portal HTML.
+      // (`no-implied-eval` is already on above.)
+      "no-eval": "error",
+      "no-new-func": "error",
+      "no-script-url": "error",
+      "no-proto": "error",
+      "no-caller": "error",
+      "no-extend-native": "error",
+      "no-iterator": "error",
+      "no-new-wrappers": "error",
+      "no-new-native-nonconstructor": "error",
+      "no-multi-str": "error",
+
+      // Silent-failure shapes. Each of these compiles, runs, and does
+      // something other than what it reads as.
+      "no-self-compare": "error",
+      // A loop whose condition can never change, or whose body always exits on
+      // the first pass — both are almost always an unfinished edit.
+      "no-unmodified-loop-condition": "error",
+      "no-unreachable-loop": "error",
+      // `new Promise(async (resolve) => …)`: a throw inside the async executor
+      // rejects nothing and the promise hangs forever.
+      "no-async-promise-executor": "error",
+      // `return` in a constructor silently discards the instance.
+      "no-constructor-return": "error",
+      // '${x}' in a plain-quoted string is a template literal someone forgot
+      // to backtick — it ships the placeholder text to the user.
+      "no-template-curly-in-string": "error",
+      // Assignment and comma-sequences inside an expression read as
+      // comparison and as arguments respectively.
+      "no-return-assign": "error",
+      "no-sequences": "error",
+      "no-labels": "error",
+      // `for…in` walks the prototype chain; the guard (or Object.keys) is the
+      // difference between iterating a scraped object and iterating whatever
+      // a library put on Object.prototype.
+      "guard-for-in": "error",
+      // Reassigning a parameter makes the caller's argument and the local name
+      // silently diverge halfway down a function.
+      "no-param-reassign": "error",
+      // A getter with no setter (or a pair defined far apart) reads as a
+      // writable property and silently drops the write.
+      "accessor-pairs": "error",
+      "grouped-accessor-pairs": "error",
+      // A `default` that isn't last is dead code for every case after it.
+      "default-case-last": "error",
+      // `let x = undefined` defeats TDZ and reads as an intentional value.
+      "no-undef-init": "error",
+
+      // Modern equivalents that say the same thing more clearly.
+      "prefer-object-has-own": "error",
+      "prefer-object-spread": "error",
+      "prefer-regex-literals": "error",
+      "prefer-exponentiation-operator": "error",
+      "operator-assignment": "error",
+      "no-useless-concat": "error",
+      "no-useless-rename": "error",
+      // An undescribed Symbol() is untraceable in a debugger.
+      "symbol-description": "error",
+
+      // Type-level equivalents of the above, plus TS-only footguns.
+      // Comparing an enum member to a raw literal type-checks and silently
+      // stops matching the moment the enum's backing value changes.
+      "@typescript-eslint/no-unsafe-enum-comparison": "error",
+      // Bare `Function` accepts any signature and returns `any`.
+      "@typescript-eslint/no-unsafe-function-type": "error",
+      // `-someString` is NaN, not a number.
+      "@typescript-eslint/no-unsafe-unary-minus": "error",
+      // `void` outside a return position means "any value, ignored" — as a
+      // parameter or union member it is almost always a mistake for
+      // `undefined` or `never`.
+      "@typescript-eslint/no-invalid-void-type": "error",
+      "@typescript-eslint/no-useless-empty-export": "error",
+      "@typescript-eslint/no-useless-constructor": "error",
+      "@typescript-eslint/no-unnecessary-qualifier": "error",
+      "@typescript-eslint/no-unnecessary-parameter-property-assignment": "error",
+      // An optional parameter before a required one can never be omitted.
+      "@typescript-eslint/default-param-last": "error",
+      "@typescript-eslint/prefer-for-of": "error",
+      "@typescript-eslint/prefer-function-type": "error",
+      "@typescript-eslint/prefer-literal-enum-member": "error",
+      "@typescript-eslint/prefer-return-this-type": "error",
+      // A getter and setter for the same property that disagree on type let a
+      // write round-trip into a different value than it came in as.
+      "@typescript-eslint/related-getter-setter-pairs": "error",
+      "@typescript-eslint/class-literal-property-style": "error",
+      "@typescript-eslint/consistent-indexed-object-style": "error",
+      // Re-exporting a type through a value export keeps the module edge alive
+      // at runtime — the export side of consistent-type-imports above.
+      "@typescript-eslint/consistent-type-exports": "error",
     },
   },
   // bun-types declares the `.rejects`/`.resolves` matchers as returning void,
@@ -156,6 +299,33 @@ export default [
     },
     rules: {
       "import-x/no-cycle": "error",
+      // Round-5 zero-violation set, scoped here for the same reason as
+      // no-cycle: import-x resolves every specifier, which is slow repo-wide.
+      // A module importing itself, or exporting a `let`, is a bug that reads
+      // as working code; the path rules keep `../../shared/x` from drifting
+      // into three spellings of the same module.
+      "import-x/no-self-import": "error",
+      "import-x/no-mutable-exports": "error",
+      "import-x/no-useless-path-segments": "error",
+      "import-x/no-absolute-path": "error",
+      "import-x/no-empty-named-blocks": "error",
+    },
+  },
+  // The two React clients (the Expo app and the splash demo) were linted by
+  // every rule above and by no React rule at all. rules-of-hooks is the one
+  // that matters most: a hook behind an `if` or inside a loop desynchronizes
+  // React's hook order and crashes at runtime, and nothing else in the
+  // toolchain — not tsc, not the tests — can see it. Zero violations today.
+  //
+  // exhaustive-deps is deliberately NOT enabled here. It has 7 real hits, and
+  // each one needs its own judgment call (adding a dep can turn a stale
+  // closure into a re-render loop), so it gets its own change rather than
+  // riding along with a zero-violation ratchet.
+  {
+    files: ["expo-app/**/*.ts", "expo-app/**/*.tsx", "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
     },
   },
   {rules: {

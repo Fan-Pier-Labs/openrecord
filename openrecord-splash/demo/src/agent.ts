@@ -324,7 +324,11 @@ export function resolveWriteDetails(
   args: ToolArgs,
 ): { label: string; value: string }[] {
   if (tool !== 'book_appointment') return [];
-  const slotId = String(args.slot_id ?? '');
+  // args is ToolArgs (Record<string, unknown>) — model-emitted JSON, so the
+  // type is unknown by construction. A non-string slot_id matches no slot;
+  // treating it as absent is the same outcome without a String() coercion
+  // that would render "[object Object]" into the confirmation row.
+  const slotId = typeof args.slot_id === 'string' ? args.slot_id : '';
   for (const offer of session.availableAppointments) {
     const slot = offer.slots.find((s) => s.slotId === slotId);
     if (!slot) continue;
@@ -490,7 +494,10 @@ export function createProxyCompleter(endpoint: string): CompleteFn {
  * Agent loop
  * ------------------------------------------------------------------ */
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 export type RunTurnOptions = {
   /** Mutable record from `createSession()`. */
@@ -626,7 +633,11 @@ export async function runTurn({
         });
         continue;
       }
-      const spoken = String(respondCall.args.text ?? '').trim();
+      // Only a string is a reply. Anything else is a malformed respond and is
+      // treated as empty — the old String() coercion would have shown the
+      // patient "[object Object]" as the assistant's answer.
+      const spokenValue = respondCall.args.text;
+      const spoken = typeof spokenValue === 'string' ? spokenValue.trim() : '';
       // An empty respond after a write is the model signing off, not chatter.
       if (!spoken) return { text: 'Done.', toolCalls: executed };
 

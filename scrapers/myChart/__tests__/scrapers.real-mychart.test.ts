@@ -16,35 +16,34 @@
 
 import { describe, it, expect, beforeAll } from 'bun:test'
 import { getTestSession } from './testHelper'
-import { type MyChartRequest } from '../myChartRequest'
+import type { MyChartRequest } from '../core/myChartRequest'
 
 // Scrapers
-import { getMyChartProfile, getEmail } from '../profile'
-import { getHealthSummary } from '../healthSummary'
-import { getMedications } from '../medications'
-import { getAllergies } from '../allergies'
-import { getHealthIssues } from '../healthIssues'
-import { getImmunizations } from '../immunizations'
-import { getVitals } from '../vitals'
-import { getInsurance } from '../insurance'
-import { getCareTeam } from '../careTeam'
-import { getReferrals } from '../referrals'
-import { getMedicalHistory } from '../medicalHistory'
-import { getPreventiveCare } from '../preventiveCare'
-import { getLetters } from '../letters'
-import { getEmergencyContacts } from '../emergencyContacts'
-import { getGoals } from '../goals'
-import { getDocuments } from '../documents'
-import { getUpcomingOrders } from '../upcomingOrders'
-import { getQuestionnaires } from '../questionnaires'
-import { getCareJourneys } from '../careJourneys'
-import { getActivityFeed } from '../activityFeed'
-import { getEducationMaterials } from '../educationMaterials'
-import { getEhiExportTemplates } from '../ehiExport'
-import { upcomingVisits, pastVisits } from '../visits/visits'
-import { listLabResults } from '../labs_and_procedure_results/labResults'
-import { getBillingHistory } from '../bills/bills'
-import { listConversations } from '../messages/conversations'
+import { getMyChartProfile, getEmail } from '../chart/profile'
+import { getHealthSummary } from '../chart/healthSummary'
+import { getMedications } from '../chart/medications'
+import { getAllergies } from '../chart/allergies'
+import { getHealthIssues } from '../chart/healthIssues'
+import { getImmunizations } from '../chart/immunizations'
+import { getVitals } from '../chart/vitals'
+import { getInsurance } from '../chart/insurance'
+import { getReferrals } from '../chart/referrals'
+import { getMedicalHistory } from '../chart/medicalHistory'
+import { getPreventiveCare } from '../chart/preventiveCare'
+import { getLetters } from '../chart/letters'
+import { getEmergencyContacts } from '../chart/emergencyContacts'
+import { getGoals } from '../chart/goals'
+import { getDocuments } from '../chart/documents'
+import { getUpcomingOrders } from '../chart/upcomingOrders'
+import { getQuestionnaires } from '../chart/questionnaires'
+import { getCareJourneys } from '../chart/careJourneys'
+import { getActivityFeed } from '../chart/activityFeed'
+import { getEducationMaterials } from '../chart/educationMaterials'
+import { getEhiExportTemplates } from '../chart/ehiExport'
+import { upcomingVisits, pastVisits } from '../chart/visits/visits'
+import { listLabResults } from '../chart/labs/labResults'
+import { getBillingHistory } from '../chart/bills/bills'
+import { listConversations } from '../chart/messages/conversations'
 
 let session: MyChartRequest
 
@@ -109,11 +108,6 @@ describe('integration', () => {
     expect(result).toBeDefined()
     expect(Array.isArray(result.coverages)).toBe(true)
     expect(typeof result.hasCoverages).toBe('boolean')
-  }, 30_000)
-
-  it('getCareTeam returns an array', async () => {
-    const result = await getCareTeam(session)
-    expect(Array.isArray(result)).toBe(true)
   }, 30_000)
 
   it('getReferrals returns an array', async () => {

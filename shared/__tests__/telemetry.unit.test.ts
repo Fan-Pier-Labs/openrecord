@@ -73,7 +73,7 @@ describe('telemetry', () => {
     });
 
     test('calls fetch with Amplitude API endpoint and anonymous payload', async () => {
-      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
       );
       globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -87,7 +87,7 @@ describe('telemetry', () => {
       expect(amplitudeCall).toBeTruthy();
 
       if (amplitudeCall) {
-        const opts = amplitudeCall[1] as RequestInit;
+        const opts = amplitudeCall[1]!;
         expect(opts.method).toBe('POST');
         const body = JSON.parse(opts.body as string);
         expect(body.api_key).toBe('a7d8557f623f24012e62edc61bbc0fd6');
@@ -106,7 +106,7 @@ describe('telemetry', () => {
 
     test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
       process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
-      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
       );
       globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -131,7 +131,7 @@ describe('telemetry', () => {
 
     /** Mock fetch, emit one event, and return every URL it was called with. */
     async function capturePostUrls(...args: Parameters<typeof sendTelemetryEvent>) {
-      const fetchMock = mock((_url: string | URL | Request, _init?: RequestInit) =>
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 })));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
       sendTelemetryEvent(...args);
@@ -169,7 +169,7 @@ describe('telemetry', () => {
       const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
       expect(analyticsCall).toBeTruthy();
 
-      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      const body = JSON.parse(analyticsCall![1]!.body as string);
       expect(body.event).toBe('cli_started');
       expect(body.source).toBe('cli');
       expect(body.deviceId).toBeTruthy();
@@ -183,17 +183,17 @@ describe('telemetry', () => {
     test('defaults source to "node" when the caller omits it', async () => {
       const { calls } = await capturePostUrls('test_event');
       const analyticsCall = calls.find((c) => String(c[0]).includes('execute-api'));
-      const body = JSON.parse((analyticsCall![1] as RequestInit).body as string);
+      const body = JSON.parse(analyticsCall![1]!.body as string);
       expect(body.source).toBe('node');
     });
 
     test('uses the same anonymous device id for both sinks', async () => {
       const { calls } = await capturePostUrls('test_event');
       const amplitudeBody = JSON.parse(
-        (calls.find((c) => String(c[0]).includes('amplitude.com'))![1] as RequestInit).body as string,
+        calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string,
       );
       const analyticsBody = JSON.parse(
-        (calls.find((c) => String(c[0]).includes('execute-api'))![1] as RequestInit).body as string,
+        calls.find((c) => String(c[0]).includes('execute-api'))![1]!.body as string,
       );
       expect(analyticsBody.deviceId).toBe(amplitudeBody.events[0].device_id);
     });

@@ -59,12 +59,15 @@ describe('renderCliHelp', () => {
     // was in flight and went undocumented; this is what catches the next one.
     const source = await Bun.file(new URL('../cli.ts', import.meta.url).pathname).text();
     const parsed = new Set(
-      [...source.matchAll(/args\[i\] === '(--[a-z-]+)'/g)].map((m) => m[1]),
+      // `m[1]!`: the pattern's one group always participates in a match, so
+      // this is a Set<string> — which is also what lets the sort below stay
+      // comparator-free.
+      [...source.matchAll(/args\[i\] === '(--[a-z-]+)'/g)].map((m) => m[1]!),
     );
     expect(parsed.size).toBeGreaterThan(20);
 
     const help = renderCliHelp();
-    const undocumented = [...parsed].filter((flag) => !help.includes(flag!)).sort();
+    const undocumented = [...parsed].filter((flag) => !help.includes(flag)).sort();
     expect(undocumented).toEqual([]);
   });
 

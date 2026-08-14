@@ -16,7 +16,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { MyChartRequest } from '../../scrapers/myChart/myChartRequest';
+import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import {
   CAPABILITIES,
   acceptsPatientParam,
@@ -33,7 +33,7 @@ import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
-import type { PasskeyCredential } from '../../scrapers/myChart/softwareAuthenticator';
+import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 /**
  * Dashed action names the CLI accepted back when each had a hand-written
@@ -89,7 +89,10 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
       // Anything that isn't a plain read gets a marker, so a glance down the
       // list separates "shows me something" from "changes something".
       const marker = capability.kind === 'read' ? ' ' : '!';
-      lines.push(`   ${marker} ${capability.id}`);
+      // Declared but not implemented yet — say so on the id line, so it reads
+      // as "not yet" rather than as a tool that returned nothing.
+      const status = capability.comingSoon ? '  (coming soon — not supported yet)' : '';
+      lines.push(`   ${marker} ${capability.id}${status}`);
       lines.push(`       ${capability.description}`);
       for (const param of capability.params) {
         lines.push(
