@@ -134,6 +134,21 @@ export default [
       "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/prefer-promise-reject-errors": "error",
+      // Only the object-typed `||` sites, where `??` is provably identical: an
+      // object is always truthy, so `a || b` and `a ?? b` cannot diverge.
+      // `ignorePrimitives` deliberately exempts string/number/boolean/bigint,
+      // and that exemption is a decision, not a gap. For a primitive the two
+      // operators differ exactly when the left side is `''`, `0`, or `false`,
+      // and this codebase leans on that difference: `providerName || "Unknown"`
+      // with an empty-string provider name yields `"Unknown"` today, while `??`
+      // would yield `""` and write a blank provider into a patient's chart.
+      // Unconfigured the rule flags 277 sites (244 of them in `scrapers/`);
+      // each needs an individual judgement about what an empty string means
+      // there, which is a data audit, not a lint autofix. If someone takes that
+      // audit on, narrow `ignorePrimitives` then — until then, off by intent.
+      "@typescript-eslint/prefer-nullish-coalescing": ["error", {
+        ignorePrimitives: { string: true, number: true, boolean: true, bigint: true },
+      }],
       "@typescript-eslint/restrict-plus-operands": "error",
       // Outside try/catch a `return await` is a pointless extra microtask;
       // inside, the await is load-bearing (it keeps the rejection in scope).

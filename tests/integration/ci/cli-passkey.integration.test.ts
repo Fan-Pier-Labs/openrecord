@@ -92,7 +92,7 @@ async function getPasskeysFromFakeMychart(): Promise<unknown[]> {
     body: '{}',
   });
   const data = await res.json() as { passkeys?: unknown[] };
-  return data.passkeys || [];
+  return data.passkeys ?? [];
 }
 
 async function deleteAllPasskeysFromFakeMychart(): Promise<void> {
@@ -103,7 +103,7 @@ async function deleteAllPasskeysFromFakeMychart(): Promise<void> {
     body: '{}',
   });
   const data = await res.json() as { passkeys?: Array<{ rawId: string }> };
-  for (const pk of data.passkeys || []) {
+  for (const pk of data.passkeys ?? []) {
     await fetch(`${FAKE_MYCHART_URL}/MyChart/api/passkey-management/DeletePasskey`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Cookie': cookieValue, '__RequestVerificationToken': 'tok-test' },
