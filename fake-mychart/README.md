@@ -204,7 +204,7 @@ Behavioral contract, all verified against the same captures and enforced by
   November 2025, a bare 500 on August 2025) — even unauthenticated. Only
   token-carrying requests fall through to the login redirect that
   `makeAuthenticatedRequest`'s expiry detection relies on. The fake's own page
-  scripts attach the token through a shared `fetch` wrapper in `html.ts`.
+  scripts attach the token through a shared `fetch` wrapper (`html/assets/csrf-fetch.js`).
 - **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
   generic token page.
 
@@ -273,7 +273,12 @@ fake-mychart/
     lib/
       session.ts                  # In-memory session store (Map + 30-min TTL)
       csrf.ts                     # Fake CSRF token generation
-      html.ts                     # HTML page templates for cheerio-parsed pages
+      html/                       # HTML page templates for cheerio-parsed pages
+        index.ts                  #   barrel — the only import the route needs
+        layout.ts                 #   portal shell, sidebar nav, mount prefix
+        auth.ts, health.ts, …     #   pages, grouped the way the sidebar is
+        assets/                   #   the portal CSS and each page's inline JS,
+                                  #   as real .css/.js files read off disk
 ```
 
 ### Key design decisions
@@ -477,5 +482,6 @@ To add a new endpoint:
 
 1. Add fake data to `src/data/homer.ts`
 2. Add the URL pattern match in `src/app/MyChart/[...path]/route.ts`
-3. If it's an HTML page parsed by cheerio, add a template in `src/lib/html.ts`
+3. If it's an HTML page parsed by cheerio, add a template under `src/lib/html/` (markup in
+   the `.ts` module, any page JS as a file in `html/assets/`, `{{MP}}` for the mount prefix)
 4. Add a test case in `scrapers/myChart/__tests__/fake-mychart/fake-mychart.integration.test.ts`
