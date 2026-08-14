@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fakeDirectoryOrganizations } from '@/data/directory';
 import { mountPrefix } from '@/lib/mount';
+import { publicBaseUrl } from '@/lib/publicUrl';
 import * as shapes from '@/data/realShapes';
 import { conformToShape } from '@/lib/shape';
 
@@ -43,9 +44,13 @@ export function GET(request: NextRequest) {
     stateData: { abbreviation_index: { OR: { name: 'Oregon', aliases: [], zips: ['97475'] } } },
   }) as Record<string, unknown>;
 
-  const organizations = fakeDirectoryOrganizations(url.origin, `${mountPrefix()}/`).map((org) =>
-    conformToShape(shapes.helpOrganization, org),
-  );
+  // The client's origin, not `url.origin`: in CI this server is a container on
+  // 3000 published as 4000, and a `loginUrl` built from the inside address is a
+  // portal the client that just read the directory cannot reach.
+  const organizations = fakeDirectoryOrganizations(
+    publicBaseUrl(request),
+    `${mountPrefix()}/`,
+  ).map((org) => conformToShape(shapes.helpOrganization, org));
 
   return NextResponse.json(includeOrganizations ? { ...base, organizations } : base, {
     headers: { 'Cache-Control': 'max-age=14400, stale-while-revalidate=28800' },
