@@ -6,6 +6,7 @@
  * autocomplete-style picker without dumping 1300+ entries into a flat dropdown.
  */
 
+import type { MyChartInstanceSeed } from '../../scrapers/list-all-mycharts/directory';
 import rawInstances from '../../scrapers/list-all-mycharts/mychart-instances.json';
 
 export interface Instance {
@@ -13,7 +14,7 @@ export interface Instance {
   name: string;
   /** MyChart login URL */
   url: string;
-  /** S3 logo URL (or empty string if unavailable) */
+  /** Epic-hosted logo URL, always set (Epic's generic logo when unbranded) */
   logoUrl: string;
   /** Cached hostname extracted from the URL */
   hostname: string;
@@ -48,17 +49,13 @@ const FAKE_MYCHART_TEST: Instance = {
   hostname: 'fake-mychart.fanpierlabs.com',
 };
 
-const realInstances: Instance[] = (rawInstances as Array<{ name: string; url: string; logoS3Url?: string; logoUrl?: string }>).map(raw => {
+const realInstances: Instance[] = (rawInstances as MyChartInstanceSeed[]).map(raw => {
   let hostname = '';
   try { hostname = new URL(raw.url).hostname.toLowerCase(); } catch { /* keep empty */ }
   return {
     name: raw.name,
     url: raw.url,
-    // Prefer the public Epic-hosted logo (ichart2.epic.com). The S3 mirror
-    // (logoS3Url) lives in a PRIVATE bucket — it 403s without AWS creds, which
-    // the MCPB has none of (it runs on the user's machine), so it can't be
-    // used directly in the widget.
-    logoUrl: raw.logoUrl || raw.logoS3Url || '',
+    logoUrl: raw.logoUrl,
     hostname,
   };
 }).filter(i => i.hostname);

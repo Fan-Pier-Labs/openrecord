@@ -31,7 +31,9 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 # ── Not product code ─────────────────────────────────────────────────────────
 #
 #   mock_data/         — test fixtures
-#   list-all-mycharts/ — dev diagnostics (the directory probe), never shipped
+#   list-all-mycharts/*.ts (the two scripts only) — run-it-yourself diagnostics
+#                        and the seed refresher. `directory.ts` beside them is
+#                        NOT ignored: it ships in the app and the extension.
 #   fake-mychart/      — the stand-in MyChart server. Its fidelity is proven by
 #                        the suites that run against it, not by covering its own
 #                        source.
@@ -82,7 +84,8 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 # `--action` dispatch grew tests of its own.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
-  "scrapers/list-all-mycharts/**",
+  "scrapers/list-all-mycharts/probe-mount-discovery.ts",
+  "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
   "fake-mychart/**",
   "**/__tests__/**",
   "**/dist/**",
