@@ -8,6 +8,32 @@ The demo shares **no code** with the scraper core. It imports nothing from `shar
 scraper, and no parity test covers it — it ships as a static Vite bundle with a fictional record
 behind it. That independence is deliberate, and the price of it is drift.
 
+## Not on the homepage yet
+
+**The splash does not link to the demo, and must not until the demo is golden.** `/demo.html`
+deploys with every push but is unadvertised, so today it is reached only by someone sharing the
+URL. That is a deliberate hold, not a missing call-to-action — don't "fix" it.
+
+The reason is that the homepage is a one-shot audience. A visitor who asks a reasonable question
+and gets a wrong or empty answer doesn't file a bug; they leave, and they conclude the *product*
+is bad rather than the demo unfinished. Shared by URL, the demo goes to people who already have
+context and will say so when something breaks.
+
+Golden means, at least:
+
+- **Every suggested prompt lands, every time.** They are the path most visitors take. Run all of
+  them, more than once — replies are real model calls, so a prompt that works four times in five
+  is not done.
+- **Off-script questions degrade honestly.** Ask about something the fictional record doesn't
+  cover and the answer says so rather than inventing it.
+- **Write tools do what they claim**, and the result is visible from the other surface — the
+  cross-client handoff is the thing most worth showing.
+- **"Model unreachable" is rare.** It is the correct failure, but a first-time visitor shouldn't
+  meet it.
+- **It holds up on a phone**, since a shared link is opened on one more often than not.
+
+Adding the link is a one-line change to `index.html`. Everything above it is the work.
+
 ## The rule
 
 A demo divergence is fine when it is a **simplification the visitor cannot read as a product
