@@ -50,6 +50,8 @@ const TRY_PROMPTS = [
   'Find an appointment slot with Dr. Hibbert and book it.',
   'Draft a message asking billing for an itemized statement.',
   'Add my daughter Lisa as an emergency contact at (555) 636-7666.',
+  "Switch to my son Bart's record and tell me what he's due for.",
+  'Open the letter from my annual physical and read it to me.',
 ];
 
 export function App() {

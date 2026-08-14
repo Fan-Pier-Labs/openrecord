@@ -23,9 +23,10 @@ dist/           build output — gitignored, produced by deploy.sh
 ## The splash (`index.html`)
 
 - **Presentational only** — hero, feature grid, privacy section, 3-step timeline, CTA, footer.
-- **Does not link to the demo.** `/demo.html` ships with every deploy but is unadvertised, so
-  it is reached by sharing the URL directly. Adding a CTA here is a product decision, not a
-  missing link — see `docs/infrastructure.md`.
+- **Does not link to the demo, and must not until the demo is golden.** `/demo.html` ships with
+  every deploy but is unadvertised, so it is reached by sharing the URL directly. Adding a CTA
+  here is a product decision on a hold that is deliberate, not a missing link — the bar it has
+  to clear first is in [`docs/demo.md`](../docs/demo.md).
 - **Waitlist form** posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
   and logs to CloudWatch). Endpoint: `https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`,
   payload `{ site: "openrecord", name, email }`. A hidden `company` honeypot drops bots client-side.
@@ -73,13 +74,20 @@ shows up in the desktop chat.
 React 19 + TypeScript, built with Vite. Everything is `strict`, and `bun run typecheck`
 is part of `build`, so the demo cannot ship with a type error.
 
+The demo shares no code with the scraper core, so how closely it has to track the real product
+is a judgement call. [`docs/demo.md`](../docs/demo.md) draws that line: which divergences are
+accepted simplifications, and which are drift to fix. The tool surface itself is no longer a
+judgement call — `shared/__tests__/capability-parity.unit.test.ts` holds it to the registry.
+
 ### Logic (framework-free, fully unit-tested)
 
 | File | What it is |
 | --- | --- |
-| `src/data.ts` | The fictional record. Ported from `web/src/lib/mcp/demo-data.ts` and extended with lab trends and a longer billing ledger. |
+| `src/data.ts` | The account holder's fictional record. Ported from `web/src/lib/mcp/demo-data.ts` and extended with lab trends and a longer billing ledger. |
+| `src/bartRecord.ts` | The second chart the account reaches by proxy access — a different patient, not a relabelled copy. |
+| `src/patients.ts` | The patient roster the proxy tools list and switch between. |
 | `src/types.ts` | Shared types for the record, the tool layer, and the agent loop. |
-| `src/tools.ts` | All 46 MyChart tools over that record. Write tools genuinely mutate session state. |
+| `src/tools.ts` | Every MyChart tool in `shared/capabilities.ts`, plus the extension's account-setup tools, over those records. Write tools genuinely mutate session state, and reads assert which patient they are about. Coverage is enforced by `shared/__tests__/capability-parity.unit.test.ts`. |
 | `src/agent.ts` | The agent loop — a faithful port of `expo-app/src/lib/ai/claude-client.ts`, including the JSON tool-call protocol, read batching, and exclusive write tools. |
 | `src/stream.ts` | Reveals a finished reply at the pace a model would have produced it. |
 | `src/skills.ts` | The three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards. |

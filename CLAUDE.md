@@ -134,7 +134,7 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   by `expo-app/src/__tests__/testids.unit.test.ts`.
 - `gh pr edit` fails on a GitHub Projects Classic deprecation error. Update PRs with the API instead:
   ```bash
-  gh api repos/Fan-Pier-Labs/ryans-health-app/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
+  gh api repos/Fan-Pier-Labs/openrecord/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
   ```
   `gh pr create` works normally.
 

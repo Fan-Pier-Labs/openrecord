@@ -319,14 +319,14 @@ describe('login response classification', () => {
         body: `<html><body><div data-controller="secondaryvalidationcontroller">
           <input name="__RequestVerificationToken" value="2fa_token_123" />
           <button>Text to my phone</button>
-          <p>We've sent a security code to ***-***-7204.</p>
+          <p>We've sent a security code to ***-***-1234.</p>
         </div></body></html>`,
       },
     })
     const result = await myChartUserPassLogin({ hostname: HOST, user: 'u', pass: 'p' })
     expect(result.state).toBe('need_2fa')
     expect(result.twoFaDelivery?.method).toBe('sms')
-    expect(result.twoFaDelivery?.contact).toBe('***-***-7204')
+    expect(result.twoFaDelivery?.contact).toBe('***-***-1234')
   })
 
   it('errors when the 2FA page has no CSRF token to continue with', async () => {

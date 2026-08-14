@@ -48,7 +48,7 @@ MyChart has TWO separate timeout mechanisms:
 
 For our scraper: only the server-side keepalive matters. The client-side timer is browser JS only. Fixed in PR #59 — sessionStore now calls both `/Home/KeepAlive` and `/keepalive.asp` every 30s.
 
-The globalThis singleton pattern is required for the sessionStore in Next.js — each API route is bundled separately, so module-level singletons create separate instances. See `scrapers/myChart/core/sessionStore.ts`.
+The sessionStore's globalThis singleton (`scrapers/myChart/core/sessionStore.ts`) was added for the removed `web/` Next.js app; no Next.js code imports it anymore, so a plain module-level singleton would suffice.
 
 ## Playwright Virtual Authenticator for Passkey Login
 
@@ -120,6 +120,20 @@ report/scout frames commonly use -512 and lung windows sit near -600.
 - Removed 2026-08: `web/` (Next.js app) and `openclaw-plugin/`
 - Tests: `bun run test` (all unit suites from repo root)
 - Node 25 + ESLint crashes (SIGABRT) — pre-existing issue, not refactor-related
+
+## Deliberate Non-Simplifications (decided 2026-08-13, don't re-flag in audits)
+
+- **Splash demo tool surface intentionally diverges from the capability registry**
+  (invented demo-only tools, its own naming, `instance:` param). Ryan is OK with
+  the demo being different; it stays out of the parity test.
+- **The AMF3 implementations stay separate**: `eunity/amf3Reader.ts` (strict) vs
+  the lenient reader in `clo_to_bitmap.ts` have deliberately different failure
+  semantics (see their headers), and `fake-mychart/src/lib/amf3.ts` can't import
+  from `scrapers/` because fake-mychart's Docker build context is that directory
+  only.
+- **fake-mychart's knob modules (`mount`/`proxy`/`terms`/`epicVersion`) stay
+  separate files** — they're mostly documentation of observed real-instance
+  behavior; a generic knob factory would scatter it.
 
 ## TypeScript 6 Migration Gotchas (2026-08-12)
 
