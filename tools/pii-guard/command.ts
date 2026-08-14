@@ -34,20 +34,42 @@ const GH_API_BODY = /\bgh\s+api\b[\s\S]*?-f\s*(?:body|title)=/;
 const COMMIT_ALL = /\bcommit\b[^\n]*?(?:\s-[a-zA-Z]*a[a-zA-Z]*\b|\s--all\b)/;
 const BYPASS = /--no-verify\b|\bPII_GUARD_SKIP\b|\bgit\s+commit\b[^\n]*\s-[a-zA-Z]*n[a-zA-Z]*\b/;
 
-export function planForCommand(command: string): CommandPlan | null {
-  const bypass = BYPASS.test(command);
+/**
+ * The command with its payloads removed: heredoc bodies and quoted strings
+ * replaced by placeholders, leaving the words the shell will actually execute.
+ *
+ * Detection runs on this rather than on the raw string, because otherwise
+ * `gh pr create` with a body that happens to MENTION `--no-verify` reads as an
+ * attempt to use it. That is not hypothetical — this pull request's own
+ * description explains the bypass, and the first attempt to open it was denied
+ * by this very rule.
+ *
+ * Content is still scanned in full; only the question "what is this command
+ * doing" is asked of the skeleton.
+ */
+export function shellSkeleton(command: string): string {
+  return command
+    // `<<EOF … EOF` and `<<'EOF' … EOF`, up to the terminator on its own line.
+    .replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, ' <<HEREDOC ')
+    .replace(/'[^']*'/g, " '' ")
+    .replace(/"(?:[^"\\]|\\.)*"/g, ' "" ');
+}
 
-  if (COMMIT.test(command)) {
-    const diffs: DiffSource[] = COMMIT_ALL.test(command) ? ['staged', 'worktree'] : ['staged'];
+export function planForCommand(command: string): CommandPlan | null {
+  const skeleton = shellSkeleton(command);
+  const bypass = BYPASS.test(skeleton);
+
+  if (COMMIT.test(skeleton)) {
+    const diffs: DiffSource[] = COMMIT_ALL.test(skeleton) ? ['staged', 'worktree'] : ['staged'];
     return { subject: 'this commit', diffs, scanCommandText: true, bypass };
   }
-  if (PR_CREATE.test(command)) {
+  if (PR_CREATE.test(skeleton)) {
     return { subject: 'this pull request', diffs: ['branch'], scanCommandText: true, bypass };
   }
-  if (PUSH.test(command)) {
+  if (PUSH.test(skeleton)) {
     return { subject: 'the commits being pushed', diffs: ['branch'], scanCommandText: true, bypass };
   }
-  if (GH_WRITE.test(command) || GH_API_BODY.test(command)) {
+  if (GH_WRITE.test(skeleton) || GH_API_BODY.test(skeleton)) {
     return { subject: 'this GitHub comment or edit', diffs: [], scanCommandText: true, bypass };
   }
   return null;

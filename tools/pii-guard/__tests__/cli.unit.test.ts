@@ -230,6 +230,23 @@ describe('planForCommand', () => {
     expect(planForCommand('PII_GUARD_SKIP=1 git commit -m "x"')?.bypass).toBe(true);
     expect(planForCommand('git commit -m "x"')?.bypass).toBe(false);
   });
+
+  it('tells an actual bypass flag apart from prose that mentions one', () => {
+    // A commit message or a PR body is allowed to talk about --no-verify; only
+    // the shell's own words count. This PR's description is the reason the
+    // distinction exists.
+    expect(planForCommand('git commit -m "document the --no-verify escape hatch"')?.bypass).toBe(false);
+    expect(planForCommand("git commit -m 'PII_GUARD_SKIP is for humans'")?.bypass).toBe(false);
+    expect(planForCommand('gh pr create --body-file - <<BODY\nexplains --no-verify\nBODY')?.bypass).toBe(false);
+  });
+
+  it('reads the command through its payloads, not around them', () => {
+    // A heredoc body that quotes a git command is data, not a command.
+    expect(planForCommand('cat <<EOF\ngit commit -m x\nEOF')).toBeNull();
+    // …but the command carrying it is still classified.
+    expect(planForCommand('gh pr create --body-file - <<EOF\nhello\nEOF')?.subject)
+      .toBe('this pull request');
+  });
 });
 
 describe('the Claude Code hook', () => {
