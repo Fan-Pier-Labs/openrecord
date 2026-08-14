@@ -41,6 +41,10 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // `parseInt(s)` reads as "parse a decimal number", but the radix comes
+      // from the string: "0x10" is 16, not 0. Every call says which base it
+      // meant.
+      "radix": "error",
       // A `.map`/`.filter`/`.reduce` callback that falls off its end yields
       // `undefined` for that element and the array quietly fills with holes —
       // a callback run only for its side effects belongs in `.forEach`.
@@ -141,6 +145,11 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // Spreading a Map, Set, class instance, function or array into an object
+      // produces something other than what it reads as — indices for an array,
+      // an empty object for a Map. Caught the header merge in scraperFetch,
+      // the single point every outbound request in the product passes through.
+      "@typescript-eslint/no-misused-spread": "error",
       // A promise executor's return value is discarded, so `new Promise(r =>
       // setTimeout(r, ms))` quietly throws away a timer handle — and the same
       // shorthand around an async call throws away the promise, leaving the
