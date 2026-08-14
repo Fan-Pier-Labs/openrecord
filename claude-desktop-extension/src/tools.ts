@@ -61,6 +61,7 @@ import {
   accountId,
   lookupAccount,
   readAccounts,
+  passkeyBackend,
   readAccountPasskey,
   removeAccount,
   upsertAccount,
@@ -308,7 +309,14 @@ export function registerAllTools(server: McpServer): void {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ count: accounts.length, accounts: accountList }, null, 2),
+            // passkeyStorage says whether passkeys reached the OS keystore or
+            // fell back to a plaintext file — otherwise a locked keychain
+            // downgrades storage silently and nobody ever finds out.
+            text: JSON.stringify(
+              { count: accounts.length, passkeyStorage: passkeyBackend(), accounts: accountList },
+              null,
+              2,
+            ),
           },
         ],
       };

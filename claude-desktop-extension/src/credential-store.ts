@@ -1,10 +1,18 @@
 /**
- * Disk-backed credential storage for the OpenRecord MCPB.
+ * Credential storage for the OpenRecord MCPB.
  *
- * All files live under ~/.openrecord-mcpb/:
+ * Passkeys go to the OS keystore — the macOS Keychain, the Windows Credential
+ * Manager, or the Secret Service on Linux — via `secret-store.ts`, which falls
+ * back to the file below wherever no keystore answers. Everything else is a
+ * file under ~/.openrecord-mcpb/:
  *   accounts.json                          — { accounts: [{ hostname, username, password, totpSecret? }] }
- *   passkeys/<hostname>/<username>.json    — { passkey: "<serialized credential JSON>" }
+ *   passkeys/<hostname>/<username>.json    — { passkey: "<serialized credential JSON>" }, keystore fallback only
  *   sessions/<hostname>/<username>.json    — serialized MyChartRequest cookie state
+ *
+ * The passkey gets the keystore because it is the one secret that is a login on
+ * its own: a raw P-256 private key that skips both the password and 2FA. The
+ * password and TOTP secret in accounts.json deserve the same treatment and do
+ * not have it yet.
  *
  * Everything is keyed by (hostname, username), never by hostname alone: a
  * household shares a computer, so one hostname routinely carries several
@@ -21,6 +29,8 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
+import { clearSecret, readSecret, writeSecret, activeBackend, type FileSlot } from './secret-store';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
@@ -166,24 +176,59 @@ function passkeyPath(hostname: string, username: string): string {
   return path.join(PASSKEYS_DIR, normalizeHostname(hostname), `${usernameKey(username)}.json`);
 }
 
+/**
+ * The keystore item name. Human-readable on purpose: this is what shows up in
+ * Keychain Access and in the Windows Credential Manager, and a user auditing
+ * what OpenRecord stored should be able to tell whose passkey each item is.
+ *
+ * Same (hostname, username) normalisation as the file layout, so the two agree
+ * on identity and migration lands on the right item.
+ */
+function passkeyKey(hostname: string, username: string): string {
+  return `passkey:${normalizeHostname(hostname)}:${usernameKey(username)}`;
+}
+
+/**
+ * The pre-keystore plaintext file for one passkey. Still the fallback when no
+ * keystore answers, and still read once on migration, so its shape is frozen.
+ */
+function passkeySlot(hostname: string, username: string): FileSlot {
+  const p = passkeyPath(hostname, username);
+  return {
+    read() {
+      try {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        return data?.passkey || undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    write(secret: string) {
+      ensureDir(path.dirname(p));
+      fs.writeFileSync(p, JSON.stringify({ passkey: secret }, null, 2));
+      try { fs.chmodSync(p, 0o600); } catch { /* best effort */ }
+    },
+    clear() {
+      try { fs.unlinkSync(p); } catch { /* ignore */ }
+    },
+  };
+}
+
 export function readAccountPasskey(hostname: string, username: string): string | undefined {
-  try {
-    const data = JSON.parse(fs.readFileSync(passkeyPath(hostname, username), 'utf-8'));
-    return data?.passkey || undefined;
-  } catch {
-    return undefined;
-  }
+  return readSecret(passkeyKey(hostname, username), passkeySlot(hostname, username));
 }
 
 export function saveAccountPasskey(hostname: string, username: string, serialized: string): void {
-  const p = passkeyPath(hostname, username);
-  ensureDir(path.dirname(p));
-  fs.writeFileSync(p, JSON.stringify({ passkey: serialized }, null, 2));
-  try { fs.chmodSync(p, 0o600); } catch { /* best effort */ }
+  writeSecret(passkeyKey(hostname, username), serialized, passkeySlot(hostname, username));
 }
 
 export function clearAccountPasskey(hostname: string, username: string): void {
-  try { fs.unlinkSync(passkeyPath(hostname, username)); } catch { /* ignore */ }
+  clearSecret(passkeyKey(hostname, username), passkeySlot(hostname, username));
+}
+
+/** Where passkeys are actually being stored, for `list_accounts` diagnostics. */
+export function passkeyBackend(): string {
+  return activeBackend();
 }
 
 // ── Sessions (serialized MyChartRequest cookie state) ───────────────────────

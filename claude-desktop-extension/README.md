@@ -102,17 +102,35 @@ different family member's record than the one the call is about.
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation
   support. Claude Desktop ships its own Node runtime; no Node install needed
   on the user's machine.
-- **Pure JS** — no `sharp`, no `keytar`, no `sqlite3`. CLO → JPEG imaging
+- **Pure JS, with one exception** — no `sharp`, no `sqlite3`. CLO → JPEG imaging
   conversion calls the shared pure-JS exporter (`convertCloToJpgPureJs` in
   `scrapers/myChart/clo-image-parser/exporters/`), which is
   [`jpeg-js`](https://www.npmjs.com/package/jpeg-js) end to end and is the same
-  code path the mobile app uses.
-- **Local storage** — credentials and sessions live at `~/.openrecord-mcpb/`,
-  keyed by (hostname, username) so several logins on one hostname never share
-  or overwrite each other's identity:
+  code path the mobile app uses. The exception is
+  [`@napi-rs/keyring`](https://www.npmjs.com/package/@napi-rs/keyring), the
+  native binding used to reach the OS credential store — see below.
+- **Passkeys live in the OS keystore** — the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux, under service `openrecord-mcpb` with
+  one item per identity (`passkey:<hostname>:<username>`). A passkey is a raw
+  P-256 private key that logs in with neither password nor 2FA, so it is the one
+  secret worth keeping out of a file that rides along into backups. If the
+  keystore is unavailable the store falls back to the 0600 file below and says
+  so in `list_accounts`'s `passkeyStorage` field. `OPENRECORD_SECRET_BACKEND`
+  overrides the choice: `file` to opt out, `os` to fail rather than fall back.
+- **Everything else is local files** at `~/.openrecord-mcpb/`, keyed by
+  (hostname, username) so several logins on one hostname never share or
+  overwrite each other's identity:
   - `accounts.json` — username/password rows (file mode 0600)
-  - `passkeys/<hostname>/<username>.json` — WebAuthn credentials
+  - `passkeys/<hostname>/<username>.json` — keystore fallback only; a file left
+    here by an older version is migrated into the keystore on first read
   - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast resume
+- **Not a single-file bundle any more** — a `.node` binary cannot be inlined
+  into a CJS file, so `dist/server.cjs` ships alongside
+  `node_modules/@napi-rs/`. `bun run pack` force-installs all four platform
+  binaries (macOS arm64/x64, Windows x64/arm64) and refuses to pack if any is
+  missing, because a missing binary means plaintext passkeys on that platform
+  with no other symptom. Linux is not bundled — Claude Desktop has no Linux
+  build, and the fallback covers it.
 
 ## File layout
 
@@ -120,14 +138,17 @@ different family member's record than the one the call is about.
 claude-desktop-extension/
 ├── manifest.json           # MCPB manifest (see https://github.com/modelcontextprotocol/mcpb)
 ├── package.json
-├── tsup.config.ts          # single-file CJS bundle for Claude Desktop's Node
+├── tsup.config.ts          # CJS bundle for Claude Desktop's Node (@napi-rs/keyring stays external)
 ├── icon.png                # 256×256 extension icon
+├── scripts/
+│   └── fetch-native-binaries.mjs  # pulls every platform's keyring binary before packing
 └── src/
     ├── index.ts            # stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
+    ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
     ├── instances.ts        # picker data (sourced from scrapers/list-all-mycharts/)
     └── imaging/            # MCPB glue around the shared pure-JS CLO → JPEG exporter
 ```
