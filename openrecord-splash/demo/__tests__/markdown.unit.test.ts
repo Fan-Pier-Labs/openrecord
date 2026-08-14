@@ -14,26 +14,30 @@ import { parseInline, parseMarkdown, type Block, type InlineSpan } from '../src/
 /** Flatten a parsed document back to the text a reader would see. */
 function textOf(blocks: Block[]): string {
   const spanText = (spans: InlineSpan[]) => spans.map((s) => s.text).join('');
-  return blocks
-    .map((b) => {
-      switch (b.kind) {
-        case 'heading':
-          return spanText(b.spans);
-        case 'list':
-          return b.items.map(spanText).join('\n');
-        case 'quote':
-        case 'paragraph':
-          return b.lines.map(spanText).join('\n');
-        case 'image':
-          return `[image:${b.name}]`;
-      }
-      // Unreachable while the switch names every `Block` kind — which
-      // switch-exhaustiveness-check enforces, since there is no `default`. It
-      // is here so every path of the callback produces a string: a fall-through
-      // would put `undefined` in the joined text and read as a parse bug.
-      throw new Error(`textOf: unhandled block ${JSON.stringify(b)}`);
-    })
-    .join('\n');
+  // Named rather than written inline below, because the two checks pull opposite
+  // ways on a `map` callback: `array-callback-return` wants it to end in a
+  // `return`, and the exhaustive switch makes anything after the switch
+  // unreachable, which `allowUnreachableCode: false` rejects. A function whose
+  // whole body is the switch satisfies both.
+  const blockText = (b: Block): string => {
+    switch (b.kind) {
+      case 'heading':
+        return spanText(b.spans);
+      case 'list':
+        return b.items.map(spanText).join('\n');
+      case 'quote':
+      case 'paragraph':
+        return b.lines.map(spanText).join('\n');
+      case 'image':
+        return `[image:${b.name}]`;
+    }
+    // Nothing after the switch, deliberately: it names every `Block` kind, so
+    // the end here is unreachable. Add a kind without a case and the end becomes
+    // reachable, which `noImplicitReturns` fails — the same protection against
+    // `undefined` leaking into the joined text, at compile time rather than at
+    // runtime.
+  };
+  return blocks.map(blockText).join('\n');
 }
 
 describe('markup in model output stays text', () => {
