@@ -320,7 +320,7 @@ Available methods on `window.VIEWER`:
 ## Code Files
 
 - `src/main/scrapers/myChart/eunity/imagingViewer.ts` — SAML chain following (`followSamlChain()`), FDI context extraction, FdiData API. Uses `globalThis.fetch` (undici) to pass TLS fingerprinting at `redirect.example.org`.
-- `src/main/scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol. Contains `AMF3Writer` class, `buildAmfCall()`, `initializeAmfSession()`, `downloadImage()`, `downloadImagingDirect()`.
+- `src/main/scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol. Contains `AMF3Writer` class, `buildAmfCall()`, `initializeAmfSession()`, `downloadImage()`, `downloadImagingStudyDirect()`.
 - `src/main/scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (working, uses dblclick for export)
 - `src/main/scrapers/myChart/labs_and_procedure_results/labResults.ts` — `getImagingResults()` function
 - `test_amf_capture.ts` — AMF protocol probing script (12 member name patterns tested)
