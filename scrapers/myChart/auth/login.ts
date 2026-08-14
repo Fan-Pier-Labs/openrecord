@@ -481,7 +481,7 @@ export async function determineFirstPathPart(mychartRequest: MyChartRequest): Pr
 
 export type TwoFaDeliveryInfo = {
   method: 'email' | 'sms';
-  contact?: string; // masked contact, e.g. "***-***-7204" or "ry***@gmail.com"
+  contact?: string; // masked contact, e.g. "***-***-1234" or "ab***@example.com"
 }
 
 export type LoginResult = {
@@ -496,8 +496,8 @@ export type LoginResult = {
 }
 
 /**
- * Masked contacts as MyChart prints them on the 2FA page — "ry***@gmail.com",
- * "***-***-7204". Both are rewrites of patterns whose adjacent quantifiers
+ * Masked contacts as MyChart prints them on the 2FA page — a masked address
+ * and a masked number. Both are rewrites of patterns whose adjacent quantifiers
  * could each claim the same `*`, so a long run of mask characters with no `@`
  * or trailing digits — easy to plant in scraped portal HTML — got divided
  * between them every possible way: 800 stars took 25s, on the login path. Each
