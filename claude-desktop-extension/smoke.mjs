@@ -311,16 +311,37 @@ async function main() {
       `payload keys: ${payload ? Object.keys(payload).join(', ') : 'unparseable'}`,
     );
 
-    // The native module, proven from the packed layout. secret-store.ts
-    // swallows a load failure and stores credentials in plaintext files
-    // instead, so "the server started" says nothing about whether the OS
-    // keystore is reachable — this field is the only outward difference
-    // between a working extension and one quietly downgraded to plaintext.
+    // The native module, proven from the packed layout. This needs two checks
+    // because "the module resolved" and "a keystore answered" are different
+    // facts, and only the first is true everywhere.
+    //
+    // secret-store.ts catches a load failure and stores credentials in
+    // plaintext files instead, by design — so a .mcpb packed without the
+    // binary boots, answers, and passes every other check in this file. The
+    // load failure is announced on stderr and nowhere else.
     check(
-      'reaches the OS keystore, not the plaintext fallback',
-      payload?.secretStorage != null && payload.secretStorage !== 'file',
-      `secretStorage = ${JSON.stringify(payload?.secretStorage)} — @napi-rs/keyring did not load from the staged layout`,
+      '@napi-rs/keyring resolves from the staged layout',
+      !client.stderr.includes('could not be loaded'),
+      'the packed layout is missing the native module — credentials would silently go to plaintext files',
     );
+
+    // Whether a keystore actually answers is environmental. CI runs this on a
+    // headless ubuntu-latest with no Secret Service daemon, where falling back
+    // is correct behaviour, not a regression. So only assert it where a
+    // keystore is always present — which is also where it is worth asserting,
+    // since those are the platforms Claude Desktop ships on.
+    const keystoreExpected = process.platform === 'darwin' || process.platform === 'win32';
+    if (keystoreExpected) {
+      check(
+        'reaches the OS keystore, not the plaintext fallback',
+        payload?.secretStorage != null && payload.secretStorage !== 'file',
+        `secretStorage = ${JSON.stringify(payload?.secretStorage)}`,
+      );
+    } else {
+      process.stdout.write(
+        `  skip ${'reaches the OS keystore'} — no keystore expected on ${process.platform}\n`,
+      );
+    }
 
     // 4. Framing. Checked last so it covers every exchange above.
     check(
