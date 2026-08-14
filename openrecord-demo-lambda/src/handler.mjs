@@ -267,8 +267,12 @@ export function extractText(geminiResponse) {
 async function authenticate(event) {
   const header =
     event?.headers?.authorization ?? event?.headers?.Authorization ?? '';
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  if (!match) return null;
+  // Plain string work, not a regex: this header is attacker-supplied and is
+  // read before anything else about the request is checked.
+  const trimmed = header.trim();
+  if (trimmed.slice(0, 7).toLowerCase() !== 'bearer ') return null;
+  const token = trimmed.slice(7).trim();
+  if (!token) return null;
   const err401 = (message) => {
     const err = new Error(message);
     err.statusCode = 401;
@@ -277,7 +281,7 @@ async function authenticate(event) {
   const clientIds = googleClientIds();
   if (clientIds.size === 0) throw err401('Sign-in is not configured on the server.');
   try {
-    return await verifyGoogleIdToken(match[1], clientIds);
+    return await verifyGoogleIdToken(token, clientIds);
   } catch {
     // Uniform message on purpose — the caller's fix is the same either way
     // (refresh the token and retry), and detail only helps a forger.
