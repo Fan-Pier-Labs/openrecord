@@ -138,11 +138,21 @@ different family member's record than the one the call is about.
     silent-login ladder just re-mints them
 - **Not a single-file bundle any more** — a `.node` binary cannot be inlined
   into a CJS file, so `dist/server.cjs` ships alongside
-  `node_modules/@napi-rs/`. `bun run pack` force-installs all four platform
-  binaries (macOS arm64/x64, Windows x64/arm64) and refuses to pack if any is
-  missing, because a missing binary means plaintext passkeys on that platform
-  with no other symptom. Linux is not bundled — Claude Desktop has no Linux
-  build, and the fallback covers it.
+  `node_modules/@napi-rs/`.
+
+  `@napi-rs/keyring` is a normal `dependencies` entry. Its *binaries* are
+  twelve separate packages it lists in its own `optionalDependencies`, gated on
+  `os`/`cpu` — the standard way prebuilt-binary packages ship (esbuild has 26,
+  rollup 27). A normal `bun install` resolves just the slice matching your
+  machine, which is what you want day to day.
+
+  Packing needs four at once, so `bun run pack` runs
+  `bun install --os='*' --cpu='*'` first. That resolves *every* slice including
+  ~9 MB of Linux and FreeBSD builds, so `.mcpbignore` names the four that ship
+  (macOS arm64/x64, Windows x64/arm64) and `scripts/verify-native-binaries.mjs`
+  refuses to pack if one is missing — a missing binary means plaintext
+  credentials on that platform with no other symptom. Linux is not bundled:
+  Claude Desktop has no Linux build, and the fallback covers it.
 
 ## File layout
 

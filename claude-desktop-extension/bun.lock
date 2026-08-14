@@ -23,12 +23,6 @@
         "tsup": "^8.5.1",
         "typescript": "^6.0.3",
       },
-      "optionalDependencies": {
-        "@napi-rs/keyring-darwin-arm64": "^1.3.0",
-        "@napi-rs/keyring-darwin-x64": "^1.3.0",
-        "@napi-rs/keyring-win32-arm64-msvc": "^1.3.0",
-        "@napi-rs/keyring-win32-x64-msvc": "^1.3.0",
-      },
     },
   },
   "packages": {

@@ -4,6 +4,9 @@ tsconfig.json
 tsup.config.ts
 .gitignore
 
+# Build tooling — runs before `mcpb pack`, has no business inside the artifact
+scripts/
+
 # Dev deps — Claude Desktop ships its own Node runtime and tsup bundles our JS
 # into dist/server.cjs, so nothing here is needed at runtime EXCEPT the one
 # native dependency. A .node binary cannot be inlined into a CJS bundle, so
