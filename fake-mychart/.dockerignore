@@ -1,6 +1,0 @@
-node_modules
-.next
-# Tests have no business in a production image, and keeping them out means a
-# stray import reaching outside this package can never break the image build —
-# the Docker context is fake-mychart/ alone.
-src/**/__tests__
