@@ -140,21 +140,21 @@ describe('parse2faDeliveryMethods', () => {
   it('extracts masked phone number from page text', () => {
     const html = `<html><body>
       <button>Text to my phone</button>
-      <div>We've sent a security code to ***-***-7204.</div>
+      <div>We've sent a security code to ***-***-1234.</div>
     </body></html>`
     const result = parse2faDeliveryMethods(html)
     expect(result.hasSms).toBe(true)
-    expect(result.smsContact).toBe('***-***-7204')
+    expect(result.smsContact).toBe('***-***-1234')
   })
 
   it('extracts masked email from page text', () => {
     const html = `<html><body>
       <button>Email to me</button>
-      <div>Code sent to ry***@gmail.com</div>
+      <div>Code sent to ab***@example.com</div>
     </body></html>`
     const result = parse2faDeliveryMethods(html)
     expect(result.hasEmail).toBe(true)
-    expect(result.emailContact).toBe('ry***@gmail.com')
+    expect(result.emailContact).toBe('ab***@example.com')
   })
 
   it('handles case-insensitive button text', () => {
@@ -173,6 +173,23 @@ describe('parse2faDeliveryMethods', () => {
     </body></html>`
     const result = parse2faDeliveryMethods(html)
     expect(result.hasSms).toBe(true)
+  })
+
+  // A run of mask characters that never reaches an '@' or trailing digits used
+  // to make the masked-contact patterns backtrack super-linearly — 25s at 800
+  // characters, on the login path, off HTML a portal controls. The budget is
+  // loose on purpose: it catches a regression to super-linear, not jitter.
+  it('does not hang on a page full of mask characters', () => {
+    const html = `<html><body>
+      <button>Email to me</button>
+      <button>Text to my phone</button>
+      <div>${'*'.repeat(50_000)}</div>
+    </body></html>`
+    const started = performance.now()
+    const result = parse2faDeliveryMethods(html)
+    expect(performance.now() - started).toBeLessThan(2_000)
+    expect(result.emailContact).toBeUndefined()
+    expect(result.smsContact).toBeUndefined()
   })
 })
 

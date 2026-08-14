@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Database } from "bun:sqlite";
-import { SCHEMA_SQL } from "../schema";
+import { MAX_CACHED_LOGOS, PRUNE_LOGOS_SQL, SCHEMA_SQL } from "../schema";
 
 /**
  * `initDatabase` runs `SCHEMA_SQL` on every cold start, so it has to be
@@ -79,6 +79,32 @@ describe("SCHEMA_SQL", () => {
     for (const statement of creates) {
       expect(statement).toMatch(/CREATE TABLE IF NOT EXISTS/i);
     }
+  });
+
+  it("evicts the oldest logos and keeps the newest", () => {
+    const db = new Database(":memory:");
+    applySchema(db);
+
+    // Fetched in order, oldest first. Distinct timestamps, since the eviction
+    // orders on them.
+    const total = MAX_CACHED_LOGOS + 5;
+    for (let i = 0; i < total; i++) {
+      db.run(
+        "INSERT INTO mychart_logos (logo_url, data_uri, fetched_at) VALUES (?, 'data:,', ?)",
+        [`https://media.epic.com/${i}.png`, new Date(1_700_000_000_000 + i * 1000).toISOString()],
+      );
+    }
+
+    db.run(PRUNE_LOGOS_SQL, [MAX_CACHED_LOGOS]);
+
+    const kept = db
+      .query<{ logo_url: string }, []>("SELECT logo_url FROM mychart_logos")
+      .all()
+      .map((r) => r.logo_url);
+    expect(kept).toHaveLength(MAX_CACHED_LOGOS);
+    expect(kept).toContain(`https://media.epic.com/${total - 1}.png`);
+    expect(kept).not.toContain("https://media.epic.com/0.png");
+    db.close();
   });
 
   it("still declares the alerts columns the app reads", () => {

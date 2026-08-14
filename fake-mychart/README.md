@@ -1,6 +1,6 @@
 # Fake MyChart
 
-A standalone Next.js server that faithfully mimics Epic MyChart's web API surface. Pre-loaded with Homer Simpson fake data across 30+ medical data categories. All state lives in RAM — no database, no external dependencies.
+A standalone Next.js server that faithfully mimics Epic MyChart's web API surface. Pre-loaded with Homer Simpson fake data across 30+ medical data categories. All state lives in RAM — no database, no runtime services. Its only source dependency is the repo's `shared/` directory (the AMF3 writer and CLO wrapper encoder), which is why the Docker build context is the repo root rather than this directory — see `Dockerfile`.
 
 ## Why This Exists
 
@@ -406,8 +406,8 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
 | `/e/viewer` | GET | Viewer HTML; sets `JSESSIONID` cookie and embeds study params |
-| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built by `src/lib/amf3.ts`. |
-| `/e/CustomImageServlet` | POST | Returns CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) with real content types (`application/clowrapper` / `application/clopixel`). `CLOWRAPPER` is keyed per `(seriesUID, objectUID)` like a real server: multi-slice series answer a per-instance wrapper carrying that slice's `calibration.orientation.positionPatient` (synthesized at startup by `src/lib/cloWrapper.ts` from `slicePositions` in `src/data/homer.ts`), which is what lets clients sort slices into anatomical order. Other series share one pre-generated wrapper per series. |
+| `/e/AmfServicesServlet` | POST | AMF3 `getStudyListMeta` response in the structure observed on a real eUnity instance: `AmfServicesMessage → AmfServicesResponse → StudyListResponse` (externalizable) → `studyList` → `Study → Series → Image` typed objects, each `Series` carrying a `frameOfReferenceUID`. Required before `CustomImageServlet` returns image bytes. Built with the shared AMF3 writer (`shared/amf3Writer.ts`). |
+| `/e/CustomImageServlet` | POST | Returns CLO data (`requestType=CLOWRAPPER` or `CLOPIXEL`) with real content types (`application/clowrapper` / `application/clopixel`). `CLOWRAPPER` is keyed per `(seriesUID, objectUID)` like a real server: multi-slice series answer a per-instance wrapper carrying that slice's `calibration.orientation.positionPatient` (synthesized at startup by `src/lib/cloWrapper.ts` from `slicePositions` in `src/data/homer.ts`, encoded by the shared `shared/cloWrapper.ts`), which is what lets clients sort slices into anatomical order. Other series share one pre-generated wrapper per series. |
 
 The two imaging studies deliberately advertise their viewer differently, matching the two shapes seen on real instances: the X-ray's report HTML embeds `data-fdi-context`, while the CT result carries a structured `fdiLink.redirectUrl` (`/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`) and its report HTML has no fdi markup at all — the Mass General Brigham shape. Both scraper discovery paths stay covered.
 
@@ -418,7 +418,10 @@ Pre-generated CLO files for each Homer study live in `src/data/clo-images/`:
 - **X-ray skull** — `skull_ap_*.clo`, `skull_lateral_*.clo`
 - **CT head** — `checkerboard_512x512_*.clo`, `circle_512x512_*.clo`, `gradient_h_512x512_*.clo`, `gradient_v_512x512_*.clo`, `diagonal_510x510_*.clo` (one per series/instance)
 
-Each image is a wrapper + pixel pair. The encoder lives at `scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test patterns.
+Each image is a wrapper + pixel pair. The pixel encoder lives at
+`scrapers/myChart/clo-image-parser/generate_clo.ts` if you need to add more synthetic test
+patterns; the wrapper half is `shared/cloWrapper.ts`, the same encoder this server uses at runtime,
+so a committed fixture and a synthesized wrapper can't disagree about the format.
 
 The CT study's multi-slice series (`AXIAL`, `BONE RECON`) carry per-slice patient positions (`slicePositions` in `src/data/homer.ts`) — the AXIAL z values run *descending* against instance number on purpose, so anatomical order is the reverse of download order and a client that skips position sorting is observably wrong. `SCOUT` keeps a position-free wrapper, covering projection images.
 
@@ -442,6 +445,46 @@ study stays clean so both shapes are covered.
 ### Coverage in CI
 
 `claude-desktop-extension/src/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and npm-package included — against a live instance of this server.
+
+## The mychart.org Directory
+
+One surface in here is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
+every MyChart instance in the world. It lives on `mychart.org` rather than on an instance, and it is
+where every client's instance list comes from — so the fake serves it too, and the mobile app can
+point its first-boot refresh at localhost instead of Epic.
+
+- `?includeOrganizations=1` is required for the `organizations` key to appear at all, exactly as on
+  the real endpoint. Without it you get the country/state dictionaries and nothing else.
+- `loginUrl` points back at this server, in its current mount mode, so an entry can be picked out of
+  the directory and logged in to. It is built from the `Host` header, not from `request.url` — under
+  `docker-compose.ci.yaml` this server listens on 3000 and is published on 4000, and a login URL
+  naming the inside address is a portal the client that just read the directory cannot reach.
+- **Logos are served here too, so nothing reaches Epic.** A logo record is an `imageId` and a
+  `fileName`, never a URL — the client resolves it against a media base. This server mirrors both of
+  Epic's media paths and answers them with the checked-in placeholder images in
+  `src/data/directory-logos/`:
+
+  | Path | Stands in for |
+  | --- | --- |
+  | `/mychartdotorg/directus/<subArea>/<imageId>/<fileName>` | an organization's own logo |
+  | `/mychartdotorg/site/<locale>/images/login/default.png` | the generic logo |
+  | `/mychartdotorg/site/<locale>/images/login/custom/<name>.png` | the hand-placed logos (Mayo, Kaiser, …) |
+
+  Point a client at both halves and it never leaves this origin:
+
+  ```ts
+  fetchMyChartDirectory({
+    directoryUrl: `${base}/cached-api/help/organizations/?locale=en-us&includeOrganizations=1`,
+    mediaBase: `${base}/mychartdotorg`,
+  })
+  ```
+
+  An unknown image 404s rather than falling back to a placeholder — "this logo doesn't exist" is a
+  case every client has to handle, and a fake that always answers leaves it untested.
+
+  The two images are 240×88 PNGs (a cross and a wordmark bar on teal / grey), at roughly the aspect
+  ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
+  branding, and no hospital's trademark belongs in this repo.
 
 ## What's NOT Implemented
 

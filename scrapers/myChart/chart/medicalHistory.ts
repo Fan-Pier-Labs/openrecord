@@ -93,24 +93,24 @@ export async function getMedicalHistory(mychartRequest: MyChartRequest): Promise
 
   return {
     medicalHistory: {
-      diagnoses: (json.medicalHistory?.diagnoses || []).map((d: DiagnosisResponse) => ({
+      diagnoses: (json.medicalHistory?.diagnoses ?? []).map((d: DiagnosisResponse) => ({
         diagnosisName: d.diagnosisName || '',
         diagnosisDate: d.diagnosisDate || '',
       })),
       notes: json.medicalHistory?.medicalHistoryNotes || '',
     },
     surgicalHistory: {
-      surgeries: (json.surgicalHistory?.surgeries || []).map((s: SurgeryResponse) => ({
+      surgeries: (json.surgicalHistory?.surgeries ?? []).map((s: SurgeryResponse) => ({
         surgeryName: s.surgeryName || '',
         surgeryDate: s.surgeryDate || '',
       })),
       notes: json.surgicalHistory?.surgicalHistoryNotes || '',
     },
     familyHistory: {
-      familyMembers: (json.familyHistoryAndStatus?.familyMembers || []).map((m: FamilyMemberResponse) => ({
+      familyMembers: (json.familyHistoryAndStatus?.familyMembers ?? []).map((m: FamilyMemberResponse) => ({
         relationshipToPatientName: m.relationshipToPatientName || '',
         statusName: m.statusName || '',
-        conditions: (m.conditions || []).filter((c: string) => c?.trim()),
+        conditions: (m.conditions ?? []).filter((c: string) => c?.trim()),
       })),
     },
   };
