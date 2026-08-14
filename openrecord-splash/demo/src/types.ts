@@ -90,6 +90,166 @@ export type Insight = {
 
 export type SeedChat = { id: string; title: string; updatedAt: string };
 
+/* ── Patients ───────────────────────────────────────────────────────── */
+
+/** A rendered document as MyChart returns it — a clinical note, an AVS. */
+export type RenderedDocument = { contentHtml: string; contentCss: string };
+
+/**
+ * One patient's entire chart.
+ *
+ * MyChart's active patient is *server-side session state*: every data endpoint
+ * returns whichever record the portal is currently pointed at, and
+ * `switch_proxy_target` is the only thing that moves it. The demo models it the
+ * same way — one record per accessible patient, with `Session.activePatient`
+ * deciding which one every read resolves against. A switch that didn't change
+ * the answers would demo a lie.
+ *
+ * Closed on purpose, with no optional fields: a second patient cannot quietly
+ * answer fewer questions than the first. Every tool has a defined answer for
+ * every record, even when that answer is an empty list.
+ */
+export type PatientRecord = {
+  profile: {
+    name: string;
+    preferredName: string;
+    dateOfBirth: string;
+    sex: string;
+    mrn: string;
+    primaryCareProvider: string;
+    address: string;
+    phone: string;
+    email: string;
+  };
+  healthSummary: {
+    bloodType: string;
+    height: string;
+    weight: string;
+    bmi: string;
+    bloodPressure: string;
+    heartRate: string;
+    lastUpdated: string;
+  };
+  medications: Medication[];
+  allergies: { allergen: string; reaction: string; severity: string; type: string }[];
+  healthIssues: { condition: string; status: string; onsetDate: string; provider: string }[];
+  medicalHistory: {
+    pastConditions: { condition: string; year: string; status: string }[];
+    surgicalHistory: { procedure: string; year: string; provider: string }[];
+    familyHistory: { relation: string; conditions: string[] }[];
+  };
+  vitals: { date: string; measurements: { name: string; value: string; units: string }[] }[];
+  immunizations: { vaccine: string; date: string; site: string; provider: string }[];
+  careTeam: { name: string; role: string; specialty: string; phone: string }[];
+  emergencyContacts: EmergencyContact[];
+  goals: { goal: string; setBy: string; status: string; targetDate: string }[];
+  preventiveCare: { item: string; status: string; dueDate: string; lastCompleted: string }[];
+  labResults: LabPanel[];
+  imagingResults: {
+    study: string;
+    date: string;
+    orderedBy: string;
+    facility: string;
+    status: string;
+    hasImages: boolean;
+    seriesCount: number;
+    impression: string;
+  }[];
+  upcomingOrders: {
+    orderType: string;
+    testName: string;
+    orderedBy: string;
+    orderDate: string;
+    instructions: string;
+  }[];
+  upcomingVisits: Visit[];
+  pastVisits: {
+    csn: string;
+    type: string;
+    provider: string;
+    department: string;
+    date: string;
+    reason: string;
+    diagnoses: string[];
+  }[];
+  visitNotes: {
+    csn: string;
+    lrpId: string;
+    depPhoneNumber: string;
+    isAtLeastOneNoteSensitive: boolean;
+    notes: {
+      hnoId: string;
+      hnoDat: string;
+      displayName: string;
+      iso: string;
+      isAddendum: boolean;
+      isNoteSensitive: boolean;
+      providerName: string;
+      providerMagicId: string;
+    }[];
+  };
+  noteContentByHnoId: Record<string, RenderedDocument>;
+  visitAVS: RenderedDocument;
+  careJourneys: { name: string; status: string; startDate: string; provider: string; nextStep: string }[];
+  referrals: {
+    referralTo: string;
+    reason: string;
+    referredBy: string;
+    date: string;
+    status: string;
+    expirationDate: string;
+  }[];
+  /** `hnoId`/`csn` are what `get_letter_details` drills in on, as in the real registry. */
+  letters: {
+    hnoId: string;
+    csn: string;
+    title: string;
+    date: string;
+    provider: string;
+    type: string;
+    summary: string;
+  }[];
+  letterContentByHnoId: Record<string, RenderedDocument>;
+  documents: { title: string; date: string; type: string; provider: string }[];
+  questionnaires: {
+    name: string;
+    assignedDate: string;
+    dueDate: string;
+    status: string;
+    appointment: string;
+  }[];
+  educationMaterials: { title: string; assignedBy: string; date: string; category: string }[];
+  activityFeed: { date: string; type: string; description: string }[];
+  ehiExport: { availableFormats: string[]; lastExport: string; note: string };
+  billing: BillingCharge[];
+  insurance: {
+    plan: string;
+    memberId: string;
+    groupNumber: string;
+    subscriber: string;
+    effectiveDate: string;
+    copay: { office: string; specialist: string; urgentCare: string; er: string };
+    deductible: string;
+    outOfPocketMax: string;
+  }[];
+  messages: Conversation[];
+  messageRecipients: {
+    recipients: { displayName: string; specialty: string; department: string }[];
+    topics: { displayName: string; value: string }[];
+  };
+  availableAppointments: AppointmentOffer[];
+};
+
+/** One record the account can reach, as `list_proxy_targets` reports it. */
+export type ProxyTarget = {
+  id: string;
+  /** Full name, and the key into `Session.patients`. */
+  name: string;
+  relationship: string;
+  /** True for the account holder's own chart — `switch_proxy_target` "me". */
+  isSelf: boolean;
+};
+
 /* ── Session ────────────────────────────────────────────────────────── */
 
 /** One demo visitor's mutable copy of the record. */
@@ -97,11 +257,13 @@ export type Session = {
   hostname: string;
   username: string;
   connected: boolean;
-  medications: Medication[];
-  messages: Conversation[];
-  emergencyContacts: EmergencyContact[];
-  upcomingVisits: Visit[];
-  availableAppointments: AppointmentOffer[];
+  /** Every chart this account can reach, keyed by patient name. */
+  patients: Record<string, PatientRecord>;
+  /**
+   * Whose chart every read resolves against. Server-side state in real
+   * MyChart, so it persists across turns until `switch_proxy_target` moves it.
+   */
+  activePatient: string;
   activityLog: { kind: string; summary: string; at: string }[];
 };
 
@@ -109,6 +271,7 @@ export type Session = {
 
 export type ToolGroup =
   | 'Account'
+  | 'Patients'
   | 'Record'
   | 'Results'
   | 'Visits'

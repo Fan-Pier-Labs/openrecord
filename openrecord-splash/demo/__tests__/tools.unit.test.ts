@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { createSession, executeTool, matchesName, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
+import { activeRecord, createSession, executeTool, matchesName, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
 import * as data from '../src/data';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -395,7 +395,7 @@ describe('get_available_appointments filtering', () => {
     const booked = executeTool(s, 'book_appointment', { slot_id: slot.slotId, reason: 'Follow-up' }) as Any;
 
     expect(booked.error).toBeUndefined();
-    expect(s.upcomingVisits.some((v: Any) => v.date === slot.date && v.time === slot.time)).toBe(true);
+    expect(activeRecord(s).upcomingVisits.some((v: Any) => v.date === slot.date && v.time === slot.time)).toBe(true);
   });
 
   test('an unknown provider still returns an honest error', () => {
@@ -415,5 +415,175 @@ describe('get_available_appointments filtering', () => {
 
     expect(none.error).toContain('Dr. Julius Hibbert');
     expect(none.error).toContain('Office Visit');
+  });
+});
+
+describe('proxy access', () => {
+  test('list_proxy_targets names both records and which one is live', () => {
+    const s = createSession();
+    const result = executeTool(s, 'list_proxy_targets') as Any;
+
+    expect(result.count).toBe(2);
+    expect(result.active_patient).toBe(data.accountHolderRecord.profile.name);
+    const self = result.patients.find((p: Any) => p.is_self);
+    expect(self.name).toBe(data.accountHolderRecord.profile.name);
+    expect(self.is_active).toBe(true);
+    expect(result.patients.find((p: Any) => !p.is_self).name).toBe(data.childRecord.profile.name);
+  });
+
+  test('switching changes what every other tool answers', () => {
+    // The whole point of the pair. A switch that left the reads alone would be
+    // demonstrating something that isn't happening.
+    const s = createSession();
+    const before = executeTool(s, 'get_medications') as Any;
+    expect(before.map((m: Any) => m.name)).toEqual(data.medications.map((m) => m.name));
+
+    const switched = executeTool(s, 'switch_proxy_target', { patient: 'Bart' }) as Any;
+    expect(switched.error).toBeUndefined();
+    expect(switched.switched_to).toBe(data.childRecord.profile.name);
+    expect(switched.verified_profile_name).toBe(data.childRecord.profile.name);
+
+    expect((executeTool(s, 'get_medications') as Any).map((m: Any) => m.name)).toEqual(
+      data.childRecord.medications.map((m) => m.name),
+    );
+    expect((executeTool(s, 'get_profile') as Any).name).toBe(data.childRecord.profile.name);
+    expect((executeTool(s, 'get_billing') as Any).totalVisits).toBe(data.childRecord.billing.length);
+  });
+
+  test('"me" goes back to the account holder', () => {
+    const s = createSession();
+    executeTool(s, 'switch_proxy_target', { patient: 'Bart' });
+    const back = executeTool(s, 'switch_proxy_target', { patient: 'me' }) as Any;
+
+    expect(back.is_self).toBe(true);
+    expect(s.activePatient).toBe(data.accountHolderRecord.profile.name);
+    expect((executeTool(s, 'get_profile') as Any).name).toBe(data.accountHolderRecord.profile.name);
+  });
+
+  test('an unreachable patient is refused, and the active record does not move', () => {
+    const s = createSession();
+    const result = executeTool(s, 'switch_proxy_target', { patient: 'Milhouse' }) as Any;
+
+    expect(result.error).toContain('No patient matching "Milhouse"');
+    // Names what IS reachable, the way the recipient and medication lookups do.
+    expect(result.error).toContain(data.childRecord.profile.name);
+    expect(s.activePatient).toBe(data.accountHolderRecord.profile.name);
+  });
+
+  test('a write lands in the record that was active when it ran', () => {
+    const s = createSession();
+    executeTool(s, 'switch_proxy_target', { patient: 'Bart' });
+    executeTool(s, 'add_emergency_contact', { name: 'Milhouse Van Houten', phone_number: '(555) 555-0111' });
+
+    expect(activeRecord(s).emergencyContacts.some((c) => c.name === 'Milhouse Van Houten')).toBe(true);
+    executeTool(s, 'switch_proxy_target', { patient: 'me' });
+    expect(activeRecord(s).emergencyContacts.some((c) => c.name === 'Milhouse Van Houten')).toBe(false);
+  });
+
+  test('the two records genuinely differ', () => {
+    // Guards the fixture, not the code: a child record that was a copy of the
+    // adult one with the name swapped would make every test above pass while
+    // demonstrating nothing.
+    const s = createSession();
+    const adult = executeTool(s, 'get_health_issues') as Any;
+    executeTool(s, 'switch_proxy_target', { patient: 'Bart' });
+    const child = executeTool(s, 'get_health_issues') as Any;
+
+    expect(child).not.toEqual(adult);
+    expect(data.childRecord.profile.mrn).not.toBe(data.accountHolderRecord.profile.mrn);
+  });
+});
+
+describe('messaging tools added for registry parity', () => {
+  test('get_message_thread returns one conversation in full', () => {
+    const s = createSession();
+    const first = data.messages[0]!;
+    const thread = executeTool(s, 'get_message_thread', { conversation_id: first.id }) as Any;
+
+    expect(thread.subject).toBe(first.subject);
+    expect(thread.messages).toHaveLength(first.messages.length);
+  });
+
+  test('get_message_thread refuses an unknown id', () => {
+    const result = executeTool(createSession(), 'get_message_thread', { conversation_id: 'nope' }) as Any;
+    expect(result.error).toContain('No conversation with id "nope"');
+  });
+
+  test('get_message_topics lists the filing topics', () => {
+    const result = executeTool(createSession(), 'get_message_topics') as Any;
+    expect(result.topics).toEqual(data.messageRecipients.topics);
+  });
+
+  test('delete_message removes the thread from the inbox', () => {
+    const s = createSession();
+    const target = data.messages[0]!;
+    const before = activeRecord(s).messages.length;
+    const result = executeTool(s, 'delete_message', { conversation_id: target.id }) as Any;
+
+    expect(result.success).toBe(true);
+    expect(result.subject).toBe(target.subject);
+    expect(activeRecord(s).messages).toHaveLength(before - 1);
+    expect(activeRecord(s).messages.some((m) => m.id === target.id)).toBe(false);
+  });
+
+  test('delete_message refuses an unknown id rather than deleting nothing quietly', () => {
+    const s = createSession();
+    const before = activeRecord(s).messages.length;
+    const result = executeTool(s, 'delete_message', { conversation_id: 'nope' }) as Any;
+
+    expect(result.error).toContain('No conversation with id "nope"');
+    expect(activeRecord(s).messages).toHaveLength(before);
+  });
+});
+
+describe('get_letter_details', () => {
+  test('returns the full text behind a listed letter', () => {
+    const s = createSession();
+    const letter = (executeTool(s, 'get_letters') as Any)[0];
+    const details = executeTool(s, 'get_letter_details', { hno_id: letter.hnoId, csn: letter.csn }) as Any;
+
+    expect(details.title).toBe(letter.title);
+    expect(details.contentHtml).toContain('<');
+    expect(details.contentCss).toBeTruthy();
+  });
+
+  test('a mismatched csn is an error, not the wrong letter', () => {
+    const s = createSession();
+    const letter = (executeTool(s, 'get_letters') as Any)[0];
+    const details = executeTool(s, 'get_letter_details', { hno_id: letter.hnoId, csn: 'WP-demo-csn-wrong' }) as Any;
+
+    expect(details.error).toContain('No letter');
+  });
+});
+
+describe('tool aliases', () => {
+  test('the pre-rename linked-accounts name still executes', () => {
+    const s = createSession();
+    expect(executeTool(s, 'get_linked_mychart_accounts')).toEqual(executeTool(s, 'get_linked_accounts'));
+  });
+
+  test('an aliased write is still gated as a write', () => {
+    // isWriteTool is what opens the confirmation dialog. An alias that missed
+    // it would execute a patient switch with no dialog at all.
+    expect(isWriteTool('switch_patient')).toBe(true);
+    expect(getToolSpec('switch_patient')!.name).toBe('switch_proxy_target');
+    expect(isWriteTool('list_patients')).toBe(false);
+  });
+
+  test('an unknown tool is still unknown', () => {
+    expect((executeTool(createSession(), 'get_horoscope') as Any).error).toContain('Unknown tool');
+  });
+});
+
+describe('imaging without viewable pixels', () => {
+  test('a report-only study is refused instead of drawing the wrong body part', () => {
+    // The demo's radiograph is one drawn chest film. Handing it back for a
+    // child's forearm would show the wrong body part on the wrong patient.
+    const s = createSession();
+    executeTool(s, 'switch_proxy_target', { patient: 'Bart' });
+    const result = executeTool(s, 'get_xray_image', { imaging_index: 0 }) as Any;
+
+    expect(result.error).toContain('no viewable images');
+    expect(result.attachment).toBeUndefined();
   });
 });

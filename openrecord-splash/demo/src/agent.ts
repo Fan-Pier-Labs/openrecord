@@ -21,9 +21,11 @@
 import {
   TOOL_SPECS,
   WRITE_TOOL_NAMES,
+  activeRecord,
   executeTool,
   getToolSpec,
   isWriteTool,
+  resolveProxyTarget,
   toolLatencyMs,
 } from './tools';
 import type {
@@ -291,13 +293,34 @@ export function resolveWriteDetails(
   tool: string,
   args: ToolArgs,
 ): { label: string; value: string }[] {
+  // Switching patients is the write whose payload reads least like its effect:
+  // `patient: "Bart"` on screen, every subsequent read answering out of a
+  // different chart. Spell out both ends of the move, resolved by the same
+  // matcher the handler will use.
+  if (tool === 'switch_proxy_target') {
+    const wanted = typeof args.patient === 'string' ? args.patient : '';
+    const target = resolveProxyTarget(wanted);
+    return [
+      { label: 'Currently reading', value: session.activePatient },
+      // A name the account can't reach is a switch that will fail. Say so here
+      // rather than promising an effect that won't happen, the same way the
+      // booking dialog calls out an invented slot id.
+      target
+        ? { label: 'Will read', value: target.name }
+        : { label: 'Warning', value: `"${wanted}" is not a record this account can reach — this switch will fail.` },
+      ...(target
+        ? [{ label: 'Effect', value: 'Every tool reads that record until you switch back.' }]
+        : []),
+    ];
+  }
+
   if (tool !== 'book_appointment') return [];
   // args is ToolArgs (Record<string, unknown>) — model-emitted JSON, so the
   // type is unknown by construction. A non-string slot_id matches no slot;
   // treating it as absent is the same outcome without a String() coercion
   // that would render "[object Object]" into the confirmation row.
   const slotId = typeof args.slot_id === 'string' ? args.slot_id : '';
-  for (const offer of session.availableAppointments) {
+  for (const offer of activeRecord(session).availableAppointments) {
     const slot = offer.slots.find((s) => s.slotId === slotId);
     if (!slot) continue;
     return [
@@ -398,6 +421,7 @@ export function buildSystemPrompt({
     '- Scheduling: call get_available_appointments, show the open slots, and call book_appointment once the user picks one.',
     '- Showing an X-ray picture: call get_imaging_results to pick the study, then get_xray_image with its 0-based index. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
     '- Refills: use request_refill. If a medication has no refills left, message the prescriber instead.',
+    '- Family members: every data tool reads ONE record — whichever is active. If the user asks about someone other than themselves, call list_proxy_targets first, then switch_proxy_target, and say whose chart you are reading in your answer. Switch back with patient: "me" when you are done, and never assume a result belongs to the person who asked.',
     '- For EVERY write action, show the user the exact payload and get explicit confirmation before calling the tool.',
     '- This is enforced, not advisory: calling a write tool opens a confirmation dialog showing the exact payload, and the tool only runs if the user approves it there. Do not claim you have sent, booked, or requested anything until you see the tool result saying so. If the result says the user declined, acknowledge that and do not retry unless they ask again.',
     '- Before proposing a write, read the current state in the same turn — call get_medications before discussing a refill, get_available_appointments before proposing a booking, get_emergency_contacts before editing one. The payload you show the user has to match what is actually on file.',

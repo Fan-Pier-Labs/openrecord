@@ -19,7 +19,7 @@ import {
   runTurn,
   stripProtocolChatter,
 } from '../src/agent';
-import { TOOL_SPECS, WRITE_TOOL_NAMES, createSession } from '../src/tools';
+import { TOOL_SPECS, WRITE_TOOL_NAMES, activeRecord, createSession, executeTool } from '../src/tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -298,7 +298,7 @@ describe('describeWrite', () => {
 describe('resolveWriteDetails', () => {
   test('a booking dialog says who, when and where — not just an opaque slot id', () => {
     const session = createSession();
-    const offer = session.availableAppointments[0]!;
+    const offer = activeRecord(session).availableAppointments[0]!;
     const slot = offer.slots[0]!;
 
     const details = resolveWriteDetails(session, 'book_appointment', { slot_id: slot.slotId });
@@ -430,7 +430,7 @@ describe('runTurn', () => {
 
     // Nothing ran, and the refill count is untouched.
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.medications[0]!.refillsRemaining).toBe(3);
+    expect(activeRecord(session).medications[0]!.refillsRemaining).toBe(3);
     expect(model.seen[1]!.messages.at(-1).content).toContain('must be called alone');
   });
 
@@ -461,7 +461,7 @@ describe('runTurn', () => {
     });
 
     expect(result.text).toBe('Refill submitted.');
-    expect(session.medications[0]!.refillsRemaining).toBe(2);
+    expect(activeRecord(session).medications[0]!.refillsRemaining).toBe(2);
   });
 
   test('a tool error is fed back so the model can recover', async () => {
@@ -564,7 +564,7 @@ describe('runTurn', () => {
     // The dialog must be shown the real payload and nothing may reach the
     // session before it is answered.
     const session = createSession();
-    const before = structuredClone(session.messages);
+    const before = structuredClone(activeRecord(session).messages);
     const args = {
       recipient_name: 'Dr. Julius Hibbert',
       subject: 'Refill',
@@ -585,7 +585,7 @@ describe('runTurn', () => {
 
     expect(d.shown).toEqual([{ tool: 'send_message', args, details: [] }]);
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.messages).toEqual(before);
+    expect(activeRecord(session).messages).toEqual(before);
     expect(result.text).toBe('Okay, I have not sent it.');
   });
 
@@ -619,7 +619,7 @@ describe('runTurn', () => {
 
     expect(result.text).toBe('Sent.');
     expect(result.toolCalls.map((c: Any) => c.tool)).toEqual(['send_message']);
-    expect(session.messages.filter((m: Any) => m.subject === 'Refill')).toHaveLength(1);
+    expect(activeRecord(session).messages.filter((m: Any) => m.subject === 'Refill')).toHaveLength(1);
   });
 
   test('every write is asked about separately — approval is never standing', async () => {
@@ -648,7 +648,7 @@ describe('runTurn', () => {
     const result = await runTurn({ ...base(), session, complete: model.complete });
 
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.medications[0]!.refillsRemaining).toBe(3);
+    expect(activeRecord(session).medications[0]!.refillsRemaining).toBe(3);
   });
 
   test('a draft request never sends, and never even offers to', async () => {
@@ -656,7 +656,7 @@ describe('runTurn', () => {
     // to say "draft a send_message". A sent message cannot be unsent, so the
     // send is refused outright rather than put to a dialog.
     const session = createSession();
-    const inboxBefore = session.messages.length;
+    const inboxBefore = activeRecord(session).messages.length;
     const d = dialog(true);
     const model = scriptedModel([
       JSON.stringify({
@@ -679,7 +679,7 @@ describe('runTurn', () => {
 
     expect(d.shown).toHaveLength(0); // not even a dialog
     expect(result.toolCalls).toHaveLength(0);
-    expect(session.messages).toHaveLength(inboxBefore); // nothing new in the thread list
+    expect(activeRecord(session).messages).toHaveLength(inboxBefore); // nothing new in the thread list
     expect(result.text).toBe('Here is the draft — shall I send it?');
 
     const fedBack = model.seen[1]!.messages.at(-1).content;
@@ -890,5 +890,41 @@ describe('createProxyCompleter', () => {
     } finally {
       globalThis.fetch = original;
     }
+  });
+});
+
+describe('the switch-patient confirmation dialog', () => {
+  test('names both ends of the move, not just the raw argument', () => {
+    // `patient: "Bart"` on screen and every later read coming from a different
+    // chart is the widest gap between payload and effect of any write here.
+    const session = createSession();
+    const details = resolveWriteDetails(session, 'switch_proxy_target', { patient: 'Bart' });
+    const rows = Object.fromEntries(details.map((d: Any) => [d.label, d.value]));
+
+    expect(rows['Currently reading']).toBe(session.activePatient);
+    expect(rows['Will read']).toBe('Bart Simpson');
+    expect(rows.Effect).toContain('switch back');
+  });
+
+  test('an unreachable patient is called out instead of promised', () => {
+    const details = resolveWriteDetails(createSession(), 'switch_proxy_target', { patient: 'Milhouse' });
+    const rows = Object.fromEntries(details.map((d: Any) => [d.label, d.value]));
+
+    expect(rows.Warning).toContain('will fail');
+    // No effect row: nothing is going to happen, so promising one would be a lie.
+    expect(rows['Will read']).toBeUndefined();
+    expect(rows.Effect).toBeUndefined();
+  });
+
+  test('the dialog resolves the same patient the tool will switch to', () => {
+    // Two matchers would eventually disagree, and the disagreement would be a
+    // dialog naming one patient and a switch landing on another.
+    const session = createSession();
+    const rows = Object.fromEntries(
+      resolveWriteDetails(session, 'switch_proxy_target', { patient: 'bart' }).map((d: Any) => [d.label, d.value]),
+    );
+    const result = executeTool(session, 'switch_proxy_target', { patient: 'bart' }) as Any;
+
+    expect(result.switched_to).toBe(rows['Will read']);
   });
 });

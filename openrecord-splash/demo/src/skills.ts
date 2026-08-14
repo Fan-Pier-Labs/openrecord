@@ -6,6 +6,7 @@
  * which tools to pull, in what order, and what to do with the answers.
  */
 
+import { activeRecord } from './tools';
 import type { Alert, BillingCharge, Session, Skill } from './types';
 
 export const SKILLS: Skill[] = [
@@ -108,7 +109,7 @@ export function buildAlerts(session: Session, billingData: BillingCharge[]): Ale
     });
   }
 
-  for (const med of session.medications) {
+  for (const med of activeRecord(session).medications) {
     if (med.refillsRemaining > 1) continue;
     const outOfRefills = med.refillsRemaining === 0;
     // Snapshot the count. `med` is the live session object, so closing over it
@@ -129,7 +130,7 @@ export function buildAlerts(session: Session, billingData: BillingCharge[]): Ale
       // the snapshot, not lastFilled — the demo pins "today" to a fixed date,
       // so refilling twice in a session leaves lastFilled unchanged.
       resolvedWhen: (s: Session) => {
-        const current = s.medications.find((m) => m.name === med.name);
+        const current = activeRecord(s).medications.find((m) => m.name === med.name);
         return !current || current.refillsRemaining < refillsAtBuild;
       },
     });

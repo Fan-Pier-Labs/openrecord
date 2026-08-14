@@ -18,6 +18,8 @@ import type {
   Conversation,
   EmergencyContact,
   Medication,
+  PatientRecord,
+  ProxyTarget,
   Session,
   ToolArgs,
   ToolError,
@@ -39,13 +41,33 @@ export function createSession(): Session {
     hostname: data.DEMO_HOSTNAME,
     username: data.DEMO_USERNAME,
     connected: false,
-    medications: clone(data.medications),
-    messages: clone(data.messages),
-    emergencyContacts: clone(data.emergencyContacts),
-    upcomingVisits: clone(data.upcomingVisits),
-    availableAppointments: clone(data.availableAppointments),
+    patients: clone(data.patientRecords),
+    // A resumed MyChart session inherits whichever patient was left active, but
+    // a fresh login always lands on the account holder. The demo has no cookie
+    // to resume, so every session starts here.
+    activePatient: data.accountHolderRecord.profile.name,
     activityLog: [],
   };
+}
+
+/**
+ * The chart every read resolves against.
+ *
+ * Reads go through here rather than reaching for `data.*` directly, which is
+ * what makes `switch_proxy_target` mean something: point the session at the
+ * child and `get_medications` returns an inhaler, not a statin. Exported
+ * because the write-confirmation dialog and the tests need the same answer the
+ * tools get.
+ */
+export function activeRecord(session: Session): PatientRecord {
+  const record = session.patients[session.activePatient];
+  if (!record) {
+    // Unreachable via the tools: switch_proxy_target only accepts a name it
+    // resolved from proxyTargets. Throwing beats silently answering from the
+    // wrong chart if some future caller sets activePatient by hand.
+    throw new Error(`No record loaded for active patient "${session.activePatient}"`);
+  }
+  return record;
 }
 
 function logActivity(session: Session, kind: string, summary: string): void {
@@ -67,6 +89,30 @@ export const TOOL_SPECS: ToolSpec[] = [
   { name: 'connect_instance', group: 'Account', description: 'Log into a MyChart account and open a session', args: { instance: 'MyChart hostname' } },
   { name: 'check_session', group: 'Account', description: 'Check whether the current MyChart session is still valid', args: { instance: 'optional' } },
   { name: 'complete_2fa', group: 'Account', description: 'Finish a login that asked for a two-factor code', args: { code: '6-digit code', instance: 'optional' } },
+
+  // ── Patients ──
+  //
+  // Which record the portal is pointed at is server-side state, so every read
+  // below answers for the ACTIVE patient and nothing switches on its own.
+  {
+    name: 'list_proxy_targets',
+    group: 'Patients',
+    description:
+      'List every patient record this account can access — the account holder plus any family members reachable via proxy access — and which one is currently active. Data tools always read the ACTIVE record.',
+    args: { instance: 'optional' },
+  },
+  {
+    name: 'switch_proxy_target',
+    group: 'Patients',
+    write: {
+      title: 'Switch Patient Record',
+      description: 'Changes whose chart every tool reads from here on.',
+      verb: 'Switch',
+    },
+    description:
+      'Switch which patient\'s record MyChart is showing. EVERY data tool reads the newly active record afterwards. Pass patient: "me" to go back to the account holder\'s own chart.',
+    args: { patient: 'name from list_proxy_targets, or "me"', instance: 'optional' },
+  },
 
   // ── Record ──
   { name: 'get_profile', group: 'Record', description: 'Patient profile — name, date of birth, MRN, primary care provider', args: { instance: 'optional' } },
@@ -105,12 +151,16 @@ export const TOOL_SPECS: ToolSpec[] = [
 
   // ── Documents ──
   { name: 'get_letters', group: 'Documents', description: 'Letters and after-visit summaries', args: { instance: 'optional' } },
+  { name: 'get_letter_details', group: 'Documents', description: 'The full contents of one letter listed by get_letters', args: { hno_id: 'hnoId from the chosen get_letters entry', csn: 'csn from the chosen get_letters entry', instance: 'optional' } },
   { name: 'get_documents', group: 'Documents', description: 'Clinical documents on file', args: { instance: 'optional' } },
   { name: 'get_questionnaires', group: 'Documents', description: 'Assigned questionnaires and health assessments', args: { instance: 'optional' } },
   { name: 'get_education_materials', group: 'Documents', description: 'Patient education materials assigned by the care team', args: { instance: 'optional' } },
   { name: 'get_activity_feed', group: 'Documents', description: 'Recent portal activity feed', args: { instance: 'optional' } },
   { name: 'get_ehi_export', group: 'Documents', description: 'Electronic Health Information export formats (Cures Act)', args: { instance: 'optional' } },
-  { name: 'get_linked_mychart_accounts', group: 'Documents', description: 'Linked MyChart accounts at other health systems', args: { instance: 'optional' } },
+  // Spelled `get_linked_accounts` because that is the registry's id. The demo's
+  // old `get_linked_mychart_accounts` still executes (see TOOL_ALIASES) so a
+  // seeded chat or a shared link from before the rename keeps working.
+  { name: 'get_linked_accounts', group: 'Documents', description: 'Linked MyChart accounts at other health systems', args: { instance: 'optional' } },
 
   // ── Money ──
   {
@@ -129,6 +179,8 @@ export const TOOL_SPECS: ToolSpec[] = [
     args: { instance: 'optional', limit: 'number (default 10)', offset: 'number' },
   },
   { name: 'get_message_recipients', group: 'Messaging', description: 'Who can be messaged, and the available topics', args: { instance: 'optional' } },
+  { name: 'get_message_thread', group: 'Messaging', description: 'Every message in one conversation', args: { conversation_id: 'thread id from get_messages', instance: 'optional' } },
+  { name: 'get_message_topics', group: 'Messaging', description: 'Topics a new message can be filed under', args: { instance: 'optional' } },
   {
     name: 'send_message',
     group: 'Messaging',
@@ -150,6 +202,17 @@ export const TOOL_SPECS: ToolSpec[] = [
     },
     description: 'Reply to an existing message thread. Confirm with the user before sending.',
     args: { conversation_id: 'thread id from get_messages', message_body: 'reply text', instance: 'optional' },
+  },
+  {
+    name: 'delete_message',
+    group: 'Messaging',
+    write: {
+      title: 'Delete Conversation',
+      description: 'Removes this conversation from your inbox.',
+      verb: 'Delete',
+    },
+    description: 'Delete a message conversation from the inbox. Confirm with the user first.',
+    args: { conversation_id: 'thread id from get_messages', instance: 'optional' },
   },
 
   // ── Actions ──
@@ -228,11 +291,18 @@ export const WRITE_TOOL_SPECS: ToolSpec[] = TOOL_SPECS.filter((t) => t.write);
 export const WRITE_TOOL_NAMES: string[] = WRITE_TOOL_SPECS.map((t) => t.name);
 
 export function isWriteTool(name: string): boolean {
-  return Boolean(SPEC_BY_NAME.get(name)?.write);
+  return Boolean(getToolSpec(name)?.write);
 }
 
+/**
+ * The spec for a tool name, resolving aliases first.
+ *
+ * Alias-aware on purpose: `isWriteTool` is what opens the confirmation dialog,
+ * so a write reached by an old name has to resolve to its spec or it would
+ * execute unconfirmed — the one way the gate could still be bypassed.
+ */
 export function getToolSpec(name: string): ToolSpec | undefined {
-  return SPEC_BY_NAME.get(name);
+  return SPEC_BY_NAME.get(resolveToolName(name));
 }
 
 /* ── Argument helpers ───────────────────────────────────────────────── */
@@ -333,33 +403,84 @@ const HANDLERS: Record<string, Handler> = {
     return { status: 'logged_in', message: '2FA completed successfully', hostname: s.hostname, username: s.username };
   },
 
+  // ── Patients ──
+  list_proxy_targets: (s) => ({
+    count: data.proxyTargets.length,
+    patients: data.proxyTargets.map((target) => ({
+      id: target.id,
+      name: target.name,
+      relationship: target.relationship,
+      is_self: target.isSelf,
+      is_active: target.name === s.activePatient,
+    })),
+    active_patient: s.activePatient,
+    message:
+      `Data tools on this account currently read ${s.activePatient}'s record. ` +
+      'To read a different patient, call switch_proxy_target with their name — data tools never switch on their own.',
+  }),
+  switch_proxy_target: (s, args) => {
+    const wanted = str(args, 'patient');
+    if (!wanted) {
+      return fail('Pass the patient to switch to — a name from list_proxy_targets, or "me" for the account holder\'s own record.');
+    }
+    const target = resolveProxyTarget(wanted);
+    if (!target) {
+      const names = data.proxyTargets.map((t) => t.name).join(', ');
+      return fail(`No patient matching "${wanted}". This account can reach: ${names}.`);
+    }
+
+    s.activePatient = target.name;
+    logActivity(s, 'switch_proxy_target', `Switched the active record to ${target.name}`);
+    return {
+      switched_to: target.name,
+      is_self: target.isSelf,
+      // The real tool re-reads the profile page and refuses rather than landing
+      // on the wrong patient; the demo asserts the same thing against the
+      // record it just selected.
+      verified_profile_name: activeRecord(s).profile.name,
+      verified_dob: activeRecord(s).profile.dateOfBirth,
+      message:
+        `Every data tool on this account now reads ${target.name}'s record` +
+        `${target.isSelf ? " (the account holder's own chart)" : ''}.` +
+        (target.isSelf ? '' : ' Switch back with patient: "me" when done.'),
+    };
+  },
+
   // ── Record ──
-  get_profile: () => clone(data.profile),
-  get_health_summary: () => clone(data.healthSummary),
-  get_medications: (s) => clone(s.medications),
-  get_allergies: () => clone(data.allergies),
-  get_health_issues: () => clone(data.healthIssues),
-  get_medical_history: () => clone(data.medicalHistory),
-  get_vitals: () => clone(data.vitals),
-  get_immunizations: () => clone(data.immunizations),
-  get_care_team: () => clone(data.careTeam),
-  get_emergency_contacts: (s) => clone(s.emergencyContacts),
-  get_goals: () => clone(data.goals),
-  get_preventive_care: () => clone(data.preventiveCare),
+  get_profile: (s) => clone(activeRecord(s).profile),
+  get_health_summary: (s) => clone(activeRecord(s).healthSummary),
+  get_medications: (s) => clone(activeRecord(s).medications),
+  get_allergies: (s) => clone(activeRecord(s).allergies),
+  get_health_issues: (s) => clone(activeRecord(s).healthIssues),
+  get_medical_history: (s) => clone(activeRecord(s).medicalHistory),
+  get_vitals: (s) => clone(activeRecord(s).vitals),
+  get_immunizations: (s) => clone(activeRecord(s).immunizations),
+  get_care_team: (s) => clone(activeRecord(s).careTeam),
+  get_emergency_contacts: (s) => clone(activeRecord(s).emergencyContacts),
+  get_goals: (s) => clone(activeRecord(s).goals),
+  get_preventive_care: (s) => clone(activeRecord(s).preventiveCare),
 
   // ── Results ──
-  get_lab_results: (_s, args) => {
-    const { total, offset, count, page } = paginate(data.labResults, args);
+  get_lab_results: (s, args) => {
+    const { total, offset, count, page } = paginate(activeRecord(s).labResults, args);
     return { total, offset, count, results: clone(page) };
   },
-  get_imaging_results: (_s, args) => {
-    const { total, offset, count, page } = paginate(data.imagingResults, args);
+  get_imaging_results: (s, args) => {
+    const { total, offset, count, page } = paginate(activeRecord(s).imagingResults, args);
     return { total, offset, count, results: clone(page) };
   },
-  get_xray_image: (_s, args) => {
+  get_xray_image: (s, args) => {
     const index = num(args, 'imaging_index', 0);
-    const study = data.imagingResults[index];
+    const study = activeRecord(s).imagingResults[index];
     if (!study) return fail(`No imaging study at index ${index}. Call get_imaging_results first.`);
+    // The demo's radiograph is drawn rather than decoded, and what it draws is
+    // one specific chest film. Returning it for a study whose pixels the portal
+    // doesn't carry would put the wrong body part in front of the user.
+    if (!study.hasImages) {
+      return fail(
+        `"${study.study}" has a report but no viewable images in the portal. The findings are in its impression — read that instead.`,
+      );
+    }
     return {
       study: study.study,
       date: study.date,
@@ -370,60 +491,87 @@ const HANDLERS: Record<string, Handler> = {
       note: "Image decoded from the portal's CLO wavelet format and attached to this reply.",
     };
   },
-  get_upcoming_orders: () => clone(data.upcomingOrders),
+  get_upcoming_orders: (s) => clone(activeRecord(s).upcomingOrders),
 
   // ── Visits ──
-  get_upcoming_visits: (s) => clone(s.upcomingVisits),
-  get_past_visits: (_s, args) => {
+  get_upcoming_visits: (s) => clone(activeRecord(s).upcomingVisits),
+  get_past_visits: (s, args) => {
     const yearsBack = num(args, 'years_back', 0);
-    if (!yearsBack) return clone(data.pastVisits);
+    const pastVisits = activeRecord(s).pastVisits;
+    if (!yearsBack) return clone(pastVisits);
     const cutoff = new Date(today());
     cutoff.setFullYear(cutoff.getFullYear() - yearsBack);
-    return clone(data.pastVisits.filter((v) => new Date(v.date) >= cutoff));
+    return clone(pastVisits.filter((v) => new Date(v.date) >= cutoff));
   },
-  get_visit_notes: (_s, args) => {
+  get_visit_notes: (s, args) => {
     const csn = str(args, 'csn');
-    if (csn && csn !== data.visitNotes.csn) {
+    const visitNotes = activeRecord(s).visitNotes;
+    if (csn && csn !== visitNotes.csn) {
       return { csn, notes: [], message: 'No clinical notes are attached to this visit.' };
     }
-    return clone(data.visitNotes);
+    return clone(visitNotes);
   },
-  get_note_content: (_s, args) => {
-    const content = data.noteContentByHnoId[str(args, 'hno_id')] ?? Object.values(data.noteContentByHnoId)[0];
+  get_note_content: (s, args) => {
+    const byId = activeRecord(s).noteContentByHnoId;
+    const content = byId[str(args, 'hno_id')] ?? Object.values(byId)[0];
     return clone(content);
   },
-  get_visit_avs: () => clone(data.visitAVS),
-  get_care_journeys: () => clone(data.careJourneys),
-  get_referrals: () => clone(data.referrals),
+  get_visit_avs: (s) => clone(activeRecord(s).visitAVS),
+  get_care_journeys: (s) => clone(activeRecord(s).careJourneys),
+  get_referrals: (s) => clone(activeRecord(s).referrals),
 
   // ── Documents ──
-  get_letters: () => clone(data.letters),
-  get_documents: () => clone(data.documents),
-  get_questionnaires: () => clone(data.questionnaires),
-  get_education_materials: () => clone(data.educationMaterials),
-  get_activity_feed: () => clone(data.activityFeed),
-  get_ehi_export: () => clone(data.ehiExport),
-  get_linked_mychart_accounts: () => clone(data.linkedAccounts),
+  get_letters: (s) => clone(activeRecord(s).letters),
+  get_letter_details: (s, args) => {
+    const record = activeRecord(s);
+    const hnoId = str(args, 'hno_id');
+    const csn = str(args, 'csn');
+    const letter = record.letters.find((l) => l.hnoId === hnoId);
+    // Both ids identify the letter in real MyChart, so a pair that doesn't
+    // belong together is a mistake worth reporting rather than papering over.
+    if (!letter || (csn && letter.csn !== csn)) {
+      return fail(`No letter with hno_id "${hnoId}"${csn ? ` and csn "${csn}"` : ''}. Call get_letters first.`);
+    }
+    const content = record.letterContentByHnoId[hnoId];
+    if (!content) return fail(`"${letter.title}" has no retrievable contents in the portal.`);
+    return { title: letter.title, date: letter.date, provider: letter.provider, ...clone(content) };
+  },
+  get_documents: (s) => clone(activeRecord(s).documents),
+  get_questionnaires: (s) => clone(activeRecord(s).questionnaires),
+  get_education_materials: (s) => clone(activeRecord(s).educationMaterials),
+  get_activity_feed: (s) => clone(activeRecord(s).activityFeed),
+  get_ehi_export: (s) => clone(activeRecord(s).ehiExport),
+  // Linked accounts are a property of the MyChart *account*, not of whichever
+  // patient it is pointed at, so this one stays on module data.
+  get_linked_accounts: () => clone(data.linkedAccounts),
 
   // ── Money ──
-  get_billing: (_s, args) => {
-    const { total, offset, count, page } = paginate(data.billing, args);
+  get_billing: (s, args) => {
+    const { total, offset, count, page } = paginate(activeRecord(s).billing, args);
     return { totalVisits: total, offset, count, visits: clone(page) };
   },
-  get_insurance: () => clone(data.insurance),
+  get_insurance: (s) => clone(activeRecord(s).insurance),
 
   // ── Messaging ──
   get_messages: (s, args) => {
-    const { total, offset, count, page } = paginate(s.messages, args);
+    const { total, offset, count, page } = paginate(activeRecord(s).messages, args);
     return { total, offset, count, conversations: clone(page) };
   },
-  get_message_recipients: () => clone(data.messageRecipients),
+  get_message_recipients: (s) => clone(activeRecord(s).messageRecipients),
+  get_message_thread: (s, args) => {
+    const id = str(args, 'conversation_id');
+    const thread = activeRecord(s).messages.find((c) => c.id === id);
+    if (!thread) return fail(`No conversation with id "${id}". Call get_messages first.`);
+    return clone(thread);
+  },
+  get_message_topics: (s) => ({ topics: clone(activeRecord(s).messageRecipients.topics) }),
 
   send_message: (s, args) => {
+    const record = activeRecord(s);
     const recipientName = str(args, 'recipient_name');
-    const matched = fuzzyFind(data.messageRecipients.recipients, recipientName, (r) => r.displayName);
+    const matched = fuzzyFind(record.messageRecipients.recipients, recipientName, (r) => r.displayName);
     if (matched.length === 0) {
-      const available = data.messageRecipients.recipients.map((r) => r.displayName).join(', ');
+      const available = record.messageRecipients.recipients.map((r) => r.displayName).join(', ');
       return fail(`No recipient matching "${recipientName}". Available: ${available}`);
     }
     if (matched.length > 1) {
@@ -438,39 +586,61 @@ const HANDLERS: Record<string, Handler> = {
 
     // The two guards above leave exactly one match.
     const recipient = matched[0]!.displayName;
-    const id = `msg-sent-${s.messages.length + 1}`;
+    const id = `msg-sent-${record.messages.length + 1}`;
+    // Sent by whoever holds the account, filed in the chart being read — a
+    // parent messaging about a child's asthma is the account holder writing
+    // into the child's record, not the child writing.
+    const sender = data.accountHolderRecord.profile.name;
     const thread: Conversation = {
       id,
       subject,
-      from: data.profile.name,
+      from: sender,
       date: today(),
       preview: body.slice(0, 90),
       sentThisSession: true,
-      messages: [{ from: data.profile.name, date: today(), body }],
+      messages: [{ from: sender, date: today(), body }],
     };
-    s.messages.unshift(thread);
+    record.messages.unshift(thread);
     logActivity(s, 'message', `Sent "${subject}" to ${recipient}`);
     return { success: true, conversationId: id, recipient, subject, topic: str(args, 'topic') || 'Medical Question' };
   },
 
   send_reply: (s, args) => {
     const conversationId = str(args, 'conversation_id');
-    const thread = s.messages.find((m) => m.id === conversationId);
+    const thread = activeRecord(s).messages.find((m) => m.id === conversationId);
     if (!thread) return fail(`No conversation with id "${conversationId}". Call get_messages for valid ids.`);
     const body = str(args, 'message_body');
     if (!body) return fail('message_body is required.');
-    thread.messages.push({ from: data.profile.name, date: today(), body });
+    const sender = data.accountHolderRecord.profile.name;
+    thread.messages.push({ from: sender, date: today(), body });
     thread.date = today();
     logActivity(s, 'message', `Replied to "${thread.subject}"`);
     return { success: true, conversationId: thread.id, subject: thread.subject };
   },
 
+  delete_message: (s, args) => {
+    const record = activeRecord(s);
+    const conversationId = str(args, 'conversation_id');
+    const idx = record.messages.findIndex((m) => m.id === conversationId);
+    if (idx === -1) return fail(`No conversation with id "${conversationId}". Call get_messages for valid ids.`);
+    // idx !== -1, so splice removes exactly one conversation.
+    const removed = record.messages.splice(idx, 1)[0]!;
+    logActivity(s, 'message', `Deleted "${removed.subject}"`);
+    return {
+      success: true,
+      conversationId: removed.id,
+      subject: removed.subject,
+      message: `"${removed.subject}" was removed from the inbox.`,
+    };
+  },
+
   // ── Actions ──
   request_refill: (s, args) => {
+    const medications = activeRecord(s).medications;
     const query = str(args, 'medication_name');
-    const matched = fuzzyFind<Medication>(s.medications, query, (m) => m.name);
+    const matched = fuzzyFind<Medication>(medications, query, (m) => m.name);
     if (matched.length === 0) {
-      return fail(`No medication matching "${query}". Available: ${s.medications.map((m) => m.name).join(', ')}`);
+      return fail(`No medication matching "${query}". Available: ${medications.map((m) => m.name).join(', ')}`);
     }
     if (matched.length > 1) {
       return fail(`Multiple medications match "${query}": ${matched.map((m) => m.name).join(', ')}. Please be more specific.`);
@@ -495,7 +665,7 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   get_available_appointments: (s, args) => {
-    let results: AppointmentOffer[] = s.availableAppointments.filter((r) => r.slots.length > 0);
+    let results: AppointmentOffer[] = activeRecord(s).availableAppointments.filter((r) => r.slots.length > 0);
     const open = results;
     const provider = str(args, 'provider_name');
     if (provider) results = results.filter((r) => matchesName(r.provider, provider));
@@ -515,13 +685,14 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   book_appointment: (s, args) => {
+    const record = activeRecord(s);
     const slotId = str(args, 'slot_id');
-    for (const provider of s.availableAppointments) {
+    for (const provider of record.availableAppointments) {
       const idx = provider.slots.findIndex((slot) => slot.slotId === slotId);
       if (idx === -1) continue;
       // idx !== -1, so splice removes exactly one slot.
       const slot = provider.slots.splice(idx, 1)[0]!;
-      s.upcomingVisits.push({
+      record.upcomingVisits.push({
         type: provider.visitType,
         provider: provider.provider,
         department: provider.department,
@@ -531,7 +702,7 @@ const HANDLERS: Record<string, Handler> = {
         status: 'Scheduled',
         bookedThisSession: true,
       });
-      s.upcomingVisits.sort((a, b) => a.date.localeCompare(b.date));
+      record.upcomingVisits.sort((a, b) => a.date.localeCompare(b.date));
       const confirmation = `SPRFLD-${slot.slotId.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
       logActivity(s, 'appointment', `Booked ${provider.visitType} with ${provider.provider} on ${slot.date} at ${slot.time}`);
       return {
@@ -551,24 +722,25 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   add_emergency_contact: (s, args) => {
+    const contacts = activeRecord(s).emergencyContacts;
     const name = str(args, 'name');
     const phone = str(args, 'phone_number');
     if (!name || !phone) return fail('name and phone_number are required.');
     const contact: EmergencyContact = {
-      id: `ec-${String(s.emergencyContacts.length + 1).padStart(3, '0')}`,
+      id: `ec-${String(contacts.length + 1).padStart(3, '0')}`,
       name,
       relationship: str(args, 'relationship_type') || 'Not specified',
       phone,
       addedThisSession: true,
     };
-    s.emergencyContacts.push(contact);
+    contacts.push(contact);
     logActivity(s, 'contact', `Added emergency contact ${contact.name}`);
     return { success: true, contact: clone(contact), message: `Emergency contact ${contact.name} added.` };
   },
 
   update_emergency_contact: (s, args) => {
     const id = str(args, 'id');
-    const contact = s.emergencyContacts.find((c) => c.id === id);
+    const contact = activeRecord(s).emergencyContacts.find((c) => c.id === id);
     if (!contact) return fail(`No emergency contact with id "${id}". Call get_emergency_contacts for valid ids.`);
     const name = str(args, 'name');
     const relationship = str(args, 'relationship_type');
@@ -581,15 +753,53 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   remove_emergency_contact: (s, args) => {
+    const contacts = activeRecord(s).emergencyContacts;
     const id = str(args, 'id');
-    const idx = s.emergencyContacts.findIndex((c) => c.id === id);
+    const idx = contacts.findIndex((c) => c.id === id);
     if (idx === -1) return fail(`No emergency contact with id "${id}". Call get_emergency_contacts for valid ids.`);
     // idx !== -1, so splice removes exactly one contact.
-    const removed = s.emergencyContacts.splice(idx, 1)[0]!;
+    const removed = contacts.splice(idx, 1)[0]!;
     logActivity(s, 'contact', `Removed emergency contact ${removed.name}`);
     return { success: true, message: `Emergency contact ${removed.name} removed.` };
   },
 };
+
+/**
+ * Older tool names that still execute.
+ *
+ * The demo spelled linked accounts `get_linked_mychart_accounts` before it was
+ * held to the registry's `get_linked_accounts`. Seeded chats and shared links
+ * carry the old name, and the real registry accepts its own aliases the same
+ * way, so it resolves rather than 404s. Aliases are deliberately not in
+ * TOOL_SPECS — the model is only ever offered the canonical name.
+ */
+const TOOL_ALIASES: Record<string, string> = {
+  get_linked_mychart_accounts: 'get_linked_accounts',
+  list_patients: 'list_proxy_targets',
+  get_active_patient: 'list_proxy_targets',
+  switch_patient: 'switch_proxy_target',
+};
+
+/** Canonical name for a tool the model asked for. Unknown names pass through. */
+export function resolveToolName(name: string): string {
+  return TOOL_ALIASES[name] ?? name;
+}
+
+/**
+ * Resolve a `switch_proxy_target` `patient` argument to the record it means.
+ *
+ * Exported because the confirmation dialog has to name the same patient the
+ * handler will actually switch to. Two matchers would eventually disagree, and
+ * the disagreement would be a dialog that says one name and a switch that does
+ * another — on the write whose whole job is changing whose chart is on screen.
+ */
+export function resolveProxyTarget(patient: string): ProxyTarget | undefined {
+  const wanted = String(patient ?? '').trim();
+  if (!wanted) return undefined;
+  // "me" is the account holder, matching the real tool.
+  if (wanted.toLowerCase() === 'me') return data.proxyTargets.find((t) => t.isSelf);
+  return fuzzyFind(data.proxyTargets, wanted, (t) => t.name)[0];
+}
 
 /**
  * Run one tool against the session. Never throws for a caller mistake — an
@@ -597,7 +807,7 @@ const HANDLERS: Record<string, Handler> = {
  * feed it to the model and let it recover, same as production.
  */
 export function executeTool(session: Session, name: string, args: ToolArgs = {}): ToolResult {
-  const handler = HANDLERS[name];
+  const handler = HANDLERS[resolveToolName(name)];
   if (!handler) return fail(`Unknown tool "${name}". Available tools: ${TOOL_NAMES.join(', ')}`);
   try {
     return handler(session, args ?? {});
