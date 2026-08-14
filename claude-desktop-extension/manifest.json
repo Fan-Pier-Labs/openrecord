@@ -28,6 +28,8 @@
     { "name": "search_mycharts", "description": "Search the directory of known MyChart instances by name." },
     { "name": "get_setup_widget", "description": "Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup." },
     { "name": "setup_account", "description": "Attempt to log into MyChart with hostname + username + password. May return need_2fa." },
+    { "name": "import_browser_passwords", "description": "Find MyChart logins already saved in this machine's browsers (Chrome, Arc, Brave, Edge, Firefox). Read-only; returns no passwords." },
+    { "name": "connect_imported_account", "description": "Connect an account found by import_browser_passwords, using the password already saved in the browser." },
     { "name": "complete_2fa", "description": "Finish a setup_account flow that returned need_2fa." },
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
