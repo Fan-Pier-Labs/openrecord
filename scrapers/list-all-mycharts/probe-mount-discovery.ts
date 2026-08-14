@@ -114,7 +114,9 @@ export async function probeHost(entry: HostEntry): Promise<ProbeResult> {
     const req = timeBoundedRequest(entry.host);
     await Promise.race([
       determineFirstPathPart(req),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('host timed out')), HOST_TIMEOUT_MS)),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('host timed out')), HOST_TIMEOUT_MS)
+      }),
     ]);
 
     result.found = req.firstPathPart;

@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
@@ -40,6 +41,14 @@ export default [
       // An async function that never awaits is either needlessly promise-typed
       // or missing the await it was written for; both deserve a look.
       "@typescript-eslint/require-await": "error",
+      // `parseInt(s)` reads as "parse a decimal number", but the radix comes
+      // from the string: "0x10" is 16, not 0. Every call says which base it
+      // meant.
+      "radix": "error",
+      // A `.map`/`.filter`/`.reduce` callback that falls off its end yields
+      // `undefined` for that element and the array quietly fills with holes —
+      // a callback run only for its side effects belongs in `.forEach`.
+      "array-callback-return": "error",
       // A bare `.sort()` stringifies every element first, so numbers come out
       // [1, 10, 2] and Dates sort by their English text. Only an array that is
       // already string[] may sort without a comparator.
@@ -90,6 +99,12 @@ export default [
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
       }],
+      // Companion to the rule above: when EVERY specifier is inline-`type`,
+      // `verbatimModuleSyntax` (on in all five projects) still emits a runtime
+      // `import "./x"`, keeping the module edge and its side effects alive for
+      // something that was only ever a type. Hoisting the marker to the
+      // statement drops the edge.
+      "@typescript-eslint/no-import-type-side-effects": "error",
       // `attributes: false` allows the idiomatic async JSX handler
       // (onPress={handleSave}) — React ignores the returned promise, and the
       // alternative is wrapping every handler in `() => void f()` noise. All
@@ -130,6 +145,17 @@ export default [
       "@typescript-eslint/switch-exhaustiveness-check": ["error", {
         considerDefaultExhaustiveForUnions: true,
       }],
+      // Spreading a Map, Set, class instance, function or array into an object
+      // produces something other than what it reads as — indices for an array,
+      // an empty object for a Map. Caught the header merge in scraperFetch,
+      // the single point every outbound request in the product passes through.
+      "@typescript-eslint/no-misused-spread": "error",
+      // A promise executor's return value is discarded, so `new Promise(r =>
+      // setTimeout(r, ms))` quietly throws away a timer handle — and the same
+      // shorthand around an async call throws away the promise, leaving the
+      // rejection unhandled and the executor's own resolve never reached.
+      // Braces around the body make the discard explicit.
+      "no-promise-executor-return": "error",
 
       // ── Round-5 zero-violation set ────────────────────────────────────────
       // Everything below was measured at 0 violations repo-wide and enabled
@@ -283,6 +309,23 @@ export default [
       "import-x/no-useless-path-segments": "error",
       "import-x/no-absolute-path": "error",
       "import-x/no-empty-named-blocks": "error",
+    },
+  },
+  // The two React clients (the Expo app and the splash demo) were linted by
+  // every rule above and by no React rule at all. rules-of-hooks is the one
+  // that matters most: a hook behind an `if` or inside a loop desynchronizes
+  // React's hook order and crashes at runtime, and nothing else in the
+  // toolchain — not tsc, not the tests — can see it. Zero violations today.
+  //
+  // exhaustive-deps is deliberately NOT enabled here. It has 7 real hits, and
+  // each one needs its own judgment call (adding a dep can turn a stale
+  // closure into a re-render loop), so it gets its own change rather than
+  // riding along with a zero-violation ratchet.
+  {
+    files: ["expo-app/**/*.ts", "expo-app/**/*.tsx", "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
     },
   },
   {rules: {

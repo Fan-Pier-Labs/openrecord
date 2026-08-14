@@ -7,7 +7,7 @@
  * On iOS, passes raw `fetch` to scrapers so iOS handles cookies natively
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
-import { type MyChartRequest } from "../../../../scrapers/myChart/core/myChartRequest";
+import type { MyChartRequest } from "../../../../scrapers/myChart/core/myChartRequest";
 import {
   myChartUserPassLogin,
   myChartPasskeyLogin,
