@@ -9,7 +9,7 @@
 import { execFile } from 'child_process';
 import { createDecipheriv, pbkdf2Sync } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
-import { homedir, platform } from 'os';
+import { homedir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
 import { toBuffer, toText, withDatabaseCopy } from './sqlite';
@@ -44,13 +44,13 @@ const BROWSERS: ChromiumBrowser[] = [
 const PROFILE_DIRS = ['Default', 'Profile 1', 'Profile 2', 'Profile 3', 'Profile 4'];
 
 function applicationSupportRoot(): string {
-  return platform() === 'win32'
+  return process.platform === 'win32'
     ? process.env.LOCALAPPDATA ?? path.join(homedir(), 'AppData', 'Local')
     : path.join(homedir(), 'Library', 'Application Support');
 }
 
 function profileRoot(browser: ChromiumBrowser): string | null {
-  const relative = platform() === 'win32' ? browser.winDir : browser.macDir;
+  const relative = process.platform === 'win32' ? browser.winDir : browser.macDir;
   return relative ? path.join(applicationSupportRoot(), relative) : null;
 }
 
@@ -118,8 +118,15 @@ async function windowsMasterKey(profileRootPath: string): Promise<Buffer | null>
  * handle. `v20` is Chrome 127+ **app-bound encryption** on Windows, which binds
  * the key to the Chrome executable itself; it cannot be unwrapped from another
  * process by design, so we report it rather than pretending the row is corrupt.
+ *
+ * `scheme` is passed in rather than read from `process.platform` so both branches stay
+ * reachable from a test on either OS. Exported for that reason.
  */
-function decryptPassword(masterKey: Buffer, blob: Buffer): { text?: string; reason?: string } {
+export function decryptPassword(
+  masterKey: Buffer,
+  blob: Buffer,
+  osScheme: 'mac' | 'windows',
+): { text?: string; reason?: string } {
   if (blob.length === 0) return { text: '' };
   const scheme = blob.subarray(0, 3).toString('latin1');
 
@@ -131,7 +138,7 @@ function decryptPassword(masterKey: Buffer, blob: Buffer): { text?: string; reas
   }
 
   try {
-    if (platform() === 'win32') {
+    if (osScheme === 'windows') {
       // AES-256-GCM: 12-byte nonce, 16-byte tag at the end.
       const nonce = blob.subarray(3, 15);
       const body = blob.subarray(15);
@@ -152,8 +159,8 @@ function decryptPassword(masterKey: Buffer, blob: Buffer): { text?: string; reas
 
 /** Every credential this machine's Chromium browsers have saved. */
 export async function getChromiumLogins(): Promise<PasswordStoreEntry[]> {
-  const isMac = platform() === 'darwin';
-  if (!isMac && platform() !== 'win32') return [];
+  const isMac = process.platform === 'darwin';
+  if (!isMac && process.platform !== 'win32') return [];
 
   const entries: PasswordStoreEntry[] = [];
 
@@ -179,7 +186,9 @@ export async function getChromiumLogins(): Promise<PasswordStoreEntry[]> {
 
         for (const row of rows) {
           const blob = toBuffer(row.password_value);
-          const { text, reason } = blob ? decryptPassword(masterKey, blob) : { reason: 'no password blob' };
+          const { text, reason } = blob
+            ? decryptPassword(masterKey, blob, isMac ? 'mac' : 'windows')
+            : { reason: 'no password blob' };
           entries.push({
             url: toText(row.origin_url) ?? '',
             user: toText(row.username_value),

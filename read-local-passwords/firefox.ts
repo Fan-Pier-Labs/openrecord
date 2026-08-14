@@ -16,7 +16,7 @@
 
 import { createDecipheriv, createHash, createHmac, pbkdf2Sync } from 'crypto';
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { homedir, platform } from 'os';
+import { homedir } from 'os';
 import * as path from 'path';
 import { child, oidToString, parseDer, readInteger, stripPadding, type DerNode } from './der';
 import { toBuffer, withDatabaseCopy } from './sqlite';
@@ -53,7 +53,7 @@ const hmacSha1 = (key: Buffer, ...parts: Buffer[]): Buffer => {
  * pbeWithSha1AndTripleDES form, because a long-lived profile can still hold the
  * latter.
  */
-function pbeDecrypt(algorithm: DerNode, ciphertext: Buffer, globalSalt: Buffer, masterPassword: Buffer): Buffer {
+export function pbeDecrypt(algorithm: DerNode, ciphertext: Buffer, globalSalt: Buffer, masterPassword: Buffer): Buffer {
   const algorithmOid = oidToString(child(algorithm, 0).content);
   const parameters = child(algorithm, 1);
 
@@ -134,14 +134,20 @@ async function unwrapKeys(key4Path: string, masterPassword: Buffer): Promise<Buf
   return keys.sort((a, b) => b.length - a.length);
 }
 
-/** Decrypt one base64 ASN.1 field from logins.json. */
-function decryptField(encoded: string, keys: Buffer[]): string {
+/** Decrypt one base64 ASN.1 field from logins.json. Exported for tests. */
+export function decryptField(encoded: string, keys: Buffer[]): string {
   const node = parseDer(Buffer.from(encoded, 'base64'));
   const cipherOid = oidToString(child(node, 1, 0).content);
   const spec = FIELD_CIPHERS[cipherOid];
   if (!spec) throw new Error(`firefox: unsupported field cipher ${cipherOid}`);
 
-  const key = keys.find(candidate => candidate.length >= spec.keyLength);
+  // Exact length first. `length >= keyLength` alone would hand a 3DES field the
+  // first 24 bytes of the 32-byte AES key — which decrypts to garbage rather
+  // than failing, so nothing downstream would notice. Only fall back to a longer
+  // key when no key is exactly the right size.
+  const key =
+    keys.find(candidate => candidate.length === spec.keyLength) ??
+    keys.find(candidate => candidate.length > spec.keyLength);
   if (!key) throw new Error(`firefox: no key of at least ${spec.keyLength} bytes`);
 
   const decipher = createDecipheriv(spec.algorithm, key.subarray(0, spec.keyLength), child(node, 1, 1).content);
@@ -152,8 +158,8 @@ function decryptField(encoded: string, keys: Buffer[]): string {
 
 function profileRoots(): string[] {
   const home = homedir();
-  if (platform() === 'darwin') return [path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles')];
-  if (platform() === 'win32') {
+  if (process.platform === 'darwin') return [path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles')];
+  if (process.platform === 'win32') {
     const appData = process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming');
     return [path.join(appData, 'Mozilla', 'Firefox', 'Profiles')];
   }
