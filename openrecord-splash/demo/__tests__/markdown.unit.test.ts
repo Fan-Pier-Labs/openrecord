@@ -26,12 +26,15 @@ function textOf(blocks: Block[]): string {
           return b.lines.map(spanText).join('\n');
         case 'image':
           return `[image:${b.name}]`;
+        default: {
+          // Assigning to `never` is what enforces exhaustiveness: add a `Block`
+          // kind and this stops compiling. The throw keeps every path of the
+          // callback producing a string — a fall-through would put `undefined`
+          // in the joined text and read as a parse bug.
+          const unhandled: never = b;
+          throw new Error(`textOf: unhandled block ${JSON.stringify(unhandled)}`);
+        }
       }
-      // Unreachable while the switch names every `Block` kind — which
-      // switch-exhaustiveness-check enforces, since there is no `default`. It
-      // is here so every path of the callback produces a string: a fall-through
-      // would put `undefined` in the joined text and read as a parse bug.
-      throw new Error(`textOf: unhandled block ${JSON.stringify(b)}`);
     })
     .join('\n');
 }

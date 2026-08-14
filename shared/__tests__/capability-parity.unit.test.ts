@@ -485,3 +485,72 @@ describe('npm library', () => {
     expect(absent).toEqual([]);
   });
 });
+
+// ── 5. The public browser demo ─────────────────────────────────────────────
+
+describe('the browser demo', () => {
+  // `openrecord-splash/demo` is the fifth surface: the same agent loop and the
+  // same tool names, run against a fictional record instead of a portal. It is
+  // what a visitor judges the product by, so a capability missing here reads as
+  // a capability the product does not have. Seven of them had gone missing
+  // before this test existed.
+
+  it('offers a tool for every read and write capability', async () => {
+    const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
+    const offered = new Set(TOOL_SPECS.map((t) => resolveToolName(t.name)));
+    const missing = AGENT_IDS.filter((id) => !offered.has(id));
+    expect(missing).toEqual([]);
+  });
+
+  it('does not offer the account-security capabilities', async () => {
+    // They change how someone signs in. No client hands them to a model, and
+    // the demo has no credentials to change in the first place.
+    const { TOOL_SPECS } = await import('../../openrecord-splash/demo/src/tools');
+    const offered = TOOL_SPECS.map((t) => t.name);
+    for (const capability of CAPABILITIES.filter((c) => c.kind === 'account')) {
+      expect(offered).not.toContain(capability.id);
+    }
+  });
+
+  it('flags the same tools as writes', async () => {
+    const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
+    const registryWrites = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
+    for (const id of registryWrites) {
+      const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === id)!;
+      // A write the demo treats as a read would run without the confirmation
+      // dialog — the demo would be showing a safety property it doesn't have.
+      expect(spec.write).toBe(true);
+    }
+  });
+
+  it('names every required parameter each capability declares', async () => {
+    const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
+    for (const capability of AGENT_CAPABILITIES) {
+      const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === capability.id)!;
+      for (const param of capability.params.filter((p) => p.required)) {
+        expect(Object.keys(spec.args)).toContain(param.name);
+      }
+    }
+  });
+
+  it('adds only the account and scheduling tools the registry has no id for', async () => {
+    const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
+    const extra = TOOL_SPECS.map((t) => resolveToolName(t.name)).filter((name) => !CAPABILITY_IDS.includes(name));
+    // Account setup mirrors the extension's meta tools, which are per-machine
+    // and deliberately outside the registry. Scheduling is demo-only until the
+    // real thing ships. Anything else appearing here is drift.
+    expect(extra.sort()).toEqual(
+      [
+        'check_session',
+        'complete_2fa',
+        'connect_instance',
+        'disconnect_account',
+        'list_accounts',
+        'search_mycharts',
+        'setup_account',
+        'get_available_appointments',
+        'book_appointment',
+      ].sort(),
+    );
+  });
+});
