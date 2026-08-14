@@ -119,7 +119,7 @@ describe('the registry itself', () => {
 
   it('groups without losing or duplicating an entry', () => {
     const grouped = capabilitiesByGroup().flatMap((g) => g.capabilities.map((c) => c.id));
-    expect(grouped.sort()).toEqual([...CAPABILITY_IDS].sort());
+    expect([...grouped].sort()).toEqual([...CAPABILITY_IDS].sort());
   });
 
   it('describes a capability as a callable signature', () => {

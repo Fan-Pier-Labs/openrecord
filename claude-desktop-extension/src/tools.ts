@@ -23,9 +23,11 @@
  *
  * Setup is a sequence of explicit tool calls (no MCP elicitation):
  *   list_accounts                                  // see what's already set up
- *   search_mycharts(query="uchealth")              // find the hostname for a new account
+ *   import_browser_passwords()                     // optional: reuse a password the browser already has
+ *   connect_imported_account(import_id)            //   …then connect the one the user picked
+ *   search_mycharts(query="uchealth")              // otherwise, find the hostname for a new account
  *   setup_account(hostname, username, password)    // attempt login
- *   complete_2fa(pending_id, code)                 // only if setup_account said need_2fa
+ *   complete_2fa(pending_id, code)                 // only if the login said need_2fa
  *   register_passkey(account)                      // optional: skip 2FA on future sessions
  */
 
@@ -70,6 +72,7 @@ import {
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
+import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { encodeStudyJpegs } from './imaging/download-study';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
@@ -282,6 +285,70 @@ function imagingResult(
   return { content };
 }
 
+// ── Shared login path ───────────────────────────────────────────────────────
+
+/**
+ * Log in with a password, save the account, and register a passkey.
+ *
+ * Shared by `setup_account` (password typed in chat) and
+ * `connect_imported_account` (password read from the browser store) so both
+ * routes get identical 2FA handling, session adoption and passkey
+ * registration — and so a fix to one is a fix to both.
+ */
+async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
+  try {
+    const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+
+    if (result.state === 'logged_in') {
+      upsertAccount({ hostname: normalizeHostname(hostname), username, password });
+      await adoptSession(hostname, username, result.mychartRequest);
+      const passkey = await tryAutoRegisterPasskey(hostname, username, result.mychartRequest);
+      return jsonResult({
+        state: 'logged_in',
+        account: accountId({ hostname, username }),
+        passkey_registered: passkey.registered,
+        passkey_reason: passkey.reason ?? null,
+        message: passkey.registered
+          ? 'Account connected and passkey saved — future sessions will skip the password and 2FA prompts.'
+          : `Account connected. Passkey auto-registration outcome: ${passkey.reason ?? 'unknown'}.`,
+      });
+    }
+
+    if (result.state === 'invalid_login') {
+      return jsonResult({
+        state: 'invalid_login',
+        account: normalizeHostname(hostname),
+        message: 'MyChart rejected those credentials. Double-check the username + password with the user and call setup_account again.',
+      });
+    }
+
+    if (result.state === 'need_2fa') {
+      const pending_id = addPending({
+        hostname: normalizeHostname(hostname),
+        username,
+        password,
+        mychartRequest: result.mychartRequest,
+      });
+      return jsonResult({
+        state: 'need_2fa',
+        pending_id,
+        account: normalizeHostname(hostname),
+        delivery: result.twoFaDelivery ?? null,
+        message: 'MyChart sent a 6-digit verification code. Ask the user for it, then call complete_2fa with this pending_id and the code.',
+      });
+    }
+
+    return jsonResult({
+      state: result.state,
+      account: normalizeHostname(hostname),
+      error: result.error ?? null,
+      message: `Login ended in unexpected state: ${result.state}. Tell the user and try again.`,
+    });
+  } catch (err) {
+    return errorResult((err as Error).message);
+  }
+}
+
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(server: McpServer): void {
@@ -388,58 +455,81 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ hostname, username, password }) => {
+    ({ hostname, username, password }) => connectWithPassword(hostname, username, password),
+  );
+
+  server.registerTool(
+    'import_browser_passwords',
+    {
+      title: 'Find MyChart logins saved in the browser',
+      description:
+        "Scan this machine's browser password stores (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins the user has already saved, so they do not have to type a password. " +
+        'Read-only, and it may raise the OS keychain permission prompt. ' +
+        'Returns only accounts confirmed to be MyChart portals — a known Epic instance, or one whose login page was verified. ' +
+        'Passwords are NEVER returned: each entry carries an opaque `import_id`. Show the list to the user, let them choose, then call connect_imported_account with the chosen id.',
+      inputSchema: {
+        check_unknown_hosts: z
+          .boolean()
+          .optional()
+          .describe('Default true. When false, no network requests are made and only hostnames already in the bundled MyChart directory are returned.'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ check_unknown_hosts }) => {
       try {
-        const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+        const scan = await scanBrowserPasswords({ probeUnknownHosts: check_unknown_hosts ?? true });
 
-        if (result.state === 'logged_in') {
-          upsertAccount({ hostname: normalizeHostname(hostname), username, password });
-          await adoptSession(hostname, username, result.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(hostname, username, result.mychartRequest);
-          return jsonResult({
-            state: 'logged_in',
-            account: accountId({ hostname, username }),
-            passkey_registered: passkey.registered,
-            passkey_reason: passkey.reason ?? null,
-            message: passkey.registered
-              ? 'Account connected and passkey saved — future sessions will skip the password and 2FA prompts.'
-              : `Account connected. Passkey auto-registration outcome: ${passkey.reason ?? 'unknown'}.`,
-          });
+        if (!scan.supported) {
+          return jsonResult({ supported: false, message: 'Reading browser password stores is only supported on macOS and Windows.' });
         }
-
-        if (result.state === 'invalid_login') {
+        if (scan.accounts.length === 0) {
           return jsonResult({
-            state: 'invalid_login',
-            account: normalizeHostname(hostname),
-            message: 'MyChart rejected those credentials. Double-check the username + password with the user and call setup_account again.',
-          });
-        }
-
-        if (result.state === 'need_2fa') {
-          const pending_id = addPending({
-            hostname: normalizeHostname(hostname),
-            username,
-            password,
-            mychartRequest: result.mychartRequest,
-          });
-          return jsonResult({
-            state: 'need_2fa',
-            pending_id,
-            account: normalizeHostname(hostname),
-            delivery: result.twoFaDelivery ?? null,
-            message: 'MyChart sent a 6-digit verification code. Ask the user for it, then call complete_2fa with this pending_id and the code.',
+            supported: true,
+            accounts: [],
+            message:
+              "No saved MyChart logins were confirmed in this machine's browsers. Set the account up with setup_account instead. " +
+              'If the user believes they have one saved, their portal may have been unreachable just now — this tool can be run again later.',
           });
         }
 
         return jsonResult({
-          state: result.state,
-          account: normalizeHostname(hostname),
-          error: result.error ?? null,
-          message: `Login ended in unexpected state: ${result.state}. Tell the user and try again.`,
+          ...scan,
+          message:
+            'Show the user these accounts and ask which to connect. Call connect_imported_account with the chosen import_id. ' +
+            'Ids expire 10 minutes after the scan; run this tool again if that happens.',
         });
       } catch (err) {
         return errorResult((err as Error).message);
       }
+    },
+  );
+
+  server.registerTool(
+    'connect_imported_account',
+    {
+      title: 'Connect an account found in the browser',
+      description:
+        'Log into a MyChart account discovered by import_browser_passwords, using the password already saved in the browser, and save it for future calls. ' +
+        'Only call this for an entry the user explicitly chose. Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (the saved password is stale — ask the user for the current one and use setup_account).',
+      inputSchema: {
+        import_id: z.string().describe('The import_id of the chosen entry from import_browser_passwords.'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ import_id }) => {
+      const candidate = takeImportedCandidate(import_id);
+      if (!candidate) {
+        return errorResult('That import_id is unknown or has expired (10-minute TTL). Call import_browser_passwords again.');
+      }
+      if (!candidate.user) {
+        return errorResult(`The saved credential for ${candidate.hostname} has no username. Ask the user for it and call setup_account.`);
+      }
+
+      const result = await connectWithPassword(candidate.hostname, candidate.user, candidate.pass!);
+      // Keep the credential only while it is still needed: a 2FA flow has
+      // already copied it into the pending-login record.
+      releaseImportedCandidate(import_id);
+      return result;
     },
   );
 

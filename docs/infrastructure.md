@@ -35,9 +35,9 @@ with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site 
   (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
 - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and
   the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
-- **The splash deliberately does not link to the demo.** `/demo.html` deploys with every push but is
-  unadvertised, so it is reached by sharing the URL. Don't "fix" the missing CTA — putting the demo
-  on the homepage is a product decision to make on purpose.
+- **The splash deliberately does not link to the demo, until the demo is golden.** `/demo.html`
+  deploys with every push but is unadvertised, so it is reached by sharing the URL. Don't "fix" the
+  missing CTA — the hold is on purpose, and the bar to lift it is in [`docs/demo.md`](demo.md).
 - **Share previews + PWA assets**: `og-image.png` (1200×630 card), `favicon.ico`, `icon.svg`,
   `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`. The PNGs are generated but
   committed — run `cd openrecord-splash && ./generate-assets.sh` after editing `icon.svg` or
@@ -131,8 +131,6 @@ the app's agent loops stay identical.
 
 ## S3 buckets (us-east-2)
 
-- **mychart-connector** (`arn:aws:s3:::mychart-connector`) — `mychart-logos/` holds logos for all
-  MyChart instances, uploaded by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`.
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`) — the static splash and
   demo. Private; served only via CloudFront `EXUZ8GHUQ9ULF` (OAC).
 

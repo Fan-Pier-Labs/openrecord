@@ -23,7 +23,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
 | `openrecord-splash/` | Static splash site + the browser demo |
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
-| `read-local-passwords/` | Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI |
+| `read-local-passwords/` | Browser password store extraction (Chromium + Firefox) — used by the CLI and the MCPB's import flow. Read-only, macOS/Windows |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
 ## Invariants
@@ -134,7 +134,7 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   by `expo-app/src/__tests__/testids.unit.test.ts`.
 - `gh pr edit` fails on a GitHub Projects Classic deprecation error. Update PRs with the API instead:
   ```bash
-  gh api repos/Fan-Pier-Labs/ryans-health-app/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
+  gh api repos/Fan-Pier-Labs/openrecord/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
   ```
   `gh pr create` works normally.
 
