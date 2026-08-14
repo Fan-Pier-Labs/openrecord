@@ -519,7 +519,12 @@ describe('the browser demo', () => {
       const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === id)!;
       // A write the demo treats as a read would run without the confirmation
       // dialog — the demo would be showing a safety property it doesn't have.
-      expect(spec.write).toBe(true);
+      // The `write` block is also the dialog's copy, so an empty one renders a
+      // blank popup.
+      expect(spec.write).toBeDefined();
+      expect(spec.write!.title.length).toBeGreaterThan(0);
+      expect(spec.write!.description.length).toBeGreaterThan(0);
+      expect(spec.write!.verb.length).toBeGreaterThan(0);
     }
   });
 

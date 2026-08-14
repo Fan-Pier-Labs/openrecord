@@ -23,9 +23,10 @@ dist/           build output — gitignored, produced by deploy.sh
 ## The splash (`index.html`)
 
 - **Presentational only** — hero, feature grid, privacy section, 3-step timeline, CTA, footer.
-- **Does not link to the demo.** `/demo.html` ships with every deploy but is unadvertised, so
-  it is reached by sharing the URL directly. Adding a CTA here is a product decision, not a
-  missing link — see `docs/infrastructure.md`.
+- **Does not link to the demo, and must not until the demo is golden.** `/demo.html` ships with
+  every deploy but is unadvertised, so it is reached by sharing the URL directly. Adding a CTA
+  here is a product decision on a hold that is deliberate, not a missing link — the bar it has
+  to clear first is in [`docs/demo.md`](../docs/demo.md).
 - **Waitlist form** posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
   and logs to CloudWatch). Endpoint: `https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`,
   payload `{ site: "openrecord", name, email }`. A hidden `company` honeypot drops bots client-side.
@@ -72,6 +73,11 @@ shows up in the desktop chat.
 
 React 19 + TypeScript, built with Vite. Everything is `strict`, and `bun run typecheck`
 is part of `build`, so the demo cannot ship with a type error.
+
+The demo shares no code with the scraper core, so how closely it has to track the real product
+is a judgement call. [`docs/demo.md`](../docs/demo.md) draws that line: which divergences are
+accepted simplifications, and which are drift to fix. The tool surface itself is no longer a
+judgement call — `shared/__tests__/capability-parity.unit.test.ts` holds it to the registry.
 
 ### Logic (framework-free, fully unit-tested)
 

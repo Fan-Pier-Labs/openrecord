@@ -115,8 +115,10 @@ function logActivity(session: Session, kind: string, summary: string): void {
  * Tool catalogue. `args` is a name → description map used both to build the
  * model's system prompt and to render the tool browser in the UI.
  *
- * `write: true` marks the tools that change something in the portal. The agent
- * must call them alone and confirm with the user first, exactly like production.
+ * A `write` block marks the tools that change something in the portal and
+ * carries the copy for the dialog that gates them. The agent must call them
+ * alone and confirm with the user first, exactly like production. A spec with
+ * no `write` block is a read and runs unattended.
  */
 export const TOOL_SPECS: ToolSpec[] = [
   // ── Session / account ──
@@ -135,7 +137,11 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'setup_account',
     group: 'Account',
-    write: true,
+    write: {
+      title: 'Connect MyChart Account',
+      description: 'Logs into MyChart and saves the account on this device.',
+      verb: 'Connect',
+    },
     description:
       'Log into MyChart and save the account. Returns state: logged_in, need_2fa (call complete_2fa with the pending_id), or invalid_login.',
     args: { hostname: 'MyChart hostname', username: 'MyChart username', password: 'MyChart password' },
@@ -151,7 +157,11 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'disconnect_account',
     group: 'Account',
-    write: true,
+    write: {
+      title: 'Forget MyChart Account',
+      description: 'Deletes the saved credentials and session for this account.',
+      verb: 'Forget',
+    },
     description:
       'Forget a saved MyChart account — deletes the stored credentials and session. Data tools stop working until it is set up again.',
     args: { account: 'account id from list_accounts' },
@@ -168,7 +178,11 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'switch_proxy_target',
     group: 'Patients',
-    write: true,
+    write: {
+      title: 'Switch Patient Record',
+      description: 'Changes which patient record every tool reads from here on.',
+      verb: 'Switch',
+    },
     description:
       'Switch which patient record MyChart is showing. Changes server-side state: every data tool reads the new record afterwards. Pass patient: "me" to go back to the account holder.',
     args: { patient: 'patient name from list_proxy_targets, or "me"', instance: 'optional' },
@@ -268,21 +282,33 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'delete_message',
     group: 'Messaging',
-    write: true,
+    write: {
+      title: 'Delete Conversation',
+      description: 'Deletes this conversation from your MyChart inbox.',
+      verb: 'Delete',
+    },
     description: 'Delete a conversation from the inbox. Confirm with the user before deleting.',
     args: { conversation_id: 'thread id from get_messages', instance: 'optional' },
   },
   {
     name: 'send_message',
     group: 'Messaging',
-    write: true,
+    write: {
+      title: 'Send Message',
+      description: 'Sends a new message to your care team.',
+      verb: 'Send',
+    },
     description: 'Send a new message to the care team. Confirm with the user before sending.',
     args: { recipient_name: 'provider name (fuzzy match)', topic: 'topic name', subject: 'subject line', message: 'body text', instance: 'optional' },
   },
   {
     name: 'send_reply',
     group: 'Messaging',
-    write: true,
+    write: {
+      title: 'Send Reply',
+      description: 'Replies to an existing conversation.',
+      verb: 'Send',
+    },
     description: 'Reply to an existing message thread. Confirm with the user before sending.',
     args: { conversation_id: 'thread id from get_messages', message: 'reply text', instance: 'optional' },
   },
@@ -291,7 +317,11 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'request_refill',
     group: 'Actions',
-    write: true,
+    write: {
+      title: 'Request Refill',
+      description: 'Submits a medication refill request.',
+      verb: 'Request',
+    },
     description: 'Request a medication refill. Confirm with the user before submitting.',
     args: { medication_name: 'medication name (fuzzy match)', instance: 'optional' },
   },
@@ -299,28 +329,44 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'book_appointment',
     group: 'Actions',
-    write: true,
+    write: {
+      title: 'Book Appointment',
+      description: 'Books this appointment slot.',
+      verb: 'Book',
+    },
     description: 'Book an open appointment slot. Confirm with the user before booking.',
     args: { slot_id: 'slot id from get_available_appointments', reason: 'reason for visit', instance: 'optional' },
   },
   {
     name: 'add_emergency_contact',
     group: 'Actions',
-    write: true,
+    write: {
+      title: 'Add Emergency Contact',
+      description: 'Adds a new emergency contact to your record.',
+      verb: 'Add',
+    },
     description: 'Add an emergency contact. Confirm with the user first.',
     args: { name: 'contact name', relationship_type: 'relationship', phone_number: 'phone number', instance: 'optional' },
   },
   {
     name: 'update_emergency_contact',
     group: 'Actions',
-    write: true,
+    write: {
+      title: 'Update Emergency Contact',
+      description: 'Changes an emergency contact on your record.',
+      verb: 'Update',
+    },
     description: 'Update an emergency contact. Confirm with the user first.',
     args: { id: 'contact id', name: 'optional', relationship_type: 'optional', phone_number: 'optional', instance: 'optional' },
   },
   {
     name: 'remove_emergency_contact',
     group: 'Actions',
-    write: true,
+    write: {
+      title: 'Remove Emergency Contact',
+      description: 'Removes an emergency contact from your record.',
+      verb: 'Remove',
+    },
     description: 'Remove an emergency contact. Confirm with the user first.',
     args: { id: 'contact id', instance: 'optional' },
   },
@@ -346,6 +392,31 @@ const TOOL_ALIASES: Record<string, string> = {
 export function resolveToolName(name: string): string {
   return TOOL_ALIASES[name] ?? name;
 }
+
+/**
+ * The write half of the catalogue, derived rather than listed.
+ *
+ * Everything downstream of write-ness — the exclusivity rule, the system
+ * prompt's list of tools that open a dialog, the dialog copy itself — reads
+ * from here, so a tool declared with `write` is gated from the first render
+ * and a tool declared without it is a plain read. There is no second list to
+ * forget to update.
+ */
+export const WRITE_TOOL_SPECS: ToolSpec[] = TOOL_SPECS.filter((t) => t.write);
+
+export const WRITE_TOOL_NAMES: string[] = WRITE_TOOL_SPECS.map((t) => t.name);
+
+/**
+ * The half of the catalogue the model is actually offered.
+ *
+ * Account tools manage credentials on the device rather than anything in a
+ * chart, and the demo drops the visitor into a connected account — so they are
+ * implemented and callable, but never named in the prompt. Deriving the
+ * prompt's lists from here keeps it from advertising a tool it doesn't list.
+ */
+export const AGENT_TOOL_SPECS: ToolSpec[] = TOOL_SPECS.filter((t) => t.group !== 'Account');
+
+export const AGENT_WRITE_TOOL_NAMES: string[] = AGENT_TOOL_SPECS.filter((t) => t.write).map((t) => t.name);
 
 export function isWriteTool(name: string): boolean {
   return Boolean(SPEC_BY_NAME.get(resolveToolName(name))?.write);
