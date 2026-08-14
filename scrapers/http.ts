@@ -150,6 +150,23 @@ export function abortAfter(ms: number): AbortSignal {
   return ctrl.signal;
 }
 
+/**
+ * `RequestInit` with headers narrowed to a plain object.
+ *
+ * `Omit` rather than an intersection with `RequestInit`, and that is
+ * load-bearing: intersecting leaves `headers` as `HeadersInit &
+ * Record<string, string>`, whose `string[][]` branch survives. A caller
+ * passing the tuple form (`[['X-Foo', '1']]`) or a `Headers` instance would
+ * type-check, and `{ ...init.headers }` below would spread it by index —
+ * producing a header literally named `0`, or nothing at all, instead of the
+ * headers asked for. Every outbound request in the product goes through here,
+ * so that failure would be silent and total. Narrowing the type makes the
+ * merge below the only thing this function has to support.
+ */
+export type ScraperFetchInit = Omit<RequestInit, 'headers'> & {
+  headers?: Record<string, string>;
+};
+
 export type ScraperFetchOptions = {
   /**
    * Jar to read `Cookie` from and write `Set-Cookie` back into. Pass null when
@@ -174,7 +191,7 @@ export type ScraperFetchOptions = {
  */
 export async function scraperFetch(
   url: string,
-  init: RequestInit & { headers?: Record<string, string> } = {},
+  init: ScraperFetchInit = {},
   options: ScraperFetchOptions = {},
 ): Promise<Response> {
   const { cookieJar } = options;

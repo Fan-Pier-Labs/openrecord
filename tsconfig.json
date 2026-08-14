@@ -19,15 +19,16 @@
     "strict": true,
     "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
+    // Pure checks — they change what tsc rejects, never what it emits.
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
-    "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "sourceMap": false,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noFallthroughCasesInSwitch": true,
     "noUnusedParameters": true,
     "noUnusedLocals": true
   },

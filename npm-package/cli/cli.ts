@@ -5,7 +5,7 @@ import { version as CLI_VERSION } from '../package.json';
 import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/auth/login';
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
-import { type PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
+import type { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../../scrapers/myChart/chart/messages/sendMessage';
 import { sendReply } from '../../scrapers/myChart/chart/messages/sendReply';
 import { listConversations } from '../../scrapers/myChart/chart/messages/conversations';
@@ -253,7 +253,7 @@ async function getCredentials(): Promise<{ hostname: string; username: string; p
     if (selection.toLowerCase() === 'a') {
       selectedAccounts = accounts;
     } else {
-      const indices = selection.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < accounts.length);
+      const indices = selection.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(i => i >= 0 && i < accounts.length);
       if (indices.length === 0) {
         console.log('  Invalid selection. Using all accounts.');
         selectedAccounts = accounts;
@@ -544,7 +544,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
   }
 
   const topicChoice = await ask('\n  Select topic number: ');
-  const topicIdx = parseInt(topicChoice) - 1;
+  const topicIdx = parseInt(topicChoice, 10) - 1;
   if (topicIdx < 0 || topicIdx >= topics.length) {
     console.log('  Invalid topic selection.');
     return;
@@ -566,7 +566,7 @@ async function handleSendMessage(mychartRequest: MyChartRequest) {
   }
 
   const recipientChoice = await ask('\n  Select recipient number: ');
-  const recipientIdx = parseInt(recipientChoice) - 1;
+  const recipientIdx = parseInt(recipientChoice, 10) - 1;
   if (recipientIdx < 0 || recipientIdx >= recipients.length) {
     console.log('  Invalid recipient selection.');
     return;
@@ -627,7 +627,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
     }
 
     const convoChoice = await ask('\n  Select conversation to reply to: ');
-    const convoIdx = parseInt(convoChoice) - 1;
+    const convoIdx = parseInt(convoChoice, 10) - 1;
     if (convoIdx < 0 || convoIdx >= convoList.length) {
       console.log('  Invalid selection.');
       return;
