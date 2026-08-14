@@ -383,7 +383,7 @@ describe('scrapers have exactly one outbound path', () => {
         .split('\n')
         .flatMap((line, i) =>
           // Comments describe the rule; only code breaks it.
-          isNetworkCall(line) && !/^\s*(\/\/|\*|\/\*)/.test(line)
+          isNetworkCall(line) && !/^\s*(?:\/\/|\*|\/\*)/.test(line)
             ? [`${path.relative(SCRAPERS_DIR, file)}:${i + 1}: ${line.trim()}`]
             : [],
         ),

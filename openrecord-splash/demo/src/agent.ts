@@ -157,9 +157,9 @@ const ACK_OPENER =
 
 /** Anything that names the machinery itself. Safe for either opener. */
 const PROTOCOL_TOPIC =
-  /\b(json|formats?|formatted|formatting|instructions?|protocol|tool\s*calls?|wrapper|schema|syntax|code\s*fence)\b/i;
+  /\b(?:json|formats?|formatted|formatting|instructions?|protocol|tool\s*calls?|wrapper|schema|syntax|code\s*fence)\b/i;
 /** Vaguer, and only trustworthy after an apology. */
-const APOLOGY_TOPIC = /\b(again|error|mistake|careful|request)\b/i;
+const APOLOGY_TOPIC = /\b(?:again|error|mistake|careful|request)\b/i;
 
 /**
  * Promises about how it will conduct itself, rather than an answer.
@@ -170,7 +170,7 @@ const APOLOGY_TOPIC = /\b(again|error|mistake|careful|request)\b/i;
  * question about the cholesterol result" is a real reply and must survive.
  */
 const META_PROMISE =
-  /\b(focus on (?:answering|your question)|answer(?:ing)? (?:you|your question|it) directly|be (?:more )?direct|get (?:straight|right) to|from now on|going forward|in future)\b/i;
+  /\b(?:focus on (?:answering|your question)|answer(?:ing)? (?:you|your question|it) directly|be (?:more )?direct|get (?:straight|right) to|from now on|going forward|in future)\b/i;
 
 /** The stock promise that trails a format apology. */
 const FOLLOW_UP = /^(?:i\s+will|i'll)\s+be\s+more\s+careful\b/i;
@@ -212,8 +212,8 @@ export function stripProtocolChatter(text: string): string {
 /** Tools that put a message in front of a human at the other end. */
 const SENDING_TOOLS = new Set(['send_message', 'send_reply']);
 
-const DRAFT_VERB = /\b(draft|compose|prepare|write(?:\s+up)?|put\s+together)\b/i;
-const SEND_VERB = /\b(send|submit|fire\s+off|deliver|email|mail\s+it|go\s+ahead\s+and\s+send)\b/i;
+const DRAFT_VERB = /\b(?:draft|compose|prepare|write(?:\s+up)?|put\s+together)\b/i;
+const SEND_VERB = /\b(?:send|submit|fire\s+off|deliver|email|mail\s+it|go\s+ahead\s+and\s+send)\b/i;
 
 /**
  * Did the user ask to *see* a message rather than to send one?

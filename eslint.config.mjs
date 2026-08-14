@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import regexp from "eslint-plugin-regexp";
 
 
 export default [
@@ -341,6 +342,17 @@ export default [
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
+    },
+  },
+  // A capturing group nobody reads is one of three things: a `(?:…)` someone
+  // typed without the `?:`, a capture the consumer forgot to read (a real bug),
+  // or padding that shifts a later group's index. The parser knows which
+  // groups are read, so it separates the harmless grouping from the bug.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: { regexp },
+    rules: {
+      "regexp/no-unused-capturing-group": "error",
     },
   },
   {rules: {

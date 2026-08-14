@@ -197,7 +197,7 @@ function parseProxyTargetsFromHomeHtml(mychartRequest: MyChartRequest, html: str
     // Prefer an explicit self flag (`isSelf:!0` once minified). Falling back to
     // "has no id" is a last resort and is known to be wrong wherever the
     // account holder carries a real id, which is every instance measured so far.
-    const selfFlag = /\bisSelf:\s*(!0|true)/.test(block);
+    const selfFlag = /\bisSelf:\s*(?:!0|true)/.test(block);
     const isSelf = selfFlag || !id;
     targets.push({
       id,
