@@ -4,7 +4,10 @@ tsconfig.json
 tsup.config.ts
 .gitignore
 
-# Build tooling — runs before `mcpb pack`, has no business inside the artifact
+# Dev-only scripts. smoke.mjs asserts the packed layout matches this file, so
+# the two have to be changed together.
+smoke.mjs
+dev/
 scripts/
 
 # Dev deps — Claude Desktop ships its own Node runtime and tsup bundles our JS
@@ -38,6 +41,7 @@ node_modules/@napi-rs/*
 !node_modules/@napi-rs/keyring-win32-x64-msvc/**
 !node_modules/@napi-rs/keyring-win32-arm64-msvc
 !node_modules/@napi-rs/keyring-win32-arm64-msvc/**
+
 # Leading slash matters: an unanchored `package.json` matches at every depth and
 # would strip the shipped native package's own manifest, which is what Node
 # reads to find its entry point and its platform binary.
