@@ -86,6 +86,19 @@ if ! "${AWS[@]}" dynamodb describe-table --table-name "$SPEND_TABLE" >/dev/null 
   "${AWS[@]}" dynamodb wait table-exists --table-name "$SPEND_TABLE"
   echo "    created"
 fi
+
+# The rate limiter's per-window counters share this table and are disposable
+# once their window closes; the spend ledger rows carry no expiresAt and so are
+# never touched by this. Enabling TTL twice is an error, hence the status check.
+TTL_STATUS="$("${AWS[@]}" dynamodb describe-time-to-live \
+  --table-name "$SPEND_TABLE" \
+  --query 'TimeToLiveDescription.TimeToLiveStatus' --output text)"
+if [ "$TTL_STATUS" != "ENABLED" ] && [ "$TTL_STATUS" != "ENABLING" ]; then
+  echo "==> Enabling TTL on $SPEND_TABLE (expiresAt)"
+  "${AWS[@]}" dynamodb update-time-to-live \
+    --table-name "$SPEND_TABLE" \
+    --time-to-live-specification "Enabled=true,AttributeName=expiresAt" >/dev/null
+fi
 "${AWS[@]}" iam put-role-policy \
   --role-name "$ROLE_NAME" \
   --policy-name spend-table-access \

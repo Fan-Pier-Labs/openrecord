@@ -27,6 +27,168 @@ export type LabPanel = {
   results: LabComponent[];
 };
 
+export type Profile = {
+  name: string;
+  preferredName: string;
+  dateOfBirth: string;
+  sex: string;
+  mrn: string;
+  primaryCareProvider: string;
+  address: string;
+  phone: string;
+  email: string;
+};
+
+export type HealthSummary = {
+  bloodType: string;
+  height: string;
+  weight: string;
+  bmi: string;
+  bloodPressure: string;
+  heartRate: string;
+  lastUpdated: string;
+};
+
+export type Allergy = { allergen: string; reaction: string; severity: string; type: string };
+
+export type HealthIssue = { condition: string; status: string; onsetDate: string; provider: string };
+
+export type MedicalHistory = {
+  pastConditions: { condition: string; year: string; status: string }[];
+  surgicalHistory: { procedure: string; year: string; provider: string }[];
+  familyHistory: { relation: string; conditions: string[] }[];
+};
+
+export type VitalsEntry = { date: string; measurements: { name: string; value: string; units: string }[] };
+
+export type Immunization = { vaccine: string; date: string; site: string; provider: string };
+
+export type CareTeamMember = { name: string; role: string; specialty: string; phone: string };
+
+export type Goal = { goal: string; setBy: string; status: string; targetDate: string };
+
+export type PreventiveCareItem = { item: string; status: string; dueDate: string; lastCompleted: string };
+
+/** One series within an imaging study — what download_imaging_study enumerates. */
+export type ImagingSeries = { seriesUID: string; seriesDescription: string; imageCount: number };
+
+export type ImagingStudy = {
+  study: string;
+  date: string;
+  orderedBy: string;
+  facility: string;
+  status: string;
+  hasImages: boolean;
+  seriesCount: number;
+  impression: string;
+  /**
+   * Opaque token identifying the study's pictures, handed to
+   * download_imaging_study. `null` for report-only results — exactly like the
+   * real registry, which only attaches an `image_id` to studies that have
+   * viewable images.
+   */
+  imageId: string | null;
+  series: ImagingSeries[];
+};
+
+export type UpcomingOrder = {
+  orderType: string;
+  testName: string;
+  orderedBy: string;
+  orderDate: string;
+  instructions: string;
+};
+
+export type PastVisit = {
+  csn: string;
+  type: string;
+  provider: string;
+  department: string;
+  date: string;
+  reason: string;
+  diagnoses: string[];
+};
+
+export type VisitNote = {
+  hnoId: string;
+  hnoDat: string;
+  displayName: string;
+  iso: string;
+  isAddendum: boolean;
+  isNoteSensitive: boolean;
+  providerName: string;
+  providerMagicId: string;
+};
+
+export type VisitNotes = {
+  csn: string;
+  lrpId: string;
+  depPhoneNumber: string;
+  isAtLeastOneNoteSensitive: boolean;
+  notes: VisitNote[];
+};
+
+/** Rendered HTML + its stylesheet, the shape MyChart returns for notes and letters. */
+export type RenderedDocument = { contentHtml: string; contentCss: string };
+
+export type CareJourney = { name: string; status: string; startDate: string; provider: string; nextStep: string };
+
+export type Referral = {
+  referralTo: string;
+  reason: string;
+  referredBy: string;
+  date: string;
+  status: string;
+  expirationDate: string;
+};
+
+/** A letter entry. `hnoId` + `csn` are what get_letter_details takes. */
+export type Letter = {
+  title: string;
+  date: string;
+  provider: string;
+  type: string;
+  summary: string;
+  hnoId: string;
+  csn: string;
+};
+
+/** get_letter_details' payload — the real scraper returns exactly this one field. */
+export type LetterDetail = { bodyHTML: string };
+
+export type ClinicalDocument = { title: string; date: string; type: string; provider: string };
+
+export type Questionnaire = {
+  name: string;
+  assignedDate: string;
+  dueDate: string;
+  status: string;
+  appointment: string;
+};
+
+export type EducationMaterial = { title: string; assignedBy: string; date: string; category: string };
+
+export type ActivityFeedEntry = { date: string; type: string; description: string };
+
+export type EhiExport = { availableFormats: string[]; lastExport: string; note: string };
+
+export type LinkedAccount = { organization: string; hostname: string; status: string };
+
+export type MessageRecipient = { displayName: string; specialty: string; department: string };
+
+export type MessageTopic = { displayName: string; value: string };
+
+export type InsurancePlan = {
+  plan: string;
+  memberId: string;
+  groupNumber: string;
+  subscriber: string;
+  effectiveDate: string;
+  copay: { office: string; specialist: string; urgentCare: string; er: string };
+  deductible: string;
+  outOfPocketMax: string;
+};
+
 export type MessageEntry = { from: string; date: string; body: string };
 
 export type Conversation = {
@@ -90,6 +252,76 @@ export type Insight = {
 
 export type SeedChat = { id: string; title: string; updatedAt: string };
 
+/* ── Patients ───────────────────────────────────────────────────────── */
+
+/**
+ * One patient's whole chart.
+ *
+ * There are two: the account holder's, and the child record his MyChart
+ * account has proxy access to. Every read tool resolves its data off the
+ * ACTIVE record, which is what makes switch_proxy_target a real switch rather
+ * than a message that says one happened.
+ *
+ * The trailing fields are the mutable ones — `createSession` clones them into
+ * per-patient session state so a refill on one chart cannot touch the other.
+ */
+export type PatientRecord = {
+  profile: Profile;
+  healthSummary: HealthSummary;
+  allergies: Allergy[];
+  healthIssues: HealthIssue[];
+  medicalHistory: MedicalHistory;
+  vitals: VitalsEntry[];
+  immunizations: Immunization[];
+  careTeam: CareTeamMember[];
+  goals: Goal[];
+  preventiveCare: PreventiveCareItem[];
+  labResults: LabPanel[];
+  imagingResults: ImagingStudy[];
+  upcomingOrders: UpcomingOrder[];
+  pastVisits: PastVisit[];
+  visitNotes: VisitNotes;
+  noteContentByHnoId: Record<string, RenderedDocument>;
+  visitAVS: RenderedDocument;
+  careJourneys: CareJourney[];
+  referrals: Referral[];
+  letters: Letter[];
+  letterDetailsByHnoId: Record<string, LetterDetail>;
+  documents: ClinicalDocument[];
+  questionnaires: Questionnaire[];
+  educationMaterials: EducationMaterial[];
+  activityFeed: ActivityFeedEntry[];
+  ehiExport: EhiExport;
+  linkedAccounts: LinkedAccount[];
+  messageRecipients: MessageRecipient[];
+  messageTopics: MessageTopic[];
+  billing: BillingCharge[];
+  insurance: InsurancePlan[];
+
+  medications: Medication[];
+  messages: Conversation[];
+  emergencyContacts: EmergencyContact[];
+  upcomingVisits: Visit[];
+  availableAppointments: AppointmentOffer[];
+};
+
+/** A record this account can reach, plus the session's mutations to it. */
+export type PatientState = {
+  /** MyChart's own id for the record, as reported by list_proxy_targets. */
+  id: string;
+  name: string;
+  isSelf: boolean;
+  relationship: string;
+  dateOfBirth: string;
+  /** The static chart. Read tools clone out of here. */
+  record: PatientRecord;
+  medications: Medication[];
+  messages: Conversation[];
+  emergencyContacts: EmergencyContact[];
+  upcomingVisits: Visit[];
+  availableAppointments: AppointmentOffer[];
+};
+
 /* ── Session ────────────────────────────────────────────────────────── */
 
 /** One demo visitor's mutable copy of the record. */
@@ -97,18 +329,43 @@ export type Session = {
   hostname: string;
   username: string;
   connected: boolean;
-  medications: Medication[];
-  messages: Conversation[];
-  emergencyContacts: EmergencyContact[];
-  upcomingVisits: Visit[];
-  availableAppointments: AppointmentOffer[];
+  /**
+   * Whether credentials for this account are still saved.
+   *
+   * `disconnect_account` clears it and every data tool then refuses, the same
+   * way the real extension's tools fail once the credential store no longer
+   * has the account. `setup_account` puts it back.
+   */
+  configured: boolean;
+  /** A setup_account call that came back `need_2fa` and is waiting on a code. */
+  pendingLogin: { pendingId: string; hostname: string; username: string } | null;
+  /**
+   * Which record MyChart is showing. Server-side state in the real portal —
+   * only switch_proxy_target changes it, and reads assert it rather than
+   * following it.
+   */
+  activePatientId: string;
+  patients: PatientState[];
   activityLog: { kind: string; summary: string; at: string }[];
+
+  /**
+   * The active patient's mutable state, as live arrays.
+   *
+   * Getters, not copies: the alerts panel and the settings screen read these,
+   * and they have to follow a proxy switch the same way the tools do.
+   */
+  readonly medications: Medication[];
+  readonly messages: Conversation[];
+  readonly emergencyContacts: EmergencyContact[];
+  readonly upcomingVisits: Visit[];
+  readonly availableAppointments: AppointmentOffer[];
 };
 
 /* ── Tools ──────────────────────────────────────────────────────────── */
 
 export type ToolGroup =
   | 'Account'
+  | 'Patients'
   | 'Record'
   | 'Results'
   | 'Visits'
@@ -117,13 +374,34 @@ export type ToolGroup =
   | 'Messaging'
   | 'Actions';
 
+/**
+ * Patient-facing copy for the confirmation dialog a write tool opens.
+ *
+ * It lives on the tool spec rather than in a lookup table beside it so the two
+ * cannot drift: declaring a write tool means writing the dialog that gates it,
+ * and the type is what enforces that. The real iOS client derives the same
+ * three fields from `kind: 'write'` in `shared/capabilities.ts`.
+ */
+export type WriteMeta = {
+  /** Dialog title — the action, not the function name. "Send Message". */
+  title: string;
+  /** One line on what approving will do. */
+  description: string;
+  /** Approve-button label. "Send", "Book", "Remove". */
+  verb: string;
+};
+
 export type ToolSpec = {
   name: string;
   group: ToolGroup;
   description: string;
   args: Record<string, string>;
-  /** Write tools change portal state; they must be called alone and confirmed. */
-  write?: boolean;
+  /**
+   * Present iff the tool changes portal state. A write must be called alone
+   * and is put to the user in a confirmation dialog built from this copy;
+   * reads just run. Absent means read.
+   */
+  write?: WriteMeta;
 };
 
 export type ToolArgs = Record<string, unknown>;
