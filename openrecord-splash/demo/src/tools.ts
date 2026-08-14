@@ -194,9 +194,25 @@ export function getToolSpec(name: string): ToolSpec | undefined {
 
 /* ── Argument helpers ───────────────────────────────────────────────── */
 
+/**
+ * Read a string argument out of a model-emitted tool call.
+ *
+ * The demo declares every tool's args in TOOL_SPECS, so what a field *should*
+ * be is known; what arrives is whatever the model emitted, which is why the
+ * value is `unknown` rather than typed. Numbers and booleans convert, since
+ * that is lossless and a model answering `5` for a numeric field is ordinary.
+ *
+ * Anything structural is treated as absent rather than rendered: bare
+ * `String(value)`, which this replaces, put the literal "[object Object]" into
+ * a message body the demo then displayed as if the visitor had typed it. The
+ * demo has no way to raise this to a person mid-turn — unlike the real client,
+ * which throws by name — so absent is the honest reading.
+ */
 function str(args: ToolArgs, key: string): string {
   const value = args[key];
-  return value === undefined || value === null ? '' : String(value);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
 }
 
 function num(args: ToolArgs, key: string, fallback: number): number {

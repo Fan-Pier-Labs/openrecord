@@ -18,8 +18,8 @@
 export {
   MyChartRequest,
   type MyChartRequestOptions,
-} from '../../scrapers/myChart/myChartRequest';
-export type { RequestConfig } from '../../scrapers/myChart/types';
+} from '../../scrapers/myChart/core/myChartRequest';
+export type { RequestConfig } from '../../scrapers/myChart/core/types';
 
 // ─── Auth / login / 2FA / passkeys ─────────────────────────────────────────
 export {
@@ -31,62 +31,62 @@ export {
   type LoginResult,
   type TwoFaResult,
   type TwoFaDeliveryInfo,
-} from '../../scrapers/myChart/login';
+} from '../../scrapers/myChart/auth/login';
 
 export {
   makeAuthenticatedRequest,
   renewMyChartSession,
   SessionExpiredError,
   type AuthenticatedRequestOptions,
-} from '../../scrapers/myChart/makeAuthenticatedRequest';
+} from '../../scrapers/myChart/core/makeAuthenticatedRequest';
 export {
   silentLogin,
   wireSilentReauthentication,
   type SilentLoginParams,
   type SilentLoginOutcome,
-} from '../../scrapers/myChart/silentLogin';
+} from '../../scrapers/myChart/auth/silentLogin';
 
-export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/totp';
+export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/auth/totp';
 export {
   setupTotp,
   disableTotp,
   type SetupTotpResult,
-} from '../../scrapers/myChart/setupTotp';
+} from '../../scrapers/myChart/auth/setupTotp';
 export {
   setupPasskey,
   listPasskeys,
   deletePasskey,
-} from '../../scrapers/myChart/setupPasskey';
+} from '../../scrapers/myChart/auth/setupPasskey';
 export {
   serializeCredential,
   deserializeCredential,
   type PasskeyCredential,
-} from '../../scrapers/myChart/softwareAuthenticator';
+} from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 // ─── Profile ──────────────────────────────────────────────────────────────
 export {
   getMyChartProfile,
   getEmail,
   type ProfileData,
-} from '../../scrapers/myChart/profile';
+} from '../../scrapers/myChart/chart/profile';
 export {
   discoverProxyTargets,
   switchProxyTarget,
   verifyActiveProxyTarget,
   compareProfileNames,
   type ProxyTarget,
-} from '../../scrapers/myChart/proxyContext';
+} from '../../scrapers/myChart/proxy/proxyContext';
 
 // ─── Health summary / vitals ──────────────────────────────────────────────
 export {
   getHealthSummary,
   type HealthSummary,
-} from '../../scrapers/myChart/healthSummary';
+} from '../../scrapers/myChart/chart/healthSummary';
 export {
   getVitals,
   type Flowsheet,
   type VitalReading,
-} from '../../scrapers/myChart/vitals';
+} from '../../scrapers/myChart/chart/vitals';
 
 // ─── Medications ──────────────────────────────────────────────────────────
 export {
@@ -94,39 +94,39 @@ export {
   type MedicationsResult,
   type Medication,
   type Pharmacy,
-} from '../../scrapers/myChart/medications';
+} from '../../scrapers/myChart/chart/medications';
 export {
   requestMedicationRefill,
   type RefillRequestResult,
-} from '../../scrapers/myChart/medicationRefill';
+} from '../../scrapers/myChart/chart/medicationRefill';
 
 // ─── Allergies / health issues / history / immunizations ──────────────────
 export {
   getAllergies,
   type AllergiesResult,
   type Allergy,
-} from '../../scrapers/myChart/allergies';
+} from '../../scrapers/myChart/chart/allergies';
 export {
   getHealthIssues,
   type HealthIssue,
-} from '../../scrapers/myChart/healthIssues';
+} from '../../scrapers/myChart/chart/healthIssues';
 export {
   getMedicalHistory,
   type MedicalHistoryResult,
   type Diagnosis,
   type Surgery,
   type FamilyMember,
-} from '../../scrapers/myChart/medicalHistory';
+} from '../../scrapers/myChart/chart/medicalHistory';
 export {
   getImmunizations,
   type Immunization,
-} from '../../scrapers/myChart/immunizations';
+} from '../../scrapers/myChart/chart/immunizations';
 
 // ─── Labs / imaging ───────────────────────────────────────────────────────
 export {
   listLabResults,
   getImagingResults,
-} from '../../scrapers/myChart/labs_and_procedure_results/labResults';
+} from '../../scrapers/myChart/chart/labs/labResults';
 export {
   downloadImagingStudyDirect,
   type DirectDownloadResult,
@@ -182,18 +182,18 @@ export {
 } from '../../scrapers/myChart/clo-image-parser/exporters/to_tiff';
 
 // ─── Visits ───────────────────────────────────────────────────────────────
-export { upcomingVisits, pastVisits } from '../../scrapers/myChart/visits/visits';
+export { upcomingVisits, pastVisits } from '../../scrapers/myChart/chart/visits/visits';
 
 // ─── Messages ─────────────────────────────────────────────────────────────
 export {
   listConversations,
   type ConversationListResponse,
-} from '../../scrapers/myChart/messages/conversations';
+} from '../../scrapers/myChart/chart/messages/conversations';
 export {
   getConversationMessages,
   type ConversationThread,
   type ThreadMessage,
-} from '../../scrapers/myChart/messages/messageThreads';
+} from '../../scrapers/myChart/chart/messages/messageThreads';
 export {
   sendNewMessage,
   getMessageRecipients,
@@ -203,73 +203,69 @@ export {
   type MessageTopic,
   type SendNewMessageParams,
   type SendNewMessageResult,
-} from '../../scrapers/myChart/messages/sendMessage';
+} from '../../scrapers/myChart/chart/messages/sendMessage';
 export {
   sendReply,
   type SendReplyParams,
   type SendReplyResult,
-} from '../../scrapers/myChart/messages/sendReply';
+} from '../../scrapers/myChart/chart/messages/sendReply';
 export {
   deleteMessage,
   type DeleteMessageResult,
-} from '../../scrapers/myChart/messages/deleteMessage';
+} from '../../scrapers/myChart/chart/messages/deleteMessage';
 
 // ─── Bills ────────────────────────────────────────────────────────────────
-export { getBillingHistory } from '../../scrapers/myChart/bills/bills';
+export { getBillingHistory } from '../../scrapers/myChart/chart/bills/bills';
 
 // ─── Care coordination ───────────────────────────────────────────────────
 export {
-  getCareTeam,
-  type CareTeamMember,
-} from '../../scrapers/myChart/careTeam';
-export {
   getReferrals,
   type Referral,
-} from '../../scrapers/myChart/referrals';
+} from '../../scrapers/myChart/chart/referrals';
 export {
   getInsurance,
   type InsuranceCoverage,
   type InsuranceResult,
-} from '../../scrapers/myChart/insurance';
+} from '../../scrapers/myChart/chart/insurance';
 export {
   getDocuments,
   type Document,
-} from '../../scrapers/myChart/documents';
+} from '../../scrapers/myChart/chart/documents';
 export {
   getGoals,
   type Goal,
   type GoalsResult,
-} from '../../scrapers/myChart/goals';
+} from '../../scrapers/myChart/chart/goals';
 export {
   getCareJourneys,
   type CareJourney,
-} from '../../scrapers/myChart/careJourneys';
+} from '../../scrapers/myChart/chart/careJourneys';
 export {
   getUpcomingOrders,
   type UpcomingOrder,
-} from '../../scrapers/myChart/upcomingOrders';
+} from '../../scrapers/myChart/chart/upcomingOrders';
 export {
   getPreventiveCare,
   type PreventiveCareItem,
-} from '../../scrapers/myChart/preventiveCare';
+} from '../../scrapers/myChart/chart/preventiveCare';
 export {
   getEducationMaterials,
   type EducationMaterial,
-} from '../../scrapers/myChart/educationMaterials';
+} from '../../scrapers/myChart/chart/educationMaterials';
 export {
   getQuestionnaires,
   type Questionnaire,
-} from '../../scrapers/myChart/questionnaires';
+} from '../../scrapers/myChart/chart/questionnaires';
 export {
   getActivityFeed,
   type ActivityFeedItem,
-} from '../../scrapers/myChart/activityFeed';
+} from '../../scrapers/myChart/chart/activityFeed';
 export {
   getLetters,
   getLetterDetails,
   type Letter,
   type LetterDetailsResponse,
-} from '../../scrapers/myChart/letters';
+} from '../../scrapers/myChart/chart/letters';
 
 // ─── Emergency contacts ──────────────────────────────────────────────────
 export {
@@ -281,17 +277,17 @@ export {
   type EmergencyContactInput,
   type EmergencyContactUpdateInput,
   type EmergencyContactResult,
-} from '../../scrapers/myChart/emergencyContacts';
+} from '../../scrapers/myChart/chart/emergencyContacts';
 
 // ─── Linked accounts / EHI export ────────────────────────────────────────
 export {
   getLinkedMyChartAccounts,
   type LinkedMyChart,
-} from '../../scrapers/myChart/other_mycharts/other_mycharts';
+} from '../../scrapers/myChart/chart/otherMyCharts';
 export {
   getEhiExportTemplates,
   type EhiTemplate,
-} from '../../scrapers/myChart/ehiExport';
+} from '../../scrapers/myChart/chart/ehiExport';
 
 // ─── Visit notes ─────────────────────────────────────────────────────────
 export {
@@ -301,7 +297,7 @@ export {
   type VisitNote,
   type GetVisitNotesResult,
   type NoteContent,
-} from '../../scrapers/myChart/notes/notes';
+} from '../../scrapers/myChart/chart/notes';
 
 // ─── Capability registry ─────────────────────────────────────────────────
 // The single source of truth for what OpenRecord can do with a MyChart

@@ -10,46 +10,45 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { inflateSync } from 'zlib'
-import { type MyChartRequest } from '../../myChartRequest'
+import type { MyChartRequest } from '../../core/myChartRequest'
 import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-image-parser/sortByPatientPosition'
 import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
 import { Amf3Reader } from '../../eunity/amf3Reader'
 import { platformFetch } from '../../../http'
 import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
-import { myChartUserPassLogin, myChartPasskeyLogin } from '../../login'
-import { setupPasskey } from '../../setupPasskey'
-import { passkeyLoginWithCounterRetry } from '../../passkeyLoginRetry'
+import { myChartUserPassLogin, myChartPasskeyLogin } from '../../auth/login'
+import { setupPasskey } from '../../auth/setupPasskey'
+import { passkeyLoginWithCounterRetry } from '../../auth/passkeyLoginRetry'
 
 // Scrapers
-import { getMyChartProfile, getEmail } from '../../profile'
-import { getHealthSummary } from '../../healthSummary'
-import { getMedications } from '../../medications'
-import { getAllergies } from '../../allergies'
-import { getHealthIssues } from '../../healthIssues'
-import { getImmunizations } from '../../immunizations'
-import { getVitals } from '../../vitals'
-import { getInsurance } from '../../insurance'
-import { getCareTeam } from '../../careTeam'
-import { getReferrals } from '../../referrals'
-import { getMedicalHistory } from '../../medicalHistory'
-import { getPreventiveCare } from '../../preventiveCare'
-import { getLetters } from '../../letters'
-import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../../emergencyContacts'
-import { getGoals } from '../../goals'
-import { getDocuments } from '../../documents'
-import { getUpcomingOrders } from '../../upcomingOrders'
-import { getQuestionnaires } from '../../questionnaires'
-import { getCareJourneys } from '../../careJourneys'
-import { getActivityFeed } from '../../activityFeed'
-import { getEducationMaterials } from '../../educationMaterials'
-import { getEhiExportTemplates } from '../../ehiExport'
-import { upcomingVisits, pastVisits } from '../../visits/visits'
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../../notes/notes'
-import { listLabResults } from '../../labs_and_procedure_results/labResults'
-import { getBillingHistory } from '../../bills/bills'
-import { listConversations } from '../../messages/conversations'
-import { requestMedicationRefill } from '../../medicationRefill'
-import { getImagingResults } from '../../labs_and_procedure_results/labResults'
+import { getMyChartProfile, getEmail } from '../../chart/profile'
+import { getHealthSummary } from '../../chart/healthSummary'
+import { getMedications } from '../../chart/medications'
+import { getAllergies } from '../../chart/allergies'
+import { getHealthIssues } from '../../chart/healthIssues'
+import { getImmunizations } from '../../chart/immunizations'
+import { getVitals } from '../../chart/vitals'
+import { getInsurance } from '../../chart/insurance'
+import { getReferrals } from '../../chart/referrals'
+import { getMedicalHistory } from '../../chart/medicalHistory'
+import { getPreventiveCare } from '../../chart/preventiveCare'
+import { getLetters } from '../../chart/letters'
+import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../../chart/emergencyContacts'
+import { getGoals } from '../../chart/goals'
+import { getDocuments } from '../../chart/documents'
+import { getUpcomingOrders } from '../../chart/upcomingOrders'
+import { getQuestionnaires } from '../../chart/questionnaires'
+import { getCareJourneys } from '../../chart/careJourneys'
+import { getActivityFeed } from '../../chart/activityFeed'
+import { getEducationMaterials } from '../../chart/educationMaterials'
+import { getEhiExportTemplates } from '../../chart/ehiExport'
+import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
+import { listLabResults } from '../../chart/labs/labResults'
+import { getBillingHistory } from '../../chart/bills/bills'
+import { listConversations } from '../../chart/messages/conversations'
+import { requestMedicationRefill } from '../../chart/medicationRefill'
+import { getImagingResults } from '../../chart/labs/labResults'
 import { followSamlChain } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
@@ -188,12 +187,6 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.coverages)).toBe(true)
       expect(result.coverages.length).toBeGreaterThan(0)
       expect(result.hasCoverages).toBe(true)
-    }, 10_000)
-
-    it('getCareTeam returns care team members', async () => {
-      const result = await getCareTeam(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
@@ -632,6 +625,16 @@ for (const mode of MOUNT_MODES) {
         [5, 4, 3, 2, 1].map(n => `${axialBase}.${n}`),
       )
       expect(sortedAxial.map(i => readPatientPosition(i.wrapperData!)!.z)).toEqual([40, 80, 120, 160, 200])
+
+      // BONE RECON runs z ASCENDING with instance number — the other
+      // direction, where a correct sort is a no-op. Asserting it too is what
+      // separates "sorted anatomically" from "reversed unconditionally".
+      const boneBase = '1.3.51.0.7.200000002.77777.88888.99999.11111.22222.33333'
+      const bone = result.images.filter(i => i.seriesDescription === 'BONE RECON')
+      expect(bone.length).toBe(3)
+      expect(sortImagesByPatientPosition(bone).map(i => i.instanceUID)).toEqual(
+        [1, 2, 3].map(n => `${boneBase}.${n}`),
+      )
 
       // SCOUT is a projection image served from the shared per-series wrapper
       // — no patient position, and the sort must leave it alone.

@@ -9,9 +9,11 @@
     "rootDir": "..",
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    // Pure checks — they change what tsc rejects, never what it emits.
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
-    "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

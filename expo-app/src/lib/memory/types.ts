@@ -45,7 +45,6 @@ export const MEMORY_CATEGORIES = [
   "get_medical_history",
   "get_past_visits",
   "get_upcoming_visits",
-  "get_care_team",
   "get_referrals",
   "get_goals",
 ] as const;

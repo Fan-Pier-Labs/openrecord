@@ -143,7 +143,10 @@ different family member's record than the one the call is about.
   support. Claude Desktop ships its own Node runtime; no Node install needed
   on the user's machine.
 - **Pure JS** — no `sharp`, no `keytar`, no `sqlite3`. CLO → JPEG imaging
-  conversion uses [`jpeg-js`](https://www.npmjs.com/package/jpeg-js).
+  conversion calls the shared pure-JS exporter (`convertCloToJpgPureJs` in
+  `scrapers/myChart/clo-image-parser/exporters/`), which is
+  [`jpeg-js`](https://www.npmjs.com/package/jpeg-js) end to end and is the same
+  code path the mobile app uses.
 - **Local storage** — credentials and sessions live at `~/.openrecord-mcpb/`,
   keyed by (hostname, username) so several logins on one hostname never share
   or overwrite each other's identity:
@@ -166,7 +169,7 @@ claude-desktop-extension/
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
     ├── instances.ts        # picker data (sourced from scrapers/list-all-mycharts/)
-    └── imaging/            # pure-JS CLO → JPEG encoder
+    └── imaging/            # MCPB glue around the shared pure-JS CLO → JPEG exporter
 ```
 
 ## Development
