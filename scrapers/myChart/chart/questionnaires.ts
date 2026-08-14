@@ -45,7 +45,7 @@ export async function getQuestionnaires(mychartRequest: MyChartRequest): Promise
 
   const json: GetQuestionnaireListResponse = await resp.json();
 
-  return (json.questionnaires || []).map((q: QuestionnaireResponse) => ({
+  return (json.questionnaires ?? []).map((q: QuestionnaireResponse) => ({
     id: q.id || '',
     name: q.name || '',
     status: q.status || '',

@@ -44,7 +44,7 @@ export async function getEhiExportTemplates(mychartRequest: MyChartRequest): Pro
 
   const json: GetEhiTemplatesResponse = await resp.json();
 
-  return (json.ehieTemplates || []).map((t: EhiTemplateResponse) => ({
+  return (json.ehieTemplates ?? []).map((t: EhiTemplateResponse) => ({
     id: t.id || '',
     name: t.name || '',
     description: t.description || '',
