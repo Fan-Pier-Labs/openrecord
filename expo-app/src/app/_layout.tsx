@@ -26,7 +26,7 @@ function RootLayoutNav() {
     } else if (isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)");
     }
-  }, [isAuthenticated, segments, isLoading]);
+  }, [isAuthenticated, segments, isLoading, router]);
 
   // Background memory refresh on app foreground. Debounced per-account
   // to once every REFRESH_INTERVAL_MS so we don't hammer scrapers or AI.

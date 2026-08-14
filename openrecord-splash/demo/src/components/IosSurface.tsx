@@ -77,6 +77,12 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
         (a) => !dismissedAlerts.has(a.id) && !(a.resolvedWhen?.(session)),
       ),
     // `session` mutates in place, so tie this to the things that change it.
+    // `messages` is not read above — it is the signal that a turn ran and may
+    // have mutated the session (a refill request changes refillsRemaining, and
+    // `resolvedWhen` reads it live). Dropping it, as the rule suggests, would
+    // freeze the alert list at whatever it was when the session object was
+    // created: a refilled prescription would keep nagging you.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [session, dismissedAlerts, messages],
   );
 
@@ -150,9 +156,11 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
 
   useEffect(() => {
     onReady({ send: (text) => sendRef.current(text) });
-    // Registered once on mount, deliberately: it reads live state through refs
-    // rather than closing over this render's values.
-  }, []);
+    // The handle itself is stable by construction: it reads live state through
+    // refs rather than closing over this render's values, so re-registering is
+    // a no-op. onReady is listed so a parent that swaps handlers actually gets
+    // the handle; App memoizes it, so in practice this runs once on mount.
+  }, [onReady]);
 
   /* ── Chat ───────────────────────────────────────────────────────── */
 
