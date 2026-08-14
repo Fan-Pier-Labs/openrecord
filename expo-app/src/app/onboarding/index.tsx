@@ -7,7 +7,7 @@ import {
   type StoredMyChartAccount,
 } from "@/lib/storage/secure-store";
 import { getBackendSession } from "@/lib/backend/session";
-import { type MyChartInstance } from "@/lib/mychart-instances";
+import type { MyChartInstance } from "@/lib/mychart-instances";
 import { WelcomeStep } from "./steps/welcome-step";
 import { GoogleStep } from "./steps/google-step";
 import { AiStep } from "./steps/ai-step";
