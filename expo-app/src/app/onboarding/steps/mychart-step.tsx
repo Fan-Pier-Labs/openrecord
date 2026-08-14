@@ -4,10 +4,10 @@ import {
   Text,
   Pressable,
   TextInput,
-  Image,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { InstanceLogo } from "@/components/InstanceLogo";
 import {
   addMyChartAccount,
   type StoredMyChartAccount,
@@ -96,13 +96,12 @@ export function MyChartStep({
         </Text>
         {instance ? (
           <View style={styles.selectedInstance}>
-            {instance.logoUrl ? (
-              <Image
-                source={{ uri: instance.logoUrl }}
-                style={styles.selectedInstanceLogo}
-                resizeMode="contain"
-              />
-            ) : null}
+            <InstanceLogo
+              testID="mychart-selected-logo"
+              logoUrl={instance.logoUrl}
+              style={styles.selectedInstanceLogo}
+              placeholderStyle={styles.selectedInstanceLogoFallback}
+            />
             <View style={{ flex: 1 }}>
               <Text style={styles.selectedInstanceName} numberOfLines={1}>
                 {instance.name}

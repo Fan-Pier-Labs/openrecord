@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDiscoveryMode, getMovedHost, isMetaRefreshDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
+import { publicProtocolAndHost } from '@/lib/publicUrl';
 
 // GET / → however this instance announces where MyChart lives. This is the only
 // thing the scraper has to go on when it discovers the firstPathPart.
@@ -20,14 +21,8 @@ export async function GET(request: Request) {
     ? '/Authentication/Login'
     : mountPrefix() + (isMetaRefreshDiscovery() ? '' : '/');
 
-  // Use the Host header so we stay on the domain the client actually used (in
-  // Docker Compose, request.url resolves to localhost but the client uses the
-  // service name).
-  const host = request.headers.get('host') || new URL(request.url).host;
-  // CloudFront sets cloudfront-forwarded-proto; ALB sets x-forwarded-proto
-  const protocol = request.headers.get('cloudfront-forwarded-proto')
-    || request.headers.get('x-forwarded-proto')
-    || (host.includes('localhost') || !host.includes('.') ? 'http' : 'https');
+  // The domain the client actually used, not the one inside the container.
+  const { protocol, host } = publicProtocolAndHost(request);
 
   if (isMetaRefreshDiscovery()) {
     // Renown's tag verbatim apart from the host and the prefix's casing — real

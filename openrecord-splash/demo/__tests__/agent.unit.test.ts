@@ -19,7 +19,7 @@ import {
   runTurn,
   stripProtocolChatter,
 } from '../src/agent';
-import { TOOL_SPECS, WRITE_TOOL_NAMES, createSession } from '../src/tools';
+import { AGENT_WRITE_TOOL_NAMES, TOOL_SPECS, WRITE_TOOL_NAMES, createSession } from '../src/tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -356,7 +356,10 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt();
     const clause = /^Write tools \(([^)]+)\) and `respond` are EXCLUSIVE/m.exec(prompt);
     expect(clause).not.toBeNull();
-    expect(clause![1]!.split(', ')).toEqual(WRITE_TOOL_NAMES);
+    // The offered half of the catalogue: account setup is callable but never
+    // listed in the prompt, so naming it here would advertise a tool the model
+    // cannot see in the list below it.
+    expect(clause![1]!.split(', ')).toEqual(AGENT_WRITE_TOOL_NAMES);
   });
 
   test('formatting guidance differs per surface', () => {
