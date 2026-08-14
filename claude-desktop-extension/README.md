@@ -15,6 +15,46 @@ bun run pack          # builds dist/server.cjs and produces openrecord.mcpb
 
 Then double-click `openrecord.mcpb` (or drag it into Claude Desktop → Settings → Extensions).
 
+## Updates
+
+Sideloaded `.mcpb` extensions have no auto-update channel — Claude Desktop only
+auto-updates extensions installed from the Anthropic directory, and the manifest
+spec has no update-feed field. So this extension checks for updates itself:
+
+- **Releasing**: `bun run release` in this directory (or `bun run release:mcpb`
+  from the repo root) runs `release.sh`: it bumps the version
+  (`patch` by default; pass `minor`, `major`, or an explicit `x.y.z`), builds
+  the bundle, and publishes it to the splash site's S3 bucket — the versioned
+  artifact at `/mcpb/openrecord-<version>.mcpb` (immutable), the stable
+  download at `/mcpb/openrecord.mcpb`, and `/mcpb/latest.json` naming the
+  current version — then invalidates CloudFront. Needs the `fanpierlabs` AWS
+  profile and a clean working tree; commit the version bump it makes.
+- **Noticing**: on startup the server fetches
+  `https://openrecord.fanpierlabs.com/mcpb/latest.json` (at most one live
+  check per 24h, state in `~/.openrecord-mcpb/update-check.json`). When a
+  newer release exists, a one-line notice is appended to the next tool
+  result, so Claude tells the user where to download the new bundle. The
+  `check_for_updates` tool does an immediate, throttle-free check on demand.
+  The version and URL in the manifest are validated before they can reach the
+  conversation (digits-and-dots version, download URL pinned to the site's
+  origin).
+- **Installing an update**: download the new `openrecord.mcpb` and open it —
+  Claude Desktop upgrades the extension in place. Credentials, passkeys and
+  sessions live in `~/.openrecord-mcpb/`, outside the bundle, so they survive
+  every upgrade (and uninstall/reinstall too).
+- **Opting out**: the check is notify-only — nothing is ever downloaded or
+  executed automatically — but it is also the one outbound connection this
+  server makes on its own (`openrecord.fanpierlabs.com`, at most once per
+  day), so it has an off switch: the **Disable update checks** toggle in the
+  extension's settings in Claude Desktop (or the
+  `OPENRECORD_DISABLE_UPDATE_CHECK` env var directly). Disabled means no
+  update traffic at all; `check_for_updates` then reports that checks are off
+  instead of fetching.
+
+The check is deliberately failure-silent: no network, a rate-limited API, or a
+garbage response all degrade to "no notice" — an update check must never break
+a health-data tool call.
+
 ## Use
 
 After installing, open a new Claude chat and say:

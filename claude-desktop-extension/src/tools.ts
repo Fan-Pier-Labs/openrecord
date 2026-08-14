@@ -70,6 +70,7 @@ import {
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { encodeStudyJpegs } from './imaging/download-study';
+import { checkForUpdate, takeUpdateNotice, STABLE_DOWNLOAD_URL } from './update-check';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -209,7 +210,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       inputSchema: shape as any,
       annotations,
     },
-    async (args: Record<string, unknown>) => {
+    withUpdateNotice(async (args: Record<string, unknown>) => {
       try {
         const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
@@ -227,7 +228,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 }
 
@@ -279,6 +280,29 @@ function imagingResult(
   return { content };
 }
 
+// ── Update notice ───────────────────────────────────────────────────────────
+
+/**
+ * Wrap a tool handler so a pending update notice (see update-check.ts) is
+ * appended to its successful result. The notice is one-shot, so it rides on
+ * whichever wrapped tool the model happens to call first after the startup
+ * check resolves. Every registration in this file wraps its handler —
+ * capability tools get it via registerCapabilityTool, so only the
+ * hand-written meta tools name it explicitly.
+ */
+function withUpdateNotice<Args extends unknown[]>(
+  handler: (...args: Args) => ToolResult | Promise<ToolResult>,
+): (...args: Args) => Promise<ToolResult> {
+  return async (...args) => {
+    const result = await handler(...args);
+    const notice = takeUpdateNotice();
+    if (notice && !result.isError) {
+      result.content.push({ type: 'text', text: notice });
+    }
+    return result;
+  };
+}
+
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(server: McpServer): void {
@@ -292,7 +316,7 @@ export function registerAllTools(server: McpServer): void {
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    () => {
+    withUpdateNotice(() => {
       const accounts = readAccounts();
       const accountList = accounts.map(a => ({
         account: accountId(a),
@@ -330,7 +354,7 @@ export function registerAllTools(server: McpServer): void {
       }
 
       return result;
-    },
+    }),
   );
 
   server.registerTool(
@@ -342,14 +366,14 @@ export function registerAllTools(server: McpServer): void {
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
     },
-    () => ({
+    withUpdateNotice(() => ({
       content: [
         {
           type: 'text',
           text: 'Enter your MyChart hostname, username, and password in the widget to connect your account.',
         },
       ],
-    }),
+    })),
   );
 
   server.registerTool(
@@ -363,14 +387,14 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    ({ query, limit }) => {
+    withUpdateNotice(({ query, limit }) => {
       const matches = searchInstances(query, limit ?? 10);
       return jsonResult({
         query,
         count: matches.length,
         matches: matches.map(m => ({ hostname: m.hostname, name: m.name, logoUrl: m.logoUrl, loginUrl: m.url })),
       });
-    },
+    }),
   );
 
   server.registerTool(
@@ -385,7 +409,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ hostname, username, password }) => {
+    withUpdateNotice(async ({ hostname, username, password }) => {
       try {
         const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
 
@@ -437,7 +461,7 @@ export function registerAllTools(server: McpServer): void {
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 
   server.registerTool(
@@ -451,7 +475,7 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ pending_id, code }) => {
+    withUpdateNotice(async ({ pending_id, code }) => {
       const pending = takePending(pending_id);
       if (!pending) {
         return errorResult('pending_id is unknown or has expired (10-minute TTL). Call setup_account again to start over.');
@@ -500,7 +524,7 @@ export function registerAllTools(server: McpServer): void {
       } catch (err) {
         return errorResult((err as Error).message);
       }
-    },
+    }),
   );
 
   // register_passkey is NOT declared here — it is a capability
@@ -517,14 +541,49 @@ export function registerAllTools(server: McpServer): void {
       } satisfies ZodRawShape,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
-    ({ account }) => {
+    withUpdateNotice(({ account }) => {
       const match = lookupAccount(account);
       if (!match) return textResult(`No saved account for ${account}.`);
       const id = accountId(match);
       clearSession(id);
       removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
+    }),
+  );
+
+  server.registerTool(
+    'check_for_updates',
+    {
+      title: 'Check for extension updates',
+      description: 'Check whether a newer version of the OpenRecord extension has been released. Sideloaded .mcpb extensions do not auto-update; updating means downloading the new openrecord.mcpb and opening it — saved accounts, passkeys and sessions are kept.',
+      inputSchema: {} satisfies ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
+    withUpdateNotice(async () => {
+      const result = await checkForUpdate({ force: true });
+      if (result.disabled) {
+        return jsonResult({
+          installed_version: result.installedVersion,
+          update_checks: 'disabled',
+          note: 'Update checks are turned off (the disable_update_check extension setting / OPENRECORD_DISABLE_UPDATE_CHECK). No network request was made. The user can always download the current bundle manually from ' + STABLE_DOWNLOAD_URL,
+        });
+      }
+      return jsonResult({
+        installed_version: result.installedVersion,
+        latest_version: result.latestVersion,
+        update_available: result.updateAvailable,
+        download_url: result.downloadUrl,
+        ...(result.checkFailed
+          ? { check_failed: true, note: 'Could not reach the release manifest to check for updates. Tell the user the check failed; do not guess whether an update exists.' }
+          : {}),
+        ...(result.updateAvailable
+          ? {
+              how_to_update:
+                'Download the new openrecord.mcpb and open it (double-click, or drag into Claude Desktop → Settings → Extensions). It upgrades in place; saved accounts, passkeys and sessions are kept.',
+            }
+          : {}),
+      });
+    }),
   );
 
   // ── Capability tools ──────────────────────────────────────────────────────

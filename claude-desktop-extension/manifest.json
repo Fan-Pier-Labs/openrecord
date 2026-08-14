@@ -20,7 +20,19 @@
     "entry_point": "dist/server.cjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/server.cjs"]
+      "args": ["${__dirname}/dist/server.cjs"],
+      "env": {
+        "OPENRECORD_DISABLE_UPDATE_CHECK": "${user_config.disable_update_check}"
+      }
+    }
+  },
+  "user_config": {
+    "disable_update_check": {
+      "type": "boolean",
+      "title": "Disable update checks",
+      "description": "Stop the extension from contacting openrecord.fanpierlabs.com (at most once per day) to see whether a newer version has been released. Nothing is ever downloaded or installed automatically either way.",
+      "default": false,
+      "required": false
     }
   },
   "tools": [
@@ -31,6 +43,7 @@
     { "name": "complete_2fa", "description": "Finish a setup_account flow that returned need_2fa." },
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
+    { "name": "check_for_updates", "description": "Check whether a newer version of this extension has been released." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
     { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." }
   ],

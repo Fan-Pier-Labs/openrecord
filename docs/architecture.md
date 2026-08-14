@@ -316,6 +316,26 @@ and had quietly stopped matching anything.
   hostname-only or fuzzy fallback. Ships a built-in
   **Springfield General Hospital (test)** instance pointing at `fake-mychart.fanpierlabs.com`. See
   `claude-desktop-extension/README.md`.
+  - **Updates**: sideloaded `.mcpb` files have no auto-update channel (only directory-installed
+    extensions auto-update, and the manifest spec has no update-feed field), so the extension checks
+    our own distribution point. Releases live on the splash site's S3 bucket
+    (`openrecord-fanpierlabs-com`, under `mcpb/`): `bun run release` in `claude-desktop-extension/`
+    (root alias `bun run release:mcpb`) runs `release.sh`, which bumps the version (`patch` default,
+    or `minor`/`major`/explicit `x.y.z`), builds via `bun run pack`, uploads
+    `openrecord-<version>.mcpb` (immutable) + the stable `openrecord.mcpb` + `latest.json`
+    (`{version, url}`), and invalidates CloudFront — needs the `fanpierlabs` AWS profile and a
+    clean tree; commit the bump it makes. It refuses to overwrite an already-published version.
+    The splash deploy uploads named files only (no `sync --delete`), so site deploys never touch
+    `mcpb/`. `src/update-check.ts` polls `https://openrecord.fanpierlabs.com/mcpb/latest.json`
+    (≤1 live check/24h, state in `~/.openrecord-mcpb/update-check.json`, failure-silent,
+    notify-only — nothing is downloaded or executed; 404/403 = "no release yet", not an error) and
+    hands a one-shot notice appended to the next tool result so Claude relays it; the
+    `check_for_updates` meta tool checks on demand. The manifest's version (digits-and-dots) and
+    URL (pinned to the site origin) are validated before they can reach the conversation, and the
+    `disable_update_check` user_config toggle (`OPENRECORD_DISABLE_UPDATE_CHECK`) turns all update
+    traffic off. **The version is single-sourced**: `manifest.json` is the source of truth,
+    `src/version.ts` exports it as `EXTENSION_VERSION`, `package.json` must match
+    (`version-sync.unit.test.ts`), and `bun dev-scripts/bump-mcpb-version.ts` bumps both.
 - **Mobile app** (`expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the
   registry and kept free of React Native imports so tests can read it;
   `src/lib/scrapers/session-manager.ts` dispatches every one through `executeCapability`, and
