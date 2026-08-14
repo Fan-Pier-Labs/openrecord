@@ -52,8 +52,23 @@ config.resolver.extraNodeModules = {
 // whatever the regular resolver would pick (RN's built-ins / browser shims).
 const telemetryNoop = path.resolve(__dirname, "shims/telemetry-noop.ts");
 
+// Web export: native modules get browser shims (localStorage-backed
+// storage, no-op biometrics, throw-on-use crypto/sign-in). The web build
+// is a dev/test target — see e2e/web/.
+const webShims = {
+  "expo-secure-store": path.resolve(__dirname, "src/lib/shims/secure-store.web.ts"),
+  "expo-sqlite": path.resolve(__dirname, "src/lib/shims/sqlite.web.ts"),
+  "expo-local-authentication": path.resolve(__dirname, "src/lib/shims/local-authentication.web.ts"),
+  "react-native-quick-crypto": path.resolve(__dirname, "src/lib/shims/quick-crypto.web.ts"),
+  crypto: path.resolve(__dirname, "src/lib/shims/quick-crypto.web.ts"),
+  "@react-native-google-signin/google-signin": path.resolve(__dirname, "src/lib/shims/google-signin.web.ts"),
+};
+
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === "web" && webShims[moduleName]) {
+    return { type: "sourceFile", filePath: webShims[moduleName] };
+  }
   // shared/telemetry is server-only (os, crypto, child_process). RN gets a noop.
   if (moduleName.endsWith("/shared/telemetry") || moduleName === "../../shared/telemetry") {
     return { type: "sourceFile", filePath: telemetryNoop };

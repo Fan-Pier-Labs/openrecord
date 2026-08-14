@@ -123,7 +123,19 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
   if (testTransport) return testTransport;
   if (override) return override;
   if (cookieJar && expoFetch) return expoFetch;
-  return (url, init) => globalThis.fetch(url, init);
+  return (url, init) => globalThis.fetch(url, inWebBrowser() ? { ...init, credentials: 'include' } : init);
+}
+
+/**
+ * A real web browser — the Expo web export running in one. The browser owns
+ * the cookie store there, but a cross-origin fetch only sends and stores
+ * cookies when the request opts in with `credentials: 'include'`; without it
+ * the MyChart session cookie is silently dropped and every request after
+ * login arrives signed out. Checked per call, not at import, so tests can
+ * simulate the environment.
+ */
+function inWebBrowser(): boolean {
+  return typeof document !== 'undefined' && typeof window !== 'undefined';
 }
 
 /**

@@ -108,6 +108,50 @@ exactly one shape of each, so those branches are unreachable from an integration
 **Protocol detection**: hostnames without a dot (e.g. Docker service names like
 `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
 
+## Expo app tests (unit + E2E)
+
+The mobile app (`expo-app/`) has three layers of tests:
+
+**Unit tests** (`expo-app/src/lib/**/__tests__/*.unit.test.ts`) — picked up by the root
+`bun run test` like every other unit suite. Native modules (`expo-secure-store`, `expo-sqlite`,
+`react-native`, `expo-constants`) are mocked with `mock.module()` + dynamic `await import(...)`
+(static imports hoist above the mocks). `database.unit.test.ts` backs the expo-sqlite API with
+`bun:sqlite` so the real SQL runs against a real engine. The `@/` path alias works in bun via
+`expo-app/tsconfig.json`'s `paths` (no `baseUrl` — TS6 dropped it; paths resolve relative to the
+tsconfig).
+
+**Maestro E2E** (`expo-app/e2e/flows/*.yaml`) — drives the real app on an iOS simulator or Android
+emulator against a local fake-mychart (`localhost:4000`) and a deterministic mock AI backend
+(`expo-app/e2e/mock-ai-server.ts`, port 4600). Run locally with `expo-app/e2e/run.sh ios` (or
+`android`; add `--skip-build` to reuse a build). Flows cover: onboarding (homer, no 2FA), chat
+through the full tool loop (scripted model → on-device scraper → reply), history/drawer/search,
+settings, alerts (refill alert + ignore), and a second onboarding with marge (TOTP `123456`) + real
+passkey registration. The iOS/Android jobs live in `.github/workflows/mobile-e2e.yml` and are
+**manual-trigger only** (workflow_dispatch) — they need full native builds (~30-45 min). Known
+issue: Release simulator builds currently launch to a blank screen (React renders no views despite
+JS executing) — use `expo run:ios` (Debug + Metro) or the web export until that's root-caused.
+
+**Web E2E (Playwright)** (`expo-app/e2e/web/`) — the app exported to web (`bun run export` in
+`e2e/web`, wraps `expo export --platform web`) and tested in Chromium; runs on every PR
+(`expo-web-e2e` in `checks.yml` — fast, no native build). Browser scraping of fake-mychart works
+because (a) `FAKE_MYCHART_CORS=true` enables a CORS proxy in the fake (off by default — real
+MyChart sends no CORS headers), and (b) `scrapers/http.ts`'s default transport opts into
+`credentials: "include"` when it detects a real web browser (a cross-origin fetch silently drops
+cookies without it). Metro maps native modules to `src/lib/shims/*.web.ts` (localStorage-backed
+storage, no-op biometrics) for the web platform. Run with
+`cd expo-app/e2e/web && bun install && bunx playwright test` (Playwright's `webServer` brings up
+the static server, mock AI, and fake-mychart). The harness (mock server, static server, specs)
+typechecks against its own `expo-app/e2e/tsconfig.json` — it runs under bun/Playwright, not React
+Native, so the app's typecheck excludes `e2e/` and the `expo-web-e2e` CI job runs
+`bun run typecheck` in `e2e/web` instead.
+
+**E2E build flag**: `EXPO_PUBLIC_E2E=1` (inlined at bundle time) unlocks the Google-skip button
+outside dev builds, writes a fake backend session on skip so the free-tier AI path hits the mock
+server (the seeded token is a decodable far-future JWT — `getFreshIdToken` treats anything else as
+expired and tries a silent Google re-sign-in, which cannot succeed in a test build), and adds
+local-HTTP transport exceptions (iOS ATS / Android cleartext) via `app.config.ts`. Production
+builds never set it. `EXPO_PUBLIC_BACKEND_URL` points the app at the mock AI server.
+
 ## Android smoke tests
 
 `.github/workflows/android-smoke.yml` — its own workflow, not a job in `checks.yml`, so it can carry

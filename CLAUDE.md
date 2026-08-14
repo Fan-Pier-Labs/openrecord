@@ -94,13 +94,16 @@ selects on the suffix and nothing else.
   (cross-cutting suites only) and never in a client package that re-exports the scraper.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
+- **The expo app also has E2E suites**: Playwright against the web export on every PR
+  (`expo-web-e2e`), Maestro device flows on demand (`.github/workflows/mobile-e2e.yml`).
 
 - **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
   expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
   `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
   [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
-Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
+Details — the coverage gate, CI integration setup, expo unit/E2E layers, known gaps:
+[`docs/testing.md`](docs/testing.md).
 
 ## Rules
 

@@ -1,0 +1,31 @@
+# Alerts card: Homer's fixture data has refillable prescriptions, so the
+# alert generator (billing + meds + labs scrape) surfaces a refill alert
+# on the chat empty state. Expanding shows it; Ignore dismisses it.
+appId: com.fanpierlabs.openrecord
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 30000
+# Make sure we're on the empty state (AlertsCard only renders there).
+- tapOn:
+    id: "new-chat"
+# Alert generation scrapes three categories on mount.
+- extendedWaitUntil:
+    visible:
+      id: "alerts-toggle"
+    timeout: 90000
+- assertVisible: ".*things? to review.*"
+- tapOn:
+    id: "alerts-toggle"
+# Homer's Lisinopril is refillable → a refill alert exists.
+- extendedWaitUntil:
+    visible: "Lisinopril"
+    timeout: 10000
+- assertVisible: "Request refill"
+# Ignore the Lisinopril refill alert and confirm it disappears.
+- tapOn:
+    id: "alert-ignore-refill:Lisinopril 10mg"
+- assertNotVisible:
+    id: "alert-ignore-refill:Lisinopril 10mg"

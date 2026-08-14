@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
 import { signInWithGoogle } from "@/lib/backend/google-signin";
+import { setBackendSession } from "@/lib/backend/session";
+import { IS_E2E, DEV_OR_E2E } from "@/lib/e2e";
 import { StepLayout } from "../step-layout";
 import { styles } from "../styles";
 
@@ -26,10 +28,22 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
     }
   }
 
-  // Dev-only escape hatch: skip Google so we can walk the rest of the
-  // onboarding flow on the simulator without an OAuth round-trip. Stripped
-  // from production bundles by the __DEV__ gate.
-  function handleDevSkip() {
+  // Dev/E2E escape hatch: skip Google so automated tests and simulator
+  // sessions can walk the rest of the onboarding flow without an OAuth
+  // round-trip. Stripped from production bundles by the DEV_OR_E2E gate.
+  // E2E builds also get a fake backend session so the free-tier AI path
+  // works against the mock AI server the test run points the app at. The
+  // token must be a decodable JWT with a far-future exp — getFreshIdToken
+  // treats anything else as expired and tries a silent Google re-sign-in,
+  // which cannot succeed in a test build.
+  async function handleDevSkip() {
+    if (IS_E2E) {
+      await setBackendSession({
+        idToken:
+          "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJlMmUtdXNlciIsImVtYWlsIjoiZGV2QG9wZW5yZWNvcmQubG9jYWwiLCJuYW1lIjoiRTJFIFRlc3RlciIsImV4cCI6NDEwMjQ0NDgwMH0.e2e",
+        user: { id: "e2e-user", email: "dev@openrecord.local", name: "E2E Tester" },
+      });
+    }
     onSignedIn("dev@openrecord.local");
   }
 
@@ -60,7 +74,7 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
             </Text>
           )}
         </Pressable>
-        {__DEV__ && !alreadySignedIn ? (
+        {DEV_OR_E2E && !alreadySignedIn ? (
           <Pressable
             testID="google-dev-skip"
             style={styles.secondaryButton}

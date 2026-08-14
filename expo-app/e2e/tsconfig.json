@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["bun"],
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["mock-ai-server.ts", "web/**/*.ts"],
+  "exclude": ["web/node_modules", "web/dist", "web/test-results", "web/results"]
+}

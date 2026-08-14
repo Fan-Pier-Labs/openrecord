@@ -1,0 +1,106 @@
+# On-demand Maestro E2E runs on real mobile targets (iOS simulator /
+# Android emulator). These do full native builds (~30-45 min), so they are
+# NOT part of PR CI — trigger manually from the Actions tab when needed.
+# The fast, always-on E2E coverage is the web export job in checks.yml.
+name: Mobile E2E (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Which platform(s) to run"
+        type: choice
+        options: [both, ios, android]
+        default: both
+
+jobs:
+  expo-ios-e2e:
+    name: Expo iOS E2E (Maestro)
+    if: ${{ inputs.platform == 'both' || inputs.platform == 'ios' }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: bun install
+      - run: cd expo-app && bun install
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: expo-app/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('expo-app/bun.lock') }}
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Build app and run Maestro flows on iOS simulator
+        run: expo-app/e2e/run.sh ios
+        env:
+          E2E_ARTIFACTS_DIR: ${{ github.workspace }}/e2e-artifacts
+      - name: Upload Maestro artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-ios-e2e-artifacts
+          path: e2e-artifacts/
+          if-no-files-found: ignore
+
+  expo-android-e2e:
+    name: Expo Android E2E (Maestro)
+    if: ${{ inputs.platform == 'both' || inputs.platform == 'android' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: bun install
+      - run: cd expo-app && bun install
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('expo-app/bun.lock') }}
+      - name: Build release APK (E2E build)
+        run: |
+          cd expo-app
+          bunx expo prebuild --platform android
+          cd android && ./gradlew --no-daemon assembleRelease
+        env:
+          EXPO_PUBLIC_E2E: "1"
+          EXPO_PUBLIC_BACKEND_URL: http://localhost:4600
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run Maestro flows on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: expo-app/e2e/run.sh android --skip-build --apk expo-app/android/app/build/outputs/apk/release/app-release.apk
+        env:
+          E2E_ARTIFACTS_DIR: ${{ github.workspace }}/e2e-artifacts
+      - name: Upload Maestro artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-android-e2e-artifacts
+          path: e2e-artifacts/
+          if-no-files-found: ignore
+
