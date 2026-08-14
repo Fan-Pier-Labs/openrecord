@@ -2,8 +2,11 @@
 /**
  * Generate synthetic CLO (ClientOutlook) image files for testing.
  *
- * Encodes grayscale 16-bit images into the CLOCLHAAR pixel format and
- * CLOHEADERZ01 wrapper format, reversing the decode pipeline in clo_to_jpg.ts.
+ * Encodes grayscale 16-bit images into the CLOCLHAAR pixel format, reversing
+ * the decode pipeline in clo_to_jpg.ts. The CLOHEADERZ01 wrapper that pairs
+ * with each pixel file is encoded by `shared/cloWrapper.ts` — the same encoder
+ * fake-mychart uses to synthesize per-slice wrappers at runtime, so a fixture
+ * and a served wrapper can never disagree about the format.
  *
  * Usage:
  *   bun scrapers/myChart/clo-image-parser/generate_clo.ts [--output-dir <dir>]
@@ -11,123 +14,11 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { deflateSync } from "zlib";
 import { logger } from '../../../shared/logger';
+import { type CloWrapperMetadata, encodeCloWrapper } from '../../../shared/cloWrapper';
 
 const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
-const CLOHEADERZ01_MAGIC = Buffer.from("CLOHEADERZ01");
 const TILE_SIZE = 256;
-
-// ==================== AMF3 Writer ====================
-
-export class AMF3Writer {
-  private parts: Buffer[] = [];
-
-  getBuffer(): Buffer {
-    return Buffer.concat(this.parts);
-  }
-
-  private writeU8(v: number) {
-    const b = Buffer.alloc(1);
-    b[0] = v & 0xff;
-    this.parts.push(b);
-  }
-
-  private writeU29(v: number) {
-    if (v < 0x80) {
-      this.writeU8(v);
-    } else if (v < 0x4000) {
-      this.writeU8(((v >> 7) & 0x7f) | 0x80);
-      this.writeU8(v & 0x7f);
-    } else if (v < 0x200000) {
-      this.writeU8(((v >> 14) & 0x7f) | 0x80);
-      this.writeU8(((v >> 7) & 0x7f) | 0x80);
-      this.writeU8(v & 0x7f);
-    } else {
-      this.writeU8(((v >> 22) & 0x7f) | 0x80);
-      this.writeU8(((v >> 15) & 0x7f) | 0x80);
-      this.writeU8(((v >> 8) & 0x7f) | 0x80);
-      this.writeU8(v & 0xff);
-    }
-  }
-
-  private writeString(s: string) {
-    const encoded = Buffer.from(s, "utf-8");
-    this.writeU29((encoded.length << 1) | 1);
-    if (encoded.length > 0) {
-      this.parts.push(encoded);
-    }
-  }
-
-  private writeDouble(v: number) {
-    const b = Buffer.alloc(8);
-    b.writeDoubleBE(v, 0);
-    this.parts.push(b);
-  }
-
-  writeValue(v: any) {
-    if (v === null || v === undefined) {
-      this.writeU8(0x01); // undefined
-    } else if (Buffer.isBuffer(v)) {
-      this.writeU8(0x0c); // byte array — how real wrappers carry a VOI LUT table
-      this.writeU29((v.length << 1) | 1);
-      this.parts.push(v);
-    } else if (typeof v === "boolean") {
-      this.writeU8(v ? 0x03 : 0x02);
-    } else if (typeof v === "number") {
-      if (Number.isInteger(v) && v >= -0x10000000 && v < 0x20000000) {
-        // Negative integers encode as their 29-bit two's complement (e.g. -1 →
-        // 0x1FFFFFFF) — how real wrappers carry the ImagePhaseInfo "undefined"
-        // sentinels. The reader sign-extends them back.
-        this.writeU8(0x04); // integer
-        this.writeU29(v & 0x1fffffff);
-      } else {
-        this.writeU8(0x05); // double
-        this.writeDouble(v);
-      }
-    } else if (typeof v === "string") {
-      this.writeU8(0x06); // string
-      this.writeString(v);
-    } else if (Array.isArray(v)) {
-      this.writeU8(0x09); // dense array
-      this.writeU29((v.length << 1) | 1);
-      this.writeString(""); // empty associative section
-      for (const item of v) this.writeValue(item);
-    } else if (typeof v === "object") {
-      this.writeObject(v);
-    }
-  }
-
-  private writeObject(obj: Record<string, any>) {
-    this.writeU8(0x0a); // object marker
-    if (obj._externalizable) {
-      // Externalizable object: traits 0x07, class name, then the class's own
-      // body. The only body shape real CLO wrappers use is the
-      // ArrayCollection/ObjectProxy one — exactly one wrapped AMF3 value.
-      this.writeU29(0x07);
-      this.writeString(obj._class || "");
-      this.writeValue(obj._value);
-      return;
-    }
-    const keys = Object.keys(obj).filter((k) => k !== "_class");
-    const className = obj._class || "";
-    // Inline traits: (memberCount << 4) | dynamic(0) << 3 | externalizable(0) << 2 | 0b11
-    const ref = (keys.length << 4) | 0b0011;
-    this.writeU29(ref);
-    this.writeString(className);
-    for (const key of keys) {
-      this.writeString(key);
-    }
-    for (const key of keys) {
-      this.writeValue(obj[key]);
-    }
-  }
-}
-
-/** An ArrayCollection node, matching how real wrappers carry annotation text arrays. */
-export function arrayCollection(items: any[]): Record<string, any> {
-  return { _class: "flex.messaging.io.ArrayCollection", _externalizable: true, _value: items };
-}
 
 // ==================== Zigzag Encode ====================
 
@@ -506,142 +397,6 @@ export function encodePixelFile(
   return Buffer.concat(parts);
 }
 
-// ==================== CLO Wrapper File Encoder ====================
-
-export interface WrapperMetadata {
-  photometricInterpretation?: string;
-  bitsStored?: number;
-  windowCenter?: number;
-  windowWidth?: number;
-  isSigned?: number;
-  rescaleSlope?: number;
-  rescaleIntercept?: number;
-  /**
-   * DICOM patient position, encoded as calibration.orientation.positionPatient.
-   * Cross-sectional slices (CT/MR) carry it; projection images (X-rays) don't.
-   */
-  positionPatient?: { x: number; y: number; z: number };
-  /**
-   * VOI LUT, with the table itself an AMF3 byte array — the shape real
-   * cross-sectional wrappers use (see docs/clo-format.md).
-   */
-  voiLut?: {
-    lut: Buffer;
-    elements: number;
-    start: number;
-    bits: number;
-    lutIsLittleEndian: number;
-  };
-  /**
-   * ImagePhaseInfo block. Real wrappers use -1 (a negative AMF3 integer,
-   * wire-encoded as 0x1FFFFFFF) for "undefined" — pass -1 here to reproduce
-   * that, which is what exercises reader sign extension.
-   */
-  imagePhaseInfo?: {
-    inStackPositionNumber: number;
-    stackID: string;
-    temporalPositionIdentifier: number;
-    numberOfTemporalPositions: number;
-  };
-  /**
-   * Adds the annotation overlay block: template-string arrays wrapped in
-   * externalizable flex.messaging.io.ArrayCollection nodes, like every real
-   * wrapper observed.
-   */
-  includeAnnotationOverlays?: boolean;
-}
-
-/** Overlay template strings as real wrappers carry them — placeholders, no PHI. */
-const OVERLAY_TEXTS: Record<string, string[]> = {
-  topLeft: ["%PATIENT_NAME%", "%PATIENT_ID%"],
-  topRight: ["%STUDY_DESCRIPTION%", "%STUDY_DATE%"],
-  bottomLeft: ["SE #: %SERIES_NUMBER%", "W\\L : %WINDOW_LEVEL%"],
-  bottomRight: ["%INSTITUTION_NAME%", "Zoom: %ZOOM_FACTOR%"],
-  topLeftAlwaysVisible: [],
-  topRightAlwaysVisible: [],
-  bottomLeftAlwaysVisible: ["%LOSSY_COMPRESSION%"],
-  bottomRightAlwaysVisible: [],
-};
-
-function buildAnnotationOverlay(): Record<string, any> {
-  const overlay: Record<string, any> = { _class: "com.clientoutlook.data.Annotation" };
-  for (const [position, texts] of Object.entries(OVERLAY_TEXTS)) {
-    overlay[position] = arrayCollection(texts);
-  }
-  return overlay;
-}
-
-export function encodeWrapperFile(metadata: WrapperMetadata): Buffer {
-  // Build AMF3 object
-  const obj: Record<string, any> = {
-    _class: "ImageDescription",
-  };
-  if (metadata.photometricInterpretation) {
-    obj.photometricInterpretation = metadata.photometricInterpretation;
-  }
-  if (metadata.bitsStored !== undefined) {
-    obj.bitsStored = metadata.bitsStored;
-  }
-  if (metadata.windowCenter !== undefined) {
-    obj.windowCenter = metadata.windowCenter;
-  }
-  if (metadata.windowWidth !== undefined) {
-    obj.windowWidth = metadata.windowWidth;
-  }
-  if (metadata.isSigned !== undefined) {
-    obj.isSigned = metadata.isSigned;
-  }
-  if (metadata.rescaleSlope !== undefined) {
-    obj.rescaleSlope = metadata.rescaleSlope;
-  }
-  if (metadata.rescaleIntercept !== undefined) {
-    obj.rescaleIntercept = metadata.rescaleIntercept;
-  }
-  if (metadata.positionPatient) {
-    // The nesting the real viewer produces and readPatientPosition consumes.
-    // Class names match docs/clo-format.md.
-    obj.calibration = {
-      _class: "com.clientoutlook.data.ImageCalibration",
-      orientation: {
-        _class: "com.clientoutlook.data.OrientationPatient",
-        positionPatient: {
-          _class: "com.clientoutlook.data.ImagePositionPatient",
-          position_x: metadata.positionPatient.x,
-          position_y: metadata.positionPatient.y,
-          position_z: metadata.positionPatient.z,
-        },
-      },
-    };
-  }
-  if (metadata.voiLut !== undefined) {
-    obj.voiLut = { ...metadata.voiLut };
-  }
-  if (metadata.imagePhaseInfo !== undefined) {
-    obj.imagePhaseInfo = {
-      _class: "com.clientoutlook.data.ImagePhaseInfo",
-      ...metadata.imagePhaseInfo,
-    };
-  }
-  if (metadata.includeAnnotationOverlays) {
-    obj.annotationOverlay = buildAnnotationOverlay();
-    obj.annotationOverlayMPR = buildAnnotationOverlay();
-  }
-
-  const writer = new AMF3Writer();
-  writer.writeValue(obj);
-  const amf3Data = writer.getBuffer();
-
-  // Zlib compress
-  const compressed = deflateSync(amf3Data);
-
-  // Build wrapper file
-  const header = Buffer.alloc(16);
-  CLOHEADERZ01_MAGIC.copy(header, 0);
-  // bytes 12-15 are zero padding
-
-  return Buffer.concat([header, compressed]);
-}
-
 // ==================== Synthetic Image Generation ====================
 
 /** Generate a horizontal gradient (left=0, right=maxVal) */
@@ -737,7 +492,7 @@ interface TestImage {
   width: number;
   height: number;
   generate: () => Uint16Array;
-  metadata: WrapperMetadata;
+  metadata: CloWrapperMetadata;
 }
 
 const TEST_IMAGES: TestImage[] = [
@@ -809,7 +564,7 @@ export function generateTestFiles(outputDir: string) {
   for (const testImage of TEST_IMAGES) {
     const img = testImage.generate();
     const pixelData = encodePixelFile(img, testImage.width, testImage.height);
-    const wrapperData = encodeWrapperFile(testImage.metadata);
+    const wrapperData = encodeCloWrapper(testImage.metadata);
 
     const pixelPath = join(outputDir, `${testImage.name}_pixel.clo`);
     const wrapperPath = join(outputDir, `${testImage.name}_wrapper.clo`);

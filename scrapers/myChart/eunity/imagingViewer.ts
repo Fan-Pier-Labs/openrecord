@@ -2,7 +2,7 @@ import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
 import type { MyChartRequest } from '../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../core/util';
+import { fetchSessionCsrfToken } from '../core/csrf';
 import type { ReportContent } from '../chart/labs/labtestresulttype';
 import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
@@ -75,30 +75,6 @@ export function extractCopyContext(reportContentHtml: string): string | null {
 }
 
 /**
- * Get a fresh CSRF token from MyChart. This is needed for the FdiData API call.
- *
- * The /Home/CSRFToken endpoint returns empty body on some instances (e.g. Denver Health),
- * so we fall back to extracting the token from the /Home page HTML.
- */
-async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/Home/CSRFToken?noCache=' + Math.random(),
-  });
-  const html = await res.text();
-  const token = getRequestVerificationTokenFromBody(html);
-  if (token) return token;
-
-  // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
-  try {
-    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
-    const homeBody = await homeRes.text();
-    return getRequestVerificationTokenFromBody(homeBody) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Call the FdiData API to get the SAML URL that leads to the eUnity image viewer.
  *
  * Flow: MyChart → FdiData → SAML STS URL → (browser follows SAML chain) → eUnity viewer
@@ -107,7 +83,7 @@ export async function getImageViewerSamlUrl(
   mychartRequest: MyChartRequest,
   fdiContext: FdiContext
 ): Promise<ImagingViewerSession | null> {
-  const token = await getCSRFToken(mychartRequest);
+  const token = await fetchSessionCsrfToken(mychartRequest);
   if (!token) {
     logger.debug('Could not get CSRF token for FdiData');
     return null;
