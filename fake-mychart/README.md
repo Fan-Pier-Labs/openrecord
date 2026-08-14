@@ -453,7 +453,9 @@ point its first-boot refresh at localhost instead of Epic.
 - `?includeOrganizations=1` is required for the `organizations` key to appear at all, exactly as on
   the real endpoint. Without it you get the country/state dictionaries and nothing else.
 - `loginUrl` points back at this server, in its current mount mode, so an entry can be picked out of
-  the directory and logged in to.
+  the directory and logged in to. It is built from the `Host` header, not from `request.url` — under
+  `docker-compose.ci.yaml` this server listens on 3000 and is published on 4000, and a login URL
+  naming the inside address is a portal the client that just read the directory cannot reach.
 - **Logos are served here too, so nothing reaches Epic.** A logo record is an `imageId` and a
   `fileName`, never a URL — the client resolves it against a media base. This server mirrors both of
   Epic's media paths and answers them with the checked-in placeholder images in
