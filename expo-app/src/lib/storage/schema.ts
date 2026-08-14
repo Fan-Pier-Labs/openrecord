@@ -71,4 +71,37 @@ export const SCHEMA_SQL = `
       last_synced_at TEXT NOT NULL,
       PRIMARY KEY (account_id, category)
     );
+
+    CREATE TABLE IF NOT EXISTS mychart_directory (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      instances_json TEXT NOT NULL,
+      refreshed_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS mychart_logos (
+      logo_url TEXT PRIMARY KEY,
+      data_uri TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    );
+`;
+
+/**
+ * How many provider logos to keep on disk.
+ *
+ * They are ~30KB each and there are ~1400 of them, so an unbounded cache is
+ * 45MB of a patient's phone spent on hospital branding. 300 is far more than
+ * anyone scrolls past, and a few MB.
+ */
+export const MAX_CACHED_LOGOS = 300;
+
+/**
+ * Drop everything but the most recently fetched {@link MAX_CACHED_LOGOS}
+ * logos. Lives here rather than in `database.ts` so it can be exercised
+ * against bun:sqlite — the eviction, not a copy of it, is what the test runs.
+ * Takes the limit as its one parameter.
+ */
+export const PRUNE_LOGOS_SQL = `
+    DELETE FROM mychart_logos WHERE logo_url NOT IN (
+      SELECT logo_url FROM mychart_logos ORDER BY fetched_at DESC LIMIT ?
+    )
 `;

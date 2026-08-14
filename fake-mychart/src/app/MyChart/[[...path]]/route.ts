@@ -16,6 +16,7 @@ import * as homer from '@/data/homer';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
+import { publicBaseUrl } from '@/lib/publicUrl';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
 import { isLegacyEpicVersion } from '@/lib/epicVersion';
@@ -262,18 +263,6 @@ function parseSignCount(authenticatorDataB64: string | undefined): number | null
   } catch {
     return null;
   }
-}
-
-/**
- * Build the public base URL from forwarded headers, so redirects
- * use the external domain rather than the container's localhost.
- */
-function publicBaseUrl(request: NextRequest): string {
-  const host = request.headers.get('host') || new URL(request.url).host;
-  const proto = request.headers.get('cloudfront-forwarded-proto')
-    || request.headers.get('x-forwarded-proto')
-    || (host.includes('localhost') || !host.includes('.') ? 'http' : 'https');
-  return `${proto}://${host}`;
 }
 
 function requireSession(request: NextRequest): NextResponse | null {

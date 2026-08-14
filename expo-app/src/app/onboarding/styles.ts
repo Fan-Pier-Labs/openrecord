@@ -187,6 +187,9 @@ export const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#fff",
   },
+  selectedInstanceLogoFallback: {
+    backgroundColor: "#eee",
+  },
   selectedInstanceName: {
     fontSize: 15,
     fontWeight: "600",

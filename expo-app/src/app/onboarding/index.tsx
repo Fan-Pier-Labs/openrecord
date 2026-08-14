@@ -7,7 +7,7 @@ import {
   type StoredMyChartAccount,
 } from "@/lib/storage/secure-store";
 import { getBackendSession } from "@/lib/backend/session";
-import { prefetchInstances, type MyChartInstance } from "@/lib/mychart-instances";
+import type { MyChartInstance } from "@/lib/mychart-instances";
 import { WelcomeStep } from "./steps/welcome-step";
 import { GoogleStep } from "./steps/google-step";
 import { AiStep } from "./steps/ai-step";
@@ -38,7 +38,7 @@ export default function OnboardingScreen() {
   const [twoFaDelivery, setTwoFaDelivery] = useState<string>("your inbox");
 
   // Dev shortcut: BYO Claude key + Google session → straight to chat.
-  // Also pre-warm the MyChart instance list so the picker is instant.
+  // The instance list loads at launch (see the root layout), not here.
   useEffect(() => {
     fireAndForget((async () => {
       const [byoKey, session] = await Promise.all([
@@ -49,9 +49,7 @@ export default function OnboardingScreen() {
       if (__DEV__ && byoKey && session) {
         await setSecureValue("setup_complete", "true");
         setSetupComplete();
-        return;
       }
-      prefetchInstances().catch(() => undefined);
     })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
 

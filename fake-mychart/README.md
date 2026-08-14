@@ -443,6 +443,46 @@ study stays clean so both shapes are covered.
 
 `claude-desktop-extension/src/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and npm-package included — against a live instance of this server.
 
+## The mychart.org Directory
+
+One surface in here is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
+every MyChart instance in the world. It lives on `mychart.org` rather than on an instance, and it is
+where every client's instance list comes from — so the fake serves it too, and the mobile app can
+point its first-boot refresh at localhost instead of Epic.
+
+- `?includeOrganizations=1` is required for the `organizations` key to appear at all, exactly as on
+  the real endpoint. Without it you get the country/state dictionaries and nothing else.
+- `loginUrl` points back at this server, in its current mount mode, so an entry can be picked out of
+  the directory and logged in to. It is built from the `Host` header, not from `request.url` — under
+  `docker-compose.ci.yaml` this server listens on 3000 and is published on 4000, and a login URL
+  naming the inside address is a portal the client that just read the directory cannot reach.
+- **Logos are served here too, so nothing reaches Epic.** A logo record is an `imageId` and a
+  `fileName`, never a URL — the client resolves it against a media base. This server mirrors both of
+  Epic's media paths and answers them with the checked-in placeholder images in
+  `src/data/directory-logos/`:
+
+  | Path | Stands in for |
+  | --- | --- |
+  | `/mychartdotorg/directus/<subArea>/<imageId>/<fileName>` | an organization's own logo |
+  | `/mychartdotorg/site/<locale>/images/login/default.png` | the generic logo |
+  | `/mychartdotorg/site/<locale>/images/login/custom/<name>.png` | the hand-placed logos (Mayo, Kaiser, …) |
+
+  Point a client at both halves and it never leaves this origin:
+
+  ```ts
+  fetchMyChartDirectory({
+    directoryUrl: `${base}/cached-api/help/organizations/?locale=en-us&includeOrganizations=1`,
+    mediaBase: `${base}/mychartdotorg`,
+  })
+  ```
+
+  An unknown image 404s rather than falling back to a placeholder — "this logo doesn't exist" is a
+  case every client has to handle, and a fake that always answers leaves it untested.
+
+  The two images are 240×88 PNGs (a cross and a wordmark bar on teal / grey), at roughly the aspect
+  ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
+  branding, and no hospital's trademark belongs in this repo.
+
 ## What's NOT Implemented
 
 ### Draft Persistence
