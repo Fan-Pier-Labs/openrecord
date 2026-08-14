@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import regexpPlugin from "eslint-plugin-regexp";
 
 
 export default [
@@ -342,6 +343,15 @@ export default [
     rules: {
       "react-hooks/rules-of-hooks": "error",
     },
+  },
+  // Syntax that is legal but doesn't mean what it looks like: a bare `]` or `{`
+  // outside a class, an octal escape, a quantifier on a quantifier. The one hit
+  // was an escapeRegExp whose class had been double-escaped as if it were
+  // inside a string, leaving it unable to match any of the characters it was
+  // written to escape — exactly the bug this rule exists to surface.
+  {
+    plugins: { regexp: regexpPlugin },
+    rules: { "regexp/strict": "error" },
   },
   {rules: {
     "@typescript-eslint/no-explicit-any": "error",
