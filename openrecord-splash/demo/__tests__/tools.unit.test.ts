@@ -346,7 +346,7 @@ describe('the fictional record contains no real-looking identifiers', () => {
     for (const host of blob.match(/mychart\.[a-z0-9.-]+/g) ?? []) {
       expect(host.endsWith('.example.org')).toBe(true);
     }
-    for (const email of blob.match(/[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []) {
+    for (const email of blob.match(/[\w.-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []) {
       expect(email.endsWith('@example.com')).toBe(true);
     }
   });

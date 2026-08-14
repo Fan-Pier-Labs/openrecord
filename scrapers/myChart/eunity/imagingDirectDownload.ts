@@ -1371,8 +1371,8 @@ export async function downloadImagingDirect(
     // Step 3: Download images (wrapper + progressive pixel levels)
     for (const series of seriesInfo) {
       logger.debug(`      Downloading ${series.seriesDescription}...`);
-      const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
-      const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeName = studyName.replace(/[^\w-]/g, '_').substring(0, 80);
+      const safeDesc = series.seriesDescription.replace(/[^\w-]/g, '_');
 
       try {
         // CLOWRAPPER: metadata + base image data
@@ -1554,7 +1554,7 @@ export async function downloadImagingStudyDirect(
     // returned as images: eUnity's instance list can carry pseudo-instances
     // (the viewer's "SeriesSelector" entries) that hold no pixel data.
     const concurrency = options?.concurrency ?? 5;
-    const safeName = studyName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
+    const safeName = studyName.replace(/[^\w-]/g, '_').substring(0, 80);
     const CLOCLHAAR_MAGIC = Buffer.from('CLOCLHAAR');
     let completed = 0;
 
@@ -1576,7 +1576,7 @@ export async function downloadImagingStudyDirect(
           return;
         }
 
-        const safeDesc = series.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeDesc = series.seriesDescription.replace(/[^\w-]/g, '_');
 
         if (skipFileWrite) {
           const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);

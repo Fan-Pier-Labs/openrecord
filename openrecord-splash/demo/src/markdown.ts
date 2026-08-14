@@ -51,7 +51,7 @@ export function parseInline(line: string): InlineSpan[] {
   return spans;
 }
 
-const IMAGE_TOKEN = /^\[image:([a-z0-9_-]+)\]$/i;
+const IMAGE_TOKEN = /^\[image:([\w-]+)\]$/i;
 
 /** Parse a full assistant reply into blocks. */
 export function parseMarkdown(source: string | null | undefined): Block[] {

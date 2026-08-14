@@ -44,7 +44,7 @@ export async function storeSetCookies(jar: CookieJar, url: string, response: Res
     setCookies = headers.getSetCookie();
   } else {
     const raw = response.headers.get('set-cookie');
-    setCookies = raw ? raw.split(/,\s*(?=[A-Za-z0-9_-]+=)/) : [];
+    setCookies = raw ? raw.split(/,\s*(?=[\w-]+=)/) : [];
   }
 
   for (const cookieStr of setCookies) {

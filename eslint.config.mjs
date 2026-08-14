@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import regexpPlugin from "eslint-plugin-regexp";
 
 
 export default [
@@ -342,6 +343,15 @@ export default [
     rules: {
       "react-hooks/rules-of-hooks": "error",
     },
+  },
+  // A character class spelled out as `[A-Za-z0-9_]` is exactly `\w`, but the
+  // long form makes a reader re-derive that — and re-check whether the
+  // underscore or a digit was meant to be left out. Every site was verified to
+  // cover exactly the \w set (some alongside a separate `-`), so what each
+  // regex matches is unchanged.
+  {
+    plugins: { regexp: regexpPlugin },
+    rules: { "regexp/prefer-w": "error" },
   },
   {rules: {
     "@typescript-eslint/no-explicit-any": "error",
