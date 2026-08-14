@@ -90,11 +90,22 @@ Attempted two's complement decoding based on eUnity's GPU shader code (`unpacked
 
 MRI was previously skipped in the CLI (`nameLower.includes('mri')` check). Removed the skip — the eUnity pipeline is modality-agnostic (same CLO format for X-ray, CT, MRI). Successfully tested MRI downloads with multi-series studies.
 
+## CLO Windowing Needs the Modality LUT (Fixed 2026-08-13)
+
+`windowCenter`/`windowWidth` in the CLO wrapper are in **output** units (Hounsfield for CT); the
+reconstructed pixels are **stored** values. `applyVoiLut` compared them directly and ignored
+`rescaleSlope`/`rescaleIntercept` (parsed but unused). With a typical intercept of -1024, a narrow
+soft-tissue window (centre 50, width 150) against stored values clips everything above 125 — soft
+tissue saturates to white and only air keeps any gradation. Apply `stored * slope + intercept` per
+pixel before windowing. Wide windows (centre 350/width 2000) still looked plausible, which is why
+this hid for so long. `parseWrapper` also dropped negative window centres behind a `> 0` guard —
+report/scout frames commonly use -512 and lung windows sit near -600.
+
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`
 - CLI at `cli/cli.ts` with `--host`, `--user`, `--pass`, `--2fa`, `--action` args
-- Primary test target is the MyChart instance configured in creds.json
+- Real-account testing goes through the CLI's credential resolution + cookie cache (`docs/cli.md`), not a creds.json in the repo root
 
 ## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)
