@@ -5,8 +5,14 @@ patient. Build and deploy details are in [`openrecord-splash/README.md`](../open
 this file is about how faithful the demo has to be to the real product.
 
 The demo shares **no code** with the scraper core. It imports nothing from `shared/`, runs no
-scraper, and no parity test covers it — it ships as a static Vite bundle with a fictional record
-behind it. That independence is deliberate, and the price of it is drift.
+scraper, and ships as a static Vite bundle with a fictional record behind it. That independence is
+deliberate, and the price of it is drift.
+
+One part of that price is now paid automatically: `shared/__tests__/capability-parity.unit.test.ts`
+checks the demo's catalogue against the registry the way it checks the other four clients — every
+read and write capability has a tool, writes are gated as writes, required parameters are named,
+and the demo-only extras are an explicit list. Everything below the tool surface — behaviour,
+copy, presentation — is still a judgement call.
 
 ## Not on the homepage yet
 
@@ -47,18 +53,35 @@ So: the tool set, the write-confirmation set, and the account/patient model are 
 
 These have been reviewed and are staying. Don't re-file them.
 
-### The imaging tool is a drawing, not a download
+### The X-ray is drawn, not downloaded
 
 | | Real | Demo |
 | --- | --- | --- |
-| Tool | `download_imaging_study` (`rendersMedia: true`) | `get_xray_image` |
-| Argument | `image_id` from `get_imaging_results` | 0-based index into the imaging list |
+| Tool | `download_imaging_study` (`rendersMedia: true`) | `download_imaging_study` |
+| Argument | `image_id` from `get_imaging_results`, or `imaging_index` | same |
 | Token the model emits | `[image:IMAGE_ID]` | a fixed `[image:xray]` |
 | Where the pixels come from | the eUnity protocol (see [imaging.md](imaging.md)) | `components/Radiograph.tsx` draws it procedurally |
 
-The demo record holds exactly one image, so id indirection and a `rendersMedia` flag would be
-machinery with a single caller and no second case to justify it. The visitor sees an X-ray appear
-inline, which is the part that matters.
+The tool, its identifiers, and its refusals now match: a study with pictures carries an `image_id`,
+a report-only study carries none and refuses the download. What stays divergent is the picture
+itself. There is no eUnity instance to talk to and no patient's radiograph anyone should ship in a
+static bundle, so the demo draws one and the model always emits the same token for it. The visitor
+sees an X-ray appear inline, which is the part that matters.
+
+### Nine tools have no registry id, on purpose
+
+Seven of them are account setup — `list_accounts`, `search_mycharts`, `setup_account`,
+`connect_instance`, `check_session`, `complete_2fa`, `disconnect_account`. They mirror the Claude
+Desktop extension's meta tools, which manage credentials on one machine and are deliberately
+outside `shared/capabilities.ts`. The demo implements them (a visitor can watch a login, a 2FA
+prompt, and a disconnect play out) but never lists them in the model's prompt, because the session
+starts connected.
+
+The other two are `get_available_appointments` and `book_appointment`. Scheduling is not a
+capability the product has yet, and this is the one place the demo shows something the product
+can't do — accepted because booking is the clearest illustration of a confirmed write, and
+retired the moment real scheduling lands. The parity test pins the list, so a tenth cannot appear
+without someone deciding to add it.
 
 ### The skill playbooks are abridged
 
@@ -87,5 +110,6 @@ page-view rather than after ten minutes of a stranger's patience.
 
 If you find the demo offering a tool the registry doesn't have, missing one it does, gating a
 different set of writes, or spelling a shared parameter differently — that's a bug, not a
-simplification. `shared/capabilities.ts` is the source of truth; the demo is the one surface that
-can't be told so automatically.
+simplification. `shared/capabilities.ts` is the source of truth, and the parity test now says so
+for the catalogue. It cannot check what a tool *does*, so a tool that exists but answers nothing
+like the real one is still drift a person has to catch.

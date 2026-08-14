@@ -14,9 +14,15 @@ import type {
   BillingCharge,
   Conversation,
   EmergencyContact,
+  ImagingStudy,
   Insight,
   LabPanel,
+  Letter,
+  LetterDetail,
   Medication,
+  MessageRecipient,
+  MessageTopic,
+  PatientRecord,
   SeedChat,
   Visit,
 } from './types';
@@ -503,7 +509,7 @@ export const visitAVS = {
   contentCss: '.avs { font-family: Georgia, serif; max-width: 720px; }',
 };
 
-export const letters = [
+export const letters: Letter[] = [
   {
     title: 'After Visit Summary — Annual Physical',
     date: '2026-01-10',
@@ -511,6 +517,8 @@ export const letters = [
     type: 'After Visit Summary',
     summary:
       'Patient seen for annual physical. BP elevated at 148/92. A1c 7.2%, up from 6.8%. LDL 172, well above goal. Liver enzymes mildly elevated. Continue all medications, increase Atorvastatin to 40mg. Counseled on diet and exercise. Follow up in 3 months.',
+    hnoId: 'WP-demo-hno-letter-physical',
+    csn: 'WP-demo-csn-physical-2026-01-10',
   },
   {
     title: 'After Visit Summary — ER Visit',
@@ -519,8 +527,40 @@ export const letters = [
     type: 'After Visit Summary',
     summary:
       'Patient presented with acute chest pain after eating. EKG normal, troponin negative x2. Chest pain reproduced with palpation — musculoskeletal and GERD exacerbation. Discharged with instructions to follow up with PCP.',
+    hnoId: 'WP-demo-hno-letter-er',
+    csn: 'WP-demo-csn-er-visit-2025-09-14',
+  },
+  {
+    title: 'Work Excuse Letter',
+    date: '2025-09-15',
+    provider: 'Dr. Nick Riviera',
+    type: 'Letter',
+    summary: 'Excuse from work for one shift following an emergency department visit.',
+    hnoId: 'WP-demo-hno-letter-work',
+    csn: 'WP-demo-csn-er-visit-2025-09-14',
   },
 ];
+
+/**
+ * Letter bodies, keyed by the `hnoId` the list above carries.
+ *
+ * The real `get_letter_details` returns one field — `bodyHTML` — and answers an
+ * unknown hnoId with an empty one, so the demo does the same.
+ */
+export const letterDetailsByHnoId: Record<string, LetterDetail> = {
+  'WP-demo-hno-letter-physical': {
+    bodyHTML:
+      '<div class="letter"><p>Springfield General Hospital &mdash; Internal Medicine</p><p>January 10, 2026</p><p>Dear Mr. Simpson,</p><p>Thank you for coming in for your annual physical. Your blood pressure was 148/92, which is above the goal of 130/80. Your hemoglobin A1c is 7.2%, up from 6.8% in July, and your LDL cholesterol is 172 mg/dL.</p><p>I have increased your atorvastatin to 40mg nightly. Please continue lisinopril and metformin as prescribed. I would like to see you again in three months with a repeat A1c and metabolic panel drawn beforehand.</p><p>In the meantime: a 20-minute daily walk and smaller portions at dinner will move all three of these numbers.</p><p>Sincerely,<br />Julius Hibbert, MD</p></div>',
+  },
+  'WP-demo-hno-letter-er': {
+    bodyHTML:
+      '<div class="letter"><p>Springfield General Hospital &mdash; Emergency Department</p><p>September 14, 2025</p><p>Dear Mr. Simpson,</p><p>You were seen this evening for chest pain that began after a meal. Your electrocardiogram was normal and two troponin measurements were negative, which rules out a heart attack as the cause of tonight&rsquo;s pain.</p><p>The most likely explanation is reflux together with muscular chest wall pain. Take omeprazole 20mg each morning for fourteen days and avoid lying down within two hours of eating.</p><p>Return immediately if the pain returns with sweating, shortness of breath, or pain spreading to your arm or jaw.</p><p>Sincerely,<br />Nick Riviera, MD</p></div>',
+  },
+  'WP-demo-hno-letter-work': {
+    bodyHTML:
+      '<div class="letter"><p>September 15, 2025</p><p>To Whom It May Concern:</p><p>Mr. Homer Simpson was evaluated in our emergency department on September 14, 2025 and is excused from work for one shift. He may return to full duty with no restrictions.</p><p>Sincerely,<br />Nick Riviera, MD</p></div>',
+  },
+};
 
 export const vitals = [
   {
@@ -635,7 +675,12 @@ export const ehiExport = {
   note: 'Electronic Health Information export available per 21st Century Cures Act.',
 };
 
-export const imagingResults = [
+/**
+ * Imaging. The chest X-ray has pictures and therefore an `image_id`; the
+ * ultrasound is a report only and carries `null`, which is exactly how the real
+ * registry marks the difference — `download_imaging_study` refuses the second.
+ */
+export const imagingResults: ImagingStudy[] = [
   {
     study: 'Chest X-Ray, PA and Lateral',
     date: '2025-09-14',
@@ -646,29 +691,52 @@ export const imagingResults = [
     seriesCount: 2,
     impression:
       'Heart mildly enlarged. Lungs are clear. No acute cardiopulmonary disease. Recommend echocardiogram for further evaluation of cardiomegaly.',
+    imageId: 'ZmRpOmRlbW8tY2hlc3QteHJheQ',
+    series: [
+      { seriesUID: '1.2.826.0.1.3680043.demo.1.1', seriesDescription: 'PA', imageCount: 1 },
+      { seriesUID: '1.2.826.0.1.3680043.demo.1.2', seriesDescription: 'Lateral', imageCount: 1 },
+    ],
+  },
+  {
+    study: 'Ultrasound, Abdomen Complete',
+    date: '2026-01-18',
+    orderedBy: 'Dr. Julius Hibbert',
+    facility: 'Springfield General Hospital Radiology',
+    status: 'Final',
+    hasImages: false,
+    seriesCount: 0,
+    impression:
+      'Increased hepatic echogenicity consistent with hepatic steatosis. No focal lesion. Gallbladder without stones. Correlate with the elevated liver enzymes on the January panel.',
+    imageId: null,
+    series: [],
   },
 ];
 
 export const linkedAccounts = [
   { organization: 'Springfield General Hospital', hostname: DEMO_HOSTNAME, status: 'Active' },
+  { organization: 'Shelbyville Regional Medical', hostname: 'mychart.shelbyvillemed.example.org', status: 'Available to link' },
 ];
 
-export const messageRecipients = {
-  recipients: [
-    { displayName: 'Dr. Julius Hibbert', specialty: 'Internal Medicine', department: 'Primary Care' },
-    { displayName: 'Dr. Nick Riviera', specialty: 'General Surgery', department: 'Surgery' },
-    { displayName: 'Nurse Ruth Powers', specialty: 'Nursing', department: 'Care Coordination' },
-    { displayName: 'Patient Accounts', specialty: 'Billing', department: 'Patient Financial Services' },
-  ],
-  topics: [
-    { displayName: 'Medical Question', value: 'TOPIC-001' },
-    { displayName: 'Medication Refill', value: 'TOPIC-002' },
-    { displayName: 'Appointment Request', value: 'TOPIC-003' },
-    { displayName: 'Test Results Question', value: 'TOPIC-004' },
-    { displayName: 'Billing Question', value: 'TOPIC-005' },
-    { displayName: 'Other', value: 'TOPIC-006' },
-  ],
-};
+export const messageRecipients: MessageRecipient[] = [
+  { displayName: 'Dr. Julius Hibbert', specialty: 'Internal Medicine', department: 'Primary Care' },
+  { displayName: 'Dr. Nick Riviera', specialty: 'General Surgery', department: 'Surgery' },
+  { displayName: 'Nurse Ruth Powers', specialty: 'Nursing', department: 'Care Coordination' },
+  { displayName: 'Patient Accounts', specialty: 'Billing', department: 'Patient Financial Services' },
+];
+
+/**
+ * Topics a new message can be filed under. Separate from the recipients because
+ * MyChart serves them from a different endpoint, and the registry exposes them
+ * as their own tool (`get_message_topics`).
+ */
+export const messageTopics: MessageTopic[] = [
+  { displayName: 'Medical Question', value: 'TOPIC-001' },
+  { displayName: 'Medication Refill', value: 'TOPIC-002' },
+  { displayName: 'Appointment Request', value: 'TOPIC-003' },
+  { displayName: 'Test Results Question', value: 'TOPIC-004' },
+  { displayName: 'Billing Question', value: 'TOPIC-005' },
+  { displayName: 'Other', value: 'TOPIC-006' },
+];
 
 export const availableAppointments: AppointmentOffer[] = [
   {
@@ -802,3 +870,50 @@ export const seedChats: SeedChat[] = [
   { id: 'chat-seed-4', title: 'Explain my chest X-ray report', updatedAt: '2026-02-28' },
   { id: 'chat-seed-5', title: 'Which vaccines am I due for?', updatedAt: '2026-02-14' },
 ];
+
+/**
+ * The account holder's chart, assembled from everything above.
+ *
+ * Read tools resolve their data off a `PatientRecord`, never off this module
+ * directly, because the account also has proxy access to a second chart
+ * (`bartRecord`) and MyChart serves whichever one is active.
+ */
+export const homerRecord: PatientRecord = {
+  profile,
+  healthSummary,
+  allergies,
+  healthIssues,
+  medicalHistory,
+  vitals,
+  immunizations,
+  careTeam,
+  goals,
+  preventiveCare,
+  labResults,
+  imagingResults,
+  upcomingOrders,
+  pastVisits,
+  visitNotes,
+  noteContentByHnoId,
+  visitAVS,
+  careJourneys,
+  referrals,
+  letters,
+  letterDetailsByHnoId,
+  documents,
+  questionnaires,
+  educationMaterials,
+  activityFeed,
+  ehiExport,
+  linkedAccounts,
+  messageRecipients,
+  messageTopics,
+  billing,
+  insurance,
+
+  medications,
+  messages,
+  emergencyContacts,
+  upcomingVisits,
+  availableAppointments,
+};
