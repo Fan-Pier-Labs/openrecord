@@ -57,6 +57,23 @@ same setup sequence using ordinary tool calls:
 2. **`setup_account(hostname, username, password)`** — Claude asks you for
    your credentials in chat, then logs in. Credentials are stored locally in
    `~/.openrecord-mcpb/` on your machine. Never sent to Anthropic.
+
+Or skip typing a password entirely, if your browser already has one saved:
+
+- **`import_browser_passwords`** — scans this machine's browser password stores
+  (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins. Read-only; on macOS it
+  raises the system keychain prompt, which is where you consent. Accounts come
+  back in two groups: **confirmed** (a known Epic instance, or one whose login
+  page was verified) and **unverified** (a saved password that looks like a
+  patient portal but could not be confirmed — the host may be down, VPN-only, or
+  a retired domain). **No passwords are returned** — each entry carries an opaque
+  `import_id`, and the credential stays on your machine.
+- **`connect_imported_account(import_id)`** — connects the one you picked, using
+  the password already in your browser. Same 2FA and passkey flow as
+  `setup_account`.
+
+See [`read-local-passwords/README.md`](../read-local-passwords/README.md) for what
+is read and how the confirmed/unverified split is decided.
 3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
    asks you for the 6-digit code.
 4. **`register_passkey(account)`** — (optional, recommended) future logins

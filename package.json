@@ -22,6 +22,7 @@
     "fzstd": "^0.1.1",
     "jpeg-js": "^0.4.4",
     "mkdirp": "^3.0.1",
+    "node-sqlite3-wasm": "^0.8.60",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "sharp": "^0.35.3",
