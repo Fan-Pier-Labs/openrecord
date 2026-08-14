@@ -44,7 +44,7 @@ against the full matrix, and every skipped check skipped with a written reason.*
   bun run test
   ```
   Every package's deps must be installed first (root, expo-app, npm-package,
-  claude-desktop-extension, tests/integration/ci) — type-aware lint silently degrades
+  claude-desktop-extension) — type-aware lint silently degrades
   imports to `any` when a `node_modules` is missing, and rules stop seeing them. Same
   trap with `npm-package/dist`: the bundle test imports it, so lint without a fresh
   build misjudges that file. If a change touches session/proxy/renewal code, also run
