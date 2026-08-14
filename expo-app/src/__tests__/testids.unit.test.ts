@@ -38,7 +38,7 @@ function extractInteractiveTags(file: string, source: string): Tag[] {
     // Skip type positions like useRef<TextInput>(null): JSX `<` follows
     // whitespace or an opening bracket, never an identifier character.
     const before = source[start - 1];
-    if (before !== undefined && /[A-Za-z0-9_$]/.test(before)) continue;
+    if (before !== undefined && /[A-Z0-9_$]/i.test(before)) continue;
 
     let depth = 0;
     let quote: string | null = null;

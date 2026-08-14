@@ -164,7 +164,7 @@ describe('image_id', () => {
   it('round-trips an fdi context through a single opaque token', () => {
     const ctx = { fdi: 'a:b,c/d+e', ord: 'ORD%2F123' };
     const id = encodeImageId(ctx);
-    expect(id).toMatch(/^[A-Za-z0-9\-_]+$/);
+    expect(id).toMatch(/^[A-Z0-9\-_]+$/i);
     expect(decodeImageId(id)).toEqual(ctx);
   });
 

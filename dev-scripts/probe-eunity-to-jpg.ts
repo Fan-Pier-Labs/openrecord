@@ -50,7 +50,7 @@ async function main() {
 
   for (const [, instances] of bySeries) {
     const mid = instances[Math.floor(instances.length / 2)]!; // bySeries values are non-empty by construction
-    const label = mid.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const label = mid.seriesDescription.replace(/[^a-z0-9_-]/gi, '_');
     try {
       const img = await downloadSingleImage(session, mid.seriesUID, mid.instanceUID);
       if (!img) {

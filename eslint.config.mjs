@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import regexpPlugin from "eslint-plugin-regexp";
 
 
 export default [
@@ -342,6 +343,16 @@ export default [
     rules: {
       "react-hooks/rules-of-hooks": "error",
     },
+  },
+  // A class that spells both cases out (`[A-Za-z0-9_-]`) is the `i` flag written
+  // longhand. The catch is that `i` applies to the WHOLE pattern, so it is only
+  // a rewrite where nothing else in the regex is case-sensitive — checked site
+  // by site here, and every one turned out to be a lone class next to anchors
+  // and punctuation. Any future site where `i` would widen a literal takes a
+  // line-level disable instead.
+  {
+    plugins: { regexp: regexpPlugin },
+    rules: { "regexp/use-ignore-case": "error" },
   },
   {rules: {
     "@typescript-eslint/no-explicit-any": "error",

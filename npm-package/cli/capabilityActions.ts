@@ -261,12 +261,12 @@ export async function writeStudyImages(
   options: { saveClo?: boolean } = {},
 ): Promise<WrittenStudyImage[]> {
   await fs.promises.mkdir(outputDir, { recursive: true });
-  const safeStudy = (payload.studyName || 'study').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
+  const safeStudy = (payload.studyName || 'study').replace(/[^a-z0-9_-]/gi, '_').substring(0, 80);
   const written: WrittenStudyImage[] = [];
 
   for (const image of payload.images) {
     if (!image.pixelData) continue;
-    const safeSeries = image.seriesDescription.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeSeries = image.seriesDescription.replace(/[^a-z0-9_-]/gi, '_');
     const baseName = `${safeStudy}_${String(image.index).padStart(3, '0')}_${safeSeries}`;
     const filePath = path.join(outputDir, `${baseName}.jpg`);
     if (options.saveClo) {
