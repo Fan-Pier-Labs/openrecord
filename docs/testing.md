@@ -14,8 +14,8 @@ or a package tsconfig), never to exempt it — an exempted file resolves without
 `paths` and silently loses type-aware linting. The same projects back `bun run typecheck`, so
 nothing is excluded from typechecking either: expo-app checks its `__tests__`, npm-package checks
 `examples/` and `tsup.config.ts` (build `dist/` first — examples import the published package
-name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included —
-`cd tests/integration/ci && bun install` first) ride the root tsconfig.
+name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included) ride the
+root tsconfig.
 
 One caveat the compiler can't express: the expo test files carry `/// <reference types="bun" />`
 so `bun:test` resolves, and a triple-slash reference is program-wide — it puts `Bun` in scope for
@@ -85,7 +85,10 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
   (`cd npm-package && bun run build`).
 - `fake-mychart-passkey-ui.integration.test.ts` — Playwright-driven browser test of the fake-mychart
   passkey UI using Chromium's WebAuthn virtual authenticator (a CDP feature plain `fetch` can't
-  replicate).
+  replicate). `playwright` rides the root install, but the Chromium binary is a separate download
+  (`bunx playwright install chromium`); without it the suite **skips with that command in the
+  message** rather than failing to launch. `$CI` overrides the skip, so a browser-install break in
+  the workflow fails loudly instead of quietly covering nothing.
 
 The `integration` CI job runs the whole suffix at once, so this directory, the scraper suites, the
 desktop extension's imaging download and npm-package's built-bundle test all share one server. That

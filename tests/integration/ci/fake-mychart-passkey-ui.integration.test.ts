@@ -11,12 +11,41 @@
  *
  * Run with the fake-mychart server on FAKE_MYCHART_BASE (default
  * http://localhost:4000). In CI this is the dockerized fake-mychart.
+ *
+ * The `playwright` package rides the root install, but the Chromium binary it
+ * drives does not — it is a separate ~150MB download nothing else in the repo
+ * needs. So outside CI this suite skips with the command to fix it rather than
+ * failing on a launch error. Inside CI it always runs: the workflow installs
+ * the browser, and a skip there would be the silent-pass failure mode.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 
 const BASE = process.env.FAKE_MYCHART_BASE || 'http://localhost:4000';
+
+/**
+ * Resolves the cached browser path without launching it — no download, no spawn.
+ * `executablePath()` reports the full Chromium build, which is why `launch()`
+ * below pins `channel: 'chromium'`: left at the default it would run the
+ * separate chrome-headless-shell binary, and this probe would be vouching for a
+ * file the test never opens.
+ */
+function chromiumInstalled(): boolean {
+  try {
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+}
+
+const skip = !process.env.CI && !chromiumInstalled();
+if (skip) {
+  console.warn(
+    '[fake-mychart passkey UI] skipped: no Chromium. Install it with `bunx playwright install chromium`.'
+  );
+}
 
 let browser: Browser;
 let context: BrowserContext;
@@ -27,33 +56,35 @@ async function resetState() {
   if (!r.ok) throw new Error(`/reset failed: ${r.status}`);
 }
 
-beforeAll(async () => {
-  await resetState();
-  browser = await chromium.launch({ headless: true });
-  context = await browser.newContext();
-  page = await context.newPage();
+// Hooks live inside the describe so a skipped suite doesn't reset the shared
+// fake-mychart out from under whichever suite is running next.
+describe.skipIf(skip)('fake-mychart passkey UI', () => {
+  beforeAll(async () => {
+    await resetState();
+    browser = await chromium.launch({ headless: true, channel: 'chromium' });
+    context = await browser.newContext();
+    page = await context.newPage();
 
-  // Install a virtual WebAuthn authenticator that auto-approves prompts.
-  const cdp = await context.newCDPSession(page);
-  await cdp.send('WebAuthn.enable');
-  await cdp.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
+    // Install a virtual WebAuthn authenticator that auto-approves prompts.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', {
+      options: {
+        protocol: 'ctap2',
+        transport: 'internal',
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+        automaticPresenceSimulation: true,
+      },
+    });
+  }, 30_000);
+
+  afterAll(async () => {
+    await browser?.close();
+    await resetState();
   });
-}, 30_000);
 
-afterAll(async () => {
-  await browser?.close();
-  await resetState();
-});
-
-describe('fake-mychart passkey UI', () => {
   it('registers a passkey via the Settings UI', async () => {
     await page.goto(`${BASE}/MyChart/Authentication/Login`);
     await page.fill('#Login', 'homer');

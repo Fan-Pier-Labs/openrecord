@@ -34,8 +34,7 @@ tests/
 └── integration/
     └── ci/                         # CI integration suite (Docker Compose)
         ├── cli-passkey.integration.test.ts          # CLI passkey setup/removal
-        ├── fake-mychart-passkey-ui.integration.test.ts  # Playwright passkey UI test
-        └── package.json            # Playwright, needed only by this suite
+        └── fake-mychart-passkey-ui.integration.test.ts  # Playwright passkey UI test
 ```
 
 ## `tests/integration/ci/`
@@ -65,6 +64,9 @@ docker compose -f docker-compose.ci.yaml up -d --build --wait
 # Build the CLI binary the passkey test spawns
 cd npm-package && bun run build && cd ..
 
+# Chromium for the passkey UI test — without it that one suite skips
+bunx playwright install chromium
+
 # Run every integration suite
 bun run test:integration
 
@@ -74,8 +76,12 @@ docker compose -f docker-compose.ci.yaml down -v
 
 ### Dependencies
 
-`tests/integration/ci/package.json` pulls in:
+`playwright` is a root devDependency, so `bun install` at the repo root covers
+it — there is no per-directory `package.json` here. It drives a real Chromium
+instance for the passkey UI test, which needs Playwright's WebAuthn virtual
+authenticator (a CDP feature) — plain `fetch` can't replicate it.
 
-- `playwright` — drives a real Chromium instance for the passkey UI test,
-  which needs Playwright's WebAuthn virtual authenticator (a CDP feature) —
-  plain `fetch` can't replicate it.
+The **browser binary** is a separate ~150MB download (`bunx playwright install
+chromium`) that no other suite needs, so it stays out of the default setup: the
+passkey UI suite skips, naming that command, when Chromium is missing. `$CI`
+overrides the skip so the workflow can never quietly stop covering it.
