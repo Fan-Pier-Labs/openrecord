@@ -1,6 +1,10 @@
 services:
   fake-mychart:
-    build: ./fake-mychart
+    build:
+      # Repo root, so the image can carry shared/ alongside fake-mychart/ —
+      # the AMF3 writer and CLO wrapper encoder live there.
+      context: .
+      dockerfile: fake-mychart/Dockerfile
     ports:
       - "4000:3000"
     environment:

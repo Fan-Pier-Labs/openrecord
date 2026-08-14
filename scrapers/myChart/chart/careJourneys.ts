@@ -45,7 +45,7 @@ export async function getCareJourneys(mychartRequest: MyChartRequest): Promise<C
 
   const json: GetCareJourneysResponse = await resp.json();
 
-  return (json.careJourneys || []).map((cj: CareJourneyResponse) => ({
+  return (json.careJourneys ?? []).map((cj: CareJourneyResponse) => ({
     id: cj.id || '',
     name: cj.name || '',
     description: cj.description || '',

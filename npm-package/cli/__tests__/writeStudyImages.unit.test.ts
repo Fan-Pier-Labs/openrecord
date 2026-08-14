@@ -6,10 +6,10 @@ import sharp from 'sharp';
 import { writeStudyImages } from '../capabilityActions';
 import {
   encodePixelFile,
-  encodeWrapperFile,
   generateCheckerboard,
 } from '../../../scrapers/myChart/clo-image-parser/generate_clo';
 import type { StudyImagePayload } from '../../../shared/capabilities';
+import { encodeCloWrapper } from '../../../shared/cloWrapper';
 
 /**
  * The CLI's rendering of a rendersMedia payload: raw CLO buffers in, JPEG
@@ -25,7 +25,7 @@ afterAll(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 const SIZE = 512;
 const PIXEL_DATA = new Uint8Array(encodePixelFile(generateCheckerboard(SIZE, SIZE), SIZE, SIZE));
 const WRAPPER_DATA = new Uint8Array(
-  encodeWrapperFile({
+  encodeCloWrapper({
     photometricInterpretation: 'MONOCHROME2',
     bitsStored: 16,
     windowCenter: 32768,

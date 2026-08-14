@@ -25,8 +25,9 @@
 //   1. A server-side guard preamble is prepended to whatever system prompt the
 //      client sends, scoping the assistant to OpenRecord. The endpoint is
 //      public, so treat the client-supplied prompt as untrusted.
-//   2. Per-IP token bucket (per-account for signed-in callers), plus a
-//      per-container global cap, plus the monthly spend cap for signed-in use.
+//   2. Per-IP token bucket (per-account for signed-in callers), plus a global
+//      cap shared by every container via DynamoDB, plus the monthly spend cap
+//      for signed-in use.
 //   3. Hard caps on message count, message length, and output tokens, and
 //      per-tier model allow-lists so a caller can't request a model above
 //      their tier.
@@ -36,6 +37,7 @@ import {
   estimateCostMicros,
   ledgerKey,
   monthKey,
+  windowKey,
   createDynamoSpendStore,
   createMemorySpendStore,
 } from './spend.mjs';
@@ -79,9 +81,16 @@ const MAX_OUTPUT_TOKENS = 2048;
 const RATE_LIMIT = Number(process.env.RATE_LIMIT ?? 40);
 const AUTH_RATE_LIMIT = Number(process.env.AUTH_RATE_LIMIT ?? 120);
 const RATE_WINDOW_MS = Number(process.env.RATE_WINDOW_MS ?? 10 * 60 * 1000);
-// Per-container ceiling across all callers, as a backstop against a botnet
-// spreading load over many source IPs.
-const GLOBAL_LIMIT = Number(process.env.GLOBAL_LIMIT ?? 1500);
+// Ceiling across all callers, as a backstop against a botnet spreading load
+// over many source IPs. Counted in DynamoDB so it means the same thing no
+// matter how many containers Lambda is running — see checkGlobalLimit.
+// Read lazily so tests can set the env after import.
+function globalLimit() {
+  return Number(process.env.GLOBAL_LIMIT ?? 1500);
+}
+// How long a spent window's counter item sticks around before TTL reaps it.
+// Generous because DynamoDB's TTL sweep is best-effort, not punctual.
+const WINDOW_TTL_SLACK_SECONDS = 3600;
 
 const GUARD_PREAMBLE = [
   'You are the assistant inside OpenRecord, a tool that connects Epic MyChart health portals to AI assistants.',
@@ -92,8 +101,12 @@ const GUARD_PREAMBLE = [
 
 /** ip → { count, resetAt }. Per-container, resets on cold start. Good enough. */
 const buckets = new Map();
-let globalCount = 0;
-let globalResetAt = 0;
+// Fallback for the global cap, used only when the shared counter is
+// unreachable. Per-container, so it caps each container separately — which is
+// exactly the weakness the DynamoDB counter exists to fix, and still better
+// than nothing while DynamoDB is having a bad day.
+let localGlobalCount = 0;
+let localGlobalResetAt = 0;
 
 function json(statusCode, body, extraHeaders = {}) {
   return {
@@ -103,17 +116,17 @@ function json(statusCode, body, extraHeaders = {}) {
   };
 }
 
-/** Token-bucket check. Returns null when allowed, or the seconds to wait. */
+/**
+ * Per-caller token-bucket check, in memory. Returns null when allowed, or the
+ * seconds to wait.
+ *
+ * Per-container is the right trade here: this runs on every request, a shared
+ * counter would mean a DynamoDB write per request per caller, and the cost of
+ * getting it slightly wrong is that a caller who lands on several containers
+ * gets a few extra calls. The cap that actually bounds the bill is the global
+ * one below.
+ */
 export function checkRateLimit(ip, now = Date.now(), limit = RATE_LIMIT) {
-  if (now >= globalResetAt) {
-    globalResetAt = now + RATE_WINDOW_MS;
-    globalCount = 0;
-  }
-  globalCount++;
-  if (globalCount > GLOBAL_LIMIT) {
-    return Math.ceil((globalResetAt - now) / 1000);
-  }
-
   const bucket = buckets.get(ip);
   if (!bucket || now >= bucket.resetAt) {
     buckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
@@ -131,6 +144,38 @@ export function checkRateLimit(ip, now = Date.now(), limit = RATE_LIMIT) {
     return Math.ceil((bucket.resetAt - now) / 1000);
   }
   return null;
+}
+
+/**
+ * Global cap across every caller and every container, counted in DynamoDB.
+ * Returns null when allowed, or the seconds to wait.
+ *
+ * One atomic increment per request that got past the per-IP gate. The item is
+ * keyed by time window and TTL'd, so the table never accumulates more than the
+ * handful of windows currently in flight.
+ *
+ * Fails open, on purpose: this is a cost backstop, and a DynamoDB blip taking
+ * the demo down with it would be a worse outage than the spend it prevents.
+ * The per-container fallback still applies, and every failure is logged.
+ */
+export async function checkGlobalLimit(now = Date.now()) {
+  const windowEndsAt = Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS + RATE_WINDOW_MS;
+  const retryAfter = Math.ceil((windowEndsAt - now) / 1000);
+  try {
+    const count = await spendStore.bump(
+      windowKey(now, RATE_WINDOW_MS),
+      Math.ceil(windowEndsAt / 1000) + WINDOW_TTL_SLACK_SECONDS,
+    );
+    return count > globalLimit() ? retryAfter : null;
+  } catch (err) {
+    console.error(JSON.stringify({ type: 'demo_ai_global_limit_error', message: err.message }));
+    if (now >= localGlobalResetAt) {
+      localGlobalResetAt = windowEndsAt;
+      localGlobalCount = 0;
+    }
+    localGlobalCount++;
+    return localGlobalCount > globalLimit() ? retryAfter : null;
+  }
 }
 
 /** Exported for tests. Throws an Error with `.statusCode` on bad input. */
@@ -222,8 +267,12 @@ export function extractText(geminiResponse) {
 async function authenticate(event) {
   const header =
     event?.headers?.authorization ?? event?.headers?.Authorization ?? '';
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  if (!match) return null;
+  // Plain string work, not a regex: this header is attacker-supplied and is
+  // read before anything else about the request is checked.
+  const trimmed = header.trim();
+  if (trimmed.slice(0, 7).toLowerCase() !== 'bearer ') return null;
+  const token = trimmed.slice(7).trim();
+  if (!token) return null;
   const err401 = (message) => {
     const err = new Error(message);
     err.statusCode = 401;
@@ -232,7 +281,7 @@ async function authenticate(event) {
   const clientIds = googleClientIds();
   if (clientIds.size === 0) throw err401('Sign-in is not configured on the server.');
   try {
-    return await verifyGoogleIdToken(match[1], clientIds);
+    return await verifyGoogleIdToken(token, clientIds);
   } catch {
     // Uniform message on purpose — the caller's fix is the same either way
     // (refresh the token and retry), and detail only helps a forger.
@@ -271,9 +320,12 @@ export const handler = async (event) => {
   }
 
   const ip = event?.requestContext?.http?.sourceIp ?? 'unknown';
-  const retryAfter = auth
-    ? checkRateLimit(`sub:${auth.sub}`, Date.now(), AUTH_RATE_LIMIT)
-    : checkRateLimit(ip);
+  // Per-caller first: it is free, and it means a single-IP flood never spends
+  // a DynamoDB write per attempt.
+  const retryAfter =
+    (auth
+      ? checkRateLimit(`sub:${auth.sub}`, Date.now(), AUTH_RATE_LIMIT)
+      : checkRateLimit(ip)) ?? (await checkGlobalLimit());
   if (retryAfter !== null) {
     return json(
       429,

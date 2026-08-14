@@ -6,15 +6,16 @@ import {
   isAmf3Externalizable,
   type Amf3Object,
 } from '../amf3Reader';
-import { AMF3Writer, parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';
+import { parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';
+import { Amf3Writer } from '../../../../shared/amf3Writer';
 
-// The fixtures are built with the real AMF3Writer — the same code whose output
+// The fixtures are built with the real Amf3Writer — the same code whose output
 // was byte-for-byte verified against eUnity's browser traffic — so the reader
 // is tested against genuine AMF3, not bytes invented in this file.
 
 describe('decodeAmf3 — scalars and strings', () => {
   it('round-trips a sealed typed object with strings, integers and booleans', () => {
-    const w = new AMF3Writer();
+    const w = new Amf3Writer();
     w.writeTypedObject('com.example.Thing', ['name', 'count', 'good', 'missing'], [
       (w1) => w1.writeString('hello'),
       (w1) => w1.writeInteger(42),
@@ -30,7 +31,7 @@ describe('decodeAmf3 — scalars and strings', () => {
   });
 
   it('resolves string references (same string written twice)', () => {
-    const w = new AMF3Writer();
+    const w = new Amf3Writer();
     w.writeArray([
       (w1) => w1.writeString('repeated'),
       (w1) => w1.writeString('repeated'), // writer emits a reference here
@@ -40,7 +41,7 @@ describe('decodeAmf3 — scalars and strings', () => {
   });
 
   it('decodes dynamic objects', () => {
-    const w = new AMF3Writer();
+    const w = new Amf3Writer();
     w.writeDynamicObject('', ['sealed'], [(w1) => w1.writeInteger(1)], [
       ['extra', (w1) => w1.writeString('dyn')],
     ]);
@@ -113,7 +114,7 @@ describe('decodeAmf3 — reference tables', () => {
   });
 
   it('throws on an unknown externalizable class', () => {
-    const w = new AMF3Writer();
+    const w = new Amf3Writer();
     w.writeExternalizableObject('com.example.Mystery', (w1) => w1.writeBE32(0));
     expect(() => decodeAmf3(w.toBuffer())).toThrow('com.example.Mystery');
   });
@@ -125,7 +126,7 @@ describe('decodeAmf3 — reference tables', () => {
 
 describe('decodeAmf3 — externalizable wrappers', () => {
   it('unwraps ArrayCollection', () => {
-    const w = new AMF3Writer();
+    const w = new Amf3Writer();
     w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w1) =>
       w1.writeArray([(w2) => w2.writeInteger(7)]),
     );
@@ -162,17 +163,17 @@ interface FakeStudy {
  * → Series → images ArrayCollection → Image.
  */
 function buildStudyListMetaResponse(studies: FakeStudy[]): Buffer {
-  const root = new AMF3Writer();
-  const writeCollection = (items: ((w: AMF3Writer) => void)[]) => (w: AMF3Writer) =>
+  const root = new Amf3Writer();
+  const writeCollection = (items: ((w: Amf3Writer) => void)[]) => (w: Amf3Writer) =>
     w.writeExternalizableObject('flex.messaging.io.ArrayCollection', (w1) => w1.writeArray(items));
 
-  const writeImage = (img: { uid: string; instanceNumber: number }) => (w: AMF3Writer) =>
+  const writeImage = (img: { uid: string; instanceNumber: number }) => (w: Amf3Writer) =>
     w.writeTypedObject('com.clientoutlook.data.Image', ['uid', 'instanceNumber'], [
       (w1) => w1.writeString(img.uid),
       (w1) => w1.writeInteger(img.instanceNumber),
     ]);
 
-  const writeSeries = (s: FakeSeries) => (w: AMF3Writer) =>
+  const writeSeries = (s: FakeSeries) => (w: Amf3Writer) =>
     w.writeTypedObject(
       'com.clientoutlook.data.Series',
       ['uid', 'description', 'frameOfReferenceUID', 'images'],
@@ -184,7 +185,7 @@ function buildStudyListMetaResponse(studies: FakeStudy[]): Buffer {
       ],
     );
 
-  const writeStudy = (st: FakeStudy) => (w: AMF3Writer) =>
+  const writeStudy = (st: FakeStudy) => (w: Amf3Writer) =>
     w.writeTypedObject(
       'com.clientoutlook.data.Study',
       ['uid', 'accessionNumber', 'description', 'series'],

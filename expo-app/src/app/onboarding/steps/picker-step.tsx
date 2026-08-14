@@ -5,15 +5,15 @@ import {
   Pressable,
   TextInput,
   FlatList,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  getInstances,
   hostnameFromInstance,
   searchInstances,
   type MyChartInstance,
 } from "@/lib/mychart-instances";
+import { useInstances } from "@/lib/use-instances";
+import { InstanceLogo } from "@/components/InstanceLogo";
 import { styles } from "../styles";
 
 type Props = {
@@ -23,10 +23,11 @@ type Props = {
 
 export function PickerStep({ onPick, onManualEntry }: Props) {
   const [query, setQuery] = useState("");
+  const instances = useInstances();
 
   const filteredInstances = useMemo(
-    () => searchInstances(query, getInstances()),
-    [query],
+    () => searchInstances(query, instances),
+    [query, instances],
   );
 
   return (
@@ -34,7 +35,7 @@ export function PickerStep({ onPick, onManualEntry }: Props) {
       <View style={styles.pickerHeader}>
         <Text style={styles.pickerTitle}>Find your provider</Text>
         <Text style={styles.pickerSubtitle}>
-          {filteredInstances.length} of {getInstances().length} MyChart sites
+          {filteredInstances.length} of {instances.length} MyChart sites
         </Text>
       </View>
       <View style={styles.pickerSearchWrap}>
@@ -82,15 +83,12 @@ export function PickerStep({ onPick, onManualEntry }: Props) {
             ]}
             onPress={() => onPick(item)}
           >
-            {item.logoUrl ? (
-              <Image
-                source={{ uri: item.logoUrl }}
-                style={styles.pickerLogo}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={[styles.pickerLogo, styles.pickerLogoFallback]} />
-            )}
+            <InstanceLogo
+              testID={`picker-logo-${item.slgId}`}
+              logoUrl={item.logoUrl}
+              style={styles.pickerLogo}
+              placeholderStyle={styles.pickerLogoFallback}
+            />
             <View style={styles.pickerRowText}>
               <Text style={styles.pickerRowName} numberOfLines={1}>
                 {item.name}

@@ -109,7 +109,7 @@ describe('accounts', () => {
     store.upsertAccount(account('mychart.example.org', 'marge'))
 
     const usernames = store.readAccounts().map((a) => a.username)
-    expect(usernames.sort()).toEqual(['homer', 'marge'])
+    expect([...usernames].sort()).toEqual(['homer', 'marge'])
   })
 
   it('keeps separate hosts separate', () => {
