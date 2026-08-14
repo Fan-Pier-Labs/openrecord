@@ -19,7 +19,7 @@ import {
   runTurn,
   stripProtocolChatter,
 } from '../src/agent';
-import { TOOL_SPECS, createSession } from '../src/tools';
+import { TOOL_SPECS, WRITE_TOOL_NAMES, createSession } from '../src/tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -121,14 +121,20 @@ describe('extractToolCalls', () => {
 
 describe('isExclusiveTool', () => {
   test('respond and every write tool are exclusive', () => {
-    for (const name of ['respond', 'send_message', 'send_reply', 'request_refill', 'book_appointment', 'add_emergency_contact']) {
+    // Derived from the catalogue, not listed here: a write added to TOOL_SPECS
+    // has to be exclusive from the moment it exists, and a test that named the
+    // writes itself would pass while a new one was silently batchable.
+    expect(isExclusiveTool('respond')).toBe(true);
+    for (const name of WRITE_TOOL_NAMES) {
       expect(isExclusiveTool(name)).toBe(true);
     }
   });
 
   test('reads are batchable', () => {
-    for (const name of ['get_profile', 'get_lab_results', 'get_billing']) {
-      expect(isExclusiveTool(name)).toBe(false);
+    const reads = TOOL_SPECS.filter((t: Any) => !t.write);
+    expect(reads.length).toBeGreaterThan(20);
+    for (const spec of reads) {
+      expect(isExclusiveTool(spec.name)).toBe(false);
     }
   });
 });
@@ -261,6 +267,20 @@ describe('describeWrite', () => {
     }
   });
 
+  test('the dialog reads its copy off the tool spec', () => {
+    // The gating is derived: `write` on the spec is what makes a tool stop
+    // here, and the same block is what the dialog says. A second table of
+    // titles beside the catalogue is how the two used to fall out of step.
+    for (const spec of TOOL_SPECS) {
+      const meta = spec.write;
+      if (!meta) continue;
+      const shown = describeWrite({ tool: spec.name, args: {} });
+      expect(shown.title).toBe(meta.title);
+      expect(shown.description).toBe(meta.description);
+      expect(shown.verb).toBe(meta.verb);
+    }
+  });
+
   test('appends resolved details after the literal payload', () => {
     const shown = describeWrite({
       tool: 'book_appointment',
@@ -318,6 +338,25 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt();
     expect(prompt).not.toContain('complete_2fa(');
     expect(prompt).not.toContain('connect_instance(');
+  });
+
+  test('every listed tool is tagged read or write', () => {
+    // The model is told the category of each call, so it knows a write will
+    // stop at a dialog before it makes one.
+    const prompt = buildSystemPrompt();
+    for (const spec of TOOL_SPECS.filter((t: Any) => t.group !== 'Account')) {
+      expect(prompt).toContain(`- [${spec.write ? 'write' : 'read'}] ${spec.name}(`);
+    }
+  });
+
+  test('the exclusivity rule names exactly the write tools', () => {
+    // This sentence was a hand-typed list of seven names. It had drifted from
+    // the catalogue, so the model was told a tool was exclusive that no longer
+    // existed and not told about ones that did. Derive it, and it cannot.
+    const prompt = buildSystemPrompt();
+    const clause = /^Write tools \(([^)]+)\) and `respond` are EXCLUSIVE/m.exec(prompt);
+    expect(clause).not.toBeNull();
+    expect(clause![1]!.split(', ')).toEqual(WRITE_TOOL_NAMES);
   });
 
   test('formatting guidance differs per surface', () => {

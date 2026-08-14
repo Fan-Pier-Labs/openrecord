@@ -870,7 +870,9 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 
   // Accept either a single code string or an array of scored codes
   const codeArray = twofaCodeArray ?? (code ? [{code, score: 1}] : []);
-  const sortedCodes = codeArray.sort((a, b) => b.score - a.score);
+  // Copy before sorting: `twofaCodeArray` belongs to the caller, and an
+  // in-place sort would reorder their array as a side effect of completing 2FA.
+  const sortedCodes = [...codeArray].sort((a, b) => b.score - a.score);
 
   // // To make sure we don't grab an old code from the user's email, we only look for emails that arrived after the above API request was made. 
   // // Also, look up to 5 seconds before the request was made.
