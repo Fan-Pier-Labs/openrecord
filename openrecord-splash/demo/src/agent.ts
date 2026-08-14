@@ -18,7 +18,14 @@
  * worse than showing an honest error.
  */
 
-import { TOOL_SPECS, executeTool, isWriteTool, toolLatencyMs } from './tools';
+import {
+  TOOL_SPECS,
+  WRITE_TOOL_NAMES,
+  executeTool,
+  getToolSpec,
+  isWriteTool,
+  toolLatencyMs,
+} from './tools';
 import type {
   ChatMessage,
   CompleteFn,
@@ -229,50 +236,6 @@ export function isDraftRequest(userText: string): boolean {
   return DRAFT_VERB.test(t) && !SEND_VERB.test(t);
 }
 
-/**
- * Plain-language titles for the confirmation dialog, mirroring the real iOS
- * client's WRITE_TOOLS map in expo-app/src/lib/ai/tool-executor.ts. The user
- * is being asked to approve an action, not a function call, so the dialog
- * leads with what it does.
- */
-const WRITE_TOOL_META: Record<string, { title: string; description: string; verb: string }> = {
-  send_message: {
-    title: 'Send Message',
-    description: 'Sends a new message to your care team.',
-    verb: 'Send',
-  },
-  send_reply: {
-    title: 'Send Reply',
-    description: 'Replies to an existing conversation.',
-    verb: 'Send',
-  },
-  request_refill: {
-    title: 'Request Refill',
-    description: 'Submits a medication refill request.',
-    verb: 'Request',
-  },
-  book_appointment: {
-    title: 'Book Appointment',
-    description: 'Books this appointment slot.',
-    verb: 'Book',
-  },
-  add_emergency_contact: {
-    title: 'Add Emergency Contact',
-    description: 'Adds a new emergency contact to your record.',
-    verb: 'Add',
-  },
-  update_emergency_contact: {
-    title: 'Update Emergency Contact',
-    description: 'Changes an emergency contact on your record.',
-    verb: 'Update',
-  },
-  remove_emergency_contact: {
-    title: 'Remove Emergency Contact',
-    description: 'Removes an emergency contact from your record.',
-    verb: 'Remove',
-  },
-};
-
 export type WriteConfirmation = {
   title: string;
   description: string;
@@ -292,9 +255,14 @@ function fieldLabel(key: string): string {
  * What the dialog shows. Built by code from the actual payload, never from the
  * model's description of it — the point of the dialog is that the user sees
  * what will really run.
+ *
+ * The copy comes off the tool spec's `write` block, so it exists for every
+ * write by construction. The fallbacks are for a tool that isn't a write at
+ * all: nothing routes one here, and a bare name beats an empty dialog if
+ * something ever does.
  */
 export function describeWrite({ tool, args, details }: PendingWrite): WriteConfirmation {
-  const meta = WRITE_TOOL_META[tool];
+  const meta = getToolSpec(tool)?.write;
   return {
     title: meta?.title ?? tool,
     description: meta?.description ?? `Runs ${tool}.`,
@@ -357,8 +325,14 @@ export function buildSystemPrompt({
   skillAddition = null,
   surface = 'ios',
 }: SystemPromptOptions = {}): string {
+  // Every line says which kind of call it is. The model batches reads freely
+  // and knows before it calls that a write will stop at a dialog, so it can
+  // put the payload to the user first instead of being surprised by a decline.
   const toolList = TOOL_SPECS.filter((t) => t.group !== 'Account')
-    .map((t) => `- ${t.name}(${Object.keys(t.args).join(', ')}) — ${t.description}`)
+    .map(
+      (t) =>
+        `- [${t.write ? 'write' : 'read'}] ${t.name}(${Object.keys(t.args).join(', ')}) — ${t.description}`,
+    )
     .join('\n');
 
   const formatting =
@@ -403,11 +377,13 @@ export function buildSystemPrompt({
     'You communicate with the system by emitting JSON objects. Each tool call is its own JSON object:',
     '  { "tool": "<tool_name>", "args": { ... } }',
     '',
+    'Every tool below is tagged [read] or [write]. A [read] call just runs. A [write] call changes something in the portal, so it stops at a confirmation dialog and only runs if the user approves it there.',
+    '',
     'You may emit MULTIPLE READ tool calls in a single turn (one JSON object each, separated by whitespace). They run in parallel and come back together. Example:',
     '  { "tool": "get_billing", "args": {} }',
     '  { "tool": "get_messages", "args": { "limit": 50 } }',
     '',
-    'Write tools (send_message, send_reply, request_refill, book_appointment, add_emergency_contact, update_emergency_contact, remove_emergency_contact) and `respond` are EXCLUSIVE — each must be the only tool call in its turn. Batching them with anything else is rejected.',
+    `Write tools (${WRITE_TOOL_NAMES.join(', ')}) and \`respond\` are EXCLUSIVE — each must be the only tool call in its turn. Batching them with anything else is rejected.`,
     '',
     'To reply to the user, call `respond`. This is the ONLY way to surface text, and it ends your turn:',
     '  { "tool": "respond", "args": { "text": "<your reply>" } }',

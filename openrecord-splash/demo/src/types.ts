@@ -117,13 +117,34 @@ export type ToolGroup =
   | 'Messaging'
   | 'Actions';
 
+/**
+ * Patient-facing copy for the confirmation dialog a write tool opens.
+ *
+ * It lives on the tool spec rather than in a lookup table beside it so the two
+ * cannot drift: declaring a write tool means writing the dialog that gates it,
+ * and the type is what enforces that. The real iOS client derives the same
+ * three fields from `kind: 'write'` in `shared/capabilities.ts`.
+ */
+export type WriteMeta = {
+  /** Dialog title — the action, not the function name. "Send Message". */
+  title: string;
+  /** One line on what approving will do. */
+  description: string;
+  /** Approve-button label. "Send", "Book", "Remove". */
+  verb: string;
+};
+
 export type ToolSpec = {
   name: string;
   group: ToolGroup;
   description: string;
   args: Record<string, string>;
-  /** Write tools change portal state; they must be called alone and confirmed. */
-  write?: boolean;
+  /**
+   * Present iff the tool changes portal state. A write must be called alone
+   * and is put to the user in a confirmation dialog built from this copy;
+   * reads just run. Absent means read.
+   */
+  write?: WriteMeta;
 };
 
 export type ToolArgs = Record<string, unknown>;
