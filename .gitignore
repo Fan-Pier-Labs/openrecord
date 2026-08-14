@@ -51,8 +51,6 @@ typescript
 # Allow synthetic (non-PII) CLO test images for fake-mychart
 !fake-mychart/src/data/clo-images/*.clo
 
-# Downloaded MyChart logos (large, stored in S3)
-scrapers/list-all-mycharts/logos/
 .next/
 
 # Vite build output for the OpenRecord splash demo

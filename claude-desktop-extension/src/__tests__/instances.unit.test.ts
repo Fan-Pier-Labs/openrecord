@@ -23,12 +23,13 @@ describe('instances catalog', () => {
     expect(fake!.logoUrl.startsWith('data:image/svg+xml')).toBe(true);
   });
 
-  test('real instances prefer the public Epic logo over the private S3 mirror', () => {
-    // The S3 mirror (s3.amazonaws.com) 403s without AWS creds; the Epic CDN
-    // (ichart2.epic.com) is public. A real entry should use the Epic URL.
-    const real = allInstances().find((i) => i.logoUrl.includes('ichart2.epic.com'));
-    expect(real).toBeDefined();
-    expect(allInstances().some((i) => i.logoUrl.includes('s3.us-east-2.amazonaws.com'))).toBe(false);
+  test('real instances load logos from a host the widget can actually reach', () => {
+    // The widget runs on the user's machine with no credentials of ours, so
+    // every logo has to come from a public host. It used to also carry an S3
+    // mirror in a private bucket, which 403d for every user who hit it.
+    const real = allInstances().filter((i) => i.hostname !== FAKE_HOST);
+    expect(real.length).toBeGreaterThan(1000);
+    expect(real.every((i) => i.logoUrl.startsWith('https://media.epic.com/'))).toBe(true);
   });
 });
 

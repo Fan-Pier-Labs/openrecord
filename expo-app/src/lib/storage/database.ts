@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { SCHEMA_SQL } from "./schema";
+import { MAX_CACHED_LOGOS, PRUNE_LOGOS_SQL, SCHEMA_SQL } from "./schema";
 
 let db: SQLite.SQLiteDatabase;
 
@@ -341,4 +341,51 @@ export async function setSyncState(
        last_synced_at = excluded.last_synced_at`,
     accountId, category, lastSeenAt, now,
   );
+}
+
+// ─── MyChart directory (the instance list and its logos) ───
+
+/**
+ * The whole instance list as one row, not 1400 of them.
+ *
+ * Nothing queries it in SQL — the picker filters the list in memory, because
+ * it re-filters on every keystroke — so rows would buy nothing and cost a
+ * 1400-statement write on every refresh. It is stored purely so a cold start
+ * with no network shows the list the last one fetched.
+ */
+export async function getCachedDirectory(): Promise<{ json: string; refreshedAt: string } | null> {
+  const row = await getDb().getFirstAsync<{ instances_json: string; refreshed_at: string }>(
+    "SELECT instances_json, refreshed_at FROM mychart_directory WHERE id = 1",
+  );
+  return row ? { json: row.instances_json, refreshedAt: row.refreshed_at } : null;
+}
+
+export async function setCachedDirectory(json: string): Promise<void> {
+  await getDb().runAsync(
+    `INSERT INTO mychart_directory (id, instances_json, refreshed_at) VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       instances_json = excluded.instances_json,
+       refreshed_at = excluded.refreshed_at`,
+    json, new Date().toISOString(),
+  );
+}
+
+/** A logo already fetched, as a data URI ready for an `<Image source>`. */
+export async function getCachedLogo(logoUrl: string): Promise<string | null> {
+  const row = await getDb().getFirstAsync<{ data_uri: string }>(
+    "SELECT data_uri FROM mychart_logos WHERE logo_url = ?",
+    logoUrl,
+  );
+  return row?.data_uri ?? null;
+}
+
+export async function setCachedLogo(logoUrl: string, dataUri: string): Promise<void> {
+  await getDb().runAsync(
+    `INSERT INTO mychart_logos (logo_url, data_uri, fetched_at) VALUES (?, ?, ?)
+     ON CONFLICT(logo_url) DO UPDATE SET
+       data_uri = excluded.data_uri,
+       fetched_at = excluded.fetched_at`,
+    logoUrl, dataUri, new Date().toISOString(),
+  );
+  await getDb().runAsync(PRUNE_LOGOS_SQL, MAX_CACHED_LOGOS);
 }
