@@ -190,7 +190,7 @@ async function main() {
 
   if (wrong.length) {
     console.error(`\n${wrong.length} hosts where the directory's prefix works and ours does not:`);
-    for (const r of wrong.sort((a, b) => a.host.localeCompare(b.host))) {
+    for (const r of [...wrong].sort((a, b) => a.host.localeCompare(b.host))) {
       console.error(`  ${r.host.padEnd(42)} found=${JSON.stringify(r.found)} expected=${JSON.stringify(r.expected[0])}`);
     }
   } else {

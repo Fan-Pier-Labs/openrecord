@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import sonarjs from "eslint-plugin-sonarjs";
 import reactHooks from "eslint-plugin-react-hooks";
 
 
@@ -341,6 +342,16 @@ export default [
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
+    },
+  },
+  // `arr.sort(...)` sorts IN PLACE and returns the same array, so using its
+  // return value reads as "a sorted copy" while quietly reordering the
+  // original. It caught the 2FA code list, which belongs to the caller.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: { sonarjs },
+    rules: {
+      "sonarjs/no-misleading-array-reverse": "error",
     },
   },
   {rules: {
