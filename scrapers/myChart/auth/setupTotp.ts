@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../core/util';
+import { fetchSessionCsrfToken } from '../core/csrf';
 import { generateTotpCode } from './totp';
 import { logger } from '../../../shared/logger';
 
@@ -13,64 +13,6 @@ export interface SetupTotpResult {
 // these endpoints carry the TOTP secret, so neither is safe to log.
 function logUnexpectedResponse(label: string, resp: Response) {
   logger.debug(`  ${label} unexpected status: ${resp.status}`);
-}
-
-/**
- * Get a CSRF token required for MyChart API endpoints.
- * The /Home/CSRFToken endpoint may return:
- *   - JSON: { "Token": "..." } or { "token": "..." }
- *   - Plain string: just the token value
- *   - HTML page with a hidden __RequestVerificationToken input (fallback)
- */
-async function getCSRFToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const res = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/Home/CSRFToken?noCache=' + Math.random(),
-  });
-  logger.debug('  CSRFToken response status:', res.status);
-  const body = await res.text();
-  // If we landed on the T&C page instead of getting a CSRF token, that's a problem
-  if (body.toLowerCase().includes('termsconditions') || body.toLowerCase().includes('terms and conditions')) {
-    logger.debug('  CSRF token request landed on Terms & Conditions page');
-    return null;
-  }
-  // Try JSON format first: { "Token": "..." } or { "token": "..." }
-  const trimmed = body.trim();
-  if (trimmed.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      const token = parsed.Token ?? parsed.token ?? parsed.RequestVerificationToken ?? parsed.requestVerificationToken;
-      if (token) {
-        logger.debug('  Got CSRF token from JSON response');
-        return token;
-      }
-    } catch {
-      // not valid JSON, fall through
-    }
-  }
-  // Try plain string (the entire response body is the token)
-  if (trimmed && !trimmed.includes('<') && trimmed.length > 10) {
-    logger.debug('  Got CSRF token as plain string');
-    return trimmed;
-  }
-  // Fall back to parsing HTML for a hidden input
-  const token = getRequestVerificationTokenFromBody(body);
-  if (token) return token;
-
-  // Fallback: extract token from /Home page HTML (works when the endpoint returns empty)
-  logger.debug('  CSRFToken endpoint returned no token (length:', body.length, '), trying /Home page fallback');
-  try {
-    const homeRes = await makeAuthenticatedRequest(mychartRequest, { path: '/Home' });
-    const homeBody = await homeRes.text();
-    const homeToken = getRequestVerificationTokenFromBody(homeBody);
-    if (homeToken) {
-      logger.debug('  Got CSRF token from /Home page fallback');
-      return homeToken;
-    }
-    logger.debug('  Could not extract CSRF token from /Home page either');
-  } catch (err) {
-    logger.debug('  /Home page fallback failed:', err);
-  }
-  return null;
 }
 
 function fail(error: string): SetupTotpResult {
@@ -92,7 +34,7 @@ function fail(error: string): SetupTotpResult {
 export async function setupTotp(mychartRequest: MyChartRequest, password: string): Promise<SetupTotpResult> {
 
   // Get CSRF token for API requests
-  const csrfToken = await getCSRFToken(mychartRequest);
+  const csrfToken = await fetchSessionCsrfToken(mychartRequest);
   if (!csrfToken) {
     logger.debug('  Could not get CSRF token.');
     return fail('Could not get CSRF token. The session may have expired.');
@@ -223,7 +165,7 @@ export async function setupTotp(mychartRequest: MyChartRequest, password: string
  * 3. POST /api/secondary-validation/UpdateTwoFactorTotpOptInStatus — finalize opt-out
  */
 export async function disableTotp(mychartRequest: MyChartRequest, password: string, totpSecret: string): Promise<boolean> {
-  const csrfToken = await getCSRFToken(mychartRequest);
+  const csrfToken = await fetchSessionCsrfToken(mychartRequest);
   if (!csrfToken) {
     logger.debug('  Could not get CSRF token.');
     return false;

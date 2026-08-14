@@ -100,10 +100,16 @@ levels, because no single one reaches everything:
 `scrapers/myChart/auth/__tests__/setupTotp.unit.test.ts` and `setupPasskey.unit.test.ts` are unit tests
 over a mocked transport (`__tests__/mockMyChartRequest.ts` swaps `transport`, so real URL building,
 default headers and the host limiter still run) and are the **only** place the per-instance response
-variants are exercised — the four CSRF-token formats plus the empty-body `/Home` fallback, the eight
-names instances use for the TOTP secret field, Pascal- vs camel-cased passkey envelopes, and every
-error branch. They also assert the secret and password never reach the log sink. fake-mychart serves
-exactly one shape of each, so those branches are unreachable from an integration test.
+variants are exercised — the eight names instances use for the TOTP secret field, Pascal- vs
+camel-cased passkey envelopes, and every error branch. They also assert the secret and password
+never reach the log sink. fake-mychart serves exactly one shape of each, so those branches are
+unreachable from an integration test.
+
+The `/Home/CSRFToken` variants moved out to `scrapers/myChart/core/__tests__/csrf.unit.test.ts` when
+the three copies of that parsing were merged into `core/csrf.ts` — the four JSON key spellings, the
+bare-string body, the HTML hidden input, the empty-body `/Home` fallback, and the Terms & Conditions
+bounce that must *not* fall back. Same reasoning: fake-mychart serves one shape, so this suite is the
+only place the matrix runs.
 
 **Protocol detection**: hostnames without a dot (e.g. Docker service names like
 `fake-mychart:3000`) automatically use HTTP instead of HTTPS.
