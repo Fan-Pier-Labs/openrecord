@@ -10,7 +10,7 @@ export function WelcomeStep({ onGetStarted }: { onGetStarted: () => void }) {
         <Text style={styles.subtitle}>Your health records, in your pocket</Text>
         <Text style={styles.body}>
           Connect your MyChart account, then ask AI anything about your health.
-          Everything stays on your device.
+          Your records are read and kept on this device.
         </Text>
         <Pressable
           testID="welcome-get-started"

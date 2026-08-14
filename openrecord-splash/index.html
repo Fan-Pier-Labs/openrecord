@@ -268,12 +268,14 @@
     .pcard .pico { width: 48px; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; border: 1px solid; }
     .pcard.emerald .pico { background: #ecfdf5; border-color: #d1fae5; color: var(--emerald-600); }
     .pcard.blue .pico { background: #eff6ff; border-color: #dbeafe; color: var(--blue-600); }
+    .pcard.amber .pico { background: #fffbeb; border-color: #fef3c7; color: #d97706; }
     .pcard h3 { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; margin-bottom: 16px; color: var(--slate-900); }
     .pcard ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
     .pcard li { display: flex; align-items: flex-start; gap: 12px; color: var(--slate-500); font-weight: 300; font-size: 15px; }
     .pcard li svg { flex-shrink: 0; margin-top: 2px; }
     .pcard.emerald li svg { color: var(--emerald-500); }
     .pcard.blue li svg { color: var(--blue-600); }
+    .pcard.amber li svg { color: #d97706; }
 
     /* ---- Timeline ---- */
     .timeline { padding: 128px 0; background: rgba(248,250,252,0.3); border-top: 1px solid rgba(226,232,240,0.4); border-bottom: 1px solid rgba(226,232,240,0.4); position: relative; overflow: hidden; }
@@ -536,37 +538,41 @@
     <!-- Privacy -->
     <section id="privacy" class="section" style="text-align:center;">
       <div class="section-head" style="margin-bottom:32px;">
-        <h2>Your data stays private and secure</h2>
-        <p>We encrypt all MyChart credentials at rest and never store any of your health data. All communication happens directly between your MyChart portal and the AI assistant, ensuring your information never leaves your trusted environment.</p>
+        <h2>Your records stay on your device</h2>
+        <p>OpenRecord runs on your own machine and calls your MyChart portal directly, the same way your browser does. Your login and your medical records are never uploaded to a Fan Pier Labs server. Asking the AI a question is the one exception, and it is spelled out below.</p>
       </div>
       <div class="privacy-badges">
-        <div class="privacy-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> End-to-end encryption</div>
-        <div class="privacy-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.3-2M2 2l20 20"/></svg> No data storage</div>
+        <div class="privacy-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Straight to your portal</div>
+        <div class="privacy-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M2 2l20 20"/></svg> No health data on our servers</div>
+        <div class="privacy-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg> One exception: AI calls</div>
       </div>
       <div class="privacy-cards">
         <div class="pcard emerald">
-          <div class="pico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg></div>
-          <h3>OpenClaw Plugin</h3>
+          <div class="pico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+          <h3>What stays on your device</h3>
           <ul>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Runs entirely locally within your browser</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Uses your existing, authenticated MyChart session</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Zero intermediary servers parsing your records</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> No persistent data storage—cleared when session ends</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Full control over which information is accessed</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Your MyChart username, password and any passkey are saved on your device and nowhere else</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Every request to your health system comes from your machine, not from ours</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> We operate no server that holds your medical records, and there is no OpenRecord account holding a copy of them</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> No analytics or tracking SDKs ship in any OpenRecord client</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Disconnecting an account deletes the stored credentials, passkey and session from your device</li>
           </ul>
         </div>
-        <div class="pcard blue">
-          <div class="pico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
-          <h3>Desktop Extension</h3>
+        <div class="pcard amber">
+          <div class="pico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg></div>
+          <h3>The exception: what the AI sees</h3>
           <ul>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Acts as a direct tunnel to Claude Desktop</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Transmits over secure localhost endpoints</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Data stays strictly on your machine, off the internet</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Strict permissions guard against unauthorized access</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Operates in a sandboxed, isolated environment</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Answering a question about your health means sending the relevant part of your record to an AI model, which runs on someone else's computer</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> In the Claude Desktop extension, that is Anthropic, under your own Claude account and its terms</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> In the iPhone app's included free tier, it goes to an OpenRecord proxy and on to Google's Gemini API</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Bring your own API key and it goes to that provider instead, never through us</li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Our proxy does not store your prompts — it logs the model name and token counts, never the contents — but the model provider's own retention terms then apply</li>
           </ul>
         </div>
       </div>
+      <p style="margin-top:32px;font-size:15px;color:var(--slate-500);font-weight:300;">
+        The full detail is in the <a href="/privacy.html" style="color:var(--blue-600);text-decoration:underline;">privacy policy</a>.
+      </p>
     </section>
 
     <!-- Timeline -->
@@ -617,6 +623,7 @@
         <span class="fbrand">OpenRecord</span>
         <p>Open-source health data access for AI assistants.</p>
         <div style="display:flex;gap:24px;align-items:center;">
+          <a href="/privacy.html">Privacy Policy</a>
           <a href="https://github.com/Fan-Pier-Labs/openrecord" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.05 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.74 0 3.92-2.34 4.78-4.57 5.04.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.59.69.48A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
           </a>

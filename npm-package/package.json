@@ -6,10 +6,10 @@
   "author": "Fan Pier Labs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fan-Pier-Labs/mychart-connector.git",
+    "url": "git+https://github.com/Fan-Pier-Labs/openrecord.git",
     "directory": "npm-package"
   },
-  "homepage": "https://github.com/Fan-Pier-Labs/mychart-connector/tree/main/npm-package",
+  "homepage": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/npm-package",
   "keywords": [
     "mychart",
     "epic",
