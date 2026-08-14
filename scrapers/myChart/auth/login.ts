@@ -496,35 +496,18 @@ export type LoginResult = {
 }
 
 /**
- * A masked email as MyChart prints it on the 2FA page — "ry***@gmail.com".
- *
- * Reads as: one leading character, a run of ordinary word characters, the
- * first mask star, then anything up to the `@`. That is exactly the old
- * `[\w*]+\*+[\w*]*@[\w.]+` — same language, same match — but written so no two
- * adjacent quantifiers can both claim a `*`. The old spelling let all three
- * parts split a run of stars between them, so a long run with no `@` (easy to
- * plant in scraped portal HTML) took quartic time: 800 stars needed 25s.
- *
- * The lookbehind is the other half of the fix. Without it the engine retries
- * at every offset inside a star run and the scan is still quadratic (1.8s on
- * 50k stars). A match can never start mid-run — the star before it would have
- * started an equally good match one character earlier — so refusing those
- * offsets drops the scan to linear without changing any result.
+ * Masked contacts as MyChart prints them on the 2FA page — "ry***@gmail.com",
+ * "***-***-7204". Both are rewrites of patterns whose adjacent quantifiers
+ * could each claim the same `*`, so a long run of mask characters with no `@`
+ * or trailing digits — easy to plant in scraped portal HTML — got divided
+ * between them every possible way: 800 stars took 25s, on the login path. Each
+ * accepts exactly the same strings as the pattern it replaces. The lookbehinds
+ * are the other half of the fix: a match can never start mid-run (the star
+ * before it would have started an equally good match one character earlier),
+ * and refusing those start offsets is what takes the scan to linear.
  */
 const MASKED_EMAIL_RE = /(?<![\w*])[\w*]\w*\*[\w*]*@[\w.]+/;
-
-/**
- * A masked phone as MyChart prints it — "***-***-7204".
- *
- * `\*{2,}` and the `[\d*-]*` behind it both matched `*`, so the two shared out
- * a star run every possible way before failing. Pinning the prefix at exactly
- * two stars loses nothing: every extra star is still matched, by `[\d*-]*`.
- * The lookbehind rules out starting mid-run, for the same reason as above.
- */
 const MASKED_PHONE_RE = /(?<!\*)\*\*[\d*-]*\d{4}/;
-
-/** @internal Exported for the equivalence and timing tests only. */
-export const __maskedContactPatterns = { MASKED_EMAIL_RE, MASKED_PHONE_RE };
 
 /**
  * Parse the secondary validation (2FA) page to detect which delivery methods are available.

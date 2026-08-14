@@ -174,6 +174,23 @@ describe('parse2faDeliveryMethods', () => {
     const result = parse2faDeliveryMethods(html)
     expect(result.hasSms).toBe(true)
   })
+
+  // A run of mask characters that never reaches an '@' or trailing digits used
+  // to make the masked-contact patterns backtrack super-linearly — 25s at 800
+  // characters, on the login path, off HTML a portal controls. The budget is
+  // loose on purpose: it catches a regression to super-linear, not jitter.
+  it('does not hang on a page full of mask characters', () => {
+    const html = `<html><body>
+      <button>Email to me</button>
+      <button>Text to my phone</button>
+      <div>${'*'.repeat(50_000)}</div>
+    </body></html>`
+    const started = performance.now()
+    const result = parse2faDeliveryMethods(html)
+    expect(performance.now() - started).toBeLessThan(2_000)
+    expect(result.emailContact).toBeUndefined()
+    expect(result.smsContact).toBeUndefined()
+  })
 })
 
 describe('parseFirstPathPartFromLocation', () => {

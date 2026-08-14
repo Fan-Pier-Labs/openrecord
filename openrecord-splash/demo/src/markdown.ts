@@ -55,20 +55,13 @@ const IMAGE_TOKEN = /^\[image:([a-z0-9_-]+)\]$/i;
 
 /**
  * `#`-prefixed heading and `-`/`*` bullet, with the rest of the line captured.
- *
- * Both had `\s+` immediately before a `(.*)` that also matches spaces and tabs,
- * so a line of nothing but whitespace made the engine try every division of it
- * between the two — quadratic in the line length, on a line the model wrote.
- * `(?!\s)` fixes `\s+` at the full whitespace run. That is the only division
- * that can ever match: `(.*)$` here succeeds exactly when the remainder holds
- * no line terminator, and handing a character back to `(.*)` only widens the
- * remainder, so a shorter `\s+` can never rescue a failed longer one.
+ * `(?!\s)` pins `\s+` to the whole whitespace run — without it `\s+` and `(.*)`
+ * both match spaces, so a whitespace-only line made the engine try every
+ * division of it. It matches the same lines: `(.*)$` fails only on a line
+ * terminator, which handing whitespace back to `(.*)` cannot help with.
  */
 const HEADING = /^(#{1,4})\s+(?!\s)(.*)$/;
 const BULLET = /^\s*[-*]\s+(?!\s)(.*)$/;
-
-/** @internal Exported for the ReDoS equivalence test only. */
-export const __linePatterns = { HEADING, BULLET };
 
 /** Parse a full assistant reply into blocks. */
 export function parseMarkdown(source: string | null | undefined): Block[] {
