@@ -26,12 +26,17 @@ function textOf(blocks: Block[]): string {
           return b.lines.map(spanText).join('\n');
         case 'image':
           return `[image:${b.name}]`;
+        default: {
+          // `b` is `never` while the switch names every `Block` kind, so the
+          // annotation is what fails the build when a kind is added — the job
+          // the missing `default` used to do, minus the unreachable-code error
+          // that broke `tsc` for the whole demo. The throw keeps the runtime
+          // guarantee that every path returns a string: a fall-through would
+          // put `undefined` in the joined text and read as a parse bug.
+          const unhandled: never = b;
+          throw new Error(`textOf: unhandled block ${JSON.stringify(unhandled)}`);
+        }
       }
-      // Unreachable while the switch names every `Block` kind — which
-      // switch-exhaustiveness-check enforces, since there is no `default`. It
-      // is here so every path of the callback produces a string: a fall-through
-      // would put `undefined` in the joined text and read as a parse bug.
-      throw new Error(`textOf: unhandled block ${JSON.stringify(b)}`);
     })
     .join('\n');
 }
