@@ -145,4 +145,60 @@ describe("deploy script ships every referenced asset", () => {
     expect(deployScript).toMatch(/upload manifest\.json\s+"application\/manifest\+json"/);
     expect(deployScript).toMatch(/upload icon\.svg\s+"image\/svg\+xml"/);
   });
+
+  test("ships the privacy policy the splash page links to", () => {
+    expect(html).toContain('href="/privacy.html"');
+    expect(deployScript).toContain("privacy.html");
+    expect(deployScript).toContain('"/privacy.html"');
+  });
+});
+
+/**
+ * The privacy copy is a factual claim about what the code does, and it is the
+ * kind of claim that rots silently: the page keeps rendering perfectly while
+ * saying something that stopped being true.
+ *
+ * Each assertion below names a claim we made once and could not back up.
+ * If a claim here has to change, change the software first.
+ */
+describe("privacy claims match what the software actually does", () => {
+  const privacy = readFileSync(join(SPLASH_DIR, "privacy.html"), "utf8");
+
+  test("claims no encryption at rest that the desktop clients do not do", () => {
+    // The MCPB and the CLI write credentials to plain files (mode 0600). Until
+    // they use the OS keychain, the page may not say otherwise.
+    expect(html).not.toContain("We encrypt all MyChart credentials at rest");
+    expect(html).not.toContain("End-to-end encryption");
+  });
+
+  test("does not claim health data never leaves the device, because AI calls do", () => {
+    expect(html).not.toContain("Zero intermediary servers");
+    expect(html).not.toContain("never leaves your trusted environment");
+  });
+
+  test("discloses the AI carve-out on the splash page itself", () => {
+    expect(html).toContain("One exception: AI calls");
+    // Naming the actual recipient is the point — "a third party" is not a
+    // disclosure.
+    expect(html).toContain("Gemini");
+  });
+
+  test("does not advertise the OpenClaw plugin, which no longer exists", () => {
+    // Naming OpenClaw as one of the MCP clients that can connect is fine and
+    // still true. Presenting a plugin we deleted as a shipping product is not.
+    expect(html).not.toContain("OpenClaw Plugin");
+  });
+
+  test("the policy names the recipient, the metering, and the missing BAA", () => {
+    expect(privacy).toContain("Gemini");
+    expect(privacy).toContain("business associate agreement");
+    // The proxy logs metadata only; saying so is worth nothing if the page
+    // stops saying it while the logging changes.
+    expect(privacy).toContain("does not log the contents of your prompt");
+  });
+
+  test("the policy is reachable and dated", () => {
+    expect(privacy).toContain("Last updated");
+    expect(privacy).toContain('href="/"');
+  });
 });
