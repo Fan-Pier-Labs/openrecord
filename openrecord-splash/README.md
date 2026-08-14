@@ -73,6 +73,10 @@ shows up in the desktop chat.
 React 19 + TypeScript, built with Vite. Everything is `strict`, and `bun run typecheck`
 is part of `build`, so the demo cannot ship with a type error.
 
+The demo shares no code with the scraper core and no parity test covers it, so how closely
+it has to track the real product is a judgement call. [`docs/demo.md`](../docs/demo.md) draws
+that line: which divergences are accepted simplifications, and which are drift to fix.
+
 ### Logic (framework-free, fully unit-tested)
 
 | File | What it is |
