@@ -28,7 +28,7 @@ import {
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
 import { TOTP } from "totp-generator";
-import { cloToJpegBase64 } from "@/lib/imaging/clo-to-jpeg";
+import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
 import {
@@ -443,9 +443,9 @@ async function requireSession(hostname?: string): Promise<SessionEntry> {
  * CLI and the desktop extension support.
  *
  * The one thing that stays here is imaging: the registry hands back raw CLO
- * bytes and each client decodes them its own way. On-device that means
- * cloToJpegBase64 plus the attachment store, so the reply can carry an
- * [image:ID] token the chat UI swaps for the picture.
+ * bytes and each client decodes them its own way. On-device that means the
+ * shared pure-JS exporter plus the attachment store, so the reply can carry
+ * an [image:ID] token the chat UI swaps for the picture.
  */
 async function runScraper(
   request: MyChartRequest,
@@ -475,6 +475,10 @@ async function runScraper(
 /**
  * Download one imaging study, decode the first image on-device and stash it in
  * the attachment store. Returns the token the model puts in its reply.
+ *
+ * Decoding goes through the pure-JS exporter (no sharp, no native deps) — the
+ * same code path the Claude Desktop extension uses, so an image renders
+ * identically everywhere.
  */
 async function downloadImagingStudyAsAttachment(
   capability: Capability,
@@ -496,10 +500,12 @@ async function downloadImagingStudyAsAttachment(
 
   let base64: string, width: number, height: number;
   try {
-    ({ base64, width, height } = cloToJpegBase64(
+    let buffer: Uint8Array;
+    ({ buffer, width, height } = convertCloToJpgPureJs(
       Buffer.from(img.pixelData),
       img.wrapperData ? Buffer.from(img.wrapperData) : undefined,
     ));
+    base64 = Buffer.from(buffer).toString("base64");
   } catch (err) {
     return { error: `Failed to decode the image: ${(err as Error).message}` };
   }
