@@ -19,9 +19,10 @@
  */
 
 import {
-  TOOL_SPECS,
-  WRITE_TOOL_NAMES,
+  AGENT_TOOL_SPECS,
+  AGENT_WRITE_TOOL_NAMES,
   executeTool,
+  findPatient,
   getToolSpec,
   isWriteTool,
   toolLatencyMs,
@@ -251,6 +252,9 @@ function fieldLabel(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/** Argument names whose value must never be rendered back to the screen. */
+const SECRET_ARGS = new Set(['password', 'code']);
+
 /**
  * What the dialog shows. Built by code from the actual payload, never from the
  * model's description of it — the point of the dialog is that the user sees
@@ -260,6 +264,11 @@ function fieldLabel(key: string): string {
  * write by construction. The fallbacks are for a tool that isn't a write at
  * all: nothing routes one here, and a bare name beats an empty dialog if
  * something ever does.
+ *
+ * Secrets are the one exception to showing the payload: `setup_account`
+ * carries a MyChart password, and a dialog that prints it puts the patient's
+ * portal password on screen (and into any screenshot of the demo). The row
+ * still appears, so the user can see a password is part of the call.
  */
 export function describeWrite({ tool, args, details }: PendingWrite): WriteConfirmation {
   const meta = getToolSpec(tool)?.write;
@@ -272,7 +281,11 @@ export function describeWrite({ tool, args, details }: PendingWrite): WriteConfi
         .filter(([key]) => key !== 'instance')
         .map(([key, value]) => ({
           label: fieldLabel(key),
-          value: typeof value === 'string' ? value : JSON.stringify(value),
+          value: SECRET_ARGS.has(key)
+            ? '••••••••'
+            : typeof value === 'string'
+              ? value
+              : JSON.stringify(value),
         })),
       ...(details ?? []),
     ],
@@ -291,6 +304,39 @@ export function resolveWriteDetails(
   tool: string,
   args: ToolArgs,
 ): { label: string; value: string }[] {
+  // A conversation id says nothing about what is being deleted, and a deleted
+  // conversation does not come back.
+  if (tool === 'delete_message') {
+    const id = typeof args.conversation_id === 'string' ? args.conversation_id : '';
+    const thread = session.messages.find((m) => m.id === id);
+    if (!thread) {
+      return [{ label: 'Warning', value: `"${id}" is not one of the conversation ids — this delete will fail.` }];
+    }
+    return [
+      { label: 'Subject', value: thread.subject },
+      { label: 'With', value: thread.from },
+      { label: 'Messages', value: `${thread.messages.length} in this thread` },
+      { label: 'Note', value: 'Deleting removes the conversation from the inbox for good.' },
+    ];
+  }
+
+  // Switching is not a read: everything the assistant looks at afterwards is
+  // somebody else's chart, so the dialog says whose.
+  if (tool === 'switch_proxy_target') {
+    const query = typeof args.patient === 'string' ? args.patient : '';
+    const wanted = findPatient(session, query);
+    if (!wanted) {
+      const names = session.patients.map((p) => p.name).join(', ');
+      return [{ label: 'Warning', value: `"${query}" is not a record this account can reach. Available: ${names}.` }];
+    }
+    return [
+      { label: 'Record', value: wanted.name },
+      { label: 'Relationship', value: wanted.relationship },
+      { label: 'Date of birth', value: wanted.record.profile.dateOfBirth },
+      { label: 'Effect', value: 'Every tool reads this record until you switch back.' },
+    ];
+  }
+
   if (tool !== 'book_appointment') return [];
   // args is ToolArgs (Record<string, unknown>) — model-emitted JSON, so the
   // type is unknown by construction. A non-string slot_id matches no slot;
@@ -328,7 +374,7 @@ export function buildSystemPrompt({
   // Every line says which kind of call it is. The model batches reads freely
   // and knows before it calls that a write will stop at a dialog, so it can
   // put the payload to the user first instead of being surprised by a decline.
-  const toolList = TOOL_SPECS.filter((t) => t.group !== 'Account')
+  const toolList = AGENT_TOOL_SPECS
     .map(
       (t) =>
         `- [${t.write ? 'write' : 'read'}] ${t.name}(${Object.keys(t.args).join(', ')}) — ${t.description}`,
@@ -383,7 +429,7 @@ export function buildSystemPrompt({
     '  { "tool": "get_billing", "args": {} }',
     '  { "tool": "get_messages", "args": { "limit": 50 } }',
     '',
-    `Write tools (${WRITE_TOOL_NAMES.join(', ')}) and \`respond\` are EXCLUSIVE — each must be the only tool call in its turn. Batching them with anything else is rejected.`,
+    `Write tools (${AGENT_WRITE_TOOL_NAMES.join(', ')}) and \`respond\` are EXCLUSIVE — each must be the only tool call in its turn. Batching them with anything else is rejected.`,
     '',
     'To reply to the user, call `respond`. This is the ONLY way to surface text, and it ends your turn:',
     '  { "tool": "respond", "args": { "text": "<your reply>" } }',
@@ -396,7 +442,9 @@ export function buildSystemPrompt({
     '- Billing, charge, and insurance questions: you CAN help. Call get_message_recipients, pick the billing recipient ("Patient Accounts"), write the message, and show it to the user before sending anything.',
     '- "Draft", "write", "compose" and "prepare" mean SHOW ME THE TEXT. Put the whole message in your `respond` — recipient, subject, body — and ask whether to send it. Do NOT call send_message or send_reply for a draft; that is a different, later step the user asks for separately with "send it". Writing a message and sending it are not the same action, and a patient who asked to see a draft has not agreed to send anything.',
     '- Scheduling: call get_available_appointments, show the open slots, and call book_appointment once the user picks one.',
-    '- Showing an X-ray picture: call get_imaging_results to pick the study, then get_xray_image with its 0-based index. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
+    '- Showing an X-ray picture: call get_imaging_results to pick the study, then download_imaging_study with that entry\'s image_id (or its 0-based index). Studies with no image_id are reports only and have nothing to show. In your `respond` text, put the literal token [image:xray] on its own line where the picture should appear.',
+    '- Family members: this account can open more than one patient record. list_proxy_targets shows them and which one is ACTIVE; every data tool reads the active record. Reading never switches on its own — if a call comes back refusing because the wrong record is active, call switch_proxy_target, then retry. Switch back with patient: "me" when you are done, and say whose record you are answering about whenever it is not the account holder\'s.',
+    '- Deleting a message is permanent. Show the user the subject and confirm before calling delete_message.',
     '- Refills: use request_refill. If a medication has no refills left, message the prescriber instead.',
     '- For EVERY write action, show the user the exact payload and get explicit confirmation before calling the tool.',
     '- This is enforced, not advisory: calling a write tool opens a confirmation dialog showing the exact payload, and the tool only runs if the user approves it there. Do not claim you have sent, booked, or requested anything until you see the tool result saying so. If the result says the user declined, acknowledge that and do not retry unless they ask again.',
@@ -413,7 +461,7 @@ export function buildSystemPrompt({
     '- Answer the question that was actually asked, and answer it from the data you fetched. If you find yourself apologizing for missing information, fetch it instead — with a bigger limit if the first call was truncated.',
     '- NEVER state a specific value — a dose, a refill count, a date, a lab number, an amount owed — that you have not read from a tool result in this conversation. If you need one, call the tool. A wrong number is worse than an extra tool call.',
     "- NEVER say you don't know or don't have information until you have actually looked. If the user asks about a person, a provider, a medication, a bill, a visit, a date, or anything else that could plausibly be in a medical record, call the tools that would contain it first. A name you don't recognise is usually a provider on the care team or someone from a past visit — check get_care_team, get_past_visits, and get_message_recipients before saying you have no information about them.",
-    '- Omit "instance" — there is only one connected account.',
+    '- Omit "instance" — there is only one connected account. Omit "patient" too unless you have deliberately switched records with switch_proxy_target, in which case pass the name you switched to.',
     "- Don't refuse a request because you don't immediately know how — check the tool list first.",
     '',
     memorySection,
