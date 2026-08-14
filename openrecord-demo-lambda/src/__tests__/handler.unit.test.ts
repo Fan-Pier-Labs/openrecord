@@ -18,7 +18,7 @@ import { handler as rawHandler, validatePayload, buildGeminiRequest, extractText
 type LambdaResponse = { statusCode: number; headers?: Record<string, string>; body?: string };
 const handler = rawHandler as (event: unknown) => Promise<LambdaResponse>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the seams into the untyped .mjs handler: the fetch stubs standing in for Gemini, the thrown validation errors (statusCode lives on them, not on Error), and the per-element reads on request/response bodies TS only knows as inferred object literals
 type Any = any;
 
 const post = (body: unknown, sourceIp = '203.0.113.1') => ({

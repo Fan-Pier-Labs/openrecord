@@ -37,7 +37,7 @@ function recordingMcpServer() {
   const tools: Array<{ name: string; config: Record<string, unknown> }> = [];
   return {
     tools,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the stand-in stores the config verbatim and never reads it; typing the parameter would mean restating the MCP SDK's registerTool generics, which is what this test is deliberately not depending on
     registerTool(name: string, config: any) {
       tools.push({ name, config });
     },
@@ -48,7 +48,7 @@ describe('Claude Desktop extension', () => {
   it('registers an MCP tool for every capability', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     const registered = server.tools.map((t) => t.name);
@@ -59,7 +59,7 @@ describe('Claude Desktop extension', () => {
   it('registers each tool exactly once', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     const names = server.tools.map((t) => t.name);
@@ -70,7 +70,7 @@ describe('Claude Desktop extension', () => {
   it('keeps the account-management meta tools that only this client has', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     const names = server.tools.map((t) => t.name);
@@ -84,7 +84,7 @@ describe('Claude Desktop extension', () => {
   it('gives every capability tool the registry’s account parameter plus its own declared ones', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     for (const capability of CAPABILITIES) {
@@ -101,7 +101,7 @@ describe('Claude Desktop extension', () => {
   it('marks reads read-only and everything else destructive', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     for (const capability of CAPABILITIES) {
@@ -185,7 +185,7 @@ describe('the account selector', () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
     const server = recordingMcpServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recordingMcpServer implements only registerTool, which is all registerAllTools calls; a full McpServer stub would add surface this test never exercises
     registerAllTools(server as any);
 
     const extensionTool = server.tools.find((t) => t.name === 'get_profile')!;

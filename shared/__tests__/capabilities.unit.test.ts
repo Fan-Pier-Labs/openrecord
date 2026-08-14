@@ -89,7 +89,7 @@ describe('the registry itself', () => {
   });
 
   it('rejects an unknown capability with the list of real ones', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the unknown-capability lookup throws before the session is ever touched, so this test has nothing to build a real MyChartSession out of and does not need one
     const promise = executeCapability({} as any, 'get_horoscope');
     await expect(promise).rejects.toThrow(/Unknown capability "get_horoscope"/);
     await expect(promise).rejects.toThrow(/get_profile/);
@@ -192,7 +192,7 @@ describe('recipient resolution', () => {
     { displayName: 'Dr. Julius Hibbert' },
     { displayName: 'Dr. Nick Riviera' },
     { displayName: 'Billing Department' },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolveRecipient reads only displayName, so these fixtures carry that one field instead of a full MessageRecipient's ids and metadata
   ] as any[];
 
   it('matches on a partial name and ignores honorifics', () => {
@@ -215,7 +215,7 @@ describe('recipient resolution', () => {
 });
 
 describe('topic resolution', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolveTopic reads only displayName; same partial fixture as the recipient list above
   const topics = [{ displayName: 'Medical Question' }, { displayName: 'Billing' }] as any[];
 
   it('matches a topic by substring', () => {

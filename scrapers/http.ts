@@ -59,7 +59,7 @@ export type Transport = (url: string, init: RequestInit) => Promise<Response>;
 // undefined, which doubles as a runtime signal for where we're running.
 const expoFetch: Transport | undefined = (() => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- the throw IS the platform probe, so the load has to be synchronous and catchable: `import` would fail the Node/Bun build where expo/fetch does not resolve, and `import()` would make this module-level check async
     const m = require('expo/fetch') as { fetch?: Transport };
     return m?.fetch;
   } catch {

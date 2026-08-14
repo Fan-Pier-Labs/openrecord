@@ -11,12 +11,12 @@ import { describe, expect, test } from 'bun:test';
 import { createSession, executeTool, matchesName, TOOL_SPECS, TOOL_NAMES, isWriteTool, getToolSpec, toolLatencyMs } from '../src/tools';
 import * as data from '../src/data';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- for the assertions that call executeTool directly: it is declared to return ToolResult, which is `unknown`, so reading a field off the payload needs a widened alias
 type Any = any;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the session is only threaded from createSession into executeTool and never inspected here, so the suite does not import the demo's Session type just to name it
 type Session = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- what run() hands back: every tool returns a different payload shape behind the same `unknown` ToolResult, and these tests assert on those per-tool fields
 type Result = any;
 
 const run = (session: Session, name: string, args: Record<string, unknown> = {}): Result =>

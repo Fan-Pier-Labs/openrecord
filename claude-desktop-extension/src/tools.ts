@@ -205,7 +205,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
     capability.id,
     {
       description: capability.description,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- registerTool infers its handler's argument type from a statically-known ZodRawShape. This shape is assembled at runtime from the capability registry, so there is no literal for the SDK to infer from and the handler below takes Record<string, unknown> instead.
       inputSchema: shape as any,
       annotations,
     },

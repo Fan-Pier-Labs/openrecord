@@ -14,7 +14,7 @@ import { verifyGoogleIdToken, _setCertsForTest } from '../google-auth.mjs';
 import { handler, _spendStore } from '../handler.mjs';
 import { estimateCostMicros, monthKey, ledgerKey, createMemorySpendStore } from '../spend.mjs';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the seams into the untyped .mjs handler: the fetch stub, the node KeyObject threaded through forgeToken, and the handler's per-branch response union, where `body` is unreachable without widening
 type Any = any;
 
 const WEB_CLIENT_ID = 'test-client.apps.googleusercontent.com';

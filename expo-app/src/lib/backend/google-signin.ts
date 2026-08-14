@@ -69,7 +69,7 @@ export async function signInWithGoogle(): Promise<BackendUser> {
   const result = await GoogleSignin.signIn();
 
   // google-signin v13 wraps the payload in { type, data }.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the `?? result` fallback deliberately accepts both the pre-v13 shape (the user object directly) and the v13 wrapper, and no single declared type covers both; the idToken read below is guarded at runtime instead
   const payload: any = (result as any).data ?? result;
   const idToken: string | undefined = payload?.idToken;
   if (!idToken) {
@@ -94,7 +94,7 @@ export async function getFreshIdToken(): Promise<string | null> {
   try {
     configure();
     const result = await GoogleSignin.signInSilently();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- signInSilently returns the same dual shape as signInWithGoogle above, and is unwrapped the same way
     const payload: any = (result as any).data ?? result;
     const idToken: string | undefined = payload?.idToken;
     if (!idToken) return null;

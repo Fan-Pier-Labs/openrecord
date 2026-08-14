@@ -427,7 +427,7 @@ describe('abortAfter', () => {
 
   it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
     const original = AbortSignal.timeout?.bind(AbortSignal)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lib.dom declares AbortSignal.timeout as a required static, so simulating the runtime that lacks it means deleting a property the types say cannot be absent
     delete (AbortSignal as any).timeout
     try {
       const signal = abortAfter(5)
@@ -435,7 +435,7 @@ describe('abortAfter', () => {
       await Bun.sleep(30)
       expect(signal.aborted).toBe(true)
     } finally {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- putting back the static deleted above; assigning to it needs the same escape hatch the delete did
       ;(AbortSignal as any).timeout = original
     }
   })

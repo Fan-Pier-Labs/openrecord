@@ -271,5 +271,5 @@ class SessionStore {
  */
 const globalKey = '__mychart_session_store__' as const;
 export const sessionStore: SessionStore =
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- globalThis has no index signature, and the point of this key is to be a slot no global type declares: it is how separately-bundled callers find the same store
   (globalThis as any)[globalKey] ??= new SessionStore();

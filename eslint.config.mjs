@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
+import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 
 
 export default [
@@ -341,6 +342,18 @@ export default [
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
+    },
+  },
+  // Every rule above can be switched off for a line by an eslint-disable
+  // comment, and the repo's convention is already that a disable says why it
+  // is load-bearing — several carried that reason as prose on the line above,
+  // where an edit can separate it from the disable it explains. This rule
+  // makes the convention mechanical and puts the reason inside the comment,
+  // after `--`, so the two can't drift apart.
+  {
+    plugins: { "@eslint-community/eslint-comments": eslintComments },
+    rules: {
+      "@eslint-community/eslint-comments/require-description": "error",
     },
   },
   {rules: {

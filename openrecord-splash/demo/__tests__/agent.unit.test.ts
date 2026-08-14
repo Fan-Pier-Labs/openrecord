@@ -21,7 +21,7 @@ import {
 } from '../src/agent';
 import { TOOL_SPECS, createSession } from '../src/tools';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- one alias for the loop's internal shapes: the model transcript is untyped JSON, and ParsedToolCall / ToolRecord / PendingWrite are not exported from agent.ts. Every use below reads one field (`.tool`, `.args`, `.role`) off a value the loop itself produced.
 type Any = any;
 
 /** A completer that replays a fixed script of model turns. */

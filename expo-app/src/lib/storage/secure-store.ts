@@ -29,7 +29,7 @@ let devSecrets: {
   ai_provider?: AiProvider;
 } = {};
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- secrets.local.json is a developer-only file absent from any production checkout, so the load has to be a synchronous call the catch below can swallow; a static import would be unconditional
   devSecrets = require("../../../secrets.local.json");
 } catch {
   // Not present — expected in production
