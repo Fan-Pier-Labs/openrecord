@@ -56,14 +56,21 @@ export default function ChatScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
+  // `handleSend` is redeclared every render and closes over `messages`, so it
+  // can't go in the dep array below: the deep-link must fire on a new `ask`
+  // param and nothing else, not on every streamed chunk. The ref hands the
+  // effect the LATEST handler instead of the one from the triggering render —
+  // same pattern the demo surfaces use for their imperative send handle.
+  const handleSendRef = useRef<(text: string) => Promise<void>>(() => Promise.resolve());
+
   // Insights screen deep-link: open with ?ask=<question>, auto-send once.
   useEffect(() => {
     const q = params.ask;
     if (!q || handledAskRef.current === q) return;
     handledAskRef.current = q;
-    void handleSend(q);
+    void handleSendRef.current(q);
     router.setParams({ ask: undefined });
-  }, [params.ask]);
+  }, [params.ask, router]);
 
   async function handleSend(text: string) {
     let currentChatId = chatId;
@@ -161,6 +168,8 @@ export default function ChatScreen() {
       { memoryDigest, skillAddition: skillAdditionRef.current }
     );
   }
+
+  handleSendRef.current = handleSend;
 
   function handleNewChat() {
     setMessages([]);

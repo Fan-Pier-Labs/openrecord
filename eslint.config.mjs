@@ -326,21 +326,31 @@ export default [
       "import-x/no-empty-named-blocks": "error",
     },
   },
-  // The two React clients (the Expo app and the splash demo) were linted by
-  // every rule above and by no React rule at all. rules-of-hooks is the one
-  // that matters most: a hook behind an `if` or inside a loop desynchronizes
-  // React's hook order and crashes at runtime, and nothing else in the
-  // toolchain — not tsc, not the tests — can see it. Zero violations today.
+  // React client code only (the Expo app and the splash/demo page), which the
+  // rest of this config lints thoroughly and which had no React rule at all
+  // until these two.
   //
-  // exhaustive-deps is deliberately NOT enabled here. It has 7 real hits, and
-  // each one needs its own judgment call (adding a dep can turn a stale
-  // closure into a re-render loop), so it gets its own change rather than
-  // riding along with a zero-violation ratchet.
+  // rules-of-hooks: a hook behind an `if` or inside a loop desynchronizes
+  // React's hook order and crashes at runtime, and nothing else in the
+  // toolchain — not tsc, not the tests — can see it.
+  //
+  // exhaustive-deps: an effect whose dep array omits a value it reads keeps
+  // running the closure from the render that created it, so the callback it
+  // calls, the draft it sends and the router it navigates with are all the OLD
+  // ones — surfacing as a message that silently went nowhere, or a navigation
+  // to a screen that no longer exists. The rule also flags the reverse (a dep
+  // the hook never reads), which is a dep array that has drifted from its
+  // body. Deliberately mount-only effects keep their array and carry a
+  // line-level disable saying why.
   {
-    files: ["expo-app/**/*.ts", "expo-app/**/*.tsx", "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx"],
+    files: [
+      "expo-app/**/*.ts", "expo-app/**/*.tsx",
+      "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx",
+    ],
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   {rules: {
