@@ -2,6 +2,9 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
+import regexp from "eslint-plugin-regexp";
+import sonarjs from "eslint-plugin-sonarjs";
+import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import reactHooks from "eslint-plugin-react-hooks";
 
 
@@ -341,6 +344,109 @@ export default [
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
+    },
+  },
+  // ── Round-6 zero-violation set: three new plugins ────────────────────────
+  // Every rule below measured 0 violations repo-wide and was canary-verified.
+  //
+  // eslint-plugin-regexp earns its install on one thing: this codebase runs
+  // regexes over HTML scraped from third-party portals, so a regex bug is a
+  // parsing bug on someone's medical record and a catastrophic-backtracking
+  // regex is a hang. The six rules with violations are NOT listed here; each
+  // lands in its own PR (no-super-linear-backtracking 13, prefer-w 14,
+  // use-ignore-case 10, no-unused-capturing-group 7,
+  // optimal-quantifier-concatenation 3, strict 1). Listed explicitly rather
+  // than spreading `flat/recommended` minus exclusions, because an "off" entry
+  // here would silently win over the "error" those PRs add.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: { regexp, sonarjs, "@eslint-community/eslint-comments": eslintComments },
+    rules: {
+      "regexp/confusing-quantifier": "error",
+      "regexp/control-character-escape": "error",
+      "regexp/match-any": "error",
+      "regexp/negation": "error",
+      "regexp/no-contradiction-with-assertion": "error",
+      "regexp/no-dupe-characters-character-class": "error",
+      "regexp/no-dupe-disjunctions": "error",
+      "regexp/no-empty-alternative": "error",
+      "regexp/no-empty-capturing-group": "error",
+      "regexp/no-empty-character-class": "error",
+      "regexp/no-empty-group": "error",
+      "regexp/no-empty-lookarounds-assertion": "error",
+      "regexp/no-empty-string-literal": "error",
+      "regexp/no-escape-backspace": "error",
+      "regexp/no-extra-lookaround-assertions": "error",
+      "regexp/no-invalid-regexp": "error",
+      "regexp/no-invisible-character": "error",
+      "regexp/no-lazy-ends": "error",
+      "regexp/no-legacy-features": "error",
+      "regexp/no-misleading-capturing-group": "error",
+      "regexp/no-misleading-unicode-character": "error",
+      "regexp/no-missing-g-flag": "error",
+      "regexp/no-non-standard-flag": "error",
+      "regexp/no-obscure-range": "error",
+      "regexp/no-optional-assertion": "error",
+      "regexp/no-potentially-useless-backreference": "error",
+      "regexp/no-trivially-nested-assertion": "error",
+      "regexp/no-trivially-nested-quantifier": "error",
+      "regexp/no-useless-assertions": "error",
+      "regexp/no-useless-backreference": "error",
+      "regexp/no-useless-character-class": "error",
+      "regexp/no-useless-dollar-replacements": "error",
+      "regexp/no-useless-escape": "error",
+      "regexp/no-useless-flag": "error",
+      "regexp/no-useless-lazy": "error",
+      "regexp/no-useless-non-capturing-group": "error",
+      "regexp/no-useless-quantifier": "error",
+      "regexp/no-useless-range": "error",
+      "regexp/no-useless-set-operand": "error",
+      "regexp/no-useless-string-literal": "error",
+      "regexp/no-useless-two-nums-quantifier": "error",
+      "regexp/no-zero-quantifier": "error",
+      "regexp/optimal-lookaround-quantifier": "error",
+      "regexp/prefer-character-class": "error",
+      "regexp/prefer-d": "error",
+      "regexp/prefer-plus-quantifier": "error",
+      "regexp/prefer-predefined-assertion": "error",
+      "regexp/prefer-question-quantifier": "error",
+      "regexp/prefer-range": "error",
+      "regexp/prefer-set-operation": "error",
+      "regexp/prefer-star-quantifier": "error",
+      "regexp/prefer-unicode-codepoint-escapes": "error",
+      "regexp/simplify-set-operations": "error",
+      "regexp/sort-flags": "error",
+      // Each of these is a bug detector, not a style rule: code that compiles,
+      // runs, and does something other than what it says.
+      "sonarjs/no-identical-expressions": "error",
+      "sonarjs/no-all-duplicated-branches": "error",
+      "sonarjs/no-identical-conditions": "error",
+      "sonarjs/no-element-overwrite": "error",
+      "sonarjs/no-use-of-empty-return-value": "error",
+      "sonarjs/no-empty-collection": "error",
+      "sonarjs/no-unused-collection": "error",
+      "sonarjs/no-dead-store": "error",
+      "sonarjs/non-existent-operator": "error",
+      "sonarjs/no-same-line-conditional": "error",
+      "sonarjs/no-gratuitous-expressions": "error",
+      "sonarjs/no-inverted-boolean-check": "error",
+      "sonarjs/no-redundant-boolean": "error",
+      "sonarjs/no-collapsible-if": "error",
+      "sonarjs/prefer-single-boolean-return": "error",
+      "sonarjs/no-nested-switch": "error",
+      "sonarjs/no-ignored-return": "error",
+      // A disable comment is a claim that a rule is wrong here. These keep that
+      // claim honest: one that no longer suppresses anything is deleted rather
+      // than left as decoration, and a blanket `/* eslint-disable */` (which
+      // silently turns off every rule for the rest of the file) is refused.
+      // `require-description` is not here — it has 25 sites and lands separately.
+      // `no-unused-disable` is deliberately absent: ESLint 9 reports unused
+      // directives itself (canary-confirmed — the built-in fires on every case
+      // the plugin rule would, and the plugin rule never reports at all), so
+      // enabling it would imply a check that never runs.
+      "@eslint-community/eslint-comments/no-unlimited-disable": "error",
+      "@eslint-community/eslint-comments/no-duplicate-disable": "error",
+      "@eslint-community/eslint-comments/no-aggregating-enable": "error",
     },
   },
   {rules: {
