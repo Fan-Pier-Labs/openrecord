@@ -19,6 +19,7 @@
     "cheerio": "^1.2.0",
     "fetch-cookie": "^3.2.0",
     "jpeg-js": "^0.4.4",
+    "node-sqlite3-wasm": "^0.8.60",
     "totp-generator": "^2.0.1",
     "tough-cookie": "^6.0.2",
     "zod": "^4.4.3"
