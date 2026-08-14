@@ -197,6 +197,22 @@ describe("privacy claims match what the software actually does", () => {
     expect(privacy).toContain("does not log the contents of your prompt");
   });
 
+  test("does not claim zero analytics, because the desktop clients send some", () => {
+    // shared/telemetry.ts fires on CLI start and on every login from
+    // scrapers/myChart/auth/login.ts, reaching both the CLI and the MCPB. Only
+    // the Expo app is clean (metro.config.js swaps in a no-op shim).
+    expect(html).not.toContain("No analytics or tracking SDKs ship in any OpenRecord client");
+    expect(html).not.toContain("none in any OpenRecord client");
+  });
+
+  test("the policy discloses the telemetry, including the hostname and the opt-out", () => {
+    expect(privacy).toContain("Amplitude");
+    // The hostname is the part a reader would actually care about: it names
+    // the health system they are a patient of.
+    expect(privacy).toContain("hostname of the MyChart portal");
+    expect(privacy).toContain("MYCHART_CLI_TELEMETRY_DISABLED");
+  });
+
   test("the policy is reachable and dated", () => {
     expect(privacy).toContain("Last updated");
     expect(privacy).toContain('href="/"');
