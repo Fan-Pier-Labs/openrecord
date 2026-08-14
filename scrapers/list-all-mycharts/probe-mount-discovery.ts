@@ -46,7 +46,7 @@ export type ProbeResult = {
   movedHost?: boolean;
   /** Whether the discovered mount serves a login page. */
   works?: boolean;
-  status?: number;
+  status?: number | undefined;
   matchesDirectory?: boolean;
   /** Only filled in when discovery and the directory disagree. */
   directoryWorks?: boolean;

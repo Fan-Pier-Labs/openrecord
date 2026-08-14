@@ -3,6 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    // `a?: string` means absent-or-string, not "may be explicitly undefined" — so an
+    // `{ patientId: undefined }` can't slip into a request payload where the key should be absent.
+    "exactOptionalPropertyTypes": true,
     // Pure checks — they change what tsc rejects, never what it emits.
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,

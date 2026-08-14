@@ -7,7 +7,7 @@ import { SessionExpiredError } from '../../core/makeAuthenticatedRequest'
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
-  const captured: Array<{ url: string; body?: string }> = []
+  const captured: Array<{ url: string; body?: string | undefined }> = []
   let i = 0
   req.transport = mock(async (url: string, init?: RequestInit) => {
     captured.push({ url, body: typeof init?.body === 'string' && init.body ? init.body : undefined })
@@ -20,7 +20,7 @@ function mockRequest(responses: Array<{ body: string }>) {
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok123" />'
 const EMPTY_LIST = JSON.stringify({ newResultGroups: [] })
 
-function getListMaxResults(captured: Array<{ url: string; body?: string }>): number[] {
+function getListMaxResults(captured: Array<{ url: string; body?: string | undefined }>): number[] {
   return captured
     .filter((c) => c.url.includes('/api/test-results/GetList') && c.body)
     .map((c) => JSON.parse(c.body!).maxResults)
@@ -386,7 +386,7 @@ describe('listLabResults', () => {
   it('makes correct API calls with proper headers', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
 
     req.transport = mock(async (url: string, init?: RequestInit) => {
       const urlStr = url.toString()

@@ -78,7 +78,7 @@ export interface CapabilityListOptions {
    * default: a full dump of the registry buries the handful of capabilities
    * that are the reason to connect an account at all.
    */
-  showAll?: boolean;
+  showAll?: boolean | undefined;
 }
 
 function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
@@ -258,7 +258,7 @@ export interface WrittenStudyImage {
 export async function writeStudyImages(
   payload: StudyImagePayload,
   outputDir: string,
-  options: { saveClo?: boolean } = {},
+  options: { saveClo?: boolean | undefined } = {},
 ): Promise<WrittenStudyImage[]> {
   await fs.promises.mkdir(outputDir, { recursive: true });
   const safeStudy = (payload.studyName || 'study').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 80);
@@ -362,7 +362,9 @@ export async function runCapabilityAction(
 export async function downloadAllImagingStudies(
   session: { hostname: string; request: MyChartRequest },
   password: string | undefined,
-  options: { outputDir?: string; patient?: string; saveClo?: boolean } = {},
+  // Every field here comes straight off a parsed CLI flag, so an unset flag is an
+  // explicit undefined rather than an absent key.
+  options: { outputDir?: string | undefined; patient?: string | undefined; saveClo?: boolean | undefined } = {},
 ): Promise<boolean> {
   console.log(`\n${'='.repeat(60)}\n  Imaging: ${session.hostname}\n${'='.repeat(60)}`);
   try {

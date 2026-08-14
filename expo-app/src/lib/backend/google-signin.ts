@@ -52,7 +52,13 @@ async function storeSessionFromToken(idToken: string): Promise<BackendUser> {
   if (!claims.sub || !claims.email) {
     throw new Error("Google sign-in returned an unusable ID token.");
   }
-  const user: BackendUser = { id: claims.sub, email: claims.email, name: claims.name };
+  // An ID token without a `name` claim stores a user without the key, not one
+  // carrying an explicit undefined.
+  const user: BackendUser = {
+    id: claims.sub,
+    email: claims.email,
+    ...(claims.name !== undefined ? { name: claims.name } : {}),
+  };
   await setBackendSession({ idToken, user });
   return user;
 }

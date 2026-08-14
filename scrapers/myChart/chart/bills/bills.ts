@@ -183,7 +183,9 @@ export async function getBillingHistory(mychartRequest: MyChartRequest): Promise
       ]);
       billingAccount.statementList = statementList;
       billingAccount.paymentList = paymentList;
-      billingAccount.encBillingId = encBillingId || undefined;
+      // Leave the key off entirely when the lookup came back empty, rather than
+      // parking an explicit undefined on the account.
+      if (encBillingId) billingAccount.encBillingId = encBillingId;
     } catch (err) {
       logger.debug('Failed to fetch billing details:', (err as Error).message);
     }

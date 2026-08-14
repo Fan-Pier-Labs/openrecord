@@ -167,14 +167,17 @@ export async function followSamlChain(
 
   // Helper: make a request against this chain's jar, manually following
   // redirects. Headers and the per-host permit come from scraperFetch.
-  async function req(url: string, opts: { method?: string; body?: string; contentType?: string } = {}) {
+  // The SAML loop below carries `body`/`contentType` as locals that are undefined
+  // on the GET hops, so they're `| undefined` rather than merely optional.
+  async function req(url: string, opts: { method?: string | undefined; body?: string | undefined; contentType?: string | undefined } = {}) {
     const headers: Record<string, string> = {};
     if (opts.contentType) headers['Content-Type'] = opts.contentType;
     return scraperFetch(url, {
       method: opts.method || 'GET',
       redirect: 'manual',
       headers,
-      body: opts.body,
+      // A bodyless hop omits the key rather than sending `body: undefined`.
+      ...(opts.body !== undefined ? { body: opts.body } : {}),
     }, { cookieJar: jar });
   }
 

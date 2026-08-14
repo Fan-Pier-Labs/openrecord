@@ -22,12 +22,18 @@ import { generateTotpCode } from './totp';
 import type { PasskeyCredential } from './softwareAuthenticator';
 import { logger } from '../../../shared/logger';
 
+/**
+ * Every optional here is `| undefined` on purpose: each client reads these out of
+ * its own credential store, where "nothing saved" surfaces as an explicit
+ * undefined, and every read below is a truthiness or `??` check — so an absent
+ * key and an undefined one mean the same thing.
+ */
 export type SilentLoginParams = {
   hostname: string;
-  username?: string;
-  password?: string;
+  username?: string | undefined;
+  password?: string | undefined;
   /** TOTP secret for non-interactive 2FA. Without it, a 2FA challenge fails the login. */
-  totpSecret?: string | null;
+  totpSecret?: string | null | undefined;
   /**
    * Locally stored passkey. Mutated in place — a login advances its WebAuthn
    * signature counter — so persist it from `onPasskeyUsed` or the next login
@@ -36,13 +42,13 @@ export type SilentLoginParams = {
    * (No transport parameter: scrapers/http.ts picks the platform's transport —
    * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
-  passkey?: PasskeyCredential | null;
+  passkey?: PasskeyCredential | null | undefined;
   /** 'http' for local fake-mychart; defaults to https. */
-  protocol?: string;
+  protocol?: string | undefined;
   /** A passkey login succeeded — persist the bumped signature counter. */
-  onPasskeyUsed?: (credential: PasskeyCredential) => void | Promise<void>;
+  onPasskeyUsed?: ((credential: PasskeyCredential) => void | Promise<void>) | undefined;
   /** The passkey was rejected as invalid (not a network error) — safe to delete. */
-  onPasskeyInvalid?: (credential: PasskeyCredential) => void | Promise<void>;
+  onPasskeyInvalid?: ((credential: PasskeyCredential) => void | Promise<void>) | undefined;
 };
 
 export type SilentLoginOutcome =

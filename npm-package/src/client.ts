@@ -106,7 +106,7 @@ export interface MyChartClientOptions {
   /** Defaults to `'https'`, except auto-detected as `'http'` for localhost / hostnames without a dot. */
   protocol?: 'http' | 'https';
   /** Run a background keepalive ping every 30s. Default `true`. */
-  keepalive?: boolean;
+  keepalive?: boolean | undefined;
   /**
    * When the session expires mid-call, silently re-login with the connect
    * credentials and retry. Default `true`. With it off (or after
@@ -132,15 +132,18 @@ export interface ConnectArgs extends MyChartClientOptions {
 export type ConnectResult =
   | { state: 'connected'; client: MyChartClient }
   | PendingTwoFa
-  | { state: 'invalid_login'; error?: string }
-  | { state: 'error'; error?: string };
+  | { state: 'invalid_login'; error?: string | undefined }
+  | { state: 'error'; error?: string | undefined };
 
 export interface PendingTwoFa {
   state: 'need_2fa';
-  /** Best-effort info about how MyChart sent the code (email/SMS, masked contact). */
-  delivery?: TwoFaDeliveryInfo;
+  /**
+   * Best-effort info about how MyChart sent the code (email/SMS, masked contact).
+   * A TOTP challenge has no delivery at all, so this is genuinely `| undefined`.
+   */
+  delivery?: TwoFaDeliveryInfo | undefined;
   /** Approximate epoch-ms timestamp when MyChart said the code was sent. */
-  sentAt?: number;
+  sentAt?: number | undefined;
   /**
    * Submit the 6-digit code (or TOTP code) the user entered.
    * Resolves to a connected `MyChartClient` on success; throws on invalid code / error.
@@ -220,7 +223,7 @@ export class MyChartClient {
    */
   static async fromSerialized(
     json: string,
-    opts?: { keepalive?: boolean }
+    opts?: { keepalive?: boolean | undefined }
   ): Promise<MyChartClient | null> {
     const req = await MyChartRequest.unserialize(json);
     if (!req) return null;

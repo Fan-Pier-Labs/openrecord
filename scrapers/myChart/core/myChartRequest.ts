@@ -215,10 +215,11 @@ export class MyChartRequest {
 
     // The Chrome header block, the cookie jar and the per-host permit are all
     // scraperFetch's job; this only says what MyChart is being asked for.
+    // A bodyless request omits the key rather than sending `body: undefined`.
     const finalConfig = {
       method: config.method ?? 'GET',
       redirect: "manual" as const,
-      body: config.body,
+      ...(config.body !== undefined ? { body: config.body } : {}),
       headers: config.headers ?? {},
     }
 
@@ -260,11 +261,14 @@ export class MyChartRequest {
       // 307/308 exist precisely to preserve the method and body; everything
       // else turns into a GET, which is what browsers do with a 302 too.
       const preserveMethod = response.status === 307 || response.status === 308;
+      // Spreading `config` carries its body along, so the non-preserving hop has
+      // to drop the key outright — `body: undefined` would leave it present.
+      const { body: priorBody, ...configWithoutBody } = config;
       return this.makeRequest({
-        ...config,
+        ...configWithoutBody,
         url: newLocation,
         method: preserveMethod ? config.method : 'GET',
-        body: preserveMethod ? config.body : undefined,
+        ...(preserveMethod && priorBody !== undefined ? { body: priorBody } : {}),
       }, redirectsFollowed + 1)
     }
 

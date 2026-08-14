@@ -18,7 +18,7 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
 function mockRequestWithCapture(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
-  const calls: Array<{ url: string; init?: RequestInit }> = []
+  const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
   let i = 0
   req.transport = mock(async (url: string, init?: RequestInit) => {
     calls.push({ url: url.toString(), init })

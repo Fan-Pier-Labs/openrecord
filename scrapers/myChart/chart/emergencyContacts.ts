@@ -17,11 +17,16 @@ export type EmergencyContactInput = {
   phoneNumber: string;
 };
 
+/**
+ * Callers build this from optional capability args, so a field the user didn't
+ * supply arrives as an explicit undefined. `updateEmergencyContact` keys the
+ * outbound body off `!== undefined`, so those fields stay out of the payload.
+ */
 export type EmergencyContactUpdateInput = {
   id: string;
-  name?: string;
-  relationshipType?: string;
-  phoneNumber?: string;
+  name?: string | undefined;
+  relationshipType?: string | undefined;
+  phoneNumber?: string | undefined;
 };
 
 export type EmergencyContactResult = {

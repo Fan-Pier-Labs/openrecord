@@ -25,7 +25,7 @@ type FakeServer = {
   sendCodeSucceeds?: boolean
 }
 
-type Call = { url: string; method: string; body?: string }
+type Call = { url: string; method: string; body?: string | undefined }
 
 function fakeMyChart(server: FakeServer) {
   const calls: Call[] = []

@@ -78,7 +78,7 @@ describe('upcomingVisits', () => {
   it('sends LoadUpcoming with no body and no Content-Type (F5 WAF regression)', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let callIndex = 0
 
     const responses = [
@@ -152,7 +152,7 @@ describe('pastVisits', () => {
   it('sends LoadPast with no body and no Content-Type (F5 WAF regression)', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let callIndex = 0
 
     const responses = [
