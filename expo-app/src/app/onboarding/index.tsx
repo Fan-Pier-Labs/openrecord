@@ -10,12 +10,13 @@ import { getBackendSession } from "@/lib/backend/session";
 import { type MyChartInstance } from "@/lib/mychart-instances";
 import { WelcomeStep } from "./steps/welcome-step";
 import { GoogleStep } from "./steps/google-step";
+import { AiStep } from "./steps/ai-step";
 import { PickerStep } from "./steps/picker-step";
 import { MyChartStep } from "./steps/mychart-step";
 import { TwoFaStep } from "./steps/twofa-step";
 import { PasskeyStep } from "./steps/passkey-step";
 
-type Step = "welcome" | "google" | "picker" | "mychart" | "twofa" | "passkey";
+type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 
 /**
  * Onboarding orchestrator. Owns the current step and the cross-step state
@@ -67,10 +68,16 @@ export default function OnboardingScreen() {
         initialEmail={signedInEmail}
         onSignedIn={(email) => {
           setSignedInEmail(email);
-          setStep("picker");
+          setStep("ai");
         }}
       />
     );
+  }
+
+  // Before the picker, not after: the disclosure is worth more while there is
+  // still no chart connected to send anywhere.
+  if (step === "ai") {
+    return <AiStep onAccept={() => setStep("picker")} />;
   }
 
   if (step === "picker") {

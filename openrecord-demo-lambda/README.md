@@ -80,16 +80,30 @@ The endpoint is public and unauthenticated, so it's treated as hostile input:
 | --- | --- | --- |
 | Guard preamble | prepended server-side | The client sends the system prompt. A server-side preamble scopes the assistant to the demo so the endpoint isn't a free general-purpose model. |
 | Per-IP rate limit | 40 requests / 10 min | ~5-10 demo conversations. Returns 429 with `Retry-After`. |
-| Per-container global cap | 1500 / 10 min | Backstop against load spread over many IPs. |
+| Global cap | 1500 / 10 min | Backstop against load spread over many IPs. Counted in DynamoDB, so it holds across containers. |
 | Message count | 40 | |
 | Message length | 24,000 chars | |
 | Total conversation | 160,000 chars | |
 | Output tokens | 2048 | |
 | Upstream timeout | 25s | |
 
-Rate-limit state is per-container and resets on cold start. That's leaky by
-design — precise limits would need a datastore, and the cost ceiling here is a
-few dollars, not a few thousand.
+The two limits are kept in different places on purpose.
+
+**Per-IP** state is in memory, per-container, and resets on cold start. It is
+leaky by design: it runs on every request, a shared counter would mean a write
+per request per caller, and the worst case is that a caller spread across
+several containers gets a few extra calls.
+
+**The global cap** is the one that actually bounds the bill, so it is counted in
+DynamoDB — one item per 10-minute window, atomically incremented, TTL'd once the
+window closes. In memory it capped each container separately, which meant the
+real ceiling was 1500 × however many containers Lambda happened to be running —
+i.e. no ceiling at all under exactly the traffic spike it exists to survive.
+
+It is checked *after* the per-IP bucket, so a single-IP flood costs no writes,
+and it fails open: if DynamoDB is unreachable the request is served, the failure
+is logged as `demo_ai_global_limit_error`, and the old per-container count
+applies. A metering outage should not become a product outage.
 
 Upstream error bodies are never forwarded to the client (they can echo the
 key's project id); they go to CloudWatch instead.

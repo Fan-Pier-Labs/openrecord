@@ -8,7 +8,15 @@
  */
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { handler as rawHandler, validatePayload, buildGeminiRequest, extractText, checkRateLimit } from '../handler.mjs';
+import {
+  handler as rawHandler,
+  validatePayload,
+  buildGeminiRequest,
+  extractText,
+  checkRateLimit,
+  checkGlobalLimit,
+  _spendStore,
+} from '../handler.mjs';
 
 /**
  * The response as API Gateway sees it. TS infers a per-branch union from the
@@ -214,6 +222,55 @@ describe('checkRateLimit', () => {
     for (let i = 0; i < 41; i++) checkRateLimit(noisy, now);
     expect(checkRateLimit(noisy, now)).toBeGreaterThan(0);
     expect(checkRateLimit('192.0.2.11', now)).toBeNull();
+  });
+});
+
+describe('checkGlobalLimit', () => {
+  afterEach(() => {
+    delete process.env.GLOBAL_LIMIT;
+  });
+
+  test('pools every caller into one counter, unlike the per-IP bucket', async () => {
+    process.env.GLOBAL_LIMIT = '3';
+    // A window of its own, so other tests' counts can't leak into this one.
+    const now = 50_000_000;
+    expect(await checkGlobalLimit(now)).toBeNull();
+    expect(await checkGlobalLimit(now)).toBeNull();
+    expect(await checkGlobalLimit(now)).toBeNull();
+    // The 4th call is over the cap even though no single IP was involved —
+    // this is the botnet case the per-IP bucket can't see.
+    expect(await checkGlobalLimit(now)).toBeGreaterThan(0);
+  });
+
+  test('the count resets with the window', async () => {
+    process.env.GLOBAL_LIMIT = '1';
+    const now = 60_000_000;
+    expect(await checkGlobalLimit(now)).toBeNull();
+    expect(await checkGlobalLimit(now)).toBeGreaterThan(0);
+    expect(await checkGlobalLimit(now + 11 * 60 * 1000)).toBeNull();
+  });
+
+  test('fails open, and says so in the log, when the counter is unreachable', async () => {
+    process.env.GLOBAL_LIMIT = '1';
+    const realBump = _spendStore.bump.bind(_spendStore);
+    const errors: string[] = [];
+    const realError = console.error;
+    console.error = (line: string) => errors.push(String(line));
+    _spendStore.bump = async () => {
+      throw new Error('DynamoDB is having a bad day');
+    };
+    try {
+      // Served rather than refused: a metering outage must not become a
+      // product outage. The per-container fallback still counts.
+      expect(await checkGlobalLimit(70_000_000)).toBeNull();
+      expect(await checkGlobalLimit(70_000_000)).toBeGreaterThan(0);
+    } finally {
+      _spendStore.bump = realBump;
+      console.error = realError;
+    }
+    expect(errors.join('\n')).toContain('demo_ai_global_limit_error');
+    // The upstream error text is for the log, never the caller.
+    expect(errors.join('\n')).toContain('bad day');
   });
 });
 

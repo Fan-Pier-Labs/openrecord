@@ -41,7 +41,8 @@ export function GoogleStep({ initialEmail, onSignedIn }: Props) {
         <Text style={styles.title}>Sign in with Google</Text>
         <Text style={styles.body}>
           Get $50 / month of AI credit included — no API key needed. We only see
-          your email and name. Your medical data never leaves your device.
+          your email and name, and we use them to meter that credit. Your
+          MyChart login stays on this device.
         </Text>
         {initialEmail ? (
           <Text style={styles.metaText}>Signed in as {initialEmail}</Text>
