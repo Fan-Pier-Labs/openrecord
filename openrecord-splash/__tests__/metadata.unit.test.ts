@@ -28,7 +28,7 @@ function pngSize(relativePath: string): { width: number; height: number } {
 /** All `content` values for a given og/twitter meta property in <head>. */
 function metaContents(attr: "property" | "name", key: string): string[] {
   const pattern = new RegExp(
-    `<meta\\s+${attr}="${key.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}"\\s+content="([^"]*)"`,
+    `<meta\\s+${attr}="${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"\\s+content="([^"]*)"`,
     "g",
   );
   return [...head.matchAll(pattern)].map((m) => m[1]!);
