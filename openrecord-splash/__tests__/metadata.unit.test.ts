@@ -151,6 +151,12 @@ describe("deploy script ships every referenced asset", () => {
     expect(deployScript).toContain("privacy.html");
     expect(deployScript).toContain('"/privacy.html"');
   });
+
+  test("ships the terms of service the splash page links to", () => {
+    expect(html).toContain('href="/terms.html"');
+    expect(deployScript).toContain("terms.html");
+    expect(deployScript).toContain('"/terms.html"');
+  });
 });
 
 /**
@@ -200,5 +206,46 @@ describe("privacy claims match what the software actually does", () => {
   test("the policy is reachable and dated", () => {
     expect(privacy).toContain("Last updated");
     expect(privacy).toContain('href="/"');
+  });
+});
+
+/**
+ * The terms carry the promises we cannot quietly drop: the medical-device
+ * disclaimer the app stores and the FDA line depend on, the authorization rule
+ * that keeps proxy access lawful, and the Apple clauses App Review checks for.
+ */
+describe("terms of service", () => {
+  const terms = readFileSync(join(SPLASH_DIR, "terms.html"), "utf8");
+  // The prose is hard-wrapped, so a clause can straddle a newline. Claims are
+  // matched against the collapsed text; markup is matched against the raw file.
+  const prose = terms.replace(/\s+/g, " ");
+
+  test("is reachable and dated", () => {
+    expect(terms).toContain("Last updated");
+    expect(terms).toContain('href="/"');
+    expect(terms).toContain('href="/privacy.html"');
+  });
+
+  test("disclaims medical-device status and medical advice", () => {
+    expect(prose).toContain("not a medical device");
+    expect(prose).toContain("FDA");
+    expect(prose).toContain("911");
+  });
+
+  test("states the only-records-you-are-entitled-to rule", () => {
+    expect(prose).toContain("proxy access");
+    expect(prose).toContain("Epic Systems Corporation");
+  });
+
+  test("carries the App Store clauses Apple requires of a custom EULA", () => {
+    expect(prose).toContain("third-party beneficiaries of these terms");
+    expect(prose).toContain("Apple has no obligation to provide any maintenance");
+  });
+
+  test("points at the source-available license rather than restating it", () => {
+    // The repository LICENSE is the operative grant. If the page ever claims to
+    // grant more than it does, the two documents disagree in production.
+    expect(prose).toContain("Source-Available License");
+    expect(prose).toContain("nothing in these terms grants you more than it does");
   });
 });
