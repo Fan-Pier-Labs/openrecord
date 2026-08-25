@@ -11,20 +11,26 @@
  * handlers. Neither would notice a bundle that cannot boot.
  *
  * It runs from a STAGED COPY of the artifact, not from dist/ in place, because
- * in place is not what ships. `.mcpbignore` keeps node_modules (and
- * package.json, and src/) out of the .mcpb: the extension is one self-contained
- * CJS file next to the manifest, and `require` of anything not bundled into it
- * has nowhere to resolve from. Run in place, the whole repo's node_modules sits
+ * in place is not what ships. Run in place, the whole repo's node_modules sits
  * a couple of directories up and quietly satisfies exactly the imports that
- * would be MODULE_NOT_FOUND on a patient's machine — @napi-rs/keyring, for one,
- * already resolves in a dev checkout as a transitive dependency of the MCP
- * inspector. Staging is what makes this test able to fail.
+ * would be MODULE_NOT_FOUND on a patient's machine. Staging is what makes this
+ * test able to fail.
+ *
+ * The staged tree mirrors `.mcpbignore` exactly: dist/server.cjs and the
+ * manifest, plus node_modules/@napi-rs — the one dependency that is NOT bundled
+ * into the CJS file, because a .node binary cannot be. Keep the two in sync;
+ * staging more than ships would hide a MODULE_NOT_FOUND, staging less would
+ * invent one.
  *
  * What only this catches:
  *   - a dependency that resolves at build time but not at runtime — anything
- *     left external to the bundle (a native module such as @napi-rs/keyring)
- *     is a MODULE_NOT_FOUND the moment Claude Desktop launches it, and the
- *     build stays green
+ *     left external to the bundle is a MODULE_NOT_FOUND the moment Claude
+ *     Desktop launches it, and the build stays green
+ *   - @napi-rs/keyring failing to load from the packed layout. This one cannot
+ *     announce itself: secret-store.ts catches the load error and falls back to
+ *     plaintext files by design, so the server boots and answers normally. The
+ *     only outward sign is list_accounts reporting secretStorage: "file", which
+ *     is why that is asserted below rather than merely "it started".
  *   - stdout framing. Stdio MCP requires stdout carry ONLY JSON-RPC; one
  *     stray `console.log` from any bundled module and the host reports
  *     "Unexpected token ... is not valid JSON". Every stdout line is parsed
@@ -196,12 +202,21 @@ async function main() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'openrecord-smoke-'));
   stagedDir = tmp;
 
-  // The .mcpb layout: the manifest, and dist/ beside it. Nothing else — see the
-  // header on why running dist/ in place cannot catch an unbundled dependency.
+  // The .mcpb layout: the manifest, dist/ beside it, and the one dependency
+  // that stays external to the bundle. Nothing else — see the header on why
+  // running dist/ in place cannot catch an unbundled dependency.
   const staged = path.join(tmp, 'extension');
   fs.mkdirSync(path.join(staged, 'dist'), { recursive: true });
   fs.copyFileSync(SERVER, path.join(staged, 'dist', 'server.cjs'));
   fs.copyFileSync(MANIFEST, path.join(staged, 'manifest.json'));
+
+  // @napi-rs/keyring and whichever platform binaries are installed, mirroring
+  // the un-ignore list in .mcpbignore. Absent here, the store would silently
+  // fall back to plaintext and every check below would still pass.
+  const napiSrc = path.join(HERE, 'node_modules', '@napi-rs');
+  if (fs.existsSync(napiSrc)) {
+    fs.cpSync(napiSrc, path.join(staged, 'node_modules', '@napi-rs'), { recursive: true });
+  }
 
   // A throwaway home directory: the credential store lives under
   // ~/.openrecord-mcpb, and the smoke must neither read the developer's real
@@ -295,6 +310,38 @@ async function main() {
       Array.isArray(payload?.accounts),
       `payload keys: ${payload ? Object.keys(payload).join(', ') : 'unparseable'}`,
     );
+
+    // The native module, proven from the packed layout. This needs two checks
+    // because "the module resolved" and "a keystore answered" are different
+    // facts, and only the first is true everywhere.
+    //
+    // secret-store.ts catches a load failure and stores credentials in
+    // plaintext files instead, by design — so a .mcpb packed without the
+    // binary boots, answers, and passes every other check in this file. The
+    // load failure is announced on stderr and nowhere else.
+    check(
+      '@napi-rs/keyring resolves from the staged layout',
+      !client.stderr.includes('could not be loaded'),
+      'the packed layout is missing the native module — credentials would silently go to plaintext files',
+    );
+
+    // Whether a keystore actually answers is environmental. CI runs this on a
+    // headless ubuntu-latest with no Secret Service daemon, where falling back
+    // is correct behaviour, not a regression. So only assert it where a
+    // keystore is always present — which is also where it is worth asserting,
+    // since those are the platforms Claude Desktop ships on.
+    const keystoreExpected = process.platform === 'darwin' || process.platform === 'win32';
+    if (keystoreExpected) {
+      check(
+        'reaches the OS keystore, not the plaintext fallback',
+        payload?.secretStorage != null && payload.secretStorage !== 'file',
+        `secretStorage = ${JSON.stringify(payload?.secretStorage)}`,
+      );
+    } else {
+      process.stdout.write(
+        `  skip ${'reaches the OS keystore'} — no keystore expected on ${process.platform}\n`,
+      );
+    }
 
     // 4. Framing. Checked last so it covers every exchange above.
     check(

@@ -36,8 +36,12 @@ export default defineConfig({
   clean: true,
   splitting: false,
   target: 'node20',
-  // Bundle everything — Claude Desktop ships its own Node and no native deps.
-  noExternal: [/.*/],
+  // Bundle everything except the one native dependency. A `.node` binary cannot
+  // be inlined into a CJS file, so `@napi-rs/keyring` (and the per-platform
+  // binary packages it loads) stay external and ship as real node_modules
+  // alongside dist/ — see .mcpbignore.
+  external: [/^@napi-rs\/keyring/],
+  noExternal: [/^(?!@napi-rs\/keyring)/],
   esbuildOptions(options) {
     options.logOverride = {
       ...(options.logOverride ?? {}),

@@ -63,6 +63,7 @@ import {
   accountId,
   lookupAccount,
   readAccounts,
+  secretBackend,
   readAccountPasskey,
   removeAccount,
   upsertAccount,
@@ -375,7 +376,15 @@ export function registerAllTools(server: McpServer): void {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ count: accounts.length, accounts: accountList }, null, 2),
+            // secretStorage says whether passwords, TOTP secrets and passkeys
+            // reached the OS keystore or fell back to a plaintext file —
+            // otherwise a locked keychain downgrades storage silently and
+            // nobody ever finds out.
+            text: JSON.stringify(
+              { count: accounts.length, secretStorage: secretBackend(), accounts: accountList },
+              null,
+              2,
+            ),
           },
         ],
       };
