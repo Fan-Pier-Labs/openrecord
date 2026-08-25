@@ -191,7 +191,7 @@ claude-desktop-extension/
 ├── icon.png                # 256×256 extension icon
 ├── scripts/
 │   ├── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
-│   └── sign-mcpb.ts               # signs a release with the Developer ID (see below)
+│   └── sign-mcpb.mjs              # signs a release with the Developer ID (see below)
 └── src/
     ├── index.ts            # stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
@@ -291,11 +291,11 @@ manifest launches `node dist/server.cjs` directly — don't ship `mcpmon`). Keep
 bun run pack:signed   # pack, then sign with the Fan Pier Labs Developer ID
 ```
 
-`scripts/sign-mcpb.ts` appends a PKCS#7 signature made with
-`Developer ID Application: Fan Pier Labs LLC (CA25MAKF9Z)`, and refuses to sign
-with any other identity, an expired certificate, or one not valid for code
-signing. It then checks its own work — `openssl cms -verify` over the exact
-bytes that were signed, plus `security verify-cert -p codeSign` on the chain.
+`scripts/sign-mcpb.mjs` appends a PKCS#7 signature made with
+`Developer ID Application: Fan Pier Labs LLC (CA25MAKF9Z)`, then checks its own
+work: `openssl cms -verify` over the exact bytes that were signed, and
+`security verify-cert -p codeSign` over the chain — a policy that also rejects
+an expired certificate, or one not valid for code signing.
 
 **One-time setup.** `mcpb sign` wants the private key as a PEM file, and the
 Developer ID key lives in the login keychain, which will not hand one out.
@@ -310,8 +310,9 @@ security add-generic-password -s mcpb-signing-p12 -a "$USER" -w
 
 The script unpacks that bundle into a 0700 temp directory it deletes on the way
 out, and passes the passphrase through the environment rather than argv.
-`MCPB_SIGNING_P12`, `MCPB_SIGNING_P12_PASSWORD` (for CI) and
-`MCPB_SIGNING_IDENTITY` override the defaults.
+`MCPB_SIGNING_P12` and `MCPB_SIGNING_P12_PASSWORD` (for CI) override the
+defaults. Sign a freshly packed bundle — signing appends, so signing twice
+nests one signature inside the next.
 
 **What a signature buys today: nothing a user can see.** Both the `mcpb verify`
 CLI (2.1.2) and the copy of that code bundled in Claude Desktop (1.34493.1)

@@ -12,7 +12,7 @@
     "dev:proxy": "./node_modules/.bin/mcpmon --watch dist --ext cjs -- node dist/server.cjs",
     "pack": "bun install --os='*' --cpu='*' && bun run build && bun run verify-binaries && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
     "pack:signed": "bun run pack && bun run sign",
-    "sign": "bun scripts/sign-mcpb.ts",
+    "sign": "node scripts/sign-mcpb.mjs",
     "smoke": "bun run build && node smoke.mjs",
     "test": "bun test --isolate .unit.test.ts .integration.test.ts",
     "verify-binaries": "node scripts/verify-native-binaries.mjs"
