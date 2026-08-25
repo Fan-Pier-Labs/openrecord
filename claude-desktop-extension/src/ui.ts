@@ -516,7 +516,7 @@ const SETUP_UI_TEMPLATE = `
       if (!handshakeDone) {
         handshakeDone = (async function () {
           await rpc('ui/initialize', {
-            appInfo: { name: 'openrecord-setup', version: '0.1.0' },
+            appInfo: { name: 'openrecord-setup', version: '2.0.0' },
             appCapabilities: {},
             protocolVersion: MCP_APP_PROTOCOL_VERSION,
           });
