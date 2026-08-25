@@ -50,7 +50,9 @@ export interface AccountConfig {
   hostname: string;
   username: string;
   password: string;
-  totpSecret?: string;
+  // Hydrated from the keystore, which returns undefined for "nothing saved".
+  // `AccountRow` is the persisted shape; this one is in-memory only.
+  totpSecret?: string | undefined;
 }
 
 export function normalizeHostname(hostname: string): string {
