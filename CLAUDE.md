@@ -66,7 +66,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — see [`docs/cli.md`](docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
-| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` |
+| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
 | `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery; sends no credentials |
