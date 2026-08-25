@@ -27,6 +27,6 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "tsup.config.ts"],
+  "include": ["src/**/*", "scripts/**/*.ts", "tsup.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
