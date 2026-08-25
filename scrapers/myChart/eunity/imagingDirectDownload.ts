@@ -921,9 +921,10 @@ export async function downloadSingleImage(
   const haarIdx = data.indexOf(CLOCLHAAR_MAGIC);
   if (haarIdx < 0) return null;
 
+  // No leading wrapper means the key is absent, not present-and-undefined.
   return {
     pixelData: Buffer.from(data.subarray(haarIdx)),
-    wrapperData: haarIdx > 0 ? Buffer.from(data.subarray(0, haarIdx)) : undefined,
+    ...(haarIdx > 0 ? { wrapperData: Buffer.from(data.subarray(0, haarIdx)) } : {}),
   };
 }
 
@@ -1243,7 +1244,7 @@ export async function downloadImagingStudyDirect(
             accessionNumber: studyParams!.accession,
             format: 'CLHAAR',
             pixelData: Buffer.from(embeddedPixelData),
-            wrapperData: wrapperMetadata ? Buffer.from(wrapperMetadata) : undefined,
+            ...(wrapperMetadata ? { wrapperData: Buffer.from(wrapperMetadata) } : {}),
           });
         } else {
           const ext = isCloFormat(data) ? '.clo' : '.bin';

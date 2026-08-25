@@ -56,9 +56,11 @@ export type AuthenticatedRequestOptions = {
    * When false, a login bounce throws SessionExpiredError immediately instead
    * of attempting a re-login. This is how the renewal path calls back into
    * wrapped code (proxy-context restore) without any chance of waiting on its
-   * own in-flight renewal. Defaults to true.
+   * own in-flight renewal. Defaults to true. Callers forward a possibly-undefined
+   * value straight through and the read is `=== false`, so an explicit undefined
+   * is identical to an absent key.
    */
-  autoRenew?: boolean;
+  autoRenew?: boolean | undefined;
 };
 
 const LOGIN_URL_RE = /\/authentication\/login/i;

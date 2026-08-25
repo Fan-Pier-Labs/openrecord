@@ -91,7 +91,9 @@ export interface DirectoryOrganization {
   slgId: string;
   name: string;
   loginUrl: string;
-  logo?: DirectoryLogo;
+  // Read as `org.logo?.imageId`, and parsed off a directory entry that may not
+  // carry the key at all, so absent and undefined already behaved identically.
+  logo?: DirectoryLogo | undefined;
   brandName?: string;
   aliases?: string[];
   states?: string[];

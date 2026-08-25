@@ -84,8 +84,10 @@ function maybeKickoffInitialMemory(accountId: string): void {
 export type ConnectResult = {
   state: "logged_in" | "need_2fa" | "invalid_login" | "error";
   accountId: string;
-  twoFaDelivery?: TwoFaDeliveryInfo;
-  error?: string;
+  // Both are forwarded straight from a LoginResult, where a TOTP challenge has no
+  // delivery info and a success has no error — so they arrive as explicit undefined.
+  twoFaDelivery?: TwoFaDeliveryInfo | undefined;
+  error?: string | undefined;
 };
 
 /**

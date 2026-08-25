@@ -481,7 +481,9 @@ export async function determineFirstPathPart(mychartRequest: MyChartRequest): Pr
 
 export type TwoFaDeliveryInfo = {
   method: 'email' | 'sms';
-  contact?: string; // masked contact, e.g. "***-***-1234" or "ab***@example.com"
+  // Masked contact, e.g. "***-***-1234" or "ab***@example.com". Scraped, so it
+  // may arrive as an explicit undefined when the page didn't render one.
+  contact?: string | undefined;
 }
 
 export type LoginResult = {
@@ -491,7 +493,7 @@ export type LoginResult = {
 
   // only set if need2fa is true
   twoFaSentTime?: number;
-  twoFaDelivery?: TwoFaDeliveryInfo;
+  twoFaDelivery?: TwoFaDeliveryInfo | undefined;
 
 }
 
@@ -517,8 +519,9 @@ const MASKED_PHONE_RE = /(?<!\*)\*\*[\d*-]*\d{4}/;
 export function parse2faDeliveryMethods(html: string): {
   hasEmail: boolean;
   hasSms: boolean;
-  emailContact?: string;
-  smsContact?: string;
+  // Scraped off the page, so "not found" arrives as an explicit undefined.
+  emailContact?: string | undefined;
+  smsContact?: string | undefined;
 } {
   const $ = cheerio.load(html);
   let hasEmail = false;
@@ -621,7 +624,7 @@ export async function detectUsernameField(mychartRequest: MyChartRequest, loginP
   }
 }
 
-export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol}: {hostname: string, user: string, pass: string, skipSendCode?: boolean, protocol?: string}): Promise<LoginResult> {
+export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol}: {hostname: string, user: string, pass: string, skipSendCode?: boolean | undefined, protocol?: string | undefined}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
@@ -877,7 +880,7 @@ export type TwoFaResult = {
   mychartRequest: MyChartRequest
 }
 
-export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isTOTP}: {mychartRequest: MyChartRequest, code?: string, twofaCodeArray?: {code: string; score: number}[], isTOTP?: boolean}): Promise<TwoFaResult> {
+export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isTOTP}: {mychartRequest: MyChartRequest, code?: string, twofaCodeArray?: {code: string; score: number}[], isTOTP?: boolean | undefined}): Promise<TwoFaResult> {
 
   // Accept either a single code string or an array of scored codes
   const codeArray = twofaCodeArray ?? (code ? [{code, score: 1}] : []);
@@ -992,7 +995,7 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
 export async function myChartPasskeyLogin({hostname, credential, protocol}: {
   hostname: string,
   credential: PasskeyCredential,
-  protocol?: string,
+  protocol?: string | undefined,
 }): Promise<LoginResult> {
   sendTelemetryEvent('scraper_passkey_login_started', { hostname }, 'scraper');
 

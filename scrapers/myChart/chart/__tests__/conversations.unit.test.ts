@@ -64,7 +64,7 @@ describe('listConversations', () => {
   it('sends correct POST body with conversation params', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let callIndex = 0
 
     const responses = [

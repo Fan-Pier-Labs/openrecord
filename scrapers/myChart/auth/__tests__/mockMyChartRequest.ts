@@ -21,7 +21,8 @@ export interface RecordedCall {
   path: string
   method: string
   headers: Record<string, string>
-  body?: string
+  /** Undefined for a bodyless request — the recorder mirrors what fetch was handed. */
+  body?: string | undefined
   /** Parse the request body as JSON. Throws if it isn't JSON. */
   json: <T = Record<string, unknown>>() => T
 }

@@ -65,7 +65,10 @@ export function readPatientPosition(wrapperData: Uint8Array): PatientPosition | 
  * exactly where they were. The sort is stable, so unparsable slices keep
  * their relative order.
  */
-export function sortImagesByPatientPosition<T extends { seriesUID: string; wrapperData?: Uint8Array }>(
+// `wrapperData` is `| undefined` in the constraint so that callers holding a
+// possibly-undefined buffer still match — the body only ever tests it for
+// falsiness, and narrowing the constraint would drop the caller's own fields.
+export function sortImagesByPatientPosition<T extends { seriesUID: string; wrapperData?: Uint8Array | undefined }>(
   images: readonly T[],
 ): T[] {
   const groups = new Map<string, T[]>();

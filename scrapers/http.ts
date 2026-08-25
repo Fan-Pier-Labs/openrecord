@@ -176,7 +176,7 @@ export type ScraperFetchOptions = {
   cookieJar?: CookieJar | null;
 
   /** Override the network call for this session. See {@link resolveTransport}. */
-  transport?: Transport;
+  transport?: Transport | undefined;
 };
 
 /**

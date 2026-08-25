@@ -128,10 +128,15 @@ export interface CapabilityParam {
  * store (`~/.openrecord-mcpb/`, expo-secure-store, the CLI's `.totp-store`).
  */
 export interface CapabilityContext {
-  /** The account password, if the client has one stored. TOTP setup needs it. */
-  password?: string;
+  /**
+   * The account password, if the client has one stored. TOTP setup needs it.
+   * Every client reads this out of its own credential store, so "nothing stored"
+   * arrives as an explicit undefined; the capabilities that need it check
+   * truthiness, so undefined and absent behave identically.
+   */
+  password?: string | undefined;
   /** The saved TOTP secret for this account, if any. Disabling TOTP needs it. */
-  totpSecret?: string;
+  totpSecret?: string | undefined;
   /** Persist a newly-created TOTP secret. */
   saveTotpSecret?: (secret: string) => Promise<void> | void;
   /** Persist a newly-registered passkey credential (already serialized). */
@@ -663,8 +668,10 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
           index,
           seriesUID: img.seriesUID,
           seriesDescription: img.seriesDescription,
-          pixelData: img.pixelData,
-          wrapperData: img.wrapperData,
+          // An image with no pixel or wrapper buffer omits the key rather than
+          // reporting it as present-and-undefined.
+          ...(img.pixelData !== undefined ? { pixelData: img.pixelData } : {}),
+          ...(img.wrapperData !== undefined ? { wrapperData: img.wrapperData } : {}),
         })),
         errors: result.errors,
       };

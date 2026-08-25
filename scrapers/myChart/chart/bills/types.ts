@@ -3,7 +3,8 @@
 export type BillingAccount = {
   guarantorNumber: string;
   patientName: string;
-  amountDue?: number;
+  // Scraped off the summary page — a row without a parseable amount yields undefined.
+  amountDue?: number | undefined;
 
   // Two IDs needed for scraping the detail page
   id?: string;

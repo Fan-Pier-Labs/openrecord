@@ -75,7 +75,7 @@ describe('getVisitNotes', () => {
   it('makes a JSON POST with the CSRF token and CSN', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let i = 0
     const responses = [
       { body: tokenHtml, contentType: 'text/html' },
@@ -152,7 +152,7 @@ describe('getNoteContent', () => {
   it('sends the report-content body with all 4 identifiers', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let i = 0
     const responses = [
       { body: tokenHtml, contentType: 'text/html' },
@@ -216,7 +216,7 @@ describe('getVisitAVS', () => {
   it('sends AMB_AVS mnemonic with empty reportID', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
-    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const calls: Array<{ url: string; init?: RequestInit | undefined }> = []
     let i = 0
     const responses = [
       { body: tokenHtml, contentType: 'text/html' },
