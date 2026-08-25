@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terms of Service — OpenRecord</title>
+  <meta name="description" content="The terms you agree to when you use OpenRecord: what the software is, what it is not, what you are responsible for, and the limits of what Fan Pier Labs promises." />
+  <link rel="canonical" href="https://openrecord.fanpierlabs.com/terms.html" />
+  <meta name="theme-color" content="#f7f9fc" />
+
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <meta property="og:title" content="Terms of Service — OpenRecord" />
+  <meta property="og:description" content="The terms you agree to when you use OpenRecord: what the software is, what it is not, what you are responsible for, and the limits of what Fan Pier Labs promises." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://openrecord.fanpierlabs.com/terms.html" />
+  <meta property="og:site_name" content="OpenRecord" />
+  <meta property="og:image" content="https://openrecord.fanpierlabs.com/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --slate-50: #f8fafc;
+      --blue-600: #2563eb;
+      --amber-700: #b45309;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f9fc;
+      color: var(--slate-700);
+      font-weight: 300;
+      line-height: 1.7;
+      padding: 0 24px 96px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    header { padding: 32px 0 48px; }
+    .back { font-size: 15px; color: var(--blue-600); text-decoration: none; }
+    .back:hover { text-decoration: underline; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--slate-900);
+      margin: 32px 0 12px;
+    }
+    .updated { font-size: 14px; color: var(--slate-500); }
+    h2 {
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--slate-900);
+      margin: 48px 0 12px;
+    }
+    h3 { font-size: 17px; font-weight: 600; color: var(--slate-900); margin: 28px 0 8px; }
+    p { margin-bottom: 16px; font-size: 16px; }
+    ul { margin: 0 0 16px 20px; }
+    li { margin-bottom: 8px; font-size: 16px; }
+    a { color: var(--blue-600); }
+    strong { font-weight: 600; color: var(--slate-900); }
+    .lede {
+      font-size: 18px;
+      color: var(--slate-700);
+      border-left: 3px solid var(--slate-300);
+      padding-left: 20px;
+      margin: 32px 0;
+    }
+    .callout {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-radius: 16px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .callout h3 { margin-top: 0; color: var(--amber-700); }
+    .callout p:last-child { margin-bottom: 0; }
+    .caps { font-size: 15px; }
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--slate-200);
+      font-size: 14px;
+      color: var(--slate-500);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="back" href="/">← OpenRecord</a>
+      <h1>Terms of Service</h1>
+      <p class="updated">Last updated 25 August 2026</p>
+    </header>
+
+    <main>
+      <p class="lede">
+        OpenRecord is software from Fan Pier Labs that signs in to your Epic MyChart patient portal
+        on your behalf and brings your records to an AI assistant. These terms are the agreement
+        between you and Fan Pier Labs LLC ("Fan Pier Labs", "we") for using it. The short version:
+        use it only on records you are entitled to see, do not treat anything it produces as medical
+        advice, and understand that it is a personal tool provided as-is rather than a clinical
+        service we stand behind.
+      </p>
+
+      <h2>Accepting these terms</h2>
+      <p>
+        By installing, running, or otherwise using OpenRecord — the Claude Desktop extension, the
+        OpenRecord iPhone app, the <code>mychart-cli</code> command-line tool and library, or the
+        website at openrecord.fanpierlabs.com including its demo (together, the "Service") — you
+        agree to these terms. If you do not agree, do not use the Service.
+      </p>
+      <p>
+        You must be at least 18 years old and legally able to enter into a contract. If you are using
+        the Service on behalf of someone else — a child, a parent, anyone whose record you have proxy
+        access to — you confirm you have the legal authority to do so, and you accept these terms for
+        yourself and on their behalf.
+      </p>
+
+      <div class="callout">
+        <h3>OpenRecord is not a medical device, and its output is not medical advice</h3>
+        <p>
+          OpenRecord retrieves and displays information from your patient portal and can pass it to an
+          AI model. It is not intended to diagnose, treat, cure, or prevent any disease or condition,
+          it has not been cleared or approved by the FDA or any other regulator, and it is not a
+          substitute for a conversation with your clinician.
+        </p>
+        <p>
+          Scraped records can be incomplete or out of date, and AI models can be confidently wrong,
+          omit results, or misread them. <strong>Do not make a treatment decision based on what
+          OpenRecord shows or says.</strong> Confirm anything that matters against your portal and
+          your care team. <strong>In an emergency, call 911 or your local emergency number</strong> —
+          never use the Service to seek urgent help.
+        </p>
+      </div>
+
+      <h2>Your portal accounts and credentials</h2>
+      <p>
+        OpenRecord acts as your agent. When you connect an account, you authorize it to sign in to
+        that MyChart portal with the credentials you supply and to do the things you ask it to do
+        there, on your behalf, as if you had done them yourself. That includes accepting a health
+        system's terms-and-conditions page when the portal presents one and blocks everything else
+        until it is accepted.
+      </p>
+      <p>You are responsible for:</p>
+      <ul>
+        <li>
+          <strong>Only connecting accounts you are entitled to use.</strong> Your own record, or one
+          you hold lawful proxy access to. Using someone else's credentials without their authority is
+          a violation of these terms, and likely of law.
+        </li>
+        <li>
+          <strong>Your health system's own rules.</strong> Your portal access is governed by your
+          health system's and Epic's terms of use. Some prohibit or restrict automated access. Your
+          agreement with them is yours to keep, and OpenRecord does not override it.
+        </li>
+        <li>
+          <strong>Keeping your credentials and device secure.</strong> OpenRecord stores your
+          credentials and session on your device, as described in the
+          <a href="/privacy.html">privacy policy</a>. Anyone with your unlocked device or
+          administrator access to it can reach them.
+        </li>
+        <li>
+          <strong>What happens at the portal.</strong> Repeated sign-in attempts, messages sent,
+          appointments booked, refills requested — these are real actions on your real record, and
+          they can lock an account or reach your care team. Automated access can also be rate-limited
+          or blocked by your health system at any time.
+        </li>
+      </ul>
+      <p>
+        Fan Pier Labs is not affiliated with, endorsed by, or sponsored by Epic Systems Corporation or
+        any health system. "MyChart" and "Epic" are trademarks of Epic Systems Corporation, used here
+        only to say what the software connects to.
+      </p>
+
+      <h2>Your OpenRecord account and the included AI allowance</h2>
+      <p>
+        The iPhone app asks you to sign in with Google. That account is only an identity for the app
+        and its AI proxy; it gives us no access to your portal. Keep it secure, and tell us if you
+        think someone else is using it.
+      </p>
+      <p>
+        The app includes a monthly allowance of AI usage through a proxy we operate. It is provided as
+        a convenience, metered per account per calendar month, and subject to rate limits. We may
+        change, reduce, meter differently, or withdraw it at any time, and we may throttle or suspend
+        an account that consumes it abusively. It is for your personal use of OpenRecord — not a
+        general-purpose AI endpoint to build on, resell, or share. If you need capacity or a provider
+        relationship you control, supply your own API key.
+      </p>
+      <p>
+        The Service is currently offered at no charge. If we introduce paid features, we will say so
+        before you are asked to pay for anything.
+      </p>
+
+      <h2>Acceptable use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Access, or attempt to access, a medical record you are not authorized to see.</li>
+        <li>
+          Use the Service to build a competing product or service, or to offer it — or anything
+          derived from it — to third parties as a hosted or managed service.
+        </li>
+        <li>
+          Route traffic through our AI proxy that is not the app's own use of it, or work around its
+          authentication, metering, or rate limits.
+        </li>
+        <li>
+          Interfere with the Service or the systems it talks to: overwhelming a portal with requests,
+          probing for vulnerabilities in someone else's infrastructure, or evading the safeguards
+          either end puts in place.
+        </li>
+        <li>Use the Service unlawfully, or in a way that violates anyone else's rights.</li>
+        <li>Misrepresent the Service's output as clinical guidance, or as reviewed by a clinician.</li>
+      </ul>
+
+      <h2>The demo</h2>
+      <p>
+        The demo on this website runs against a fictional patient record. It never connects to a real
+        portal, nothing in it is a real person's data, and nothing it shows is anyone's medical
+        information.
+      </p>
+
+      <h2>Software and licenses</h2>
+      <p>
+        OpenRecord's source code is published but not open source. It is licensed under the Fan Pier
+        Labs Source-Available License in the repository, which permits personal, non-commercial and
+        educational use and prohibits commercial use, redistribution, hosted offerings, and competing
+        products without our written permission. <strong>That license governs the source code, and
+        nothing in these terms grants you more than it does.</strong>
+      </p>
+      <p>
+        For the compiled clients we distribute — the iPhone app and the Claude Desktop extension — we
+        grant you a personal, revocable, non-transferable, non-exclusive license to install and run
+        them on devices you own or control, for your own use. We keep all other rights. All
+        trademarks, names, and branding remain ours.
+      </p>
+      <p>
+        If you send us feedback, bug reports, or suggestions, we may use them without obligation or
+        compensation to you. Code contributions are governed by the license terms in the repository.
+      </p>
+
+      <h2>Third-party services</h2>
+      <p>
+        The Service depends on things we do not control: your health system's MyChart instance, the AI
+        provider your prompts go to, and the platforms that distribute the software. Your use of those
+        is governed by their terms, not ours, and we are not responsible for what they do, whether
+        they stay available, or how they handle what they receive. Which provider receives your
+        prompt, in each configuration, is set out in the <a href="/privacy.html">privacy policy</a>.
+      </p>
+
+      <h2>Health information and HIPAA</h2>
+      <p>
+        Fan Pier Labs is not a covered entity or a business associate under HIPAA, and we have no
+        business associate agreement with any AI provider. When you use the included AI allowance, your
+        information goes to a commercial AI API under that provider's ordinary terms. If you need a
+        HIPAA-compliant channel, use the Claude Desktop extension with your own account, or supply
+        your own API key under an agreement you hold. How your information moves is described in full
+        in the <a href="/privacy.html">privacy policy</a>, which is part of these terms.
+      </p>
+
+      <h2>Availability and changes</h2>
+      <p>
+        There is no uptime commitment. We may change, suspend, or discontinue any part of the Service,
+        including the AI proxy and the demo, at any time. MyChart portals change without notice and
+        health systems can block automated access, so a capability that works today may stop working
+        tomorrow through no fault of either of us.
+      </p>
+
+      <h2>Termination</h2>
+      <p>
+        You can stop at any time: disconnect your accounts, delete the app, or uninstall the tool.
+        Doing so removes the credentials and records stored on that device. We may suspend or
+        terminate your access to the Service, or to the AI proxy specifically, if you break these
+        terms or if we reasonably believe your use puts others, your health system, or us at risk. The
+        sections on acceptable use, licenses, disclaimers, liability, indemnity, and governing law
+        survive termination.
+      </p>
+
+      <h2 id="warranty">Disclaimer of warranties</h2>
+      <p class="caps">
+        THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+        PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. FAN PIER LABS DOES NOT WARRANT THAT THE
+        SERVICE WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE, THAT IT WILL RETRIEVE YOUR RECORDS
+        COMPLETELY OR ACCURATELY, OR THAT ANY AI OUTPUT WILL BE CORRECT. SOME JURISDICTIONS DO NOT
+        ALLOW THE EXCLUSION OF CERTAIN WARRANTIES, SO PARTS OF THIS SECTION MAY NOT APPLY TO YOU.
+      </p>
+
+      <h2 id="liability">Limitation of liability</h2>
+      <p class="caps">
+        TO THE FULLEST EXTENT PERMITTED BY LAW, FAN PIER LABS WILL NOT BE LIABLE FOR ANY INDIRECT,
+        INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF DATA,
+        LOSS OF PROFITS, LOSS OF PORTAL ACCESS, OR HARM ARISING FROM A DECISION MADE ON THE BASIS OF
+        ANYTHING THE SERVICE DISPLAYED OR GENERATED, EVEN IF ADVISED OF THE POSSIBILITY. OUR TOTAL
+        LIABILITY FOR ALL CLAIMS RELATING TO THE SERVICE WILL NOT EXCEED THE GREATER OF THE AMOUNT YOU
+        PAID US IN THE TWELVE MONTHS BEFORE THE CLAIM, OR ONE HUNDRED U.S. DOLLARS. NOTHING HERE
+        LIMITS LIABILITY THAT CANNOT BE LIMITED BY LAW, INCLUDING FOR FRAUD, OR FOR DEATH OR PERSONAL
+        INJURY CAUSED BY OUR NEGLIGENCE.
+      </p>
+
+      <h2>Indemnity</h2>
+      <p>
+        You agree to indemnify and hold Fan Pier Labs harmless from any claim, loss, or expense
+        (including reasonable legal fees) arising out of your use of the Service, your breach of these
+        terms, your violation of a health system's or Epic's terms, or your access to a record you
+        were not entitled to.
+      </p>
+
+      <h2>If you got the app from the Apple App Store</h2>
+      <p>
+        These terms are between you and Fan Pier Labs only, not with Apple, and Fan Pier Labs alone is
+        responsible for the app and its content. Apple has no obligation to provide any maintenance or
+        support for it. If the app fails to conform to any applicable warranty, you may notify Apple
+        and Apple will refund the purchase price, if any; to the maximum extent permitted by law,
+        Apple has no other warranty obligation. Fan Pier Labs, not Apple, is responsible for any claim
+        that the app or your use of it infringes intellectual property rights, fails to conform to
+        legal requirements, or gives rise to product liability or consumer protection claims. You
+        represent that you are not located in a country subject to a U.S. Government embargo or
+        designated as a "terrorist supporting" country, and that you are not on any U.S. Government
+        list of prohibited or restricted parties. Apple and its subsidiaries are third-party
+        beneficiaries of these terms and may enforce them against you.
+      </p>
+
+      <h2>Changes to these terms</h2>
+      <p>
+        We may update these terms. When we do, we will change the date at the top, and for changes
+        that materially affect your rights we will note the change on this page. Continuing to use the
+        Service after an update means you accept the revised terms.
+      </p>
+
+      <h2>Governing law and disputes</h2>
+      <p>
+        These terms are governed by the laws of the Commonwealth of Massachusetts, without regard to
+        its conflict-of-laws rules. Any dispute will be brought exclusively in the state or federal
+        courts located in Suffolk County, Massachusetts, and you and Fan Pier Labs consent to their
+        jurisdiction — except that either of us may seek injunctive relief anywhere it is needed to
+        protect intellectual property or data. Before filing anything, please write to us: most
+        problems are faster to fix than to litigate.
+      </p>
+
+      <h2>Everything else</h2>
+      <p>
+        These terms, together with the <a href="/privacy.html">privacy policy</a> and the license
+        covering the source code, are the entire agreement between us about the Service. If a
+        provision is held unenforceable, the rest stays in force. Our not enforcing a provision is not
+        a waiver of it. You may not assign these terms; we may assign them in connection with a
+        merger, acquisition, or sale of assets. Nothing here creates a partnership, an employment
+        relationship, or a clinical relationship of any kind.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about these terms: <a href="mailto:ryan@fanpierlabs.com">ryan@fanpierlabs.com</a>.
+      </p>
+    </main>
+
+    <footer>
+      Fan Pier Labs · <a href="/">openrecord.fanpierlabs.com</a> ·
+      <a href="/privacy.html">Privacy</a> ·
+      <a href="https://github.com/Fan-Pier-Labs/openrecord" target="_blank" rel="noopener noreferrer">Source</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -13,6 +13,8 @@ real React + TypeScript app because it is a real application.
 
 ```
 index.html      marketing splash — hand-written, no build step
+privacy.html    privacy policy — linked from the splash and the app stores
+terms.html      terms of service — same, and the app stores' custom EULA
 demo/           React + TypeScript demo (Vite)
   demo.html       entry HTML
   src/            application source
