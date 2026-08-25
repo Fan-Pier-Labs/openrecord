@@ -111,8 +111,8 @@
         OpenRecord is software you run yourself. It signs in to your Epic MyChart patient portal from
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
-        The one place your health information leaves your device is when you ask an AI model a
-        question about it — that is described in full below.
+        Two things do leave your device: the question you send to an AI model, and — on the desktop
+        tools only — anonymous usage data. Both are described in full below.
       </p>
 
       <h2>Who this covers</h2>
@@ -146,8 +146,10 @@
         as any other application data on your machine.
       </p>
       <p>
-        Disconnecting an account in any client deletes that account's stored credentials, passkey and
-        session from the device.
+        Removing an account in the iPhone app's settings, or disconnecting one in the Claude Desktop
+        extension, deletes that account's stored credentials, passkey and session. The command-line
+        tool has no disconnect command — delete its <code>.cookie-cache</code> and
+        <code>.totp-secrets</code> folders yourself.
       </p>
 
       <div class="callout">
@@ -237,11 +239,39 @@
       <p>
         The site is static files on Amazon S3 served through Amazon CloudFront. AWS records standard
         request logs, which include IP addresses. There are no analytics services, advertising
-        networks, or third-party tracking scripts on the site, and none in any OpenRecord client.
+        networks, or third-party tracking scripts on the site itself. The desktop clients do report
+        anonymous usage, which is the next section.
       </p>
       <p>
         If you enter your email address in the waitlist form, we store it and use it to tell you when
         OpenRecord ships. Ask us and we will delete it.
+      </p>
+
+      <h2>Usage analytics</h2>
+      <p>
+        The command-line tool and the Claude Desktop extension report anonymous usage, so we can see
+        how much OpenRecord is being used and which health systems to look at when logins start
+        failing. <strong>The iPhone app reports none of it</strong> — that code is replaced with an
+        empty stub in the app's build.
+      </p>
+      <p>An event is sent when the tool starts, and when a login begins. Each one carries:</p>
+      <ul>
+        <li>
+          A random identifier created the first time you run it and kept in a cache folder. It is not
+          derived from your name, your account, or anything about your machine.
+        </li>
+        <li>
+          The event name, and for login events <strong>the hostname of the MyChart portal you are
+          signing in to</strong> — which health system, and nothing else. Never your username, your
+          password, or anything from your record.
+        </li>
+        <li>Your operating system and its version, the processor architecture, and the Node or Bun version.</li>
+      </ul>
+      <p>
+        These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
+        Naming the health system you are a patient of is more than we would want a tool to send about
+        us without saying so, which is why it is written out here. To send none of it, set
+        <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
       </p>
 
       <h2>What we never do</h2>
@@ -281,7 +311,7 @@
       <h2>Contact</h2>
       <p>
         Questions about this policy, or a request to delete something we hold:
-        <a href="mailto:privacy@fanpierlabs.com">privacy@fanpierlabs.com</a>.
+        <a href="mailto:ryan@fanpierlabs.com">ryan@fanpierlabs.com</a>.
       </p>
     </main>
 

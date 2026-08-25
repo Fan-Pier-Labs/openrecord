@@ -481,8 +481,8 @@ export async function determineFirstPathPart(mychartRequest: MyChartRequest): Pr
 
 export type TwoFaDeliveryInfo = {
   method: 'email' | 'sms';
-  // Masked contact, e.g. "***-***-7204" or "ry***@gmail.com". Scraped, so it may
-  // arrive as an explicit undefined when the page didn't render one.
+  // Masked contact, e.g. "***-***-1234" or "ab***@example.com". Scraped, so it
+  // may arrive as an explicit undefined when the page didn't render one.
   contact?: string | undefined;
 }
 
@@ -496,6 +496,20 @@ export type LoginResult = {
   twoFaDelivery?: TwoFaDeliveryInfo | undefined;
 
 }
+
+/**
+ * Masked contacts as MyChart prints them on the 2FA page — a masked address
+ * and a masked number. Both are rewrites of patterns whose adjacent quantifiers
+ * could each claim the same `*`, so a long run of mask characters with no `@`
+ * or trailing digits — easy to plant in scraped portal HTML — got divided
+ * between them every possible way: 800 stars took 25s, on the login path. Each
+ * accepts exactly the same strings as the pattern it replaces. The lookbehinds
+ * are the other half of the fix: a match can never start mid-run (the star
+ * before it would have started an equally good match one character earlier),
+ * and refusing those start offsets is what takes the scan to linear.
+ */
+const MASKED_EMAIL_RE = /(?<![\w*])[\w*]\w*\*[\w*]*@[\w.]+/;
+const MASKED_PHONE_RE = /(?<!\*)\*\*[\d*-]*\d{4}/;
 
 /**
  * Parse the secondary validation (2FA) page to detect which delivery methods are available.
@@ -522,7 +536,7 @@ export function parse2faDeliveryMethods(html: string): {
       hasEmail = true;
       // Try to extract masked email from button text or nearby elements
       const fullText = $(el).text().trim();
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(fullText);
+      const emailMatch = MASKED_EMAIL_RE.exec(fullText);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (text.includes('text') || text.includes('phone') || text.includes('sms')) {
@@ -538,11 +552,11 @@ export function parse2faDeliveryMethods(html: string): {
   $('p, span, div').each((_, el) => {
     const text = $(el).text();
     if (!emailContact) {
-      const emailMatch = /[\w*]+\*+[\w*]*@[\w.]+/.exec(text);
+      const emailMatch = MASKED_EMAIL_RE.exec(text);
       if (emailMatch) emailContact = emailMatch[0];
     }
     if (!smsContact) {
-      const phoneMatch = /\*{2,}[\d*-]*\d{4}/.exec(text);
+      const phoneMatch = MASKED_PHONE_RE.exec(text);
       if (phoneMatch) smsContact = phoneMatch[0];
     }
   });

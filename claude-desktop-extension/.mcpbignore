@@ -4,12 +4,50 @@ tsconfig.json
 tsup.config.ts
 .gitignore
 
-# Dev deps — Claude Desktop ships its own Node runtime, we ship a single
-# bundled CJS file. No node_modules needed at runtime.
-node_modules/
-package-lock.json
-bun.lock
-package.json
+# Dev-only scripts. smoke.mjs asserts the packed layout matches this file, so
+# the two have to be changed together.
+smoke.mjs
+dev/
+scripts/
+
+# Dev deps — Claude Desktop ships its own Node runtime and tsup bundles our JS
+# into dist/server.cjs, so nothing here is needed at runtime EXCEPT the one
+# native dependency. A .node binary cannot be inlined into a CJS bundle, so
+# @napi-rs/keyring and its per-platform binary packages ship as real files.
+# Each package needs the directory un-ignored AND its contents; `node_modules/*`
+# rather than `node_modules/**` so the tree stays walkable. Collapsing any of
+# that silently ships zero native files.
+#
+# WHY FOUR PLATFORMS AND NOT JUST THIS MACHINE'S: openrecord.mcpb is published
+# for people to download, so one artifact built on one machine has to work on
+# every machine that installs it. Whoever packs it gets `bun install` resolving
+# only their own slice, which is why `bun run pack` overrides with
+# `bun install --os='*' --cpu='*'` first.
+#
+# That override resolves EVERY slice @napi-rs/keyring offers, including ~9 MB of
+# Linux and FreeBSD builds Claude Desktop has no use for. This list is where the
+# four that ship are chosen. Claude Desktop is macOS + Windows only; a Linux
+# user of the raw server falls back to the file, which still works.
+node_modules/*
+!node_modules/@napi-rs
+node_modules/@napi-rs/*
+!node_modules/@napi-rs/keyring
+!node_modules/@napi-rs/keyring/**
+!node_modules/@napi-rs/keyring-darwin-arm64
+!node_modules/@napi-rs/keyring-darwin-arm64/**
+!node_modules/@napi-rs/keyring-darwin-x64
+!node_modules/@napi-rs/keyring-darwin-x64/**
+!node_modules/@napi-rs/keyring-win32-x64-msvc
+!node_modules/@napi-rs/keyring-win32-x64-msvc/**
+!node_modules/@napi-rs/keyring-win32-arm64-msvc
+!node_modules/@napi-rs/keyring-win32-arm64-msvc/**
+
+# Leading slash matters: an unanchored `package.json` matches at every depth and
+# would strip the shipped native package's own manifest, which is what Node
+# reads to find its entry point and its platform binary.
+/package-lock.json
+/bun.lock
+/package.json
 
 # Local artifacts
 *.mcpb

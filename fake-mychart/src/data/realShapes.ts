@@ -3360,3 +3360,36 @@ export const visitsLoadUpcoming = {
   ],
   "HasPVG": false
 } as const;
+
+// https://www.mychart.org/cached-api/help/organizations/ (the org directory on
+// mychart.org, not an instance endpoint). countryData/stateData are name and
+// ZIP dictionaries the scraper never reads, so only their outer keys are held.
+// `organizations` is deliberately NOT a key here: the endpoint omits it
+// entirely unless the request asks for it with includeOrganizations=1.
+export const helpOrganizations = {
+  "organizationOptionsByScreenId": {},
+  "countryData": {
+    "alpha_2_index": {}
+  },
+  "stateData": {
+    "abbreviation_index": {}
+  }
+} as const;
+
+// One entry of that endpoint's `organizations` array. `logo` is absent on the
+// eight organizations that have no image of their own, so it is not part of
+// the skeleton either — conformToShape would otherwise invent an empty one and
+// hide the two logo fallbacks every client implements.
+export const helpOrganization = {
+  "slgId": "",
+  "name": "",
+  "states": [],
+  "countries": [],
+  "brandName": "",
+  "loginUrl": "",
+  "liveOnCentral": false,
+  "email": "",
+  "phone": "",
+  "faq": "",
+  "aliases": []
+} as const;

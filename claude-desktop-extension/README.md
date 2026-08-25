@@ -57,6 +57,24 @@ same setup sequence using ordinary tool calls:
 2. **`setup_account(hostname, username, password)`** — Claude asks you for
    your credentials in chat, then logs in. Credentials are stored locally in
    `~/.openrecord-mcpb/` on your machine. Never sent to Anthropic.
+
+Or skip typing a password entirely, if your browser already has one saved:
+
+- **`import_browser_passwords`** — scans this machine's browser password stores
+  (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins. Read-only; on macOS it
+  raises the system keychain prompt, which is where you consent. Only accounts it
+  can confirm are offered — a known Epic instance, or one whose login page it
+  verified. **No passwords are returned** — each entry carries an opaque
+  `import_id`, and the credential stays on your machine.
+- **`connect_imported_account(import_id)`** — connects the one you picked, using
+  the password already in your browser. Same 2FA and passkey flow as
+  `setup_account`.
+
+Anything it cannot confirm is left out rather than guessed at — use
+`setup_account` for those, or run the import again later if a portal was
+temporarily unreachable. See
+[`read-local-passwords/README.md`](../read-local-passwords/README.md) for what is
+read and how confirmation works.
 3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
    asks you for the 6-digit code.
 4. **`register_passkey(account)`** — (optional, recommended) future logins
@@ -102,17 +120,65 @@ different family member's record than the one the call is about.
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation
   support. Claude Desktop ships its own Node runtime; no Node install needed
   on the user's machine.
-- **Pure JS** — no `sharp`, no `keytar`, no `sqlite3`. CLO → JPEG imaging
+- **Pure JS, with one exception** — no `sharp`, no `sqlite3`. CLO → JPEG imaging
   conversion calls the shared pure-JS exporter (`convertCloToJpgPureJs` in
   `scrapers/myChart/clo-image-parser/exporters/`), which is
   [`jpeg-js`](https://www.npmjs.com/package/jpeg-js) end to end and is the same
-  code path the mobile app uses.
-- **Local storage** — credentials and sessions live at `~/.openrecord-mcpb/`,
-  keyed by (hostname, username) so several logins on one hostname never share
-  or overwrite each other's identity:
-  - `accounts.json` — username/password rows (file mode 0600)
-  - `passkeys/<hostname>/<username>.json` — WebAuthn credentials
-  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast resume
+  code path the mobile app uses. The exception is
+  [`@napi-rs/keyring`](https://www.npmjs.com/package/@napi-rs/keyring), the
+  native binding used to reach the OS credential store — see below.
+- **Secrets live in the OS keystore** — the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux, under service `openrecord-mcpb`,
+  three items per identity:
+  - `password:<hostname>:<username>`
+  - `totp:<hostname>:<username>`
+  - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
+    neither password nor 2FA
+
+  If the keystore is unavailable the store falls back to the 0600 files below
+  and says so in `list_accounts`'s `secretStorage` field, so a downgrade to
+  plaintext is visible rather than silent. `OPENRECORD_SECRET_BACKEND` overrides
+  the choice: `file` to opt out, `os` to fail rather than fall back.
+
+  **Migration happens on read.** The first read after upgrading moves a secret
+  out of its old file location into the keystore and deletes the plaintext copy,
+  so nobody has to log in again — and `accounts.json` loses its inline
+  `password`/`totpSecret` the first time the account is touched.
+- **What stays on disk** at `~/.openrecord-mcpb/`, keyed by (hostname, username)
+  so several logins on one hostname never share or overwrite each other's
+  identity:
+  - `accounts.json` — the index of which logins exist (mode 0600). Also holds
+    `password`/`totpSecret` inline when there is no keystore, which is where
+    every pre-keystore install left them
+  - `passkeys/<hostname>/<username>.json` — keystore fallback only
+  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast
+    resume. Cookies are bearer credentials too, but they expire and the
+    silent-login ladder just re-mints them
+- **Not a single-file bundle any more** — a `.node` binary cannot be inlined
+  into a CJS file, so `dist/server.cjs` ships alongside
+  `node_modules/@napi-rs/`. The `.mcpb` went from 1.0 MB to 2.8 MB.
+
+  **It is still one download that works everywhere.** The artifact carries all
+  four platform binaries — macOS arm64/x64, Windows x64/arm64 — and
+  `@napi-rs/keyring`'s loader is a `process.platform`/`process.arch` switch that
+  requires the matching one at startup. There is no per-platform build and
+  nothing for a user to choose.
+
+  Getting all four onto one machine is the only wrinkle. They are twelve
+  separate packages `@napi-rs/keyring` lists in its own `optionalDependencies`,
+  gated on `os`/`cpu` — the standard way prebuilt-binary packages ship (esbuild
+  has 26, rollup 27) — so a normal `bun install` resolves only the slice
+  matching the machine doing the install. `bun run pack` therefore overrides
+  with `bun install --os='*' --cpu='*'`, `.mcpbignore` picks the four to keep
+  out of the twelve that pulls, and `scripts/verify-native-binaries.mjs`
+  **refuses to pack** if one is missing. That last check matters because the
+  failure is otherwise invisible: a `.mcpb` packed after a plain `bun install`
+  looks fine, installs fine, and silently stores credentials in plaintext for
+  everyone not on the packer's platform.
+
+  Linux is not included (Claude Desktop has no Linux build, and the file
+  fallback covers the raw server). Adding it is two lines in `.mcpbignore`, at
+  about +9 MB.
 
 ## File layout
 
@@ -120,14 +186,18 @@ different family member's record than the one the call is about.
 claude-desktop-extension/
 ├── manifest.json           # MCPB manifest (see https://github.com/modelcontextprotocol/mcpb)
 ├── package.json
-├── tsup.config.ts          # single-file CJS bundle for Claude Desktop's Node
+├── tsup.config.ts          # CJS bundle for Claude Desktop's Node (@napi-rs/keyring stays external)
+├── smoke.mjs               # boots the built bundle and speaks MCP to it
 ├── icon.png                # 256×256 extension icon
+├── scripts/
+│   └── fetch-native-binaries.mjs  # pulls every platform's keyring binary before packing
 └── src/
     ├── index.ts            # stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
+    ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
     ├── instances.ts        # picker data (sourced from scrapers/list-all-mycharts/)
     └── imaging/            # MCPB glue around the shared pure-JS CLO → JPEG exporter
 ```
@@ -138,8 +208,20 @@ claude-desktop-extension/
 bun run typecheck  # tsc --noEmit — catches type errors esbuild silently skips
 bun run build      # tsc --noEmit, then tsup → dist/server.cjs
 bun run dev        # tsup watch mode — rebuilds dist/server.cjs on every save
+bun run smoke      # build, then boot the bundle and speak MCP to it (see below)
 bun run pack       # build + run `mcpb pack` → openrecord.mcpb
 ```
+
+> **Smoke test.** Everything else in this package tests the TypeScript sources
+> in-process; `bun run smoke` is the only check that runs the *bundle* the way
+> Claude Desktop does — `node dist/server.cjs`, then a real `initialize` /
+> `tools/list` / `tools/call` exchange over stdio. It runs from a staged copy
+> containing only what `.mcpbignore` ships (the manifest and `dist/`), so a
+> dependency left external to the bundle fails here instead of on a patient's
+> machine; run in place, the repo's `node_modules` would quietly satisfy it. It
+> also parses every line the server writes to stdout, which is where the
+> "stdout carries JSON-RPC and nothing else" rule gets enforced. CI runs it in
+> place of a bare `bun run build`.
 
 > **Type checking.** tsup bundles with esbuild, which strips types without
 > checking them — so type errors (wrong function arguments, missing fields)

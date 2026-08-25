@@ -322,14 +322,16 @@ Request/response use AMF3 binary serialization with typed objects:
 - `patientId` format: `<MRN>$$$<SITE>` (triple dollar signs)
 - Each image has its own seriesUID — requesting the same seriesUID with different objectUIDs returns errors
 - `level` parameter varies per series (0, 3, 4)
-- AMF3Writer needs string reference table for correct encoding
+- The AMF3 writer needs a string reference table for correct encoding
 
 ## Implementation Files
 
 | File | Purpose |
 |------|---------|
 | `scrapers/myChart/clo-image-parser/clo_to_bitmap.ts` | Core CLO decoder + AMF3Reader |
-| `scrapers/myChart/clo-image-parser/generate_clo.ts` | CLO encoder for testing |
+| `scrapers/myChart/clo-image-parser/generate_clo.ts` | CLOCLHAAR pixel encoder for testing |
+| `shared/cloWrapper.ts` | CLOHEADERZ01 wrapper encoder — writes the fixtures *and* the wrappers fake-mychart serves at runtime |
+| `shared/amf3Writer.ts` | The repo's only AMF3 writer (wrapper metadata + eUnity request frames) |
 | `scrapers/myChart/clo-image-parser/exporters/` | Format-specific exporters (JPEG, PNG, AVIF, TIFF, WebP) — step two, after decoding to a bitmap |
 | `dev-scripts/clo-to-jpg.ts` | Terminal wrapper wiring both steps together |
 | `scrapers/myChart/eunity/imagingDirectDownload.ts` | Direct HTTP download pipeline |

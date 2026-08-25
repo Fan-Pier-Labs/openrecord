@@ -50,6 +50,8 @@ const TRY_PROMPTS = [
   'Find an appointment slot with Dr. Hibbert and book it.',
   'Draft a message asking billing for an itemized statement.',
   'Add my daughter Lisa as an emergency contact at (555) 636-7666.',
+  "Switch to my son Bart's record and tell me what he's due for.",
+  'Open the letter from my annual physical and read it to me.',
 ];
 
 export function App() {
@@ -62,6 +64,11 @@ export function App() {
     // they can ask anything buries the part worth showing.
     executeTool(fresh, 'connect_instance', {});
     return fresh;
+    // sessionKey is not READ here — it is the input. Bumping it is the only
+    // thing that builds a fresh session, so dropping it (as the rule suggests)
+    // would leave "Reset demo" remounting both surfaces onto the same mutated
+    // record: the refill you just requested would survive the reset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionKey]);
 
   const [surface, setSurface] = useState<Surface>('ios');
@@ -111,6 +118,16 @@ export function App() {
     },
     [session, complete],
   );
+
+  // Stable identities: each surface registers its handle in a mount effect that
+  // lists onReady as a dependency, so an inline arrow here would re-register on
+  // every App render.
+  const handleIosReady = useCallback((handle: IosHandle) => {
+    iosRef.current = handle;
+  }, []);
+  const handleDesktopReady = useCallback((handle: DesktopHandle) => {
+    desktopRef.current = handle;
+  }, []);
 
   function runPrompt(text: string) {
     // Read the handle at click time, not at render time — the surfaces register
@@ -196,18 +213,14 @@ export function App() {
                 key={`ios-${sessionKey}`}
                 session={session}
                 runTurn={runTurn}
-                onReady={(handle) => {
-                  iosRef.current = handle;
-                }}
+                onReady={handleIosReady}
               />
             </div>
             <div className="stage-pane" hidden={surface !== 'desktop'}>
               <DesktopSurface
                 key={`desktop-${sessionKey}`}
                 runTurn={runTurn}
-                onReady={(handle) => {
-                  desktopRef.current = handle;
-                }}
+                onReady={handleDesktopReady}
               />
             </div>
           </div>

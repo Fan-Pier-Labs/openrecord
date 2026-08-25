@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import * as data from '../data';
 import { SKILLS, buildAlerts } from '../skills';
-import { executeTool } from '../tools';
+import { activePatient, executeTool } from '../tools';
 import { Markdown } from './Markdown';
 import { WriteConfirm } from './WriteConfirm';
 import { streamText } from '../stream';
@@ -77,6 +77,12 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
         (a) => !dismissedAlerts.has(a.id) && !(a.resolvedWhen?.(session)),
       ),
     // `session` mutates in place, so tie this to the things that change it.
+    // `messages` is not read above — it is the signal that a turn ran and may
+    // have mutated the session (a refill request changes refillsRemaining, and
+    // `resolvedWhen` reads it live). Dropping it, as the rule suggests, would
+    // freeze the alert list at whatever it was when the session object was
+    // created: a refilled prescription would keep nagging you.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [session, dismissedAlerts, messages],
   );
 
@@ -150,9 +156,11 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
 
   useEffect(() => {
     onReady({ send: (text) => sendRef.current(text) });
-    // Registered once on mount, deliberately: it reads live state through refs
-    // rather than closing over this render's values.
-  }, []);
+    // The handle itself is stable by construction: it reads live state through
+    // refs rather than closing over this render's values, so re-registering is
+    // a no-op. onReady is listed so a parent that swaps handlers actually gets
+    // the handle; App memoizes it, so in practice this runs once on mount.
+  }, [onReady]);
 
   /* ── Chat ───────────────────────────────────────────────────────── */
 
@@ -325,7 +333,12 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
   /* ── Settings ───────────────────────────────────────────────────── */
 
   function renderSettings() {
-    const contacts = executeTool(session, 'get_emergency_contacts', {}) as {
+    // Reads assert whose chart they are about, so the screen has to name the
+    // record it is showing — the same way the real app's does. Without the
+    // argument this refuses as soon as the assistant switches to a family
+    // member's chart.
+    const viewing = activePatient(session);
+    const contacts = executeTool(session, 'get_emergency_contacts', { patient: viewing.name }) as {
       id: string;
       name: string;
       relationship: string;
@@ -368,6 +381,14 @@ export function IosSurface({ session, runTurn, onReady }: Props) {
             <div className="ios-settings-row">
               <span>Authenticator (TOTP)</span>
               <span className="ios-pill green">Enabled</span>
+            </div>
+            <div className="ios-settings-row">
+              <span>
+                Viewing record
+                <br />
+                <span className="ios-picker-host">{viewing.relationship}</span>
+              </span>
+              <span className="ios-pill green">{viewing.name}</span>
             </div>
           </div>
 

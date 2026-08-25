@@ -14,8 +14,8 @@ or a package tsconfig), never to exempt it — an exempted file resolves without
 `paths` and silently loses type-aware linting. The same projects back `bun run typecheck`, so
 nothing is excluded from typechecking either: expo-app checks its `__tests__`, npm-package checks
 `examples/` and `tsup.config.ts` (build `dist/` first — examples import the published package
-name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included —
-`cd tests/integration/ci && bun install` first) ride the root tsconfig.
+name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included) ride the
+root tsconfig.
 
 One caveat the compiler can't express: the expo test files carry `/// <reference types="bun" />`
 so `bun:test` resolves, and a triple-slash reference is program-wide — it puts `Bun` in scope for
@@ -85,7 +85,10 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
   (`cd npm-package && bun run build`).
 - `fake-mychart-passkey-ui.integration.test.ts` — Playwright-driven browser test of the fake-mychart
   passkey UI using Chromium's WebAuthn virtual authenticator (a CDP feature plain `fetch` can't
-  replicate).
+  replicate). `playwright` rides the root install, but the Chromium binary is a separate download
+  (`bunx playwright install chromium`); without it the suite **skips with that command in the
+  message** rather than failing to launch. `$CI` overrides the skip, so a browser-install break in
+  the workflow fails loudly instead of quietly covering nothing.
 
 The `integration` CI job runs the whole suffix at once, so this directory, the scraper suites, the
 desktop extension's imaging download and npm-package's built-bundle test all share one server. That
@@ -100,10 +103,16 @@ levels, because no single one reaches everything:
 `scrapers/myChart/auth/__tests__/setupTotp.unit.test.ts` and `setupPasskey.unit.test.ts` are unit tests
 over a mocked transport (`__tests__/mockMyChartRequest.ts` swaps `transport`, so real URL building,
 default headers and the host limiter still run) and are the **only** place the per-instance response
-variants are exercised — the four CSRF-token formats plus the empty-body `/Home` fallback, the eight
-names instances use for the TOTP secret field, Pascal- vs camel-cased passkey envelopes, and every
-error branch. They also assert the secret and password never reach the log sink. fake-mychart serves
-exactly one shape of each, so those branches are unreachable from an integration test.
+variants are exercised — the eight names instances use for the TOTP secret field, Pascal- vs
+camel-cased passkey envelopes, and every error branch. They also assert the secret and password
+never reach the log sink. fake-mychart serves exactly one shape of each, so those branches are
+unreachable from an integration test.
+
+The `/Home/CSRFToken` variants moved out to `scrapers/myChart/core/__tests__/csrf.unit.test.ts` when
+the three copies of that parsing were merged into `core/csrf.ts` — the four JSON key spellings, the
+bare-string body, the HTML hidden input, the empty-body `/Home` fallback, and the Terms & Conditions
+bounce that must *not* fall back. Same reasoning: fake-mychart serves one shape, so this suite is the
+only place the matrix runs.
 
 **Protocol detection**: hostnames without a dot (e.g. Docker service names like
 `fake-mychart:3000`) automatically use HTTP instead of HTTPS.

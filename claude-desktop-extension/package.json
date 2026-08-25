@@ -1,6 +1,6 @@
 {
   "name": "openrecord-mcpb",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Claude Desktop Extension for OpenRecord — read and manage MyChart health data through Claude.",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
@@ -10,15 +10,18 @@
     "dev": "tsup --watch",
     "dev:reload": "bun run build && node dev/dev-reload.mjs",
     "dev:proxy": "./node_modules/.bin/mcpmon --watch dist --ext cjs -- node dist/server.cjs",
-    "pack": "bun run build && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
-    "smoke": "bun run build && node smoke.cjs",
-    "test": "bun test --isolate .unit.test.ts .integration.test.ts"
+    "pack": "bun install --os='*' --cpu='*' && bun run build && bun run verify-binaries && npx -y @anthropic-ai/mcpb pack . openrecord.mcpb",
+    "smoke": "bun run build && node smoke.mjs",
+    "test": "bun test --isolate .unit.test.ts .integration.test.ts",
+    "verify-binaries": "node scripts/verify-native-binaries.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@napi-rs/keyring": "^1.3.0",
     "cheerio": "^1.2.0",
     "fetch-cookie": "^3.2.0",
     "jpeg-js": "^0.4.4",
+    "node-sqlite3-wasm": "^0.8.60",
     "totp-generator": "^2.0.1",
     "tough-cookie": "^6.0.2",
     "zod": "^4.4.3"

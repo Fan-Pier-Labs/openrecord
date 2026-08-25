@@ -45,19 +45,9 @@ export default function ChatDetailScreen() {
   const titleSetRef = useRef(false);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (chatId) {
-      fireAndForget(loadMessages(), "chat:loadMessages");
-      fireAndForget(
-        getChat(chatId).then((c) => {
-          titleSetRef.current = !!c && c.title !== "New Chat";
-        }),
-        "chat:getChat",
-      );
-    }
-  }, [chatId]);
-
-  async function loadMessages() {
+  // Memoized on chatId alone (setMessages is stable), so the effect below can
+  // depend on it without re-running on every render.
+  const loadMessages = useCallback(async () => {
     const dbMessages = await getMessages(chatId);
     setMessages(
       dbMessages
@@ -70,7 +60,19 @@ export default function ChatDetailScreen() {
           content: m.content,
         }))
     );
-  }
+  }, [chatId]);
+
+  useEffect(() => {
+    if (chatId) {
+      fireAndForget(loadMessages(), "chat:loadMessages");
+      fireAndForget(
+        getChat(chatId).then((c) => {
+          titleSetRef.current = !!c && c.title !== "New Chat";
+        }),
+        "chat:getChat",
+      );
+    }
+  }, [chatId, loadMessages]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);

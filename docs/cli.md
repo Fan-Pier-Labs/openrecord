@@ -17,9 +17,16 @@ The CLI caches serialized MyChart sessions to `.cookie-cache/<hostname>.json` af
 
 ## Credential Resolution
 
-- `--host <hostname>` — auto-discovers credentials from browser password stores (Chrome, Arc, Firefox)
+- `--host <hostname>` — auto-discovers credentials from browser password stores (Chrome, Arc, Brave, Edge, Firefox)
 - `--host <hostname> --user <u> --pass <p>` — uses provided credentials
 - `--read-login-from-browser` — explicitly scan browser password stores for credentials (works with or without `--host`)
+
+Browser discovery is read-only and macOS/Windows only. It reads the OS-held master key
+(macOS Keychain, or DPAPI on Windows) — on macOS that raises the system's own permission
+prompt, which is the consent gate. Only **confirmed** matches are used: a hostname in the
+bundled MyChart directory, or one whose redirect chain lands on an Epic login page. Anything
+else is dropped rather than guessed at — pass `--user`/`--pass` for those. See
+[`read-local-passwords/README.md`](../read-local-passwords/README.md).
 - `--2fa <code>` — provides a 2FA code for non-interactive use; otherwise the CLI prompts interactively for the 6-digit code
 
 ## Subcommands

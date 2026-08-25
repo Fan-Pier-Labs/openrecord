@@ -1,10 +1,27 @@
 /**
- * Disk-backed credential storage for the OpenRecord MCPB.
+ * Credential storage for the OpenRecord MCPB.
  *
- * All files live under ~/.openrecord-mcpb/:
- *   accounts.json                          — { accounts: [{ hostname, username, password, totpSecret? }] }
- *   passkeys/<hostname>/<username>.json    — { passkey: "<serialized credential JSON>" }
- *   sessions/<hostname>/<username>.json    — serialized MyChartRequest cookie state
+ * Every secret goes to the OS keystore — the macOS Keychain, the Windows
+ * Credential Manager, or the Secret Service on Linux — via `secret-store.ts`,
+ * which falls back to the files below wherever no keystore answers. Three items
+ * per identity, under service `openrecord-mcpb`:
+ *   password:<hostname>:<username>
+ *   totp:<hostname>:<username>
+ *   passkey:<hostname>:<username>
+ *
+ * What stays on disk under ~/.openrecord-mcpb/:
+ *   accounts.json                          — the index: { accounts: [{ hostname, username }] }.
+ *                                            Also holds password/totpSecret inline when there is
+ *                                            no keystore, which is where every pre-keystore
+ *                                            install left them.
+ *   passkeys/<hostname>/<username>.json    — keystore fallback only
+ *   sessions/<hostname>/<username>.json    — serialized MyChartRequest cookie state. Cookies are
+ *                                            bearer credentials too, but they expire and the
+ *                                            silent-login ladder just re-mints them.
+ *
+ * Migration is a side effect of reading: a secret found in the old file
+ * location is written to the keystore and removed from the file, so an upgrade
+ * costs nobody a re-login.
  *
  * Everything is keyed by (hostname, username), never by hostname alone: a
  * household shares a computer, so one hostname routinely carries several
@@ -21,6 +38,8 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
+import { clearSecret, readSecret, writeSecret, activeBackend, type FileSlot } from './secret-store';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
@@ -70,20 +89,109 @@ function ensureDir(dir: string): void {
 
 // ── Accounts ────────────────────────────────────────────────────────────────
 
-export function readAccounts(): AccountConfig[] {
+/**
+ * A row as it sits in accounts.json. With a keystore this is just the index —
+ * which logins exist — and `password`/`totpSecret` are absent. They are still
+ * declared because that is exactly where they live when there is no keystore,
+ * and where every install written before this change left them.
+ */
+interface AccountRow {
+  hostname: string;
+  username: string;
+  password?: string;
+  totpSecret?: string;
+}
+
+function readRows(): AccountRow[] {
   try {
     const raw = JSON.parse(fs.readFileSync(ACCOUNTS_PATH, 'utf-8'));
     if (!Array.isArray(raw.accounts)) return [];
-    return raw.accounts as AccountConfig[];
+    return raw.accounts as AccountRow[];
   } catch {
     return [];
   }
 }
 
-export function saveAccounts(accounts: AccountConfig[]): void {
+function writeRows(accounts: AccountRow[]): void {
   ensureDir(ROOT);
   fs.writeFileSync(ACCOUNTS_PATH, JSON.stringify({ accounts }, null, 2));
   try { fs.chmodSync(ACCOUNTS_PATH, 0o600); } catch { /* best effort */ }
+}
+
+function rowIndex(rows: AccountRow[], hostname: string, username: string): number {
+  const normalized = normalizeHostname(hostname);
+  return rows.findIndex(
+    r => normalizeHostname(r.hostname) === normalized && sameUsername(r.username, username),
+  );
+}
+
+/** Keystore item names. One per secret per identity, same shape as the passkey's. */
+function passwordKey(hostname: string, username: string): string {
+  return `password:${normalizeHostname(hostname)}:${usernameKey(username)}`;
+}
+function totpKey(hostname: string, username: string): string {
+  return `totp:${normalizeHostname(hostname)}:${usernameKey(username)}`;
+}
+
+/**
+ * The accounts.json field a secret used to live in — the fallback when there is
+ * no keystore, and the source `readSecret` migrates from on the first read
+ * after an upgrade. Writing through it never invents a row: `upsertAccount`
+ * puts the index row down first, and a secret with no login to attach it to is
+ * a credential entry nobody can use.
+ */
+function accountFieldSlot(
+  hostname: string,
+  username: string,
+  field: 'password' | 'totpSecret',
+): FileSlot {
+  return {
+    read() {
+      const rows = readRows();
+      return rows[rowIndex(rows, hostname, username)]?.[field];
+    },
+    write(secret: string) {
+      const rows = readRows();
+      const idx = rowIndex(rows, hostname, username);
+      const existing = rows[idx];
+      if (!existing) return;
+      rows[idx] = { ...existing, [field]: secret };
+      writeRows(rows);
+    },
+    clear() {
+      const rows = readRows();
+      const idx = rowIndex(rows, hostname, username);
+      const existing = rows[idx];
+      if (existing?.[field] === undefined) return;
+      const { [field]: _dropped, ...rest } = existing;
+      rows[idx] = rest;
+      writeRows(rows);
+    },
+  };
+}
+
+/**
+ * Every account, with its secrets resolved from wherever they actually live.
+ *
+ * The hydration is why callers can keep treating `AccountConfig` as a plain
+ * object: moving the password and TOTP secret into the keystore changed where
+ * they are persisted, not what a caller sees. A legacy row that still carries
+ * them inline is migrated by `readSecret` on the way past.
+ */
+export function readAccounts(): AccountConfig[] {
+  return readRows().map(row => ({
+    hostname: row.hostname,
+    username: row.username,
+    password:
+      readSecret(
+        passwordKey(row.hostname, row.username),
+        accountFieldSlot(row.hostname, row.username, 'password'),
+      ) ?? '',
+    totpSecret: readSecret(
+      totpKey(row.hostname, row.username),
+      accountFieldSlot(row.hostname, row.username, 'totpSecret'),
+    ),
+  }));
 }
 
 export function accountsForHostname(hostname: string): AccountConfig[] {
@@ -117,26 +225,37 @@ export function lookupAccount(ref: string): AccountConfig | undefined {
  * changed password) and keeps its passkey and session.
  */
 export function upsertAccount(account: AccountConfig): void {
-  const normalized = normalizeHostname(account.hostname);
-  const accounts = readAccounts();
-  const idx = accounts.findIndex(
-    a => normalizeHostname(a.hostname) === normalized && sameUsername(a.username, account.username),
-  );
-  const merged = { ...account, hostname: normalized };
-  if (idx >= 0) accounts[idx] = merged; else accounts.push(merged);
-  saveAccounts(accounts);
+  const { hostname, username } = account;
+  const normalized = normalizeHostname(hostname);
+  const rows = readRows();
+  const idx = rowIndex(rows, hostname, username);
+  // The index row carries no secrets. It goes down FIRST, because the file
+  // fallback attaches secrets to an existing row and will not invent one.
+  const row: AccountRow = { hostname: normalized, username };
+  if (idx >= 0) rows[idx] = row; else rows.push(row);
+  writeRows(rows);
+
+  writeSecret(passwordKey(hostname, username), account.password, accountFieldSlot(hostname, username, 'password'));
+  if (account.totpSecret !== undefined) {
+    writeSecret(totpKey(hostname, username), account.totpSecret, accountFieldSlot(hostname, username, 'totpSecret'));
+  }
 }
 
 export function removeAccount(hostname: string, username: string): boolean {
-  const normalized = normalizeHostname(hostname);
-  const accounts = readAccounts();
-  const filtered = accounts.filter(
-    a => !(normalizeHostname(a.hostname) === normalized && sameUsername(a.username, username)),
-  );
-  if (filtered.length === accounts.length) return false;
-  saveAccounts(filtered);
+  const rows = readRows();
+  const idx = rowIndex(rows, hostname, username);
+  if (idx < 0) return false;
+  // Secrets first: dropping the row before clearing them would strip the file
+  // fallback's own storage out from under it and orphan the keystore items.
+  clearSecret(passwordKey(hostname, username), accountFieldSlot(hostname, username, 'password'));
+  clearSecret(totpKey(hostname, username), accountFieldSlot(hostname, username, 'totpSecret'));
   clearAccountPasskey(hostname, username);
   clearAccountSession(hostname, username);
+
+  const remaining = readRows();
+  const stillThere = rowIndex(remaining, hostname, username);
+  if (stillThere >= 0) remaining.splice(stillThere, 1);
+  writeRows(remaining);
   return true;
 }
 
@@ -148,15 +267,9 @@ export function removeAccount(hostname: string, username: string): boolean {
  * leave a credential entry with no password.
  */
 export function saveAccountTotpSecret(hostname: string, username: string, totpSecret: string): boolean {
-  const normalized = normalizeHostname(hostname);
-  const accounts = readAccounts();
-  const idx = accounts.findIndex(
-    a => normalizeHostname(a.hostname) === normalized && sameUsername(a.username, username),
-  );
-  const existing = accounts[idx];
-  if (!existing) return false;
-  accounts[idx] = { ...existing, totpSecret };
-  saveAccounts(accounts);
+  const rows = readRows();
+  if (rowIndex(rows, hostname, username) < 0) return false;
+  writeSecret(totpKey(hostname, username), totpSecret, accountFieldSlot(hostname, username, 'totpSecret'));
   return true;
 }
 
@@ -166,24 +279,59 @@ function passkeyPath(hostname: string, username: string): string {
   return path.join(PASSKEYS_DIR, normalizeHostname(hostname), `${usernameKey(username)}.json`);
 }
 
+/**
+ * The keystore item name. Human-readable on purpose: this is what shows up in
+ * Keychain Access and in the Windows Credential Manager, and a user auditing
+ * what OpenRecord stored should be able to tell whose passkey each item is.
+ *
+ * Same (hostname, username) normalisation as the file layout, so the two agree
+ * on identity and migration lands on the right item.
+ */
+function passkeyKey(hostname: string, username: string): string {
+  return `passkey:${normalizeHostname(hostname)}:${usernameKey(username)}`;
+}
+
+/**
+ * The pre-keystore plaintext file for one passkey. Still the fallback when no
+ * keystore answers, and still read once on migration, so its shape is frozen.
+ */
+function passkeySlot(hostname: string, username: string): FileSlot {
+  const p = passkeyPath(hostname, username);
+  return {
+    read() {
+      try {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        return data?.passkey || undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    write(secret: string) {
+      ensureDir(path.dirname(p));
+      fs.writeFileSync(p, JSON.stringify({ passkey: secret }, null, 2));
+      try { fs.chmodSync(p, 0o600); } catch { /* best effort */ }
+    },
+    clear() {
+      try { fs.unlinkSync(p); } catch { /* ignore */ }
+    },
+  };
+}
+
 export function readAccountPasskey(hostname: string, username: string): string | undefined {
-  try {
-    const data = JSON.parse(fs.readFileSync(passkeyPath(hostname, username), 'utf-8'));
-    return data?.passkey || undefined;
-  } catch {
-    return undefined;
-  }
+  return readSecret(passkeyKey(hostname, username), passkeySlot(hostname, username));
 }
 
 export function saveAccountPasskey(hostname: string, username: string, serialized: string): void {
-  const p = passkeyPath(hostname, username);
-  ensureDir(path.dirname(p));
-  fs.writeFileSync(p, JSON.stringify({ passkey: serialized }, null, 2));
-  try { fs.chmodSync(p, 0o600); } catch { /* best effort */ }
+  writeSecret(passkeyKey(hostname, username), serialized, passkeySlot(hostname, username));
 }
 
 export function clearAccountPasskey(hostname: string, username: string): void {
-  try { fs.unlinkSync(passkeyPath(hostname, username)); } catch { /* ignore */ }
+  clearSecret(passkeyKey(hostname, username), passkeySlot(hostname, username));
+}
+
+/** Where secrets are actually being stored, for `list_accounts` diagnostics. */
+export function secretBackend(): string {
+  return activeBackend();
 }
 
 // ── Sessions (serialized MyChartRequest cookie state) ───────────────────────

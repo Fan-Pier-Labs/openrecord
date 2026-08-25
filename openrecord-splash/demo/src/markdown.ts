@@ -53,6 +53,16 @@ export function parseInline(line: string): InlineSpan[] {
 
 const IMAGE_TOKEN = /^\[image:([a-z0-9_-]+)\]$/i;
 
+/**
+ * `#`-prefixed heading and `-`/`*` bullet, with the rest of the line captured.
+ * `(?!\s)` pins `\s+` to the whole whitespace run — without it `\s+` and `(.*)`
+ * both match spaces, so a whitespace-only line made the engine try every
+ * division of it. It matches the same lines: `(.*)$` fails only on a line
+ * terminator, which handing whitespace back to `(.*)` cannot help with.
+ */
+const HEADING = /^(#{1,4})\s+(?!\s)(.*)$/;
+const BULLET = /^\s*[-*]\s+(?!\s)(.*)$/;
+
 /** Parse a full assistant reply into blocks. */
 export function parseMarkdown(source: string | null | undefined): Block[] {
   const blocks: Block[] = [];
@@ -96,7 +106,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const heading = /^(#{1,4})\s+(.*)$/.exec(line);
+    const heading = HEADING.exec(line);
     if (heading) {
       flushAll();
       // Both groups are non-optional, so they are present on any match.
@@ -104,7 +114,7 @@ export function parseMarkdown(source: string | null | undefined): Block[] {
       continue;
     }
 
-    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    const bullet = BULLET.exec(line);
     if (bullet) {
       flushParagraph();
       flushQuote();

@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "openrecord",
   "display_name": "OpenRecord — MyChart for Claude",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Read and manage your MyChart health data through Claude.",
   "long_description": "Connects Claude Desktop to Epic MyChart patient portals. Ask Claude to fetch your medications, lab results, imaging, messages, billing, and more — or to send a message to your care team, request a refill, or update emergency contacts. Auth is conversational: tell Claude to set up your account and a guided flow walks you through picking your MyChart, signing in, completing 2FA, and registering a passkey for future zero-prompt logins.",
   "author": {
@@ -28,6 +28,8 @@
     { "name": "search_mycharts", "description": "Search the directory of known MyChart instances by name." },
     { "name": "get_setup_widget", "description": "Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup." },
     { "name": "setup_account", "description": "Attempt to log into MyChart with hostname + username + password. May return need_2fa." },
+    { "name": "import_browser_passwords", "description": "Find MyChart logins already saved in this machine's browsers (Chrome, Arc, Brave, Edge, Firefox). Read-only; returns no passwords." },
+    { "name": "connect_imported_account", "description": "Connect an account found by import_browser_passwords, using the password already saved in the browser." },
     { "name": "complete_2fa", "description": "Finish a setup_account flow that returned need_2fa." },
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },

@@ -23,7 +23,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
 | `openrecord-splash/` | Static splash site + the browser demo |
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
-| `read-local-passwords/` | Browser password store extraction (Chrome, Arc, Firefox) — used by the CLI |
+| `read-local-passwords/` | Browser password store extraction (Chromium + Firefox) — used by the CLI and the MCPB's import flow. Read-only, macOS/Windows |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
 ## Invariants
@@ -104,7 +104,9 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
 
 ## Rules
 
-- **NEVER modify or delete anything from the macOS Keychain or a browser keychain.** Read-only is OK.
+- **NEVER modify or delete anything in the macOS Keychain or a browser keychain that we did not
+  create.** Read-only is OK. The sole exception is the MCPB's own items under service
+  `openrecord-mcpb`, which `claude-desktop-extension/src/secret-store.ts` owns outright.
 - **NEVER make changes in AWS without explicit user direction.** No `create-*`/`delete-*`/`update-*`/
   `put-*`, ECS/ALB/IAM/Secrets/RDS/S3/CloudFront writes. Read-only calls (`describe-*`, `list-*`,
   `get-*`) are fine, as is running an official deploy script when asked to deploy. If a deploy fails
