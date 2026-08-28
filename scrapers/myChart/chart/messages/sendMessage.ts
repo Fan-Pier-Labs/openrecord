@@ -58,7 +58,7 @@ async function makeApiRequest(
   path: string,
   body: unknown,
   token: string,
-): Promise<{ status: number; json: unknown }> {
+): Promise<{ status: number; json: unknown; text: string }> {
   const res = await makeAuthenticatedRequest(mychartRequest, {
     path,
     method: 'POST',
@@ -75,7 +75,7 @@ async function makeApiRequest(
   } catch {
     // not JSON
   }
-  return { status: res.status, json };
+  return { status: res.status, json, text };
 }
 
 /** Get the request verification token needed for all API calls */
@@ -182,11 +182,24 @@ async function removeComposeId(
  * Send a new message to a provider.
  *
  * This creates a new conversation (medical advice request).
+ *
+ * Portal quirk (measured on myhealthchart.com, 2026-08-28): the send endpoint
+ * answers HTTP 200 with an empty conversation id for message bodies over 500
+ * characters (500 accepted, 501+ silently dropped) — no error is returned.
+ * Validate here so the failure is explicit instead of a silent no-op.
  */
+const MAX_MESSAGE_BODY_LENGTH = 500;
+
 export async function sendNewMessage(
   mychartRequest: MyChartRequest,
   params: SendNewMessageParams,
 ): Promise<SendNewMessageResult> {
+  if (params.messageBody.length > MAX_MESSAGE_BODY_LENGTH) {
+    return {
+      success: false,
+      error: `Message body is ${params.messageBody.length} characters; this portal silently drops bodies over ${MAX_MESSAGE_BODY_LENGTH}. Shorten the message or split it into multiple sends.`,
+    };
+  }
   const organizationId = params.organizationId ?? '';
 
   // Step 1: Get verification token
@@ -210,11 +223,13 @@ export async function sendNewMessage(
   // Step 4: Send the message
   const sendBody = {
     recipient: {
+      recipientType: params.recipient.recipientType,
       displayName: params.recipient.displayName,
       userId: params.recipient.userId,
       poolId: params.recipient.poolId,
       providerId: params.recipient.providerId,
       departmentId: params.recipient.departmentId,
+      oocContext: params.recipient.oocContext ?? 0,
     },
     topic: {
       title: params.topic.displayName,
@@ -240,12 +255,26 @@ export async function sendNewMessage(
   // Step 5: Cleanup compose ID
   await removeComposeId(mychartRequest, token, composeId);
 
-  if (result.status === 200 && typeof result.json === 'string') {
+  if (result.status === 200 && typeof result.json === 'string' && result.json.length > 0) {
     return { success: true, conversationId: result.json };
   }
-
+  if (result.status === 200) {
+    // Some Epic instances answer 200 with an empty string when they silently
+    // drop the request (e.g. under-populated recipient). Treat as
+    // indeterminate, never success — and expose the raw response.
+    console.error(
+      '[sendMessage] indeterminate send: HTTP 200 without a conversation id. ' +
+      `path=/api/medicaladvicerequests/SendMedicalAdviceRequest ` +
+      `body=${JSON.stringify(result.text.slice(0, 2000))}`,
+    );
+    return {
+      success: false,
+      error: 'Send returned HTTP 200 but no conversation id — indeterminate; ' +
+        'the message may not exist. Raw body: ' + JSON.stringify(result.text.slice(0, 2000)),
+    };
+  }
   return {
     success: false,
-    error: `Send failed with status ${result.status}: ${JSON.stringify(result.json)}`,
+    error: `Send failed with status ${result.status}: ${JSON.stringify(result.text.slice(0, 2000))}`,
   };
 }
