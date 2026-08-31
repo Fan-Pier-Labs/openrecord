@@ -14,6 +14,7 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { getRequestVerificationTokenFromBody } from '../../core/util';
+import { logger } from '../../../../shared/logger';
 
 export type MessageRecipient = {
   recipientType: number;
@@ -26,6 +27,8 @@ export type MessageRecipient = {
   organizationId: string;
   pcpTypeDisplayName?: string;
   photoUrl?: string;
+  /** Out-of-context flag; absent on most instances, required on some. */
+  oocContext?: number;
 };
 
 export type MessageTopic = {
@@ -179,17 +182,28 @@ async function removeComposeId(
 }
 
 /**
- * Send a new message to a provider.
+ * Per-instance Epic quirk (measured on myhealthchart.com, 2026-08-28): the
+ * send endpoint answers HTTP 200 with an empty conversation id for message
+ * bodies over 500 characters (500 accepted, 501+ silently dropped) — no
+ * error is returned. Other instances may accept more; the 200-without-id
+ * branch below still catches any silent drop regardless of cause.
  *
- * This creates a new conversation (medical advice request).
- *
- * Portal quirk (measured on myhealthchart.com, 2026-08-28): the send endpoint
- * answers HTTP 200 with an empty conversation id for message bodies over 500
- * characters (500 accepted, 501+ silently dropped) — no error is returned.
- * Validate here so the failure is explicit instead of a silent no-op.
+ * Boundary derived by bisection on ASCII; Epic's counting for non-ASCII
+ * bodies (characters vs UTF-16 code units vs bytes) is unverified.
  */
 const MAX_MESSAGE_BODY_LENGTH = 500;
+/** Cap on raw response-body text kept for diagnostics. */
+const MAX_LOGGED_BODY = 2000;
 
+/**
+ * Send a new message to a provider.
+ *
+ * This creates a new conversation (medical advice request). Never reports
+ * success without a durable conversation id: some Epic instances answer
+ * HTTP 200 with an empty body when they silently drop the request (e.g.
+ * under-populated recipient or an over-limit body) — treated as
+ * indeterminate, not success, because the caller cannot safely retry.
+ */
 export async function sendNewMessage(
   mychartRequest: MyChartRequest,
   params: SendNewMessageParams,
@@ -197,7 +211,7 @@ export async function sendNewMessage(
   if (params.messageBody.length > MAX_MESSAGE_BODY_LENGTH) {
     return {
       success: false,
-      error: `Message body is ${params.messageBody.length} characters; this portal silently drops bodies over ${MAX_MESSAGE_BODY_LENGTH}. Shorten the message or split it into multiple sends.`,
+      error: `Message body is ${params.messageBody.length} characters; an Epic instance we've tested silently drops bodies over ${MAX_MESSAGE_BODY_LENGTH}. Shorten the message or split it into multiple sends.`,
     };
   }
   const organizationId = params.organizationId ?? '';
@@ -261,20 +275,22 @@ export async function sendNewMessage(
   if (result.status === 200) {
     // Some Epic instances answer 200 with an empty string when they silently
     // drop the request (e.g. under-populated recipient). Treat as
-    // indeterminate, never success — and expose the raw response.
-    console.error(
+    // indeterminate, never success — and log the raw response for debugging.
+    const rawBody = result.text.slice(0, MAX_LOGGED_BODY);
+    logger.error(
       '[sendMessage] indeterminate send: HTTP 200 without a conversation id. ' +
       `path=/api/medicaladvicerequests/SendMedicalAdviceRequest ` +
-      `body=${JSON.stringify(result.text.slice(0, 2000))}`,
+      `body=${JSON.stringify(rawBody)}`,
     );
     return {
       success: false,
       error: 'Send returned HTTP 200 but no conversation id — indeterminate; ' +
-        'the message may not exist. Raw body: ' + JSON.stringify(result.text.slice(0, 2000)),
+        'the message may not exist.',
     };
   }
   return {
     success: false,
-    error: `Send failed with status ${result.status}: ${JSON.stringify(result.text.slice(0, 2000))}`,
+    error: `Send failed with status ${result.status}: ` +
+      JSON.stringify(result.text.slice(0, MAX_LOGGED_BODY)),
   };
 }
