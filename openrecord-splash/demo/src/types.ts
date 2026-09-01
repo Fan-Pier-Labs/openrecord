@@ -438,11 +438,15 @@ export type CompleteFn = (
   signal?: AbortSignal,
 ) => Promise<string>;
 
+// Every field is `?: T | undefined`, not plain `?: T`: callers forward
+// callbacks they may not have (App.tsx passes a surface's handlers straight
+// through), and `runAgentTurn` reads each one as `?? noop`, so an explicit
+// `undefined` and an absent key mean the same thing here.
 export type TurnCallbacks = {
-  onToolStart?: (call: ParsedToolCall) => void;
-  onToolEnd?: (record: ToolRecord) => void;
+  onToolStart?: ((call: ParsedToolCall) => void) | undefined;
+  onToolEnd?: ((record: ToolRecord) => void) | undefined;
   /** The model call failed; the turn is about to throw. */
-  onError?: (error: Error) => void;
+  onError?: ((error: Error) => void) | undefined;
   /**
    * Put a proposed write to the user and resolve with their answer. The loop
    * blocks on this, so the tool does not run until it resolves true.
@@ -450,7 +454,7 @@ export type TurnCallbacks = {
    * Omitting it denies every write: a surface that forgets to wire the dialog
    * must fail shut, not run writes with no confirmation at all.
    */
-  onConfirmWrite?: (write: PendingWrite) => Promise<boolean>;
+  onConfirmWrite?: ((write: PendingWrite) => Promise<boolean>) | undefined;
 };
 
 /**
