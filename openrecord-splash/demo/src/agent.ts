@@ -497,7 +497,10 @@ export function createProxyCompleter(endpoint: string): CompleteFn {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ system, messages }),
-      signal,
+      // `RequestInit.signal` is `AbortSignal | null`, and under
+      // exactOptionalPropertyTypes an explicit `undefined` no longer satisfies
+      // it. `null` is what the fetch spec means by "no signal".
+      signal: signal ?? null,
     });
     if (!res.ok) {
       let detail = '';
