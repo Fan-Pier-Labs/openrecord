@@ -70,8 +70,9 @@ async function main(): Promise<void> {
         '\n  2. Ask the user for their MyChart username and password.' +
         '\n  3. Call setup_account(hostname, username, password). On `need_2fa`, ask the user for the ' +
         '     6-digit code, then call complete_2fa(pending_id, code). On `invalid_login`, ask again.' +
-        '\n  4. A passkey is auto-registered on success (`passkey_registered: true`) so future ' +
-        '     sessions skip the password + 2FA prompts entirely.' +
+        '\n  4. On `logged_in`, do what that result\'s `message` field says — it recommends a passkey ' +
+        '     and explains what one changes. NEVER call register_passkey (or any other tool that ' +
+        '     alters how an account signs in) unless the user has explicitly said yes to it.' +
         '\n  5. Use the data tools (get_medications, get_lab_results, send_message, etc.) with the ' +
         '     `account` from the previous step.',
     },
