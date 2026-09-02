@@ -34,6 +34,30 @@ Every client's list of MyChart instances comes from Epic's own picker data, scra
 
 When reverse engineering health portal APIs (MyChart, etc.), the request headers must **exactly match** what the browser sends — including header name casing (lowercase), `origin` header, `user-agent` string version, and `x-clientversion`. A missing `origin` header alone causes a 403 Forbidden. Use Playwright MCP to capture the exact request the browser makes, then replicate it exactly in the scraper code. 
 
+## Finding the request the web UI sends
+
+The `/app/*` pages are React, and each one's bundle is a separate file under
+`/<mount>/scripts/lib/pxbuild/`. The page HTML carries a map of every bundle
+name to its cache-busting hash, so `epic.px.client.<page>.js` — e.g.
+`epic.px.client.communication-center.js` — is fetchable directly, without the
+`?v=` and (for most instances) without credentials. Prettify it and grep for the
+endpoint name: the caller is right there, with the exact `requestData` keys, any
+`nonceProperty`, and the values its own caller passes.
+
+Worth knowing before guessing at a payload: **parameter names are per-endpoint,
+not per-area**. Under `/api/conversations/` the read endpoints
+(`GetConversationDetails`, `GetConversationMessages`) key the thread on `id`,
+while the mutating ones (`SendReply`, `DeleteConversation`) use
+`conversationId`. Sending the wrong one is an opaque HTTP 500
+`{"Message":"An error has occurred."}`, which looks exactly like a dead
+endpoint.
+
+**And rejections are per-endpoint too.** Given the very same bad id,
+`GetConversationMessages` answers 500 while `GetConversationDetails` answers
+**200 with a literal JSON `null`** — as `GetVisitNotes` and `GetLetterDetails`
+also do. So `if (!response.ok) throw` is not enough on this API: check the
+payload as well, or an unknown id becomes an empty medical record.
+
 ## Tools
 
 - **Playwright MCP** is the preferred tool for exploring websites, reverse engineering APIs, and understanding web app behavior. Always use the Playwright MCP tools (browser_navigate, browser_snapshot, browser_click, browser_network_requests, etc.) rather than writing one-off TypeScript scripts that import Playwright directly. The MCP gives you an interactive browser session that's far more efficient for investigation and debugging.

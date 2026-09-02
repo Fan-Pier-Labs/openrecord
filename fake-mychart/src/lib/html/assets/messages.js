@@ -18,41 +18,87 @@ function loadConversations() {
     });
 }
 
-// Load a thread and show reply box
+// Load a thread and show reply box.
+//
+// GetConversationDetails is what carries the subject and the users / viewers
+// name maps; the messages it returns are only the newest page, so anything
+// older is fetched by GetConversationMessages. Both key the thread on `id` --
+// only the mutating endpoints (SendReply, DeleteConversation) use
+// `conversationId`.
+var currentThread = null;
+
+function authorName(msg, payload) {
+  var author = msg.author || {};
+  if (author.wprKey) {
+    return ((payload.viewers || {})[author.wprKey] || {}).name || author.displayName || '';
+  }
+  if (author.empKey) {
+    return (payload.userOverrideNames || {})[author.empKey] ||
+      ((payload.users || {})[author.empKey] || {}).name || author.displayName || '';
+  }
+  return author.displayName || '';
+}
+
 function loadThread(convId) {
   currentConvId = convId;
+  fetch('{{MP}}/api/conversations/getconversationdetails', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: convId })
+  }).then(r => r.json()).then(data => {
+    currentThread = data;
+    renderThread();
+  });
+}
+
+// Page backwards: everything strictly older than the oldest message we hold.
+function loadOlderMessages() {
   fetch('{{MP}}/api/conversations/getconversationmessages', {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ conversationId: convId })
+    body: JSON.stringify({
+      id: currentConvId,
+      startInstantISO: (currentThread.messages[0] || {}).deliveryInstantISO || ''
+    })
   }).then(r => r.json()).then(data => {
-    var thread = document.getElementById('thread');
-    var msgs = data.messages || [];
-    var html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
-      '<h2 style="margin:0;">Conversation</h2>' +
-      '<button onclick="closeThread()" style="padding:6px 12px; background:#eee; color:#333; border:1px solid #ccc; border-radius:4px; font-size:13px; cursor:pointer;">Back to inbox</button></div>';
-    html += msgs.map(m => {
-      var isPatient = m.author.wprKey && !m.author.empKey;
-      return '<div class="msg-bubble ' + (isPatient ? 'patient' : 'provider') + '">' +
-        '<div class="author">' + m.author.displayName + '</div>' +
-        '<div class="body">' + m.body + '</div>' +
-        '<div class="time">' + new Date(m.deliveryInstantISO).toLocaleString() + '</div>' +
-      '</div>';
-    }).join('');
-    // Reply box
-    html += '<div style="margin-top:16px; padding-top:16px; border-top:1px solid #e0e0e0;">' +
-      '<label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Reply:</label>' +
-      '<textarea id="replyBody" rows="3" placeholder="Type your reply..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical; margin-bottom:8px;"></textarea>' +
-      '<button onclick="sendReply()" style="padding:8px 16px; background:#1a5276; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">Send Reply</button>' +
-    '</div>';
-    thread.innerHTML = html;
-    thread.classList.add('visible');
-    thread.scrollIntoView({ behavior: 'smooth' });
+    currentThread.messages = (data.messages || []).concat(currentThread.messages);
+    currentThread.hasMoreMessages = !!data.hasMoreMessages;
+    renderThread();
   });
+}
+
+function renderThread() {
+  var data = currentThread;
+  var thread = document.getElementById('thread');
+  var msgs = data.messages || [];
+  var html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
+    '<h2 style="margin:0;">' + (data.subject || 'Conversation') + '</h2>' +
+    '<button onclick="closeThread()" style="padding:6px 12px; background:#eee; color:#333; border:1px solid #ccc; border-radius:4px; font-size:13px; cursor:pointer;">Back to inbox</button></div>';
+  if (data.hasMoreMessages) {
+    html += '<button onclick="loadOlderMessages()" style="margin-bottom:12px; padding:6px 12px; background:#eee; color:#333; border:1px solid #ccc; border-radius:4px; font-size:13px; cursor:pointer;">Load older messages</button>';
+  }
+  html += msgs.map(m => {
+    var isPatient = !!(m.author || {}).wprKey;
+    return '<div class="msg-bubble ' + (isPatient ? 'patient' : 'provider') + '">' +
+      '<div class="author">' + authorName(m, data) + '</div>' +
+      '<div class="body">' + m.body + '</div>' +
+      '<div class="time">' + new Date(m.deliveryInstantISO).toLocaleString() + '</div>' +
+    '</div>';
+  }).join('');
+  // Reply box
+  html += '<div style="margin-top:16px; padding-top:16px; border-top:1px solid #e0e0e0;">' +
+    '<label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Reply:</label>' +
+    '<textarea id="replyBody" rows="3" placeholder="Type your reply..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical; margin-bottom:8px;"></textarea>' +
+    '<button onclick="sendReply()" style="padding:8px 16px; background:#1a5276; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">Send Reply</button>' +
+  '</div>';
+  thread.innerHTML = html;
+  thread.classList.add('visible');
+  thread.scrollIntoView({ behavior: 'smooth' });
 }
 
 function closeThread() {
   currentConvId = null;
+  currentThread = null;
   document.getElementById('thread').classList.remove('visible');
   document.getElementById('thread').innerHTML = '';
 }

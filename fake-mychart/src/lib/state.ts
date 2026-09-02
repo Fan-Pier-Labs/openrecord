@@ -45,8 +45,10 @@ export type Passkey = {
  */
 export type ConversationStore = {
   conversations: typeof homer.conversations.conversations;
+  /** Staff display names, keyed by the `empKey` a message author carries. */
   users: Record<string, { name: string }>;
-  hasMoreMessages: boolean;
+  /** Patient-side display names, keyed by `wprKey`. */
+  viewers: Record<string, { name: string; isSelf: boolean }>;
 };
 
 export type FakeUserProfile = {
@@ -220,7 +222,7 @@ function freshState(): State {
       [HOMER_SELF_PROXY_ID]: JSON.parse(JSON.stringify(homer.conversations)),
       ...Object.fromEntries(HOMER_PROXY_RECORDS.map(kid => [
         kid.id,
-        { conversations: [], users: {}, hasMoreMessages: false },
+        { conversations: [], users: {}, viewers: {} },
       ])),
     },
     // Only the account holder is seeded with contacts; each child starts

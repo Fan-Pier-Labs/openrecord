@@ -123,14 +123,14 @@ describe('capability registry against fake-mychart', () => {
 
   // A thread whose every field came back empty still satisfies `toBeDefined()`
   // above, which is exactly how a field-mapping regression once shipped. Check
-  // the contents against the inbox the ids came from. GetConversationMessages
-  // 500s here as it does on every real instance, so the thread comes from the
-  // listing.
-  it('returns a fully populated message thread', async () => {
+  // the contents against the inbox the ids came from, on a conversation the
+  // listing deliberately truncates: the thread has to come back LONGER than the
+  // inbox showed, which is the whole point of the endpoint.
+  it('returns a fully populated message thread, longer than the inbox inlined', async () => {
     const inbox = (await executeCapability(session, 'get_messages')) as {
-      conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
+      conversations?: Array<{ hthId: string; subject: string; messages: unknown[]; hasMoreMessages: boolean }>
     }
-    const conversation = inbox.conversations?.[0]
+    const conversation = inbox.conversations?.find((c) => c.hasMoreMessages)
     expect(conversation).toBeDefined()
 
     const thread = (await executeCapability(session, 'get_message_thread', {
@@ -138,6 +138,7 @@ describe('capability registry against fake-mychart', () => {
     })) as {
       conversationId: string
       subject: string
+      truncated: boolean
       messages: Array<{
         messageId: string
         senderName: string
@@ -149,7 +150,8 @@ describe('capability registry against fake-mychart', () => {
 
     expect(thread.conversationId).toBe(conversation!.hthId)
     expect(thread.subject).toBe(conversation!.subject)
-    expect(thread.messages).toHaveLength(conversation!.messages.length)
+    expect(thread.messages.length).toBeGreaterThan(conversation!.messages.length)
+    expect(thread.truncated).toBe(false)
 
     for (const message of thread.messages) {
       expect(message.messageId).not.toBe('')
