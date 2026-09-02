@@ -74,8 +74,13 @@ answer depended on which client they asked.
 
 - **`kind` decides how each client treats it.** `read` is safe to batch and needs no confirmation.
   `write` mutates the chart — the mobile app shows a confirmation popup, the extension marks it
-  `destructiveHint`. `account` changes how the patient signs in (passkeys, authenticator app); **no
-  client offers these to a model** — the CLI drives them from flags, the mobile app from settings.
+  `destructiveHint`. `account` changes how the patient signs in (passkeys, authenticator app) — the
+  CLI drives them from flags and the mobile app from settings; the extension has no surface but
+  tools, so it registers them and flags them `destructiveHint`. **No client may run one as a side
+  effect of something else.** Registering a passkey removes the password and the 2FA code from every
+  later sign-in and leaves a credential on the portal that outlives the session, so logging in
+  recommends it and waits — `setup_account` / `complete_2fa` never call `register_passkey`
+  themselves (`meta-tools.unit.test.ts` fails the build if the login path reaches `setupPasskey`).
 - **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
   not evenly valuable: labs, medications, visit notes and messages are the reason to connect an
   account at all, while goals, letters, education materials, care journeys, questionnaires, the

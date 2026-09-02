@@ -28,16 +28,14 @@
  *   search_mycharts(query="uchealth")              // otherwise, find the hostname for a new account
  *   setup_account(hostname, username, password)    // attempt login
  *   complete_2fa(pending_id, code)                 // only if the login said need_2fa
- *   register_passkey(account)                      // optional: skip 2FA on future sessions
+ *   register_passkey(account)                      // recommended, only if the user agrees:
+ *                                                  //   skips password + 2FA on future sessions
  */
 
 import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/auth/login';
-import { setupPasskey } from '../../scrapers/myChart/auth/setupPasskey';
-import { serializeCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 import {
   ACCOUNT_PARAM,
@@ -54,6 +52,7 @@ import {
 import { FULL_DETAIL_PARAM } from '../../shared/summaries';
 
 import { searchInstances } from './instances';
+import { BACKEND_DESCRIPTION } from './secret-store';
 import {
   resolveSession,
   isConnected,
@@ -95,37 +94,58 @@ function errorResult(message: string): ToolResult {
   return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
 }
 
-// ── Auto-register a passkey on first login ─────────────────────────────────
+// ── Recommending a passkey after login ─────────────────────────────────────
+
+const PASSKEY_ALREADY_SAVED_MESSAGE =
+  'Account connected. A passkey for this login is already saved, so future sessions sign in ' +
+  'without the password or a 2FA code.';
 
 /**
- * Best-effort: register a passkey on the just-logged-in session so future
- * launches skip the password + 2FA prompt entirely. Silently no-ops if a
- * passkey is already saved, or if the instance disables passkey registration.
- * Returns { registered, reason } — reason explains why on failure so the
- * outcome is visible in the tool result (stderr from this process is not
- * captured by Claude Desktop's log).
+ * What to say to a patient who has just logged in and has no passkey yet.
+ *
+ * `BACKEND_DESCRIPTION[secretBackend()]` is the live answer, not the ideal one:
+ * a locked keychain or a native module that failed to load downgrades storage
+ * to a 0600 file, and a recommendation that promises the Keychain in that case
+ * is a lie about where a P-256 private key to a medical record ends up.
  */
-async function tryAutoRegisterPasskey(
-  hostname: string,
-  username: string,
-  session: MyChartRequest,
-): Promise<{ registered: boolean; reason?: string }> {
-  const key = normalizeHostname(hostname);
-  // Passkeys are per (hostname, username): another user's passkey on the same
-  // hostname must not suppress this one's registration.
-  if (readAccountPasskey(key, username)) {
-    return { registered: false, reason: 'already_saved' };
-  }
-  try {
-    const credential = await setupPasskey(session);
-    if (!credential) {
-      return { registered: false, reason: 'instance_returned_no_credential' };
-    }
-    saveAccountPasskey(key, username, serializeCredential(credential));
-    return { registered: true };
-  } catch (err) {
-    return { registered: false, reason: `error: ${(err as Error).message}` };
-  }
+function recommendPasskeyMessage(id: string): string {
+  return (
+    'Account connected — nothing further is required to read this chart. ' +
+    'STRONGLY RECOMMENDED, but only with the user\'s explicit go-ahead: offer to set up a passkey now. ' +
+    'Tell them, in your own words, what it does and what it costs: every later session signs in with no ' +
+    `username, password or 2FA code; the key is stored in ${BACKEND_DESCRIPTION[secretBackend()]} and is ` +
+    'never sent to Anthropic; and it registers a new sign-in credential on their MyChart account that stays ' +
+    `valid on the portal until it is removed (\`delete_passkey\` with account "${id}", or ` +
+    'disconnect_account, which deletes the local copy). ' +
+    `If — and only if — they say yes, call register_passkey with account "${id}".`
+  );
+}
+
+/**
+ * The `logged_in` payload shared by both password routes.
+ *
+ * **No passkey is registered here.** Registering one writes a new
+ * authentication factor onto the patient's MyChart account, and its whole
+ * purpose is that future sign-ins stop asking for the password and the 2FA
+ * code — a deliberate change to the security posture of a medical record that
+ * outlives the session and stays valid on the portal until someone deletes it.
+ * That is the patient's call, not a side effect of "log me in". The payload
+ * recommends it instead, and `register_passkey` runs only once they agree.
+ */
+function loggedInResult(hostname: string, username: string): ToolResult {
+  const id = accountId({ hostname, username });
+  // Per (hostname, username): another user's passkey on the same hostname says
+  // nothing about this login.
+  const hasPasskey = !!readAccountPasskey(normalizeHostname(hostname), username);
+
+  return jsonResult({
+    state: 'logged_in',
+    account: id,
+    passkey_saved: hasPasskey,
+    passkey_recommended: !hasPasskey,
+    passkey_storage: secretBackend(),
+    message: hasPasskey ? PASSKEY_ALREADY_SAVED_MESSAGE : recommendPasskeyMessage(id),
+  });
 }
 
 // ── Capability → MCP tool ──────────────────────────────────────────────────
@@ -301,12 +321,12 @@ function imagingResult(
 // ── Shared login path ───────────────────────────────────────────────────────
 
 /**
- * Log in with a password, save the account, and register a passkey.
+ * Log in with a password and save the account.
  *
  * Shared by `setup_account` (password typed in chat) and
  * `connect_imported_account` (password read from the browser store) so both
- * routes get identical 2FA handling, session adoption and passkey
- * registration — and so a fix to one is a fix to both.
+ * routes get identical 2FA handling, session adoption and the same
+ * passkey recommendation — and so a fix to one is a fix to both.
  */
 async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
   try {
@@ -315,16 +335,7 @@ async function connectWithPassword(hostname: string, username: string, password:
     if (result.state === 'logged_in') {
       upsertAccount({ hostname: normalizeHostname(hostname), username, password });
       await adoptSession(hostname, username, result.mychartRequest);
-      const passkey = await tryAutoRegisterPasskey(hostname, username, result.mychartRequest);
-      return jsonResult({
-        state: 'logged_in',
-        account: accountId({ hostname, username }),
-        passkey_registered: passkey.registered,
-        passkey_reason: passkey.reason ?? null,
-        message: passkey.registered
-          ? 'Account connected and passkey saved — future sessions will skip the password and 2FA prompts.'
-          : `Account connected. Passkey auto-registration outcome: ${passkey.reason ?? 'unknown'}.`,
-      });
+      return loggedInResult(hostname, username);
     }
 
     if (result.state === 'invalid_login') {
@@ -468,7 +479,7 @@ export function registerAllTools(server: McpServer): void {
     'setup_account',
     {
       title: 'Set up a MyChart account (step 1)',
-      description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery, target}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`.",
+      description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery, target}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`. This tool logs in and nothing else — it never changes the account's sign-in settings. On `logged_in`, do what the `message` field says.",
       inputSchema: {
         hostname: z.string().describe('MyChart hostname, e.g. "mychart.example.org". From search_mycharts or the user.'),
         username: z.string().describe('MyChart username (ask the user).'),
@@ -558,7 +569,7 @@ export function registerAllTools(server: McpServer): void {
     'complete_2fa',
     {
       title: 'Finish 2FA (step 2)',
-      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable.',
+      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, do what the `message` field says.',
       inputSchema: {
         pending_id: z.string().describe('The pending_id returned by setup_account when state was need_2fa.'),
         code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),
@@ -580,16 +591,7 @@ export function registerAllTools(server: McpServer): void {
         if (twoFa.state === 'logged_in') {
           upsertAccount({ hostname: pending.hostname, username: pending.username, password: pending.password });
           await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
-          const passkey = await tryAutoRegisterPasskey(pending.hostname, pending.username, twoFa.mychartRequest);
-          return jsonResult({
-            state: 'logged_in',
-            account: accountId(pending),
-            passkey_registered: passkey.registered,
-            passkey_reason: passkey.reason ?? null,
-            message: passkey.registered
-              ? 'Account connected and passkey saved — future sessions will skip the password and 2FA prompts.'
-              : `Account connected. Passkey auto-registration outcome: ${passkey.reason ?? 'unknown'}.`,
-          });
+          return loggedInResult(pending.hostname, pending.username);
         }
         if (twoFa.state === 'invalid_2fa') {
           // Re-stash so the agent can ask the user again without restarting.
