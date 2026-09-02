@@ -8,7 +8,10 @@ export type VitalReading = {
   date: string;
   /** The value. Blood pressure comes back as "123/81"; numeric vitals as their number. */
   value: string;
-  /** Display units (e.g. "mmHg", "lbs", "°F"). */
+  /**
+   * Display units (e.g. "mmHg", "lbs", "°F"), empty when the flowsheet row
+   * carries no `unitsDisplayName` — the only place MyChart offers them.
+   */
   units: string;
   /** Whether the value was flagged abnormal. */
   isAbnormal: boolean;

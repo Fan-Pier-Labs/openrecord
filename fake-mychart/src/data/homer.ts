@@ -170,8 +170,13 @@ export const healthSummaryHeader = {
 // Real MyChart splits this across two endpoints: GetFlowsheets returns the
 // flowsheet DEFINITION (rows, episodeId) with an always-empty `readings`,
 // and GetFlowsheetReadings returns the actual values keyed by rowId.
+// The units fields below are UNVERIFIED — see "Known unverified: flowsheet
+// units and numeric readings" in the README.
 const VITALS_ROWS = [
   { id: 'row-bp', name: 'Blood Pressure', rowType: '1', valueType: '4', unitsDisplayName: 'mmHg', decimalPlaces: 0 },
+  // No units field at all, so Pulse comes back unitless — the shape a row takes
+  // when MyChart sends no display units, kept deliberately alongside two rows
+  // that do have them.
   { id: 'row-hr', name: 'Pulse', rowType: '1', valueType: '1', decimalPlaces: 0 },
   { id: 'row-wt', name: 'Weight', rowType: '1', valueType: '5', units: '6', unitsDisplayName: 'lbs', decimalPlaces: 0 },
 ];

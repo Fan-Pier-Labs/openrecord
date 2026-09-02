@@ -1,9 +1,7 @@
 import * as readline from 'readline';
-import * as fs from 'fs';
-import * as path from 'path';
 import { version as CLI_VERSION } from '../package.json';
-import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/auth/login';
-import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
+import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow } from '../../scrapers/myChart/auth/login';
+import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
 import type { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
 import { sendNewMessage, getMessageTopics, getMessageRecipients, getVerificationToken } from '../../scrapers/myChart/chart/messages/sendMessage';
@@ -15,6 +13,7 @@ import { generateTotpCode } from '../../scrapers/myChart/auth/totp';
 import { setupTotp } from '../../scrapers/myChart/auth/setupTotp';
 import { saveTotpSecret, loadTotpSecret } from './totpStore';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
+import { tryLoadCachedSession, saveCachedSession } from './sessionCache';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
@@ -32,30 +31,6 @@ import {
 import { renderCliHelp } from './help';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
-
-// ─── Cookie cache helpers ───
-const COOKIE_CACHE_DIR = path.join(process.cwd(), '.cookie-cache');
-
-async function tryLoadCachedSession(hostname: string): Promise<MyChartRequest | null> {
-  const cachePath = path.join(COOKIE_CACHE_DIR, `${hostname}.json`);
-  try {
-    const data = await fs.promises.readFile(cachePath, 'utf-8');
-    const mychartRequest = await MyChartRequest.unserialize(data);
-    if (!mychartRequest) return null;
-    const valid = await areCookiesValid(mychartRequest);
-    if (valid) return mychartRequest;
-    console.log('  Cached cookies expired, will do fresh login.');
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function saveCachedSession(hostname: string, mychartRequest: MyChartRequest): Promise<void> {
-  await fs.promises.mkdir(COOKIE_CACHE_DIR, { recursive: true });
-  const cachePath = path.join(COOKIE_CACHE_DIR, `${hostname}.json`);
-  await fs.promises.writeFile(cachePath, await mychartRequest.serialize());
-}
 
 // ─── Parse CLI args ───
 // Usage:

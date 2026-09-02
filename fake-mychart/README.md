@@ -208,6 +208,38 @@ Behavioral contract, all verified against the same captures and enforced by
 - **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
   generic token page.
 
+### Known unverified: flowsheet units and numeric readings
+
+One part of the vitals fixture is **not** backed by a capture, and is called out
+here because `getVitals` depends on it.
+
+Flowsheet rows in `realShapes.ts` are `{ id, name, rowType, valueType,
+decimalPlaces }` — no units field — and the captured readings carry
+`stringValue` with no `numericValue`. The only `units` in the whole skeleton
+file are on lab components. So the vitals fixture's `unitsDisplayName`
+(`'mmHg'`, `'lbs'`) and its readings' `numericValue` are curated, not observed:
+`conformToShape` passes them through as fixture-only keys.
+
+That matters because `unitsDisplayName` is the *only* source of
+`VitalReading.units`. If real rows carry no units field, every vital OpenRecord
+returns is unitless on a real instance while looking correctly labelled here —
+the fidelity contract running backwards. The likeliest explanation is that the
+captured flowsheet held only Blood Pressure (string-valued, plausibly unitless),
+which leaves both the units field and the numeric-row shape unobserved rather
+than absent.
+
+To settle it, against a real account:
+
+```bash
+bun run cli mychart --host <hostname>          # once, to cache a session
+bun dev-scripts/probe-flowsheet-shape.ts <hostname>
+```
+
+It prints whether rows carry a units field and what it holds, and whether
+numeric rows use `numericValue` beside an empty `stringValue` — field names,
+field presence and units strings only, never a reading's value or date. Correct
+the fixture to match what it reports, and delete this section.
+
 ## Resetting In-Memory State
 
 Because all state lives in RAM, mutations during a session (sent messages, deleted contacts, TOTP toggles, registered passkeys, etc.) accumulate until the process exits. Two ways to reset without restarting:
