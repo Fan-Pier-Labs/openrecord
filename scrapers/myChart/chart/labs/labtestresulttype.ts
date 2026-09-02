@@ -1,3 +1,5 @@
+import type { AbnormalFlag, AbnormalFlagSource } from './abnormalFlags';
+
 export interface LabTestResult {
   orderName: string
   key: string
@@ -86,11 +88,23 @@ export interface ComponentResultInfo {
   numericValue?: number
   referenceRange: ReferenceRange
   abnormalFlagCategoryValue: string | number
+
+  // Added by us (abnormalFlags.ts). MyChart leaves abnormalFlagCategoryValue
+  // "Unknown" on most instances, so we normalize the flag when it reports one
+  // and otherwise compare the value against referenceRange. All three are
+  // absent when neither answers — never assume absent means normal.
+  abnormalFlag?: AbnormalFlag
+  isAbnormal?: boolean
+  abnormalFlagSource?: AbnormalFlagSource
 }
 
 export interface ReferenceRange {
   low?: number
   high?: number
+  /** When true the range excludes `low`, so a value equal to it is out of range. */
+  lowerBoundExclusive?: boolean
+  /** When true the range excludes `high`, so a value equal to it is out of range. */
+  upperBoundExclusive?: boolean
   displayLow: string
   displayHigh: string
   formattedReferenceRange: string
@@ -238,6 +252,11 @@ export interface HistoricalResultDataPoint {
   referenceRange: ReferenceRange
   abnormalFlagCategoryValue: string | number
   dateISO: string
+
+  // Added by us, exactly as on ComponentResultInfo above.
+  abnormalFlag?: AbnormalFlag
+  isAbnormal?: boolean
+  abnormalFlagSource?: AbnormalFlagSource
 }
 
 // Extended lab result that includes historical trend data

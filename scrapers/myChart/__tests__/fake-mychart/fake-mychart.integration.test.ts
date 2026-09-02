@@ -485,6 +485,41 @@ for (const mode of MOUNT_MODES) {
       expect(componentNames(cbc)).toContain('Hemoglobin')
     }, 30_000)
 
+    it('flags each lipid component against its own range, though the instance says "Unknown"', async () => {
+      const lipid = (await listLabResults(session)).find(r => r.orderName === 'Lipid Panel')!
+      const byName = new Map(
+        lipid.results[0]!.resultComponents.map(c => [c.componentInfo.name, c.componentResultInfo]),
+      )
+
+      // The fake serves what real instances serve: no usable per-component
+      // flag, so every one of these is our own derivation.
+      for (const info of byName.values()) {
+        expect(info.abnormalFlagCategoryValue).toBe('Unknown')
+        expect(info.abnormalFlagSource).toBe('derived')
+      }
+
+      expect(byName.get('LDL Cholesterol')!.abnormalFlag).toBe('high')       // 190 of 0-100
+      expect(byName.get('Triglycerides')!.abnormalFlag).toBe('high')         // 350 of 0-150
+      expect(byName.get('Total Cholesterol')!.abnormalFlag).toBe('high')     // 280 of 125-200
+      expect(byName.get('HDL Cholesterol')!.abnormalFlag).toBe('low')        // 35 of 40-60
+      expect(byName.get('LDL Cholesterol')!.isAbnormal).toBe(true)
+
+      // A panel the order does not flag comes back all-normal, not all-unknown.
+      const cbc = (await listLabResults(session)).find(r => r.orderName === 'Complete Blood Count')!
+      const cbcFlags = cbc.results[0]!.resultComponents.map(c => c.componentResultInfo.abnormalFlag)
+      expect(cbcFlags.every(f => f === 'normal')).toBe(true)
+    }, 30_000)
+
+    it('flags historical trend points too, so a value can be read as abnormal at the time', async () => {
+      const lipid = (await listLabResults(session)).find(r => r.orderName === 'Lipid Panel')!
+      const trend = lipid.historicalResults!.historicalResults['COMP-CHOL']!.historicalResultData
+      expect(trend.length).toBeGreaterThan(1)
+      for (const point of trend) {
+        expect(point.abnormalFlag).toBe('high')
+        expect(point.abnormalFlagSource).toBe('derived')
+      }
+    }, 30_000)
+
     it('listConversations returns conversations', async () => {
       const result = await listConversations(session)
       expect(result).toBeDefined()

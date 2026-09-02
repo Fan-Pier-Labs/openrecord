@@ -5,6 +5,7 @@ import type { MyChartRequest } from "../../core/myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../../core/util";
 import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../../eunity/imagingViewer";
 import { logger } from '../../../../shared/logger';
+import { annotateHistoricalResults, annotateLabTestResult } from './abnormalFlags';
 
 
 async function getReportContent(mychartRequest: MyChartRequest, reportDetails: ReportDetails, requestVerificationToken: string): Promise<ReportContent> {
@@ -49,7 +50,7 @@ async function getLabResult(mychartRequest: MyChartRequest, key: string, request
     "method": "POST",
   });
 
-  const out = await res.json() as LabTestResult;
+  const out = annotateLabTestResult(await res.json() as LabTestResult);
 
   for (const result of out.results ?? []) {
     if (result?.reportDetails?.reportID) {
@@ -90,7 +91,7 @@ async function getHistoricalResults(
     });
 
     if (!res.ok) return null;
-    return await res.json() as HistoricalResultsResponse;
+    return annotateHistoricalResults(await res.json() as HistoricalResultsResponse);
   } catch {
     return null;
   }

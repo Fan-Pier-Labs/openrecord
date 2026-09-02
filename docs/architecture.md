@@ -252,6 +252,30 @@ Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
 `expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
+## Per-component abnormal flags (`scrapers/myChart/chart/labs/abnormalFlags.ts`)
+
+MyChart carries a per-component `abnormalFlagCategoryValue`, but most instances leave it `"Unknown"`
+on every component — a lipid panel flagged `isAbnormal: true` at the order level still says nothing
+about which component is out of range. Every lab detail and every historical trend point therefore
+gets annotated on the way out of `getLabResult` / `getHistoricalResults` with three fields:
+
+- `abnormalFlag` — `normal` | `low` | `high` | `criticalLow` | `criticalHigh` | `abnormal`
+- `isAbnormal` — the same verdict as a boolean (anything but `normal`)
+- `abnormalFlagSource` — `reported` when the instance's own flag was usable, `derived` when we
+  compared the value against `referenceRange`
+
+**The instance's flag always wins**; the reference range is only consulted when it reported nothing
+we recognize. Reported values are matched on their letters and digits only, so both Epic's category
+names (`Abnormal High`) and the raw HL7 codes they come from (`H`, `LL`) map through. Derivation
+needs a number on both sides — a qualitative result (`NEGATIVE`), a censored one (`<0.01`), or a
+range with no numeric bound leaves **all three fields absent**, so a missing `abnormalFlag` means
+"we don't know", never "normal". `referenceRange.lowerBoundExclusive` / `upperBoundExclusive` are
+honored: on an exclusive bound, a value equal to it is out of range.
+
+The raw `abnormalFlagCategoryValue` is never touched — the fake serves `"Unknown"` because real
+captures do, and both the fake and the scraper are held to that in
+`scrapers/myChart/__tests__/fake-mychart/fake-mychart.integration.test.ts`.
+
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)
 
 eUnity CLO image format decoder and encoder. **Getting an image out is two steps, and there is

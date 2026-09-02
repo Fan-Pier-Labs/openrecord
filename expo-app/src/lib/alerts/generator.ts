@@ -117,10 +117,12 @@ function buildLabAlerts(tests: LabTestResultWithHistory[]): AlertInput[] {
   for (const test of tests) {
     for (const r of test.results ?? []) {
       if (!r.isAbnormal) continue;
-      const flagged = (r.resultComponents ?? []).filter((c) => {
-        const v = c.componentResultInfo?.abnormalFlagCategoryValue;
-        return v !== undefined && v !== null && v !== "" && v !== 0;
-      });
+      // `abnormalFlag`/`isAbnormal` are the scraper's normalized verdict — the
+      // instance's own `abnormalFlagCategoryValue` is "Unknown" on every
+      // component of most panels, so keying off it flagged the whole panel.
+      const flagged = (r.resultComponents ?? []).filter(
+        (c) => c.componentResultInfo?.isAbnormal === true,
+      );
       const summary = flagged.slice(0, 2).map((c) => {
         const name = c.componentInfo?.commonName || c.componentInfo?.name || "Component";
         const value = c.componentResultInfo?.value ?? "";
@@ -143,6 +145,7 @@ function buildLabAlerts(tests: LabTestResultWithHistory[]): AlertInput[] {
             name: c.componentInfo?.commonName || c.componentInfo?.name,
             value: c.componentResultInfo?.value,
             range: c.componentResultInfo?.referenceRange?.formattedReferenceRange,
+            flag: c.componentResultInfo?.abnormalFlag ?? null,
           })),
         },
         cta_label: "Discuss",
