@@ -794,25 +794,17 @@ export const immunizations = {
 
 // ─── Visits ─────────────────────────────────────────────────────────
 //
-// A real MyChart visit row carries the appointment in the *display* fields a
-// reader reaches for first — `Date`, `Time`, `VisitTypeName`, `ShortDate`,
-// `PrimaryProviderName` — alongside the machine-readable `PrimaryDate` and
-// `Instant`. This fixture used to set only `PrimaryDate` plus three keys Epic
-// has never had (`VisitType`, `Location`, `LocationAddress`), so
-// `conformToShape` filled every real display field from the skeleton's neutral
-// default. The fake then served an appointment whose `Date`, `Time`,
-// `VisitTypeName` and `PrimaryProviderName` were all empty strings, and a
-// consumer that read the obvious field name saw a blank and concluded the
-// patient had nothing scheduled.
+// A visit row is built from three helpers so the fields a reader reaches for
+// first can't be left to `conformToShape`'s neutral defaults — see "The trap"
+// in fake-mychart/README.md for why an omitted field is indistinguishable from
+// an empty one, and `src/data/__tests__/visits.unit.test.ts` for the guard.
 //
-// `visitWhen()` derives the whole date/time family from one timestamp so those
-// fields can never drift apart again, and `visitWho()`/`visitWhere()` put the
-// provider and department where MyChart puts them. What is capture-backed here
-// is the *field set* (realShapes.ts) and `Instant`'s `/Date(ms)/` encoding
-// (pinned by `visitTimestamp()` in scrapers/myChart/chart/visits/visits.ts);
-// the display strings follow Epic's en-US conventions. They are formatted by
-// hand rather than through `toLocaleString` so the fake's output doesn't shift
-// with the host's ICU build or locale.
+// What is capture-backed here is the *field set* (realShapes.ts) and
+// `Instant`'s `/Date(ms)/` encoding (pinned by `visitTimestamp()` in
+// scrapers/myChart/chart/visits/visits.ts). The display strings follow Epic's
+// en-US conventions; they are formatted by hand rather than through
+// `toLocaleString` so the fake's output doesn't shift with the host's ICU
+// build or locale.
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'] as const;
@@ -823,18 +815,18 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
 const EPIC_DAT_EPOCH_MS = Date.UTC(1840, 11, 31);
 
 /**
- * Every date/time field a visit row carries, derived from its `PrimaryDate`
- * ('MM/DD/YYYY hh:mm:ss AM'). One source, so `Date`, `Time`, `ShortDate`,
- * `Instant` and the rest always agree.
+ * The visit's timing: every field derived from its `PrimaryDate`
+ * ('MM/DD/YYYY hh:mm:ss AM'), plus the three flags that govern how MyChart
+ * shows that time. One source, so `Date`, `Time`, `ShortDate`, `Instant` and
+ * the rest always agree. (The row's `TimeZone` is the department's, and comes
+ * from `visitWhere` with the rest of the department.)
  *
  * The wall clock is parsed by hand and held in UTC rather than fed to
  * `new Date(str)`, which reads it in whatever zone the process happens to run
  * in: the fake would then serve a different `Instant` on a developer's laptop
- * than in CI, and a 9:00 AM appointment could render as 4:00 AM. Real MyChart
- * renders these fields in the department's zone, which the row declares
- * separately as `TimeZone`.
+ * than in CI, and a 9:00 AM appointment could render as 4:00 AM.
  */
-function visitWhen(primaryDate: string) {
+function visitTiming(primaryDate: string) {
   const parts = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (AM|PM)$/.exec(primaryDate);
   if (!parts) throw new Error(`fixture PrimaryDate is not 'MM/DD/YYYY hh:mm:ss AM': ${primaryDate}`);
   const [, mm, dd, yyyy, hh, min, , meridiem] = parts as unknown as string[];
@@ -857,7 +849,7 @@ function visitWhen(primaryDate: string) {
     Month: month,
     DateOfMonth: String(dayOfMonth),
     Year: String(year),
-    TimeZone: 'America/New_York',
+    // Not derived from PrimaryDate — these say whether the time is shown at all.
     CanShowAppointmentTime: true,
     IsTimeToBeDetermined: false,
     IsHideVisitTime: false,
@@ -877,30 +869,46 @@ function visitWho(name: string, encryptedId: string) {
   };
 }
 
-/** The department fields, replacing the invented `Location`/`LocationAddress`. */
+/**
+ * The department fields, replacing the invented `Location`/`LocationAddress`.
+ * MyChart repeats the department's zone on the row itself, so both are set
+ * from one value here.
+ */
 function visitWhere(id: string, name: string, address: string[]) {
+  const timeZone = 'America/New_York';
   return {
+    TimeZone: timeZone,
     PrimaryDepartment: {
       Id: id,
       Name: name,
       Address: address,
       HasAddress: true,
       PhoneNumber: '555-0100',
-      TimeZone: 'America/New_York',
+      TimeZone: timeZone,
     },
   };
+}
+
+/**
+ * The days MyChart highlights on the visits calendar: one per day an upcoming
+ * visit falls on. Derived from the visits themselves rather than hand-listed,
+ * so the two can't drift.
+ */
+function highlightDays(...buckets: { HighlightDate: string }[][]): string[] {
+  return [...new Set(buckets.flat().map((v) => v.HighlightDate))];
 }
 
 const SPRINGFIELD_GENERAL = ['123 Main Street', 'Springfield, NT 49007'];
 const NUCLEAR_HEALTH_CENTER = ['100 Industrial Way', 'Springfield, NT 49007'];
 
-export const upcomingVisits = {
-  LaterVisitsList: [
-    {
+// Hoisted out of the container literal so HighlightDays can be derived from
+// the visits rather than hand-listed alongside them.
+const UPCOMING_LATER_VISITS = [
+  {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: true,
       HasNewPvdFeature: false,
-      ...visitWhen('04/15/2026 09:00:00 AM'),
+      ...visitTiming('04/15/2026 09:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-001',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -944,15 +952,22 @@ export const upcomingVisits = {
       ...visitWhere('DEP-SGH-PRIMARY', 'Springfield General Hospital', SPRINGFIELD_GENERAL),
       VisitTypeName: 'Annual Physical',
       IsUsingFallbackVisitTypeName: false,
-    },
-  ],
+  },
+];
+
+const UPCOMING_IN_PROGRESS_VISITS: typeof UPCOMING_LATER_VISITS = [];
+const UPCOMING_NEXT_N_DAYS_VISITS: typeof UPCOMING_LATER_VISITS = [];
+
+export const upcomingVisits = {
+  LaterVisitsList: UPCOMING_LATER_VISITS,
   // Real LoadUpcoming responses carry these alongside LaterVisitsList; none of
   // the invented keys the fake used to add (EarlierVisitsList, PastVisitsList,
   // ApptTypes, IsScrollToEnabled) appear on any captured instance.
-  InProgressVisits: [],
-  NextNDaysVisits: [],
-  // The calendar-highlight days, matching each upcoming visit's HighlightDate.
-  HighlightDays: ['4/15/2026'],
+  InProgressVisits: UPCOMING_IN_PROGRESS_VISITS,
+  NextNDaysVisits: UPCOMING_NEXT_N_DAYS_VISITS,
+  HighlightDays: highlightDays(
+    UPCOMING_IN_PROGRESS_VISITS, UPCOMING_NEXT_N_DAYS_VISITS, UPCOMING_LATER_VISITS,
+  ),
   HasPVG: false,
 };
 
@@ -967,7 +982,7 @@ function fakePastVisit(
   provider: string,
 ): Record<string, unknown> {
   return {
-    ...visitWhen(primaryDate),
+    ...visitTiming(primaryDate),
     ...visitWho(provider, `PROV-${csn}`),
     ...visitWhere('DEP-SGH-PRIMARY', 'Springfield General Hospital', SPRINGFIELD_GENERAL),
     Csn: csn,
@@ -1021,7 +1036,7 @@ export const pastVisits = {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      ...visitWhen('01/10/2026 09:00:00 AM'),
+      ...visitTiming('01/10/2026 09:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-002',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -1071,7 +1086,7 @@ export const pastVisits = {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      ...visitWhen('11/20/2025 02:30:00 PM'),
+      ...visitTiming('11/20/2025 02:30:00 PM'),
       CsnForECheckIn: 'CSN-HOMER-003',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -1122,7 +1137,7 @@ export const pastVisits = {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      ...visitWhen('08/05/2025 10:00:00 AM'),
+      ...visitTiming('08/05/2025 10:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-004',
       RescheduledDatString: null,
       IsNoShow: false,

@@ -330,33 +330,25 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
-    // The fields a reader reaches for first. These used to come back as empty
-    // strings on every visit (the data was only in PrimaryDate and in keys Epic
-    // doesn't have), so a consumer reading the obvious name saw a blank and
-    // concluded the patient had nothing scheduled. `toBeDefined()` on the
-    // container is what let that through, so assert on the row.
+    // What a consumer actually reads off a visit. These came back as empty
+    // strings on every row (the data was only in PrimaryDate and in keys Epic
+    // doesn't have), so a reader of the obvious name saw a blank and concluded
+    // the patient had nothing scheduled — and `expect(result).toBeDefined()` on
+    // the container is what let that through. So assert on the row.
+    //
+    // Only that the route serves them, not that they agree with each other:
+    // the fixture's internal consistency is owned by
+    // fake-mychart/src/data/__tests__/visits.unit.test.ts, which can check it
+    // without a second hand-written date parser living here.
     const DISPLAY_FIELDS = [
-      'PrimaryDate', 'Instant', 'Dat', 'Date', 'ShortDate', 'Time',
-      'DateOfMonth', 'Year', 'VisitTypeName', 'PrimaryProviderName', 'Csn',
+      'PrimaryDate', 'Date', 'Time', 'ShortDate', 'VisitTypeName',
+      'PrimaryProviderName', 'Csn',
     ] as const
 
     function expectVisitIsReadable(visit: Visit) {
       expect(DISPLAY_FIELDS.filter(f => !visit[f])).toEqual([])
       expect(visit.Providers[0]?.Name).toBeTruthy()
       expect(visit.PrimaryDepartment.Name).toBeTruthy()
-
-      // The display fields must describe the SAME visit as PrimaryDate, not
-      // just be non-empty. Compared against each other rather than re-parsed
-      // through `new Date`, whose result depends on this process's timezone.
-      const [date, , meridiem] = visit.PrimaryDate.split(' ')
-      const [mm, dd, yyyy] = date!.split('/')
-      expect(visit.Year).toBe(yyyy!)
-      expect(visit.Month).toBe(Number(mm))
-      expect(visit.DateOfMonth).toBe(String(Number(dd)))
-      expect(visit.ShortDate).toBe(`${Number(mm)}/${Number(dd)}/${yyyy}`)
-      expect(visit.Date).toContain(`${Number(dd)}, ${yyyy}`)
-      expect(visit.Time.endsWith(meridiem!)).toBe(true)
-      expect(visit.Instant).toMatch(/^\/Date\(\d+\)\/$/)
     }
 
     it('upcomingVisits returns visits whose display fields carry the appointment', async () => {
