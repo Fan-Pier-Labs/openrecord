@@ -191,6 +191,23 @@ describe('registered surface', () => {
     }
   })
 
+  /**
+   * Enrolling a passkey is a write to the patient's MyChart account that
+   * removes the password and the 2FA code from every later sign-in, and the
+   * credential outlives the session. Logging in must never do it as a side
+   * effect — only `register_passkey`, which the user asks for, may.
+   *
+   * Asserted against the source because the regression is an *absent* network
+   * call: a handler that quietly starts registering again passes every
+   * behavioural test that does not have a live portal to watch. The registry's
+   * `register_passkey` is the one legitimate caller, and it lives in
+   * `shared/capabilities.ts`, not here.
+   */
+  it('never registers a passkey from the login path', async () => {
+    const source = await Bun.file(new URL('../tools.ts', import.meta.url)).text()
+    expect(source).not.toContain('setupPasskey')
+  })
+
   it('registers a substantial scraper surface', () => {
     expect(tools.size).toBeGreaterThan(20)
   })
