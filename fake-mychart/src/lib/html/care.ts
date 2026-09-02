@@ -39,16 +39,9 @@ export function preventiveCarePage(items: Array<{ name: string; status: string; 
     const dateLabel = item.status === 'overdue' ? `Overdue since ${item.date}` : item.status === 'due' ? `Not due until ${item.date}` : `Completed on ${item.date}`;
     return `<tr><td><strong>${item.name}</strong></td><td><span class="badge ${badge}">${label}</span></td><td>${dateLabel}</td></tr>`;
   }).join('');
-  // Keep original format for scraper compat
-  const scraperLines = items.map(item => {
-    if (item.status === 'overdue') return `${item.name}\nOverdue since ${item.date}`;
-    if (item.status === 'due') return `${item.name}\nNot due until ${item.date}`;
-    return `${item.name}\nCompleted on ${item.date}`;
-  }).join('\n\n');
   return portalLayout('Preventive Care', 'HealthAdvisories', `
     <h1>Preventive Care</h1>
     <table><tr><th>Screening</th><th>Status</th><th>Details</th></tr>${rows}</table>
-    <div class="healthAdvisories" style="display:none">${scraperLines}</div>
   `);
 }
 
