@@ -44,6 +44,7 @@ import { getActivityFeed } from '../../chart/activityFeed'
 import { getEducationMaterials } from '../../chart/educationMaterials'
 import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
+import { isVisitsScrapeError, type Visit } from '../../chart/visits/types'
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
@@ -362,16 +363,45 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
-    it('upcomingVisits returns visit data', async () => {
+    // What a consumer actually reads off a visit. These came back as empty
+    // strings on every row (the data was only in PrimaryDate and in keys Epic
+    // doesn't have), so a reader of the obvious name saw a blank and concluded
+    // the patient had nothing scheduled — and `expect(result).toBeDefined()` on
+    // the container is what let that through. So assert on the row.
+    //
+    // Only that the route serves them, not that they agree with each other:
+    // the fixture's internal consistency is owned by
+    // fake-mychart/src/data/__tests__/visits.unit.test.ts, which can check it
+    // without a second hand-written date parser living here.
+    const DISPLAY_FIELDS = [
+      'PrimaryDate', 'Date', 'Time', 'ShortDate', 'VisitTypeName',
+      'PrimaryProviderName', 'Csn',
+    ] as const
+
+    function expectVisitIsReadable(visit: Visit) {
+      expect(DISPLAY_FIELDS.filter(f => !visit[f])).toEqual([])
+      expect(visit.Providers[0]?.Name).toBeTruthy()
+      expect(visit.PrimaryDepartment.Name).toBeTruthy()
+    }
+
+    it('upcomingVisits returns visits whose display fields carry the appointment', async () => {
       const result = await upcomingVisits(session)
-      expect(result).toBeDefined()
+      if (isVisitsScrapeError(result)) throw new Error(`upcomingVisits errored: ${result.error}`)
+
+      const visits = [...result.InProgressVisits, ...result.NextNDaysVisits, ...result.LaterVisitsList]
+      expect(visits.length).toBeGreaterThan(0)
+      for (const visit of visits) expectVisitIsReadable(visit)
     }, 10_000)
 
-    it('pastVisits returns visit data', async () => {
+    it('pastVisits returns visits whose display fields carry the encounter', async () => {
       const twoYearsAgo = new Date()
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
       const result = await pastVisits(session, twoYearsAgo)
-      expect(result).toBeDefined()
+      if (isVisitsScrapeError(result)) throw new Error(`pastVisits errored: ${result.error}`)
+
+      const visits = Object.values(result.List).flatMap(org => org.List)
+      expect(visits.length).toBeGreaterThan(0)
+      for (const visit of visits) expectVisitIsReadable(visit)
     }, 10_000)
 
     // The fake enforces the WebAuthn signature counter the way real MyChart

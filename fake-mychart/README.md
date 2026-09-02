@@ -182,6 +182,17 @@ instances (one on Epic's August 2025 release, two behaving as November 2025), vi
   datasets, and emptied categories alike, so a fixture can stay a readable
   story without silently dropping half the real field set.
 
+**The trap: `conformToShape` cannot tell "this record has no value" from "the
+fixture forgot this field."** Both come out as `''`. A fixture that invents its
+own key (`VisitType`) instead of setting the real one (`VisitTypeName`) still
+serves a complete, real-looking response — with the real field blank. The
+visits fixture did exactly that, so `get_upcoming_visits` returned an
+appointment whose `Date`, `Time`, `VisitTypeName` and `PrimaryProviderName`
+were all empty strings, and a reader concluded the patient had nothing
+scheduled. When you add or edit a fixture, set the fields a consumer actually
+reads, and assert they survive the round trip — a `toBeDefined()` on the
+envelope will not catch this. See `src/data/__tests__/visits.unit.test.ts`.
+
 Behavioral contract, all verified against the same captures and enforced by
 `scrapers/myChart/__tests__/fake-mychart/realBehavior.integration.test.ts`:
 
