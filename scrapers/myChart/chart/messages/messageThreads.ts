@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../../core/util";
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
 export type ThreadMessage = {
@@ -51,9 +51,7 @@ type GetConversationMessagesResponse = {
 }
 
 export async function getConversationMessages(mychartRequest: MyChartRequest, conversationId: string): Promise<ConversationThread> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
+  const token = await getVerificationToken(mychartRequest);
 
   const empty: ConversationThread = { conversationId, subject: '', messages: [] };
 

@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../../core/util';
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
 export type DeleteMessageResult = {
@@ -9,9 +9,7 @@ export type DeleteMessageResult = {
 }
 
 export async function deleteMessage(mychartRequest: MyChartRequest, conversationId: string): Promise<DeleteMessageResult> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
+  const token = await getVerificationToken(mychartRequest);
 
   if (!token) {
     logger.debug('Could not find request verification token for delete message');
