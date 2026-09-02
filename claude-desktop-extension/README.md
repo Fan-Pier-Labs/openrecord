@@ -77,8 +77,14 @@ temporarily unreachable. See
 read and how confirmation works.
 3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
    asks you for the 6-digit code.
-4. **`register_passkey(account)`** — (optional, recommended) future logins
-   skip the password and 2FA prompts entirely.
+4. **`register_passkey(account)`** — recommended, and never automatic. Logging
+   in changes nothing about how your account signs in; Claude offers you a
+   passkey afterwards and registers one only if you say yes. With one, future
+   logins skip the password and the 2FA prompt entirely. The private key is
+   stored in your OS keystore (the Keychain on macOS — see
+   [Architecture](#architecture)) and never sent to Anthropic; the
+   credential itself lives on your MyChart account until you remove it with
+   `delete_passkey` or `disconnect_account`.
 
 After setup, every data tool takes a required `account` parameter — the
 account id returned by `list_accounts`, `username@hostname`. Multiple
