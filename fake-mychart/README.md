@@ -148,9 +148,10 @@ curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","m
 
 - `conversationMessages` — **whether `/api/conversations/GetConversationMessages` works.** `errors`
   (default) answers every call with a 500 and `{"Message":"An error has occurred."}`. That is what
-  **both** captured instances do — every conversation, every body shape and content-type tried —
+  **all four** instances checked do — every conversation, every body shape and content-type tried —
   while inlining that account's messages in `GetConversationList` instead. Not a release difference:
-  the two instances are on different Epic releases and behave identically here. `serves` returns the
+  they span different Epic releases and behave identically here, and `realShapes.ts` has no skeleton
+  for this endpoint either. `serves` returns the
   thread, which no captured instance does; the request body we send has the same provenance as the
   response fields this endpoint's parser used to guess, so the 500 may be our request rather than
   the endpoint. Keep the mode for the day someone works out the right one.

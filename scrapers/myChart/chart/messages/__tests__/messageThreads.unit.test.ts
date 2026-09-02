@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getConversationMessages, toThreadMessage } from '../messages/messageThreads'
-import { MyChartRequest } from '../../core/myChartRequest'
+import { getConversationMessages, toThreadMessage } from '../messageThreads'
+import { MyChartRequest } from '../../../core/myChartRequest'
 
 /**
  * MyChart's own wire shape, as captured from GetConversationList /
@@ -11,7 +11,7 @@ const HIBBERT = { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbe
 const HOMER = { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' }
 
 /**
- * What the live instances actually send, on both of them without exception:
+ * What the live instances actually send, on all four without exception:
  * exactly one key per author, and an empty displayName with the name only in
  * the users / viewers maps.
  */
@@ -154,7 +154,7 @@ describe('getConversationMessages', () => {
     expect(result.messages[0]!.messageBody).toBe('How are you feeling?')
   })
 
-  // BOTH instances we can check answer this endpoint with a 500 and
+  // All four instances we can check answer this endpoint with a 500 and
   // `{"Message":"An error has occurred."}` — every conversation, every body
   // and content-type tried. Every message on those accounts is inlined in the
   // listing instead, so that is where the thread has to come from.
@@ -197,7 +197,17 @@ describe('getConversationMessages', () => {
     expect(result.truncated).toBe(true)
   })
 
-  it('is not truncated when the endpoint returns the fuller thread', async () => {
+  // Null and [] are different answers: a served empty thread is the endpoint
+  // saying the conversation is empty, and that wins over a stale listing.
+  // Pinned so the distinction stays a decision rather than an accident.
+  it('trusts a served empty thread over the listing', async () => {
+    const req = mockRequest({ page: TOKEN_PAGE, list: CONVERSATION_LIST, messages: { messages: [] } })
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.messages).toEqual([])
+    expect(result.truncated).toBe(false)
+  })
+
+  it('uses the served thread, not the listing, when the endpoint answers', async () => {
     const req = mockRequest({
       page: TOKEN_PAGE,
       list: {

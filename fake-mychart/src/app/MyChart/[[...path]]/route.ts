@@ -199,6 +199,11 @@ function activeConversations(request: NextRequest): ConversationStore {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
+/** One message, held to the skeleton captured from GetConversationList. */
+function conformMessage(message: unknown) {
+  return conformToShape(shapes.getConversationList.conversations[0].messages[0], message);
+}
+
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -1160,7 +1165,9 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
         (c: { hthId: string }) => c.hthId === body.conversationId
       );
       if (conv) {
-        return json({ messages: conv.messages });
+        // Same captured message skeleton the listing serves, so the thread
+        // endpoint can't quietly return a narrower object than the real one.
+        return json({ messages: conv.messages.map(conformMessage) });
       }
       return json({ messages: [] });
     } catch {

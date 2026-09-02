@@ -2,11 +2,13 @@
  * Whether this instance serves `/api/conversations/GetConversationMessages`.
  *
  * `errors` is the default because it is the only behavior anyone has actually
- * observed: BOTH captured instances answer every call to it with a 500 and
+ * observed: all four instances checked answer every call to it with a 500 and
  * `{"Message":"An error has occurred."}` — every conversation, every body
  * shape and content-type tried — and inline that account's messages in
- * `GetConversationList` instead. It is not a release difference; the two
- * instances are on different Epic releases and behave identically here.
+ * `GetConversationList` instead. It is not a release difference; the instances
+ * span different Epic releases and behave identically here. The capture
+ * harness has no skeleton for this endpoint either, which is the same finding
+ * from a fourth angle.
  *
  * `serves` returns the thread. No captured instance does this, so treat it as
  * an assumption rather than a capture: the request body we send

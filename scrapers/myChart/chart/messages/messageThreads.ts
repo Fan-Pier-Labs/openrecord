@@ -89,10 +89,11 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   // Two sources, because the one this used to rely on has never been seen to
   // work. GetConversationList inlines each conversation's messages and is the
   // only place the subject and the name maps live. GetConversationMessages is
-  // *supposed* to return the full thread, but both instances anyone has
-  // checked answer it with 500 "An error has occurred." — every conversation,
-  // every body shape and content-type tried — and inline everything in the
-  // listing instead. Take whichever gives more.
+  // *supposed* to return the full thread, but every instance anyone has
+  // checked answers it with 500 "An error has occurred." — every conversation,
+  // every body shape and content-type tried — and inlines everything in the
+  // listing instead. Use a served thread when there is one; otherwise the
+  // listing is the thread.
   const [list, fetched] = await Promise.all([
     fetchConversationList(mychartRequest, token).catch((err: unknown): ConversationListResponse => {
       logger.debug('Could not load the conversation list for thread context', err);
@@ -102,30 +103,30 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   ]);
 
   const conversation = (list.conversations ?? list.threads ?? []).find((c) => c.hthId === conversationId);
-  const inlined = conversation?.messages ?? [];
-  const usingInlined = fetched.length <= inlined.length;
-  const messages = usingInlined ? inlined : fetched;
+  const messages = fetched ?? conversation?.messages ?? [];
 
   return {
     conversationId,
     subject: conversation?.subject ?? '',
     messages: messages.map((msg) => toThreadMessage(msg, list, conversation?.userOverrideNames)),
-    // Only the listing truncates; a full thread from the endpoint is complete.
-    truncated: usingInlined && conversation?.hasMoreMessages === true,
+    // Only the listing truncates; a thread the endpoint served is complete.
+    truncated: fetched === null && conversation?.hasMoreMessages === true,
   };
 }
 
 /**
- * The full thread, or nothing. Both instances checked answer with a 500 and a
- * JSON error body; the parse is guarded anyway because an ASP.NET failure
- * renders an HTML error page on some releases, and neither should cost us the
- * messages the listing already carries.
+ * The thread the endpoint served, or null when it served nothing. Null and an
+ * empty array are different answers: all four instances checked return a 500
+ * with a JSON error body (null), and only a real empty thread should read as
+ * one.
+ * The parse is guarded because an ASP.NET failure renders an HTML error page
+ * on some releases, and neither should cost us the listing's messages.
  */
 async function fetchThreadMessages(
   mychartRequest: MyChartRequest,
   token: string,
   conversationId: string,
-): Promise<ConversationMessage[]> {
+): Promise<ConversationMessage[] | null> {
   try {
     const resp = await makeAuthenticatedRequest(mychartRequest, {
       path: '/api/conversations/GetConversationMessages',
@@ -137,9 +138,9 @@ async function fetchThreadMessages(
       body: JSON.stringify({ conversationId, PageNonce: "" }),
     });
     const json = await resp.json() as GetConversationMessagesResponse;
-    return json.messages ?? [];
+    return json.messages ?? null;
   } catch (err) {
     logger.debug('GetConversationMessages did not return a thread', err);
-    return [];
+    return null;
   }
 }
