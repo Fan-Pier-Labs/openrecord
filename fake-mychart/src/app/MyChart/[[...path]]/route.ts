@@ -26,6 +26,17 @@ import * as shapes from '@/data/realShapes';
 
 import crypto from 'crypto';
 
+/**
+ * Longest message body `SendMedicalAdviceRequest` will actually accept; anything longer is
+ * dropped silently. Measured live — see the behavioral contract in `README.md` for what that
+ * looks like on the wire and why it matters.
+ *
+ * Deliberately duplicated rather than imported from the scraper's own guard: this is the
+ * server half of the contract, and a test sharing one constant with the client would pass no
+ * matter which of the two was wrong.
+ */
+const MAX_MESSAGE_BODY_LENGTH = 500;
+
 // Track which username is mid-2FA. Real MyChart uses a server-side flow state;
 // here we just remember the user attached to the temporary session created
 // during the password step so we know whose TOTP profile to mutate after they
@@ -1211,8 +1222,13 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/medicaladvicerequests/sendmedicaladvicerequest') {
     try {
       const body = await request.json();
-      const newConvId = `CONV-${Date.now()}`;
       const msgBody = Array.isArray(body.messageBody) ? body.messageBody[0] : (body.messageBody || '');
+      // An over-long body is swallowed, not rejected: 200, an empty conversation id, and
+      // nothing filed. See MAX_MESSAGE_BODY_LENGTH above.
+      if (String(msgBody).length > MAX_MESSAGE_BODY_LENGTH) {
+        return json('');
+      }
+      const newConvId = `CONV-${Date.now()}`;
       const msgSubject = body.messageSubject || body.subject || 'New Message';
       const recipientName = body.recipient?.displayName || body.recipientName || 'Provider';
       activeConversations(request).conversations.unshift({
