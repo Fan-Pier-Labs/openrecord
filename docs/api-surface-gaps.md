@@ -51,24 +51,35 @@ Live on this account, returning real data. Each of these can have its shape capt
 
 `get_care_team` is implemented (`scrapers/myChart/chart/careTeam.ts`), modelled in fake-mychart
 (`/Clinical/CareTeam/Load` + `/LoadExternal`, shape `careTeamLoad` in `realShapes.ts`), and no longer
-a `comingSoon` stub. The capture it was built from, kept here because it is the only record of it:
+a `comingSoon` stub. The capture, re-verified against **two live instances — one on each captured
+Epic release** — because this file is the only record of it:
 
 ```
 POST /Clinical/CareTeam/Load          → 200, the provider list
-POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers (empty here)
+POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers (empty on both)
 ```
 
-- **POST-only.** `GET` returns 500 on every query-string variant; `POST` returns 200 on all of them.
+- **POST-only.** A `GET` is refused with the instance's ASP.NET error surface — a bare 500 on the
+  August 2025 release, a 302 to `/Home/FiveHundred` on November 2025 — never the data.
+- **The antiforgery token is required**, exactly as on `/api/*`: a token-less POST gets that same
+  error surface on both instances. The token comes off the `/Clinical/CareTeam` activity page (the
+  page never names `CareTeam/Load` itself; the URL lives in `careteam.min.js`).
 - The params the page's JS builds (`hfrId`, `sources`, `actions`, `isPrimaryStandalone`) are **all
-  optional** — a bare `POST /Clinical/CareTeam/Load` with `{}` returns the full list.
-- PascalCase envelope (legacy MVC, not the camelCase `/api/*` convention):
-  `{ ProvidersList: [{ ID, Name, Photo, NationalProviderID, WebPageUrl, InfoBlurbUrl, AboutMeBlurb,
-  CanViewProviderDetails, CanDirectSchedule, CanRequestAppointment, CanMessage, CommCenterMessageUrl,
-  CanRequestCustomAppt, HasNoProviderRecord, IsNewSchedulingEnabled, Specialty, Relation,
-  SchedulableVisitTypes, DepartmentID, Organizations, IsExternal, CareTeamStatus, CanHideProvider }],
+  optional** — a bare POST with `{}` returned exactly the same list, on both instances.
+- PascalCase envelope (legacy MVC, not the camelCase `/api/*` convention), 23 provider fields,
+  byte-identical field sets on both instances. Types are **not** all strings:
+  `{ ProvidersList: [{ ID (~86-char opaque string), Name, Photo, NationalProviderID, WebPageUrl,
+  InfoBlurbUrl, AboutMeBlurb (ARRAY — empty on every provider of both), CanViewProviderDetails,
+  CanDirectSchedule, CanRequestAppointment, CanMessage, CommCenterMessageUrl, CanRequestCustomAppt,
+  HasNoProviderRecord, IsNewSchedulingEnabled, Specialty, Relation (string, and `null` or `""` for a
+  provider with no stated role), SchedulableVisitTypes (NULL on both), DepartmentID,
+  Organizations (NULL on both), IsExternal, CareTeamStatus (NUMBER, 0 on both), CanHideProvider }],
   DescriptiveTitle, TabColorClass, IsCustomApptReqEnabled, CustomRequestAppointmentLink }`
 - `Relation` carries the role (the PCP designation appears here); `Specialty` the department
   specialty. `LoadExternal` returns the same envelope with its own `ProvidersList`.
+- `AboutMeBlurb`, `Organizations` and `SchedulableVisitTypes` are **not surfaced by the scraper**:
+  an empty array and two nulls tell you the key exists, not what it holds. They get added when a
+  capture shows one populated.
 - The scraper refuses to read a missing `ProvidersList` as an empty care team — that silent
   failure is what got the previous implementation withdrawn (#313) — and reports a `LoadExternal`
   it could not read as `externalProvidersUnavailable` rather than as "no outside providers".

@@ -114,7 +114,13 @@ describe('integration', () => {
   it('getCareTeam returns the provider list', async () => {
     const result = await getCareTeam(session)
     expect(Array.isArray(result.members)).toBe(true)
-    expect(typeof result.externalProvidersUnavailable).toBe('boolean')
+    // An unreadable outside-provider list is reported, never silently dropped;
+    // both captured instances serve it, so a true here is a real regression.
+    expect(result.externalProvidersUnavailable).toBe(false)
+    for (const member of result.members) {
+      expect(member.id).not.toBe('')
+      expect(member.name).not.toBe('')
+    }
   }, 30_000)
 
   it('getReferrals returns an array', async () => {

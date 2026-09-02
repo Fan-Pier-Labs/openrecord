@@ -12,8 +12,9 @@
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
  *  - GetMultipleHistoricalResultComponents returns a map keyed by component id.
- *  - Care Team is a legacy MVC activity: PascalCase envelope, POST-only, with
- *    every request parameter optional.
+ *  - Care Team is a legacy MVC activity: PascalCase envelope, POST-only, every
+ *    request parameter optional, and the antiforgery token enforced like the
+ *    /api/* routes enforce it.
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *
@@ -227,7 +228,7 @@ describe('care team fidelity', () => {
     const res = await session.makeRequest({
       path: '/Clinical/CareTeam/Load',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: '{}',
     })
     expect(res.status).toBe(200)
@@ -240,11 +241,38 @@ describe('care team fidelity', () => {
     }
   })
 
+  it('refuses a token-less POST, exactly as the /api/* routes do', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      followRedirects: false,
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('types the three non-string leaves the way both live instances do', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
+      body: '{}',
+    })
+    const body = await res.json() as { ProvidersList: Array<Record<string, unknown>> }
+    const provider = body.ProvidersList[0]!
+    expect(Array.isArray(provider.AboutMeBlurb)).toBe(true)
+    expect(provider.Organizations).toBeNull()
+    expect(provider.SchedulableVisitTypes).toBeNull()
+    expect(typeof provider.CareTeamStatus).toBe('number')
+  })
+
   it('serves the outside providers from LoadExternal in the same envelope', async () => {
     const res = await session.makeRequest({
       path: '/Clinical/CareTeam/LoadExternal',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
       body: '{}',
     })
     const body = await res.json() as { ProvidersList: Array<{ Name: string }> }

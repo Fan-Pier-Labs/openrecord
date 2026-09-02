@@ -13,19 +13,29 @@ import { logger } from '../../../shared/logger';
  *   POST /Clinical/CareTeam/Load          → this organization's providers
  *   POST /Clinical/CareTeam/LoadExternal  → outside / Care Everywhere providers
  *
- * Both are POST-only (GET answers 500 on every query-string variant), and every
+ * Both are POST-only — a GET is refused with the instance's ASP.NET error
+ * surface (a bare 500 on the August 2025 release, a 302 to `/Home/FiveHundred`
+ * on November 2025) rather than serving the data — and every
  * parameter the page's own JS sends (`hfrId`, `sources`, `actions`,
- * `isPrimaryStandalone`) is optional — a bare POST with `{}` returns the full
- * list. Field names below are the ones a real instance returned; see
- * `docs/api-surface-gaps.md` §1a for the capture they came from.
+ * `isPrimaryStandalone`) is optional — a bare POST with `{}` returns exactly
+ * what the page's own parameters return. Both endpoints require the
+ * antiforgery token from the activity page, like the `/api/*` routes do.
+ * Field names and types below were verified against two live instances (one on
+ * each captured Epic release); see `docs/api-surface-gaps.md` §1a.
  *
  * The previous version of this scraper was withdrawn (#313) for guessing at all
  * of that, because a wrong guess here does not fail visibly — it renders to the
  * patient as "you have no care team". So this one never treats an unrecognized
  * response as an empty care team: a missing `ProvidersList` throws.
+ *
+ * Three response fields are deliberately not surfaced: `AboutMeBlurb` (an
+ * array, empty on every provider of both instances, so its element shape is
+ * unknown) and `Organizations` / `SchedulableVisitTypes` (both `null` on
+ * both). They get added the day a capture shows one populated — guessing at
+ * them is the mistake this scraper exists to not repeat.
  */
 export type CareTeamMember = {
-  /** Opaque provider id (`ID`), as used by the rest of the Care Team activity. */
+  /** Opaque provider id (`ID`): an ~86-character token, not a number. */
   id: string;
   name: string;
   /** The provider's role on this care team, e.g. the PCP designation. */
@@ -35,7 +45,6 @@ export type CareTeamMember = {
   departmentId: string;
   photoUrl: string;
   webPageUrl: string;
-  aboutMe: string;
   canMessage: boolean;
   /** An outside provider — from `LoadExternal`, or flagged `IsExternal`. */
   isExternal: boolean;
@@ -58,7 +67,6 @@ type ProviderResponse = {
   Photo?: unknown;
   NationalProviderID?: unknown;
   WebPageUrl?: unknown;
-  AboutMeBlurb?: unknown;
   CanMessage?: unknown;
   Specialty?: unknown;
   Relation?: unknown;
@@ -88,7 +96,6 @@ function toMember(provider: ProviderResponse, fromExternalList: boolean): CareTe
     departmentId: str(provider.DepartmentID),
     photoUrl: str(provider.Photo),
     webPageUrl: str(provider.WebPageUrl),
-    aboutMe: str(provider.AboutMeBlurb),
     canMessage: provider.CanMessage === true,
     isExternal: fromExternalList || provider.IsExternal === true,
   };

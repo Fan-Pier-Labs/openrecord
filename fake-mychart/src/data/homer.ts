@@ -225,7 +225,10 @@ export const vitalsReadings = {
 // ─── Care Team ──────────────────────────────────────────────────────
 // PascalCase because /Clinical/CareTeam/Load is a legacy MVC activity, not one
 // of the React /api/* endpoints. `Relation` carries the role (the PCP
-// designation lives there); `Specialty` the department specialty.
+// designation lives there); `Specialty` the department specialty. The fields
+// left out here are filled from the shape template: on both captured instances
+// `AboutMeBlurb` was an empty array and `Organizations` /
+// `SchedulableVisitTypes` were null on every provider.
 export const careTeam = {
   ProvidersList: [
     {
@@ -237,7 +240,6 @@ export const careTeam = {
       DepartmentID: 'DEP-IM-1',
       CanMessage: true,
       WebPageUrl: '/MyChart/Clinical/Provider/PROV-HIBBERT',
-      AboutMeBlurb: 'Board-certified in internal medicine. Sees adults for primary care.',
     },
     {
       ID: 'PROV-RIVIERA',

@@ -2305,9 +2305,11 @@ export const loadPaymentList = {
 
 // /clinical/careteam/load and /clinical/careteam/loadexternal
 // PascalCase because Care Team is a legacy MVC activity, not one of the React
-// `/api/*` ones. Field names are the capture recorded in
-// docs/api-surface-gaps.md §1a; `LoadExternal` returns the same envelope with
-// its own ProvidersList.
+// `/api/*` ones. Captured from two live instances, one on each release; both
+// returned this identical 23-field provider shape, and `LoadExternal` returns
+// the same envelope with its own ProvidersList. Three leaves are NOT strings:
+// `CareTeamStatus` is a number, `AboutMeBlurb` is an array, and `Organizations`
+// / `SchedulableVisitTypes` are null on both instances.
 export const careTeamLoad = {
   "ProvidersList": [
     {
@@ -2317,7 +2319,7 @@ export const careTeamLoad = {
       "NationalProviderID": "",
       "WebPageUrl": "",
       "InfoBlurbUrl": "",
-      "AboutMeBlurb": "",
+      "AboutMeBlurb": [],
       "CanViewProviderDetails": false,
       "CanDirectSchedule": false,
       "CanRequestAppointment": false,
@@ -2328,11 +2330,11 @@ export const careTeamLoad = {
       "IsNewSchedulingEnabled": false,
       "Specialty": "",
       "Relation": "",
-      "SchedulableVisitTypes": [],
+      "SchedulableVisitTypes": null,
       "DepartmentID": "",
-      "Organizations": [],
+      "Organizations": null,
       "IsExternal": false,
-      "CareTeamStatus": "",
+      "CareTeamStatus": 0,
       "CanHideProvider": false
     }
   ],

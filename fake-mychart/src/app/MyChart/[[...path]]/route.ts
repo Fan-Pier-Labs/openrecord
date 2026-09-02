@@ -321,6 +321,16 @@ function withModernResultFields(payload: unknown): unknown {
   return p;
 }
 
+/**
+ * Which POST paths reject a request with no antiforgery token. Every `/api/*`
+ * route does, and so does the legacy Care Team activity's own endpoint pair —
+ * both live instances answered a token-less POST there with the same error
+ * surface they give a token-less `/api/*` POST.
+ */
+function requiresAntiforgeryToken(lower: string): boolean {
+  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/');
+}
+
 function acceptAny(): boolean {
   return process.env.FAKE_MYCHART_ACCEPT_ANY === 'true';
 }
@@ -664,13 +674,16 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   // Authentication/* stays open — DoLogin, 2FA, terms acceptance and the
   // passkey challenge ARE the login flow.
   if (!lower.startsWith('authentication/')) {
-    // CSRF before authentication, exactly as observed live: an /api/* POST
-    // with no __RequestVerificationToken header is rejected with the ASP.NET
+    // CSRF before authentication, exactly as observed live: a POST with no
+    // __RequestVerificationToken header is rejected with the ASP.NET
     // error surface (FiveHundred redirect on November 2025
     // instances, bare 500 on August 2025) even when no session was presented at all. Only a request that
     // clears the token check falls through to the login-redirect the
     // expired-session detector in makeAuthenticatedRequest.ts relies on.
-    if (lower.startsWith('api/') && !request.headers.get('__requestverificationtoken')) {
+    // The legacy Care Team activity enforces the token the same way its React
+    // siblings do — verified on both captured instances — so it is not enough
+    // to gate on the /api/ prefix.
+    if (requiresAntiforgeryToken(lower) && !request.headers.get('__requestverificationtoken')) {
       return aspNetFailure(request, 'fivehundred', joined);
     }
     const redirect = requireSession(request);

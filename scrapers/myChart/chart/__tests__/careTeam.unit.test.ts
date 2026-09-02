@@ -37,7 +37,11 @@ const HIBBERT = {
   DepartmentID: 'DEP-1',
   Photo: '/photos/1.jpg',
   WebPageUrl: '/Clinical/Provider/PROV-1',
-  AboutMeBlurb: 'Sees adults for primary care.',
+  // An array on both live instances (always empty), so it must not be read as text.
+  AboutMeBlurb: [],
+  Organizations: null,
+  SchedulableVisitTypes: null,
+  CareTeamStatus: 0,
   CanMessage: true,
 }
 
@@ -69,7 +73,6 @@ describe('getCareTeam', () => {
         departmentId: 'DEP-1',
         photoUrl: '/photos/1.jpg',
         webPageUrl: '/Clinical/Provider/PROV-1',
-        aboutMe: 'Sees adults for primary care.',
         canMessage: true,
         isExternal: false,
       },
@@ -82,7 +85,6 @@ describe('getCareTeam', () => {
         departmentId: '',
         photoUrl: '',
         webPageUrl: '',
-        aboutMe: '',
         canMessage: false,
         isExternal: true,
       },
