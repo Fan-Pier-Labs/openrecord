@@ -170,6 +170,13 @@ describe('getCareTeam', () => {
     expect(result.externalProvidersUnavailable).toBe(true)
   })
 
+  it('reads a null Relation as no stated role, which is how instances send it', async () => {
+    const { req } = mockRequest(careTeamReplies([{ ...HIBBERT, Relation: null }], []))
+    const result = await getCareTeam(req)
+    expect(result.members[0]!.relation).toBe('')
+    expect(result.members[0]!.name).toBe('Julius Hibbert, MD')
+  })
+
   it('coerces a numeric id and a missing name rather than dropping the entry', async () => {
     const { req } = mockRequest(careTeamReplies([{ ID: 42, Specialty: 'Cardiology' }], []))
     const result = await getCareTeam(req)

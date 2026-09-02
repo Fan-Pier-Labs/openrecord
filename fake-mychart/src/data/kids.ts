@@ -155,6 +155,8 @@ const bart: KidRecord = {
         { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: '1000000004', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
+      TabColorClass: 'tab-01',
+      CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
     insurance: [
       {
@@ -209,6 +211,8 @@ const lisa: KidRecord = {
         { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
+      TabColorClass: 'tab-01',
+      CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
     insurance: [
       {
@@ -258,6 +262,8 @@ const maggie: KidRecord = {
         { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
+      TabColorClass: 'tab-01',
+      CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
     insurance: [
       {

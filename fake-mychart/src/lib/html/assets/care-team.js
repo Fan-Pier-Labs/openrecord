@@ -6,8 +6,8 @@ Promise.all([
     return (providers || []).map(p =>
       '<div class="card careteam-provider">' +
       '<h3 class="provider-name">' + p.Name + '</h3>' +
-      '<div class="detail provider-role">' + p.Relation + '</div>' +
-      '<div class="meta provider-specialty">' + p.Specialty + '</div>' +
+      '<div class="detail provider-role">' + (p.Relation || '') + '</div>' +
+      '<div class="meta provider-specialty">' + (p.Specialty || '') + '</div>' +
       '</div>'
     ).join('');
   }

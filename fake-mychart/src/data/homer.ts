@@ -228,7 +228,10 @@ export const vitalsReadings = {
 // designation lives there); `Specialty` the department specialty. The fields
 // left out here are filled from the shape template: on both captured instances
 // `AboutMeBlurb` was an empty array and `Organizations` /
-// `SchedulableVisitTypes` were null on every provider.
+// `SchedulableVisitTypes` were null on every provider. `TabColorClass` and
+// `CustomRequestAppointmentLink` ride along because both instances always
+// populated them — a fixture that left them to the template's "" would show
+// scrapers an empty string real MyChart never sends.
 export const careTeam = {
   ProvidersList: [
     {
@@ -250,8 +253,22 @@ export const careTeam = {
       DepartmentID: 'DEP-SURG-1',
       CanMessage: false,
     },
+    {
+      // A provider with no stated role: `Relation` comes back literally null,
+      // not "", on a real instance — most of one account's providers did — so
+      // anything reading this field meets that case here too.
+      ID: 'PROV-VELIMIROVIC',
+      Name: 'Dr. Velimirovic, MD',
+      NationalProviderID: '1000000004',
+      Specialty: 'Cardiothoracic Surgery',
+      Relation: null,
+      DepartmentID: 'DEP-SURG-2',
+      CanMessage: true,
+    },
   ],
   DescriptiveTitle: 'Your Care Team',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
 };
 
 // The Care Everywhere / outside-provider list, served by
@@ -268,6 +285,8 @@ export const careTeamExternal = {
     },
   ],
   DescriptiveTitle: 'Providers outside this organization',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
 };
 
 // ─── Insurance (HTML parsed) ────────────────────────────────────────

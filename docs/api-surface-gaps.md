@@ -59,6 +59,10 @@ POST /Clinical/CareTeam/Load          → 200, the provider list
 POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers (empty on both)
 ```
 
+- **Release-independent payload.** The two instances sit on different Epic releases and returned
+  the same envelope, the same 23 provider fields and the same types. Nothing here rides on the
+  version the way the November-2025-only test-result fields do. The *error surface* is the one
+  thing that moves, and it is the generic ASP.NET one, not something care-team-specific.
 - **POST-only.** A `GET` is refused with the instance's ASP.NET error surface — a bare 500 on the
   August 2025 release, a 302 to `/Home/FiveHundred` on November 2025 — never the data.
 - **The antiforgery token is required**, exactly as on `/api/*`: a token-less POST gets that same
