@@ -111,25 +111,3 @@ export async function setRequireTerms(host: string, requireTerms: boolean): Prom
     throw new Error(`Server reported requireTerms ${body.requireTerms} after asking for ${requireTerms}`);
   }
 }
-
-/**
- * Whether the instance serves `/api/conversations/GetConversationMessages` or
- * answers every call to it with a 500. Both are real behaviors — see
- * `fake-mychart/src/lib/threadEndpoint.ts`.
- */
-export type ThreadEndpointMode = 'serves' | 'errors';
-
-export async function setThreadEndpointMode(host: string, mode: ThreadEndpointMode): Promise<void> {
-  const res = await fetch(`http://${host}/mode`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ conversationMessages: mode }),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to set conversationMessages to ${mode} on ${host}: ${res.status} ${await res.text()}`);
-  }
-  const body = await res.json();
-  if (body.conversationMessages !== mode) {
-    throw new Error(`Server reported conversationMessages ${body.conversationMessages} after asking for ${mode}`);
-  }
-}

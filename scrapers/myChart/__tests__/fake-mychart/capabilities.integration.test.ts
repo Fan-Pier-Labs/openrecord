@@ -19,7 +19,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin } from '../../auth/login'
-import { setMountMode, resetFakeMyChart, setThreadEndpointMode } from './mountMode'
+import { setMountMode, resetFakeMyChart } from './mountMode'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -123,9 +123,9 @@ describe('capability registry against fake-mychart', () => {
 
   // A thread whose every field came back empty still satisfies `toBeDefined()`
   // above, which is exactly how a field-mapping regression once shipped. Check
-  // the contents against the inbox the ids came from. Runs in the default
-  // mode, where GetConversationMessages 500s as it does on both real
-  // instances, so the thread comes from the listing.
+  // the contents against the inbox the ids came from. GetConversationMessages
+  // 500s here as it does on every real instance, so the thread comes from the
+  // listing.
   it('returns a fully populated message thread', async () => {
     const inbox = (await executeCapability(session, 'get_messages')) as {
       conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
@@ -161,30 +161,6 @@ describe('capability registry against fake-mychart', () => {
     // The fixture thread is a back-and-forth, so both sides must be attributed.
     expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
-  }, 30_000)
-
-  // The other path: an instance that serves the endpoint, so the thread comes
-  // from there rather than from the listing.
-  it('returns the thread on an instance that serves GetConversationMessages', async () => {
-    await setThreadEndpointMode(HOST, 'serves')
-    try {
-      const inbox = (await executeCapability(session, 'get_messages')) as {
-        conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
-      }
-      const conversation = inbox.conversations?.[0]
-      expect(conversation).toBeDefined()
-
-      const thread = (await executeCapability(session, 'get_message_thread', {
-        conversation_id: conversation!.hthId,
-      })) as { subject: string; messages: Array<{ messageBody: string; isFromPatient: boolean }> }
-
-      expect(thread.subject).toBe(conversation!.subject)
-      expect(thread.messages).toHaveLength(conversation!.messages.length)
-      expect(thread.messages.every((m) => m.messageBody !== '')).toBe(true)
-      expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
-    } finally {
-      await setThreadEndpointMode(HOST, 'errors')
-    }
   }, 30_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────

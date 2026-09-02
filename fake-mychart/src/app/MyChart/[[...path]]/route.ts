@@ -20,7 +20,6 @@ import { publicBaseUrl } from '@/lib/publicUrl';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
 import { isLegacyEpicVersion } from '@/lib/epicVersion';
-import { threadEndpointErrors } from '@/lib/threadEndpoint';
 import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
@@ -199,11 +198,6 @@ function activeConversations(request: NextRequest): ConversationStore {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
-/** One message, held to the skeleton captured from GetConversationList. */
-function conformMessage(message: unknown) {
-  return conformToShape(shapes.getConversationList.conversations[0].messages[0], message);
-}
-
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -1154,25 +1148,12 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/conversations/getconversationlist') {
     return json(conformToShape(shapes.getConversationList, activeConversations(request)));
   }
+  // Never serves a thread. Every instance checked answers this endpoint with
+  // ASP.NET Web API's 500 for every conversation, whatever the body, and
+  // inlines the messages in GetConversationList instead. Nobody has observed
+  // it working, so the fake does not invent a success shape for it.
   if (lower === 'api/conversations/getconversationmessages') {
-    // Some live instances never serve this endpoint at all.
-    if (threadEndpointErrors()) {
-      return json({ Message: 'An error has occurred.' }, 500);
-    }
-    try {
-      const body = await request.json();
-      const conv = activeConversations(request).conversations.find(
-        (c: { hthId: string }) => c.hthId === body.conversationId
-      );
-      if (conv) {
-        // Same captured message skeleton the listing serves, so the thread
-        // endpoint can't quietly return a narrower object than the real one.
-        return json({ messages: conv.messages.map(conformMessage) });
-      }
-      return json({ messages: [] });
-    } catch {
-      return json({ messages: [] });
-    }
+    return json({ Message: 'An error has occurred.' }, 500);
   }
   if (lower === 'api/conversations/getcomposeid') {
     state.composeIdCounter++;

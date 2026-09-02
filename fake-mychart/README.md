@@ -142,19 +142,9 @@ curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"requireTerms":true}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"epicVersion":"August 2025"}'
-curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"conversationMessages":"errors"}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025","conversationMessages":"serves"}
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025"}
 ```
 
-- `conversationMessages` — **whether `/api/conversations/GetConversationMessages` works.** `errors`
-  (default) answers every call with a 500 and `{"Message":"An error has occurred."}`. That is what
-  **all four** instances checked do — every conversation, every body shape and content-type tried —
-  while inlining that account's messages in `GetConversationList` instead. Not a release difference:
-  they span different Epic releases and behave identically here, and `realShapes.ts` has no skeleton
-  for this endpoint either. `serves` returns the
-  thread, which no captured instance does; the request body we send has the same provenance as the
-  response fields this endpoint's parser used to guess, so the 500 may be our request rather than
-  the endpoint. Keep the mode for the day someone works out the right one.
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
 - `discovery` — **how `/` announces the mount.** Requires re-login for the same reason. Every value is a shape observed on a live instance:
   - `redirect` (default) — a 302 with a `Location` header.
@@ -202,6 +192,15 @@ Behavioral contract, all verified against the same captures and enforced by
 - **`GetDetails` answers an unknown orderKey with a 200 empty shell** — blank
   `orderName`/`key`, one result with no name and no components — never an error
   and never another order's data.
+- **`GetConversationMessages` never serves a thread.** Every call answers with
+  the same ASP.NET 500 `{"Message": "An error has occurred."}`, whatever the
+  conversation and whatever the body. All four instances checked do this, they
+  span different Epic releases, and `realShapes.ts` has no skeleton for the
+  endpoint because no capture ever produced one. Messages arrive inlined in
+  `GetConversationList` instead. The request we send may itself be wrong — its
+  body has the same guessed provenance as the response fields
+  `messageThreads.ts` used to parse — but until someone observes a success,
+  the fake does not invent a shape for one.
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
