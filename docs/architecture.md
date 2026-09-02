@@ -138,6 +138,38 @@ answer depended on which client they asked.
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
 
+## Scrapers keep everything; clients condense (`shared/summaries.ts`)
+
+**A scraper returns exactly what MyChart returned — every field, in MyChart's own shape.** A
+scraper that drops a field silently loses a patient's data, and there is no getting it back
+without another round trip; whether a field matters is a question for the caller, who knows what
+was asked, not for the layer that fetched it.
+
+That leaves a real problem at the other end. `get_past_visits` over 20 visits is ~220 KB, because
+MyChart's visit object carries 159 fields per visit and MyChart's own response nests the list two
+levels deep (`List` keyed by organization id, each with its own `List`). Four or five fields are
+load-bearing — when, what, who, where, and the CSN that `get_visit_notes` / `get_visit_avs` take —
+and the rest are portal UI affordances: `IsTransmitDirectEnabled`, `ShouldShowECheckInInGuideBanner`,
+`GeolocationArrival`. Handed to a model, that payload consumes the context window the answer has to
+live in; it overflowed one outright, and the result had to be read off disk.
+
+So the trimming happens at the presentation edge, where it is **reversible**:
+
+- `shared/summaries.ts` maps capability id → a pure `summarize(payload)` projection plus the `note`
+  that tells the model what it is looking at. Pure, so it is unit-testable without a portal.
+- A client that wants condensed payloads looks the capability up. A capability with no entry passes
+  through untouched, so adding one is additive and forgetting one is merely verbose, never wrong.
+- **Every summarized tool takes `full_detail`**, added by the registry rather than declared per
+  tool, so the escape hatch back to the raw payload cannot go missing from a summarized tool. The
+  MCPB registers it in `registerCapabilityTool`; the CLI and npm library are unaffected and still
+  print the raw payload.
+- A payload the projection doesn't recognize — a scrape error, a WAF interstitial — is returned
+  verbatim. Summarizing an error into nothing hides why the scrape failed.
+
+Today the registry holds `get_past_visits` and `get_upcoming_visits` (the same visit object in
+both). Against fake-mychart's 22-visit history `get_past_visits` goes from 234 KB to 6.5 KB — a 36×
+cut — as a flat newest-first list with the CSN preserved on every row.
+
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere

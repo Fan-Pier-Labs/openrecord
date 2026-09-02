@@ -51,6 +51,7 @@ import {
   type CapabilityParam,
   type StudyImagePayload,
 } from '../../shared/capabilities';
+import { FULL_DETAIL_PARAM, getSummarizer } from '../../shared/summaries';
 
 import { searchInstances } from './instances';
 import {
@@ -200,6 +201,17 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
+  // Capabilities whose raw payload is too big to hand a model get condensed
+  // here, at the presentation edge — the scraper still returns everything
+  // MyChart does. `full_detail: true` is the way back to the untouched
+  // payload, and it is added by the registry rather than declared per-tool so
+  // the opt-out can never go missing from a summarized tool.
+  const summarizer = getSummarizer(capability.id);
+  if (summarizer) shape[FULL_DETAIL_PARAM.name] = zodForParam(FULL_DETAIL_PARAM);
+  const description = summarizer
+    ? `${capability.description} ${summarizer.note}`
+    : capability.description;
+
   const annotations =
     capability.kind === 'read'
       ? { title: capability.title, readOnlyHint: true, openWorldHint: true }
@@ -208,7 +220,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   server.registerTool(
     capability.id,
     {
-      description: capability.description,
+      description,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: shape as any,
       annotations,
@@ -226,6 +238,9 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // never whether the guard ran.
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
+        }
+        if (summarizer && args[FULL_DETAIL_PARAM.name] !== true) {
+          return jsonResult(summarizer.summarize(payload));
         }
         return jsonResult(payload);
       } catch (err) {

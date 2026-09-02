@@ -106,6 +106,8 @@ export interface VisitListContainer {
     CanRedirectToApptDetails: boolean;
     PastVisitBucket: string | number | null;
     IsClinicalInformationAvailable: boolean;
+    /** Only on the newer captured release; older instances answer with IsClinicalInformationAvailable alone. */
+    IsClinicalNoteAvailable?: boolean;
     OwnedBy: number;
     AdmissionDateRange: { Start: string; End: string } | null;
     IsApptDetailsEnabled: boolean;

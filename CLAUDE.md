@@ -44,15 +44,17 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 - **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
   everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
+- **Scrapers return everything MyChart returns; clients condense.** A scraper that drops a field
+  silently loses a patient's data. Trimming happens in `shared/summaries.ts`, keyed by capability
+  id, and every summarized tool takes `full_detail` to get the raw payload back.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
   session state, so every chart-touching capability asserts the patient before running and refuses
   with the fix rather than returning the wrong family member's record.
 - **fake-mychart must behave EXACTLY like real MyChart** — response shapes, field casing, pagination
   sizes, status codes, server-side enforcement. It is a faithful stand-in, not a convenience mock.
-  Never simplify a contract to make a test easier; size the fixture around the real behavior.
-  Response shapes are held to skeletons generated from live captures (`realShapes.ts` +
-  `conformToShape`), every `/api/*` POST requires a CSRF token, and a `/mode` knob switches the
-  instance between the two captured Epic releases (November 2025 / August 2025). See `fake-mychart/README.md`.
+  Never simplify a contract to make a test easier, and **never invent a field name** — fixture-only
+  keys pass straight through `conformToShape`, shipping a field no Epic returns while the real one
+  comes back empty. See `fake-mychart/README.md`.
 
 ## Key commands
 
@@ -95,10 +97,8 @@ selects on the suffix and nothing else.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 
-- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
-  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
-  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
-  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
+- **CI also smokes the Android build, in two tiers**, neither of which may ever be able to reach a
+  real model — see [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 
