@@ -10,9 +10,13 @@ function renderVisits(tab) {
     document.getElementById('content').innerHTML = '<p>No ' + tab + ' visits.</p>';
     return;
   }
-  // Read the same fields real MyChart's own visits page reads: the row already
-  // carries formatted Date/Time and the department, so nothing is re-derived
-  // here from PrimaryDate.
+  // This is the fake's own demo page (extracted from html.ts by #338), not a
+  // copy of MyChart's. It used to read VisitType/Location/LocationAddress,
+  // three keys that appear on NO captured instance (realShapes.ts) and existed
+  // only in homer.ts. Now that the fixture sets the real fields instead, those
+  // three are gone and this reads VisitTypeName/PrimaryDepartment — otherwise
+  // the page renders "undefined". Date/Time come off the row rather than being
+  // re-derived from PrimaryDate, which is what the row carries them for.
   document.getElementById('content').innerHTML = visits.map(v => {
     var dept = v.PrimaryDepartment || {};
     return '<div class="card">' +
