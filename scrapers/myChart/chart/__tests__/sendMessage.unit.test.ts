@@ -269,4 +269,62 @@ describe('sendNewMessage', () => {
     const sendBody = JSON.parse(calls[3]!.init!.body as string)
     expect(sendBody.organizationId).toBe('WP-org1')
   })
+
+  it('rejects a body over the portal limit without sending', async () => {
+    const { req, calls } = mockRequestWithCapture([])
+
+    const result = await sendNewMessage(req, {
+      recipient,
+      topic,
+      subject: 'Test',
+      messageBody: 'x'.repeat(501),
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('501')
+    // No HTTP calls at all — not even the verification-token fetch.
+    expect(calls.length).toBe(0)
+  })
+
+  it('never reports success when 200 carries no conversation id', async () => {
+    const req = mockRequest([
+      { body: TOKEN_HTML },
+      { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
+      { body: JSON.stringify('WP-compose123') },
+      { body: '', status: 200 },
+      { body: '""' },
+    ])
+
+    const result = await sendNewMessage(req, {
+      recipient,
+      topic,
+      subject: 'Test',
+      messageBody: 'Hello',
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.conversationId).toBeUndefined()
+    expect(result.error).toContain('indeterminate')
+  })
+
+  it('forwards recipientType and oocContext on the send payload', async () => {
+    const { req, calls } = mockRequestWithCapture([
+      { body: TOKEN_HTML },
+      { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
+      { body: JSON.stringify('WP-compose123') },
+      { body: JSON.stringify('WP-convo789') },
+      { body: '""' },
+    ])
+
+    await sendNewMessage(req, {
+      recipient: { ...recipient, oocContext: 1 },
+      topic,
+      subject: 'Test',
+      messageBody: 'Hello',
+    })
+
+    const sendBody = JSON.parse(calls[3]!.init!.body as string)
+    expect(sendBody.recipient.recipientType).toBe(1)
+    expect(sendBody.recipient.oocContext).toBe(1)
+  })
 })
