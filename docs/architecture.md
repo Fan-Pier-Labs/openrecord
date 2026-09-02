@@ -155,16 +155,22 @@ live in; it overflowed one outright, and the result had to be read off disk.
 
 So the trimming happens at the presentation edge, where it is **reversible**:
 
-- `shared/summaries.ts` maps capability id → a pure `summarize(payload)` projection plus the `note`
-  that tells the model what it is looking at. Pure, so it is unit-testable without a portal.
-- A client that wants condensed payloads looks the capability up. A capability with no entry passes
-  through untouched, so adding one is additive and forgetting one is merely verbose, never wrong.
-- **Every summarized tool takes `full_detail`**, added by the registry rather than declared per
-  tool, so the escape hatch back to the raw payload cannot go missing from a summarized tool. The
-  MCPB registers it in `registerCapabilityTool`; the CLI and npm library are unaffected and still
-  print the raw payload.
+- **`summary` is a field on the capability**, next to `rendersMedia` and for the same reason: it is
+  a property of the capability, so a client finds it by looking at the capability rather than
+  consulting a list keyed by a string id that a typo would silently miss and only one client could
+  see. `capability-parity.unit.test.ts` enforces that clients branch on the flag, never an id — so
+  a second summarized capability needs no edits in any client.
+- **The projections live in `shared/summaries.ts`** and are pure, so they are unit-testable without
+  a portal. `CapabilitySummary.project` takes and returns `unknown`; the narrowing is an exported
+  type guard, so each projection is typed exactly and callers get a usable return type.
+- **Every summarized tool takes `full_detail`**, registered off that same flag rather than declared
+  per tool, so the escape hatch back to the raw payload cannot go missing from a summarized tool.
+  Today the MCPB is the only client that condenses; the CLI and npm library print the raw payload.
 - A payload the projection doesn't recognize — a scrape error, a WAF interstitial — is returned
   verbatim. Summarizing an error into nothing hides why the scrape failed.
+- **`/Date(ms)/` is parsed in one place.** `parseInstant` and `visitTimestamp` are exported from
+  `scrapers/myChart/chart/visits/visits.ts` and the projection uses both; two parsers for one
+  encoding disagree the first time either learns something.
 
 Today the registry holds `get_past_visits` and `get_upcoming_visits` (the same visit object in
 both). Against fake-mychart's 22-visit history `get_past_visits` goes from 234 KB to 6.5 KB — a 36×
