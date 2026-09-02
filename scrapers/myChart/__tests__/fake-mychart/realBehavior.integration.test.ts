@@ -8,6 +8,7 @@
  *  - GetDetails answers an unknown orderKey with a 200 EMPTY shell, never an
  *    error and never another order's data.
  *  - GetVisitNotes / GetLetterDetails answer unknown ids with literal null.
+ *  - GetConversationMessages never serves a thread: every call is the same 500.
  *  - Result enums are strings ('Read', 'LAB'/'IMAGING', 'Unknown'), components
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
@@ -167,6 +168,31 @@ describe('test-results fidelity', () => {
     expect(names.some(n => n.startsWith('XR '))).toBe(true)
     const lipid = results.find(r => r.orderName === 'Lipid Panel')!
     expect(lipid.historicalResults?.historicalResults?.['COMP-CHOL']).toBeDefined()
+  })
+})
+
+describe('the thread endpoint that no instance serves', () => {
+  // All four instances checked answer this the same way, for every
+  // conversation and every body shape and content-type tried. The messages
+  // arrive inlined in GetConversationList instead, which is where
+  // getConversationMessages reads them from.
+  it('answers every call with the ASP.NET Web API 500 body', async () => {
+    const list = await api('/api/conversations/GetConversationList', {
+      tag: 1,
+      localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 },
+      externalLoadParams: {},
+      searchQuery: '',
+      PageNonce: '',
+    })
+    const conversations = (await list.json() as { conversations: Array<{ hthId: string }> }).conversations
+    expect(conversations.length).toBeGreaterThan(0)
+
+    // A real conversation id, a made-up one, and no id at all.
+    for (const body of [{ conversationId: conversations[0]!.hthId, PageNonce: '' }, { conversationId: 'NOPE' }, {}]) {
+      const res = await api('/api/conversations/GetConversationMessages', body)
+      expect(res.status).toBe(500)
+      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
+    }
   })
 })
 

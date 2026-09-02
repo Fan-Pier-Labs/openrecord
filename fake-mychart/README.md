@@ -192,6 +192,15 @@ Behavioral contract, all verified against the same captures and enforced by
 - **`GetDetails` answers an unknown orderKey with a 200 empty shell** — blank
   `orderName`/`key`, one result with no name and no components — never an error
   and never another order's data.
+- **`GetConversationMessages` never serves a thread.** Every call answers with
+  the same ASP.NET 500 `{"Message": "An error has occurred."}`, whatever the
+  conversation and whatever the body. All four instances checked do this, they
+  span different Epic releases, and `realShapes.ts` has no skeleton for the
+  endpoint because no capture ever produced one. Messages arrive inlined in
+  `GetConversationList` instead. The request we send may itself be wrong — its
+  body has the same guessed provenance as the response fields
+  `messageThreads.ts` used to parse — but until someone observes a success,
+  the fake does not invent a shape for one.
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
