@@ -27,13 +27,13 @@ import * as shapes from '@/data/realShapes';
 import crypto from 'crypto';
 
 /**
- * Longest message body `SendMedicalAdviceRequest` will actually accept.
+ * Longest message body `SendMedicalAdviceRequest` will actually accept; anything longer is
+ * dropped silently. Measured live — see the behavioral contract in `README.md` for what that
+ * looks like on the wire and why it matters.
  *
- * Bisected against a live instance on 2026-08-28: 500 characters comes back with a real
- * conversation id, 501 comes back 200-with-nothing and creates no conversation. Deliberately
- * duplicated rather than imported from the scraper's own guard — this is the server half of
- * the contract, and a test that shared one constant with the client would pass no matter
- * which of the two was wrong.
+ * Deliberately duplicated rather than imported from the scraper's own guard: this is the
+ * server half of the contract, and a test sharing one constant with the client would pass no
+ * matter which of the two was wrong.
  */
 const MAX_MESSAGE_BODY_LENGTH = 500;
 
@@ -1223,11 +1223,8 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     try {
       const body = await request.json();
       const msgBody = Array.isArray(body.messageBody) ? body.messageBody[0] : (body.messageBody || '');
-      // Measured live (2026-08-28): a body over MAX_MESSAGE_BODY_LENGTH characters is
-      // silently dropped — HTTP 200 whose entire payload is a JSON empty string where the
-      // conversation id belongs, no error anywhere, and no conversation created. 500
-      // characters is accepted, 501 is not. Callers that read "200 means sent" report a
-      // phantom success, which is exactly why the scraper refuses to.
+      // An over-long body is swallowed, not rejected: 200, an empty conversation id, and
+      // nothing filed. See MAX_MESSAGE_BODY_LENGTH above.
       if (String(msgBody).length > MAX_MESSAGE_BODY_LENGTH) {
         return json('');
       }
