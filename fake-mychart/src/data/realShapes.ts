@@ -105,6 +105,155 @@ export const getConversationList = {
   "externalSummaries": {}
 } as const;
 
+// /api/conversations/getconversationmessages
+// One page of a single conversation: the conversation object, with `messages`
+// holding the page. Same element shape the listing inlines, minus every
+// listing-level field (no `subject`, no `users` / `viewers` name maps -- those
+// come from getconversationdetails or the listing).
+export const getConversationMessages = {
+  "contexts": [],
+  "hthId": "",
+  "messages": [
+        {
+          "wmgId": "",
+          "isUnread": false,
+          "deliveryInstantISO": "",
+          "body": "",
+          "author": {
+            "displayName": "",
+            "empKey": ""
+          },
+          "attachments": [
+            {
+              "type": 0,
+              "dcsId": "",
+              "etxId": "",
+              "name": "",
+              "fileExtension": "",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
+          "tasks": [],
+          "suggestedActions": []
+        }
+  ],
+  "hasMoreMessages": false,
+  "messageType": "",
+  "userKeys": [
+    ""
+  ],
+  "userOverrideNames": {
+    "*": ""
+  },
+  "maskedUserNames": [],
+  "showOtherViewersOption": false,
+  "viewerKeys": [
+    ""
+  ],
+  "organizationId": ""
+} as const;
+
+// /api/conversations/getconversationdetails
+// Everything getconversationmessages returns plus the thread's own metadata --
+// `subject`, `totalMessages`, and the `users` / `viewers` maps that turn a
+// message author's empKey / wprKey into a display name.
+export const getConversationDetails = {
+  "contexts": [],
+  "lastViewedByStaffMsgId": "",
+  "lastViewedByStaffInstantISO": "",
+  "messageIdUsedToLoad": "",
+  "numUnread": 0,
+  "replyUrl": "",
+  "replyFlags": {
+    "canReply": false,
+    "cannotReplyReason": 0
+  },
+  "totalMessages": 0,
+  "users": {
+    "*": {
+      "empId": "",
+      "name": "",
+      "outOfContactEndDate": "",
+      "outOfContactContext": 0,
+      "outOfContactContextString": "",
+      "photoUrl": "",
+      "providerId": "",
+      "organizationId": ""
+    }
+  },
+  "viewers": {
+    "*": {
+      "wprId": "",
+      "name": "",
+      "isSelf": false,
+      "isShown": false,
+      "isSelected": false,
+      "organizationId": ""
+    }
+  },
+  "hasPreviouslyViewed": false,
+  "subject": "",
+  "tags": {
+    "Messages": false
+  },
+  "previewText": "",
+  "hasAttachments": false,
+  "hasTasks": false,
+  "hasUrgentMsgs": false,
+  "legacyMessageDetailsUrl": "",
+  "audience": [
+    {
+      "empId": "",
+      "hipId": "",
+      "name": "",
+      "providerId": ""
+    }
+  ],
+  "hasLoadAllUsers": false,
+  "allowBulkActions": false,
+  "hthId": "",
+  "messages": [
+        {
+          "wmgId": "",
+          "isUnread": false,
+          "deliveryInstantISO": "",
+          "body": "",
+          "author": {
+            "displayName": "",
+            "empKey": ""
+          },
+          "attachments": [
+            {
+              "type": 0,
+              "dcsId": "",
+              "etxId": "",
+              "name": "",
+              "fileExtension": "",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
+          "tasks": [],
+          "suggestedActions": []
+        }
+  ],
+  "hasMoreMessages": false,
+  "messageType": "",
+  "userKeys": [
+    ""
+  ],
+  "userOverrideNames": {
+    "*": ""
+  },
+  "maskedUserNames": [],
+  "showOtherViewersOption": false,
+  "viewerKeys": [
+    ""
+  ],
+  "organizationId": ""
+} as const;
+
 // /api/education/getpateducationtitles
 export const getPatEducationTitles = [
   {

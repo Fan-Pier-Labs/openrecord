@@ -330,7 +330,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |
 | **Lab Results** | `labResults.ts` | CMP, Lipid Panel, CBC — cholesterol and triglycerides high |
 | **Visits** | `visits.ts` | Upcoming: annual physical. Past: ER donut incident, radiation screening |
-| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt) and Dr. Nick (discount surgery) |
+| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt), Dr. Nick (discount surgery), and an 8-message back-pain thread that spans pages |
 | **Billing** | `bills.ts` | Multiple billing accounts with charges |
 | **Letters** | `letters.ts` | After-visit summaries from Dr. Hibbert |
 | **Goals** | `goals.ts` | Lose 50 lbs (care team), eat one vegetable/week (patient) |
@@ -349,13 +349,40 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 
 Messages are fully interactive. You can:
 
-- **List conversations** — returns seed data plus any new messages sent this session
-- **Read conversation threads** — full message history with timestamps and senders
+- **List conversations** — returns seed data plus any new messages sent this session, inlining only the newest five messages of each thread
+- **Read conversation threads** — `getconversationdetails` for the subject, the name maps and the newest page, then `getconversationmessages` to page backwards through anything older
 - **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
 - **Reply to a message** — appends to an existing conversation thread
 - **Delete a conversation** — removes it from the in-memory list
 
 All mutations persist in RAM until the server restarts.
+
+### Reading one thread
+
+Both single-conversation endpoints key the thread on `id`. `conversationId` — the
+name the *mutating* endpoints (`sendreply`, `deleteconversation`) use — is not
+accepted, and neither is an id for a thread this record doesn't have: both come
+back as HTTP 500 `{"Message":"An error has occurred."}`, exactly as observed on
+two live instances.
+
+```
+1. POST /api/conversations/getconversationdetails  { id, maxReadMessages? }
+     → subject, totalMessages, users / viewers name maps, newest page of messages,
+       hasMoreMessages
+2. POST /api/conversations/getconversationmessages { id, startInstantISO?, maxReadMessages? }
+     → the newest maxReadMessages messages STRICTLY OLDER than startInstantISO,
+       oldest-first, plus hasMoreMessages. Repeat with the oldest message's
+       deliveryInstantISO until it clears.
+```
+
+`maxReadMessages` is the page size and defaults to 5 — the same five the listing
+inlines. It is uncapped at the top end, so one large request really does return
+a whole thread; 0 legitimately means "none", and a negative or absent value
+falls back to the default.
+
+`author.displayName` is empty on every message, on real instances and here
+alike. A sender's name comes from `viewers[wprKey]` for patient-side authors and
+from `userOverrideNames[empKey] || users[empKey]` for staff.
 
 ### Message flow (what the scraper does)
 

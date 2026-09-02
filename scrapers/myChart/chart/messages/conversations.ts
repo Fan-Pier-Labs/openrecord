@@ -11,6 +11,11 @@ interface ConversationEntry {
   senderName?: string;
   lastMessageDateDisplay?: string;
   audience?: { name: string }[];
+  /**
+   * Older messages exist that this listing did not inline — it carries at most
+   * the newest five per thread. `getConversationMessages` is what fetches them.
+   */
+  hasMoreMessages?: boolean;
   messages?: {
     wmgId?: string;
     body?: string;

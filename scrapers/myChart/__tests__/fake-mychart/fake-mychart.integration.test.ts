@@ -47,6 +47,7 @@ import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
 import { listConversations } from '../../chart/messages/conversations'
+import { getConversationMessages } from '../../chart/messages/messageThreads'
 import { requestMedicationRefill } from '../../chart/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
 import { followSamlChain } from '../../eunity/imagingViewer'
@@ -499,9 +500,56 @@ for (const mode of MOUNT_MODES) {
       expect(componentNames(cbc)).toContain('Hemoglobin')
     }, 30_000)
 
-    it('listConversations returns conversations', async () => {
+    it('listConversations returns conversations, inlining only the newest page of each', async () => {
       const result = await listConversations(session)
       expect(result).toBeDefined()
+      const conversations = result!.conversations!
+      expect(conversations.length).toBeGreaterThan(0)
+
+      // Real MyChart inlines at most five messages per thread and flags the
+      // rest with hasMoreMessages; the long fixture thread is the one that
+      // makes a client page.
+      const long = conversations.find(c => c.hthId === 'CONV-003')!
+      expect(long.messages).toHaveLength(5)
+      expect(long.hasMoreMessages).toBe(true)
+      const short = conversations.find(c => c.hthId === 'CONV-001')!
+      expect(short.hasMoreMessages).toBe(false)
+
+      // Names live in the users / viewers maps, never on the message itself.
+      expect(long.messages!.every(m => (m.author?.displayName ?? '') === '')).toBe(true)
+    }, 10_000)
+
+    it('getConversationMessages pages past the listing to return the whole thread', async () => {
+      const result = await getConversationMessages(session, 'CONV-003')
+
+      expect(result.conversationId).toBe('CONV-003')
+      expect(result.subject).toBe('Back pain after the bowling tournament')
+      // Eight messages, five to a page — the listing alone would have shown five.
+      expect(result.messages.map(m => m.messageId)).toEqual([
+        'MSG-010', 'MSG-011', 'MSG-012', 'MSG-013', 'MSG-014', 'MSG-015', 'MSG-016', 'MSG-017',
+      ])
+      expect(result.messages.every((m, i) => i === 0 || result.messages[i - 1]!.sentDate <= m.sentDate)).toBe(true)
+
+      // Sender names come from the users / viewers maps, with the thread's
+      // userOverrideNames winning for the imaging department.
+      expect(result.messages[0]!.senderName).toBe('Homer Simpson')
+      expect(result.messages[0]!.isFromPatient).toBe(true)
+      expect(result.messages[1]!.senderName).toBe('Julius Hibbert, MD')
+      expect(result.messages[1]!.isFromPatient).toBe(false)
+      expect(result.messages[4]!.senderName).toBe('Springfield Spine Clinic')
+      expect(result.messages.every(m => m.messageBody !== '' && m.sentDate !== '')).toBe(true)
+    }, 15_000)
+
+    it('getConversationMessages returns a short thread in one page', async () => {
+      const result = await getConversationMessages(session, 'CONV-002')
+      expect(result.subject).toBe('Discount Surgery Consultation')
+      expect(result.messages.map(m => m.messageId)).toEqual(['MSG-004', 'MSG-005'])
+    }, 10_000)
+
+    it('getConversationMessages surfaces the 500 an unknown conversation id gets', async () => {
+      await expect(getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).rejects.toThrow(
+        'GetConversationDetails failed with status 500',
+      )
     }, 10_000)
 
     it('getBillingHistory returns billing data', async () => {

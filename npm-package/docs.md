@@ -120,7 +120,7 @@ import { convertCloToJpg, convertCloToBitmap16 } from 'mychart-cli';
 | Method | Returns |
 | --- | --- |
 | `client.listConversations()` | `Promise<ConversationListResponse \| null>` |
-| `client.getConversationMessages(conversationId)` | `Promise<ConversationThread>` |
+| `client.getConversationMessages(conversationId)` | `Promise<ConversationThread>` — the whole thread, paging past the five messages `listConversations` inlines. |
 | `client.sendMessage(params: SendNewMessageParams)` | `Promise<SendNewMessageResult>` |
 | `client.sendReply(params: SendReplyParams)` | `Promise<SendReplyResult>` |
 | `client.deleteMessage(conversationId)` | `Promise<DeleteMessageResult>` |
