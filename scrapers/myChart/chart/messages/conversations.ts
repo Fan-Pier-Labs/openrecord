@@ -1,9 +1,23 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../../core/util";
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
-interface ConversationEntry {
+/** Author of a message: staff carry an `empKey`, patient-side viewers a `wprKey`. */
+export interface MessageAuthor {
+  displayName?: string;
+  empKey?: string;
+  wprKey?: string;
+}
+
+export interface ConversationMessage {
+  wmgId?: string;
+  body?: string;
+  deliveryInstantISO?: string;
+  author?: MessageAuthor;
+}
+
+export interface ConversationEntry {
   hthId?: string;
   subject?: string;
   previewText?: string;
@@ -11,12 +25,11 @@ interface ConversationEntry {
   senderName?: string;
   lastMessageDateDisplay?: string;
   audience?: { name: string }[];
-  messages?: {
-    wmgId?: string;
-    body?: string;
-    deliveryInstantISO?: string;
-    author?: { displayName?: string };
-  }[];
+  messages?: ConversationMessage[];
+  /** Set when the conversation has messages the listing did not inline. */
+  hasMoreMessages?: boolean;
+  /** Per-conversation display names, keyed by the author's `empKey`. */
+  userOverrideNames?: Record<string, string>;
 }
 
 export interface ConversationListResponse {
@@ -27,19 +40,10 @@ export interface ConversationListResponse {
   [key: string]: unknown;
 }
 
-export async function listConversations(mychartRequest: MyChartRequest): Promise<ConversationListResponse | null> {
-
-
-  // Go to the communication center
-  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' })
-  const requestVerificationToken = getRequestVerificationTokenFromBody(await communicationCenterRes.text())
-
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token')
-    return null
-  }
-
-
+async function fetchConversationList(
+  mychartRequest: MyChartRequest,
+  requestVerificationToken: string,
+): Promise<ConversationListResponse> {
   const messages = await makeAuthenticatedRequest(mychartRequest, {
     path: '/api/conversations/GetConversationList',
     "headers": {
@@ -50,10 +54,22 @@ export async function listConversations(mychartRequest: MyChartRequest): Promise
     "method": "POST",
   });
 
-  const out = await messages.json() as ConversationListResponse;
+  return await messages.json() as ConversationListResponse;
+}
+
+export async function listConversations(mychartRequest: MyChartRequest): Promise<ConversationListResponse | null> {
+
+
+  const requestVerificationToken = await getVerificationToken(mychartRequest)
+
+  if (!requestVerificationToken) {
+    logger.debug('could not find request verification token')
+    return null
+  }
+
+  const out = await fetchConversationList(mychartRequest, requestVerificationToken);
 
   logger.debug(out)
 
   return out;
 }
-

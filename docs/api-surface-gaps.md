@@ -47,27 +47,52 @@ likely surface more.
 Live on this account, returning real data. Each of these can have its shape captured into
 `realShapes.ts` and a fake-mychart route built against it.
 
-## 1a. Care Team — closes a declared-but-withdrawn capability
+## 1a. Care Team — DONE, shipped against this capture
 
-`get_care_team` is currently a `comingSoon` stub; the previous implementation was withdrawn (#313)
-for guessing at a shape nobody had captured. The real endpoint:
+`get_care_team` is implemented (`scrapers/myChart/chart/careTeam.ts`), modelled in fake-mychart
+(`/Clinical/CareTeam/Load` + `/LoadExternal`, shape `careTeamLoad` in `realShapes.ts`), and no longer
+a declared-but-unimplemented stub — a state the registry no longer has at all. The capture,
+re-verified against **four live instances spanning both captured Epic releases** (three behaving as
+November 2025, one as August 2025), because this file is the only record of it:
 
 ```
 POST /Clinical/CareTeam/Load          → 200, the provider list
-POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers (empty here)
+POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers (empty on all four)
 ```
 
-- **POST-only.** `GET` returns 500 on every query-string variant; `POST` returns 200 on all of them.
+- **Release-independent payload.** All four instances returned the same envelope, the same 23
+  provider fields and the same types, across both releases. Nothing here rides on the version the
+  way the November-2025-only test-result fields do. The *error surface* is the one thing that
+  moves, and it is the generic ASP.NET one, not something care-team-specific.
+- **POST-only.** A `GET` is refused with the instance's ASP.NET error surface — a bare 500 on the
+  August 2025 release, a 302 to `/Home/FiveHundred` on November 2025 — never the data.
+- **The antiforgery token is required**, exactly as on `/api/*`: a token-less POST gets that same
+  error surface on all four. The token comes off the `/Clinical/CareTeam` activity page (the
+  page never names `CareTeam/Load` itself; the URL lives in `careteam.min.js`).
 - The params the page's JS builds (`hfrId`, `sources`, `actions`, `isPrimaryStandalone`) are **all
-  optional** — a bare `POST /Clinical/CareTeam/Load` with `{}` returns the full list.
-- PascalCase envelope (legacy MVC, not the camelCase `/api/*` convention):
-  `{ ProvidersList: [{ ID, Name, Photo, NationalProviderID, WebPageUrl, InfoBlurbUrl, AboutMeBlurb,
-  CanViewProviderDetails, CanDirectSchedule, CanRequestAppointment, CanMessage, CommCenterMessageUrl,
-  CanRequestCustomAppt, HasNoProviderRecord, IsNewSchedulingEnabled, Specialty, Relation,
-  SchedulableVisitTypes, DepartmentID, Organizations, IsExternal, CareTeamStatus, CanHideProvider }],
+  optional** — a bare POST with `{}` returned exactly the same list on every instance.
+- PascalCase envelope (legacy MVC, not the camelCase `/api/*` convention), 23 provider fields,
+  byte-identical field sets on all four instances. Types are **not** all strings:
+  `{ ProvidersList: [{ ID (86–88 char opaque string), Name, Photo, NationalProviderID, WebPageUrl,
+  InfoBlurbUrl, AboutMeBlurb (ARRAY — empty on every provider of all four), CanViewProviderDetails,
+  CanDirectSchedule, CanRequestAppointment, CanMessage, CommCenterMessageUrl, CanRequestCustomAppt,
+  HasNoProviderRecord, IsNewSchedulingEnabled, Specialty, Relation (string, and `null` or `""` for a
+  provider with no stated role), SchedulableVisitTypes (NULL on all four), DepartmentID,
+  Organizations (NULL on all four), IsExternal, CareTeamStatus (NUMBER, 0 on all four),
+  CanHideProvider }],
   DescriptiveTitle, TabColorClass, IsCustomApptReqEnabled, CustomRequestAppointmentLink }`
 - `Relation` carries the role (the PCP designation appears here); `Specialty` the department
-  specialty. `LoadExternal` returns the same envelope with its own `ProvidersList`.
+  specialty. **Not every entry is a clinician** — one instance listed the patient's insurance payer
+  with `Relation: "Payer"`, no NPI and no specialty. `NationalProviderID`, `Specialty`, `Photo`,
+  `WebPageUrl`, `InfoBlurbUrl` and `CommCenterMessageUrl` are all empty strings on some real
+  entries, so only `ID` and `Name` can be relied on. `LoadExternal` returns the same envelope with
+  its own `ProvidersList`; it was empty on all four accounts.
+- `AboutMeBlurb`, `Organizations` and `SchedulableVisitTypes` are **not surfaced by the scraper**:
+  an empty array and two nulls, on all four instances, tell you the key exists, not what it holds. They get added when a
+  capture shows one populated.
+- The scraper refuses to read a missing `ProvidersList` as an empty care team — that silent
+  failure is what got the previous implementation withdrawn (#313) — and reports a `LoadExternal`
+  it could not read as `externalProvidersUnavailable` rather than as "no outside providers".
 
 ## 1b. Chart data with no capability at all
 
@@ -219,8 +244,7 @@ list above was built.
 
 # Suggested order of work
 
-1. **Care team** (§1a) — a declared capability that today returns a "not supported" notice, and the
-   shape is now captured. Highest value per unit of effort.
+1. ~~**Care team** (§1a)~~ — done: implemented against the capture in §1a.
 2. **Third-party access log** (§1c) — which apps read which categories of the record. For a product
    about owning your health data that is close to a headline feature, and it's one POST with `{}`.
 3. **Implants, pedigree, trends dashboard, preferred pharmacies, PCP, To Do** (§1b) — six

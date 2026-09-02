@@ -29,6 +29,7 @@ import { getHealthIssues } from '../../chart/healthIssues'
 import { getImmunizations } from '../../chart/immunizations'
 import { getVitals } from '../../chart/vitals'
 import { getInsurance } from '../../chart/insurance'
+import { getCareTeam } from '../../chart/careTeam'
 import { getReferrals } from '../../chart/referrals'
 import { getMedicalHistory } from '../../chart/medicalHistory'
 import { getPreventiveCare } from '../../chart/preventiveCare'
@@ -47,6 +48,7 @@ import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
 import { listConversations } from '../../chart/messages/conversations'
+import { getConversationMessages } from '../../chart/messages/messageThreads'
 import { requestMedicationRefill } from '../../chart/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
 import { followSamlChain } from '../../eunity/imagingViewer'
@@ -175,10 +177,21 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
-    it('getVitals returns vitals', async () => {
+    it('getVitals returns vitals, values included', async () => {
       const result = await getVitals(session)
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBeGreaterThan(0)
+
+      // Every reading must carry its value. Numeric rows (Pulse, Weight) arrive
+      // as numericValue next to an EMPTY stringValue, which used to blank them
+      // while a plain length check still passed.
+      for (const fs of result) {
+        expect(fs.readings.length).toBeGreaterThan(0)
+        for (const r of fs.readings) expect(r.value).not.toBe('')
+      }
+      expect(result.find(f => f.name === 'Weight')!.readings[0]!.value).toBe('260')
+      expect(result.find(f => f.name === 'Pulse')!.readings[0]!.value).toBe('88')
+      expect(result.find(f => f.name === 'Blood Pressure')!.readings[0]!.value).toBe('145/95')
     }, 10_000)
 
     it('getInsurance returns insurance data', async () => {
@@ -187,6 +200,23 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.coverages)).toBe(true)
       expect(result.coverages.length).toBeGreaterThan(0)
       expect(result.hasCoverages).toBe(true)
+    }, 10_000)
+
+    it('getCareTeam returns internal and external providers', async () => {
+      const result = await getCareTeam(session)
+      expect(result.externalProvidersUnavailable).toBe(false)
+      const pcp = result.members.find(m => m.relation === 'Primary Care Provider')
+      expect(pcp?.name).toBeTruthy()
+      expect(pcp?.specialty).toBeTruthy()
+      expect(pcp?.isExternal).toBe(false)
+      expect(result.members.some(m => m.isExternal)).toBe(true)
+
+      // A real care team is not all clinicians: one instance listed the
+      // patient's insurance payer, with no NPI and no specialty.
+      const payer = result.members.find(m => m.relation === 'Payer')
+      expect(payer?.name).toBeTruthy()
+      expect(payer?.nationalProviderId).toBe('')
+      expect(payer?.specialty).toBe('')
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
@@ -206,10 +236,13 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
     }, 10_000)
 
-    it('getPreventiveCare returns items', async () => {
+    it('getPreventiveCare returns one item per screening, none run together', async () => {
       const result = await getPreventiveCare(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result).toEqual([
+        { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
+        { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
+        { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
+      ])
     }, 10_000)
 
     it('getLetters returns letters sorted newest-first with undated last', async () => {
@@ -510,9 +543,59 @@ for (const mode of MOUNT_MODES) {
       }
     }, 30_000)
 
-    it('listConversations returns conversations', async () => {
+    it('listConversations returns conversations, inlining only the newest page of each', async () => {
       const result = await listConversations(session)
       expect(result).toBeDefined()
+      const conversations = result!.conversations!
+      expect(conversations.length).toBeGreaterThan(0)
+
+      // Real MyChart inlines at most five messages per thread and flags the
+      // rest with hasMoreMessages; the long fixture thread is the one that
+      // makes a client page.
+      const long = conversations.find(c => c.hthId === 'CONV-003')!
+      expect(long.messages).toHaveLength(5)
+      expect(long.hasMoreMessages).toBe(true)
+      const short = conversations.find(c => c.hthId === 'CONV-001')!
+      expect(short.hasMoreMessages).toBe(false)
+
+      // Names live in the users / viewers maps, never on the message itself.
+      expect(long.messages!.every(m => (m.author?.displayName ?? '') === '')).toBe(true)
+    }, 10_000)
+
+    it('getConversationMessages pages past the listing to return the whole thread', async () => {
+      const result = await getConversationMessages(session, 'CONV-003')
+
+      expect(result.conversationId).toBe('CONV-003')
+      expect(result.subject).toBe('Back pain after the bowling tournament')
+      // Eight messages, five to a page — the listing alone would have shown five.
+      expect(result.messages.map(m => m.messageId)).toEqual([
+        'MSG-010', 'MSG-011', 'MSG-012', 'MSG-013', 'MSG-014', 'MSG-015', 'MSG-016', 'MSG-017',
+      ])
+      expect(result.messages.every((m, i) => i === 0 || result.messages[i - 1]!.sentDate <= m.sentDate)).toBe(true)
+
+      // Sender names come from the users / viewers maps, with the thread's
+      // userOverrideNames winning for the imaging department.
+      expect(result.messages[0]!.senderName).toBe('Homer Simpson')
+      expect(result.messages[0]!.isFromPatient).toBe(true)
+      expect(result.messages[1]!.senderName).toBe('Julius Hibbert, MD')
+      expect(result.messages[1]!.isFromPatient).toBe(false)
+      expect(result.messages[4]!.senderName).toBe('Springfield Spine Clinic')
+      expect(result.messages.every(m => m.messageBody !== '' && m.sentDate !== '')).toBe(true)
+    }, 15_000)
+
+    it('getConversationMessages returns a short thread in one page', async () => {
+      const result = await getConversationMessages(session, 'CONV-002')
+      expect(result.subject).toBe('Discount Surgery Consultation')
+      expect(result.messages.map(m => m.messageId)).toEqual(['MSG-004', 'MSG-005'])
+    }, 10_000)
+
+    // GetConversationDetails answers an unknown id with 200 and a literal null,
+    // not an error status — so this is the case a status-only check waves
+    // through and then reports as a conversation with nothing in it.
+    it('getConversationMessages refuses an unknown conversation id rather than reporting it empty', async () => {
+      await expect(getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).rejects.toThrow(
+        /No conversation CONV-DOES-NOT-EXIST/,
+      )
     }, 10_000)
 
     it('getBillingHistory returns billing data', async () => {

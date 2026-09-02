@@ -12,7 +12,10 @@
  * migrate rather than force a re-registration.
  *
  * `./memfs` is imported first because the credential-store file slots write
- * under the store root.
+ * under the store root. It also pins OPENRECORD_SECRET_BACKEND to the file for
+ * every suite in the run; this is the one suite that steps outside that pin, so
+ * it puts the pin back after every test rather than leaving the variable unset
+ * for whatever file bun runs next in the same process.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import * as memfs from './memfs'
@@ -80,6 +83,14 @@ function slot(initial?: string) {
 
 const ORIGINAL_PLATFORM = process.platform
 
+/** The file pin `./memfs` installed, restored after each test. */
+const PINNED_BACKEND = process.env.OPENRECORD_SECRET_BACKEND
+
+function restorePin(): void {
+  if (PINNED_BACKEND === undefined) delete process.env.OPENRECORD_SECRET_BACKEND
+  else process.env.OPENRECORD_SECRET_BACKEND = PINNED_BACKEND
+}
+
 /** `process.platform` is read-only; redefining it is the only way to fake it. */
 function setPlatform(platform: string): void {
   Object.defineProperty(process, 'platform', { value: platform, configurable: true })
@@ -101,7 +112,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setPlatform(ORIGINAL_PLATFORM)
-  delete process.env.OPENRECORD_SECRET_BACKEND
+  restorePin()
   secrets._internals.resetCache()
 })
 
@@ -134,11 +145,29 @@ describe('the @napi-rs/keyring binding', () => {
 // ── Backend selection ───────────────────────────────────────────────────────
 
 describe('backend selection', () => {
-  it('stays on the file under NODE_ENV=test, so no suite touches a real keystore', () => {
-    // Bun sets NODE_ENV=test; this is the guard that makes the default safe.
-    expect(process.env.NODE_ENV).toBe('test')
+  it('stays on the file under NODE_ENV=test, so an unpinned suite is still safe', () => {
+    // Driven rather than read: `bun test` only sets NODE_ENV=test when it is
+    // not already set, so asserting the ambient value would fail for a
+    // developer who exports it — the very case the pin below exists for.
+    const original = process.env.NODE_ENV
+    process.env.NODE_ENV = 'test'
+    secrets._internals.resetCache()
     setPlatform('darwin')
-    expect(secrets.activeBackend()).toBe('file')
+    try {
+      expect(secrets.activeBackend()).toBe('file')
+    } finally {
+      if (original === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = original
+    }
+  })
+
+  it('is pinned to the file by ./memfs, so the guard does not rest on NODE_ENV alone', () => {
+    // `bun test` leaves an already-set NODE_ENV alone, and an exported
+    // OPENRECORD_SECRET_BACKEND beats the NODE_ENV default outright — either
+    // would otherwise send this suite's writes to the developer's real
+    // keychain. The beforeEach above clears the pin, so read it from the
+    // captured value.
+    expect(PINNED_BACKEND).toBe('file')
   })
 
   it('names the platform store it is using', () => {

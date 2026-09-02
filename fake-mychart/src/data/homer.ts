@@ -222,11 +222,82 @@ export const vitalsReadings = {
   userSettings: {},
 };
 
-// ─── Care Team (HTML parsed) ────────────────────────────────────────
-export const careTeam = [
-  { name: 'Julius Hibbert, MD', role: 'Primary Care Provider', specialty: 'Internal Medicine' },
-  { name: 'Nick Riviera, MD', role: 'Surgeon', specialty: 'General Surgery' },
-];
+// ─── Care Team ──────────────────────────────────────────────────────
+// PascalCase because /Clinical/CareTeam/Load is a legacy MVC activity, not one
+// of the React /api/* endpoints. `Relation` carries the role (the PCP
+// designation lives there); `Specialty` the department specialty. The fields
+// left out here are filled from the shape template: on both captured instances
+// `AboutMeBlurb` was an empty array and `Organizations` /
+// `SchedulableVisitTypes` were null on every provider. `TabColorClass` and
+// `CustomRequestAppointmentLink` ride along because both instances always
+// populated them — a fixture that left them to the template's "" would show
+// scrapers an empty string real MyChart never sends.
+export const careTeam = {
+  ProvidersList: [
+    {
+      ID: 'PROV-HIBBERT',
+      Name: 'Julius Hibbert, MD',
+      NationalProviderID: '1000000001',
+      Specialty: 'Internal Medicine',
+      Relation: 'Primary Care Provider',
+      DepartmentID: 'DEP-IM-1',
+      CanMessage: true,
+      WebPageUrl: '/MyChart/Clinical/Provider/PROV-HIBBERT',
+    },
+    {
+      ID: 'PROV-RIVIERA',
+      Name: 'Nick Riviera, MD',
+      NationalProviderID: '1000000002',
+      Specialty: 'General Surgery',
+      Relation: 'Surgeon',
+      DepartmentID: 'DEP-SURG-1',
+      CanMessage: false,
+    },
+    {
+      // Not every care-team entry is a clinician: one instance listed the
+      // patient's insurance payer here, with `Relation: 'Payer'`, no NPI and
+      // no specialty. Anything that assumes "care team member" means "doctor"
+      // is wrong on a real chart, so the fake says so too.
+      ID: 'PAYER-SNPP',
+      Name: 'Springfield Nuclear Power Plant Employee Health Plan',
+      Relation: 'Payer',
+      CanMessage: false,
+    },
+    {
+      // A provider with no stated role: `Relation` comes back literally null,
+      // not "", on a real instance — most of one account's providers did — so
+      // anything reading this field meets that case here too.
+      ID: 'PROV-VELIMIROVIC',
+      Name: 'Dr. Velimirovic, MD',
+      NationalProviderID: '1000000004',
+      Specialty: 'Cardiothoracic Surgery',
+      Relation: null,
+      DepartmentID: 'DEP-SURG-2',
+      CanMessage: true,
+    },
+  ],
+  DescriptiveTitle: 'Your Care Team',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
+};
+
+// The Care Everywhere / outside-provider list, served by
+// /Clinical/CareTeam/LoadExternal in the same envelope.
+export const careTeamExternal = {
+  ProvidersList: [
+    {
+      ID: 'PROV-EXT-MONROE',
+      Name: 'Marvin Monroe, MD',
+      NationalProviderID: '1000000003',
+      Specialty: 'Psychiatry',
+      Relation: 'Outside Provider',
+      IsExternal: true,
+    },
+  ],
+  DescriptiveTitle: 'Providers outside this organization',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
+};
 
 // ─── Insurance (HTML parsed) ────────────────────────────────────────
 export const insurance = [
@@ -1083,31 +1154,61 @@ export const pastVisits = {
 };
 
 // ─── Messages / Conversations ───────────────────────────────────────
-export const conversations = {
+/**
+ * One message in a thread. Real MyChart carries exactly one of `empKey` (staff)
+ * / `wprKey` (patient side) and leaves `displayName` empty — the name is looked
+ * up in the `users` / `viewers` maps on the conversation payload.
+ */
+export type FakeConversationMessage = {
+  wmgId: string;
+  author: { displayName: string; empKey?: string; wprKey?: string };
+  deliveryInstantISO: string;
+  body: string;
+};
+
+export type FakeConversationThread = {
+  hthId: string;
+  subject: string;
+  previewText: string;
+  audience: { name: string }[];
+  /** Per-thread display names that win over the shared `users` map. */
+  userOverrideNames: Record<string, string>;
+  messages: FakeConversationMessage[];
+};
+
+export const conversations: {
+  conversations: FakeConversationThread[];
+  users: Record<string, { name: string }>;
+  viewers: Record<string, { name: string; isSelf: boolean }>;
+} = {
   conversations: [
     {
       hthId: 'CONV-001',
       subject: 'Weight Management Follow-up',
       previewText: 'Homer, we discussed your weight loss goals...',
       audience: [{ name: 'Julius Hibbert, MD' }],
-      hasMoreMessages: false,
       userOverrideNames: {},
+      // Real MyChart leaves author.displayName empty on every message and
+      // expects the client to resolve the name through the users / viewers
+      // maps below, so the fixture does the same. Filling it in here would
+      // let a scraper that never looks at the maps pass against the fake and
+      // return blank sender names against every real instance.
       messages: [
         {
           wmgId: 'MSG-001',
-          author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-10T14:30:00Z',
           body: 'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.',
         },
         {
           wmgId: 'MSG-002',
-          author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: '2026-01-10T15:45:00Z',
           body: "But doc, donuts are a food group! Can't I just take more pills instead?",
         },
         {
           wmgId: 'MSG-003',
-          author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-11T09:00:00Z',
           body: "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
         },
@@ -1118,20 +1219,81 @@ export const conversations = {
       subject: 'Discount Surgery Consultation',
       previewText: 'Hi-Everybody! I have great news about...',
       audience: [{ name: 'Nick Riviera, MD' }],
-      hasMoreMessages: false,
       userOverrideNames: {},
       messages: [
         {
           wmgId: 'MSG-004',
-          author: { empKey: 'PROV-NICK', wprKey: '', displayName: 'Nick Riviera, MD' },
+          author: { empKey: 'PROV-NICK', displayName: '' },
           deliveryInstantISO: '2025-12-15T10:00:00Z',
           body: "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
         },
         {
           wmgId: 'MSG-005',
-          author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: '2025-12-15T11:30:00Z',
           body: "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
+        },
+      ],
+    },
+    {
+      // Longer than one page, so `hasMoreMessages` is set on the listing and
+      // reading the whole thread takes the paging loop. Real MyChart inlines
+      // at most CONVERSATION_PAGE_SIZE messages per conversation.
+      hthId: 'CONV-003',
+      subject: 'Back pain after the bowling tournament',
+      previewText: 'Following up on the imaging we ordered...',
+      audience: [{ name: 'Julius Hibbert, MD' }],
+      // A per-conversation override of the shared users map: this thread
+      // renders the department name rather than the covering provider's.
+      userOverrideNames: { 'PROV-MONROE': 'Springfield Spine Clinic' },
+      messages: [
+        {
+          wmgId: 'MSG-010',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-01T08:00:00Z',
+          body: 'My back has been killing me since the bowling tournament. Is that normal?',
+        },
+        {
+          wmgId: 'MSG-011',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-01T13:15:00Z',
+          body: 'How long has the pain been going on, and does it radiate down either leg?',
+        },
+        {
+          wmgId: 'MSG-012',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-02T07:45:00Z',
+          body: 'About four days. It only hurts when I sit, stand, walk, or breathe.',
+        },
+        {
+          wmgId: 'MSG-013',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-02T16:20:00Z',
+          body: "Let's get imaging. I have placed the order; the department will reach out to schedule.",
+        },
+        {
+          wmgId: 'MSG-014',
+          author: { empKey: 'PROV-MONROE', displayName: '' },
+          deliveryInstantISO: '2025-11-03T09:05:00Z',
+          body: 'We have openings Thursday morning and Friday afternoon. Which works better?',
+        },
+        {
+          wmgId: 'MSG-015',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-03T09:40:00Z',
+          body: 'Friday afternoon. Thursday is donut day at the plant.',
+        },
+        {
+          wmgId: 'MSG-016',
+          author: { empKey: 'PROV-MONROE', displayName: '' },
+          deliveryInstantISO: '2025-11-03T10:12:00Z',
+          body: 'Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.',
+        },
+        {
+          wmgId: 'MSG-017',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-07T11:00:00Z',
+          body: 'Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.',
         },
       ],
     },
@@ -1139,6 +1301,7 @@ export const conversations = {
   users: {
     'PROV-HIBBERT': { name: 'Julius Hibbert, MD' },
     'PROV-NICK': { name: 'Nick Riviera, MD' },
+    'PROV-MONROE': { name: 'Marvin Monroe, MD' },
   },
   viewers: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },

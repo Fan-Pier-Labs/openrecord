@@ -156,7 +156,7 @@ curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","m
 - `movedHost` — **where `moved-host` sends the client.** Point it at another name for this same server — `127.0.0.1:4000` when the client came in on `localhost:4000` — to exercise the move without running a second server. Setting `discovery: "moved-host"` without it is a 400.
 - `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 - `requireTerms` — **whether login lands on the chart or on Terms & Conditions.** `false` (default) or `true`, which bounces every un-accepted session to `/Authentication/TermsConditions`. Wants a fresh login, since it gates sessions that haven't accepted yet. This was the `FAKE_MYCHART_REQUIRE_TERMS` environment variable, which needed a second server on another port to exercise.
-- `epicVersion` — **which Epic release the instance behaves like.** `"November 2025"` (default) or `"August 2025"` — real Epic release names, read from the captured organizations' public FHIR `metadata` endpoints (`software.version`; Epic names releases by month). On November 2025, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On August 2025, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. (Of the three captured instances, the August 2025 one reports that release directly; one November 2025 instance reports it directly and the third's release number wasn't readable, but its behavior is byte-compatible with November 2025.) No re-login needed.
+- `epicVersion` — **which Epic release the instance behaves like.** `"November 2025"` (default) or `"August 2025"` — real Epic release names, read from the captured organizations' public FHIR `metadata` endpoints (`software.version`; Epic names releases by month). On November 2025, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On August 2025, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. The same split covers the legacy `/Clinical/CareTeam/*` endpoints, which enforce the antiforgery token exactly as the `/api/*` routes do; their payload does not vary by release (all four captured instances returned the identical envelope and field types). (Of the three captured instances, the August 2025 one reports that release directly; one November 2025 instance reports it directly and the third's release number wasn't readable, but its behavior is byte-compatible with November 2025.) No re-login needed.
 
 `mode` and `discovery` are orthogonal — every combination works, and whichever
 mount is active serves MyChart from exactly one prefix while the other 404s. A
@@ -192,6 +192,16 @@ Behavioral contract, all verified against the same captures and enforced by
 - **`GetDetails` answers an unknown orderKey with a 200 empty shell** — blank
   `orderName`/`key`, one result with no name and no components — never an error
   and never another order's data.
+- **`GetConversationMessages` / `GetConversationDetails` key the thread on
+  `id`, and reject a bad one *differently*.** The 500 `{"Message": "An error has
+  occurred."}` every instance used to answer with was the *request*, not a dead
+  endpoint: `conversationId` — which the mutating siblings do take — is
+  rejected, and so is an id for a thread the record doesn't have. With `id`,
+  both answer 200 with the conversation object. But the two disagree on how they
+  say no, on all four instances checked: **Messages 500s, Details answers 200
+  with a literal JSON `null`** (the same shape `GetVisitNotes` and
+  `GetLetterDetails` use for unknown ids). A client that checks only the status
+  code reads that null as a thread with nothing in it.
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
@@ -211,6 +221,16 @@ Behavioral contract, all verified against the same captures and enforced by
   scripts attach the token through a shared `fetch` wrapper (`html/assets/csrf-fetch.js`).
 - **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
   generic token page.
+- **`SendMedicalAdviceRequest` silently DISCARDS a body over 500 characters.**
+  Not a 4xx and not an error body: HTTP 200 whose entire payload is `""` where
+  the conversation id belongs, and no conversation is created. 500 characters
+  is accepted and comes back with a real id; 501 is swallowed. Bisected on a
+  live instance (2026-08-28, ASCII); the counting rule for non-ASCII bodies is
+  unverified, so the fake counts characters. This is why
+  `scrapers/myChart/chart/messages/sendMessage.ts` refuses an over-limit body
+  up front and never reports success without a conversation id — a caller that
+  reads "200 means sent" tells a patient their message reached their doctor
+  when nothing was filed.
 
 ## Resetting In-Memory State
 
@@ -318,13 +338,13 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Health Issues** | `healthIssues.ts` | Obesity, Hypertension, Hypercholesterolemia, Radiation exposure |
 | **Immunizations** | `immunizations.ts` | Flu, Tdap, COVID-19, Hep B |
 | **Vitals** | `vitals.ts` | BP 145/95, HR 88, Weight 260 lbs with history |
-| **Care Team** | `careTeam.ts` | Dr. Julius Hibbert (PCP), Dr. Nick Riviera (Surgery) |
+| **Care Team** | `careTeam.ts` | Dr. Julius Hibbert (PCP), Dr. Nick Riviera (Surgery), the health plan itself as a `Payer` entry and a provider whose `Relation` is `null` — both cases real instances send — plus Dr. Marvin Monroe as an outside provider from `LoadExternal` |
 | **Insurance** | `insurance.ts` | Springfield Nuclear Power Plant Employee Health Plan |
 | **Emergency Contacts** | `emergencyContacts.ts` | Marge Simpson (Spouse), Barney Gumble (Friend) |
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |
 | **Lab Results** | `labResults.ts` | CMP, Lipid Panel, CBC — cholesterol and triglycerides high |
 | **Visits** | `visits.ts` | Upcoming: annual physical. Past: ER donut incident, radiation screening |
-| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt) and Dr. Nick (discount surgery) |
+| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt), Dr. Nick (discount surgery), and an 8-message back-pain thread that spans pages |
 | **Billing** | `bills.ts` | Multiple billing accounts with charges |
 | **Letters** | `letters.ts` | After-visit summaries from Dr. Hibbert |
 | **Goals** | `goals.ts` | Lose 50 lbs (care team), eat one vegetable/week (patient) |
@@ -343,13 +363,40 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 
 Messages are fully interactive. You can:
 
-- **List conversations** — returns seed data plus any new messages sent this session
-- **Read conversation threads** — full message history with timestamps and senders
-- **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls.
+- **List conversations** — returns seed data plus any new messages sent this session, inlining only the newest five messages of each thread
+- **Read conversation threads** — `getconversationdetails` for the subject, the name maps and the newest page, then `getconversationmessages` to page backwards through anything older
+- **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
 - **Reply to a message** — appends to an existing conversation thread
 - **Delete a conversation** — removes it from the in-memory list
 
 All mutations persist in RAM until the server restarts.
+
+### Reading one thread
+
+Both single-conversation endpoints key the thread on `id`. `conversationId` — the
+name the *mutating* endpoints (`sendreply`, `deleteconversation`) use — is not
+accepted, and neither is an id for a thread this record doesn't have: both come
+back as HTTP 500 `{"Message":"An error has occurred."}`, exactly as observed on
+two live instances.
+
+```
+1. POST /api/conversations/getconversationdetails  { id, maxReadMessages? }
+     → subject, totalMessages, users / viewers name maps, newest page of messages,
+       hasMoreMessages
+2. POST /api/conversations/getconversationmessages { id, startInstantISO?, maxReadMessages? }
+     → the newest maxReadMessages messages STRICTLY OLDER than startInstantISO,
+       oldest-first, plus hasMoreMessages. Repeat with the oldest message's
+       deliveryInstantISO until it clears.
+```
+
+`maxReadMessages` is the page size and defaults to 5 — the same five the listing
+inlines. It is uncapped at the top end, so one large request really does return
+a whole thread; 0 legitimately means "none", and a negative or absent value
+falls back to the default.
+
+`author.displayName` is empty on every message, on real instances and here
+alike. A sender's name comes from `viewers[wprKey]` for patient-side authors and
+from `userOverrideNames[empKey] || users[empKey]` for staff.
 
 ### Message flow (what the scraper does)
 

@@ -121,6 +121,50 @@ describe('capability registry against fake-mychart', () => {
     }, 30_000)
   }
 
+  // A thread whose every field came back empty still satisfies `toBeDefined()`
+  // above, which is exactly how a field-mapping regression once shipped. Check
+  // the contents against the inbox the ids came from, on a conversation the
+  // listing deliberately truncates: the thread has to come back LONGER than the
+  // inbox showed, which is the whole point of the endpoint.
+  it('returns a fully populated message thread, longer than the inbox inlined', async () => {
+    const inbox = (await executeCapability(session, 'get_messages')) as {
+      conversations?: Array<{ hthId: string; subject: string; messages: unknown[]; hasMoreMessages: boolean }>
+    }
+    const conversation = inbox.conversations?.find((c) => c.hasMoreMessages)
+    expect(conversation).toBeDefined()
+
+    const thread = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: conversation!.hthId,
+    })) as {
+      conversationId: string
+      subject: string
+      truncated: boolean
+      messages: Array<{
+        messageId: string
+        senderName: string
+        sentDate: string
+        messageBody: string
+        isFromPatient: boolean
+      }>
+    }
+
+    expect(thread.conversationId).toBe(conversation!.hthId)
+    expect(thread.subject).toBe(conversation!.subject)
+    expect(thread.messages.length).toBeGreaterThan(conversation!.messages.length)
+    expect(thread.truncated).toBe(false)
+
+    for (const message of thread.messages) {
+      expect(message.messageId).not.toBe('')
+      expect(message.senderName).not.toBe('')
+      expect(message.sentDate).not.toBe('')
+      expect(message.messageBody).not.toBe('')
+    }
+
+    // The fixture thread is a back-and-forth, so both sides must be attributed.
+    expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
+    expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
+  }, 30_000)
+
   // ── Imaging ───────────────────────────────────────────────────────────────
 
   it('mints an image_id in get_imaging_results and downloads it back', async () => {

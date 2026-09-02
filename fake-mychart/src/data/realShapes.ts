@@ -105,6 +105,161 @@ export const getConversationList = {
   "externalSummaries": {}
 } as const;
 
+// /api/conversations/getconversationmessages
+// One page of a single conversation: the conversation object, with `messages`
+// holding the page. Same element shape the listing inlines, minus every
+// listing-level field (no `subject`, no `users` / `viewers` name maps -- those
+// come from getconversationdetails or the listing).
+export const getConversationMessages = {
+  "contexts": [],
+  "hthId": "",
+  "messages": [
+        {
+          "wmgId": "",
+          "isUnread": false,
+          "deliveryInstantISO": "",
+          "body": "",
+          "author": {
+            "displayName": "",
+            "empKey": ""
+          },
+          "attachments": [
+            {
+              "type": 0,
+              "dcsId": "",
+              "etxId": "",
+              "name": "",
+              "fileExtension": "",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
+          "tasks": [],
+          "suggestedActions": []
+        }
+  ],
+  "hasMoreMessages": false,
+  "messageType": "",
+  "userKeys": [
+    ""
+  ],
+  "userOverrideNames": {
+    "*": ""
+  },
+  "maskedUserNames": [],
+  "showOtherViewersOption": false,
+  "viewerKeys": [
+    ""
+  ],
+  "organizationId": ""
+} as const;
+
+// /api/conversations/getconversationdetails
+// Everything getconversationmessages returns plus the thread's own metadata --
+// `subject`, `totalMessages`, and the `users` / `viewers` maps that turn a
+// message author's empKey / wprKey into a display name.
+//
+// Two fields deliberately absent. `messageIdUsedToLoad` is returned ONLY when
+// the request carries a `messageId`, which the fake does not model, so serving
+// it would invent a field no instance sends for the request being made. And the
+// "which message was last seen" field is not the same everywhere: three of the
+// four captured instances send `lastViewedByStaffMsgId` and one sends
+// `firstUnreadMsgId` instead, so neither is a shape all of them share.
+export const getConversationDetails = {
+  "contexts": [],
+  "lastViewedByStaffMsgId": "",
+  "lastViewedByStaffInstantISO": "",
+  "numUnread": 0,
+  "replyUrl": "",
+  "replyFlags": {
+    "canReply": false,
+    "cannotReplyReason": 0
+  },
+  "totalMessages": 0,
+  "users": {
+    "*": {
+      "empId": "",
+      "name": "",
+      "outOfContactEndDate": "",
+      "outOfContactContext": 0,
+      "outOfContactContextString": "",
+      "photoUrl": "",
+      "providerId": "",
+      "organizationId": ""
+    }
+  },
+  "viewers": {
+    "*": {
+      "wprId": "",
+      "name": "",
+      "isSelf": false,
+      "isShown": false,
+      "isSelected": false,
+      "organizationId": ""
+    }
+  },
+  "hasPreviouslyViewed": false,
+  "subject": "",
+  "tags": {
+    "Messages": false
+  },
+  "previewText": "",
+  "hasAttachments": false,
+  "hasTasks": false,
+  "hasUrgentMsgs": false,
+  "legacyMessageDetailsUrl": "",
+  "audience": [
+    {
+      "empId": "",
+      "hipId": "",
+      "name": "",
+      "providerId": ""
+    }
+  ],
+  "hasLoadAllUsers": false,
+  "allowBulkActions": false,
+  "hthId": "",
+  "messages": [
+        {
+          "wmgId": "",
+          "isUnread": false,
+          "deliveryInstantISO": "",
+          "body": "",
+          "author": {
+            "displayName": "",
+            "empKey": ""
+          },
+          "attachments": [
+            {
+              "type": 0,
+              "dcsId": "",
+              "etxId": "",
+              "name": "",
+              "fileExtension": "",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
+          "tasks": [],
+          "suggestedActions": []
+        }
+  ],
+  "hasMoreMessages": false,
+  "messageType": "",
+  "userKeys": [
+    ""
+  ],
+  "userOverrideNames": {
+    "*": ""
+  },
+  "maskedUserNames": [],
+  "showOtherViewersOption": false,
+  "viewerKeys": [
+    ""
+  ],
+  "organizationId": ""
+} as const;
+
 // /api/education/getpateducationtitles
 export const getPatEducationTitles = [
   {
@@ -2301,6 +2456,50 @@ export const loadPaymentList = {
     ],
     "Filters": null
   }
+} as const;
+
+// /clinical/careteam/load and /clinical/careteam/loadexternal
+// HAND-WRITTEN, unlike the generated skeletons around it: transcribed from a
+// live response rather than emitted by the capture harness, which does not
+// reach the legacy (non-/api) activities.
+// PascalCase because Care Team is a legacy MVC activity, not one of the React
+// `/api/*` ones. Verified against two live instances, one on each release; both
+// returned this identical 23-field provider shape, and `LoadExternal` returns
+// the same envelope with its own ProvidersList. Three leaves are NOT strings:
+// `CareTeamStatus` is a number, `AboutMeBlurb` is an array, and `Organizations`
+// / `SchedulableVisitTypes` are null on both instances.
+export const careTeamLoad = {
+  "ProvidersList": [
+    {
+      "ID": "",
+      "Name": "",
+      "Photo": "",
+      "NationalProviderID": "",
+      "WebPageUrl": "",
+      "InfoBlurbUrl": "",
+      "AboutMeBlurb": [],
+      "CanViewProviderDetails": false,
+      "CanDirectSchedule": false,
+      "CanRequestAppointment": false,
+      "CanMessage": false,
+      "CommCenterMessageUrl": "",
+      "CanRequestCustomAppt": false,
+      "HasNoProviderRecord": false,
+      "IsNewSchedulingEnabled": false,
+      "Specialty": "",
+      "Relation": "",
+      "SchedulableVisitTypes": null,
+      "DepartmentID": "",
+      "Organizations": null,
+      "IsExternal": false,
+      "CareTeamStatus": 0,
+      "CanHideProvider": false
+    }
+  ],
+  "DescriptiveTitle": "",
+  "TabColorClass": "",
+  "IsCustomApptReqEnabled": false,
+  "CustomRequestAppointmentLink": ""
 } as const;
 
 // /community/shared/loadcommunitylinks
