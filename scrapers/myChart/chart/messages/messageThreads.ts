@@ -88,11 +88,13 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
     return empty;
   }
 
-  // Two sources, because neither is reliable alone. GetConversationList
-  // inlines each conversation's messages and is the only place the subject and
-  // the name maps live; GetConversationMessages returns the full thread but
-  // answers 500 "An error has occurred." on some instances (every message on
-  // those accounts is in the listing instead). Take whichever gives more.
+  // Two sources, because the one this used to rely on has never been seen to
+  // work. GetConversationList inlines each conversation's messages and is the
+  // only place the subject and the name maps live. GetConversationMessages is
+  // *supposed* to return the full thread, but both instances anyone has
+  // checked answer it with 500 "An error has occurred." — every conversation,
+  // every body shape and content-type tried — and inline everything in the
+  // listing instead. Take whichever gives more.
   const [list, fetched] = await Promise.all([
     fetchConversationList(mychartRequest, token).catch((err: unknown): ConversationListResponse => {
       logger.debug('Could not load the conversation list for thread context', err);
@@ -116,10 +118,10 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
 }
 
 /**
- * The full thread, or nothing. This endpoint is the one that varies most
- * between instances — a 500 with a JSON error body on some, an HTML error
- * page on others — and none of that should cost us the messages the listing
- * already carries.
+ * The full thread, or nothing. Both instances checked answer with a 500 and a
+ * JSON error body; the parse is guarded anyway because an ASP.NET failure
+ * renders an HTML error page on some releases, and neither should cost us the
+ * messages the listing already carries.
  */
 async function fetchThreadMessages(
   mychartRequest: MyChartRequest,
