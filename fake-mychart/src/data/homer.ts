@@ -170,8 +170,23 @@ export const healthSummaryHeader = {
 // Real MyChart splits this across two endpoints: GetFlowsheets returns the
 // flowsheet DEFINITION (rows, episodeId) with an always-empty `readings`,
 // and GetFlowsheetReadings returns the actual values keyed by rowId.
+//
+// The units fields here are the one UNVERIFIED part of this fixture:
+// `unitsDisplayName` (and the readings' `units`) appear in NO captured skeleton — `realShapes.ts` has
+// flowsheet rows as { id, name, rowType, valueType, decimalPlaces } — so they
+// ride through conformToShape as fixture-only keys. `getVitals` reads
+// `unitsDisplayName` and nothing else for `VitalReading.units`, so if real rows
+// carry no units field then every vital we return is unitless on real MyChart
+// while looking fine here. The captured flowsheet plausibly held only Blood
+// Pressure (its readings show `stringValue` and no `numericValue`), which would
+// leave both the units field and the numeric-row shape simply unobserved rather
+// than absent. `bun dev-scripts/probe-flowsheet-shape.ts --host <host>` prints
+// what a real account actually sends; correct these rows to match it.
 const VITALS_ROWS = [
   { id: 'row-bp', name: 'Blood Pressure', rowType: '1', valueType: '4', unitsDisplayName: 'mmHg', decimalPlaces: 0 },
+  // No units field at all, so Pulse comes back unitless — the shape a row takes
+  // when MyChart sends no display units, kept deliberately alongside two rows
+  // that do have them.
   { id: 'row-hr', name: 'Pulse', rowType: '1', valueType: '1', decimalPlaces: 0 },
   { id: 'row-wt', name: 'Weight', rowType: '1', valueType: '5', units: '6', unitsDisplayName: 'lbs', decimalPlaces: 0 },
 ];
