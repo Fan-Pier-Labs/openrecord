@@ -13,7 +13,7 @@
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../../core/util';
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
 export type MessageRecipient = {
@@ -81,12 +81,8 @@ async function makeApiRequest(
   return { status: res.status, json, text };
 }
 
-/** Get the request verification token needed for all API calls */
-export async function getVerificationToken(mychartRequest: MyChartRequest): Promise<string | undefined> {
-  const res = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
-  const html = await res.text();
-  return getRequestVerificationTokenFromBody(html);
-}
+/** Re-exported for the public API surface; the implementation is the shared leaf module. */
+export { getVerificationToken };
 
 /** Get available message topics/subtopics */
 export async function getMessageTopics(

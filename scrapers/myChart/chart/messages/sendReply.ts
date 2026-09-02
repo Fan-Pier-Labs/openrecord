@@ -11,7 +11,7 @@
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
-import { getVerificationToken } from './sendMessage';
+import { getVerificationToken } from './communicationCenterToken';
 
 export type SendReplyParams = {
   /** The conversation ID (hthId) to reply to */
