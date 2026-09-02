@@ -10,14 +10,17 @@ function renderVisits(tab) {
     document.getElementById('content').innerHTML = '<p>No ' + tab + ' visits.</p>';
     return;
   }
+  // Read the same fields real MyChart's own visits page reads: the row already
+  // carries formatted Date/Time and the department, so nothing is re-derived
+  // here from PrimaryDate.
   document.getElementById('content').innerHTML = visits.map(v => {
-    var d = new Date(v.PrimaryDate);
+    var dept = v.PrimaryDepartment || {};
     return '<div class="card">' +
-      '<h3>' + v.VisitType + '</h3>' +
-      '<div class="detail">' + d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + '</div>' +
+      '<h3>' + v.VisitTypeName + '</h3>' +
+      '<div class="detail">' + v.Date + ' at ' + v.Time + '</div>' +
       '<div class="meta">' + (v.Providers || []).map(p => p.Name).join(', ') + '</div>' +
-      '<div class="meta">📍 ' + v.Location + '</div>' +
-      (v.LocationAddress ? '<div class="meta">' + v.LocationAddress + '</div>' : '') +
+      '<div class="meta">📍 ' + (dept.Name || '') + '</div>' +
+      ((dept.Address || []).length ? '<div class="meta">' + dept.Address.join(', ') + '</div>' : '') +
     '</div>';
   }).join('');
 }

@@ -793,13 +793,114 @@ export const immunizations = {
 };
 
 // ─── Visits ─────────────────────────────────────────────────────────
+//
+// A real MyChart visit row carries the appointment in the *display* fields a
+// reader reaches for first — `Date`, `Time`, `VisitTypeName`, `ShortDate`,
+// `PrimaryProviderName` — alongside the machine-readable `PrimaryDate` and
+// `Instant`. This fixture used to set only `PrimaryDate` plus three keys Epic
+// has never had (`VisitType`, `Location`, `LocationAddress`), so
+// `conformToShape` filled every real display field from the skeleton's neutral
+// default. The fake then served an appointment whose `Date`, `Time`,
+// `VisitTypeName` and `PrimaryProviderName` were all empty strings, and a
+// consumer that read the obvious field name saw a blank and concluded the
+// patient had nothing scheduled.
+//
+// `visitWhen()` derives the whole date/time family from one timestamp so those
+// fields can never drift apart again, and `visitWho()`/`visitWhere()` put the
+// provider and department where MyChart puts them. What is capture-backed here
+// is the *field set* (realShapes.ts) and `Instant`'s `/Date(ms)/` encoding
+// (pinned by `visitTimestamp()` in scrapers/myChart/chart/visits/visits.ts);
+// the display strings follow Epic's en-US conventions. They are formatted by
+// hand rather than through `toLocaleString` so the fake's output doesn't shift
+// with the host's ICU build or locale.
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'] as const;
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+  'Friday', 'Saturday'] as const;
+
+// Epic stores a date as a "DAT": whole days elapsed since 12/31/1840.
+const EPIC_DAT_EPOCH_MS = Date.UTC(1840, 11, 31);
+
+/**
+ * Every date/time field a visit row carries, derived from its `PrimaryDate`
+ * ('MM/DD/YYYY hh:mm:ss AM'). One source, so `Date`, `Time`, `ShortDate`,
+ * `Instant` and the rest always agree.
+ *
+ * The wall clock is parsed by hand and held in UTC rather than fed to
+ * `new Date(str)`, which reads it in whatever zone the process happens to run
+ * in: the fake would then serve a different `Instant` on a developer's laptop
+ * than in CI, and a 9:00 AM appointment could render as 4:00 AM. Real MyChart
+ * renders these fields in the department's zone, which the row declares
+ * separately as `TimeZone`.
+ */
+function visitWhen(primaryDate: string) {
+  const parts = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (AM|PM)$/.exec(primaryDate);
+  if (!parts) throw new Error(`fixture PrimaryDate is not 'MM/DD/YYYY hh:mm:ss AM': ${primaryDate}`);
+  const [, mm, dd, yyyy, hh, min, , meridiem] = parts as unknown as string[];
+
+  const month = Number(mm), dayOfMonth = Number(dd), year = Number(yyyy);
+  const hour12 = Number(hh) % 12;
+  const hour24 = meridiem === 'PM' ? hour12 + 12 : hour12;
+  const utcMs = Date.UTC(year, month - 1, dayOfMonth, hour24, Number(min));
+  const shortDate = `${month}/${dayOfMonth}/${year}`;
+
+  return {
+    PrimaryDate: primaryDate,
+    Instant: `/Date(${utcMs})/`,
+    Dat: String(Math.round((Date.UTC(year, month - 1, dayOfMonth) - EPIC_DAT_EPOCH_MS) / 86_400_000)),
+    Date: `${DAY_NAMES[new Date(utcMs).getUTCDay()]} ${MONTH_NAMES[month - 1]} ${dayOfMonth}, ${year}`,
+    ShortDate: shortDate,
+    HighlightDate: shortDate,
+    Time: `${hour12 === 0 ? 12 : hour12}:${min} ${meridiem}`,
+    IsAM: meridiem === 'AM',
+    Month: month,
+    DateOfMonth: String(dayOfMonth),
+    Year: String(year),
+    TimeZone: 'America/New_York',
+    CanShowAppointmentTime: true,
+    IsTimeToBeDetermined: false,
+    IsHideVisitTime: false,
+  };
+}
+
+/** The provider fields, in all three places MyChart repeats them. */
+function visitWho(name: string, encryptedId: string) {
+  const provider = { EncryptedId: encryptedId, Name: name, IsPerson: true };
+  return {
+    Providers: [provider],
+    OtherProviders: [],
+    NumberOfOthers: 0,
+    PrimaryProvider: provider,
+    PrimaryProviderName: name,
+    IsSingleProvider: true,
+  };
+}
+
+/** The department fields, replacing the invented `Location`/`LocationAddress`. */
+function visitWhere(id: string, name: string, address: string[]) {
+  return {
+    PrimaryDepartment: {
+      Id: id,
+      Name: name,
+      Address: address,
+      HasAddress: true,
+      PhoneNumber: '555-0100',
+      TimeZone: 'America/New_York',
+    },
+  };
+}
+
+const SPRINGFIELD_GENERAL = ['123 Main Street', 'Springfield, NT 49007'];
+const NUCLEAR_HEALTH_CENTER = ['100 Industrial Way', 'Springfield, NT 49007'];
+
 export const upcomingVisits = {
   LaterVisitsList: [
     {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: true,
       HasNewPvdFeature: false,
-      PrimaryDate: '04/15/2026 09:00:00 AM',
+      ...visitWhen('04/15/2026 09:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-001',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -839,13 +940,10 @@ export const upcomingVisits = {
         RelatedOrganizations: null,
         HasChildOrgs: false,
       },
-      Providers: [{ Name: 'Julius Hibbert, MD', ID: 'PROV-HIBBERT' }],
-      VisitType: 'Annual Physical',
-      Location: 'Springfield General Hospital',
-      LocationAddress: '123 Main Street, Springfield, NT 49007',
-      CancelRescheduleLink: null,
-      ScheduleNewLink: null,
-      VisitProviderAppointment: null,
+      ...visitWho('Julius Hibbert, MD', 'PROV-HIBBERT'),
+      ...visitWhere('DEP-SGH-PRIMARY', 'Springfield General Hospital', SPRINGFIELD_GENERAL),
+      VisitTypeName: 'Annual Physical',
+      IsUsingFallbackVisitTypeName: false,
     },
   ],
   // Real LoadUpcoming responses carry these alongside LaterVisitsList; none of
@@ -853,7 +951,8 @@ export const upcomingVisits = {
   // ApptTypes, IsScrollToEnabled) appear on any captured instance.
   InProgressVisits: [],
   NextNDaysVisits: [],
-  HighlightDays: [],
+  // The calendar-highlight days, matching each upcoming visit's HighlightDate.
+  HighlightDays: ['4/15/2026'],
   HasPVG: false,
 };
 
@@ -867,19 +966,15 @@ function fakePastVisit(
   visitType: string,
   provider: string,
 ): Record<string, unknown> {
-  const ms = Date.parse(primaryDate);
   return {
-    PrimaryDate: primaryDate,
-    Instant: `/Date(${ms})/`,
-    Date: new Date(ms).toDateString(),
+    ...visitWhen(primaryDate),
+    ...visitWho(provider, `PROV-${csn}`),
+    ...visitWhere('DEP-SGH-PRIMARY', 'Springfield General Hospital', SPRINGFIELD_GENERAL),
     Csn: csn,
     Id: `VISIT-${csn}`,
-    VisitType: visitType,
     VisitTypeName: visitType,
-    Providers: [{ Name: provider, ID: `PROV-${csn}` }],
-    PrimaryProviderName: provider,
-    Location: 'Springfield General Hospital',
-    LocationAddress: '123 Main Street, Springfield, NT 49007',
+    IsUsingFallbackVisitTypeName: false,
+    IsPastVisit: true,
     Organization: {
       OrganizationId: 'ORG-SPRINGFIELD',
       OrganizationIdentifier: null,
@@ -916,15 +1011,17 @@ const EXTRA_PAST_VISITS = [
   fakePastVisit('CSN-HOMER-023', '08/15/2022 11:45:00 AM', 'Annual Physical', 'Julius Hibbert, MD'),
 ];
 
+// The fake's store of past visits. The route pages them into real MyChart's
+// LoadPast envelope (List[orgId].List + SerializedIndex), so this holds only
+// the rows — the invented LaterVisitsList/EarlierVisitsList/ApptTypes/
+// IsScrollToEnabled keys that used to sit alongside them were never served.
 export const pastVisits = {
-  LaterVisitsList: [],
-  EarlierVisitsList: [],
   PastVisitsList: [
     {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      PrimaryDate: '01/10/2026 09:00:00 AM',
+      ...visitWhen('01/10/2026 09:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-002',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -964,19 +1061,17 @@ export const pastVisits = {
         RelatedOrganizations: null,
         HasChildOrgs: false,
       },
-      Providers: [{ Name: 'Julius Hibbert, MD', ID: 'PROV-HIBBERT' }],
-      VisitType: 'Annual Physical',
-      Location: 'Springfield General Hospital',
-      LocationAddress: '123 Main Street, Springfield, NT 49007',
-      CancelRescheduleLink: null,
-      ScheduleNewLink: null,
-      VisitProviderAppointment: null,
+      ...visitWho('Julius Hibbert, MD', 'PROV-HIBBERT'),
+      ...visitWhere('DEP-SGH-PRIMARY', 'Springfield General Hospital', SPRINGFIELD_GENERAL),
+      VisitTypeName: 'Annual Physical',
+      IsUsingFallbackVisitTypeName: false,
+      IsPastVisit: true,
     },
     {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      PrimaryDate: '11/20/2025 02:30:00 PM',
+      ...visitWhen('11/20/2025 02:30:00 PM'),
       CsnForECheckIn: 'CSN-HOMER-003',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -1016,19 +1111,18 @@ export const pastVisits = {
         RelatedOrganizations: null,
         HasChildOrgs: false,
       },
-      Providers: [{ Name: 'Nick Riviera, MD', ID: 'PROV-NICK' }],
-      VisitType: 'ER Visit - Donut Incident',
-      Location: 'Springfield General Hospital ER',
-      LocationAddress: '123 Main Street, Springfield, NT 49007',
-      CancelRescheduleLink: null,
-      ScheduleNewLink: null,
-      VisitProviderAppointment: null,
+      ...visitWho('Nick Riviera, MD', 'PROV-NICK'),
+      ...visitWhere('DEP-SGH-ER', 'Springfield General Hospital ER', SPRINGFIELD_GENERAL),
+      VisitTypeName: 'ER Visit - Donut Incident',
+      IsUsingFallbackVisitTypeName: false,
+      IsPastVisit: true,
+      EncounterIsEDVisit: true,
     },
     {
       HasPaymentFeature: true,
       HasQuestionnaireFeature: false,
       HasNewPvdFeature: false,
-      PrimaryDate: '08/05/2025 10:00:00 AM',
+      ...visitWhen('08/05/2025 10:00:00 AM'),
       CsnForECheckIn: 'CSN-HOMER-004',
       RescheduledDatString: null,
       IsNoShow: false,
@@ -1068,18 +1162,14 @@ export const pastVisits = {
         RelatedOrganizations: null,
         HasChildOrgs: false,
       },
-      Providers: [{ Name: 'Julius Hibbert, MD', ID: 'PROV-HIBBERT' }],
-      VisitType: 'Radiation Screening',
-      Location: 'Springfield Nuclear Power Plant Health Center',
-      LocationAddress: '100 Industrial Way, Springfield, NT 49007',
-      CancelRescheduleLink: null,
-      ScheduleNewLink: null,
-      VisitProviderAppointment: null,
+      ...visitWho('Julius Hibbert, MD', 'PROV-HIBBERT'),
+      ...visitWhere('DEP-SNPP-HEALTH', 'Springfield Nuclear Power Plant Health Center', NUCLEAR_HEALTH_CENTER),
+      VisitTypeName: 'Radiation Screening',
+      IsUsingFallbackVisitTypeName: false,
+      IsPastVisit: true,
     },
     ...EXTRA_PAST_VISITS,
   ],
-  ApptTypes: null,
-  IsScrollToEnabled: false,
 };
 
 // ─── Messages / Conversations ───────────────────────────────────────

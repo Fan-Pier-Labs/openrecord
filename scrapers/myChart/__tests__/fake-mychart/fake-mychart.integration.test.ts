@@ -43,6 +43,7 @@ import { getActivityFeed } from '../../chart/activityFeed'
 import { getEducationMaterials } from '../../chart/educationMaterials'
 import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
+import { isVisitsScrapeError, type Visit } from '../../chart/visits/types'
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
@@ -329,16 +330,53 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
-    it('upcomingVisits returns visit data', async () => {
+    // The fields a reader reaches for first. These used to come back as empty
+    // strings on every visit (the data was only in PrimaryDate and in keys Epic
+    // doesn't have), so a consumer reading the obvious name saw a blank and
+    // concluded the patient had nothing scheduled. `toBeDefined()` on the
+    // container is what let that through, so assert on the row.
+    const DISPLAY_FIELDS = [
+      'PrimaryDate', 'Instant', 'Dat', 'Date', 'ShortDate', 'Time',
+      'DateOfMonth', 'Year', 'VisitTypeName', 'PrimaryProviderName', 'Csn',
+    ] as const
+
+    function expectVisitIsReadable(visit: Visit) {
+      expect(DISPLAY_FIELDS.filter(f => !visit[f])).toEqual([])
+      expect(visit.Providers[0]?.Name).toBeTruthy()
+      expect(visit.PrimaryDepartment.Name).toBeTruthy()
+
+      // The display fields must describe the SAME visit as PrimaryDate, not
+      // just be non-empty. Compared against each other rather than re-parsed
+      // through `new Date`, whose result depends on this process's timezone.
+      const [date, , meridiem] = visit.PrimaryDate.split(' ')
+      const [mm, dd, yyyy] = date!.split('/')
+      expect(visit.Year).toBe(yyyy!)
+      expect(visit.Month).toBe(Number(mm))
+      expect(visit.DateOfMonth).toBe(String(Number(dd)))
+      expect(visit.ShortDate).toBe(`${Number(mm)}/${Number(dd)}/${yyyy}`)
+      expect(visit.Date).toContain(`${Number(dd)}, ${yyyy}`)
+      expect(visit.Time.endsWith(meridiem!)).toBe(true)
+      expect(visit.Instant).toMatch(/^\/Date\(\d+\)\/$/)
+    }
+
+    it('upcomingVisits returns visits whose display fields carry the appointment', async () => {
       const result = await upcomingVisits(session)
-      expect(result).toBeDefined()
+      if (isVisitsScrapeError(result)) throw new Error(`upcomingVisits errored: ${result.error}`)
+
+      const visits = [...result.InProgressVisits, ...result.NextNDaysVisits, ...result.LaterVisitsList]
+      expect(visits.length).toBeGreaterThan(0)
+      for (const visit of visits) expectVisitIsReadable(visit)
     }, 10_000)
 
-    it('pastVisits returns visit data', async () => {
+    it('pastVisits returns visits whose display fields carry the encounter', async () => {
       const twoYearsAgo = new Date()
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
       const result = await pastVisits(session, twoYearsAgo)
-      expect(result).toBeDefined()
+      if (isVisitsScrapeError(result)) throw new Error(`pastVisits errored: ${result.error}`)
+
+      const visits = Object.values(result.List).flatMap(org => org.List)
+      expect(visits.length).toBeGreaterThan(0)
+      for (const visit of visits) expectVisitIsReadable(visit)
     }, 10_000)
 
     // The fake enforces the WebAuthn signature counter the way real MyChart
