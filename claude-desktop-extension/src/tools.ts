@@ -51,7 +51,7 @@ import {
   type CapabilityParam,
   type StudyImagePayload,
 } from '../../shared/capabilities';
-import { FULL_DETAIL_PARAM, getSummarizer } from '../../shared/summaries';
+import { FULL_DETAIL_PARAM } from '../../shared/summaries';
 
 import { searchInstances } from './instances';
 import {
@@ -203,13 +203,13 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
 
   // Capabilities whose raw payload is too big to hand a model get condensed
   // here, at the presentation edge — the scraper still returns everything
-  // MyChart does. `full_detail: true` is the way back to the untouched
-  // payload, and it is added by the registry rather than declared per-tool so
-  // the opt-out can never go missing from a summarized tool.
-  const summarizer = getSummarizer(capability.id);
-  if (summarizer) shape[FULL_DETAIL_PARAM.name] = zodForParam(FULL_DETAIL_PARAM);
-  const description = summarizer
-    ? `${capability.description} ${summarizer.note}`
+  // MyChart does. The flag, not the id, exactly as with `rendersMedia`, so a
+  // second summarized capability needs no edits in this file. `full_detail` is
+  // added off that same flag rather than declared per tool, so the opt-out
+  // back to the raw payload can never go missing from a summarized tool.
+  if (capability.summary) shape[FULL_DETAIL_PARAM.name] = zodForParam(FULL_DETAIL_PARAM);
+  const description = capability.summary
+    ? `${capability.description} ${capability.summary.note}`
     : capability.description;
 
   const annotations =
@@ -239,8 +239,8 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
         }
-        if (summarizer && args[FULL_DETAIL_PARAM.name] !== true) {
-          return jsonResult(summarizer.summarize(payload));
+        if (capability.summary && args[FULL_DETAIL_PARAM.name] !== true) {
+          return jsonResult(capability.summary.project(payload));
         }
         return jsonResult(payload);
       } catch (err) {

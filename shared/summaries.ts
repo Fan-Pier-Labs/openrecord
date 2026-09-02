@@ -5,9 +5,9 @@
  * The division of labour is deliberate and one-way: **scrapers return
  * everything MyChart returns.** A scraper that drops a field is a scraper that
  * silently loses a patient's data, and there is no way to get it back short of
- * another round trip. So the trimming happens here, at the presentation edge,
- * where it is reversible — every summarizer's tool still takes `full_detail`
- * to opt back into the untouched payload.
+ * another round trip. So the trimming happens at the presentation edge, where
+ * it is reversible — every summarized tool still takes `full_detail` to opt
+ * back into the untouched payload.
  *
  * The problem this solves is real rather than aesthetic. `get_past_visits`
  * over 20 visits returns ~220 KB: MyChart's visit object carries 159 fields,
@@ -16,26 +16,45 @@
  * buttons the web portal should render. Handing that to a model burns the
  * context window that the answer needs to live in.
  *
- * A summarizer is a pure function over the payload, so it is unit-testable
- * without a portal, and registered by capability id so a client can look up
- * "does this tool have a condensed form?" without knowing what the payload is.
+ * This file holds only the **projections**. Which capability has one is
+ * declared on the capability itself (`summary` in `shared/capabilities.ts`,
+ * next to `rendersMedia`), so there is no second registry keyed by a string id
+ * that a typo could silently miss and only one client could see.
  */
 
+import { parseInstant, visitTimestamp } from '../scrapers/myChart/chart/visits/visits';
 import type {
   PastVisitsContainer,
   Visit,
   VisitListContainer,
 } from '../scrapers/myChart/chart/visits/types';
 
-export interface CapabilitySummarizer {
-  /**
-   * Appended to the tool description so the model knows a condensed payload is
-   * what it is getting, and what the escape hatch is.
-   */
+/**
+ * A capability's condensed rendering: the projection, plus the note that tells
+ * the model what it is looking at and how to get the rest.
+ *
+ * `project` takes and returns `unknown` on purpose. A payload that isn't what
+ * the projection expects — a scrape error, a WAF interstitial — comes back
+ * verbatim, because summarizing an error into nothing hides why the scrape
+ * failed. The narrowing lives inside each projection, where the type guard can
+ * be precise; the functions it guards are typed exactly.
+ */
+export interface CapabilitySummary {
   note: string;
-  /** Pure projection of the capability's raw payload. */
-  summarize: (payload: unknown) => unknown;
+  project: (payload: unknown) => unknown;
 }
+
+/**
+ * The opt-out every summarized tool carries. Declared here, next to the
+ * projections, so a client cannot register the condensing without also
+ * offering the way back to the raw payload.
+ */
+export const FULL_DETAIL_PARAM = {
+  name: 'full_detail',
+  type: 'boolean',
+  description:
+    'Return the raw, unabridged MyChart payload instead of the condensed one. Large — only worth it when a specific field is missing from the summary.',
+} as const;
 
 // ── Visits ──────────────────────────────────────────────────────────────────
 
@@ -93,23 +112,15 @@ function text(v: unknown): string | undefined {
 /**
  * The best date we can state for a visit.
  *
- * `Instant` (`/Date(1761851400000)/`) is unambiguous and sorts correctly, so it
- * wins. `PrimaryDate` ("01/10/2026 09:00:00 AM") is local-time prose with no
- * zone, so it is passed through verbatim rather than parsed into a false
- * precision — but it is still better than reporting no date at all.
+ * `Instant` is an absolute epoch-millis stamp, so it renders as ISO-8601.
+ * `PrimaryDate` ("01/10/2026 09:00:00 AM") is local-time prose with no zone,
+ * so it is passed through verbatim rather than parsed into a precision it
+ * cannot justify — but it still beats reporting no date at all.
  */
-function visitDate(visit: Partial<Visit>): { display: string; sortKey: number } {
-  const instant = /\/Date\((-?\d+)\)\//.exec(visit.Instant ?? '');
-  if (instant) {
-    const ms = Number(instant[1]);
-    return { display: new Date(ms).toISOString(), sortKey: ms };
-  }
-  const primary = text(visit.PrimaryDate);
-  if (primary) {
-    const parsed = Date.parse(primary);
-    return { display: primary, sortKey: Number.isNaN(parsed) ? 0 : parsed };
-  }
-  return { display: '', sortKey: 0 };
+function visitDate(visit: Partial<Visit>): string {
+  const instant = parseInstant(visit.Instant);
+  if (instant !== null) return new Date(instant).toISOString();
+  return text(visit.PrimaryDate) ?? '';
 }
 
 /**
@@ -134,11 +145,10 @@ function providerNames(providers: Visit['Providers'] | undefined): string[] {
 /**
  * Project one raw MyChart visit down to {@link VisitSummary}.
  *
- * Exported because both the past-visits and upcoming-visits summarizers use
- * it — MyChart returns the identical 159-field object for both.
+ * Exported because both visit capabilities use it — MyChart returns the
+ * identical 159-field object for past and upcoming visits alike.
  */
-export function summarizeVisit(visit: Partial<Visit>, organization?: string): VisitSummary & { _sortKey: number } {
-  const { display, sortKey } = visitDate(visit);
+export function summarizeVisit(visit: Partial<Visit>, organization?: string): VisitSummary {
   const names = providerNames(visit.Providers);
   const primaryProvider = text(visit.PrimaryProviderName) ?? text(visit.PrimaryProvider?.Name) ?? names[0];
   const others = names.filter((n) => n !== primaryProvider);
@@ -158,27 +168,24 @@ export function summarizeVisit(visit: Partial<Visit>, organization?: string): Vi
     ? visit.SurgicalProcedures.map((p) => text(p?.Name)).filter((p): p is string => !!p)
     : [];
 
-  return {
-    ...compact({
-      date: display,
-      type: text(visit.VisitTypeName),
-      provider: primaryProvider,
-      other_providers: others.length ? others : undefined,
-      location: visitLocation(visit),
-      csn: text(visit.Csn) ?? text(visit.CsnForECheckIn),
-      organization,
-      chief_complaint: text(visit.ChiefComplaint),
-      diagnoses: diagnoses.length ? diagnoses : undefined,
-      admitted: text(visit.AdmissionDateRange?.Start),
-      discharged: text(visit.DischargeDate) ?? text(visit.AdmissionDateRange?.End),
-      procedures: procedures.length ? procedures : undefined,
-      no_show: visit.IsNoShow ? true : undefined,
-      canceled: visit.IsCanceled ? true : undefined,
-      has_notes: visit.IsClinicalNoteAvailable || visit.IsClinicalInformationAvailable ? true : undefined,
-      has_summary: visit.IsVisitSummaryEnabled ? true : undefined,
-    }),
-    _sortKey: sortKey,
-  };
+  return compact({
+    date: visitDate(visit),
+    type: text(visit.VisitTypeName),
+    provider: primaryProvider,
+    other_providers: others.length ? others : undefined,
+    location: visitLocation(visit),
+    csn: text(visit.Csn) ?? text(visit.CsnForECheckIn),
+    organization,
+    chief_complaint: text(visit.ChiefComplaint),
+    diagnoses: diagnoses.length ? diagnoses : undefined,
+    admitted: text(visit.AdmissionDateRange?.Start),
+    discharged: text(visit.DischargeDate) ?? text(visit.AdmissionDateRange?.End),
+    procedures: procedures.length ? procedures : undefined,
+    no_show: visit.IsNoShow ? true : undefined,
+    canceled: visit.IsCanceled ? true : undefined,
+    has_notes: visit.IsClinicalNoteAvailable || visit.IsClinicalInformationAvailable ? true : undefined,
+    has_summary: visit.IsVisitSummaryEnabled ? true : undefined,
+  });
 }
 
 export interface PastVisitsSummary {
@@ -194,36 +201,43 @@ const PAST_VISITS_NOTE =
   'Use a visit\'s csn with get_visit_notes, get_note_content or get_visit_avs to read what happened at it.';
 
 /**
- * Flatten {@link PastVisitsContainer} — `List` keyed by organization id, each
- * holding its own page of visits — into one newest-first array.
+ * A `LoadPast` response, as opposed to a scrape error or a WAF interstitial.
+ * `List` — the per-organization map — is the field that distinguishes them.
+ */
+export function isPastVisitsContainer(payload: unknown): payload is PastVisitsContainer {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as PastVisitsContainer).List === 'object' &&
+    (payload as PastVisitsContainer).List !== null
+  );
+}
+
+/**
+ * Flatten a {@link PastVisitsContainer} — `List` keyed by organization id,
+ * each holding its own page of visits — into one newest-first array.
  *
  * The per-organization nesting is a real distinction only for accounts linked
  * to several health systems, which is the minority; for everyone else it is a
  * layer of wrapping around a single key. So the org survives as a field on
  * each visit (and only when there is more than one), not as a level of
  * structure the reader has to walk.
- *
- * Returns the payload untouched when it isn't a visits container — a scrape
- * error or a WAF interstitial is more useful to the caller verbatim than
- * summarized into nothing — which is why the return type is `unknown`.
  */
-export function summarizePastVisits(payload: unknown): unknown {
-  const container = payload as Partial<PastVisitsContainer> | null;
-  // A scrape error (`{ visits: [], error }`) or a WAF interstitial has no List.
-  // Hand it back untouched: an error the caller can read beats a summary of
-  // nothing.
-  if (!container || typeof container !== 'object' || !container.List) return payload;
-
+export function summarizePastVisits(container: PastVisitsContainer): PastVisitsSummary {
   const orgs = Object.entries(container.List);
   const multiOrg = orgs.length > 1;
 
   const rows = orgs.flatMap(([orgId, org]) => {
     const orgName = multiOrg ? (text(org?.Organization?.OrganizationName) ?? orgId) : undefined;
-    return (Array.isArray(org?.List) ? org.List : []).map((v) => summarizeVisit(v, orgName));
+    return (Array.isArray(org?.List) ? org.List : []).map((visit) => ({ visit, orgName }));
   });
 
-  rows.sort((a, b) => b._sortKey - a._sortKey);
-  const visits = rows.map(({ _sortKey, ...rest }) => rest);
+  // Sort the raw visits, then project: `visitTimestamp` reads MyChart's own
+  // fields, so the projection never has to carry a sort key it does not
+  // otherwise need.
+  rows.sort((a, b) => (visitTimestamp(b.visit) ?? 0) - (visitTimestamp(a.visit) ?? 0));
+
+  const visits = rows.map(({ visit, orgName }) => summarizeVisit(visit, orgName));
 
   return compact({
     visits,
@@ -232,6 +246,11 @@ export function summarizePastVisits(payload: unknown): unknown {
     note: PAST_VISITS_NOTE,
   });
 }
+
+export const PAST_VISITS_SUMMARY: CapabilitySummary = {
+  note: PAST_VISITS_NOTE,
+  project: (payload) => (isPastVisitsContainer(payload) ? summarizePastVisits(payload) : payload),
+};
 
 export interface UpcomingVisitsSummary {
   in_progress: VisitSummary[];
@@ -244,23 +263,22 @@ export interface UpcomingVisitsSummary {
 const UPCOMING_VISITS_NOTE =
   'Condensed view. Pass full_detail: true for the raw MyChart payload (~150 fields per visit, mostly portal UI flags).';
 
-/**
- * Project {@link VisitListContainer}. Unlike past visits these three buckets
- * mean different things — happening now, within MyChart\'s near window, and
- * everything after — so they are kept as separate keys rather than merged.
- * Like {@link summarizePastVisits}, a non-container payload passes through.
- */
-export function summarizeUpcomingVisits(payload: unknown): unknown {
-  const container = payload as Partial<VisitListContainer> | null;
-  if (!container || typeof container !== 'object') return payload;
-  const buckets = ['InProgressVisits', 'NextNDaysVisits', 'LaterVisitsList'] as const;
-  if (!buckets.some((b) => Array.isArray(container[b]))) return payload;
+const UPCOMING_BUCKETS = ['InProgressVisits', 'NextNDaysVisits', 'LaterVisitsList'] as const;
 
+/** A `LoadUpcoming` response: at least one of its three visit buckets is an array. */
+export function isUpcomingVisitsContainer(payload: unknown): payload is VisitListContainer {
+  if (typeof payload !== 'object' || payload === null) return false;
+  return UPCOMING_BUCKETS.some((bucket) => Array.isArray((payload as VisitListContainer)[bucket]));
+}
+
+/**
+ * Project a {@link VisitListContainer}. Unlike past visits these three buckets
+ * mean different things — happening now, within MyChart's near window, and
+ * everything after — so they are kept as separate keys rather than merged.
+ */
+export function summarizeUpcomingVisits(container: VisitListContainer): UpcomingVisitsSummary {
   const project = (list: Visit[] | undefined): VisitSummary[] =>
-    (Array.isArray(list) ? list : []).map((v) => {
-      const { _sortKey, ...rest } = summarizeVisit(v);
-      return rest;
-    });
+    (Array.isArray(list) ? list : []).map((v) => summarizeVisit(v));
 
   const in_progress = project(container.InProgressVisits);
   const next_days = project(container.NextNDaysVisits);
@@ -275,30 +293,7 @@ export function summarizeUpcomingVisits(payload: unknown): unknown {
   };
 }
 
-// ── Registry ────────────────────────────────────────────────────────────────
-
-/**
- * Capability id → summarizer. A client that wants condensed payloads looks its
- * capability up here; a capability with no entry is passed through untouched,
- * so adding one is additive and forgetting one is merely verbose, never wrong.
- */
-export const CAPABILITY_SUMMARIZERS: Readonly<Record<string, CapabilitySummarizer>> = {
-  get_past_visits: { note: PAST_VISITS_NOTE, summarize: summarizePastVisits },
-  get_upcoming_visits: { note: UPCOMING_VISITS_NOTE, summarize: summarizeUpcomingVisits },
+export const UPCOMING_VISITS_SUMMARY: CapabilitySummary = {
+  note: UPCOMING_VISITS_NOTE,
+  project: (payload) => (isUpcomingVisitsContainer(payload) ? summarizeUpcomingVisits(payload) : payload),
 };
-
-export function getSummarizer(capabilityId: string): CapabilitySummarizer | undefined {
-  return CAPABILITY_SUMMARIZERS[capabilityId];
-}
-
-/**
- * The opt-out every summarized tool carries. Declared here, next to the
- * summarizers, so a client cannot register the condensing without also
- * offering the way back to the raw payload.
- */
-export const FULL_DETAIL_PARAM = {
-  name: 'full_detail',
-  type: 'boolean',
-  description:
-    'Return the raw, unabridged MyChart payload instead of the condensed one. Large — only worth it when a specific field is missing from the summary.',
-} as const;

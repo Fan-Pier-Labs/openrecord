@@ -233,6 +233,34 @@ describe('rendersMedia', () => {
   });
 });
 
+// ── Condensed payloads are found by flag, never by id ──────────────────────
+
+describe('summary', () => {
+  it('is what the extension branches on, so a second summarized capability needs no edits', async () => {
+    const summarized = CAPABILITIES.filter((c) => c.summary);
+    expect(summarized.map((c) => c.id).sort()).toEqual(['get_past_visits', 'get_upcoming_visits']);
+
+    // Same rule as rendersMedia: the flag lives on the capability, so a client
+    // that wants condensed payloads reads it off the capability. An id check
+    // here would mean flipping the flag off stopped mattering, and a typo in a
+    // separate id-keyed list would register nothing at all.
+    const source = await Bun.file(
+      new URL('../../claude-desktop-extension/src/tools.ts', import.meta.url).pathname,
+    ).text();
+    expect(source).toContain('capability.summary');
+    expect(source).not.toContain("capability.id === 'get_past_visits'");
+  });
+
+  it('always ships the full_detail opt-out alongside the condensing', () => {
+    // The MCPB registers `full_detail` off this same flag, so a summary
+    // without a note explaining the escape hatch would condense a payload the
+    // caller could not get back.
+    for (const capability of CAPABILITIES.filter((c) => c.summary)) {
+      expect(capability.summary!.note, capability.id).toContain('full_detail');
+    }
+  });
+});
+
 // ── No client dispatches around executeCapability ──────────────────────────
 
 /**

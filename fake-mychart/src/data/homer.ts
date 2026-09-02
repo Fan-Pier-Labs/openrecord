@@ -795,6 +795,23 @@ export const immunizations = {
 // ─── Visits ─────────────────────────────────────────────────────────
 
 /**
+ * Parse a fixture's `PrimaryDate` ('MM/DD/YYYY hh:mm:ss AM') to epoch millis.
+ *
+ * Held in UTC and parsed by hand rather than handed to `new Date(str)`, which
+ * reads the wall clock in whatever zone the process happens to run in — the
+ * fake would then serve a different `Instant` on a laptop than in CI. Real
+ * MyChart renders a visit in the department's zone, which the row declares
+ * separately as `TimeZone`.
+ */
+function visitInstantMs(primaryDate: string): number {
+  const parts = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (AM|PM)$/.exec(primaryDate);
+  if (!parts) throw new Error(`fixture PrimaryDate is not 'MM/DD/YYYY hh:mm:ss AM': ${primaryDate}`);
+  const [, mm, dd, yyyy, hh, min, , meridiem] = parts as unknown as string[];
+  const hour12 = Number(hh) % 12;
+  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), meridiem === 'PM' ? hour12 + 12 : hour12, Number(min));
+}
+
+/**
  * Build one visit in real MyChart's field vocabulary.
  *
  * Every key emitted here exists on the captured `visitsLoadPast` /
@@ -805,6 +822,12 @@ export const immunizations = {
  * the real ones — `VisitTypeName`, `Instant`, `PrimaryProviderName`,
  * `PrimaryDepartment` — came back blank. Anything reading a visit the way real
  * MyChart shapes it therefore saw an undated, untyped, providerless encounter.
+ *
+ * The rest of the display-date family (`Date`, `Time`, `ShortDate`, `Dat`, …)
+ * is still shadowed by the skeleton's empty strings. That is the same bug in
+ * the same fixture, and PR #378 fixes it properly — deriving all of them from
+ * one timestamp with a test that fails on any blank. This factory deliberately
+ * does not race it: it populates only the fields a visit summary reads.
  */
 function visitFixture(v: {
   csn: string;
@@ -819,8 +842,7 @@ function visitFixture(v: {
   /** Past visits carry the summary/notes flags; upcoming ones carry scheduling flags. */
   past?: boolean;
 }): Record<string, unknown> {
-  const ms = Date.parse(v.primaryDate);
-  const at = new Date(ms);
+  const ms = visitInstantMs(v.primaryDate);
   const past = v.past ?? true;
   const specialty = v.specialty ?? 'Family Medicine';
   const department = {
@@ -854,13 +876,6 @@ function visitFixture(v: {
   return {
     PrimaryDate: v.primaryDate,
     Instant: `/Date(${ms})/`,
-    Dat: String(Math.floor(ms / 86_400_000) + 21_916),
-    Date: at.toDateString(),
-    ShortDate: `${at.getMonth() + 1}/${at.getDate()}/${at.getFullYear()}`,
-    Time: at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-    Month: at.getMonth() + 1,
-    DateOfMonth: String(at.getDate()),
-    Year: String(at.getFullYear()),
     TimeZone: 'America/New_York',
     Csn: v.csn,
     CsnForECheckIn: v.csn,

@@ -9,16 +9,17 @@
 import { describe, it, expect } from 'bun:test';
 
 import {
-  CAPABILITY_SUMMARIZERS,
   FULL_DETAIL_PARAM,
-  getSummarizer,
+  PAST_VISITS_SUMMARY,
+  UPCOMING_VISITS_SUMMARY,
+  isPastVisitsContainer,
+  isUpcomingVisitsContainer,
   summarizePastVisits,
   summarizeUpcomingVisits,
   summarizeVisit,
-  type PastVisitsSummary,
-  type UpcomingVisitsSummary,
 } from '../summaries';
-import type { Visit } from '../../scrapers/myChart/chart/visits/types';
+import { CAPABILITIES } from '../capabilities';
+import type { PastVisitsContainer, Visit } from '../../scrapers/myChart/chart/visits/types';
 // The captured skeleton of a real LoadPast response. Imported rather than
 // retyped so the size assertion below measures the projection against the
 // object MyChart actually sends, not a stand-in someone sized to pass.
@@ -29,7 +30,13 @@ function visit(fields: Partial<Visit>): Visit {
   return fields as Visit;
 }
 
-function pastContainer(orgs: Record<string, { name?: string; visits: Partial<Visit>[]; hasMore?: boolean }>) {
+/**
+ * A `LoadPast` container carrying only the fields the projection reads — the
+ * cast stands in for the ~150 the fake and the real portal also send.
+ */
+function pastContainer(
+  orgs: Record<string, { name?: string; visits: Partial<Visit>[]; hasMore?: boolean }>,
+): PastVisitsContainer {
   return {
     ViewBagProperties: { LoadingOrgNames: '', ErrorOrgNames: '', ManualOrgNames: '' },
     SerializedIndex: '',
@@ -48,7 +55,7 @@ function pastContainer(orgs: Record<string, { name?: string; visits: Partial<Vis
         },
       ]),
     ),
-  };
+  } as unknown as PastVisitsContainer;
 }
 
 const OFFICE_VISIT: Partial<Visit> = {
@@ -68,9 +75,7 @@ const OFFICE_VISIT: Partial<Visit> = {
 
 describe('summarizeVisit', () => {
   it('keeps the load-bearing fields and drops the portal UI flags', () => {
-    const { _sortKey, ...summary } = summarizeVisit(OFFICE_VISIT);
-
-    expect(summary).toEqual({
+    expect(summarizeVisit(OFFICE_VISIT)).toEqual({
       date: new Date(1761851400000).toISOString(),
       type: 'Office Visit',
       provider: 'A. Provider, MD',
@@ -80,7 +85,6 @@ describe('summarizeVisit', () => {
       has_notes: true,
       has_summary: true,
     });
-    expect(_sortKey).toBe(1761851400000);
   });
 
   it('falls back to PrimaryDate verbatim when Instant is missing', () => {
@@ -88,11 +92,10 @@ describe('summarizeVisit', () => {
     // rather than parsed into an ISO instant it cannot justify.
     const summary = summarizeVisit(visit({ PrimaryDate: '10/30/2025 02:30:00 PM', Csn: 'CSN-2' }));
     expect(summary.date).toBe('10/30/2025 02:30:00 PM');
-    expect(summary._sortKey).toBe(Date.parse('10/30/2025 02:30:00 PM'));
   });
 
   it('omits empty strings rather than emitting blank fields', () => {
-    const { _sortKey, ...summary } = summarizeVisit(
+    const summary = summarizeVisit(
       visit({ Csn: 'CSN-3', Instant: '/Date(0)/', VisitTypeName: '', PrimaryProviderName: '' }),
     );
     expect(summary).toEqual({ date: new Date(0).toISOString(), csn: 'CSN-3' });
@@ -142,7 +145,7 @@ describe('summarizePastVisits', () => {
           ],
         },
       }),
-    ) as PastVisitsSummary;
+    );
 
     expect(summary.visits.map((v) => v.csn)).toEqual(['new', 'mid', 'old']);
     expect(summary.count).toBe(3);
@@ -158,7 +161,7 @@ describe('summarizePastVisits', () => {
         'ORG-A': { name: 'North Clinic', visits: [{ Csn: 'a', Instant: '/Date(2000)/' }] },
         'ORG-B': { name: 'South Clinic', visits: [{ Csn: 'b', Instant: '/Date(1000)/' }] },
       }),
-    ) as PastVisitsSummary;
+    );
 
     expect(summary.visits.map((v) => [v.csn, v.organization])).toEqual([
       ['a', 'North Clinic'],
@@ -167,9 +170,7 @@ describe('summarizePastVisits', () => {
   });
 
   it('reports has_more so the caller knows to widen years_back', () => {
-    const summary = summarizePastVisits(
-      pastContainer({ 'ORG-A': { visits: [{ Csn: 'a' }], hasMore: true } }),
-    ) as PastVisitsSummary;
+    const summary = summarizePastVisits(pastContainer({ 'ORG-A': { visits: [{ Csn: 'a' }], hasMore: true } }));
     expect(summary.has_more).toBe(true);
   });
 
@@ -177,9 +178,10 @@ describe('summarizePastVisits', () => {
     // `{ visits: [], error }` from pastVisits() has no List. A summary of it
     // would hide the reason the scrape failed.
     const error = { visits: [], error: 'Authentication error: could not get CSRF token for visits' };
-    expect(summarizePastVisits(error)).toBe(error);
-    expect(summarizePastVisits(null)).toBeNull();
-    expect(summarizePastVisits('<html>Request Rejected</html>')).toBe('<html>Request Rejected</html>');
+    expect(isPastVisitsContainer(error)).toBe(false);
+    expect(PAST_VISITS_SUMMARY.project(error)).toBe(error);
+    expect(PAST_VISITS_SUMMARY.project(null)).toBeNull();
+    expect(PAST_VISITS_SUMMARY.project('<html>Request Rejected</html>')).toBe('<html>Request Rejected</html>');
   });
 
   it('is an order of magnitude smaller than the payload it projects', () => {
@@ -207,7 +209,7 @@ describe('summarizeUpcomingVisits', () => {
       LaterVisitsList: [visit({ Csn: 'later', VisitTypeName: 'Annual Physical' })],
       HighlightDays: [],
       HasPVG: false,
-    }) as UpcomingVisitsSummary;
+    });
 
     expect(summary.in_progress.map((v) => v.csn)).toEqual(['now']);
     expect(summary.next_days.map((v) => v.csn)).toEqual(['soon']);
@@ -217,20 +219,24 @@ describe('summarizeUpcomingVisits', () => {
 
   it('passes a non-container payload through untouched', () => {
     const error = { visits: [], error: 'Authentication error: could not get CSRF token for visits' };
-    expect(summarizeUpcomingVisits(error)).toBe(error);
+    expect(isUpcomingVisitsContainer(error)).toBe(false);
+    expect(UPCOMING_VISITS_SUMMARY.project(error)).toBe(error);
   });
 });
 
-describe('the registry', () => {
-  it('resolves the visit capabilities and nothing else', () => {
-    expect(getSummarizer('get_past_visits')).toBeDefined();
-    expect(getSummarizer('get_upcoming_visits')).toBeDefined();
-    expect(getSummarizer('get_medications')).toBeUndefined();
+describe('summaries declared on the capability', () => {
+  it('is what the visit capabilities carry, and nothing else does yet', () => {
+    expect(CAPABILITIES.filter((c) => c.summary).map((c) => c.id).sort()).toEqual([
+      'get_past_visits',
+      'get_upcoming_visits',
+    ]);
   });
 
-  it('gives every summarizer a note that names the full_detail escape hatch', () => {
-    for (const [id, summarizer] of Object.entries(CAPABILITY_SUMMARIZERS)) {
-      expect(summarizer.note, id).toContain(FULL_DETAIL_PARAM.name);
+  it('gives every summary a note that names the full_detail escape hatch', () => {
+    // A condensed payload a caller cannot opt out of is a payload with data
+    // silently missing from it.
+    for (const capability of CAPABILITIES.filter((c) => c.summary)) {
+      expect(capability.summary!.note, capability.id).toContain(FULL_DETAIL_PARAM.name);
     }
   });
 });

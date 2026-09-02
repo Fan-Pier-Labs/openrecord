@@ -76,13 +76,31 @@ async function loadPastVisitsPage(
   return await result.json() as PastVisitsContainer
 }
 
-// The epoch-millis timestamp of a visit, parsed from its `.Instant`
-// (`/Date(1761851400000)/`) field, falling back to `PrimaryDate`. Returns
-// null when neither yields a usable date so callers can keep paginating
-// rather than stop on an unparseable row.
-function visitTimestamp(visit: Visit): number | null {
-  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
-  if (instant) return Number(instant[1]);
+/**
+ * Epoch millis out of MyChart's `/Date(1761851400000)/` encoding, or null.
+ *
+ * Exported because it is the *only* place that encoding is parsed. It is
+ * unambiguous — an absolute instant, no zone to guess at — which is why
+ * everything that needs a visit's real time reaches for `Instant` first.
+ */
+export function parseInstant(instant: string | undefined): number | null {
+  const match = /\/Date\((-?\d+)\)\//.exec(instant ?? '');
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * The epoch-millis timestamp of a visit: `Instant` when it parses, else
+ * `PrimaryDate`. Returns null when neither yields a usable date so callers can
+ * keep paginating rather than stop on an unparseable row.
+ *
+ * Exported so nothing writes this two-step a second time — two parsers for the
+ * same encoding will disagree the first time one of them learns something.
+ * Note the `PrimaryDate` fallback is local-time prose with no zone, so it is
+ * good enough to sort on and not good enough to display.
+ */
+export function visitTimestamp(visit: Partial<Visit>): number | null {
+  const instant = parseInstant(visit.Instant);
+  if (instant !== null) return instant;
   if (visit.PrimaryDate) {
     const t = Date.parse(visit.PrimaryDate);
     if (!Number.isNaN(t)) return t;

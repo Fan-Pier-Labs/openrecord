@@ -30,6 +30,11 @@
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
+import {
+  PAST_VISITS_SUMMARY,
+  UPCOMING_VISITS_SUMMARY,
+  type CapabilitySummary,
+} from './summaries';
 
 import { getMyChartProfile, getEmail } from '../scrapers/myChart/chart/profile';
 import { getHealthSummary } from '../scrapers/myChart/chart/healthSummary';
@@ -107,6 +112,8 @@ export type CapabilityKind =
    * their own settings surface (CLI flags, app settings screen).
    */
   | 'account';
+
+export type { CapabilitySummary };
 
 export type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
 
@@ -197,6 +204,22 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+  /**
+   * A condensed rendering of this capability's payload, for clients that hand
+   * results to a model.
+   *
+   * Declared here, beside {@link rendersMedia}, for the same reason: it is a
+   * property of the capability, so every client can find it by looking at the
+   * capability rather than consulting a separate list keyed by a string id
+   * that a typo would silently miss. The projections live in
+   * `shared/summaries.ts`; only the wiring is here.
+   *
+   * This never changes what {@link executeCapability} returns — condensing is
+   * a client's decision about presentation, applied to `run`'s output, and
+   * always reversible via `full_detail`. The CLI and npm library deliberately
+   * ignore it and print the raw payload.
+   */
+  summary?: CapabilitySummary;
 }
 
 /**
@@ -536,6 +559,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [],
+    summary: UPCOMING_VISITS_SUMMARY,
     run: (request) => upcomingVisits(request),
   },
   {
@@ -545,6 +569,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'years_back', type: 'number', description: 'How many years back to fetch (default 2).', min: 1, max: 20 }],
+    summary: PAST_VISITS_SUMMARY,
     run: (request, args) => {
       const oldest = new Date();
       oldest.setFullYear(oldest.getFullYear() - num(args, 'years_back', 2));
