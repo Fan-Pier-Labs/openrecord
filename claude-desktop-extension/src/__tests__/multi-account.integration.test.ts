@@ -10,9 +10,13 @@
  * without 2FA; marge has TOTP enabled and accepts the fixed code 123456, so
  * her setup also exercises the complete_2fa path.
  *
- * `./memfs` intercepts every path under ~/.openrecord-mcpb, so the real
- * credential store on this machine is never touched — only the MyChart traffic
- * is real (well, fake, but served over HTTP).
+ * `./memfs` intercepts every path under ~/.openrecord-mcpb and pins secrets to
+ * the file backend, so neither the real credential store nor the OS keystore on
+ * this machine is touched — only the MyChart traffic is real (well, fake, but
+ * served over HTTP). This suite is the one that would notice: it runs
+ * `setup_account` and `register_passkey` for real, so an unpinned run files
+ * passkeys and passwords in the developer's own login keychain and leaves them
+ * there. `beforeAll` refuses to run rather than let that happen.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -51,6 +55,16 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)
 
 beforeAll(async () => {
+  // Not an `expect`: this has to stop the suite before the first login, not
+  // report a failure after the secrets have already been written.
+  const backend = store.secretBackend()
+  if (backend !== 'file') {
+    throw new Error(
+      `secrets would go to the ${backend}, not the test file store — ` +
+        'this suite registers real passkeys and would leave them in the OS ' +
+        'keystore. Check the OPENRECORD_SECRET_BACKEND pin in ./memfs.',
+    )
+  }
   await resetFakeMyChart(HOST)
   memfs.reset()
 })
