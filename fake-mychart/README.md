@@ -207,6 +207,16 @@ Behavioral contract, all verified against the same captures and enforced by
   scripts attach the token through a shared `fetch` wrapper (`html/assets/csrf-fetch.js`).
 - **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
   generic token page.
+- **`SendMedicalAdviceRequest` silently DISCARDS a body over 500 characters.**
+  Not a 4xx and not an error body: HTTP 200 whose entire payload is `""` where
+  the conversation id belongs, and no conversation is created. 500 characters
+  is accepted and comes back with a real id; 501 is swallowed. Bisected on a
+  live instance (2026-08-28, ASCII); the counting rule for non-ASCII bodies is
+  unverified, so the fake counts characters. This is why
+  `scrapers/myChart/chart/messages/sendMessage.ts` refuses an over-limit body
+  up front and never reports success without a conversation id — a caller that
+  reads "200 means sent" tells a patient their message reached their doctor
+  when nothing was filed.
 
 ## Resetting In-Memory State
 
@@ -341,7 +351,7 @@ Messages are fully interactive. You can:
 
 - **List conversations** — returns seed data plus any new messages sent this session
 - **Read conversation threads** — full message history with timestamps and senders
-- **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls.
+- **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
 - **Reply to a message** — appends to an existing conversation thread
 - **Delete a conversation** — removes it from the in-memory list
 

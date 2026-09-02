@@ -50,6 +50,40 @@ describe('getVitals', () => {
     expect(wt!.readings[0]).toEqual({ date: '2025-08-11T06:29:00', value: '175', units: 'lbs', isAbnormal: true, entryType: 'clinical' })
   })
 
+  it('reads numeric vitals whose stringValue is present but empty', async () => {
+    // The real regression: MyChart sends BOTH fields, so numeric rows arrive as
+    // numericValue alongside an EMPTY stringValue. Preferring a non-nullish
+    // stringValue blanked every Pulse and Weight reading.
+    const rows = [...ROWS, { id: 'row-hr', name: 'Pulse', unitsDisplayName: '' }]
+    const req = mockRequest([
+      TOKEN,
+      { body: JSON.stringify({ flowsheets: [{ episodeId: 'EP-1', rows, readings: [] }] }) },
+      { body: JSON.stringify({ flowsheet: { episodeId: 'EP-1', rows, hasMoreData: false, readings: [
+        { rowId: 'row-bp', instantTakenIso: '2025-08-11T06:29:00', stringValue: '123/81' },
+        { rowId: 'row-hr', instantTakenIso: '2025-08-11T06:29:00', stringValue: '', numericValue: 88 },
+        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', stringValue: '  ', numericValue: 175.5 },
+      ] } }) },
+    ])
+
+    const result = await getVitals(req)
+    expect(result.find(f => f.name === 'Pulse')!.readings[0]!.value).toBe('88')
+    expect(result.find(f => f.name === 'Weight')!.readings[0]!.value).toBe('175.5')
+    expect(result.find(f => f.name === 'Blood Pressure')!.readings[0]!.value).toBe('123/81')
+  })
+
+  it('leaves the value empty when the reading carries neither field', async () => {
+    const req = mockRequest([
+      TOKEN,
+      { body: JSON.stringify({ flowsheets: [{ episodeId: 'EP-1', rows: ROWS, readings: [] }] }) },
+      { body: JSON.stringify({ flowsheet: { episodeId: 'EP-1', rows: ROWS, hasMoreData: false, readings: [
+        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', stringValue: '' },
+      ] } }) },
+    ])
+
+    const wt = (await getVitals(req)).find(f => f.name === 'Weight')!
+    expect(wt.readings[0]!.value).toBe('')
+  })
+
   it('pages backwards through history', async () => {
     const req = mockRequest([
       TOKEN,

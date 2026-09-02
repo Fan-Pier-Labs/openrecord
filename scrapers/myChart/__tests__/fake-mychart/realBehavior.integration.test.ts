@@ -17,6 +17,7 @@
  *    /api/* routes enforce it.
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
+ *  - SendMedicalAdviceRequest silently DISCARDS a message body over 500 characters.
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  * Run with: bun run test:integration
@@ -35,6 +36,16 @@ import { getEmergencyContacts } from '../../chart/emergencyContacts'
 import { getVisitNotes } from '../../chart/notes'
 import { getCareTeam } from '../../chart/careTeam'
 import { getLetterDetails } from '../../chart/letters'
+import {
+  buildSendPayload,
+  getMessageRecipients,
+  getMessageTopics,
+  getVerificationToken,
+  sendNewMessage,
+  type MessageRecipient,
+  type MessageTopic,
+} from '../../chart/messages/sendMessage'
+import { listConversations } from '../../chart/messages/conversations'
 import { resetFakeMyChart } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
@@ -385,4 +396,103 @@ describe('epicVersion knob', () => {
     expect(modernBody.results[0]).toHaveProperty('canGenerateLLMSummary')
     expect(modernBody.results[0]).toHaveProperty('isBedsideTablet')
   })
+})
+
+/**
+ * The send endpoint SWALLOWS a message body over 500 characters — 200, an empty
+ * conversation id, nothing filed. Wire shape and why it matters:
+ * `fake-mychart/README.md`, "Response Shapes and Error Behavior".
+ *
+ * `sendNewMessage` defends on both sides: it refuses an over-limit body before the server
+ * can swallow it, and treats a 200 without a usable id as indeterminate rather than
+ * success. Only the first is reachable over real HTTP — against a faithful server the guard
+ * always fires first, which is the point — so the indeterminate branch stays covered by
+ * `sendMessage.unit.test.ts`.
+ */
+describe('the over-limit message body that the send endpoint drops silently', () => {
+  const SEND_PATH = '/api/medicaladvicerequests/SendMedicalAdviceRequest'
+
+  let recipient: MessageRecipient
+  let topic: MessageTopic
+
+  beforeAll(async () => {
+    const token = await getVerificationToken(session)
+    if (!token) throw new Error('no verification token')
+    const [recipients, topics] = await Promise.all([
+      getMessageRecipients(session, token),
+      getMessageTopics(session, token),
+    ])
+    if (!recipients[0] || !topics[0]) throw new Error('fake-mychart served no recipients/topics')
+    recipient = recipients[0]
+    topic = topics[0]
+  })
+
+  async function conversationCount(): Promise<number> {
+    const list = await listConversations(session)
+    return list?.conversations?.length ?? 0
+  }
+
+  /** The scraper's own payload, so the raw-endpoint tests post what the client really posts. */
+  function payload(messageBody: string): Record<string, unknown> {
+    return buildSendPayload(
+      { recipient, topic, subject: 'Over-limit body test', messageBody },
+      { wprId: 'WPR-HOMER', composeId: 'COMPOSE-TEST' },
+    )
+  }
+
+  it('501 characters: HTTP 200, an empty conversation id, and nothing filed', async () => {
+    const before = await conversationCount()
+    const res = await api(SEND_PATH, payload('x'.repeat(501)))
+    expect(res.status).toBe(200)
+    // A JSON empty string, not an error body and not an error status.
+    expect(await res.text()).toBe('""')
+    expect(await conversationCount()).toBe(before)
+  }, 30_000)
+
+  it('500 characters: a real conversation id, and the message is filed', async () => {
+    const before = await conversationCount()
+    const res = await api(SEND_PATH, payload('y'.repeat(500)))
+    expect(res.status).toBe(200)
+    const conversationId = await res.json() as string
+    expect(conversationId.length).toBeGreaterThan(0)
+    expect(await conversationCount()).toBe(before + 1)
+  }, 30_000)
+
+  it('sendNewMessage refuses an over-limit body instead of losing it', async () => {
+    const before = await conversationCount()
+
+    const result = await sendNewMessage(session, {
+      recipient,
+      topic,
+      subject: 'Over-limit body test',
+      messageBody: 'z'.repeat(501),
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.conversationId).toBeUndefined()
+    expect(result.error).toContain('501')
+    // The whole point: the server never got the chance to swallow it.
+    expect(await conversationCount()).toBe(before)
+  }, 30_000)
+
+  it('sendNewMessage still sends a body right at the limit', async () => {
+    const body = 'w'.repeat(500)
+    const before = await conversationCount()
+
+    const result = await sendNewMessage(session, {
+      recipient,
+      topic,
+      subject: 'At-limit body test',
+      messageBody: body,
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(result.success).toBe(true)
+    expect(result.conversationId?.length ?? 0).toBeGreaterThan(0)
+
+    const list = await listConversations(session)
+    expect(list?.conversations?.length ?? 0).toBe(before + 1)
+    const filed = list?.conversations?.find((c) => c.hthId === result.conversationId)
+    expect(filed?.messages?.[0]?.body).toBe(body)
+  }, 30_000)
 })
