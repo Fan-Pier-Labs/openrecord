@@ -11,87 +11,126 @@ function mockRequest(body: string) {
   return req
 }
 
+// The advisories page as MyChart renders it: a heading, a nav sidebar, and one
+// table row per screening. Every one of those is a block element, so `.text()`
+// glues them into a single line unless the parser separates them.
+function tablePage(rows: string): string {
+  return `
+    <html><body>
+      <nav><a href="/MyChart/HealthAdvisories">Preventive Care</a></nav>
+      <h1>Preventive Care</h1>
+      <table>
+        <tr><th>Screening</th><th>Status</th><th>Details</th></tr>
+        ${rows}
+      </table>
+    </body></html>
+  `
+}
+
 describe('getPreventiveCare', () => {
-  it('parses overdue items', async () => {
-    const html = `
-      <html><body>
-        Overdue
-        Colonoscopy
-        Overdue since 01/01/2023
-        Previously done: 03/15/2013
-      </body></html>
-    `
+  it('parses a table of screenings without merging rows together', async () => {
+    const html = tablePage(`
+      <tr><td><strong>Colonoscopy</strong></td><td><span class="badge">Overdue</span></td><td>Overdue since 01/01/2024</td></tr>
+      <tr><td><strong>Influenza Vaccine</strong></td><td><span class="badge">Due</span></td><td>Not due until 10/01/2026</td></tr>
+      <tr><td><strong>Lipid Panel</strong></td><td><span class="badge">Completed</span></td><td>Completed on 01/10/2026</td></tr>
+    `)
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({
-      name: 'Colonoscopy',
-      status: 'overdue',
-      overdueSince: '01/01/2023',
-      notDueUntil: '',
-      previouslyDone: ['03/15/2013'],
-      completedDate: '',
-    })
+    expect(result).toEqual([
+      { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
+      { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
+      { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
+    ])
   })
 
-  it('parses not-due items', async () => {
-    const html = `
-      <html><body>
-        Flu Vaccine
-        Not due until 10/01/2025
-      </body></html>
-    `
+  it('does not emit a synthetic row built from the page heading and the whole table', async () => {
+    const html = tablePage(`
+      <tr><td>Colonoscopy</td><td>Overdue</td><td>Overdue since 01/01/2024</td></tr>
+      <tr><td>Influenza Vaccine</td><td>Due</td><td>Not due until 10/01/2026</td></tr>
+    `)
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result).toHaveLength(1)
-    expect(result[0]!.name).toBe('Flu Vaccine')
-    expect(result[0]!.status).toBe('not_due')
-    expect(result[0]!.notDueUntil).toBe('10/01/2025')
+    expect(result.map(i => i.name)).toEqual(['Colonoscopy', 'Influenza Vaccine'])
+    // The artifact concatenated unrelated records into one field.
+    for (const item of result) {
+      expect(item.overdueSince).not.toContain('Influenza')
+      expect(item.notDueUntil).not.toContain('Lipid')
+    }
   })
 
-  it('parses completed items', async () => {
-    const html = `
-      <html><body>
-        Eye Exam
-        Completed on 06/15/2024
-      </body></html>
-    `
+  it('ignores column headers and unrelated tables on the page', async () => {
+    const html = tablePage(`
+      <tr><td>Mammogram</td><td>Overdue</td><td>Overdue since 01/01/2024</td></tr>
+      </table>
+      <table>
+        <tr><th>Provider</th><th>Phone</th></tr>
+        <tr><td>Springfield General</td><td>555-0100</td></tr>
+      </table>
+      <table>
+    `)
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result).toHaveLength(1)
-    expect(result[0]!.status).toBe('completed')
-    expect(result[0]!.completedDate).toBe('06/15/2024')
+    expect(result.map(i => i.name)).toEqual(['Mammogram'])
   })
 
-  it('parses multiple previously done dates', async () => {
-    const html = `
-      <html><body>
-        Mammogram
-        Overdue since 01/01/2024
-        Previously done: 01/01/2022, 01/01/2020, 01/01/2018
-      </body></html>
-    `
+  it('parses previously done dates from a table row', async () => {
+    const html = tablePage(`
+      <tr><td>Mammogram</td><td>Overdue</td><td>Overdue since 01/01/2024<br>Previously done: 01/01/2022, 01/01/2020, 01/01/2018</td></tr>
+    `)
     const result = await getPreventiveCare(mockRequest(html))
     expect(result[0]!.previouslyDone).toEqual(['01/01/2022', '01/01/2020', '01/01/2018'])
   })
 
-  it('handles multiple items with different statuses', async () => {
+  it('falls back to line pairing when the page has no table', async () => {
     const html = `
       <html><body>
-        Overdue
-        Item A
-        Overdue
-        Item B
-        Not due until 2025
-        Item C
-        Completed on 2024
+        <div class="healthAdvisories">
+          <div>Colonoscopy</div>
+          <div>Overdue since 01/01/2023</div>
+          <div>Previously done: 03/15/2013</div>
+          <div>Flu Vaccine</div>
+          <div>Not due until 10/01/2025</div>
+          <div>Eye Exam</div>
+          <div>Completed on 06/15/2024</div>
+        </div>
       </body></html>
     `
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result).toHaveLength(3)
-    expect(result[0]!.name).toBe('Item A')
-    expect(result[0]!.status).toBe('overdue')
-    expect(result[1]!.name).toBe('Item B')
-    expect(result[1]!.status).toBe('not_due')
-    expect(result[2]!.name).toBe('Item C')
-    expect(result[2]!.status).toBe('completed')
+    expect(result).toEqual([
+      { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2023', notDueUntil: '', previouslyDone: ['03/15/2013'], completedDate: '' },
+      { name: 'Flu Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2025', previouslyDone: [], completedDate: '' },
+      { name: 'Eye Exam', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '06/15/2024' },
+    ])
+  })
+
+  it('falls back to text when the only table on the page is unrelated', async () => {
+    const html = `
+      <html><body>
+        <h1>Preventive Care</h1>
+        <table>
+          <tr><th>Provider</th><th>Phone</th></tr>
+          <tr><td>Springfield General</td><td>555-0100</td></tr>
+        </table>
+        <div>Colonoscopy</div>
+        <div>Overdue since 01/01/2023</div>
+      </body></html>
+    `
+    const result = await getPreventiveCare(mockRequest(html))
+    expect(result.map(i => i.name)).toEqual(['Colonoscopy'])
+    expect(result[0]!.overdueSince).toBe('01/01/2023')
+  })
+
+  it('does not treat a status badge as the name of the next screening', async () => {
+    const html = `
+      <html><body>
+        <div>Overdue</div>
+        <div>Item A</div>
+        <div>Overdue since 01/01/2024</div>
+        <div>Not due</div>
+        <div>Item B</div>
+        <div>Not due until 2027</div>
+      </body></html>
+    `
+    const result = await getPreventiveCare(mockRequest(html))
+    expect(result.map(i => i.name)).toEqual(['Item A', 'Item B'])
+    expect(result.map(i => i.status)).toEqual(['overdue', 'not_due'])
   })
 
   it('returns empty for page with no items', async () => {

@@ -15,11 +15,27 @@
  * Nothing under the root ever reaches real `fs`: the delegate throws if such a
  * path reaches it, which turns any gap in this shim into a loud failure rather
  * than a write to the developer's actual credentials.
+ *
+ * Intercepting `fs` is only half of it: the store files secrets in the OS
+ * keystore, which no `fs` mock can reach. So this module also pins the secret
+ * backend to the file, and every suite that touches the store imports it.
+ * Without that pin the only thing between `setup_account` and real items in the
+ * developer's login keychain is secret-store's NODE_ENV=test default, and the
+ * ambient environment defeats that two ways: `bun test` leaves an already-set
+ * NODE_ENV alone, and an exported OPENRECORD_SECRET_BACKEND wins outright.
+ * `secret-store.unit.test.ts` steps outside the pin on purpose, and puts it back.
  */
 import { mock } from 'bun:test'
 import * as nodeFs from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
+
+/**
+ * Secrets go to the plaintext file slots — which live under ROOT, so the shim
+ * below owns them — instead of the platform keystore. Set before any store
+ * module is imported, though secret-store re-reads it on every call anyway.
+ */
+process.env.OPENRECORD_SECRET_BACKEND = 'file'
 
 /** Same derivation credential-store.ts uses, so interception lines up exactly. */
 export const ROOT = path.join(os.homedir(), '.openrecord-mcpb')
