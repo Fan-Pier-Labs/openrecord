@@ -1148,19 +1148,12 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/conversations/getconversationlist') {
     return json(conformToShape(shapes.getConversationList, activeConversations(request)));
   }
+  // Never serves a thread. Every instance checked answers this endpoint with
+  // ASP.NET Web API's 500 for every conversation, whatever the body, and
+  // inlines the messages in GetConversationList instead. Nobody has observed
+  // it working, so the fake does not invent a success shape for it.
   if (lower === 'api/conversations/getconversationmessages') {
-    try {
-      const body = await request.json();
-      const conv = activeConversations(request).conversations.find(
-        (c: { hthId: string }) => c.hthId === body.conversationId
-      );
-      if (conv) {
-        return json({ messages: conv.messages });
-      }
-      return json({ messages: [] });
-    } catch {
-      return json({ messages: [] });
-    }
+    return json({ Message: 'An error has occurred.' }, 500);
   }
   if (lower === 'api/conversations/getcomposeid') {
     state.composeIdCounter++;
