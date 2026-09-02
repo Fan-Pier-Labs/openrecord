@@ -734,7 +734,7 @@ const SETUP_UI_TEMPLATE = `
       passwordInput.focus();
     };
 
-    function showSuccess(account) {
+    function showSuccess(account, result) {
       hideStatus();
       stepPicker.hidden = true;
       stepCreds.hidden = true;
@@ -746,6 +746,14 @@ const SETUP_UI_TEMPLATE = `
       var hostMsg = account
         ? 'My MyChart account at ' + account + ' is now connected. Please continue with my original request.'
         : 'My MyChart account is now connected. Please continue with my original request.';
+      // The login tool recommends a passkey rather than registering one, and
+      // this widget is the recommended setup path — so carry the recommendation
+      // into the conversation instead of letting the GUI route swallow it.
+      if (result && result.passkey_recommended) {
+        hostMsg += ' First, though: tell me whether you recommend setting up a passkey for this account,' +
+          ' what it changes about how I sign in, and where the key is stored — then wait for my answer' +
+          ' before registering anything.';
+      }
       rpc('ui/message', {
         role: 'user',
         content: [{ type: 'text', text: hostMsg }],
@@ -790,7 +798,7 @@ const SETUP_UI_TEMPLATE = `
           submitBtn.innerText = 'Connect Account';
           showTwoFa(result.delivery || result.target || null);
         } else if (result.state === 'logged_in') {
-          showSuccess(result.account || hostname);
+          showSuccess(result.account || hostname, result);
         } else if (result.state === 'invalid_login') {
           showError(credsError, 'Invalid username or password. Please check your credentials.');
           submitBtn.disabled = false;
@@ -824,7 +832,7 @@ const SETUP_UI_TEMPLATE = `
       try {
         var result = await callTool('complete_2fa', { pending_id: pendingId, code: code });
         if (result.state === 'logged_in') {
-          showSuccess(result.account || (selectedInstance && selectedInstance.hostname));
+          showSuccess(result.account || (selectedInstance && selectedInstance.hostname), result);
         } else if (result.state === 'invalid_2fa') {
           showError(twoFaError, 'Invalid verification code. Please try again.');
           pendingId = result.pending_id; // refreshed pending id

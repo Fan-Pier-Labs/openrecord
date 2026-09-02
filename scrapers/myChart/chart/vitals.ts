@@ -34,6 +34,7 @@ type RawReading = {
   isAbnormal?: boolean;
   entryType?: string;
 };
+
 type RawFlowsheet = {
   episodeId?: string;
   name?: string;
@@ -44,6 +45,22 @@ type RawFlowsheet = {
 };
 type GetFlowsheetsResponse = { flowsheets?: RawFlowsheet[] };
 type GetFlowsheetReadingsResponse = { flowsheet?: RawFlowsheet };
+
+/**
+ * The reading's displayable value.
+ *
+ * MyChart sends BOTH value fields on every reading: string rows (Blood
+ * Pressure, "145/95") carry `stringValue`, while numeric rows (Pulse, Weight)
+ * carry the number in `numericValue` and still include `stringValue` as an
+ * EMPTY string. Preferring a merely non-nullish `stringValue` therefore blanked
+ * every numeric vital, so take the first field that actually holds something.
+ */
+function readingValue(r: RawReading): string {
+  const s = r.stringValue?.trim();
+  if (s) return s;
+  if (typeof r.numericValue === 'number' && Number.isFinite(r.numericValue)) return String(r.numericValue);
+  return '';
+}
 
 /** End-of-day tomorrow, formatted as MyChart expects (no timezone suffix). */
 function defaultEndInstantIso(): string {
@@ -135,7 +152,7 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
         seen.add(dedupeKey);
 
         const meta = rowMeta.get(r.rowId);
-        const value = r.stringValue ?? (r.numericValue !== undefined && r.numericValue !== null ? String(r.numericValue) : '');
+        const value = readingValue(r);
         const readings = byRow.get(r.rowId) ?? [];
         readings.push({
           date: instant,

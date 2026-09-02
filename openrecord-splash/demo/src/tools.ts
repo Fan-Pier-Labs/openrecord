@@ -644,8 +644,11 @@ const HANDLERS: Record<string, Handler> = {
     return {
       state: 'logged_in',
       account: `${username}@${hostname}`,
-      passkey_registered: true,
-      message: 'Account connected and passkey saved — future sessions will skip the password and 2FA prompts.',
+      // The real MCPB recommends a passkey here rather than registering one —
+      // enrolling a sign-in factor on someone's medical record is their call.
+      // This demo has no passkey tools, so it just reports the login.
+      passkey_saved: false,
+      message: 'Account connected. Nothing was changed about how this account signs in.',
     };
   },
 
@@ -687,8 +690,8 @@ const HANDLERS: Record<string, Handler> = {
       state: 'logged_in',
       status: 'logged_in',
       account: `${s.username}@${s.hostname}`,
-      passkey_registered: true,
-      message: '2FA completed successfully. Account connected and passkey saved.',
+      passkey_saved: false,
+      message: '2FA completed successfully. Account connected.',
       hostname: s.hostname,
       username: s.username,
     };

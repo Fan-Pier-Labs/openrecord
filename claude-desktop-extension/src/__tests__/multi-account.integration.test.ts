@@ -4,15 +4,23 @@
  * fake-mychart.
  *
  * This is the scenario that used to corrupt the store: passkeys and sessions
- * were keyed by hostname alone, so setting up marge on homer's hostname kept
- * homer's WebAuthn credential (`already_saved`), and marge's silent login then
- * authenticated as HOMER — the wrong-patient failure class. Homer is seeded
- * without 2FA; marge has TOTP enabled and accepts the fixed code 123456, so
- * her setup also exercises the complete_2fa path.
+ * were keyed by hostname alone, so registering a passkey for marge on homer's
+ * hostname left homer's WebAuthn credential in place, and marge's silent login
+ * then authenticated as HOMER — the wrong-patient failure class. Homer is
+ * seeded without 2FA; marge has TOTP enabled and accepts the fixed code 123456,
+ * so her setup also exercises the complete_2fa path.
  *
- * `./memfs` intercepts every path under ~/.openrecord-mcpb, so the real
- * credential store on this machine is never touched — only the MyChart traffic
- * is real (well, fake, but served over HTTP).
+ * It also pins the consent rule: neither login route registers a passkey on
+ * its own. Both report `passkey_recommended` and wait for an explicit
+ * register_passkey call.
+ *
+ * `./memfs` intercepts every path under ~/.openrecord-mcpb and pins secrets to
+ * the file backend, so neither the real credential store nor the OS keystore on
+ * this machine is touched — only the MyChart traffic is real (well, fake, but
+ * served over HTTP). This suite is the one that would notice: it runs
+ * `setup_account` and `register_passkey` for real, so an unpinned run files
+ * passkeys and passwords in the developer's own login keychain and leaves them
+ * there. `beforeAll` refuses to run rather than let that happen.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -51,6 +59,16 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)
 
 beforeAll(async () => {
+  // Not an `expect`: this has to stop the suite before the first login, not
+  // report a failure after the secrets have already been written.
+  const backend = store.secretBackend()
+  if (backend !== 'file') {
+    throw new Error(
+      `secrets would go to the ${backend}, not the test file store — ` +
+        'this suite registers real passkeys and would leave them in the OS ' +
+        'keystore. Check the OPENRECORD_SECRET_BACKEND pin in ./memfs.',
+    )
+  }
   await resetFakeMyChart(HOST)
   memfs.reset()
 })
@@ -61,20 +79,26 @@ afterAll(() => {
 
 describe('two logins on one hostname', () => {
   it('sets up homer, then marge, without disturbing homer', async () => {
-    // Homer: plain username/password login, passkey auto-registered.
+    // Homer: plain username/password login. Logging in registers NO passkey —
+    // enrolling a sign-in factor on someone's medical record needs their
+    // say-so, so the result only recommends it.
     const homer = parse(
       await call('setup_account', { hostname: HOST, username: 'homer', password: 'donuts123' }),
     )
     expect(homer.state).toBe('logged_in')
     expect(homer.account).toBe(`homer@${HOST}`)
-    expect(homer.passkey_registered).toBe(true)
+    expect(homer.passkey_saved).toBe(false)
+    expect(homer.passkey_recommended).toBe(true)
+    expect(store.readAccountPasskey(HOST, 'homer')).toBeUndefined()
 
+    // …and the user says yes.
+    expect(parse(await call('register_passkey', { account: `homer@${HOST}` })).registered).toBe(true)
     const homerPasskey = store.readAccountPasskey(HOST, 'homer')
     expect(homerPasskey).toBeDefined()
 
     // Marge on the SAME hostname: TOTP 2FA, then her own passkey — the old
-    // hostname-keyed store returned `already_saved` here and left her using
-    // homer's credential.
+    // hostname-keyed store handed her homer's credential here, and her silent
+    // login then authenticated as HOMER.
     const margeSetup = parse(
       await call('setup_account', { hostname: HOST, username: 'marge', password: 'donuts123' }),
     )
@@ -84,7 +108,10 @@ describe('two logins on one hostname', () => {
     )
     expect(marge.state).toBe('logged_in')
     expect(marge.account).toBe(`marge@${HOST}`)
-    expect(marge.passkey_registered).toBe(true)
+    // Homer's passkey on this hostname must not be mistaken for marge's.
+    expect(marge.passkey_saved).toBe(false)
+    expect(marge.passkey_recommended).toBe(true)
+    expect(parse(await call('register_passkey', { account: `marge@${HOST}` })).registered).toBe(true)
 
     // Homer's row, passkey and session all survived; marge's passkey is her own.
     expect(store.readAccounts()).toHaveLength(2)
