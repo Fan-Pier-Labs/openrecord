@@ -146,12 +146,14 @@ curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '
 curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025","conversationMessages":"serves"}
 ```
 
-- `conversationMessages` — **whether `/api/conversations/GetConversationMessages` works.** `serves`
-  (default) returns the thread. `errors` answers every call with a 500 and
-  `{"Message":"An error has occurred."}`, which is what one captured instance does for every
-  conversation, body and content-type; that account's messages are all inlined in
-  `GetConversationList` instead. Not a release difference — the same Epic release serves the
-  endpoint elsewhere — so it is its own knob.
+- `conversationMessages` — **whether `/api/conversations/GetConversationMessages` works.** `errors`
+  (default) answers every call with a 500 and `{"Message":"An error has occurred."}`. That is what
+  **both** captured instances do — every conversation, every body shape and content-type tried —
+  while inlining that account's messages in `GetConversationList` instead. Not a release difference:
+  the two instances are on different Epic releases and behave identically here. `serves` returns the
+  thread, which no captured instance does; the request body we send has the same provenance as the
+  response fields this endpoint's parser used to guess, so the 500 may be our request rather than
+  the endpoint. Keep the mode for the day someone works out the right one.
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
 - `discovery` — **how `/` announces the mount.** Requires re-login for the same reason. Every value is a shape observed on a live instance:
   - `redirect` (default) — a 302 with a `Location` header.

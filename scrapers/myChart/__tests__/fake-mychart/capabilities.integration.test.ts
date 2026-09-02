@@ -123,7 +123,9 @@ describe('capability registry against fake-mychart', () => {
 
   // A thread whose every field came back empty still satisfies `toBeDefined()`
   // above, which is exactly how a field-mapping regression once shipped. Check
-  // the contents against the inbox the ids came from.
+  // the contents against the inbox the ids came from. Runs in the default
+  // mode, where GetConversationMessages 500s as it does on both real
+  // instances, so the thread comes from the listing.
   it('returns a fully populated message thread', async () => {
     const inbox = (await executeCapability(session, 'get_messages')) as {
       conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
@@ -161,11 +163,10 @@ describe('capability registry against fake-mychart', () => {
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
   }, 30_000)
 
-  // One live instance answers GetConversationMessages with a 500 for every
-  // conversation and inlines the whole account's messages in the listing
-  // instead. The thread has to come back anyway.
-  it('returns the thread on an instance whose GetConversationMessages 500s', async () => {
-    await setThreadEndpointMode(HOST, 'errors')
+  // The other path: an instance that serves the endpoint, so the thread comes
+  // from there rather than from the listing.
+  it('returns the thread on an instance that serves GetConversationMessages', async () => {
+    await setThreadEndpointMode(HOST, 'serves')
     try {
       const inbox = (await executeCapability(session, 'get_messages')) as {
         conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
@@ -182,7 +183,7 @@ describe('capability registry against fake-mychart', () => {
       expect(thread.messages.every((m) => m.messageBody !== '')).toBe(true)
       expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
     } finally {
-      await setThreadEndpointMode(HOST, 'serves')
+      await setThreadEndpointMode(HOST, 'errors')
     }
   }, 30_000)
 

@@ -11,8 +11,9 @@ const HIBBERT = { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbe
 const HOMER = { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' }
 
 /**
- * What the live instances actually send: exactly one key per author, and an
- * empty displayName with the name only in the users / viewers maps.
+ * What the live instances actually send, on both of them without exception:
+ * exactly one key per author, and an empty displayName with the name only in
+ * the users / viewers maps.
  */
 const NAMELESS_STAFF = { displayName: '', empKey: 'PROV-HIBBERT' }
 const NAMELESS_PATIENT = { displayName: '', wprKey: 'WPR-HOMER' }
@@ -153,10 +154,10 @@ describe('getConversationMessages', () => {
     expect(result.messages[0]!.messageBody).toBe('How are you feeling?')
   })
 
-  // patientgateway.massgeneralbrigham.org answers this endpoint with a 500 and
-  // `{"Message":"An error has occurred."}` on every conversation, for every
-  // body and content-type we tried. Every message on that account is inlined
-  // in the listing instead, so the thread has to come from there.
+  // BOTH instances we can check answer this endpoint with a 500 and
+  // `{"Message":"An error has occurred."}` — every conversation, every body
+  // and content-type tried. Every message on those accounts is inlined in the
+  // listing instead, so that is where the thread has to come from.
   it('falls back to the listing when GetConversationMessages errors', async () => {
     const req = mockRequest({
       page: TOKEN_PAGE,
@@ -178,8 +179,8 @@ describe('getConversationMessages', () => {
     expect(result.messages).toHaveLength(2)
   })
 
-  // Conversations there do claim more messages than the listing carries, and
-  // the endpoint that would fetch them is the one that 500s.
+  // Conversations do claim more messages than the listing carries, and the
+  // endpoint that would fetch them is the one that 500s.
   it('reports a thread as truncated when the listing is all there is', async () => {
     const req = mockRequest({
       page: TOKEN_PAGE,
