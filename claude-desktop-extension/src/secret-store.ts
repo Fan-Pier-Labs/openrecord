@@ -39,6 +39,21 @@ export type BackendName =
   | 'file';
 
 /**
+ * How to name each backend to a patient being asked whether to store a passkey
+ * there. It lives next to `BackendName` rather than at the call site so the
+ * record stays exhaustive: adding a sixth backend without a sentence is a type
+ * error, not a caller that quietly falls through to something vague about where
+ * a P-256 private key to a medical record ended up.
+ */
+export const BACKEND_DESCRIPTION: Record<BackendName, string> = {
+  keychain: 'the macOS Keychain on this machine',
+  'credential-manager': 'Windows Credential Manager on this machine',
+  'secret-service': 'the system keyring (Secret Service) on this machine',
+  keyring: 'the OS credential store on this machine',
+  file: 'a private (0600) file under ~/.openrecord-mcpb on this machine — the OS keystore is not available here',
+};
+
+/**
  * The plaintext file a secret used to live in, supplied by the caller so this
  * module never learns any caller's file layout. Reading it is also how
  * migration works: the first keystore read that misses looks here.
