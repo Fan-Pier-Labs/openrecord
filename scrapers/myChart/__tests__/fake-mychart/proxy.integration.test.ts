@@ -14,6 +14,7 @@ import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
 import { getMyChartProfile } from '../../chart/profile'
 import { getMedications } from '../../chart/medications'
+import { getCareTeam } from '../../chart/careTeam'
 import {
   assertProxyReadContext,
   runListProxyTargets,
@@ -85,6 +86,13 @@ describe('proxy tools against fake-mychart', () => {
     await expect(assertProxyReadContext(session, 'Bart')).resolves.toBeUndefined()
     const meds = await getMedications(session)
     expect(JSON.stringify(meds)).not.toContain('Lisinopril') // Homer's, not Bart's
+
+    // Care Team rides on its own legacy endpoints, so it gets the same check:
+    // the child's providers, never the account holder's.
+    const careTeam = await getCareTeam(session)
+    expect(careTeam.members.map(m => m.specialty)).toContain('Pediatric Pulmonology')
+    expect(JSON.stringify(careTeam)).not.toContain('Nick Riviera')   // Homer's surgeon
+    expect(JSON.stringify(careTeam)).not.toContain('Marvin Monroe')  // Homer's outside provider
   })
 
   it('refuses an unqualified (account holder) read while switched to Bart', async () => {

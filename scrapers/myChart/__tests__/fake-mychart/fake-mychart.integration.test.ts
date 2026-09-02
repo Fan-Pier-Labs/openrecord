@@ -29,6 +29,7 @@ import { getHealthIssues } from '../../chart/healthIssues'
 import { getImmunizations } from '../../chart/immunizations'
 import { getVitals } from '../../chart/vitals'
 import { getInsurance } from '../../chart/insurance'
+import { getCareTeam } from '../../chart/careTeam'
 import { getReferrals } from '../../chart/referrals'
 import { getMedicalHistory } from '../../chart/medicalHistory'
 import { getPreventiveCare } from '../../chart/preventiveCare'
@@ -187,6 +188,16 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.coverages)).toBe(true)
       expect(result.coverages.length).toBeGreaterThan(0)
       expect(result.hasCoverages).toBe(true)
+    }, 10_000)
+
+    it('getCareTeam returns internal and external providers', async () => {
+      const result = await getCareTeam(session)
+      expect(result.externalProvidersUnavailable).toBe(false)
+      const pcp = result.members.find(m => m.relation === 'Primary Care Provider')
+      expect(pcp?.name).toBeTruthy()
+      expect(pcp?.specialty).toBeTruthy()
+      expect(pcp?.isExternal).toBe(false)
+      expect(result.members.some(m => m.isExternal)).toBe(true)
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {

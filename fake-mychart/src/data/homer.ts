@@ -222,11 +222,51 @@ export const vitalsReadings = {
   userSettings: {},
 };
 
-// ─── Care Team (HTML parsed) ────────────────────────────────────────
-export const careTeam = [
-  { name: 'Julius Hibbert, MD', role: 'Primary Care Provider', specialty: 'Internal Medicine' },
-  { name: 'Nick Riviera, MD', role: 'Surgeon', specialty: 'General Surgery' },
-];
+// ─── Care Team ──────────────────────────────────────────────────────
+// PascalCase because /Clinical/CareTeam/Load is a legacy MVC activity, not one
+// of the React /api/* endpoints. `Relation` carries the role (the PCP
+// designation lives there); `Specialty` the department specialty.
+export const careTeam = {
+  ProvidersList: [
+    {
+      ID: 'PROV-HIBBERT',
+      Name: 'Julius Hibbert, MD',
+      NationalProviderID: '1000000001',
+      Specialty: 'Internal Medicine',
+      Relation: 'Primary Care Provider',
+      DepartmentID: 'DEP-IM-1',
+      CanMessage: true,
+      WebPageUrl: '/MyChart/Clinical/Provider/PROV-HIBBERT',
+      AboutMeBlurb: 'Board-certified in internal medicine. Sees adults for primary care.',
+    },
+    {
+      ID: 'PROV-RIVIERA',
+      Name: 'Nick Riviera, MD',
+      NationalProviderID: '1000000002',
+      Specialty: 'General Surgery',
+      Relation: 'Surgeon',
+      DepartmentID: 'DEP-SURG-1',
+      CanMessage: false,
+    },
+  ],
+  DescriptiveTitle: 'Your Care Team',
+};
+
+// The Care Everywhere / outside-provider list, served by
+// /Clinical/CareTeam/LoadExternal in the same envelope.
+export const careTeamExternal = {
+  ProvidersList: [
+    {
+      ID: 'PROV-EXT-MONROE',
+      Name: 'Marvin Monroe, MD',
+      NationalProviderID: '1000000003',
+      Specialty: 'Psychiatry',
+      Relation: 'Outside Provider',
+      IsExternal: true,
+    },
+  ],
+  DescriptiveTitle: 'Providers outside this organization',
+};
 
 // ─── Insurance (HTML parsed) ────────────────────────────────────────
 export const insurance = [

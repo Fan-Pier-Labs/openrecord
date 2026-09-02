@@ -515,7 +515,13 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
 
   // ── HTML pages parsed by cheerio ───────────────────────────────
   if (lower === 'clinical/careteam') {
-    return html(careTeamPage(ds.careTeam));
+    return html(careTeamPage());
+  }
+
+  // The Care Team activity's two data endpoints are POST-only on real
+  // instances: a GET answers 500 whatever query string it carries.
+  if (lower === 'clinical/careteam/load' || lower === 'clinical/careteam/loadexternal') {
+    return aspNetFailure(request, 'fivehundred', joined);
   }
 
   if (lower === 'insurance') {
@@ -1299,6 +1305,17 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
       u.pendingTotpSecret = null;
     }
     return json({ Success: true });
+  }
+
+  // ── Care Team ─────────────────────────────────────────────────
+  // A legacy MVC activity, so PascalCase and no /api prefix. Every parameter
+  // the page's JS sends is optional; a bare POST returns the full list.
+  if (lower === 'clinical/careteam/load') {
+    return json(conformToShape(shapes.careTeamLoad, ds.careTeam));
+  }
+
+  if (lower === 'clinical/careteam/loadexternal') {
+    return json(conformToShape(shapes.careTeamLoad, ds.careTeamExternal));
   }
 
   // ── Contact Information ───────────────────────────────────────

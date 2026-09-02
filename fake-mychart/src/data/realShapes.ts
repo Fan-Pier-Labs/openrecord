@@ -2303,6 +2303,45 @@ export const loadPaymentList = {
   }
 } as const;
 
+// /clinical/careteam/load and /clinical/careteam/loadexternal
+// PascalCase because Care Team is a legacy MVC activity, not one of the React
+// `/api/*` ones. Field names are the capture recorded in
+// docs/api-surface-gaps.md §1a; `LoadExternal` returns the same envelope with
+// its own ProvidersList.
+export const careTeamLoad = {
+  "ProvidersList": [
+    {
+      "ID": "",
+      "Name": "",
+      "Photo": "",
+      "NationalProviderID": "",
+      "WebPageUrl": "",
+      "InfoBlurbUrl": "",
+      "AboutMeBlurb": "",
+      "CanViewProviderDetails": false,
+      "CanDirectSchedule": false,
+      "CanRequestAppointment": false,
+      "CanMessage": false,
+      "CommCenterMessageUrl": "",
+      "CanRequestCustomAppt": false,
+      "HasNoProviderRecord": false,
+      "IsNewSchedulingEnabled": false,
+      "Specialty": "",
+      "Relation": "",
+      "SchedulableVisitTypes": [],
+      "DepartmentID": "",
+      "Organizations": [],
+      "IsExternal": false,
+      "CareTeamStatus": "",
+      "CanHideProvider": false
+    }
+  ],
+  "DescriptiveTitle": "",
+  "TabColorClass": "",
+  "IsCustomApptReqEnabled": false,
+  "CustomRequestAppointmentLink": ""
+} as const;
+
 // /community/shared/loadcommunitylinks
 export const loadCommunityLinks = {
   "IsConsentNeeded": false,

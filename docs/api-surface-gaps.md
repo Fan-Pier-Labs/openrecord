@@ -47,10 +47,11 @@ likely surface more.
 Live on this account, returning real data. Each of these can have its shape captured into
 `realShapes.ts` and a fake-mychart route built against it.
 
-## 1a. Care Team — closes a declared-but-withdrawn capability
+## 1a. Care Team — DONE, shipped against this capture
 
-`get_care_team` is currently a `comingSoon` stub; the previous implementation was withdrawn (#313)
-for guessing at a shape nobody had captured. The real endpoint:
+`get_care_team` is implemented (`scrapers/myChart/chart/careTeam.ts`), modelled in fake-mychart
+(`/Clinical/CareTeam/Load` + `/LoadExternal`, shape `careTeamLoad` in `realShapes.ts`), and no longer
+a `comingSoon` stub. The capture it was built from, kept here because it is the only record of it:
 
 ```
 POST /Clinical/CareTeam/Load          → 200, the provider list
@@ -68,6 +69,9 @@ POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers
   DescriptiveTitle, TabColorClass, IsCustomApptReqEnabled, CustomRequestAppointmentLink }`
 - `Relation` carries the role (the PCP designation appears here); `Specialty` the department
   specialty. `LoadExternal` returns the same envelope with its own `ProvidersList`.
+- The scraper refuses to read a missing `ProvidersList` as an empty care team — that silent
+  failure is what got the previous implementation withdrawn (#313) — and reports a `LoadExternal`
+  it could not read as `externalProvidersUnavailable` rather than as "no outside providers".
 
 ## 1b. Chart data with no capability at all
 
@@ -219,8 +223,7 @@ list above was built.
 
 # Suggested order of work
 
-1. **Care team** (§1a) — a declared capability that today returns a "not supported" notice, and the
-   shape is now captured. Highest value per unit of effort.
+1. ~~**Care team** (§1a)~~ — done: implemented against the capture in §1a.
 2. **Third-party access log** (§1c) — which apps read which categories of the record. For a product
    about owning your health data that is close to a headline feature, and it's one POST with `{}`.
 3. **Implants, pedigree, trends dashboard, preferred pharmacies, PCP, To Do** (§1b) — six

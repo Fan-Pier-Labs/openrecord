@@ -314,7 +314,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Health Issues** | `healthIssues.ts` | Obesity, Hypertension, Hypercholesterolemia, Radiation exposure |
 | **Immunizations** | `immunizations.ts` | Flu, Tdap, COVID-19, Hep B |
 | **Vitals** | `vitals.ts` | BP 145/95, HR 88, Weight 260 lbs with history |
-| **Care Team** | `careTeam.ts` | Dr. Julius Hibbert (PCP), Dr. Nick Riviera (Surgery) |
+| **Care Team** | `careTeam.ts` | Dr. Julius Hibbert (PCP), Dr. Nick Riviera (Surgery), plus Dr. Marvin Monroe as an outside provider from `LoadExternal` |
 | **Insurance** | `insurance.ts` | Springfield Nuclear Power Plant Employee Health Plan |
 | **Emergency Contacts** | `emergencyContacts.ts` | Marge Simpson (Spouse), Barney Gumble (Friend) |
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |

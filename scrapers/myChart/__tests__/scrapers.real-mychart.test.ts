@@ -27,6 +27,7 @@ import { getHealthIssues } from '../chart/healthIssues'
 import { getImmunizations } from '../chart/immunizations'
 import { getVitals } from '../chart/vitals'
 import { getInsurance } from '../chart/insurance'
+import { getCareTeam } from '../chart/careTeam'
 import { getReferrals } from '../chart/referrals'
 import { getMedicalHistory } from '../chart/medicalHistory'
 import { getPreventiveCare } from '../chart/preventiveCare'
@@ -108,6 +109,12 @@ describe('integration', () => {
     expect(result).toBeDefined()
     expect(Array.isArray(result.coverages)).toBe(true)
     expect(typeof result.hasCoverages).toBe('boolean')
+  }, 30_000)
+
+  it('getCareTeam returns the provider list', async () => {
+    const result = await getCareTeam(session)
+    expect(Array.isArray(result.members)).toBe(true)
+    expect(typeof result.externalProvidersUnavailable).toBe('boolean')
   }, 30_000)
 
   it('getReferrals returns an array', async () => {

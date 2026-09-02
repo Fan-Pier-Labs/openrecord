@@ -149,10 +149,13 @@ const bart: KidRecord = {
       { name: 'DTaP', id: 'IMM-BART-003', formattedAdministeredDates: ['06/01/2014', '08/01/2014', '10/01/2014', '04/15/2015', '05/02/2018'] },
       { name: 'Varicella', id: 'IMM-BART-004', formattedAdministeredDates: ['04/20/2015'] },
     ]),
-    careTeam: [
-      { name: PEDIATRICIAN_SHORT, role: 'Primary Care Provider', specialty: 'Pediatrics' },
-      { name: 'Dr. Corazon Ramirez, MD', role: 'Specialist', specialty: 'Pediatric Pulmonology' },
-    ],
+    careTeam: {
+      ProvidersList: [
+        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+        { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: '1000000004', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
+      ],
+      DescriptiveTitle: 'Your Care Team',
+    },
     insurance: [
       {
         planName: 'Springfield Nuclear Power Plant Employee Health Plan',
@@ -201,9 +204,12 @@ const lisa: KidRecord = {
       { name: 'DTaP', id: 'IMM-LISA-003', formattedAdministeredDates: ['07/09/2016', '09/09/2016', '11/09/2016', '06/14/2017', '07/01/2020'] },
       { name: 'HPV', id: 'IMM-LISA-004', formattedAdministeredDates: ['01/28/2026'] },
     ]),
-    careTeam: [
-      { name: PEDIATRICIAN_SHORT, role: 'Primary Care Provider', specialty: 'Pediatrics' },
-    ],
+    careTeam: {
+      ProvidersList: [
+        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+      ],
+      DescriptiveTitle: 'Your Care Team',
+    },
     insurance: [
       {
         planName: 'Springfield Nuclear Power Plant Employee Health Plan',
@@ -247,9 +253,12 @@ const maggie: KidRecord = {
       { name: 'MMR', id: 'IMM-MAGGIE-004', formattedAdministeredDates: ['01/15/2026'] },
       { name: 'Varicella', id: 'IMM-MAGGIE-005', formattedAdministeredDates: ['01/15/2026'] },
     ]),
-    careTeam: [
-      { name: PEDIATRICIAN_SHORT, role: 'Primary Care Provider', specialty: 'Pediatrics' },
-    ],
+    careTeam: {
+      ProvidersList: [
+        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+      ],
+      DescriptiveTitle: 'Your Care Team',
+    },
     insurance: [
       {
         planName: 'Springfield Nuclear Power Plant Employee Health Plan',

@@ -12,6 +12,8 @@
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
  *  - GetMultipleHistoricalResultComponents returns a map keyed by component id.
+ *  - Care Team is a legacy MVC activity: PascalCase envelope, POST-only, with
+ *    every request parameter optional.
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *
@@ -30,6 +32,7 @@ import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { getUpcomingOrders } from '../../chart/upcomingOrders'
 import { getEmergencyContacts } from '../../chart/emergencyContacts'
 import { getVisitNotes } from '../../chart/notes'
+import { getCareTeam } from '../../chart/careTeam'
 import { getLetterDetails } from '../../chart/letters'
 import { resetFakeMyChart } from './mountMode'
 
@@ -207,6 +210,54 @@ describe('real envelopes reach the scrapers end-to-end', () => {
     expect(contacts.length).toBeGreaterThan(0)
     expect(contacts[0]!.name).not.toBe('')
     expect(contacts[0]!.phoneNumber).not.toBe('')
+  })
+})
+
+describe('care team fidelity', () => {
+  // Care Team is one of the legacy jQuery activities, not a React /app/* one:
+  // no /api prefix, a PascalCase envelope, and a GET that errors rather than
+  // serving the data the POST returns.
+  it('answers a GET to Load with the ASP.NET error surface, not data', async () => {
+    const res = await session.makeRequest({ path: '/Clinical/CareTeam/Load', followRedirects: false })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('returns the full PascalCase provider shape for a bare POST', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { ProvidersList: Array<Record<string, unknown>> }
+    expect(body.ProvidersList.length).toBeGreaterThan(0)
+    for (const field of ['ID', 'Name', 'Photo', 'NationalProviderID', 'WebPageUrl', 'AboutMeBlurb',
+      'CanMessage', 'Specialty', 'Relation', 'DepartmentID', 'Organizations', 'IsExternal',
+      'CareTeamStatus', 'CanHideProvider']) {
+      expect(body.ProvidersList[0]).toHaveProperty(field)
+    }
+  })
+
+  it('serves the outside providers from LoadExternal in the same envelope', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/LoadExternal',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    const body = await res.json() as { ProvidersList: Array<{ Name: string }> }
+    expect(body.ProvidersList.length).toBeGreaterThan(0)
+    expect(body.ProvidersList[0]!.Name).not.toBe('')
+  })
+
+  it('the scraper reads both lists', async () => {
+    const team = await getCareTeam(session)
+    expect(team.externalProvidersUnavailable).toBe(false)
+    expect(team.members.filter(m => !m.isExternal).length).toBeGreaterThan(0)
+    expect(team.members.filter(m => m.isExternal).length).toBeGreaterThan(0)
+    expect(team.members[0]!.relation).not.toBe('')
   })
 })
 
