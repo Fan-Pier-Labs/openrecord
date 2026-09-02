@@ -170,6 +170,20 @@ function activeEmergencyContacts(request: NextRequest): typeof homer.emergencyCo
 }
 
 /**
+ * A WPR message, conformed to the captured shape.
+ *
+ * Epic serializes a message identically wherever it appears, so the skeleton
+ * captured for GetConversationList's inline messages is also the skeleton for
+ * GetConversationMessages' thread — `wmgId`, `body`, `deliveryInstantISO` and
+ * an `author` keyed by `empKey` (care team) or `wprKey` (patient). Sharing it
+ * is what stops the thread endpoint from serving a narrower message than the
+ * list endpoint does.
+ */
+function conformMessage(message: unknown) {
+  return conformToShape(shapes.getConversationList.conversations[0].messages[0], message);
+}
+
+/**
  * Message threads for the record this session is in. Mutable like emergency
  * contacts, so keyed by record id for the same reason — a child's chart must
  * not list the account holder's messages.
@@ -1144,7 +1158,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
         (c: { hthId: string }) => c.hthId === body.conversationId
       );
       if (conv) {
-        return json({ messages: conv.messages });
+        return json({ messages: conv.messages.map(conformMessage) });
       }
       return json({ messages: [] });
     } catch {

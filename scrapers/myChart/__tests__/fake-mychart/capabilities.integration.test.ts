@@ -33,6 +33,19 @@ const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 /** Arguments for the capabilities that need one, filled in from live data. */
 type ArgSupplier = (session: MyChartRequest) => Promise<Record<string, unknown>>
 
+/** What `get_message_thread` hands its callers — the MCPB, CLI and mobile app. */
+type ThreadPayload = {
+  conversationId: string
+  subject: string
+  messages: Array<{
+    messageId: string
+    senderName: string
+    sentDate: string
+    messageBody: string
+    isFromPatient: boolean
+  }>
+}
+
 describe('capability registry against fake-mychart', () => {
   let session: MyChartRequest
 
@@ -120,6 +133,31 @@ describe('capability registry against fake-mychart', () => {
       expect(result).toBeDefined()
     }, 30_000)
   }
+
+  it('reads a message thread with every field populated', async () => {
+    // `runs get_message_thread with an id from the chart` above only proves a
+    // result came back. That let the parser read invented field names for
+    // months: the thread had the right NUMBER of messages and every field was
+    // blank, which reads as an empty conversation rather than as a failure.
+    const id = await firstConversationId(session)
+    const thread = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: id,
+    })) as ThreadPayload
+
+    expect(thread.conversationId).toBe(id)
+    expect(thread.messages.length).toBeGreaterThan(1)
+    for (const message of thread.messages) {
+      expect(message.messageId).not.toBe('')
+      expect(message.senderName).not.toBe('')
+      expect(message.sentDate).not.toBe('')
+      expect(message.messageBody).not.toBe('')
+    }
+
+    // Homer's seeded thread is a provider opening and Homer answering, so both
+    // sides of the empKey/wprKey discriminator have to be exercised.
+    expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
+    expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
+  }, 30_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────
 

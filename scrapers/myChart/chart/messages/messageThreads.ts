@@ -17,18 +17,37 @@ export type ConversationThread = {
   messages: ThreadMessage[];
 }
 
-type MessageResponse = {
-  messageId?: string;
-  senderName?: string;
-  sentDate?: string;
-  messageBody?: string;
-  isFromPatient?: boolean;
+/**
+ * One message as Epic serializes it.
+ *
+ * This is the same shape `/api/conversations/GetConversationList` returns for
+ * the messages it inlines under each conversation — Epic serializes a WPR
+ * message identically wherever it appears, and the list shape is held to a
+ * skeleton captured from live instances (`fake-mychart/src/data/realShapes.ts`).
+ *
+ * `author` carries exactly one key: `empKey` for a care-team member, `wprKey`
+ * for the patient (or a proxy writing on the patient's record).
+ */
+type ConversationMessageResponse = {
+  wmgId?: string;
+  body?: string;
+  deliveryInstantISO?: string;
+  author?: {
+    displayName?: string;
+    empKey?: string;
+    wprKey?: string;
+  };
 }
 
 type GetConversationMessagesResponse = {
+  /**
+   * Neither of these has been seen on a live capture of this endpoint — the
+   * conversation LIST is the authority for a thread's subject. They are read
+   * tolerantly so a capture that does carry them is used rather than ignored.
+   */
   conversationId?: string;
   subject?: string;
-  messages?: MessageResponse[];
+  messages?: ConversationMessageResponse[];
 }
 
 export async function getConversationMessages(mychartRequest: MyChartRequest, conversationId: string): Promise<ConversationThread> {
@@ -58,12 +77,21 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   return {
     conversationId: json.conversationId || conversationId,
     subject: json.subject || '',
-    messages: (json.messages ?? []).map((msg: MessageResponse) => ({
-      messageId: msg.messageId || '',
-      senderName: msg.senderName || '',
-      sentDate: msg.sentDate || '',
-      messageBody: msg.messageBody || '',
-      isFromPatient: msg.isFromPatient || false,
-    })),
+    messages: (json.messages ?? []).map(toThreadMessage),
+  };
+}
+
+function toThreadMessage(msg: ConversationMessageResponse): ThreadMessage {
+  const author = msg.author ?? {};
+  return {
+    messageId: msg.wmgId || '',
+    senderName: author.displayName || '',
+    sentDate: msg.deliveryInstantISO || '',
+    messageBody: msg.body || '',
+    // A message the patient wrote is keyed by wprKey and has no empKey; a
+    // care-team message is the other way round. Requiring both sides makes an
+    // author object we couldn't read fall to "not from the patient" rather
+    // than mislabelling a provider's message as the patient's.
+    isFromPatient: Boolean(author.wprKey) && !author.empKey,
   };
 }

@@ -205,6 +205,12 @@ Behavioral contract, all verified against the same captures and enforced by
   token-carrying requests fall through to the login redirect that
   `makeAuthenticatedRequest`'s expiry detection relies on. The fake's own page
   scripts attach the token through a shared `fetch` wrapper (`html/assets/csrf-fetch.js`).
+- **`GetConversationMessages` returns the same message shape `GetConversationList`
+  inlines** — `wmgId`, `body`, `deliveryInstantISO` and an `author` keyed by
+  `empKey` (care team) or `wprKey` (patient), conformed to the list's captured
+  message skeleton. A thread message is not a narrower object than a list
+  message, and there is no `messageId`/`senderName`/`sentDate`/`messageBody`
+  and no server-computed `isFromPatient`.
 - **Unknown `/api/*` paths are errors** (FourOhFour dance / bare 500), never a
   generic token page.
 
