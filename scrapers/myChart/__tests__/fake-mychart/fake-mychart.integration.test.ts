@@ -175,10 +175,21 @@ for (const mode of MOUNT_MODES) {
       expect(result.length).toBeGreaterThan(0)
     }, 10_000)
 
-    it('getVitals returns vitals', async () => {
+    it('getVitals returns vitals, values included', async () => {
       const result = await getVitals(session)
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBeGreaterThan(0)
+
+      // Every reading must carry its value. Numeric rows (Pulse, Weight) arrive
+      // as numericValue next to an EMPTY stringValue, which used to blank them
+      // while a plain length check still passed.
+      for (const fs of result) {
+        expect(fs.readings.length).toBeGreaterThan(0)
+        for (const r of fs.readings) expect(r.value).not.toBe('')
+      }
+      expect(result.find(f => f.name === 'Weight')!.readings[0]!.value).toBe('260')
+      expect(result.find(f => f.name === 'Pulse')!.readings[0]!.value).toBe('88')
+      expect(result.find(f => f.name === 'Blood Pressure')!.readings[0]!.value).toBe('145/95')
     }, 10_000)
 
     it('getInsurance returns insurance data', async () => {
