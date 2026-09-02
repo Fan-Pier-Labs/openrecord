@@ -39,7 +39,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { clearSecret, readSecret, writeSecret, activeBackend, type FileSlot } from './secret-store';
+import { clearSecret, readSecret, writeSecret, activeBackend, type BackendName, type FileSlot } from './secret-store';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
@@ -331,8 +331,13 @@ export function clearAccountPasskey(hostname: string, username: string): void {
   clearSecret(passkeyKey(hostname, username), passkeySlot(hostname, username));
 }
 
-/** Where secrets are actually being stored, for `list_accounts` diagnostics. */
-export function secretBackend(): string {
+/**
+ * Where secrets are actually being stored, for `list_accounts` diagnostics and
+ * for telling a patient where a passkey would land. Returns the union, not
+ * `string`: callers pair it with `BACKEND_DESCRIPTION`, which only stays
+ * exhaustive if the backend keeps its type on the way out.
+ */
+export function secretBackend(): BackendName {
   return activeBackend();
 }
 
