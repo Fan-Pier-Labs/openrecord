@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../../core/util";
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
 /** Author of a message: staff carry an `empKey`, patient-side viewers a `wprKey`. */
@@ -65,9 +65,7 @@ export async function fetchConversationList(
 export async function listConversations(mychartRequest: MyChartRequest): Promise<ConversationListResponse | null> {
 
 
-  // Go to the communication center
-  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' })
-  const requestVerificationToken = getRequestVerificationTokenFromBody(await communicationCenterRes.text())
+  const requestVerificationToken = await getVerificationToken(mychartRequest)
 
   if (!requestVerificationToken) {
     logger.debug('could not find request verification token')
