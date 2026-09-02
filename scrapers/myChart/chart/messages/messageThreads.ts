@@ -24,10 +24,7 @@ type GetConversationMessagesResponse = {
 }
 
 /** The name maps GetConversationList returns alongside the conversations. */
-type ThreadDirectory = {
-  users?: Record<string, { name?: string }> | undefined;
-  viewers?: Record<string, { name?: string; isSelf?: boolean }> | undefined;
-};
+type ThreadDirectory = Pick<ConversationListResponse, 'users' | 'viewers'>;
 
 /**
  * MyChart identifies a message's author by key, not by role: care-team authors
@@ -58,19 +55,6 @@ export function toThreadMessage(msg: ConversationMessage, directory: ThreadDirec
   };
 }
 
-/** The thread's context is a nice-to-have: a failed listing must not lose the messages. */
-async function conversationListOrEmpty(
-  mychartRequest: MyChartRequest,
-  token: string,
-): Promise<ConversationListResponse> {
-  try {
-    return await fetchConversationList(mychartRequest, token);
-  } catch (err) {
-    logger.debug('Could not load the conversation list for thread context', err);
-    return {};
-  }
-}
-
 export async function getConversationMessages(mychartRequest: MyChartRequest, conversationId: string): Promise<ConversationThread> {
   const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
   const html = await pageResp.text();
@@ -87,7 +71,11 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   // and no way to tell a staff key from a viewer key. The inbox listing carries
   // both, so fetch it alongside.
   const [list, resp] = await Promise.all([
-    conversationListOrEmpty(mychartRequest, token),
+    // The listing is best-effort: losing it costs the subject, not the thread.
+    fetchConversationList(mychartRequest, token).catch((err: unknown): ConversationListResponse => {
+      logger.debug('Could not load the conversation list for thread context', err);
+      return {};
+    }),
     makeAuthenticatedRequest(mychartRequest, {
       path: '/api/conversations/GetConversationMessages',
       method: 'POST',
@@ -102,11 +90,10 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
   const json: GetConversationMessagesResponse = await resp.json();
 
   const conversation = (list.conversations ?? list.threads ?? []).find((c) => c.hthId === conversationId);
-  const directory: ThreadDirectory = { users: list.users, viewers: list.viewers };
 
   return {
     conversationId,
     subject: conversation?.subject ?? '',
-    messages: (json.messages ?? []).map((msg) => toThreadMessage(msg, directory)),
+    messages: (json.messages ?? []).map((msg) => toThreadMessage(msg, list)),
   };
 }

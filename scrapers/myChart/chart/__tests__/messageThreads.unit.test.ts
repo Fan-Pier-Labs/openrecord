@@ -58,10 +58,9 @@ describe('toThreadMessage', () => {
   })
 
   it('falls back to the key maps when an author has no display name', () => {
-    const directory = { users: CONVERSATION_LIST.users, viewers: CONVERSATION_LIST.viewers }
-    expect(toThreadMessage({ wmgId: 'M', author: { empKey: 'PROV-HIBBERT' } }, directory).senderName)
+    expect(toThreadMessage({ wmgId: 'M', author: { empKey: 'PROV-HIBBERT' } }, CONVERSATION_LIST).senderName)
       .toBe('Julius Hibbert, MD')
-    expect(toThreadMessage({ wmgId: 'M', author: { wprKey: 'WPR-HOMER' } }, directory).senderName)
+    expect(toThreadMessage({ wmgId: 'M', author: { wprKey: 'WPR-HOMER' } }, CONVERSATION_LIST).senderName)
       .toBe('Homer Simpson')
   })
 
