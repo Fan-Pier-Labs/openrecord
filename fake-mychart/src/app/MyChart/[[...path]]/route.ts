@@ -242,7 +242,10 @@ async function readJsonBody(request: NextRequest): Promise<Record<string, unknow
  * Both single-conversation read endpoints key on `id` (ASP.NET's model binding
  * is case-insensitive, so `Id` works too). `conversationId` — the name the
  * *mutating* endpoints take — is not accepted, and neither is an id for a
- * thread this record doesn't have: both come back as the ASP.NET 500 below.
+ * thread this record doesn't have.
+ *
+ * The two endpoints then REJECT DIFFERENTLY, which is why each has its own
+ * failure helper below. Verified identically on all four live instances.
  */
 function findConversation(request: NextRequest, body: Record<string, unknown>): FakeConversation | undefined {
   const id = asString(body.id) || asString(body.Id);
@@ -251,12 +254,22 @@ function findConversation(request: NextRequest, body: Record<string, unknown>): 
 }
 
 /**
- * What real MyChart answers when a conversation lookup throws: a bare 500
- * carrying ASP.NET's generic error body, not a JSON error the client can act
- * on. Verified against two live instances.
+ * GetConversationMessages rejects with a bare 500 carrying ASP.NET's generic
+ * error body — not a JSON error a client can act on.
  */
-function conversationApiFailure(): NextResponse {
+function conversationMessagesFailure(): NextResponse {
   return json({ Message: 'An error has occurred.' }, 500);
+}
+
+/**
+ * GetConversationDetails rejects with **200 and a literal JSON `null`**, the
+ * same way GetVisitNotes and GetLetterDetails answer unknown ids. A client that
+ * only checks the status code reads that as a thread with nothing in it, which
+ * on a medical record is the worst of the two failure modes — so the fake
+ * models it rather than the tidier 500 its sibling gives.
+ */
+function conversationDetailsFailure(): NextResponse {
+  return json(null);
 }
 
 /**
@@ -1259,7 +1272,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/conversations/getconversationmessages') {
     const body = await readJsonBody(request);
     const conv = findConversation(request, body);
-    if (!conv) return conversationApiFailure();
+    if (!conv) return conversationMessagesFailure();
     return json(conformToShape(shapes.getConversationMessages, {
       hthId: conv.hthId,
       userOverrideNames: conv.userOverrideNames,
@@ -1270,7 +1283,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
   if (lower === 'api/conversations/getconversationdetails') {
     const body = await readJsonBody(request);
     const conv = findConversation(request, body);
-    if (!conv) return conversationApiFailure();
+    if (!conv) return conversationDetailsFailure();
     const store = activeConversations(request);
     return json(conformToShape(shapes.getConversationDetails, {
       hthId: conv.hthId,

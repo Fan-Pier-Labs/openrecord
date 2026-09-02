@@ -193,11 +193,15 @@ Behavioral contract, all verified against the same captures and enforced by
   `orderName`/`key`, one result with no name and no components — never an error
   and never another order's data.
 - **`GetConversationMessages` / `GetConversationDetails` key the thread on
-  `id`.** The 500 `{"Message": "An error has occurred."}` every instance used to
-  answer with was the *request*, not a dead endpoint: `conversationId` — which
-  the mutating siblings do take — is rejected, and so is an id for a thread the
-  record doesn't have. Both come back as that same opaque 500, which is why it
-  read as retired. With `id`, both answer 200 with the conversation object.
+  `id`, and reject a bad one *differently*.** The 500 `{"Message": "An error has
+  occurred."}` every instance used to answer with was the *request*, not a dead
+  endpoint: `conversationId` — which the mutating siblings do take — is
+  rejected, and so is an id for a thread the record doesn't have. With `id`,
+  both answer 200 with the conversation object. But the two disagree on how they
+  say no, on all four instances checked: **Messages 500s, Details answers 200
+  with a literal JSON `null`** (the same shape `GetVisitNotes` and
+  `GetLetterDetails` use for unknown ids). A client that checks only the status
+  code reads that null as a thread with nothing in it.
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,

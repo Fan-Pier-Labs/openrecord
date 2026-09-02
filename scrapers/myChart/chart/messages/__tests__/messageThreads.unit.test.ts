@@ -226,8 +226,8 @@ describe('getConversationMessages', () => {
     })
   })
 
-  // The failure this whole module exists to stop being: a 500 read as an empty
-  // thread looks exactly like a conversation with nothing in it.
+  // The failure this whole module exists to stop being: an error read as an
+  // empty thread looks exactly like a conversation with nothing in it.
   it('throws rather than reporting an empty thread when the endpoint fails', async () => {
     const { req } = mockRequest([
       { body: TOKEN_PAGE },
@@ -235,5 +235,27 @@ describe('getConversationMessages', () => {
     ])
 
     await expect(getConversationMessages(req, 'conv-1')).rejects.toThrow('GetConversationDetails failed with status 500')
+  })
+
+  // All four live instances answer GetConversationDetails with 200 and a
+  // literal `null` for an id they don't recognise — the tidy 500 is only what
+  // its sibling gives. A status-only check sails past that and then reads
+  // `null.messages`, so the payload is checked too.
+  it('rejects a 200 with a literal null body as an unknown conversation', async () => {
+    const { req } = mockRequest([{ body: TOKEN_PAGE }, { body: 'null' }])
+
+    await expect(getConversationMessages(req, 'conv-404')).rejects.toThrow(/No conversation conv-404/)
+  })
+
+  it('keeps paging robust if a later page answers null', async () => {
+    const { req } = mockRequest([
+      { body: TOKEN_PAGE },
+      json({ hasMoreMessages: true, messages: [message('M1', '2026-03-01T00:00:00Z', { empKey: 'E' })] }),
+      { body: 'null' },
+    ])
+
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.messages.map(m => m.messageId)).toEqual(['M1'])
+    expect(result.truncated).toBe(false)
   })
 })

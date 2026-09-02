@@ -25,9 +25,15 @@
  * "now", i.e. the newest page. `maxReadMessages` is the page size, defaulting
  * to 5 server-side, which is also all the listing ever inlines.
  *
- * Neither `organizationId` nor a real `PageNonce` is required (both instances
- * return an empty `organizationId` on every conversation), but the
+ * Neither `organizationId` nor a real `PageNonce` is required (all four
+ * instances return an empty `organizationId` on every conversation), but the
  * `__RequestVerificationToken` header is: without it the endpoint 500s.
+ *
+ * The two endpoints REJECT a bad id differently, which is the trap here.
+ * GetConversationMessages answers 500; GetConversationDetails answers **200
+ * with a literal JSON `null`** — same as GetVisitNotes and GetLetterDetails do
+ * for unknown ids. A status check alone therefore lets `null` through, so the
+ * payload is checked too.
  *
  * The web UI's own request shape is in
  * `scripts/lib/pxbuild/epic.px.client.communication-center.js` on any instance
@@ -132,7 +138,7 @@ async function postConversationApi(
   action: 'GetConversationDetails' | 'GetConversationMessages',
   token: string,
   body: Record<string, unknown>,
-): Promise<ConversationPayload> {
+): Promise<ConversationPayload | null> {
   const resp = await makeAuthenticatedRequest(mychartRequest, {
     path: `/api/conversations/${action}`,
     method: 'POST',
@@ -148,7 +154,10 @@ async function postConversationApi(
     throw new Error(`${action} failed with status ${resp.status}`);
   }
 
-  return await resp.json() as ConversationPayload;
+  // A 200 is not yet an answer: Details returns literal `null` for an id it
+  // does not recognise. Anything that isn't an object is "no such thing".
+  const json: unknown = await resp.json();
+  return json !== null && typeof json === 'object' ? json : null;
 }
 
 export async function getConversationMessages(mychartRequest: MyChartRequest, conversationId: string): Promise<ConversationThread> {
@@ -163,6 +172,12 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
     id: conversationId,
     maxReadMessages: PAGE_SIZE,
   });
+
+  // `null` here is MyChart saying it has no such conversation on this patient
+  // record. Say so, rather than reading it as a thread with nothing in it.
+  if (!details) {
+    throw new Error(`No conversation ${conversationId} on the active patient record. Check the id from get_messages, and that the right patient is active.`);
+  }
 
   const collected: ConversationMessage[] = [...(details.messages ?? [])];
   let hasMore = details.hasMoreMessages ?? false;
@@ -186,14 +201,14 @@ export async function getConversationMessages(mychartRequest: MyChartRequest, co
 
     // An empty page with `hasMoreMessages` still set would ask for the same
     // instant forever, so treat it as the end of the thread.
-    const messages = older.messages ?? [];
+    const messages = older?.messages ?? [];
     if (messages.length === 0) {
       hasMore = false;
       break;
     }
 
     collected.unshift(...messages);
-    hasMore = older.hasMoreMessages ?? false;
+    hasMore = older?.hasMoreMessages ?? false;
   }
 
   return {

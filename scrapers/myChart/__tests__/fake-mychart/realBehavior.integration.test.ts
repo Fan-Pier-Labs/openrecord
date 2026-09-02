@@ -18,8 +18,9 @@
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *  - SendMedicalAdviceRequest silently DISCARDS a message body over 500 characters.
- *  - GetConversationMessages / GetConversationDetails key the thread on `id`;
- *    `conversationId` — the name the mutating endpoints use — is a 500.
+ *  - GetConversationMessages / GetConversationDetails key the thread on `id`,
+ *    and reject a bad one DIFFERENTLY: Messages 500s, Details answers 200 with
+ *    a literal null.
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  * Run with: bun run test:integration
@@ -404,18 +405,33 @@ describe('epicVersion knob', () => {
  * The two single-conversation read endpoints key the thread on `id`.
  *
  * `conversationId` — which the *mutating* endpoints (SendReply,
- * DeleteConversation) do take — is rejected, and the rejection is an opaque
- * HTTP 500 carrying ASP.NET's generic body. That is indistinguishable from a
- * retired endpoint, which is exactly how the wrong parameter name survived: the
- * scraper sent `conversationId`, every instance answered 500, and the endpoint
- * looked dead. Verified on two live instances; pinned here so the fake can
- * never quietly start accepting the wrong name.
+ * DeleteConversation) do take — is rejected, and on GetConversationMessages the
+ * rejection is an opaque HTTP 500 carrying ASP.NET's generic body. That is
+ * indistinguishable from a retired endpoint, which is exactly how the wrong
+ * parameter name survived: the scraper sent `conversationId`, every instance
+ * answered 500, and the endpoint looked dead.
+ *
+ * GetConversationDetails rejects the SAME inputs with 200 and a literal JSON
+ * `null` instead — the shape GetVisitNotes and GetLetterDetails also use for
+ * unknown ids. A client that checks only the status code reads that as a thread
+ * with nothing in it. Verified identically on all four live instances.
  */
 describe('the conversation-read endpoints that only accept `id`', () => {
   const PATHS = [
     '/api/conversations/GetConversationMessages',
     '/api/conversations/GetConversationDetails',
   ]
+
+  /** How each endpoint says no. They do not agree, and that is the point. */
+  async function expectRejection(path: string, res: Response) {
+    if (path.endsWith('GetConversationMessages')) {
+      expect(res.status).toBe(500)
+      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
+    } else {
+      expect(res.status).toBe(200)
+      expect(await res.json()).toBeNull()
+    }
+  }
 
   for (const path of PATHS) {
     it(`${path} answers a real id with the thread`, async () => {
@@ -426,16 +442,12 @@ describe('the conversation-read endpoints that only accept `id`', () => {
       expect(body.messages.length).toBeGreaterThan(0)
     })
 
-    it(`${path} answers \`conversationId\` with a 500, not an empty thread`, async () => {
-      const res = await api(path, { conversationId: 'CONV-001', PageNonce: '' })
-      expect(res.status).toBe(500)
-      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
+    it(`${path} rejects \`conversationId\`, never treating it as an empty thread`, async () => {
+      await expectRejection(path, await api(path, { conversationId: 'CONV-001', PageNonce: '' }))
     })
 
-    it(`${path} answers an unknown id the same way`, async () => {
-      const res = await api(path, { id: 'CONV-NOPE', PageNonce: '' })
-      expect(res.status).toBe(500)
-      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
+    it(`${path} rejects an unknown id the same way`, async () => {
+      await expectRejection(path, await api(path, { id: 'CONV-NOPE', PageNonce: '' }))
     })
   }
 

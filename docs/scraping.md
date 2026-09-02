@@ -52,6 +52,12 @@ while the mutating ones (`SendReply`, `DeleteConversation`) use
 `{"Message":"An error has occurred."}`, which looks exactly like a dead
 endpoint.
 
+**And rejections are per-endpoint too.** Given the very same bad id,
+`GetConversationMessages` answers 500 while `GetConversationDetails` answers
+**200 with a literal JSON `null`** — as `GetVisitNotes` and `GetLetterDetails`
+also do. So `if (!response.ok) throw` is not enough on this API: check the
+payload as well, or an unknown id becomes an empty medical record.
+
 ## Tools
 
 - **Playwright MCP** is the preferred tool for exploring websites, reverse engineering APIs, and understanding web app behavior. Always use the Playwright MCP tools (browser_navigate, browser_snapshot, browser_click, browser_network_requests, etc.) rather than writing one-off TypeScript scripts that import Playwright directly. The MCP gives you an interactive browser session that's far more efficient for investigation and debugging.

@@ -158,11 +158,17 @@ export const getConversationMessages = {
 // Everything getconversationmessages returns plus the thread's own metadata --
 // `subject`, `totalMessages`, and the `users` / `viewers` maps that turn a
 // message author's empKey / wprKey into a display name.
+//
+// Two fields deliberately absent. `messageIdUsedToLoad` is returned ONLY when
+// the request carries a `messageId`, which the fake does not model, so serving
+// it would invent a field no instance sends for the request being made. And the
+// "which message was last seen" field is not the same everywhere: three of the
+// four captured instances send `lastViewedByStaffMsgId` and one sends
+// `firstUnreadMsgId` instead, so neither is a shape all of them share.
 export const getConversationDetails = {
   "contexts": [],
   "lastViewedByStaffMsgId": "",
   "lastViewedByStaffInstantISO": "",
-  "messageIdUsedToLoad": "",
   "numUnread": 0,
   "replyUrl": "",
   "replyFlags": {

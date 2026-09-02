@@ -564,9 +564,12 @@ for (const mode of MOUNT_MODES) {
       expect(result.messages.map(m => m.messageId)).toEqual(['MSG-004', 'MSG-005'])
     }, 10_000)
 
-    it('getConversationMessages surfaces the 500 an unknown conversation id gets', async () => {
+    // GetConversationDetails answers an unknown id with 200 and a literal null,
+    // not an error status — so this is the case a status-only check waves
+    // through and then reports as a conversation with nothing in it.
+    it('getConversationMessages refuses an unknown conversation id rather than reporting it empty', async () => {
       await expect(getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).rejects.toThrow(
-        'GetConversationDetails failed with status 500',
+        /No conversation CONV-DOES-NOT-EXIST/,
       )
     }, 10_000)
 
