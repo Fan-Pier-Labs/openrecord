@@ -11,6 +11,14 @@
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
  *                   here, in the CLI, in the npm client and in the mobile app.
+ *   3. get_raw_data — the escape hatch under (2). See below.
+ *
+ * This extension is a *condensing* wrapper around the scrapers. The scrapers
+ * return everything MyChart sent for a category, in Epic's own field names;
+ * that is the right contract for a library and the wrong one for a model, so
+ * every capability tool here returns the compact rendering from `./condense.ts`
+ * instead. `get_raw_data` runs any read capability and returns the scraper's
+ * payload untouched, so nothing is condensed away permanently.
  *
  * Every capability tool takes a REQUIRED `account` parameter (the MyChart
  * hostname returned by list_accounts). Multiple accounts can be configured
@@ -45,6 +53,7 @@ import {
   PATIENT_PARAM,
   acceptsPatientParam,
   executeCapability,
+  getCapability,
   readAccountArg,
   type Capability,
   type CapabilityContext,
@@ -52,6 +61,7 @@ import {
   type StudyImagePayload,
 } from '../../shared/capabilities';
 
+import { condenseForModel } from './condense';
 import { searchInstances } from './instances';
 import {
   resolveSession,
@@ -227,12 +237,47 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
         }
-        return jsonResult(payload);
+        return condensedResult(capability.id, payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
     },
   );
+}
+
+/**
+ * How much bigger the raw payload has to be before a condensed result bothers
+ * to mention `get_raw_data`. Below this the trimming was cosmetic, and the
+ * pointer would be a line of boilerplate on every single tool result — which
+ * is how a genuinely useful hint stops being read.
+ */
+const RAW_HINT_RATIO = 1.5;
+
+/**
+ * A capability's payload, condensed for the model, plus a pointer to the raw
+ * call when the condensing dropped enough to be worth mentioning.
+ *
+ * The pointer matters more than the saving does: without it a model that needs
+ * a field this layer removed has no way to know the field ever existed, and
+ * would report it as missing from the patient's chart.
+ */
+function condensedResult(capabilityId: string, payload: unknown): ToolResult {
+  const { data, reshaped } = condenseForModel(capabilityId, payload);
+  const result = jsonResult(data);
+  if (!reshaped) return result;
+
+  const rawSize = JSON.stringify(payload)?.length ?? 0;
+  const condensedSize = JSON.stringify(data)?.length ?? 0;
+  if (condensedSize === 0 || rawSize < condensedSize * RAW_HINT_RATIO) return result;
+
+  result.content.push({
+    type: 'text',
+    text:
+      `\nCondensed for reading — roughly ${Math.round(rawSize / condensedSize)}x smaller than what MyChart returned. ` +
+      "Fields that only drive MyChart's own web UI were dropped; the clinical content was not. " +
+      `If something you need is missing, call get_raw_data with capability="${capabilityId}" for the complete response.`,
+  });
+  return result;
 }
 
 /**
@@ -281,6 +326,38 @@ function imagingResult(
   }
 
   return { content };
+}
+
+// ── The raw escape hatch ────────────────────────────────────────────────────
+
+/**
+ * Which capabilities `get_raw_data` will run.
+ *
+ * Reads only, on purpose. A generic runner that also reached the writes would
+ * be a second way to send a message or delete one — with this tool’s
+ * read-only annotation on it, so Claude Desktop would show the user a harmless
+ * lookup while a message went to their doctor. Writes keep their own tools and
+ * their own destructive annotations.
+ *
+ * `download_imaging_study` is excluded for a duller reason: its payload is raw
+ * pixel bytes, and "raw" there means megabytes of JSON-encoded numbers.
+ */
+const RAW_DATA_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter(
+  (capability) => capability.kind === 'read' && !capability.rendersMedia,
+).map((capability) => capability.id);
+
+/** Why `get_raw_data` would not run this id — phrased as what to do instead. */
+function rawDataRefusal(requested: string, capability: Capability | undefined): string {
+  if (!capability) {
+    return `"${requested}" is not an OpenRecord tool. get_raw_data runs these: ${RAW_DATA_CAPABILITY_IDS.join(', ')}.`;
+  }
+  if (capability.rendersMedia) {
+    return `${capability.id} returns image data, not JSON — call ${capability.id} directly to see the pictures.`;
+  }
+  return (
+    `get_raw_data only runs read tools, and ${capability.id} changes something ` +
+    `(${capability.kind}). Call ${capability.id} directly so the user sees it run.`
+  );
 }
 
 // ── Shared login path ───────────────────────────────────────────────────────
@@ -623,6 +700,69 @@ export function registerAllTools(server: McpServer): void {
       clearSession(id);
       removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
+    },
+  );
+
+  // ── The escape hatch ──────────────────────────────────────────────────────
+
+  server.registerTool(
+    'get_raw_data',
+    {
+      title: 'Raw scraper output',
+      description:
+        "Run any OpenRecord read tool and get its COMPLETE, unmodified response — every field MyChart " +
+        'returned, before the concise reshaping the normal tools apply. Reach for this when a normal tool’s ' +
+        'answer is missing a detail you need, or when you want to see everything the portal holds for one ' +
+        'category. Responses can be very large (a full visit history runs to hundreds of kilobytes in Epic’s ' +
+        'own field names), so call the normal tool first and use this for a specific follow-up question. ' +
+        'Read tools only: writes and account changes keep their own tools, so this cannot be used to send a ' +
+        'message or change a login without the user seeing that tool run. Available `capability` values: ' +
+        RAW_DATA_CAPABILITY_IDS.join(', ') + '.',
+      inputSchema: {
+        [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA,
+        capability: z
+          .string()
+          .describe('Which read tool to run, by its exact tool name — e.g. "get_past_visits".'),
+        patient: zodForParam(PATIENT_PARAM),
+        args: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe(
+            'The arguments that tool takes, as an object — e.g. {"csn": "…"} for get_visit_notes. ' +
+            'Omit for the tools that take none.',
+          ),
+      } satisfies ZodRawShape,
+      annotations: { title: 'Raw scraper output', readOnlyHint: true, openWorldHint: true },
+    },
+    async (args: Record<string, unknown>) => {
+      try {
+        const requested = typeof args.capability === 'string' ? args.capability.trim() : '';
+        const capability = getCapability(requested);
+        if (!capability || !RAW_DATA_CAPABILITY_IDS.includes(capability.id)) {
+          return errorResult(rawDataRefusal(requested, capability));
+        }
+
+        // The tool’s own args arrive nested, so a capability parameter named
+        // `account` or `capability` cannot collide with this tool’s own.
+        // `patient` is lifted out because executeCapability reads it from the
+        // args it is handed — that is where the active-patient assertion
+        // gets the name it checks.
+        const callArgs: Record<string, unknown> = {
+          ...(args.args !== null && typeof args.args === 'object' && !Array.isArray(args.args)
+            ? (args.args as Record<string, unknown>)
+            : {}),
+        };
+        if (typeof args.patient === 'string' && args.patient.trim()) callArgs.patient = args.patient;
+
+        const account = readAccountArg(args) ?? '';
+        const session = await resolveSession(account);
+        // executeCapability, never capability.run: this path reads charts too,
+        // so it needs the same active-patient assertion every other tool gets.
+        const payload = await executeCapability(session, capability.id, callArgs, contextFor(account));
+        return jsonResult(payload);
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
     },
   );
 

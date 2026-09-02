@@ -138,6 +138,52 @@ answer depended on which client they asked.
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
 
+## The scrapers stay faithful; the MCPB condenses (`claude-desktop-extension/src/condense.ts`)
+
+**A scraper returns everything MyChart sent for its category, in Epic's own field names, minus what
+is provably useless.** That is the right contract for a library and for the CLI: a caller that
+needs `IsPreadmissionEnabled`, or wants to diff two Epic releases, can have it, and a category
+whose parse is later found to be lossy is a bug in one place rather than a shrug about which
+client trimmed it. **Never shorten a scraper to make a client's output smaller.**
+
+It is the wrong contract for a chat model. `get_past_visits` against a modest chart is ~200 KB of
+view-model booleans — `IsRescheduleEnabled`, `HasTransmitSummaryLink`, a payer-logo token per row —
+in which the visit date appears seven times and the six facts that describe the visit are
+scattered among about 120 fields. A model reading that spends most of a context window learning
+almost nothing, and is measurably likelier to answer from the wrong row.
+
+So the Claude Desktop extension is a **condensing wrapper**. Every capability tool returns the
+compact rendering from `src/condense.ts` — about 10× smaller across the registry against
+fake-mychart, 50× on the visit lists — and `get_raw_data` runs any *read* capability and returns
+the scraper's payload untouched.
+
+- **Two levels.** A hand-written condenser for the payloads whose *shape* is the problem (visits,
+  labs, imaging, billing, messages), where no generic rule recovers the six useful fields from the
+  two hundred that are not. A generic prune of `null`/`''`/empty objects for everything else — most
+  scrapers already return a tidy record per row. The prune is also what a capability added to the
+  registry tomorrow gets, which is why there is no per-capability list here to fall out of date.
+- **`false`, `0` and empty arrays survive the prune.** "Not refillable" and "balance zero" are
+  answers, not absences; `allergies: []` is a clinical statement, and dropping it would leave a
+  reader unable to tell "no known allergies" from "we did not look". Array *lengths* are preserved
+  too — a row that prunes to nothing stays as `{}` — so a count taken from a pruned list still
+  matches what MyChart reported.
+- **A condensed result says it was condensed**, with the exact `get_raw_data` call that recovers
+  the rest, whenever the raw payload was ≥1.5× larger. Without that line a model needing a trimmed
+  field has no way to know the field existed, and would report it as missing from the chart.
+- **Dates come from MyChart's own rendering, never from the reader's clock.** `Instant` is an
+  absolute timestamp; formatting it locally moves an evening appointment to the wrong day, because
+  this process runs wherever the patient's laptop is. It is used for ordering only, where the
+  offset cancels.
+- **`get_raw_data` runs reads only.** A generic runner that also dispatched the writes would be a
+  second way to send a message to a doctor or delete one — under this tool's `readOnlyHint`, so
+  Claude Desktop would show the user a harmless-looking lookup while the message went out. Writes
+  and `account` operations keep their own tools and their own `destructiveHint`.
+  `download_imaging_study` is excluded for a duller reason: raw, its payload is megabytes of
+  JSON-encoded pixel bytes.
+
+The other clients do not condense. The CLI's output is read by a person or piped into a file, and
+the mobile app renders its own views from the full record.
+
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere
@@ -304,8 +350,8 @@ and had quietly stopped matching anything.
   hand-writes only the account-management meta tools (`list_accounts`, `search_mycharts`,
   `setup_account`, `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
-  with the parameter list translated to zod. Includes an interactive setup widget with a tool-call
-  fallback for non-widget clients. Credentials live in `~/.openrecord-mcpb/`, **keyed by (hostname,
+  with the parameter list translated to zod, and adds `get_raw_data` (see the condensing section
+  above). Includes an interactive setup widget with a tool-call fallback for non-widget clients. Credentials live in `~/.openrecord-mcpb/`, **keyed by (hostname,
   username), never by hostname alone** — one hostname routinely carries several logins (a household
   sharing a health system), and each keeps its own `accounts.json` row, passkey file
   (`passkeys/<hostname>/<username>.json`) and session file. Setting up a second username never

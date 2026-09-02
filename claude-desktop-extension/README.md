@@ -117,6 +117,29 @@ different family member's record than the one the call is about.
 
 ## Architecture
 
+- **A condensing wrapper around the shared scrapers** — the scrapers return
+  everything MyChart sent for a category, in Epic's own field names, because
+  that is the right contract for a library and for the CLI. It is the wrong one
+  for a chat model: `get_past_visits` on a modest chart is a 200 KB wall of
+  view-model booleans in which the visit date appears seven times. So every
+  capability tool here returns the compact rendering built by `src/condense.ts`
+  — around 10× smaller across the registry, 50× on the visit lists — and
+  `get_raw_data` runs any *read* capability and returns the scraper's payload
+  untouched. Nothing is condensed away permanently, and a condensed result that
+  dropped anything substantial says so, with the tool call that gets it back.
+
+  Two levels inside `condense.ts`: a hand-written condenser for the payloads
+  whose shape is the problem (visits, labs, imaging, billing, messages), and a
+  generic prune of nulls and empty strings for everything else — which is also
+  what a capability added to the registry tomorrow gets, so there is no list
+  here to fall out of date. `false`, `0` and empty arrays survive the prune:
+  "not refillable", "balance zero" and "no known allergies" are answers, not
+  absences.
+
+  `get_raw_data` is reads-only on purpose. A generic runner that also reached
+  the writes would be a second way to send a message to a doctor, carrying that
+  tool's read-only annotation — so Claude Desktop would show the user a
+  harmless-looking lookup while the message went out.
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation
   support. Claude Desktop ships its own Node runtime; no Node install needed
   on the user's machine.
@@ -194,7 +217,8 @@ claude-desktop-extension/
 │   └── sign-mcpb.mjs              # signs a release with the Developer ID (see below)
 └── src/
     ├── index.ts            # stdio entry
-    ├── tools.ts            # account meta tools + one tool per shared capability
+    ├── tools.ts            # account meta tools + one tool per shared capability + get_raw_data
+    ├── condense.ts         # scraper payloads → the compact shape a model reads
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence

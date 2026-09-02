@@ -44,6 +44,10 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 - **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
   everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
+- **The scrapers stay faithful; the MCPB condenses.** A scraper returns everything MyChart sent
+  for its category — never trim one to shorten a client's output. Shrinking for a model is the
+  Claude Desktop extension's job (`claude-desktop-extension/src/condense.ts`), with `get_raw_data`
+  as the escape hatch back to the full payload.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
   session state, so every chart-touching capability asserts the patient before running and refuses
   with the fix rather than returning the wrong family member's record.
@@ -95,10 +99,8 @@ selects on the suffix and nothing else.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 
-- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
-  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
-  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
-  [`docs/testing.md`](docs/testing.md#android-smoke-tests).
+- **The Android smoke tests must never be able to reach a real model.** Two tiers (a fast
+  per-PR check, a weekly emulator run), both in [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).
 

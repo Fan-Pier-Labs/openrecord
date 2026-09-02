@@ -1,7 +1,7 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../../core/util";
-import type { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
+import type { PastVisitsContainer, VisitListContainer, VisitsScrapeError } from "./types";
 import { logger } from '../../../../shared/logger';
 
 
@@ -76,12 +76,18 @@ async function loadPastVisitsPage(
   return await result.json() as PastVisitsContainer
 }
 
-// The epoch-millis timestamp of a visit, parsed from its `.Instant`
-// (`/Date(1761851400000)/`) field, falling back to `PrimaryDate`. Returns
-// null when neither yields a usable date so callers can keep paginating
-// rather than stop on an unparseable row.
-function visitTimestamp(visit: Visit): number | null {
-  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
+/**
+ * The epoch-millis timestamp of a visit, parsed from its `.Instant`
+ * (`/Date(1761851400000)/`) field, falling back to `PrimaryDate`. Returns
+ * null when neither yields a usable date so callers can keep paginating
+ * rather than stop on an unparseable row.
+ *
+ * Takes the two fields rather than a `Visit` so the clients that read a visit
+ * row as untyped JSON — the MCPB condenses one there — share this parse
+ * instead of keeping a second copy of the `/Date(…)/` regex to drift from.
+ */
+export function visitInstantMs(visit: { Instant?: string; PrimaryDate?: string }): number | null {
+  const instant = visit.Instant ? /\/Date\((\d+)\)\//.exec(visit.Instant) : null;
   if (instant) return Number(instant[1]);
   if (visit.PrimaryDate) {
     const t = Date.parse(visit.PrimaryDate);
@@ -147,7 +153,7 @@ export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedD
     // every visit on the latest page predates the cutoff, the next page would
     // be older still and there's nothing left in the requested window. We only
     // consider visits with a parseable timestamp.
-    const timestamps = latestOrgs.flatMap(org => org.List.map(visitTimestamp)).filter((t): t is number => t !== null);
+    const timestamps = latestOrgs.flatMap(org => org.List.map(visitInstantMs)).filter((t): t is number => t !== null);
     if (timestamps.length > 0 && timestamps.every(t => t < cutoffMs)) break;
 
     // No continuation token (or one that stopped advancing) → can't page further.
