@@ -1,8 +1,52 @@
+/**
+ * One conversation, every message in it.
+ *
+ * `GetConversationMessages` answered 500 `{"Message":"An error has occurred."}`
+ * on every instance anyone checked, which looked exactly like a dead endpoint.
+ * It wasn't: **the read endpoints key the thread on `id`**, and we were sending
+ * `conversationId`. Parameter names here are per-endpoint, not per-area — the
+ * *mutating* siblings (`SendReply`, `DeleteConversation`) really do take
+ * `conversationId`, which is where the guess came from. With `id` both read
+ * endpoints answer 200 on all four instances there are credentials for — Mass
+ * General Brigham, Atrius, UCLA and UCSF:
+ *
+ *   POST /api/conversations/GetConversationDetails
+ *        { id, messageId?, organizationId?, maxReadMessages?, PageNonce }
+ *   POST /api/conversations/GetConversationMessages
+ *        { id, organizationId?, startInstantISO?, maxReadMessages?, PageNonce }
+ *
+ * Both answer with the conversation object: `messages` ascending by
+ * `deliveryInstantISO` (oldest first) and `hasMoreMessages` saying whether
+ * older ones exist before `messages[0]`. Details additionally carries
+ * `subject`, `totalMessages` and the `users` / `viewers` name maps, so it is
+ * the seed here and GetConversationMessages pages backwards from it.
+ *
+ * `startInstantISO` is an exclusive upper bound — the response holds the newest
+ * `maxReadMessages` messages strictly older than it — and omitting it means
+ * "now", i.e. the newest page. Exclusivity is measured on the three instances
+ * that have a thread longer than one message; UCLA's are all single-message, so
+ * only the degenerate case (an instant older than everything returns nothing)
+ * is confirmed there. `maxReadMessages` is the page size, defaulting to 5
+ * server-side, which is also all the listing ever inlines.
+ *
+ * Neither `organizationId` nor a real `PageNonce` is required (all four
+ * instances return an empty `organizationId` on every conversation), but the
+ * `__RequestVerificationToken` header is: without it the endpoint 500s.
+ *
+ * The two endpoints REJECT a bad id differently, which is the trap here.
+ * GetConversationMessages answers 500; GetConversationDetails answers **200
+ * with a literal JSON `null`** — same as GetVisitNotes and GetLetterDetails do
+ * for unknown ids. A status check alone therefore lets `null` through, so the
+ * payload is checked too.
+ *
+ * The web UI's own request shape is in
+ * `scripts/lib/pxbuild/epic.px.client.communication-center.js` on any instance
+ * — see `docs/scraping.md`.
+ */
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
 import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
-import { fetchConversationList } from './conversations';
 import type { ConversationListResponse, ConversationMessage, MessageAuthor } from './conversations';
 
 export type ThreadMessage = {
@@ -19,23 +63,39 @@ export type ConversationThread = {
   messages: ThreadMessage[];
   /**
    * MyChart said this conversation has messages beyond the ones here and we
-   * could not fetch them. Reported so a reader never presents a partial
-   * thread as the whole exchange.
+   * stopped asking. Only reachable by hitting MAX_PAGES — the paging loop
+   * otherwise runs to the end of the thread — and reported so a reader never
+   * presents a partial thread as the whole exchange.
    */
   truncated: boolean;
 }
 
-type GetConversationMessagesResponse = {
+/** The name maps a conversation response returns alongside the messages. */
+type ThreadDirectory = Pick<ConversationListResponse, 'users' | 'viewers'>;
+
+/** One page of a conversation, as both read endpoints return it. */
+type ConversationPayload = ThreadDirectory & {
+  hthId?: string;
+  subject?: string;
   messages?: ConversationMessage[];
+  hasMoreMessages?: boolean;
+  /** Per-conversation display names that win over the shared `users` map. */
+  userOverrideNames?: Record<string, string>;
 }
 
-/** The name maps GetConversationList returns alongside the conversations. */
-type ThreadDirectory = Pick<ConversationListResponse, 'users' | 'viewers'>;
+/**
+ * Messages per request. The UI asks for 5 at a time; a chattier page size costs
+ * the same round trip and keeps a long thread from turning into 20 of them.
+ */
+const PAGE_SIZE = 100;
+
+/** Bound the paging loop, so a server that never clears `hasMoreMessages` can't spin forever. */
+const MAX_PAGES = 50;
 
 /**
  * MyChart identifies a message's author by key, not by role: care-team authors
  * carry an `empKey` and patient-side authors a `wprKey` that appears in the
- * conversation list's `viewers` map. An author with a staff key is never the
+ * conversation's `viewers` map. An author with a staff key is never the
  * patient, and one with only a viewer key always is.
  */
 function isPatientAuthor(author: MessageAuthor | undefined): boolean {
@@ -43,22 +103,23 @@ function isPatientAuthor(author: MessageAuthor | undefined): boolean {
 }
 
 /**
- * The key maps are the primary source, not a fallback: on the instances we
- * can check against, every inline message carries an EMPTY `displayName` and
- * the name lives in `users` (staff), `viewers` (patient) or the
- * conversation's own `userOverrideNames`.
+ * Resolve an author's display name the way the communication center's own
+ * `getAuthorInfo` does: the key maps first, `displayName` only when they miss.
+ * That order matters — on every instance we can check, `displayName` is EMPTY
+ * on every message and the name lives in `users` (staff), `viewers` (patient)
+ * or the conversation's `userOverrideNames`, which the bundle resolves as
+ * `userOverrideNames[empKey] || users[empKey].name`.
  */
 function senderName(
   author: MessageAuthor | undefined,
   directory: ThreadDirectory,
   overrideNames?: Record<string, string>,
 ): string {
-  if (author?.displayName) return author.displayName;
+  if (author?.wprKey) return directory.viewers?.[author.wprKey]?.name || author.displayName || '';
   if (author?.empKey) {
-    return directory.users?.[author.empKey]?.name ?? overrideNames?.[author.empKey] ?? '';
+    return overrideNames?.[author.empKey] || directory.users?.[author.empKey]?.name || author.displayName || '';
   }
-  if (author?.wprKey) return directory.viewers?.[author.wprKey]?.name ?? '';
-  return '';
+  return author?.displayName ?? '';
 }
 
 /** Map one message from MyChart's wire shape to ours. Exported for tests. */
@@ -76,71 +137,88 @@ export function toThreadMessage(
   };
 }
 
+async function postConversationApi(
+  mychartRequest: MyChartRequest,
+  action: 'GetConversationDetails' | 'GetConversationMessages',
+  token: string,
+  body: Record<string, unknown>,
+): Promise<ConversationPayload | null> {
+  const resp = await makeAuthenticatedRequest(mychartRequest, {
+    path: `/api/conversations/${action}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      '__RequestVerificationToken': token,
+    },
+    body: JSON.stringify({ ...body, PageNonce: '' }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`${action} failed with status ${resp.status}`);
+  }
+
+  // A 200 is not yet an answer: Details returns literal `null` for an id it
+  // does not recognise. Anything that isn't an object is "no such thing".
+  const json: unknown = await resp.json();
+  return json !== null && typeof json === 'object' ? json : null;
+}
+
 export async function getConversationMessages(mychartRequest: MyChartRequest, conversationId: string): Promise<ConversationThread> {
   const token = await getVerificationToken(mychartRequest);
 
-  const empty: ConversationThread = { conversationId, subject: '', messages: [], truncated: false };
-
   if (!token) {
     logger.debug('Could not find request verification token for message threads');
-    return empty;
+    return { conversationId, subject: '', messages: [], truncated: false };
   }
 
-  // Two sources, because the one this used to rely on has never been seen to
-  // work. GetConversationList inlines each conversation's messages and is the
-  // only place the subject and the name maps live. GetConversationMessages is
-  // *supposed* to return the full thread, but every instance anyone has
-  // checked answers it with 500 "An error has occurred." — every conversation,
-  // every body shape and content-type tried — and inlines everything in the
-  // listing instead. Use a served thread when there is one; otherwise the
-  // listing is the thread.
-  const [list, fetched] = await Promise.all([
-    fetchConversationList(mychartRequest, token).catch((err: unknown): ConversationListResponse => {
-      logger.debug('Could not load the conversation list for thread context', err);
-      return {};
-    }),
-    fetchThreadMessages(mychartRequest, token, conversationId),
-  ]);
+  const details = await postConversationApi(mychartRequest, 'GetConversationDetails', token, {
+    id: conversationId,
+    maxReadMessages: PAGE_SIZE,
+  });
 
-  const conversation = (list.conversations ?? list.threads ?? []).find((c) => c.hthId === conversationId);
-  const messages = fetched ?? conversation?.messages ?? [];
+  // `null` here is MyChart saying it has no such conversation on this patient
+  // record. Say so, rather than reading it as a thread with nothing in it.
+  if (!details) {
+    throw new Error(`No conversation ${conversationId} on the active patient record. Check the id from get_messages, and that the right patient is active.`);
+  }
+
+  const collected: ConversationMessage[] = [...(details.messages ?? [])];
+  let hasMore = details.hasMoreMessages ?? false;
+
+  let pages = 0;
+  while (hasMore) {
+    if (pages === MAX_PAGES) {
+      logger.debug(`Stopped paging conversation ${conversationId} after ${MAX_PAGES} pages`);
+      break;
+    }
+    pages++;
+
+    // Exclusive bound: ask for the messages immediately older than the oldest
+    // one we hold.
+    const startInstantISO = collected[0]?.deliveryInstantISO ?? '';
+    const older = await postConversationApi(mychartRequest, 'GetConversationMessages', token, {
+      id: conversationId,
+      startInstantISO,
+      maxReadMessages: PAGE_SIZE,
+    });
+
+    // An empty page with `hasMoreMessages` still set would ask for the same
+    // instant forever, so treat it as the end of the thread.
+    const messages = older?.messages ?? [];
+    if (messages.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    collected.unshift(...messages);
+    hasMore = older?.hasMoreMessages ?? false;
+  }
 
   return {
-    conversationId,
-    subject: conversation?.subject ?? '',
-    messages: messages.map((msg) => toThreadMessage(msg, list, conversation?.userOverrideNames)),
-    // Only the listing truncates; a thread the endpoint served is complete.
-    truncated: fetched === null && conversation?.hasMoreMessages === true,
+    conversationId: details.hthId || conversationId,
+    subject: details.subject ?? '',
+    messages: collected.map((msg) => toThreadMessage(msg, details, details.userOverrideNames)),
+    truncated: hasMore,
   };
-}
-
-/**
- * The thread the endpoint served, or null when it served nothing. Null and an
- * empty array are different answers: all four instances checked return a 500
- * with a JSON error body (null), and only a real empty thread should read as
- * one.
- * The parse is guarded because an ASP.NET failure renders an HTML error page
- * on some releases, and neither should cost us the listing's messages.
- */
-async function fetchThreadMessages(
-  mychartRequest: MyChartRequest,
-  token: string,
-  conversationId: string,
-): Promise<ConversationMessage[] | null> {
-  try {
-    const resp = await makeAuthenticatedRequest(mychartRequest, {
-      path: '/api/conversations/GetConversationMessages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        '__RequestVerificationToken': token,
-      },
-      body: JSON.stringify({ conversationId, PageNonce: "" }),
-    });
-    const json = await resp.json() as GetConversationMessagesResponse;
-    return json.messages ?? null;
-  } catch (err) {
-    logger.debug('GetConversationMessages did not return a thread', err);
-    return null;
-  }
 }

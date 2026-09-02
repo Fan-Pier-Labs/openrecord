@@ -1259,31 +1259,61 @@ export const pastVisits = {
 };
 
 // ─── Messages / Conversations ───────────────────────────────────────
-export const conversations = {
+/**
+ * One message in a thread. Real MyChart carries exactly one of `empKey` (staff)
+ * / `wprKey` (patient side) and leaves `displayName` empty — the name is looked
+ * up in the `users` / `viewers` maps on the conversation payload.
+ */
+export type FakeConversationMessage = {
+  wmgId: string;
+  author: { displayName: string; empKey?: string; wprKey?: string };
+  deliveryInstantISO: string;
+  body: string;
+};
+
+export type FakeConversationThread = {
+  hthId: string;
+  subject: string;
+  previewText: string;
+  audience: { name: string }[];
+  /** Per-thread display names that win over the shared `users` map. */
+  userOverrideNames: Record<string, string>;
+  messages: FakeConversationMessage[];
+};
+
+export const conversations: {
+  conversations: FakeConversationThread[];
+  users: Record<string, { name: string }>;
+  viewers: Record<string, { name: string; isSelf: boolean }>;
+} = {
   conversations: [
     {
       hthId: 'CONV-001',
       subject: 'Weight Management Follow-up',
       previewText: 'Homer, we discussed your weight loss goals...',
       audience: [{ name: 'Julius Hibbert, MD' }],
-      hasMoreMessages: false,
       userOverrideNames: {},
+      // Real MyChart leaves author.displayName empty on every message and
+      // expects the client to resolve the name through the users / viewers
+      // maps below, so the fixture does the same. Filling it in here would
+      // let a scraper that never looks at the maps pass against the fake and
+      // return blank sender names against every real instance.
       messages: [
         {
           wmgId: 'MSG-001',
-          author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-10T14:30:00Z',
           body: 'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.',
         },
         {
           wmgId: 'MSG-002',
-          author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: '2026-01-10T15:45:00Z',
           body: "But doc, donuts are a food group! Can't I just take more pills instead?",
         },
         {
           wmgId: 'MSG-003',
-          author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-11T09:00:00Z',
           body: "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
         },
@@ -1294,20 +1324,81 @@ export const conversations = {
       subject: 'Discount Surgery Consultation',
       previewText: 'Hi-Everybody! I have great news about...',
       audience: [{ name: 'Nick Riviera, MD' }],
-      hasMoreMessages: false,
       userOverrideNames: {},
       messages: [
         {
           wmgId: 'MSG-004',
-          author: { empKey: 'PROV-NICK', wprKey: '', displayName: 'Nick Riviera, MD' },
+          author: { empKey: 'PROV-NICK', displayName: '' },
           deliveryInstantISO: '2025-12-15T10:00:00Z',
           body: "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
         },
         {
           wmgId: 'MSG-005',
-          author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: '2025-12-15T11:30:00Z',
           body: "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
+        },
+      ],
+    },
+    {
+      // Longer than one page, so `hasMoreMessages` is set on the listing and
+      // reading the whole thread takes the paging loop. Real MyChart inlines
+      // at most CONVERSATION_PAGE_SIZE messages per conversation.
+      hthId: 'CONV-003',
+      subject: 'Back pain after the bowling tournament',
+      previewText: 'Following up on the imaging we ordered...',
+      audience: [{ name: 'Julius Hibbert, MD' }],
+      // A per-conversation override of the shared users map: this thread
+      // renders the department name rather than the covering provider's.
+      userOverrideNames: { 'PROV-MONROE': 'Springfield Spine Clinic' },
+      messages: [
+        {
+          wmgId: 'MSG-010',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-01T08:00:00Z',
+          body: 'My back has been killing me since the bowling tournament. Is that normal?',
+        },
+        {
+          wmgId: 'MSG-011',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-01T13:15:00Z',
+          body: 'How long has the pain been going on, and does it radiate down either leg?',
+        },
+        {
+          wmgId: 'MSG-012',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-02T07:45:00Z',
+          body: 'About four days. It only hurts when I sit, stand, walk, or breathe.',
+        },
+        {
+          wmgId: 'MSG-013',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-02T16:20:00Z',
+          body: "Let's get imaging. I have placed the order; the department will reach out to schedule.",
+        },
+        {
+          wmgId: 'MSG-014',
+          author: { empKey: 'PROV-MONROE', displayName: '' },
+          deliveryInstantISO: '2025-11-03T09:05:00Z',
+          body: 'We have openings Thursday morning and Friday afternoon. Which works better?',
+        },
+        {
+          wmgId: 'MSG-015',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-03T09:40:00Z',
+          body: 'Friday afternoon. Thursday is donut day at the plant.',
+        },
+        {
+          wmgId: 'MSG-016',
+          author: { empKey: 'PROV-MONROE', displayName: '' },
+          deliveryInstantISO: '2025-11-03T10:12:00Z',
+          body: 'Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.',
+        },
+        {
+          wmgId: 'MSG-017',
+          author: { empKey: 'PROV-HIBBERT', displayName: '' },
+          deliveryInstantISO: '2025-11-07T11:00:00Z',
+          body: 'Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.',
         },
       ],
     },
@@ -1315,6 +1406,7 @@ export const conversations = {
   users: {
     'PROV-HIBBERT': { name: 'Julius Hibbert, MD' },
     'PROV-NICK': { name: 'Nick Riviera, MD' },
+    'PROV-MONROE': { name: 'Marvin Monroe, MD' },
   },
   viewers: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },

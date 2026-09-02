@@ -40,12 +40,7 @@ export interface ConversationListResponse {
   [key: string]: unknown;
 }
 
-/**
- * Fetch the inbox with a token the caller already has, so a caller that needs
- * both the list and another conversations API doesn't pay for the
- * communication-center page twice.
- */
-export async function fetchConversationList(
+async function fetchConversationList(
   mychartRequest: MyChartRequest,
   requestVerificationToken: string,
 ): Promise<ConversationListResponse> {

@@ -8,7 +8,6 @@
  *  - GetDetails answers an unknown orderKey with a 200 EMPTY shell, never an
  *    error and never another order's data.
  *  - GetVisitNotes / GetLetterDetails answer unknown ids with literal null.
- *  - GetConversationMessages never serves a thread: every call is the same 500.
  *  - Result enums are strings ('Read', 'LAB'/'IMAGING', 'Unknown'), components
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
@@ -19,6 +18,9 @@
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *  - SendMedicalAdviceRequest silently DISCARDS a message body over 500 characters.
+ *  - GetConversationMessages / GetConversationDetails key the thread on `id`,
+ *    and reject a bad one DIFFERENTLY: Messages 500s, Details answers 200 with
+ *    a literal null.
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  * Run with: bun run test:integration
@@ -168,31 +170,6 @@ describe('test-results fidelity', () => {
     expect(names.some(n => n.startsWith('XR '))).toBe(true)
     const lipid = results.find(r => r.orderName === 'Lipid Panel')!
     expect(lipid.historicalResults?.historicalResults?.['COMP-CHOL']).toBeDefined()
-  })
-})
-
-describe('the thread endpoint that no instance serves', () => {
-  // All four instances checked answer this the same way, for every
-  // conversation and every body shape and content-type tried. The messages
-  // arrive inlined in GetConversationList instead, which is where
-  // getConversationMessages reads them from.
-  it('answers every call with the ASP.NET Web API 500 body', async () => {
-    const list = await api('/api/conversations/GetConversationList', {
-      tag: 1,
-      localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 },
-      externalLoadParams: {},
-      searchQuery: '',
-      PageNonce: '',
-    })
-    const conversations = (await list.json() as { conversations: Array<{ hthId: string }> }).conversations
-    expect(conversations.length).toBeGreaterThan(0)
-
-    // A real conversation id, a made-up one, and no id at all.
-    for (const body of [{ conversationId: conversations[0]!.hthId, PageNonce: '' }, { conversationId: 'NOPE' }, {}]) {
-      const res = await api('/api/conversations/GetConversationMessages', body)
-      expect(res.status).toBe(500)
-      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
-    }
   })
 })
 
@@ -421,6 +398,94 @@ describe('epicVersion knob', () => {
     const modernBody = await modern.json() as { results: Array<Record<string, unknown>> }
     expect(modernBody.results[0]).toHaveProperty('canGenerateLLMSummary')
     expect(modernBody.results[0]).toHaveProperty('isBedsideTablet')
+  })
+})
+
+/**
+ * The two single-conversation read endpoints key the thread on `id`.
+ *
+ * `conversationId` — which the *mutating* endpoints (SendReply,
+ * DeleteConversation) do take — is rejected, and on GetConversationMessages the
+ * rejection is an opaque HTTP 500 carrying ASP.NET's generic body. That is
+ * indistinguishable from a retired endpoint, which is exactly how the wrong
+ * parameter name survived: the scraper sent `conversationId`, every instance
+ * answered 500, and the endpoint looked dead.
+ *
+ * GetConversationDetails rejects the SAME inputs with 200 and a literal JSON
+ * `null` instead — the shape GetVisitNotes and GetLetterDetails also use for
+ * unknown ids. A client that checks only the status code reads that as a thread
+ * with nothing in it. Verified identically on all four live instances.
+ */
+describe('the conversation-read endpoints that only accept `id`', () => {
+  const PATHS = [
+    '/api/conversations/GetConversationMessages',
+    '/api/conversations/GetConversationDetails',
+  ]
+
+  /** How each endpoint says no. They do not agree, and that is the point. */
+  async function expectRejection(path: string, res: Response) {
+    if (path.endsWith('GetConversationMessages')) {
+      expect(res.status).toBe(500)
+      expect(await res.json()).toEqual({ Message: 'An error has occurred.' })
+    } else {
+      expect(res.status).toBe(200)
+      expect(await res.json()).toBeNull()
+    }
+  }
+
+  for (const path of PATHS) {
+    it(`${path} answers a real id with the thread`, async () => {
+      const res = await api(path, { id: 'CONV-001', PageNonce: '' })
+      expect(res.status).toBe(200)
+      const body = await res.json() as { hthId: string; messages: unknown[] }
+      expect(body.hthId).toBe('CONV-001')
+      expect(body.messages.length).toBeGreaterThan(0)
+    })
+
+    it(`${path} rejects \`conversationId\`, never treating it as an empty thread`, async () => {
+      await expectRejection(path, await api(path, { conversationId: 'CONV-001', PageNonce: '' }))
+    })
+
+    it(`${path} rejects an unknown id the same way`, async () => {
+      await expectRejection(path, await api(path, { id: 'CONV-NOPE', PageNonce: '' }))
+    })
+  }
+
+  it('pages GetConversationMessages backwards from an exclusive startInstantISO', async () => {
+    const all = await api('/api/conversations/GetConversationMessages', { id: 'CONV-003', maxReadMessages: 100, PageNonce: '' })
+    const { messages } = await all.json() as { messages: { wmgId: string; deliveryInstantISO: string }[] }
+    expect(messages).toHaveLength(8)
+
+    // No startInstantISO means "now": the newest page, and more behind it.
+    const newest = await api('/api/conversations/GetConversationMessages', { id: 'CONV-003', PageNonce: '' })
+    const newestBody = await newest.json() as { messages: { wmgId: string }[]; hasMoreMessages: boolean }
+    expect(newestBody.messages.map(m => m.wmgId)).toEqual(messages.slice(3).map(m => m.wmgId))
+    expect(newestBody.hasMoreMessages).toBe(true)
+
+    // Strictly older than the oldest of that page, and nothing left behind it.
+    const older = await api('/api/conversations/GetConversationMessages', {
+      id: 'CONV-003', startInstantISO: messages[3]!.deliveryInstantISO, PageNonce: '',
+    })
+    const olderBody = await older.json() as { messages: { wmgId: string }[]; hasMoreMessages: boolean }
+    expect(olderBody.messages.map(m => m.wmgId)).toEqual(messages.slice(0, 3).map(m => m.wmgId))
+    expect(olderBody.hasMoreMessages).toBe(false)
+  })
+
+  it('leaves author.displayName empty, so names only resolve through the users/viewers maps', async () => {
+    const res = await api('/api/conversations/GetConversationDetails', { id: 'CONV-003', PageNonce: '' })
+    const body = await res.json() as {
+      messages: { author: { displayName: string; empKey?: string; wprKey?: string } }[]
+      users: Record<string, { name: string }>
+      viewers: Record<string, { name: string }>
+      userOverrideNames: Record<string, string>
+    }
+    expect(body.messages.every(m => m.author.displayName === '')).toBe(true)
+    for (const { author } of body.messages) {
+      const name = author.wprKey
+        ? body.viewers[author.wprKey]?.name
+        : body.userOverrideNames[author.empKey!] || body.users[author.empKey!]?.name
+      expect(name).toBeTruthy()
+    }
   })
 })
 
