@@ -217,10 +217,13 @@ for (const mode of MOUNT_MODES) {
       expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
     }, 10_000)
 
-    it('getPreventiveCare returns items', async () => {
+    it('getPreventiveCare returns one item per screening, none run together', async () => {
       const result = await getPreventiveCare(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result).toEqual([
+        { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
+        { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
+        { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
+      ])
     }, 10_000)
 
     it('getLetters returns letters sorted newest-first with undated last', async () => {
