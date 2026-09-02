@@ -1,6 +1,6 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
-import { getRequestVerificationTokenFromBody } from '../../core/util';
+import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 
 export type DraftResult = {
@@ -8,18 +8,12 @@ export type DraftResult = {
   error?: string;
 }
 
-async function getToken(mychartRequest: MyChartRequest): Promise<string | undefined> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/communication-center' });
-  const html = await pageResp.text();
-  return getRequestVerificationTokenFromBody(html);
-}
-
 export async function saveReplyDraft(
   mychartRequest: MyChartRequest,
   conversationId: string,
   messageBody: string,
 ): Promise<DraftResult> {
-  const token = await getToken(mychartRequest);
+  const token = await getVerificationToken(mychartRequest);
   if (!token) {
     logger.debug('Could not find request verification token for save draft');
     return { success: false, error: 'Could not get verification token' };
@@ -45,7 +39,7 @@ export async function saveNewMessageDraft(
   messageBody: string,
   subject: string,
 ): Promise<DraftResult> {
-  const token = await getToken(mychartRequest);
+  const token = await getVerificationToken(mychartRequest);
   if (!token) {
     logger.debug('Could not find request verification token for save draft');
     return { success: false, error: 'Could not get verification token' };
@@ -70,7 +64,7 @@ export async function deleteDraft(
   mychartRequest: MyChartRequest,
   conversationId: string,
 ): Promise<DraftResult> {
-  const token = await getToken(mychartRequest);
+  const token = await getVerificationToken(mychartRequest);
   if (!token) {
     logger.debug('Could not find request verification token for delete draft');
     return { success: false, error: 'Could not get verification token' };
