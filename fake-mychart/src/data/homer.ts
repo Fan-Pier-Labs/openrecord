@@ -1,6 +1,8 @@
 // All fake data for Homer Jay Simpson
 // Shaped to exactly match the JSON structures MyChart scrapers expect
 
+import { epicMessageBody } from '../lib/messageBody';
+
 // ─── Profile ─────────────────────────────────────────────────────────
 export const profile = {
   name: 'Homer Jay Simpson',
@@ -1097,19 +1099,25 @@ export const conversations = {
           wmgId: 'MSG-001',
           author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
           deliveryInstantISO: '2026-01-10T14:30:00Z',
-          body: 'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.',
+          // Multi-paragraph, with the blank line real MyChart renders as an
+          // `&nbsp;`-only paragraph.
+          body: epicMessageBody(
+            'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.\n\nYour cholesterol levels are concerning.'
+          ),
         },
         {
           wmgId: 'MSG-002',
           author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
           deliveryInstantISO: '2026-01-10T15:45:00Z',
-          body: "But doc, donuts are a food group! Can't I just take more pills instead?",
+          body: epicMessageBody("But doc, donuts are a food group! Can't I just take more pills instead?"),
         },
         {
           wmgId: 'MSG-003',
           author: { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' },
           deliveryInstantISO: '2026-01-11T09:00:00Z',
-          body: "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
+          body: epicMessageBody(
+            "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program."
+          ),
         },
       ],
     },
@@ -1125,13 +1133,17 @@ export const conversations = {
           wmgId: 'MSG-004',
           author: { empKey: 'PROV-NICK', wprKey: '', displayName: 'Nick Riviera, MD' },
           deliveryInstantISO: '2025-12-15T10:00:00Z',
-          body: "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
+          // The ampersand exercises the entity round-trip: Epic escapes it on
+          // the way out and the scraper has to put it back.
+          body: epicMessageBody(
+            'Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.'
+          ),
         },
         {
           wmgId: 'MSG-005',
           author: { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' },
           deliveryInstantISO: '2025-12-15T11:30:00Z',
-          body: "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
+          body: epicMessageBody("Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!"),
         },
       ],
     },

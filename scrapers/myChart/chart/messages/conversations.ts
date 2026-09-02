@@ -2,6 +2,7 @@ import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from "../../core/myChartRequest";
 import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
+import { messageBodyToText } from './messageBodyText';
 
 /** Author of a message: staff carry an `empKey`, patient-side viewers a `wprKey`. */
 export interface MessageAuthor {
@@ -12,6 +13,11 @@ export interface MessageAuthor {
 
 export interface ConversationMessage {
   wmgId?: string;
+  /**
+   * The message itself. Epic sends HTML here; `listConversations` converts it
+   * to text before it reaches a caller, so the two capabilities that read a
+   * message never disagree about what a body is.
+   */
   body?: string;
   deliveryInstantISO?: string;
   author?: MessageAuthor;
@@ -62,6 +68,23 @@ export async function fetchConversationList(
   return await messages.json() as ConversationListResponse;
 }
 
+/**
+ * Replace each inlined message body with its text, in place.
+ *
+ * The listing is returned to callers whole — it carries the subject, the name
+ * maps and the paging summary, and nothing here reshapes it — so the bodies
+ * are converted where they sit. `getConversationMessages` maps the same
+ * messages itself and so takes the raw listing, not this one.
+ */
+function withPlainTextBodies(list: ConversationListResponse): ConversationListResponse {
+  for (const conversation of [...(list.conversations ?? []), ...(list.threads ?? [])]) {
+    for (const message of conversation.messages ?? []) {
+      message.body = messageBodyToText(message.body);
+    }
+  }
+  return list;
+}
+
 export async function listConversations(mychartRequest: MyChartRequest): Promise<ConversationListResponse | null> {
 
 
@@ -72,7 +95,7 @@ export async function listConversations(mychartRequest: MyChartRequest): Promise
     return null
   }
 
-  const out = await fetchConversationList(mychartRequest, requestVerificationToken);
+  const out = withPlainTextBodies(await fetchConversationList(mychartRequest, requestVerificationToken));
 
   logger.debug(out)
 

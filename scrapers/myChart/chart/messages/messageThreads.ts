@@ -3,12 +3,14 @@ import type { MyChartRequest } from "../../core/myChartRequest";
 import { getVerificationToken } from './communicationCenterToken';
 import { logger } from '../../../../shared/logger';
 import { fetchConversationList } from './conversations';
+import { messageBodyToText } from './messageBodyText';
 import type { ConversationListResponse, ConversationMessage, MessageAuthor } from './conversations';
 
 export type ThreadMessage = {
   messageId: string;
   senderName: string;
   sentDate: string;
+  /** The words of the message. Epic sends HTML; see `messageBodyToText`. */
   messageBody: string;
   isFromPatient: boolean;
 }
@@ -71,7 +73,7 @@ export function toThreadMessage(
     messageId: msg.wmgId ?? '',
     senderName: senderName(msg.author, directory, overrideNames),
     sentDate: msg.deliveryInstantISO ?? '',
-    messageBody: msg.body ?? '',
+    messageBody: messageBodyToText(msg.body),
     isFromPatient: isPatientAuthor(msg.author),
   };
 }

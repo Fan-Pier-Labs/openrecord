@@ -366,6 +366,20 @@ Messages are fully interactive. You can:
 
 All mutations persist in RAM until the server restarts.
 
+### A message body is HTML, never a bare string
+
+Real MyChart never stores or returns the text a patient typed. Every body comes
+back from `GetConversationList` wrapped in Epic's formatter markup — a
+`div.fmtConv`, one `<div data-paragraph="N">` per paragraph, the words inside an
+inline-styled `<span>`, `&nbsp;` for a blank line, and `\r\n` between the
+paragraph divs. Nine characters of message carry roughly 200 bytes of it.
+
+`src/lib/messageBody.ts` produces exactly that, and both the seeded fixtures and
+anything sent or replied through the fake go through it — so a body posted as
+text does not read back as the string that was posted. The scraper's job is to
+undo it (`scrapers/myChart/chart/messages/messageBodyText.ts`), and a fixture
+that skipped the wrapper would let a regression there pass the whole suite.
+
 ### Message flow (what the scraper does)
 
 ```

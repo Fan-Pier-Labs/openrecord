@@ -161,6 +161,28 @@ describe('capability registry against fake-mychart', () => {
     // The fixture thread is a back-and-forth, so both sides must be attributed.
     expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
+
+    // The fake serves what a real instance serves: every body wrapped in
+    // Epic's `div.fmtConv` formatter markup. None of it may reach a caller —
+    // it is tokens a model has to read past, and HTML from a health record
+    // that a thread view would then have to sanitize.
+    for (const message of thread.messages) {
+      expect(message.messageBody).not.toContain('fmtConv')
+      expect(message.messageBody).not.toContain('data-paragraph')
+      expect(message.messageBody).not.toContain('<')
+    }
+
+    // The first fixture message is two paragraphs with a blank line between:
+    // the structure survives as newlines, the markup does not.
+    expect(thread.messages[0]!.messageBody).toBe(
+      'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.'
+        + '\n\nYour cholesterol levels are concerning.',
+    )
+
+    // get_messages inlines the same bodies and must answer the same way.
+    for (const message of conversation!.messages as Array<{ body: string }>) {
+      expect(message.body).not.toContain('<')
+    }
   }, 30_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────

@@ -97,6 +97,16 @@ describe('toThreadMessage', () => {
     expect(named.senderName).toBe('Nick Riviera, MD')
   })
 
+  // The wire never carries a bare string here: every body is wrapped in Epic's
+  // formatter markup, and a reader of a thread wants the words.
+  it('unwraps the HTML Epic wraps a body in', () => {
+    const wrapped =
+      '<div class="fmtConv" style="line-height: normal; font-family: Arial;">' +
+      '<div data-paragraph="1"><span style="font-size: 1.083333rem;" lang="en">Much better, thanks.</span></div>' +
+      '</div>'
+    expect(toThreadMessage({ wmgId: 'M', body: wrapped }).messageBody).toBe('Much better, thanks.')
+  })
+
   it('defaults every field on a message with nothing in it', () => {
     expect(toThreadMessage({})).toEqual({
       messageId: '',

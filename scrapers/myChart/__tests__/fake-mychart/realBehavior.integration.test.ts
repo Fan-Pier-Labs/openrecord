@@ -400,6 +400,8 @@ describe('the over-limit message body that the send endpoint drops silently', ()
     const list = await listConversations(session)
     expect(list?.conversations?.length ?? 0).toBe(before + 1)
     const filed = list?.conversations?.find((c) => c.hthId === result.conversationId)
+    // Sent as text, stored by MyChart as `div.fmtConv` markup, read back as
+    // text: an exact match here is the whole round-trip, wrapper and all.
     expect(filed?.messages?.[0]?.body).toBe(body)
   }, 30_000)
 })

@@ -113,4 +113,28 @@ describe('listConversations', () => {
     expect(result.totalCount).toBe(42)
     expect(result.hasMore).toBe(true)
   })
+  // get_messages inlines every message, so it hands a model the same bodies
+  // get_message_thread does. They have to agree on what a body is.
+  it('returns the words of an inlined message, not the markup around them', async () => {
+    const wrapped =
+      '<div class="fmtConv" style="line-height: normal; font-family: Arial;">' +
+      '<div data-paragraph="1"><span style="font-size: 1.083333rem;" lang="en">Your results look normal.</span></div>' +
+      '\r\n<div data-paragraph="2"><span style="font-size: 1.083333rem;" lang="en">&nbsp;</span></div>' +
+      '\r\n<div data-paragraph="3"><span style="font-size: 1.083333rem;" lang="en">Call if anything changes.</span></div>' +
+      '</div>'
+
+    const req = mockRequest([
+      { body: '<input name="__RequestVerificationToken" value="tok" />' },
+      {
+        body: JSON.stringify({
+          conversations: [{ hthId: 'CONV-1', subject: 'Labs', messages: [{ wmgId: 'M1', body: wrapped }] }],
+        }),
+      },
+    ])
+
+    const result = await listConversations(req)
+    expect(result?.conversations?.[0]?.messages?.[0]?.body).toBe(
+      'Your results look normal.\n\nCall if anything changes.',
+    )
+  })
 })
