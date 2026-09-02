@@ -7,7 +7,8 @@
  * `conversationId`. Parameter names here are per-endpoint, not per-area — the
  * *mutating* siblings (`SendReply`, `DeleteConversation`) really do take
  * `conversationId`, which is where the guess came from. With `id` both read
- * endpoints answer 200 on both instances we can test:
+ * endpoints answer 200 on all four instances there are credentials for — Mass
+ * General Brigham, Atrius, UCLA and UCSF:
  *
  *   POST /api/conversations/GetConversationDetails
  *        { id, messageId?, organizationId?, maxReadMessages?, PageNonce }
@@ -22,8 +23,11 @@
  *
  * `startInstantISO` is an exclusive upper bound — the response holds the newest
  * `maxReadMessages` messages strictly older than it — and omitting it means
- * "now", i.e. the newest page. `maxReadMessages` is the page size, defaulting
- * to 5 server-side, which is also all the listing ever inlines.
+ * "now", i.e. the newest page. Exclusivity is measured on the three instances
+ * that have a thread longer than one message; UCLA's are all single-message, so
+ * only the degenerate case (an instant older than everything returns nothing)
+ * is confirmed there. `maxReadMessages` is the page size, defaulting to 5
+ * server-side, which is also all the listing ever inlines.
  *
  * Neither `organizationId` nor a real `PageNonce` is required (all four
  * instances return an empty `organizationId` on every conversation), but the
