@@ -70,12 +70,9 @@ async function main(): Promise<void> {
         '\n  2. Ask the user for their MyChart username and password.' +
         '\n  3. Call setup_account(hostname, username, password). On `need_2fa`, ask the user for the ' +
         '     6-digit code, then call complete_2fa(pending_id, code). On `invalid_login`, ask again.' +
-        '\n  4. On success the result says `passkey_recommended: true`. Tell the user a passkey is ' +
-        '     strongly recommended — future sessions then sign in with no username, password or 2FA ' +
-        '     code, and the key is stored in the OS keystore (the Keychain on macOS) on their machine, ' +
-        '     never sent to Anthropic. It registers a new sign-in credential on their MyChart account ' +
-        '     that lasts until `delete_passkey` removes it. Call register_passkey(account) ONLY after ' +
-        '     they say yes — never set one up on your own.' +
+        '\n  4. On `logged_in`, do what that result\'s `message` field says — it recommends a passkey ' +
+        '     and explains what one changes. NEVER call register_passkey (or any other tool that ' +
+        '     alters how an account signs in) unless the user has explicitly said yes to it.' +
         '\n  5. Use the data tools (get_medications, get_lab_results, send_message, etc.) with the ' +
         '     `account` from the previous step.',
     },

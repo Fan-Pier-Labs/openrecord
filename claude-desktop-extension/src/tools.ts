@@ -51,6 +51,7 @@ import {
 } from '../../shared/capabilities';
 
 import { searchInstances } from './instances';
+import { BACKEND_DESCRIPTION } from './secret-store';
 import {
   resolveSession,
   isConnected,
@@ -94,28 +95,29 @@ function errorResult(message: string): ToolResult {
 
 // ── Recommending a passkey after login ─────────────────────────────────────
 
+const PASSKEY_ALREADY_SAVED_MESSAGE =
+  'Account connected. A passkey for this login is already saved, so future sessions sign in ' +
+  'without the password or a 2FA code.';
+
 /**
- * Where a passkey would actually be filed on this machine, in words the model
- * can read out to the user.
+ * What to say to a patient who has just logged in and has no passkey yet.
  *
- * `secretBackend()` is the live answer, not the ideal one: a locked keychain or
- * a native module that failed to load downgrades storage to a 0600 file, and a
- * recommendation that promises the Keychain in that case is a lie about where a
- * P-256 private key to a medical record ends up.
+ * `BACKEND_DESCRIPTION[secretBackend()]` is the live answer, not the ideal one:
+ * a locked keychain or a native module that failed to load downgrades storage
+ * to a 0600 file, and a recommendation that promises the Keychain in that case
+ * is a lie about where a P-256 private key to a medical record ends up.
  */
-function passkeyStorageBlurb(): string {
-  switch (secretBackend()) {
-    case 'keychain':
-      return 'the macOS Keychain on this machine';
-    case 'credential-manager':
-      return 'Windows Credential Manager on this machine';
-    case 'secret-service':
-      return 'the system keyring (Secret Service) on this machine';
-    case 'file':
-      return 'a private (0600) file under ~/.openrecord-mcpb on this machine — the OS keystore is not available here';
-    default:
-      return 'the OS keystore on this machine';
-  }
+function recommendPasskeyMessage(id: string): string {
+  return (
+    'Account connected — nothing further is required to read this chart. ' +
+    'STRONGLY RECOMMENDED, but only with the user\'s explicit go-ahead: offer to set up a passkey now. ' +
+    'Tell them, in your own words, what it does and what it costs: every later session signs in with no ' +
+    `username, password or 2FA code; the key is stored in ${BACKEND_DESCRIPTION[secretBackend()]} and is ` +
+    'never sent to Anthropic; and it registers a new sign-in credential on their MyChart account that stays ' +
+    `valid on the portal until it is removed (\`delete_passkey\` with account "${id}", or ` +
+    'disconnect_account, which deletes the local copy). ' +
+    `If — and only if — they say yes, call register_passkey with account "${id}".`
+  );
 }
 
 /**
@@ -135,34 +137,13 @@ function loggedInResult(hostname: string, username: string): ToolResult {
   // nothing about this login.
   const hasPasskey = !!readAccountPasskey(normalizeHostname(hostname), username);
 
-  if (hasPasskey) {
-    return jsonResult({
-      state: 'logged_in',
-      account: id,
-      passkey_saved: true,
-      passkey_recommended: false,
-      passkey_storage: secretBackend(),
-      message:
-        'Account connected. A passkey for this login is already saved, so future sessions sign in ' +
-        'without the password or a 2FA code.',
-    });
-  }
-
   return jsonResult({
     state: 'logged_in',
     account: id,
-    passkey_saved: false,
-    passkey_recommended: true,
+    passkey_saved: hasPasskey,
+    passkey_recommended: !hasPasskey,
     passkey_storage: secretBackend(),
-    message:
-      'Account connected — nothing further is required to read this chart. ' +
-      'STRONGLY RECOMMENDED, but only with the user\'s explicit go-ahead: offer to set up a passkey now. ' +
-      'Tell them, in your own words, what it does and what it costs: every later session signs in with no ' +
-      `username, password or 2FA code; the key is stored in ${passkeyStorageBlurb()} and is never sent to ` +
-      'Anthropic; and it registers a new sign-in credential on their MyChart account that stays valid on the ' +
-      `portal until it is removed (\`delete_passkey\` with account "${id}", or disconnect_account, which ` +
-      'deletes the local copy). ' +
-      `If — and only if — they say yes, call register_passkey with account "${id}".`,
+    message: hasPasskey ? PASSKEY_ALREADY_SAVED_MESSAGE : recommendPasskeyMessage(id),
   });
 }
 
@@ -483,7 +464,7 @@ export function registerAllTools(server: McpServer): void {
     'setup_account',
     {
       title: 'Set up a MyChart account (step 1)',
-      description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery, target}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`. This tool logs in and nothing else — it never changes the account's sign-in settings. On `logged_in` with `passkey_recommended: true`, recommend a passkey to the user and call register_passkey only if they agree.",
+      description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery, target}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`. This tool logs in and nothing else — it never changes the account's sign-in settings. On `logged_in`, do what the `message` field says.",
       inputSchema: {
         hostname: z.string().describe('MyChart hostname, e.g. "mychart.example.org". From search_mycharts or the user.'),
         username: z.string().describe('MyChart username (ask the user).'),
@@ -573,7 +554,7 @@ export function registerAllTools(server: McpServer): void {
     'complete_2fa',
     {
       title: 'Finish 2FA (step 2)',
-      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable, and the result carries the same `passkey_recommended` prompt as setup_account.',
+      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, do what the `message` field says.',
       inputSchema: {
         pending_id: z.string().describe('The pending_id returned by setup_account when state was need_2fa.'),
         code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),

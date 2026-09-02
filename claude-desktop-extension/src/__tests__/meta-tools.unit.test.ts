@@ -192,20 +192,25 @@ describe('registered surface', () => {
   })
 
   /**
+   * Tripwire, not the proof. The proof is
+   * `multi-account.integration.test.ts`, which logs in against fake-mychart
+   * and asserts no passkey landed in the store — an outcome, not a spelling.
+   * This runs without a server, so it catches the regression on every `bun run
+   * test` instead of only when the fixture is up.
+   *
    * Enrolling a passkey is a write to the patient's MyChart account that
    * removes the password and the 2FA code from every later sign-in, and the
    * credential outlives the session. Logging in must never do it as a side
-   * effect — only `register_passkey`, which the user asks for, may.
+   * effect — only `register_passkey`, which the user asks for, may, and that
+   * one lives in `shared/capabilities.ts`.
    *
-   * Asserted against the source because the regression is an *absent* network
-   * call: a handler that quietly starts registering again passes every
-   * behavioural test that does not have a live portal to watch. The registry's
-   * `register_passkey` is the one legitimate caller, and it lives in
-   * `shared/capabilities.ts`, not here.
+   * Matches the module path rather than the identifier: a comment naming
+   * `setupPasskey` should not fail the build, and an import is what actually
+   * puts the call back within reach of the login handlers.
    */
-  it('never registers a passkey from the login path', async () => {
+  it('tripwire: tools.ts does not import the passkey-registration scraper', async () => {
     const source = await Bun.file(new URL('../tools.ts', import.meta.url)).text()
-    expect(source).not.toContain('setupPasskey')
+    expect(source).not.toContain('scrapers/myChart/auth/setupPasskey')
   })
 
   it('registers a substantial scraper surface', () => {
