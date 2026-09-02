@@ -89,10 +89,7 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
       // Anything that isn't a plain read gets a marker, so a glance down the
       // list separates "shows me something" from "changes something".
       const marker = capability.kind === 'read' ? ' ' : '!';
-      // Declared but not implemented yet — say so on the id line, so it reads
-      // as "not yet" rather than as a tool that returned nothing.
-      const status = capability.comingSoon ? '  (coming soon — not supported yet)' : '';
-      lines.push(`   ${marker} ${capability.id}${status}`);
+      lines.push(`   ${marker} ${capability.id}`);
       lines.push(`       ${capability.description}`);
       for (const param of capability.params) {
         lines.push(

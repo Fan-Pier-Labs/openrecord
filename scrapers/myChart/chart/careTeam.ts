@@ -60,42 +60,39 @@ export type CareTeam = {
   externalProvidersUnavailable: boolean;
 };
 
-/** One entry of `ProvidersList`, as captured. Every field is optional: an instance may omit any of them. */
+/**
+ * One entry of `ProvidersList`, typed as both instances returned it. Every
+ * field is optional because an instance may omit a key; the types are not
+ * hedged, because the capture says what they are.
+ */
 type ProviderResponse = {
-  ID?: unknown;
-  Name?: unknown;
-  Photo?: unknown;
-  NationalProviderID?: unknown;
-  WebPageUrl?: unknown;
-  CanMessage?: unknown;
-  Specialty?: unknown;
-  Relation?: unknown;
-  DepartmentID?: unknown;
-  IsExternal?: unknown;
+  ID?: string;
+  Name?: string;
+  Photo?: string;
+  NationalProviderID?: string;
+  WebPageUrl?: string;
+  CanMessage?: boolean;
+  Specialty?: string;
+  /** Null on a provider with no stated role, which most of one account's were. */
+  Relation?: string | null;
+  DepartmentID?: string;
+  IsExternal?: boolean;
 };
 
 type CareTeamResponse = {
   ProvidersList?: ProviderResponse[];
 };
 
-/** Scalars arrive as strings on the captured instance, but ids are the kind of field that turns numeric elsewhere. */
-function str(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return '';
-}
-
 function toMember(provider: ProviderResponse, fromExternalList: boolean): CareTeamMember {
   return {
-    id: str(provider.ID),
-    name: str(provider.Name),
-    relation: str(provider.Relation),
-    specialty: str(provider.Specialty),
-    nationalProviderId: str(provider.NationalProviderID),
-    departmentId: str(provider.DepartmentID),
-    photoUrl: str(provider.Photo),
-    webPageUrl: str(provider.WebPageUrl),
+    id: provider.ID ?? '',
+    name: provider.Name ?? '',
+    relation: provider.Relation ?? '',
+    specialty: provider.Specialty ?? '',
+    nationalProviderId: provider.NationalProviderID ?? '',
+    departmentId: provider.DepartmentID ?? '',
+    photoUrl: provider.Photo ?? '',
+    webPageUrl: provider.WebPageUrl ?? '',
     canMessage: provider.CanMessage === true,
     isExternal: fromExternalList || provider.IsExternal === true,
   };
@@ -112,15 +109,15 @@ function toMember(provider: ProviderResponse, fromExternalList: boolean): CareTe
 async function loadProviders(
   mychartRequest: MyChartRequest,
   path: string,
-  token: string | undefined,
+  token: string,
 ): Promise<ProviderResponse[]> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['__RequestVerificationToken'] = token;
-
   const resp = await makeAuthenticatedRequest(mychartRequest, {
     path,
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+      '__RequestVerificationToken': token,
+    },
     body: JSON.stringify({}),
   });
 
@@ -155,26 +152,35 @@ async function loadProviders(
  * providers the instance knows about.
  */
 export async function getCareTeam(mychartRequest: MyChartRequest): Promise<CareTeam> {
-  // The activity page carries the antiforgery token its own JS posts back. The
-  // endpoint is not under /api/*, so instances differ on whether they enforce
-  // it; send it when the page has one and let the POST fail loudly if it is
-  // both required and absent.
+  // The activity page carries the antiforgery token its own JS posts back, and
+  // both endpoints refuse a request without it. A page with no token is an
+  // unrecognized state, and this scraper never turns one of those into an
+  // empty care team.
   const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/CareTeam' });
   const token = getRequestVerificationTokenFromBody(await pageResp.text());
-
-  const members = (await loadProviders(mychartRequest, '/Clinical/CareTeam/Load', token))
-    .map((provider) => toMember(provider, false));
-
-  // Care Everywhere is optional per deployment, so a failure here is not fatal
-  // to the internal list — but it is reported rather than swallowed.
-  let externalProvidersUnavailable = false;
-  try {
-    const external = await loadProviders(mychartRequest, '/Clinical/CareTeam/LoadExternal', token);
-    members.push(...external.map((provider) => toMember(provider, true)));
-  } catch (err) {
-    externalProvidersUnavailable = true;
-    logger.debug(`Could not read external care team providers: ${String(err)}`);
+  if (!token) {
+    throw new Error(
+      'No request verification token on /Clinical/CareTeam, which both endpoints require. ' +
+      'The session may have expired, or this instance does not serve the Care Team activity.',
+    );
   }
 
-  return { members, externalProvidersUnavailable };
+  // Neither call depends on the other. Care Everywhere is optional per
+  // deployment, so a failure on the outside-provider arm is not fatal to the
+  // internal list — but it is reported rather than swallowed.
+  const [internal, external] = await Promise.all([
+    loadProviders(mychartRequest, '/Clinical/CareTeam/Load', token),
+    loadProviders(mychartRequest, '/Clinical/CareTeam/LoadExternal', token).catch((err: unknown) => {
+      logger.debug(`Could not read external care team providers: ${String(err)}`);
+      return null;
+    }),
+  ]);
+
+  return {
+    members: [
+      ...internal.map((provider) => toMember(provider, false)),
+      ...(external ?? []).map((provider) => toMember(provider, true)),
+    ],
+    externalProvidersUnavailable: external === null,
+  };
 }

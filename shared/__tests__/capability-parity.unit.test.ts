@@ -474,12 +474,10 @@ describe('npm library', () => {
       disable_totp: 'disableTotp',
     };
 
-    // `comingSoon` capabilities are declared but deliberately unimplemented,
-    // so there is no scraper for the library to wrap. They are still listed by
-    // every client (that is the point — the notice ships everywhere); they
-    // just have no typed method here until the feature lands for real.
-    const comingSoon = new Set(CAPABILITIES.filter((c) => c.comingSoon).map((c) => c.id));
-    const unmapped = ALL.filter((id) => !methodFor[id] && !comingSoon.has(id));
+    // Every capability in the registry is implemented, so every one of them
+    // maps to a library method — there is no "declared but not implemented"
+    // state to carve out.
+    const unmapped = ALL.filter((id) => !methodFor[id]);
     expect(unmapped).toEqual([]);
 
     const absent = Object.values(methodFor).filter((m) => !methods.includes(m));

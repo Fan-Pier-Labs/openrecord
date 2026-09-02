@@ -51,7 +51,8 @@ Live on this account, returning real data. Each of these can have its shape capt
 
 `get_care_team` is implemented (`scrapers/myChart/chart/careTeam.ts`), modelled in fake-mychart
 (`/Clinical/CareTeam/Load` + `/LoadExternal`, shape `careTeamLoad` in `realShapes.ts`), and no longer
-a `comingSoon` stub. The capture, re-verified against **two live instances — one on each captured
+a declared-but-unimplemented stub — a state the registry no longer has at all. The capture,
+re-verified against **two live instances — one on each captured
 Epic release** — because this file is the only record of it:
 
 ```

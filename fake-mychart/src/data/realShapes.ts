@@ -2304,8 +2304,11 @@ export const loadPaymentList = {
 } as const;
 
 // /clinical/careteam/load and /clinical/careteam/loadexternal
+// HAND-WRITTEN, unlike the generated skeletons around it: transcribed from a
+// live response rather than emitted by the capture harness, which does not
+// reach the legacy (non-/api) activities.
 // PascalCase because Care Team is a legacy MVC activity, not one of the React
-// `/api/*` ones. Captured from two live instances, one on each release; both
+// `/api/*` ones. Verified against two live instances, one on each release; both
 // returned this identical 23-field provider shape, and `LoadExternal` returns
 // the same envelope with its own ProvidersList. Three leaves are NOT strings:
 // `CareTeamStatus` is a number, `AboutMeBlurb` is an array, and `Organizations`

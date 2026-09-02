@@ -174,22 +174,6 @@ export interface Capability {
    * {@link COMMON_CAPABILITIES}.
    */
   lessFrequentlyUsed?: boolean;
-  /**
-   * Declared, listed everywhere, and deliberately NOT implemented yet.
-   *
-   * Unlike {@link lessFrequentlyUsed}, this is a capability flag, not a
-   * presentation one: `run` returns the coming-soon notice without touching
-   * the portal. It exists so a feature we cannot yet implement *honestly* is
-   * visible as "not yet" in every client at once, rather than quietly missing
-   * from some and half-working in others.
-   *
-   * The bar for clearing this flag is a capture from a real instance. Shipping
-   * a parser built on guessed field names is worse than shipping nothing,
-   * because a guess that misses is indistinguishable from an empty record —
-   * the patient is told they have no data instead of being told we can't read
-   * it yet.
-   */
-  comingSoon?: boolean;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to

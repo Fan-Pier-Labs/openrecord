@@ -33,6 +33,17 @@ export type KidRecord = {
 
 const PEDIATRICIAN = 'Dr. Julius Hibbert, MD';
 const PEDIATRICIAN_SHORT = 'Julius Hibbert, MD';
+// The same provider entry on all three kids' care teams, as one pediatrician
+// serving a family looks on a real instance.
+const PEDIATRICIAN_PROVIDER = {
+  ID: 'PROV-HIBBERT',
+  Name: PEDIATRICIAN_SHORT,
+  NationalProviderID: '1000000001',
+  Relation: 'Primary Care Provider',
+  Specialty: 'Pediatrics',
+  DepartmentID: 'DEP-PEDS-1',
+  CanMessage: true,
+};
 
 const SPRINGFIELD_PHARMACY = {
   name: 'Kwik-E-Mart Pharmacy',
@@ -151,7 +162,7 @@ const bart: KidRecord = {
     ]),
     careTeam: {
       ProvidersList: [
-        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+        PEDIATRICIAN_PROVIDER,
         { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: '1000000004', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
@@ -208,7 +219,7 @@ const lisa: KidRecord = {
     ]),
     careTeam: {
       ProvidersList: [
-        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+        PEDIATRICIAN_PROVIDER,
       ],
       DescriptiveTitle: 'Your Care Team',
       TabColorClass: 'tab-01',
@@ -259,7 +270,7 @@ const maggie: KidRecord = {
     ]),
     careTeam: {
       ProvidersList: [
-        { ID: 'PROV-HIBBERT', Name: PEDIATRICIAN_SHORT, NationalProviderID: '1000000001', Relation: 'Primary Care Provider', Specialty: 'Pediatrics', DepartmentID: 'DEP-PEDS-1', CanMessage: true },
+        PEDIATRICIAN_PROVIDER,
       ],
       DescriptiveTitle: 'Your Care Team',
       TabColorClass: 'tab-01',

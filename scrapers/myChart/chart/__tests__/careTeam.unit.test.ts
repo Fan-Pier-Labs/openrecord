@@ -107,17 +107,13 @@ describe('getCareTeam', () => {
     }
   })
 
-  it('posts without the token header when the page carries none', async () => {
-    const { req, sent } = mockRequest([
-      { body: '<html></html>' },
-      { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
-      { body: JSON.stringify({ ProvidersList: [] }) },
-    ])
-
-    const result = await getCareTeam(req)
-
-    expect(result.members).toHaveLength(1)
-    expect(sent[1]!.headers['__RequestVerificationToken']).toBeUndefined()
+  // Both endpoints refuse a token-less POST, so a page with no token is an
+  // unrecognized state — never an empty care team, and never a confusing 500
+  // one request later.
+  it('throws when the activity page carries no token, without posting', async () => {
+    const { req, sent } = mockRequest([{ body: '<html></html>' }])
+    await expect(getCareTeam(req)).rejects.toThrow(/No request verification token/)
+    expect(sent).toHaveLength(1)
   })
 
   it('honours IsExternal on a provider returned by the internal list', async () => {
@@ -177,9 +173,9 @@ describe('getCareTeam', () => {
     expect(result.members[0]!.name).toBe('Julius Hibbert, MD')
   })
 
-  it('coerces a numeric id and a missing name rather than dropping the entry', async () => {
-    const { req } = mockRequest(careTeamReplies([{ ID: 42, Specialty: 'Cardiology' }], []))
+  it('fills a field an instance omits rather than dropping the entry', async () => {
+    const { req } = mockRequest(careTeamReplies([{ ID: 'PROV-9', Specialty: 'Cardiology' }], []))
     const result = await getCareTeam(req)
-    expect(result.members[0]).toMatchObject({ id: '42', name: '', specialty: 'Cardiology' })
+    expect(result.members[0]).toMatchObject({ id: 'PROV-9', name: '', specialty: 'Cardiology' })
   })
 })
