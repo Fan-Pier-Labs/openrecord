@@ -12,6 +12,9 @@
  *    carry numeric values and bounds, and responses carry the full real field
  *    set (conformToShape).
  *  - GetMultipleHistoricalResultComponents returns a map keyed by component id.
+ *  - Care Team is a legacy MVC activity: PascalCase envelope, POST-only, every
+ *    request parameter optional, and the antiforgery token enforced like the
+ *    /api/* routes enforce it.
  *  - The epicVersion knob switches the error surface and the November-2025-only
  *    result fields.
  *  - SendMedicalAdviceRequest silently DISCARDS a message body over 500 characters.
@@ -33,6 +36,7 @@ import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { getUpcomingOrders } from '../../chart/upcomingOrders'
 import { getEmergencyContacts } from '../../chart/emergencyContacts'
 import { getVisitNotes } from '../../chart/notes'
+import { getCareTeam } from '../../chart/careTeam'
 import { getLetterDetails } from '../../chart/letters'
 import {
   buildSendPayload,
@@ -223,6 +227,95 @@ describe('real envelopes reach the scrapers end-to-end', () => {
   })
 })
 
+describe('care team fidelity', () => {
+  // Care Team is one of the legacy jQuery activities, not a React /app/* one:
+  // no /api prefix, a PascalCase envelope, and a GET that errors rather than
+  // serving the data the POST returns.
+  it('answers a GET to Load with the ASP.NET error surface, not data', async () => {
+    const res = await session.makeRequest({ path: '/Clinical/CareTeam/Load', followRedirects: false })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('returns the full PascalCase provider shape for a bare POST', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
+      body: '{}',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { ProvidersList: Array<Record<string, unknown>> }
+    expect(body.ProvidersList.length).toBeGreaterThan(0)
+    for (const field of ['ID', 'Name', 'Photo', 'NationalProviderID', 'WebPageUrl', 'AboutMeBlurb',
+      'CanMessage', 'Specialty', 'Relation', 'DepartmentID', 'Organizations', 'IsExternal',
+      'CareTeamStatus', 'CanHideProvider']) {
+      expect(body.ProvidersList[0]).toHaveProperty(field)
+    }
+  })
+
+  it('refuses a token-less POST, exactly as the /api/* routes do', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      followRedirects: false,
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('types the three non-string leaves the way both live instances do', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
+      body: '{}',
+    })
+    const body = await res.json() as { ProvidersList: Array<Record<string, unknown>> }
+    const provider = body.ProvidersList[0]!
+    expect(Array.isArray(provider.AboutMeBlurb)).toBe(true)
+    expect(provider.Organizations).toBeNull()
+    expect(provider.SchedulableVisitTypes).toBeNull()
+    expect(typeof provider.CareTeamStatus).toBe('number')
+  })
+
+  it('serves the outside providers from LoadExternal in the same envelope', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/LoadExternal',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
+      body: '{}',
+    })
+    const body = await res.json() as { ProvidersList: Array<{ Name: string }> }
+    expect(body.ProvidersList.length).toBeGreaterThan(0)
+    expect(body.ProvidersList[0]!.Name).not.toBe('')
+  })
+
+  it('a provider with no stated role sends Relation: null, and reads as no role', async () => {
+    const res = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', '__RequestVerificationToken': 'tok-test' },
+      body: '{}',
+    })
+    const body = await res.json() as { ProvidersList: Array<{ Name: string; Relation: string | null }> }
+    const roleless = body.ProvidersList.find(p => p.Relation === null)
+    expect(roleless).toBeDefined()
+    const team = await getCareTeam(session)
+    expect(team.members.find(m => m.name === roleless!.Name)!.relation).toBe('')
+  })
+
+  it('the scraper reads both lists', async () => {
+    const team = await getCareTeam(session)
+    expect(team.externalProvidersUnavailable).toBe(false)
+    expect(team.members.filter(m => !m.isExternal).length).toBeGreaterThan(0)
+    expect(team.members.filter(m => m.isExternal).length).toBeGreaterThan(0)
+    expect(team.members[0]!.relation).not.toBe('')
+  })
+})
+
 describe('conformToShape fills the full real field set', () => {
   it('LoadAllergies carries the page-level fields real instances return', async () => {
     const res = await api('/api/allergies/LoadAllergies', {})
@@ -264,6 +357,32 @@ describe('epicVersion knob', () => {
     })
     expect(noToken.status).toBe(500)
     await setEpicVersion('November 2025')
+  })
+
+  it('care team: August 2025 refuses a GET and a token-less POST with a bare 500', async () => {
+    // The two live instances differ here and nowhere else: the November one
+    // answers both with the FourOhFour/FiveHundred redirect dance (asserted
+    // above), the August one with a bare 500. The PAYLOAD is identical on both
+    // releases — no care-team field rides on the version, unlike test results.
+    await setEpicVersion('August 2025')
+
+    const get = await session.makeRequest({ path: '/Clinical/CareTeam/Load', followRedirects: false })
+    expect(get.status).toBe(500)
+    expect(get.headers.get('content-type') ?? '').toContain('text/html')
+
+    const noToken = await session.makeRequest({
+      path: '/Clinical/CareTeam/Load',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      followRedirects: false,
+    })
+    expect(noToken.status).toBe(500)
+
+    const legacyTeam = await getCareTeam(session)
+    await setEpicVersion('November 2025')
+    const modernTeam = await getCareTeam(session)
+    expect(legacyTeam).toEqual(modernTeam)
   })
 
   it('August 2025 drops the November-2025-only result fields', async () => {

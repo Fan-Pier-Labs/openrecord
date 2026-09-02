@@ -2452,6 +2452,50 @@ export const loadPaymentList = {
   }
 } as const;
 
+// /clinical/careteam/load and /clinical/careteam/loadexternal
+// HAND-WRITTEN, unlike the generated skeletons around it: transcribed from a
+// live response rather than emitted by the capture harness, which does not
+// reach the legacy (non-/api) activities.
+// PascalCase because Care Team is a legacy MVC activity, not one of the React
+// `/api/*` ones. Verified against two live instances, one on each release; both
+// returned this identical 23-field provider shape, and `LoadExternal` returns
+// the same envelope with its own ProvidersList. Three leaves are NOT strings:
+// `CareTeamStatus` is a number, `AboutMeBlurb` is an array, and `Organizations`
+// / `SchedulableVisitTypes` are null on both instances.
+export const careTeamLoad = {
+  "ProvidersList": [
+    {
+      "ID": "",
+      "Name": "",
+      "Photo": "",
+      "NationalProviderID": "",
+      "WebPageUrl": "",
+      "InfoBlurbUrl": "",
+      "AboutMeBlurb": [],
+      "CanViewProviderDetails": false,
+      "CanDirectSchedule": false,
+      "CanRequestAppointment": false,
+      "CanMessage": false,
+      "CommCenterMessageUrl": "",
+      "CanRequestCustomAppt": false,
+      "HasNoProviderRecord": false,
+      "IsNewSchedulingEnabled": false,
+      "Specialty": "",
+      "Relation": "",
+      "SchedulableVisitTypes": null,
+      "DepartmentID": "",
+      "Organizations": null,
+      "IsExternal": false,
+      "CareTeamStatus": 0,
+      "CanHideProvider": false
+    }
+  ],
+  "DescriptiveTitle": "",
+  "TabColorClass": "",
+  "IsCustomApptReqEnabled": false,
+  "CustomRequestAppointmentLink": ""
+} as const;
+
 // /community/shared/loadcommunitylinks
 export const loadCommunityLinks = {
   "IsConsentNeeded": false,
