@@ -222,11 +222,82 @@ export const vitalsReadings = {
   userSettings: {},
 };
 
-// ─── Care Team (HTML parsed) ────────────────────────────────────────
-export const careTeam = [
-  { name: 'Julius Hibbert, MD', role: 'Primary Care Provider', specialty: 'Internal Medicine' },
-  { name: 'Nick Riviera, MD', role: 'Surgeon', specialty: 'General Surgery' },
-];
+// ─── Care Team ──────────────────────────────────────────────────────
+// PascalCase because /Clinical/CareTeam/Load is a legacy MVC activity, not one
+// of the React /api/* endpoints. `Relation` carries the role (the PCP
+// designation lives there); `Specialty` the department specialty. The fields
+// left out here are filled from the shape template: on both captured instances
+// `AboutMeBlurb` was an empty array and `Organizations` /
+// `SchedulableVisitTypes` were null on every provider. `TabColorClass` and
+// `CustomRequestAppointmentLink` ride along because both instances always
+// populated them — a fixture that left them to the template's "" would show
+// scrapers an empty string real MyChart never sends.
+export const careTeam = {
+  ProvidersList: [
+    {
+      ID: 'PROV-HIBBERT',
+      Name: 'Julius Hibbert, MD',
+      NationalProviderID: '1000000001',
+      Specialty: 'Internal Medicine',
+      Relation: 'Primary Care Provider',
+      DepartmentID: 'DEP-IM-1',
+      CanMessage: true,
+      WebPageUrl: '/MyChart/Clinical/Provider/PROV-HIBBERT',
+    },
+    {
+      ID: 'PROV-RIVIERA',
+      Name: 'Nick Riviera, MD',
+      NationalProviderID: '1000000002',
+      Specialty: 'General Surgery',
+      Relation: 'Surgeon',
+      DepartmentID: 'DEP-SURG-1',
+      CanMessage: false,
+    },
+    {
+      // Not every care-team entry is a clinician: one instance listed the
+      // patient's insurance payer here, with `Relation: 'Payer'`, no NPI and
+      // no specialty. Anything that assumes "care team member" means "doctor"
+      // is wrong on a real chart, so the fake says so too.
+      ID: 'PAYER-SNPP',
+      Name: 'Springfield Nuclear Power Plant Employee Health Plan',
+      Relation: 'Payer',
+      CanMessage: false,
+    },
+    {
+      // A provider with no stated role: `Relation` comes back literally null,
+      // not "", on a real instance — most of one account's providers did — so
+      // anything reading this field meets that case here too.
+      ID: 'PROV-VELIMIROVIC',
+      Name: 'Dr. Velimirovic, MD',
+      NationalProviderID: '1000000004',
+      Specialty: 'Cardiothoracic Surgery',
+      Relation: null,
+      DepartmentID: 'DEP-SURG-2',
+      CanMessage: true,
+    },
+  ],
+  DescriptiveTitle: 'Your Care Team',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
+};
+
+// The Care Everywhere / outside-provider list, served by
+// /Clinical/CareTeam/LoadExternal in the same envelope.
+export const careTeamExternal = {
+  ProvidersList: [
+    {
+      ID: 'PROV-EXT-MONROE',
+      Name: 'Marvin Monroe, MD',
+      NationalProviderID: '1000000003',
+      Specialty: 'Psychiatry',
+      Relation: 'Outside Provider',
+      IsExternal: true,
+    },
+  ],
+  DescriptiveTitle: 'Providers outside this organization',
+  TabColorClass: 'tab-01',
+  CustomRequestAppointmentLink: '/MyChart/scheduling/request',
+};
 
 // ─── Insurance (HTML parsed) ────────────────────────────────────────
 export const insurance = [
