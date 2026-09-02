@@ -20,8 +20,8 @@ import { logger } from '../../../shared/logger';
  * `isPrimaryStandalone`) is optional — a bare POST with `{}` returns exactly
  * what the page's own parameters return. Both endpoints require the
  * antiforgery token from the activity page, like the `/api/*` routes do.
- * Field names and types below were verified against two live instances (one on
- * each captured Epic release); see `docs/api-surface-gaps.md` §1a.
+ * Field names and types below were verified against four live instances,
+ * spanning both captured Epic releases; see `docs/api-surface-gaps.md` §1a.
  *
  * The previous version of this scraper was withdrawn (#313) for guessing at all
  * of that, because a wrong guess here does not fail visibly — it renders to the
@@ -35,10 +35,14 @@ import { logger } from '../../../shared/logger';
  * them is the mistake this scraper exists to not repeat.
  */
 export type CareTeamMember = {
-  /** Opaque provider id (`ID`): an ~86-character token, not a number. */
+  /** Opaque provider id (`ID`): an 86–88 character token, not a number. */
   id: string;
   name: string;
-  /** The provider's role on this care team, e.g. the PCP designation. */
+  /**
+   * The entry's role on this care team — the PCP designation appears here.
+   * Not every entry is a clinician: one instance listed the patient's
+   * insurance payer as `Payer`, and an entry may have no stated role at all.
+   */
   relation: string;
   specialty: string;
   nationalProviderId: string;

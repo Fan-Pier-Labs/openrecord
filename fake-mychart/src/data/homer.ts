@@ -254,6 +254,16 @@ export const careTeam = {
       CanMessage: false,
     },
     {
+      // Not every care-team entry is a clinician: one instance listed the
+      // patient's insurance payer here, with `Relation: 'Payer'`, no NPI and
+      // no specialty. Anything that assumes "care team member" means "doctor"
+      // is wrong on a real chart, so the fake says so too.
+      ID: 'PAYER-SNPP',
+      Name: 'Springfield Nuclear Power Plant Employee Health Plan',
+      Relation: 'Payer',
+      CanMessage: false,
+    },
+    {
       // A provider with no stated role: `Relation` comes back literally null,
       // not "", on a real instance — most of one account's providers did — so
       // anything reading this field meets that case here too.

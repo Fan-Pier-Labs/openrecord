@@ -209,6 +209,13 @@ for (const mode of MOUNT_MODES) {
       expect(pcp?.specialty).toBeTruthy()
       expect(pcp?.isExternal).toBe(false)
       expect(result.members.some(m => m.isExternal)).toBe(true)
+
+      // A real care team is not all clinicians: one instance listed the
+      // patient's insurance payer, with no NPI and no specialty.
+      const payer = result.members.find(m => m.relation === 'Payer')
+      expect(payer?.name).toBeTruthy()
+      expect(payer?.nationalProviderId).toBe('')
+      expect(payer?.specialty).toBe('')
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
