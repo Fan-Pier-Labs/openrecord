@@ -19,7 +19,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin } from '../../auth/login'
-import { setMountMode, resetFakeMyChart } from './mountMode'
+import { setMountMode, resetFakeMyChart, setThreadEndpointMode } from './mountMode'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -159,6 +159,31 @@ describe('capability registry against fake-mychart', () => {
     // The fixture thread is a back-and-forth, so both sides must be attributed.
     expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
+  }, 30_000)
+
+  // One live instance answers GetConversationMessages with a 500 for every
+  // conversation and inlines the whole account's messages in the listing
+  // instead. The thread has to come back anyway.
+  it('returns the thread on an instance whose GetConversationMessages 500s', async () => {
+    await setThreadEndpointMode(HOST, 'errors')
+    try {
+      const inbox = (await executeCapability(session, 'get_messages')) as {
+        conversations?: Array<{ hthId: string; subject: string; messages: unknown[] }>
+      }
+      const conversation = inbox.conversations?.[0]
+      expect(conversation).toBeDefined()
+
+      const thread = (await executeCapability(session, 'get_message_thread', {
+        conversation_id: conversation!.hthId,
+      })) as { subject: string; messages: Array<{ messageBody: string; isFromPatient: boolean }> }
+
+      expect(thread.subject).toBe(conversation!.subject)
+      expect(thread.messages).toHaveLength(conversation!.messages.length)
+      expect(thread.messages.every((m) => m.messageBody !== '')).toBe(true)
+      expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
+    } finally {
+      await setThreadEndpointMode(HOST, 'serves')
+    }
   }, 30_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────

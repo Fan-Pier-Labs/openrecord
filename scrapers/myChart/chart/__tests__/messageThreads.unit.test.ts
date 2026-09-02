@@ -10,6 +10,13 @@ import { MyChartRequest } from '../../core/myChartRequest'
 const HIBBERT = { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' }
 const HOMER = { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' }
 
+/**
+ * What the live instances actually send: exactly one key per author, and an
+ * empty displayName with the name only in the users / viewers maps.
+ */
+const NAMELESS_STAFF = { displayName: '', empKey: 'PROV-HIBBERT' }
+const NAMELESS_PATIENT = { displayName: '', wprKey: 'WPR-HOMER' }
+
 const THREAD_MESSAGES = [
   { wmgId: 'MSG-001', author: HIBBERT, deliveryInstantISO: '2026-01-10T14:30:00Z', body: 'How are you feeling?' },
   { wmgId: 'MSG-002', author: HOMER, deliveryInstantISO: '2026-01-10T15:45:00Z', body: 'Much better, thanks.' },
@@ -28,13 +35,23 @@ const CONVERSATION_LIST = {
  * Routes by URL rather than call order: the thread fetches the list and the
  * messages concurrently, so their order on the wire isn't fixed.
  */
-function mockRequest(bodies: { page: string; list?: unknown; messages?: unknown }) {
+function mockRequest(bodies: {
+  page: string
+  list?: unknown
+  messages?: unknown
+  messagesRaw?: string
+  messagesStatus?: number
+}) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   req.transport = mock(async (url: string | URL) => {
     const href = String(url)
     if (href.includes('GetConversationList')) return new Response(JSON.stringify(bodies.list ?? {}), { status: 200 })
-    if (href.includes('GetConversationMessages')) return new Response(JSON.stringify(bodies.messages ?? {}), { status: 200 })
+    if (href.includes('GetConversationMessages')) {
+      return new Response(bodies.messagesRaw ?? JSON.stringify(bodies.messages ?? {}), {
+        status: bodies.messagesStatus ?? 200,
+      })
+    }
     return new Response(bodies.page, { status: 200 })
   })
   return req
@@ -57,11 +74,26 @@ describe('toThreadMessage', () => {
     expect(toThreadMessage(THREAD_MESSAGES[1]!).isFromPatient).toBe(true)
   })
 
-  it('falls back to the key maps when an author has no display name', () => {
-    expect(toThreadMessage({ wmgId: 'M', author: { empKey: 'PROV-HIBBERT' } }, CONVERSATION_LIST).senderName)
+  // Every inline message on the live instances we can check had an empty
+  // displayName, so the maps carry the whole load rather than filling an
+  // occasional gap.
+  it('resolves names through the key maps when displayName is empty', () => {
+    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_STAFF }, CONVERSATION_LIST).senderName)
       .toBe('Julius Hibbert, MD')
-    expect(toThreadMessage({ wmgId: 'M', author: { wprKey: 'WPR-HOMER' } }, CONVERSATION_LIST).senderName)
+    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_PATIENT }, CONVERSATION_LIST).senderName)
       .toBe('Homer Simpson')
+  })
+
+  it('attributes a nameless author by which key it carries', () => {
+    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_STAFF }).isFromPatient).toBe(false)
+    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_PATIENT }).isFromPatient).toBe(true)
+  })
+
+  it("falls back to the conversation's userOverrideNames for a staff author", () => {
+    const named = toThreadMessage({ wmgId: 'M', author: { displayName: '', empKey: 'PROV-NICK' } }, CONVERSATION_LIST, {
+      'PROV-NICK': 'Nick Riviera, MD',
+    })
+    expect(named.senderName).toBe('Nick Riviera, MD')
   })
 
   it('defaults every field on a message with nothing in it', () => {
@@ -79,7 +111,7 @@ describe('getConversationMessages', () => {
   it('returns empty thread when no token found', async () => {
     const req = mockRequest({ page: '<html></html>' })
     const result = await getConversationMessages(req, 'conv-1')
-    expect(result).toEqual({ conversationId: 'conv-1', subject: '', messages: [] })
+    expect(result).toEqual({ conversationId: 'conv-1', subject: '', messages: [], truncated: false })
   })
 
   it('populates every field from the API response', async () => {
@@ -93,6 +125,7 @@ describe('getConversationMessages', () => {
     expect(result).toEqual({
       conversationId: 'conv-1',
       subject: 'Follow-up',
+      truncated: false,
       messages: [
         {
           messageId: 'MSG-001',
@@ -120,9 +153,67 @@ describe('getConversationMessages', () => {
     expect(result.messages[0]!.messageBody).toBe('How are you feeling?')
   })
 
+  // patientgateway.massgeneralbrigham.org answers this endpoint with a 500 and
+  // `{"Message":"An error has occurred."}` on every conversation, for every
+  // body and content-type we tried. Every message on that account is inlined
+  // in the listing instead, so the thread has to come from there.
+  it('falls back to the listing when GetConversationMessages errors', async () => {
+    const req = mockRequest({
+      page: TOKEN_PAGE,
+      list: CONVERSATION_LIST,
+      messages: { Message: 'An error has occurred.' },
+      messagesStatus: 500,
+    })
+
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.subject).toBe('Follow-up')
+    expect(result.messages).toHaveLength(2)
+    expect(result.messages[1]!.isFromPatient).toBe(true)
+    expect(result.truncated).toBe(false)
+  })
+
+  it('survives an HTML error page from GetConversationMessages', async () => {
+    const req = mockRequest({ page: TOKEN_PAGE, list: CONVERSATION_LIST, messagesRaw: '<html>error</html>' })
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.messages).toHaveLength(2)
+  })
+
+  // Conversations there do claim more messages than the listing carries, and
+  // the endpoint that would fetch them is the one that 500s.
+  it('reports a thread as truncated when the listing is all there is', async () => {
+    const req = mockRequest({
+      page: TOKEN_PAGE,
+      list: {
+        ...CONVERSATION_LIST,
+        conversations: [{ ...CONVERSATION_LIST.conversations[0]!, hasMoreMessages: true }],
+      },
+      messages: { Message: 'An error has occurred.' },
+      messagesStatus: 500,
+    })
+
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.messages).toHaveLength(2)
+    expect(result.truncated).toBe(true)
+  })
+
+  it('is not truncated when the endpoint returns the fuller thread', async () => {
+    const req = mockRequest({
+      page: TOKEN_PAGE,
+      list: {
+        ...CONVERSATION_LIST,
+        conversations: [{ ...CONVERSATION_LIST.conversations[0]!, hasMoreMessages: true, messages: [THREAD_MESSAGES[0]!] }],
+      },
+      messages: { messages: THREAD_MESSAGES },
+    })
+
+    const result = await getConversationMessages(req, 'conv-1')
+    expect(result.messages).toHaveLength(2)
+    expect(result.truncated).toBe(false)
+  })
+
   it('returns no messages for a conversation the API does not know', async () => {
     const req = mockRequest({ page: TOKEN_PAGE, list: CONVERSATION_LIST, messages: { messages: [] } })
     const result = await getConversationMessages(req, 'conv-404')
-    expect(result).toEqual({ conversationId: 'conv-404', subject: '', messages: [] })
+    expect(result).toEqual({ conversationId: 'conv-404', subject: '', messages: [], truncated: false })
   })
 })

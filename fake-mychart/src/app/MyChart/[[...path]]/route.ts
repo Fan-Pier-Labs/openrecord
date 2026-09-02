@@ -20,6 +20,7 @@ import { publicBaseUrl } from '@/lib/publicUrl';
 import { servesProxySwitchJson } from '@/lib/proxy';
 import { getRequireTerms } from '@/lib/terms';
 import { isLegacyEpicVersion } from '@/lib/epicVersion';
+import { threadEndpointErrors } from '@/lib/threadEndpoint';
 import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
@@ -1138,6 +1139,10 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     return json(conformToShape(shapes.getConversationList, activeConversations(request)));
   }
   if (lower === 'api/conversations/getconversationmessages') {
+    // Some live instances never serve this endpoint at all.
+    if (threadEndpointErrors()) {
+      return json({ Message: 'An error has occurred.' }, 500);
+    }
     try {
       const body = await request.json();
       const conv = activeConversations(request).conversations.find(

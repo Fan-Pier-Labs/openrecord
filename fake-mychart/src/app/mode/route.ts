@@ -12,6 +12,12 @@ import {
 } from '@/lib/proxy';
 import { getRequireTerms, setRequireTerms } from '@/lib/terms';
 import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from '@/lib/epicVersion';
+import {
+  getThreadEndpointMode,
+  setThreadEndpointMode,
+  THREAD_ENDPOINT_MODES,
+  type ThreadEndpointMode,
+} from '@/lib/threadEndpoint';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
@@ -71,6 +77,7 @@ function currentSettings() {
     proxyDiscovery: getProxyDiscoveryMode(),
     requireTerms: getRequireTerms(),
     epicVersion: getEpicVersion(),
+    conversationMessages: getThreadEndpointMode(),
   };
 }
 
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion } = body ?? {};
+  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, conversationMessages } = body ?? {};
 
   if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
@@ -130,6 +137,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (
+    conversationMessages !== undefined
+    && (typeof conversationMessages !== 'string' || !THREAD_ENDPOINT_MODES.includes(conversationMessages as ThreadEndpointMode))
+  ) {
+    return NextResponse.json(
+      { error: `conversationMessages must be one of ${THREAD_ENDPOINT_MODES.join(', ')}`, received: conversationMessages },
+      { status: 400 },
+    );
+  }
+
+  if (
     epicVersion !== undefined
     && (typeof epicVersion !== 'string' || !EPIC_VERSIONS.includes(epicVersion as EpicVersion))
   ) {
@@ -152,9 +169,10 @@ export async function POST(request: NextRequest) {
   if (
     mode === undefined && discovery === undefined && movedHost === undefined
     && proxyDiscovery === undefined && requireTerms === undefined && epicVersion === undefined
+    && conversationMessages === undefined
   ) {
     return NextResponse.json(
-      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion' },
+      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, conversationMessages' },
       { status: 400 },
     );
   }
@@ -165,6 +183,7 @@ export async function POST(request: NextRequest) {
   if (proxyDiscovery !== undefined) setProxyDiscoveryMode(proxyDiscovery as ProxyDiscoveryMode);
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
   if (epicVersion !== undefined) setEpicVersion(epicVersion as EpicVersion);
+  if (conversationMessages !== undefined) setThreadEndpointMode(conversationMessages as ThreadEndpointMode);
 
   return NextResponse.json({ ok: true, ...currentSettings() });
 }

@@ -26,6 +26,10 @@ export interface ConversationEntry {
   lastMessageDateDisplay?: string;
   audience?: { name: string }[];
   messages?: ConversationMessage[];
+  /** Set when the conversation has messages the listing did not inline. */
+  hasMoreMessages?: boolean;
+  /** Per-conversation display names, keyed by the author's `empKey`. */
+  userOverrideNames?: Record<string, string>;
 }
 
 export interface ConversationListResponse {
