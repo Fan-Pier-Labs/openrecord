@@ -24,41 +24,31 @@ export type AbnormalFlagSource = 'reported' | 'derived';
 /**
  * Values seen in `abnormalFlagCategoryValue`, keyed by their letters and digits
  * lowercased. Epic populates the field from the lab's HL7 abnormal flag, so
- * both the spelled-out category names and the raw HL7 codes (H, L, HH, LL, A,
- * N) turn up depending on the instance. Anything not listed here — `Unknown`,
- * `None`, an empty string, a numeric id we can't read — falls through to the
- * reference range.
+ * both the raw code and the spelled-out category name turn up depending on the
+ * instance. Deliberately short: only the codes and names we have actually seen
+ * are listed, because a wrong mapping here changes what a patient is told
+ * about their result. Anything else — `Unknown`, `None`, an empty string, a
+ * numeric id we can't read — falls through to the reference range, which is
+ * the safe answer for a spelling nobody has captured.
  */
 const REPORTED_FLAGS: Record<string, AbnormalFlag> = {
+  // HL7 abnormal flag codes, which Epic populates this field from.
   n: 'normal',
-  normal: 'normal',
-  wnl: 'normal',
-  withinnormallimits: 'normal',
-
   l: 'low',
-  low: 'low',
-  abnormallow: 'low',
-  belowlownormal: 'low',
-
   h: 'high',
-  high: 'high',
-  abnormalhigh: 'high',
-  abovehighnormal: 'high',
-
   ll: 'criticalLow',
-  criticallow: 'criticalLow',
-  paniclow: 'criticalLow',
-  belowlowerpaniclimits: 'criticalLow',
-
   hh: 'criticalHigh',
-  criticalhigh: 'criticalHigh',
-  panichigh: 'criticalHigh',
-  abovehigherpaniclimits: 'criticalHigh',
-
   a: 'abnormal',
-  aa: 'abnormal',
+
+  // The spelled-out category names for those same codes.
+  normal: 'normal',
+  low: 'low',
+  high: 'high',
+  abnormallow: 'low',
+  abnormalhigh: 'high',
+  criticallow: 'criticalLow',
+  criticalhigh: 'criticalHigh',
   abnormal: 'abnormal',
-  critical: 'abnormal',
 };
 
 /** The instance's own flag, or null when it reported nothing we recognize. */
@@ -105,26 +95,19 @@ export function deriveFlagFromRange(info: ComponentResultInfo): AbnormalFlag | n
   return 'normal';
 }
 
-/** Every flag except `normal` means the component is outside its range. */
-export function isAbnormalFlag(flag: AbnormalFlag): boolean {
-  return flag !== 'normal';
-}
-
 /**
  * Annotate one component in place with `abnormalFlag` / `isAbnormal` /
  * `abnormalFlagSource`, leaving the instance's raw
  * `abnormalFlagCategoryValue` exactly as it arrived. A component we can't
  * judge keeps all three fields absent.
  */
-export function annotateComponentResultInfo(info: ComponentResultInfo | undefined): void {
-  if (!info) return;
-
+export function annotateComponentResultInfo(info: ComponentResultInfo): void {
   const reported = normalizeReportedFlag(info.abnormalFlagCategoryValue);
   const flag = reported ?? deriveFlagFromRange(info);
   if (!flag) return;
 
   info.abnormalFlag = flag;
-  info.isAbnormal = isAbnormalFlag(flag);
+  info.isAbnormal = flag !== 'normal';
   info.abnormalFlagSource = reported ? 'reported' : 'derived';
 }
 
@@ -132,7 +115,7 @@ export function annotateComponentResultInfo(info: ComponentResultInfo | undefine
 export function annotateLabTestResult<T extends LabTestResult>(test: T): T {
   for (const result of test.results ?? []) {
     for (const component of result?.resultComponents ?? []) {
-      annotateComponentResultInfo(component?.componentResultInfo);
+      if (component?.componentResultInfo) annotateComponentResultInfo(component.componentResultInfo);
     }
   }
   return test;
@@ -142,7 +125,7 @@ export function annotateLabTestResult<T extends LabTestResult>(test: T): T {
 export function annotateHistoricalResults<T extends HistoricalResultsResponse>(history: T): T {
   for (const component of Object.values(history.historicalResults ?? {})) {
     for (const point of component?.historicalResultData ?? []) {
-      annotateComponentResultInfo(point);
+      if (point) annotateComponentResultInfo(point);
     }
   }
   return history;

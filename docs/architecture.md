@@ -254,27 +254,13 @@ Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 
 ## Per-component abnormal flags (`scrapers/myChart/chart/labs/abnormalFlags.ts`)
 
-MyChart carries a per-component `abnormalFlagCategoryValue`, but most instances leave it `"Unknown"`
-on every component — a lipid panel flagged `isAbnormal: true` at the order level still says nothing
-about which component is out of range. Every lab detail and every historical trend point therefore
-gets annotated on the way out of `getLabResult` / `getHistoricalResults` with three fields:
-
-- `abnormalFlag` — `normal` | `low` | `high` | `criticalLow` | `criticalHigh` | `abnormal`
-- `isAbnormal` — the same verdict as a boolean (anything but `normal`)
-- `abnormalFlagSource` — `reported` when the instance's own flag was usable, `derived` when we
-  compared the value against `referenceRange`
-
-**The instance's flag always wins**; the reference range is only consulted when it reported nothing
-we recognize. Reported values are matched on their letters and digits only, so both Epic's category
-names (`Abnormal High`) and the raw HL7 codes they come from (`H`, `LL`) map through. Derivation
-needs a number on both sides — a qualitative result (`NEGATIVE`), a censored one (`<0.01`), or a
-range with no numeric bound leaves **all three fields absent**, so a missing `abnormalFlag` means
-"we don't know", never "normal". `referenceRange.lowerBoundExclusive` / `upperBoundExclusive` are
-honored: on an exclusive bound, a value equal to it is out of range.
-
-The raw `abnormalFlagCategoryValue` is never touched — the fake serves `"Unknown"` because real
-captures do, and both the fake and the scraper are held to that in
-`scrapers/myChart/__tests__/fake-mychart/fake-mychart.integration.test.ts`.
+Most instances leave the per-component `abnormalFlagCategoryValue` at `"Unknown"`, so a panel
+flagged `isAbnormal: true` says nothing about which component is out of range. `getLabResult` and
+`getHistoricalResults` therefore annotate every component and every trend point with
+`abnormalFlag` / `isAbnormal` / `abnormalFlagSource` on the way out. **A missing `abnormalFlag`
+means "we don't know", never "normal"**, and the raw `abnormalFlagCategoryValue` is never touched —
+the fake serves `"Unknown"` because real captures do. The module header has the mapping rules;
+`fake-mychart.integration.test.ts` holds both ends to them.
 
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)
 

@@ -39,6 +39,14 @@ describe('normalizeReportedFlag', () => {
       expect(normalizeReportedFlag(raw)).toBeNull()
     }
   })
+
+  it('falls through on a spelling nobody has captured rather than guessing at it', () => {
+    // The table is deliberately narrow: an unrecognized value is answered by
+    // the reference range, not by a mapping invented ahead of a capture.
+    for (const raw of ['WNL', 'Panic High', 'Below Low Normal', 'AA']) {
+      expect(normalizeReportedFlag(raw)).toBeNull()
+    }
+  })
 })
 
 describe('deriveFlagFromRange', () => {

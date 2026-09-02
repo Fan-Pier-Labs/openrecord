@@ -245,18 +245,9 @@ export interface HistoricalComponentResult {
   historicalResultData: HistoricalResultDataPoint[]
 }
 
-export interface HistoricalResultDataPoint {
-  value: string
-  isValueRtf: boolean
-  numericValue?: number
-  referenceRange: ReferenceRange
-  abnormalFlagCategoryValue: string | number
+/** A component result as it stood on an earlier date — the same shape, plus when. */
+export interface HistoricalResultDataPoint extends ComponentResultInfo {
   dateISO: string
-
-  // Added by us, exactly as on ComponentResultInfo above.
-  abnormalFlag?: AbnormalFlag
-  isAbnormal?: boolean
-  abnormalFlagSource?: AbnormalFlagSource
 }
 
 // Extended lab result that includes historical trend data
