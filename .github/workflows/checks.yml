@@ -68,6 +68,14 @@ jobs:
         run: bun run typecheck
       - name: Typecheck Expo app
         run: cd expo-app && bun run typecheck
+      # The browser demo is its own tsconfig project that nothing else reaches:
+      # the root include covers openrecord-splash/__tests__ and stops there. It
+      # was linted (eslint's projectService finds it) but never typechecked, so
+      # a plain type error in it shipped green. It carries no node_modules of
+      # its own — react, vite and the type packages all come from the root
+      # install above.
+      - name: Typecheck splash demo
+        run: cd openrecord-splash/demo && bun run typecheck
       # `smoke` is `build` plus a boot check: it starts the built bundle as an
       # MCP stdio server and does a real initialize / tools/list / tools/call
       # exchange, from a staged copy holding only what the .mcpb ships. It is
