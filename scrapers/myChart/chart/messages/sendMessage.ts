@@ -177,15 +177,51 @@ async function removeComposeId(
   );
 }
 
+const SEND_PATH = '/api/medicaladvicerequests/SendMedicalAdviceRequest';
+
 /**
- * Per-instance Epic quirk (measured on myhealthchart.com, 2026-08-28): the
- * send endpoint answers HTTP 200 with an empty conversation id for message
- * bodies over 500 characters (500 accepted, 501+ silently dropped) — no
- * error is returned. Other instances may accept more; the 200-without-id
- * branch below still catches any silent drop regardless of cause.
+ * The body `sendNewMessage` posts to `SEND_PATH`, split out so tests can send
+ * the real shape rather than a hand-copied one that drifts from it.
  *
- * Boundary derived by bisection on ASCII; Epic's counting for non-ASCII
- * bodies (characters vs UTF-16 code units vs bytes) is unverified.
+ * `recipientType` and `oocContext` are harmless on instances that ignore them
+ * and required on some, so they always go out.
+ */
+export function buildSendPayload(
+  params: SendNewMessageParams,
+  session: { wprId: string; composeId: string },
+): Record<string, unknown> {
+  return {
+    recipient: {
+      recipientType: params.recipient.recipientType,
+      displayName: params.recipient.displayName,
+      userId: params.recipient.userId,
+      poolId: params.recipient.poolId,
+      providerId: params.recipient.providerId,
+      departmentId: params.recipient.departmentId,
+      oocContext: params.recipient.oocContext ?? 0,
+    },
+    topic: {
+      title: params.topic.displayName,
+      value: params.topic.value,
+    },
+    conversationId: '',
+    organizationId: params.organizationId ?? '',
+    viewers: [{ wprId: session.wprId }],
+    messageBody: [params.messageBody],
+    messageSubject: params.subject,
+    documentIds: [],
+    includeOtherViewers: false,
+    composeId: session.composeId,
+  };
+}
+
+/**
+ * Per-instance Epic quirk: the send endpoint answers HTTP 200 with an empty
+ * conversation id, and files nothing, for message bodies over this length.
+ * Measured, and modelled by fake-mychart — see the behavioral contract in
+ * `fake-mychart/README.md`. Other instances may accept more; the
+ * 200-without-id branch below still catches any silent drop regardless of
+ * cause.
  */
 const MAX_MESSAGE_BODY_LENGTH = 500;
 /** Cap on raw response-body text kept for diagnostics. */
@@ -231,34 +267,10 @@ export async function sendNewMessage(
   }
 
   // Step 4: Send the message
-  const sendBody = {
-    recipient: {
-      recipientType: params.recipient.recipientType,
-      displayName: params.recipient.displayName,
-      userId: params.recipient.userId,
-      poolId: params.recipient.poolId,
-      providerId: params.recipient.providerId,
-      departmentId: params.recipient.departmentId,
-      oocContext: params.recipient.oocContext ?? 0,
-    },
-    topic: {
-      title: params.topic.displayName,
-      value: params.topic.value,
-    },
-    conversationId: '',
-    organizationId,
-    viewers: [{ wprId }],
-    messageBody: [params.messageBody],
-    messageSubject: params.subject,
-    documentIds: [],
-    includeOtherViewers: false,
-    composeId,
-  };
-
   const result = await makeApiRequest(
     mychartRequest,
-    '/api/medicaladvicerequests/SendMedicalAdviceRequest',
-    sendBody,
+    SEND_PATH,
+    buildSendPayload(params, { wprId, composeId }),
     token,
   );
 
@@ -275,7 +287,7 @@ export async function sendNewMessage(
     const rawBody = result.text.slice(0, MAX_LOGGED_BODY);
     logger.error(
       '[sendMessage] indeterminate send: HTTP 200 without a conversation id. ' +
-      `path=/api/medicaladvicerequests/SendMedicalAdviceRequest ` +
+      `path=${SEND_PATH} ` +
       `body=${JSON.stringify(rawBody)}`,
     );
     return {
