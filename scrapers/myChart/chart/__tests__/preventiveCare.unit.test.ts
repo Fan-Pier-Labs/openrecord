@@ -100,6 +100,23 @@ describe('getPreventiveCare', () => {
     ])
   })
 
+  it('falls back to text when the only table on the page is unrelated', async () => {
+    const html = `
+      <html><body>
+        <h1>Preventive Care</h1>
+        <table>
+          <tr><th>Provider</th><th>Phone</th></tr>
+          <tr><td>Springfield General</td><td>555-0100</td></tr>
+        </table>
+        <div>Colonoscopy</div>
+        <div>Overdue since 01/01/2023</div>
+      </body></html>
+    `
+    const result = await getPreventiveCare(mockRequest(html))
+    expect(result.map(i => i.name)).toEqual(['Colonoscopy'])
+    expect(result[0]!.overdueSince).toBe('01/01/2023')
+  })
+
   it('does not treat a status badge as the name of the next screening', async () => {
     const html = `
       <html><body>
