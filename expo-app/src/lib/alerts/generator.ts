@@ -3,6 +3,7 @@ import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
 import type { BillingAccount } from "../../../../scrapers/myChart/chart/bills/types";
 import type { MedicationsResult, Medication } from "../../../../scrapers/myChart/chart/medications";
 import type { LabTestResultWithHistory } from "../../../../scrapers/myChart/chart/labs/labtestresulttype";
+import { isOutOfRange, rangeVerdict } from "./outOfRange";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;
 
@@ -116,13 +117,17 @@ function buildLabAlerts(tests: LabTestResultWithHistory[]): AlertInput[] {
   const out: AlertInput[] = [];
   for (const test of tests) {
     for (const r of test.results ?? []) {
-      if (!r.isAbnormal) continue;
-      // `abnormalFlag`/`isAbnormal` are the scraper's normalized verdict — the
-      // instance's own `abnormalFlagCategoryValue` is "Unknown" on every
-      // component of most panels, so keying off it flagged the whole panel.
-      const flagged = (r.resultComponents ?? []).filter(
-        (c) => c.componentResultInfo?.isAbnormal === true,
-      );
+      // MyChart's own per-component flag is "Unknown" on every component of
+      // every panel (see outOfRange.ts), so this used to treat "has a flag
+      // value at all" as abnormal and flag the whole panel. Compare against
+      // the reference range instead.
+      const flagged = (r.resultComponents ?? []).filter(isOutOfRange);
+
+      // The order-level `isAbnormal` was false on every result of both real
+      // instances we captured, including orders holding out-of-range
+      // components — gating on it alone made lab alerts dead code on real
+      // data. An out-of-range component is worth an alert on its own.
+      if (!r.isAbnormal && flagged.length === 0) continue;
       const summary = flagged.slice(0, 2).map((c) => {
         const name = c.componentInfo?.commonName || c.componentInfo?.name || "Component";
         const value = c.componentResultInfo?.value ?? "";
@@ -145,7 +150,7 @@ function buildLabAlerts(tests: LabTestResultWithHistory[]): AlertInput[] {
             name: c.componentInfo?.commonName || c.componentInfo?.name,
             value: c.componentResultInfo?.value,
             range: c.componentResultInfo?.referenceRange?.formattedReferenceRange,
-            flag: c.componentResultInfo?.abnormalFlag ?? null,
+            flag: rangeVerdict(c),
           })),
         },
         cta_label: "Discuss",

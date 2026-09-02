@@ -126,6 +126,12 @@ describe('test-results fidelity', () => {
     expect(comp.referenceRange.low).toBe(125)
     expect(comp.referenceRange.high).toBe(200)
     expect(comp.referenceRange.lowerBoundExclusive).toBe(false)
+    // Captured Sep 2026 against two real instances: this field is the literal
+    // string "Unknown" on every component, including ones outside their own
+    // reference range. The fake serves it because real MyChart does; the
+    // scraper is what drops it (dropUnusableAbnormalFlags in labResults.ts).
+    // Do not "fix" this fixture to say High/Low — that would be inventing data
+    // real MyChart never sends.
     expect(comp.abnormalFlagCategoryValue).toBe('Unknown')
     // November 2025 instances add this per result; that release is the default.
     expect(r!.canGenerateLLMSummary).toBe(false)

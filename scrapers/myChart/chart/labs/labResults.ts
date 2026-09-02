@@ -5,7 +5,6 @@ import type { MyChartRequest } from "../../core/myChartRequest";
 import { getRequestVerificationTokenFromBody } from "../../core/util";
 import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../../eunity/imagingViewer";
 import { logger } from '../../../../shared/logger';
-import { annotateHistoricalResults, annotateLabTestResult } from './abnormalFlags';
 
 
 async function getReportContent(mychartRequest: MyChartRequest, reportDetails: ReportDetails, requestVerificationToken: string): Promise<ReportContent> {
@@ -39,6 +38,40 @@ async function getRequestVerificationToken(mychartRequest: MyChartRequest) {
 }
 
 
+/**
+ * MyChart's per-component `abnormalFlagCategoryValue` is junk on every
+ * instance, and we drop it rather than pass it on.
+ *
+ * Captured Sep 2026 against two real instances (Epic's August 2025 and
+ * November 2025 releases): the field was the literal string `"Unknown"` on all
+ * 175 components, including the 13 whose value sat outside their own numeric
+ * reference range. Nothing else in the payload carries a verdict either —
+ * `componentResultInfo` has exactly five keys, every result's `isAbnormal` was
+ * `false`, the historical `showAbnormalFlag` is a per-graph display bit rather
+ * than a per-value flag, and the rendered report HTML contains no abnormality
+ * markup. fake-mychart serves `"Unknown"` for the same reason: it is what real
+ * MyChart sends (`realBehavior.integration.test.ts` pins that).
+ *
+ * A field that always reads `"Unknown"` is worse than no field — a client sees
+ * a flag-shaped value and takes it for a verdict. We do NOT replace it with a
+ * derived one: comparing the value against `referenceRange` is a judgement
+ * MyChart never made, and inventing it here would put words in the chart's
+ * mouth. `value`, `numericValue` and `referenceRange` are passed through
+ * untouched, so a client that wants to make that comparison still can.
+ */
+function dropUnusableAbnormalFlag(info: Record<string, unknown> | undefined): void {
+  if (info) delete info['abnormalFlagCategoryValue'];
+}
+
+function dropUnusableAbnormalFlags(test: LabTestResult): LabTestResult {
+  for (const result of test.results ?? []) {
+    for (const component of result?.resultComponents ?? []) {
+      dropUnusableAbnormalFlag(component?.componentResultInfo as unknown as Record<string, unknown> | undefined);
+    }
+  }
+  return test;
+}
+
 async function getLabResult(mychartRequest: MyChartRequest, key: string, requestVerificationToken: string): Promise<LabTestResult> {
   const res = await makeAuthenticatedRequest(mychartRequest, {
     path: `/api/test-results/GetDetails`,
@@ -50,7 +83,7 @@ async function getLabResult(mychartRequest: MyChartRequest, key: string, request
     "method": "POST",
   });
 
-  const out = annotateLabTestResult(await res.json() as LabTestResult);
+  const out = dropUnusableAbnormalFlags(await res.json() as LabTestResult);
 
   for (const result of out.results ?? []) {
     if (result?.reportDetails?.reportID) {
@@ -91,7 +124,15 @@ async function getHistoricalResults(
     });
 
     if (!res.ok) return null;
-    return annotateHistoricalResults(await res.json() as HistoricalResultsResponse);
+
+    const history = await res.json() as HistoricalResultsResponse;
+    // Same junk field, same treatment, on every point of every trend.
+    for (const component of Object.values(history.historicalResults ?? {})) {
+      for (const point of component?.historicalResultData ?? []) {
+        dropUnusableAbnormalFlag(point as unknown as Record<string, unknown>);
+      }
+    }
+    return history;
   } catch {
     return null;
   }

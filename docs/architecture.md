@@ -257,15 +257,33 @@ Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
 `expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
-## Per-component abnormal flags (`scrapers/myChart/chart/labs/abnormalFlags.ts`)
+## MyChart's abnormal flags are junk, and the scraper drops them (`chart/labs/labResults.ts`)
 
-Most instances leave the per-component `abnormalFlagCategoryValue` at `"Unknown"`, so a panel
-flagged `isAbnormal: true` says nothing about which component is out of range. `getLabResult` and
-`getHistoricalResults` therefore annotate every component and every trend point with
-`abnormalFlag` / `isAbnormal` / `abnormalFlagSource` on the way out. **A missing `abnormalFlag`
-means "we don't know", never "normal"**, and the raw `abnormalFlagCategoryValue` is never touched —
-the fake serves `"Unknown"` because real captures do. The module header has the mapping rules;
-`fake-mychart.integration.test.ts` holds both ends to them.
+**Captured Sep 2026 against two real instances** (Epic's August 2025 and November 2025 releases,
+175 components across 39 results):
+
+| Field | What real MyChart sent |
+| --- | --- |
+| `componentResultInfo.abnormalFlagCategoryValue` | the literal `"Unknown"`, **175 of 175** — including the 13 components whose value sat outside their own numeric reference range |
+| `results[].isAbnormal` | `false` on all 39, including orders holding those out-of-range components |
+| historical `showAbnormalFlag` | a per-graph display bit (`true` on one instance, `false` on the other), never a per-value verdict |
+| rendered report HTML | no abnormality markup or classes at all |
+
+`componentResultInfo` has exactly five keys, so there is no other field to read: **`referenceRange`
+is the only abnormality signal MyChart gives us.**
+
+`dropUnusableAbnormalFlags` deletes `abnormalFlagCategoryValue` from every component and every trend
+point on the way out. A field that always reads `"Unknown"` is worse than no field — a client sees a
+flag-shaped value and takes it for a verdict.
+
+**Nothing derived takes its place.** Comparing the value against `referenceRange` is a judgement
+MyChart never made, and writing it back into the chart would put words in the portal's mouth.
+`value`, `numericValue` and `referenceRange` pass through untouched, so a client that wants to draw
+that conclusion for its own UI can — `expo-app/src/lib/alerts/outOfRange.ts` does exactly that, in
+the app, for its alert list.
+
+fake-mychart serves `"Unknown"` because real MyChart does. Do not "fix" the fixture to say High/Low;
+`realBehavior.integration.test.ts` pins it, and `fake-mychart.integration.test.ts` pins the strip.
 
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)
 

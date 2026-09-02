@@ -197,8 +197,10 @@ Behavioral contract, all verified against the same captures and enforced by
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
   `abnormalFlagCategoryValue: "Unknown"`, `groupBy: "ORDER"`), and components
   carry `numericValue` plus numeric `referenceRange` bounds. The `"Unknown"` is
-  faithful, not lazy: the scraper derives the usable per-component flag from
-  the reference range (`scrapers/myChart/chart/labs/abnormalFlags.ts`).
+  faithful, not lazy — re-verified Sep 2026 across two real instances, where it
+  was `"Unknown"` on all 175 components including ones outside their own range.
+  The scraper drops the field rather than pass on a fake verdict; see
+  [`docs/architecture.md`](../docs/architecture.md).
 - **`GetMultipleHistoricalResultComponents` returns a MAP** keyed by component
   id, plus `orderedComponentIDs`/`reportID`.
 - **Every `/api/*` POST requires a `__RequestVerificationToken` header.** A

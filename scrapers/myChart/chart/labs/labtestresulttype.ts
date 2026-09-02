@@ -1,5 +1,3 @@
-import type { AbnormalFlag, AbnormalFlagSource } from './abnormalFlags';
-
 export interface LabTestResult {
   orderName: string
   key: string
@@ -87,15 +85,10 @@ export interface ComponentResultInfo {
   isValueRtf: boolean
   numericValue?: number
   referenceRange: ReferenceRange
-  abnormalFlagCategoryValue: string | number
-
-  // Added by us (abnormalFlags.ts). MyChart leaves abnormalFlagCategoryValue
-  // "Unknown" on most instances, so we normalize the flag when it reports one
-  // and otherwise compare the value against referenceRange. All three are
-  // absent when neither answers — never assume absent means normal.
-  abnormalFlag?: AbnormalFlag
-  isAbnormal?: boolean
-  abnormalFlagSource?: AbnormalFlagSource
+  // MyChart sends `abnormalFlagCategoryValue` here and it is always the
+  // literal "Unknown" — `dropUnusableAbnormalFlags` in labResults.ts deletes
+  // it on the way out, with the capture that proves it. Deliberately absent
+  // from this type: `referenceRange` is the only abnormality signal there is.
 }
 
 export interface ReferenceRange {

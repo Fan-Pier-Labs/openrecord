@@ -485,38 +485,28 @@ for (const mode of MOUNT_MODES) {
       expect(componentNames(cbc)).toContain('Hemoglobin')
     }, 30_000)
 
-    it('flags each lipid component against its own range, though the instance says "Unknown"', async () => {
-      const lipid = (await listLabResults(session)).find(r => r.orderName === 'Lipid Panel')!
-      const byName = new Map(
-        lipid.results[0]!.resultComponents.map(c => [c.componentInfo.name, c.componentResultInfo]),
-      )
+    it('strips the always-"Unknown" abnormal flag, and invents nothing in its place', async () => {
+      const results = await listLabResults(session)
+      const lipid = results.find(r => r.orderName === 'Lipid Panel')!
 
-      // The fake serves what real instances serve: no usable per-component
-      // flag, so every one of these is our own derivation.
-      for (const info of byName.values()) {
-        expect(info.abnormalFlagCategoryValue).toBe('Unknown')
-        expect(info.abnormalFlagSource).toBe('derived')
+      // The raw API still serves the field (realBehavior.integration.test.ts
+      // pins that, because real MyChart serves it) — the scraper drops it.
+      const components = lipid.results[0]!.resultComponents
+      expect(components.length).toBeGreaterThan(0)
+      for (const c of components) {
+        expect('abnormalFlagCategoryValue' in c.componentResultInfo).toBe(false)
+        // No derived verdict took its place: value and range go through as-is.
+        expect(c.componentResultInfo.numericValue).toBeGreaterThan(0)
+        expect(c.componentResultInfo.referenceRange.formattedReferenceRange).not.toBe('')
       }
 
-      expect(byName.get('LDL Cholesterol')!.abnormalFlag).toBe('high')       // 190 of 0-100
-      expect(byName.get('Triglycerides')!.abnormalFlag).toBe('high')         // 350 of 0-150
-      expect(byName.get('Total Cholesterol')!.abnormalFlag).toBe('high')     // 280 of 125-200
-      expect(byName.get('HDL Cholesterol')!.abnormalFlag).toBe('low')        // 35 of 40-60
-      expect(byName.get('LDL Cholesterol')!.isAbnormal).toBe(true)
-
-      // A panel the order does not flag comes back all-normal, not all-unknown.
-      const cbc = (await listLabResults(session)).find(r => r.orderName === 'Complete Blood Count')!
-      const cbcFlags = cbc.results[0]!.resultComponents.map(c => c.componentResultInfo.abnormalFlag)
-      expect(cbcFlags.every(f => f === 'normal')).toBe(true)
-    }, 30_000)
-
-    it('flags historical trend points too, so a value can be read as abnormal at the time', async () => {
-      const lipid = (await listLabResults(session)).find(r => r.orderName === 'Lipid Panel')!
-      const trend = lipid.historicalResults!.historicalResults['COMP-CHOL']!.historicalResultData
-      expect(trend.length).toBeGreaterThan(1)
-      for (const point of trend) {
-        expect(point.abnormalFlag).toBe('high')
-        expect(point.abnormalFlagSource).toBe('derived')
+      // Every trend point of every order gets the same treatment.
+      for (const result of results) {
+        for (const component of Object.values(result.historicalResults?.historicalResults ?? {})) {
+          for (const point of component.historicalResultData) {
+            expect('abnormalFlagCategoryValue' in point).toBe(false)
+          }
+        }
       }
     }, 30_000)
 
