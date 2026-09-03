@@ -152,6 +152,7 @@ import { convertCloToJpg, convertCloToBitmap16 } from 'mychart-cli';
 | `client.getCareTeam()` | `Promise<CareTeam>` — `{ members: CareTeamMember[], externalProvidersUnavailable }` |
 | `client.getReferrals()` | `Promise<Referral[]>` |
 | `client.getInsurance()` | `Promise<InsuranceResult>` — `{ coverages: InsuranceCoverage[], lastUpdated }` |
+| `client.getInsurancePayers()` | `Promise<InsurancePayersStandard>` — `{ Payors }`: the payers this organization offers when adding a coverage, identical for every patient on the instance |
 | `client.getDocuments()` | `Promise<Document[]>` |
 | `client.getGoals()` | `Promise<GoalsResult>` |
 | `client.getCareJourneys()` | `Promise<CareJourney[]>` |
@@ -235,7 +236,7 @@ import {
   sendNewMessage, sendReply, deleteMessage,
   getMessageRecipients, getMessageTopics, getVerificationToken,
   getBillingHistory,
-  getCareTeam, getReferrals, getInsurance, getDocuments,
+  getCareTeam, getReferrals, getInsurance, getInsurancePayers, getDocuments,
   getGoals, getCareJourneys, getUpcomingOrders, getPreventiveCare,
   getEducationMaterials, getQuestionnaires, getActivityFeed,
   getLetters, getLetterDetails,

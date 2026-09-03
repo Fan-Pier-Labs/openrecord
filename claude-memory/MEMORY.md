@@ -107,6 +107,16 @@ See [mychart-prelogin-surface.md](mychart-prelogin-surface.md). Phones, the book
 directory and billing entities are public on every instance with one schema; fax, mailing address
 and accepted insurance are not published. Implemented in `scrapers/myChart/prelogin/`.
 
+## React `/app/*` Activities Are Not Always Served (Learned 2026-09-03)
+
+An instance still on the legacy jQuery version of an activity answers `GET /app/<activity>` with a
+**200 Home page**, and every `/api/*` endpoint in that activity's React bundle 500s with
+`{"Message":"An error has occurred."}` whatever it is sent — indistinguishable from "no data".
+The bundle still downloads, so the caller looks real. Check the page `<title>`, then read the legacy
+page's `bundles/<area>-controllers` for the real `makeLink("Area/Controller/Action")` call.
+`/api/insurance/LoadPayers` (dead on 4/4 instances) vs `Insurance/Coverages/GetPayors` (live,
+org-level payer catalogue) was this trap — `docs/api-surface-gaps.md` ("Insurance payer catalogue"), `docs/scraping.md`.
+
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`

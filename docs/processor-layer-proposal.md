@@ -202,6 +202,7 @@ of each of the two), with the drop reasons from §2.
 | `get_messages`, `get_message_thread`, `get_message_recipients`, `get_message_topics` | [`scrapers/myChart/chart/messages/README.md`](../scrapers/myChart/chart/messages/README.md) |
 | `get_billing` | [`scrapers/myChart/chart/bills/README.md`](../scrapers/myChart/chart/bills/README.md) |
 | `get_insurance` | [`scrapers/myChart/chart/insurance/README.md`](../scrapers/myChart/chart/insurance/README.md) |
+| `get_insurance_payers` | [`scrapers/myChart/chart/insurancePayers/README.md`](../scrapers/myChart/chart/insurancePayers/README.md) |
 | `get_care_team` | [`scrapers/myChart/chart/careTeam/README.md`](../scrapers/myChart/chart/careTeam/README.md) |
 | `get_referrals` | [`scrapers/myChart/chart/referrals/README.md`](../scrapers/myChart/chart/referrals/README.md) |
 | `get_upcoming_orders` | [`scrapers/myChart/chart/upcomingOrders/README.md`](../scrapers/myChart/chart/upcomingOrders/README.md) |

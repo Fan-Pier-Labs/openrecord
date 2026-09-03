@@ -48,8 +48,9 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   Never rename a MyChart field or drop one for being empty — see
   [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
 - **`shared/capabilities/` is the single source of truth for what the product can do.** Every
-  client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
-  everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
+  client derives its surface from it; none hand-maintains a list — including account-free lookups,
+  which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
+  entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
   session state, so every chart-touching capability asserts the patient before running and refuses
   with the fix rather than returning the wrong family member's record.

@@ -2,21 +2,25 @@
  * Tool registry for the OpenRecord MCPB stdio MCP server.
  *
  * Two groups of tools:
- *   1. Meta tools — list_accounts, search_mycharts, setup_account, complete_2fa,
+ *   1. Meta tools — list_accounts, setup_account, complete_2fa,
  *                   disconnect_account. These are MCPB-specific: they manage
  *                   the credentials stored on this machine, which is not
- *                   something the other clients share. get_hospital_info sits
- *                   with them for a different reason: it needs no account at
- *                   all, which the registry cannot express.
+ *                   something the other clients share. `search_mycharts` used
+ *                   to be one of them and is now a `public` capability in the
+ *                   shared registry, so every client has it; `get_hospital_info`
+ *                   is account-free in the same way and is the obvious next one
+ *                   to move.
  *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
  *                   here, in the CLI, in the npm client and in the mobile app.
  *
- * Every capability tool takes a REQUIRED `account` parameter (the MyChart
- * hostname returned by list_accounts). Multiple accounts can be configured
- * and connected at once; there is no "active account" state.
+ * Every capability tool that touches MyChart takes an `account` parameter (the
+ * hostname returned by list_accounts). Multiple accounts can be configured and
+ * connected at once; there is no "active account" state. `public` capabilities
+ * (the NPI Registry, the MyChart directory) take no account and run with no
+ * session at all.
  *
  * There IS an "active patient" per account, but it lives on MyChart's server
  * (proxy access — a parent reading a child's chart). Scraper tools take an
@@ -45,10 +49,12 @@ import {
   MODE_PARAM,
   MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
   describeModeParam,
   executeCapability,
+  isPublicCapability,
   readAccountArg,
   type Capability,
   type CapabilityContext,
@@ -57,7 +63,6 @@ import {
 } from '../../shared/capabilities';
 
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
-import { searchInstances } from './instances';
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
   resolveSession,
@@ -219,7 +224,12 @@ function contextFor(ref: string): CapabilityContext {
  * disconnect_account already is.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
-  const shape: Record<string, z.ZodType> = { [ACCOUNT_PARAM.name]: ACCOUNT_SCHEMA };
+  const shape: Record<string, z.ZodType> = {};
+  // Everything that touches MyChart needs to be told which account. The
+  // `public` capabilities — the NPI Registry, the MyChart directory — do not,
+  // and asking for one would stop the model looking a provider up until the
+  // user had connected a chart it has nothing to do with.
+  if (acceptsAccountParam(capability)) shape[ACCOUNT_PARAM.name] = ACCOUNT_SCHEMA;
   // Which patient the call is about, for accounts with proxy access to family
   // members' charts. executeCapability asserts it — or the account holder,
   // when omitted — before the capability runs, so a read refuses rather than
@@ -234,7 +244,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const annotations =
-    capability.kind === 'read'
+    capability.kind === 'read' || capability.kind === 'public'
       ? { title: capability.title, readOnlyHint: true, openWorldHint: true }
       : { title: capability.title, readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
@@ -248,8 +258,10 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
     },
     async (args: Record<string, unknown>) => {
       try {
-        const account = readAccountArg(args) ?? '';
-        const session = await resolveSession(account);
+        // A public capability has no account to resolve and no credentials to
+        // read: `executeCapability` runs it with a null session.
+        const account = isPublicCapability(capability) ? '' : readAccountArg(args) ?? '';
+        const session = isPublicCapability(capability) ? null : await resolveSession(account);
         // executeCapability, not capability.run, for EVERY capability: the
         // active-patient assertion lives there. Branching to a direct
         // `capability.run` for the imaging tool is how that one tool ended up
@@ -258,7 +270,12 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
           acceptsModeParam(capability) && !args[MODE_PARAM.name]
             ? { ...args, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
             : args;
-        const payload = await executeCapability(session, capability.id, withMode, contextFor(account));
+        const payload = await executeCapability(
+          session,
+          capability.id,
+          withMode,
+          isPublicCapability(capability) ? undefined : contextFor(account),
+        );
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
@@ -456,27 +473,6 @@ export function registerAllTools(server: McpServer): void {
         },
       ],
     }),
-  );
-
-  server.registerTool(
-    'search_mycharts',
-    {
-      title: 'Search the MyChart directory',
-      description: "Look up a MyChart hostname for setup. Type a few letters of the user's health system name (e.g. \"uchealth\", \"mass general\"). Returns matching entries with their hostname, display name, and logo URL. Pass the chosen `hostname` to setup_account.",
-      inputSchema: {
-        query: z.string().min(1).describe('Substring of the health system name to search for (case-insensitive).'),
-        limit: z.number().int().min(1).max(50).optional().describe('Maximum results to return (default 10).'),
-      } satisfies ZodRawShape,
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    ({ query, limit }) => {
-      const matches = searchInstances(query, limit ?? 10);
-      return jsonResult({
-        query,
-        count: matches.length,
-        matches: matches.map(m => ({ hostname: m.hostname, name: m.name, logoUrl: m.logoUrl, loginUrl: m.url })),
-      });
-    },
   );
 
   server.registerTool(
