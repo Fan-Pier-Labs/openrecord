@@ -1,56 +1,19 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from './../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { healthIssuesProcessor, type HealthIssuesStandard } from './healthIssues.processor';
 
-export type HealthIssue = {
-  name: string;
-  id: string;
-  formattedDateNoted: string;
-  isReadOnly: boolean;
+export type { HealthIssuesStandard, HealthIssueStandard } from './healthIssues.processor';
+export { healthIssuesProcessor } from './healthIssues.processor';
+
+/** `GET /Clinical/HealthIssues` for the token, then `POST /api/HealthIssues/LoadHealthIssuesData`. */
+export async function fetchHealthIssuesRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/Clinical/HealthIssues');
+  await collector.postJson('/api/HealthIssues/LoadHealthIssuesData', token, {});
+  return collector.toRaw();
 }
 
-type HealthIssueItemResponse = {
-  name?: string;
-  id?: string;
-  formattedDateNoted?: string;
-  isReadOnly?: boolean;
-}
-
-type HealthIssueDataListEntry = {
-  healthIssueItem?: HealthIssueItemResponse;
-}
-
-type LoadHealthIssuesResponse = {
-  dataList?: HealthIssueDataListEntry[];
-}
-
-export async function getHealthIssues(mychartRequest: MyChartRequest): Promise<HealthIssue[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/HealthIssues' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for health issues');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/HealthIssues/LoadHealthIssuesData',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: LoadHealthIssuesResponse = await resp.json();
-
-  return (json.dataList ?? []).map((item: HealthIssueDataListEntry) => ({
-    name: item.healthIssueItem?.name || '',
-    id: item.healthIssueItem?.id || '',
-    formattedDateNoted: item.healthIssueItem?.formattedDateNoted || '',
-    isReadOnly: item.healthIssueItem?.isReadOnly || false,
-  }));
+/** The standard object — what `mode: 'json'` returns. */
+export async function getHealthIssues(mychartRequest: MyChartRequest): Promise<HealthIssuesStandard> {
+  return healthIssuesProcessor.standard(await fetchHealthIssuesRaw(mychartRequest));
 }

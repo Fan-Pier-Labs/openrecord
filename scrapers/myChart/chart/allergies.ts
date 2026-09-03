@@ -1,80 +1,19 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from './../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { allergiesProcessor, type AllergiesStandard } from './allergies.processor';
 
-export type Allergy = {
-  name: string;
-  id: string;
-  formattedDateNoted: string;
-  type: string;
-  reaction: string;
-  severity: string;
+export type { AllergiesStandard } from './allergies.processor';
+export { allergiesProcessor } from './allergies.processor';
+
+/** `GET /Clinical/Allergies` for the token, then `POST /api/allergies/LoadAllergies`. */
+export async function fetchAllergiesRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/Clinical/Allergies');
+  await collector.postJson('/api/allergies/LoadAllergies', token, {});
+  return collector.toRaw();
 }
 
-export type AllergiesResult = {
-  allergies: Allergy[];
-  allergiesStatus: number;
-}
-
-// Shapes returned by the MyChart API
-type AllergyItemResponse = {
-  name?: string;
-  id?: string;
-  formattedDateNoted?: string;
-  type?: string;
-  reaction?: string;
-  severity?: string;
-}
-
-type AllergyDataListEntry = {
-  allergyItem?: AllergyItemResponse;
-  name?: string;
-  id?: string;
-  formattedDateNoted?: string;
-  type?: string;
-  reaction?: string;
-  severity?: string;
-}
-
-type LoadAllergiesResponse = {
-  dataList?: AllergyDataListEntry[];
-  allergiesStatus?: number;
-}
-
-export async function getAllergies(mychartRequest: MyChartRequest): Promise<AllergiesResult> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Clinical/Allergies' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for allergies');
-    return { allergies: [], allergiesStatus: -1 };
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/allergies/LoadAllergies',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: LoadAllergiesResponse = await resp.json();
-
-  const allergies: Allergy[] = (json.dataList ?? []).map((item: AllergyDataListEntry) => ({
-    name: item.allergyItem?.name || item.name || '',
-    id: item.allergyItem?.id || item.id || '',
-    formattedDateNoted: item.allergyItem?.formattedDateNoted || item.formattedDateNoted || '',
-    type: item.allergyItem?.type || item.type || '',
-    reaction: item.allergyItem?.reaction || item.reaction || '',
-    severity: item.allergyItem?.severity || item.severity || '',
-  }));
-
-  return {
-    allergies,
-    allergiesStatus: json.allergiesStatus ?? -1,
-  };
+/** The standard object — what `mode: 'json'` returns. */
+export async function getAllergies(mychartRequest: MyChartRequest): Promise<AllergiesStandard> {
+  return allergiesProcessor.standard(await fetchAllergiesRaw(mychartRequest));
 }

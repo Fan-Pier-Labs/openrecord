@@ -29,6 +29,11 @@ export function bool(value: unknown): boolean {
   return value === true;
 }
 
+/** A boolean, or null when MyChart sent nothing. */
+export function boolOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
 /** A finite number, or null. */
 export function num(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;

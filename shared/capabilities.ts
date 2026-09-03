@@ -28,6 +28,15 @@
  */
 
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
+import type { RawResponse } from '../scrapers/myChart/core/rawResponse';
+import {
+  DEFAULT_OUTPUT_MODE,
+  OUTPUT_MODES,
+  isOutputMode,
+  renderOutput,
+  type OutputMode,
+  type Processor,
+} from '../scrapers/myChart/processors/processor';
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
 
@@ -207,6 +216,12 @@ export interface Capability {
  */
 interface CapabilityImpl extends Capability {
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
+  /**
+   * For read capabilities: `run` returns the scraper's {@link RawResponse}
+   * envelope and this turns it into the requested {@link OutputMode}. A
+   * capability without one ignores `mode` (writes, account management, media).
+   */
+  processor?: Processor<never>;
 }
 
 // ── Argument coercion ───────────────────────────────────────────────────────
@@ -1240,7 +1255,40 @@ export async function executeCapability(
   if (needsPatientAssertion(capability)) {
     await assertProxyReadContext(request, optStr(args, 'patient'));
   }
-  return capability.run(request, args, ctx);
+  const result = await capability.run(request, args, ctx);
+  if (!capability.processor) return result;
+  return renderOutput(capability.processor, result as RawResponse, readOutputMode(args));
+}
+
+/**
+ * The output mode a caller asked for, defaulting to {@link DEFAULT_OUTPUT_MODE}.
+ * An unknown value is an error rather than a silent fallback: a caller that
+ * typed `mode: 'summary'` and got JSON back would not know it was ignored.
+ */
+export function readOutputMode(args: CapabilityArgs): OutputMode {
+  const value = args[MODE_PARAM.name];
+  if (value === undefined || value === null || value === '') return DEFAULT_OUTPUT_MODE;
+  if (isOutputMode(value)) return value;
+  throw new Error(`Unknown mode "${String(value)}". Expected one of: ${OUTPUT_MODES.join(', ')}.`);
+}
+
+/**
+ * How a read capability's payload is rendered. Declared once, like
+ * {@link PATIENT_PARAM}: every client offers it on every capability that
+ * {@link acceptsModeParam}, and {@link executeCapability} applies it.
+ */
+export const MODE_PARAM: CapabilityParam = {
+  name: 'mode',
+  type: 'string',
+  description:
+    'Output mode: `concise` (markdown, the interesting fields), `standard` (markdown, every ' +
+    'useful field), `json` (the standard fields as JSON), or `raw` (the untouched MyChart ' +
+    `response, large). Default: ${DEFAULT_OUTPUT_MODE}.`,
+};
+
+/** Whether this capability accepts {@link MODE_PARAM} — i.e. it has a processor. */
+export function acceptsModeParam(capability: Capability): boolean {
+  return getCapabilityImpl(capability.id)?.processor !== undefined;
 }
 
 /**

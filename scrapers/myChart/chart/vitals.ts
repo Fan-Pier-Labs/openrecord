@@ -1,66 +1,17 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
+import type { MyChartRequest } from './../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
 import { logger } from '../../../shared/logger';
+import { list, rec, text } from '../processors/read';
+import { vitalsProcessor, type VitalsStandard } from './vitals.processor';
 
-export type VitalReading = {
-  /** ISO instant the reading was taken (e.g. "2025-08-11T06:29:00"). */
-  date: string;
-  /** The value. Blood pressure comes back as "123/81"; numeric vitals as their number. */
-  value: string;
-  /** Display units (e.g. "mmHg", "lbs", "°F"). */
-  units: string;
-  /** Whether the value was flagged abnormal. */
-  isAbnormal: boolean;
-  /** How the reading was recorded (e.g. "clinical"). */
-  entryType: string;
-};
-
-export type Flowsheet = {
-  /** Vital-type name, e.g. "Blood Pressure", "Weight", "Pulse". */
-  name: string;
-  /** Stable row identifier for this vital type within MyChart. */
-  flowsheetId: string;
-  readings: VitalReading[];
-};
-
-// ── Raw MyChart API shapes ──
-type RawRow = { id?: string; name?: string; unitsDisplayName?: string };
-type RawReading = {
-  rowId?: string;
-  instantTakenIso?: string;
-  numericValue?: number;
-  stringValue?: string;
-  isAbnormal?: boolean;
-  entryType?: string;
-};
-
-type RawFlowsheet = {
-  episodeId?: string;
-  name?: string;
-  rows?: RawRow[];
-  readings?: RawReading[];
-  hasMoreData?: boolean;
-  nextReadingDateIso?: string;
-};
-type GetFlowsheetsResponse = { flowsheets?: RawFlowsheet[] };
-type GetFlowsheetReadingsResponse = { flowsheet?: RawFlowsheet };
-
-/**
- * The reading's displayable value.
- *
- * MyChart sends BOTH value fields on every reading: string rows (Blood
- * Pressure, "145/95") carry `stringValue`, while numeric rows (Pulse, Weight)
- * carry the number in `numericValue` and still include `stringValue` as an
- * EMPTY string. Preferring a merely non-nullish `stringValue` therefore blanked
- * every numeric vital, so take the first field that actually holds something.
- */
-function readingValue(r: RawReading): string {
-  const s = r.stringValue?.trim();
-  if (s) return s;
-  if (typeof r.numericValue === 'number' && Number.isFinite(r.numericValue)) return String(r.numericValue);
-  return '';
-}
+export type {
+  VitalsStandard,
+  FlowsheetStandard,
+  FlowsheetRowStandard,
+  FlowsheetRowGroupStandard,
+  VitalReadingStandard,
+} from './vitals.processor';
+export { vitalsProcessor, readingValue } from './vitals.processor';
 
 /** End-of-day tomorrow, formatted as MyChart expects (no timezone suffix). */
 function defaultEndInstantIso(): string {
@@ -78,90 +29,41 @@ const PAGE_SIZE = 1000;
 const MAX_PAGES = 100; // safety bound for accounts with long histories
 
 /**
- * Fetches Track My Health vitals (Blood Pressure, Weight, Pulse, etc.).
+ * Track My Health vitals (Blood Pressure, Weight, Pulse, etc.).
  *
  * MyChart splits this across TWO endpoints:
  *   1. GetFlowsheets        → flowsheet definitions (episodeId + row metadata; NO values)
  *   2. GetFlowsheetReadings → the actual readings for an episode, paginated
  *
- * The readings are returned as a flat list keyed by rowId; we group them back
- * into one Flowsheet per vital type.
+ * Every page is recorded; the processor joins them back into one flowsheet
+ * per episode.
  */
-export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowsheet[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/track-my-health' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
+export async function fetchVitalsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/track-my-health');
 
-  if (!token) {
-    logger.debug('Could not find request verification token for vitals');
-    return [];
-  }
+  const listBody = rec(await collector.postJson('/api/track-my-health/GetFlowsheets', token, { organizationId: '' }));
 
-  const headers = { 'Content-Type': 'application/json', '__RequestVerificationToken': token };
+  for (const fs of list(listBody.flowsheets)) {
+    const episodeId = text(rec(fs).episodeId);
+    if (!episodeId) continue;
 
-  const listResp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/track-my-health/GetFlowsheets',
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ organizationId: "" }),
-  });
-  const list: GetFlowsheetsResponse = await listResp.json();
-
-  const flowsheets: Flowsheet[] = [];
-
-  for (const fs of list.flowsheets ?? []) {
-    if (!fs.episodeId) continue;
-
-    // Row metadata: id → { name, units }
-    const rowMeta = new Map<string, { name: string; units: string }>();
-    for (const row of fs.rows ?? []) {
-      if (row.id) rowMeta.set(row.id, { name: row.name || '', units: row.unitsDisplayName || '' });
-    }
-
-    // Group readings by rowId, paging backwards through history.
-    const byRow = new Map<string, VitalReading[]>();
-    // Consecutive pages overlap on the boundary instant, so readings must be deduped.
-    const seen = new Set<string>();
     let endInstantIso = defaultEndInstantIso();
-
     for (let page = 0; page < MAX_PAGES; page++) {
-      const rResp = await makeAuthenticatedRequest(mychartRequest, {
-        path: '/api/track-my-health/GetFlowsheetReadings',
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ episodeId: fs.episodeId, endInstantIso, numReadings: PAGE_SIZE }),
-      });
-      const rJson: GetFlowsheetReadingsResponse = await rResp.json();
-      const data = rJson.flowsheet;
-      if (!data) break;
-
-      // Backfill row metadata from the readings response if GetFlowsheets omitted it.
-      for (const row of data.rows ?? []) {
-        if (row.id && !rowMeta.has(row.id)) rowMeta.set(row.id, { name: row.name || '', units: row.unitsDisplayName || '' });
-      }
+      const body = rec(
+        await collector.postJson('/api/track-my-health/GetFlowsheetReadings', token, {
+          episodeId,
+          endInstantIso,
+          numReadings: PAGE_SIZE,
+        }),
+      );
+      const data = rec(body.flowsheet);
+      if (Object.keys(data).length === 0) break;
 
       let oldestInstant: string | undefined;
-
-      for (const r of data.readings ?? []) {
-        if (!r.rowId) continue;
-        const instant = r.instantTakenIso || '';
+      for (const r of list(data.readings)) {
+        const instant = text(rec(r).instantTakenIso);
         if (instant && (oldestInstant === undefined || instant < oldestInstant)) oldestInstant = instant;
-
-        const dedupeKey = `${r.rowId}\u0000${instant}`;
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
-
-        const meta = rowMeta.get(r.rowId);
-        const value = readingValue(r);
-        const readings = byRow.get(r.rowId) ?? [];
-        readings.push({
-          date: instant,
-          value,
-          units: meta?.units || '',
-          isAbnormal: !!r.isAbnormal,
-          entryType: r.entryType || '',
-        });
-        byRow.set(r.rowId, readings);
       }
 
       // Deliberately NOT keyed off hasMoreData: MyChart reports it false while
@@ -171,13 +73,13 @@ export async function getVitals(mychartRequest: MyChartRequest): Promise<Flowshe
       if (!oldestInstant || oldestInstant >= endInstantIso) break;
       endInstantIso = oldestInstant;
     }
-
-    // Emit one Flowsheet per vital type that has readings.
-    for (const [rowId, readings] of byRow) {
-      const meta = rowMeta.get(rowId);
-      flowsheets.push({ name: meta?.name || '', flowsheetId: rowId, readings });
-    }
   }
 
-  return flowsheets;
+  logger.debug(`vitals: ${collector.requests.length} requests recorded`);
+  return collector.toRaw();
+}
+
+/** The standard object — what `mode: 'json'` returns. */
+export async function getVitals(mychartRequest: MyChartRequest): Promise<VitalsStandard> {
+  return vitalsProcessor.standard(await fetchVitalsRaw(mychartRequest));
 }

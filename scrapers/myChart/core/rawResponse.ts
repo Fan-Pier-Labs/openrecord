@@ -15,6 +15,7 @@
 import type { MyChartRequest } from './myChartRequest';
 import type { RequestConfig } from './types';
 import { makeAuthenticatedRequest, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
+import { requireVerificationToken } from './util';
 
 export interface RawRequestRecord {
   /** The path as sent, minus the `noCache` cache-buster. */
@@ -94,6 +95,26 @@ export class RawCollector {
       body,
     });
     return { response, body, text };
+  }
+
+  /**
+   * Fetch an activity page and return its antiforgery token. Throws when the
+   * page has none — the API behind it would refuse every call anyway.
+   */
+  async pageToken(pagePath: string): Promise<string> {
+    const page = await this.fetch({ path: pagePath });
+    return requireVerificationToken(page.text, pagePath);
+  }
+
+  /** POST a JSON body with the antiforgery token, the way the React `/api/*` routes expect. */
+  async postJson(path: string, token: string, body: unknown = {}): Promise<unknown> {
+    const result = await this.fetch({
+      path,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+      body: JSON.stringify(body),
+    });
+    return result.body;
   }
 
   /** The envelope so far. */

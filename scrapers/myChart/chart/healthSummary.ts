@@ -1,91 +1,25 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from './../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { healthSummaryProcessor, type HealthSummaryStandard } from './healthSummary.processor';
 
-export type HealthSummary = {
-  patientAge: string;
-  height: { value: string; dateRecorded: string } | null;
-  weight: { value: string; dateRecorded: string } | null;
-  bloodType: string;
-  patientFirstName: string;
-  lastVisit: {
-    date: string;
-    visitType: string;
-  } | null;
-}
+export type { HealthSummaryStandard, MeasurementStandard, VisitPointerStandard } from './healthSummary.processor';
+export { healthSummaryProcessor } from './healthSummary.processor';
 
-type VitalMeasurement = {
-  value?: string;
-  dateRecorded?: string;
-}
-
-type FetchHealthSummaryResponse = {
-  header?: {
-    patientAge?: string;
-    height?: VitalMeasurement;
-    weight?: VitalMeasurement;
-    bloodType?: string;
-  };
-  patientFirstName?: string;
-}
-
-type FetchH2GHeaderResponse = {
-  lastVisit?: {
-    date?: string;
-    visitType?: string;
-  };
-}
-
-export async function getHealthSummary(mychartRequest: MyChartRequest): Promise<HealthSummary> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/health-summary' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for health summary');
-    return { patientAge: '', height: null, weight: null, bloodType: '', patientFirstName: '', lastVisit: null };
-  }
-
-  const [summaryResp, headerResp] = await Promise.all([
-    makeAuthenticatedRequest(mychartRequest, {
-      path: '/api/health-summary/FetchHealthSummary',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        '__RequestVerificationToken': token,
-      },
-      body: JSON.stringify({}),
-    }),
-    makeAuthenticatedRequest(mychartRequest, {
-      path: '/api/health-summary/FetchH2GHeader',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        '__RequestVerificationToken': token,
-      },
-      body: JSON.stringify({}),
-    }),
+/**
+ * `GET /app/health-summary` for the token, then
+ * `POST /api/health-summary/FetchHealthSummary` and `POST /api/health-summary/FetchH2GHeader`.
+ */
+export async function fetchHealthSummaryRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/health-summary');
+  await Promise.all([
+    collector.postJson('/api/health-summary/FetchHealthSummary', token, {}),
+    collector.postJson('/api/health-summary/FetchH2GHeader', token, {}),
   ]);
+  return collector.toRaw();
+}
 
-  const summary: FetchHealthSummaryResponse = await summaryResp.json();
-  const headerData: FetchH2GHeaderResponse = await headerResp.json();
-
-  return {
-    patientAge: summary.header?.patientAge?.trim() || '',
-    height: summary.header?.height ? {
-      value: summary.header.height.value || '',
-      dateRecorded: summary.header.height.dateRecorded || '',
-    } : null,
-    weight: summary.header?.weight ? {
-      value: summary.header.weight.value || '',
-      dateRecorded: summary.header.weight.dateRecorded || '',
-    } : null,
-    bloodType: summary.header?.bloodType || '',
-    patientFirstName: summary.patientFirstName || '',
-    lastVisit: headerData.lastVisit ? {
-      date: headerData.lastVisit.date || '',
-      visitType: headerData.lastVisit.visitType || '',
-    } : null,
-  };
+/** The standard object — what `mode: 'json'` returns. */
+export async function getHealthSummary(mychartRequest: MyChartRequest): Promise<HealthSummaryStandard> {
+  return healthSummaryProcessor.standard(await fetchHealthSummaryRaw(mychartRequest));
 }
