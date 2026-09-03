@@ -1,0 +1,31 @@
+{
+  "Locations": [
+    {
+      "Id": "WP-24FAKE0019-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "Title": "Springfield General Hospital Main Campus",
+      "Phone": "555-010-0300",
+      "PhoneText": "Customer service: 555-010-0300",
+      "Description": "",
+      "LogoURL": "",
+      "DefaultLogoURL": null,
+      "SelectLocations": false,
+      "BillingSystem": 3
+    },
+    {
+      "Id": "WP-24FAKE0020-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "Title": "Springfield Outpatient Center",
+      "Phone": "555-010-0300",
+      "PhoneText": "Customer service: 555-010-0300",
+      "Description": "",
+      "LogoURL": "",
+      "DefaultLogoURL": null,
+      "SelectLocations": false,
+      "BillingSystem": 3
+    }
+  ],
+  "IsMultiServiceArea": true,
+  "ServiceArea": "WP-24FAKE0017-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+  "IsGuest": true,
+  "HasCompletedCaptcha": false,
+  "Template": ""
+}

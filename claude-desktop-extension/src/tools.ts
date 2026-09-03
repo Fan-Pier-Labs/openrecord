@@ -5,7 +5,9 @@
  *   1. Meta tools — list_accounts, search_mycharts, setup_account, complete_2fa,
  *                   disconnect_account. These are MCPB-specific: they manage
  *                   the credentials stored on this machine, which is not
- *                   something the other clients share.
+ *                   something the other clients share. get_hospital_info sits
+ *                   with them for a different reason: it needs no account at
+ *                   all, which the registry cannot express.
  *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
@@ -54,6 +56,7 @@ import {
   type StudyImagePayload,
 } from '../../shared/capabilities';
 
+import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { searchInstances } from './instances';
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
@@ -473,6 +476,43 @@ export function registerAllTools(server: McpServer): void {
         count: matches.length,
         matches: matches.map(m => ({ hostname: m.hostname, name: m.name, logoUrl: m.logoUrl, loginUrl: m.url })),
       });
+    },
+  );
+
+  server.registerTool(
+    'get_hospital_info',
+    {
+      title: 'Public profile of a health system',
+      description:
+        'What a MyChart instance publishes about its health system to anyone, with no account: the ' +
+        "organization's support, scheduling and billing phone lines and support email; the \"Find a Doctor\" " +
+        'directory of bookable providers (name, credentials, specialties, languages, photo) with every clinic ' +
+        'they work at (street address, phone, coordinates, hours); billing entities and their facilities; and ' +
+        'which portal features are switched on. Pass the `hostname` from search_mycharts. Slow on large ' +
+        'systems — one specialty is 0.6–2 MB and some list twenty — so narrow with `specialties` or skip the ' +
+        'crawl with `include_providers: false`. Never returns a fax number or an accepted-insurance list: ' +
+        'MyChart publishes neither (the payer list sits behind a reCAPTCHA-protected disclaimer).',
+      inputSchema: {
+        hostname: z.string().min(1).describe('The MyChart hostname, e.g. mychart.example.org. A full login URL also works.'),
+        specialties: z.array(z.string()).optional().describe('Only crawl these "Find a Doctor" specialties (by name). Default: all of them.'),
+        max_specialties: z.number().int().min(0).optional().describe('Stop after this many specialties.'),
+        include_providers: z.boolean().optional().describe('Crawl the provider and clinic directory (default true).'),
+        include_billing: z.boolean().optional().describe('Read the billing entities (default true).'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ hostname, specialties, max_specialties, include_providers, include_billing }) => {
+      try {
+        const profile = await fetchHospitalNetworkProfile(hostname, {
+          ...(specialties ? { specialties } : {}),
+          ...(max_specialties !== undefined ? { maxSpecialties: max_specialties } : {}),
+          ...(include_providers !== undefined ? { includeProviders: include_providers } : {}),
+          ...(include_billing !== undefined ? { includeBilling: include_billing } : {}),
+        });
+        return jsonResult(profile);
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
     },
   );
 

@@ -61,7 +61,7 @@ describe('proxy tool registration', () => {
   });
 
   test('meta tools do not take a patient parameter', () => {
-    for (const name of ['list_accounts', 'search_mycharts', 'setup_account', 'complete_2fa', 'disconnect_account']) {
+    for (const name of ['list_accounts', 'search_mycharts', 'get_hospital_info', 'setup_account', 'complete_2fa', 'disconnect_account']) {
       const tool = tools.get(name);
       expect(tool).toBeDefined();
       expect(Object.keys(tool!.config.inputSchema ?? {})).not.toContain('patient');

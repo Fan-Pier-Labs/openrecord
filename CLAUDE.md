@@ -15,7 +15,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging). `npi/` = the public NPI Registry (no login) |
+| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging), `prelogin/` (what an instance publishes with no account). `npi/` = the public NPI Registry (no login) |
 | `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
 | `npm-package/` | The `mychart-cli` CLI and importable library |
 | `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |

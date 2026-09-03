@@ -3,7 +3,7 @@ import { isRootMount } from '@/lib/mount';
 import { PROXY_SELECTOR_PLACEHOLDER, renderProxySelector } from '@/lib/html';
 import {
   GET_PRIVATE, GET_PRIVATE_PATTERNS, GET_PUBLIC, GET_PUBLIC_PATTERNS,
-  POST_PATTERNS, POST_ROUTES,
+  POST_PATTERNS, POST_PUBLIC, POST_ROUTES,
 } from '@/handlers';
 import { unknownGet, unknownPost } from '@/handlers/generic';
 import { mountRoot } from '@/handlers/session';
@@ -86,6 +86,14 @@ async function renderPost(request: NextRequest, { params }: RouteParams) {
     if (requiresAntiforgeryToken(ctx.lower) && !request.headers.get('__requestverificationtoken')) {
       return aspNetFailure(request, 'fivehundred', ctx.path);
     }
+
+    // The anonymous scheduling workflow is the one POST surface a real
+    // instance answers with no session at all — it is what "Find a Doctor"
+    // runs on for a visitor who has no account. It clears the token gate above
+    // like every other POST, and only then skips the session one.
+    const publicHandler = POST_PUBLIC[ctx.lower];
+    if (publicHandler) return publicHandler(ctx);
+
     const redirect = requireSession(request);
     if (redirect) return redirect;
   }
