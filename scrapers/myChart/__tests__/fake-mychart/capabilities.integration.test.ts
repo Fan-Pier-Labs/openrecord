@@ -164,6 +164,31 @@ describe('capability registry against fake-mychart', () => {
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
   }, 30_000)
 
+  // Real MyChart wraps every body in Epic's formatter markup and the fake does
+  // the same (`fake-mychart/src/lib/messageBody.ts`), so this is the only place
+  // the strip is proven end-to-end rather than against a hand-written fixture.
+  it('serves bodies as Epic markup and hands back only the words', async () => {
+    const raw = JSON.stringify(await executeCapability(session, 'get_messages', { mode: 'raw' }))
+    expect(raw).toContain('fmtConv')
+    expect(raw).toContain('data-paragraph')
+
+    const inbox = (await executeCapability(session, 'get_messages')) as {
+      conversations: Array<{ messages: Array<{ bodyText: string }> }>
+    }
+    const bodies = inbox.conversations.flatMap((c) => c.messages.map((m) => m.bodyText))
+    expect(bodies.length).toBeGreaterThan(0)
+    for (const body of bodies) {
+      expect(body).not.toContain('<')
+      expect(body).not.toContain('&nbsp;')
+      expect(body.trim()).toBe(body)
+    }
+
+    // The paragraph break survives as a blank line, and the escaped ampersand
+    // comes back as the character the sender typed.
+    expect(bodies.some((b) => b.includes('per day.\n\nYour cholesterol'))).toBe(true)
+    expect(bodies.some((b) => b.includes('liposuction & lap-band'))).toBe(true)
+  }, 30_000)
+
   // ── Imaging ───────────────────────────────────────────────────────────────
 
   it('mints an image_id in get_imaging_results and downloads it back', async () => {
