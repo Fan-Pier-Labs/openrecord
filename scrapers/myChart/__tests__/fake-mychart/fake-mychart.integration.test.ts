@@ -45,6 +45,7 @@ import { getEducationMaterials } from '../../chart/educationMaterials'
 import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
 import type { VisitStandard } from '../../chart/visits/visits'
+import { executeCapability } from '../../../../shared/capabilities'
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
@@ -549,8 +550,7 @@ for (const mode of MOUNT_MODES) {
 
     it('listConversations returns conversations, inlining only the newest page of each', async () => {
       const result = await listConversations(session)
-      expect(result).toBeDefined()
-      const conversations = result!.conversations!
+      const conversations = result.conversations
       expect(conversations.length).toBeGreaterThan(0)
 
       // Real MyChart inlines at most five messages per thread and flags the
@@ -562,20 +562,21 @@ for (const mode of MOUNT_MODES) {
       const short = conversations.find(c => c.hthId === 'CONV-001')!
       expect(short.hasMoreMessages).toBe(false)
 
-      // Names live in the users / viewers maps, never on the message itself.
-      expect(long.messages!.every(m => (m.author?.displayName ?? '') === '')).toBe(true)
+      // Names live in the users / viewers maps, never on the message itself;
+      // the processor resolves them onto `senderName`.
+      expect(long.messages.every(m => m.senderName !== '')).toBe(true)
     }, 10_000)
 
     it('getConversationMessages pages past the listing to return the whole thread', async () => {
-      const result = await getConversationMessages(session, 'CONV-003')
+      const result = (await getConversationMessages(session, 'CONV-003'))!
 
-      expect(result.conversationId).toBe('CONV-003')
+      expect(result.hthId).toBe('CONV-003')
       expect(result.subject).toBe('Back pain after the bowling tournament')
       // Eight messages, five to a page — the listing alone would have shown five.
-      expect(result.messages.map(m => m.messageId)).toEqual([
+      expect(result.messages.map(m => m.wmgId)).toEqual([
         'MSG-010', 'MSG-011', 'MSG-012', 'MSG-013', 'MSG-014', 'MSG-015', 'MSG-016', 'MSG-017',
       ])
-      expect(result.messages.every((m, i) => i === 0 || result.messages[i - 1]!.sentDate <= m.sentDate)).toBe(true)
+      expect(result.messages.every((m, i) => i === 0 || (result.messages[i - 1]!.deliveryInstantISO ?? '') <= (m.deliveryInstantISO ?? ''))).toBe(true)
 
       // Sender names come from the users / viewers maps, with the thread's
       // userOverrideNames winning for the imaging department.
@@ -584,20 +585,22 @@ for (const mode of MOUNT_MODES) {
       expect(result.messages[1]!.senderName).toBe('Julius Hibbert, MD')
       expect(result.messages[1]!.isFromPatient).toBe(false)
       expect(result.messages[4]!.senderName).toBe('Springfield Spine Clinic')
-      expect(result.messages.every(m => m.messageBody !== '' && m.sentDate !== '')).toBe(true)
+      expect(result.messages.every(m => m.bodyText !== '' && m.deliveryInstantISO)).toBe(true)
     }, 15_000)
 
     it('getConversationMessages returns a short thread in one page', async () => {
-      const result = await getConversationMessages(session, 'CONV-002')
+      const result = (await getConversationMessages(session, 'CONV-002'))!
       expect(result.subject).toBe('Discount Surgery Consultation')
-      expect(result.messages.map(m => m.messageId)).toEqual(['MSG-004', 'MSG-005'])
+      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005'])
     }, 10_000)
 
     // GetConversationDetails answers an unknown id with 200 and a literal null,
     // not an error status — so this is the case a status-only check waves
-    // through and then reports as a conversation with nothing in it.
-    it('getConversationMessages refuses an unknown conversation id rather than reporting it empty', async () => {
-      await expect(getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).rejects.toThrow(
+    // through and then reports as a conversation with nothing in it. The
+    // scraper passes the null through; the capability turns it into an error.
+    it('getConversationMessages passes an unknown conversation id through as null, and the capability refuses it', async () => {
+      expect(await getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).toBeNull()
+      await expect(executeCapability(session, 'get_message_thread', { conversation_id: 'CONV-DOES-NOT-EXIST' })).rejects.toThrow(
         /No conversation CONV-DOES-NOT-EXIST/,
       )
     }, 10_000)

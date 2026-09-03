@@ -112,19 +112,19 @@ describe('integration', () => {
 
   it('getCareTeam returns the provider list', async () => {
     const result = await getCareTeam(session)
-    expect(Array.isArray(result.members)).toBe(true)
+    expect(Array.isArray(result.ProvidersList)).toBe(true)
     // An unreadable outside-provider list is reported, never silently dropped;
     // both captured instances serve it, so a true here is a real regression.
     expect(result.externalProvidersUnavailable).toBe(false)
-    for (const member of result.members) {
-      expect(member.id).not.toBe('')
-      expect(member.name).not.toBe('')
+    for (const member of result.ProvidersList) {
+      expect(member.ID).toBeTruthy()
+      expect(member.Name).toBeTruthy()
     }
   }, 30_000)
 
   it('getReferrals returns an array', async () => {
     const result = await getReferrals(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.referralList)).toBe(true)
   }, 30_000)
 
   it('getMedicalHistory returns structured history', async () => {
@@ -132,10 +132,10 @@ describe('integration', () => {
     expect(result).toBeDefined()
     expect(result.medicalHistory).toBeDefined()
     expect(result.surgicalHistory).toBeDefined()
-    expect(result.familyHistory).toBeDefined()
+    expect(result.familyHistoryAndStatus).toBeDefined()
     expect(Array.isArray(result.medicalHistory.diagnoses)).toBe(true)
     expect(Array.isArray(result.surgicalHistory.surgeries)).toBe(true)
-    expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
+    expect(Array.isArray(result.familyHistoryAndStatus.familyMembers)).toBe(true)
   }, 30_000)
 
   it('getPreventiveCare returns an array', async () => {
