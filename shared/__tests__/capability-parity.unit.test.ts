@@ -4,7 +4,7 @@
  *
  * It reads each client's *real* surface — the tools the MCP server registers,
  * the tool catalog the mobile agent puts in its prompt, the CLI's dispatch, the
- * npm library's exports — and compares each against `shared/capabilities.ts`.
+ * npm library's exports — and compares each against `shared/capabilities/`.
  * It does not compare the clients against a list written here; a list written
  * here would be a fifth thing to forget.
  *
@@ -250,7 +250,7 @@ describe('capability dispatch', () => {
   // This used to be a regex over three client source files. It is now the type
   // system's job: `run` is absent from the exported `Capability`, so reaching
   // it is a compile error in every client, whatever the spelling. See
-  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // `CapabilityImpl` in shared/capabilities/types.ts and the `@ts-expect-error`
   // assertion in capabilities.unit.test.ts.
   //
   // What remains here is the positive half — that each client actually calls

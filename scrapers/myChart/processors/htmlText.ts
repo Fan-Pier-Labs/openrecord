@@ -30,8 +30,19 @@ const OPTIONS: HtmlToTextOptions = {
   ],
 };
 
+/**
+ * Trailing spaces on a line, non-breaking ones included.
+ *
+ * A blank line in Epic's message formatter is a paragraph holding a single
+ * `&nbsp;`, and the converter hands that back as a line containing U+00A0 —
+ * invisible, but not empty, so a body read as `"...day.\n\u00a0\nYour..."`
+ * rather than having the blank line the sender typed. Same story wherever
+ * MyChart pads a cell or a heading out with spaces.
+ */
+const TRAILING_SPACE = /[^\S\r\n]+$/gm;
+
 /** HTML (a fragment or a whole document) as plain text. */
 export function htmlToText(html: string): string {
   if (!html) return '';
-  return convert(html, OPTIONS).trim();
+  return convert(html, OPTIONS).replace(TRAILING_SPACE, '').trim();
 }

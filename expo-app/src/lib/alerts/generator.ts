@@ -2,7 +2,8 @@ import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
 import type { BillingStandard, BillingAccountStandard } from "../../../../scrapers/myChart/chart/bills/bills";
 import type { MedicationsStandard, PrescriptionStandard } from "../../../../scrapers/myChart/chart/medications/medications";
-import type { LabResultsStandard, LabOrderStandard, LabComponentStandard } from "../../../../scrapers/myChart/chart/labs/labResults";
+import type { LabResultsStandard, LabOrderStandard } from "../../../../scrapers/myChart/chart/labs/labResults";
+import { isOutOfRange } from "./outOfRange";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;
 
@@ -106,24 +107,6 @@ function buildRefillAlerts(meds: PrescriptionStandard[], hostname?: string): Ale
     });
   }
   return out;
-}
-
-/**
- * Whether a component sits outside its own numeric reference range.
- *
- * MyChart gives no per-value verdict — its abnormal flag reads "Unknown" on
- * every real instance (#375) and the processor leaves it in raw — so the
- * app draws this conclusion itself, for its own alert list, from the range
- * MyChart printed. A component with no numeric value or no bounds is never
- * flagged.
- */
-export function isOutOfRange(component: LabComponentStandard): boolean {
-  const { numericValue, referenceRange } = component.componentResultInfo;
-  if (numericValue === null) return false;
-  const { low, high, lowerBoundExclusive, upperBoundExclusive } = referenceRange;
-  if (low !== null && (lowerBoundExclusive ? numericValue <= low : numericValue < low)) return true;
-  if (high !== null && (upperBoundExclusive ? numericValue >= high : numericValue > high)) return true;
-  return false;
 }
 
 function buildLabAlerts(orders: LabOrderStandard[]): AlertInput[] {

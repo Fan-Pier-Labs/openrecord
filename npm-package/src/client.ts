@@ -326,7 +326,7 @@ export class MyChartClient {
 
   /**
    * Every capability OpenRecord supports, from the shared registry
-   * (`shared/capabilities.ts`) — the same list the CLI, the Claude Desktop
+   * (`shared/capabilities/`) — the same list the CLI, the Claude Desktop
    * extension and the mobile app derive their tools from. Useful for building
    * a tool layer of your own without re-deriving what exists.
    */

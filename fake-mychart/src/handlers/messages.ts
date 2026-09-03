@@ -2,6 +2,7 @@ import type { NextRequest, NextResponse } from 'next/server';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
 import { messagesPage } from '@/lib/html';
+import { epicMessageBody } from '@/lib/messageBody';
 import { state, type ConversationStore } from '@/lib/state';
 import { html, json } from './respond';
 import { activeConversations } from './records';
@@ -199,7 +200,9 @@ export const messagesPost: ExactRoutes = {
           wmgId: `MSG-${Date.now()}`,
           author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: new Date().toISOString(),
-          body: replyBody,
+          // Sent as text, stored and served as markup — Epic formats on the way
+          // in, so a body never reads back the way it was posted.
+          body: epicMessageBody(replyBody),
         });
       }
       // Real MyChart returns the conversation ID as a plain JSON string
@@ -240,7 +243,7 @@ export const messagesPost: ExactRoutes = {
             wmgId: `MSG-${Date.now()}`,
             author: { wprKey: 'WPR-HOMER', displayName: '' },
             deliveryInstantISO: new Date().toISOString(),
-            body: msgBody,
+            body: epicMessageBody(msgBody),
           },
         ],
       });
