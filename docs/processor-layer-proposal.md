@@ -27,8 +27,9 @@ scraper   : MyChartRequest → RawResponse            (network only, no editing)
 processor : RawResponse × mode → output              (pure, no network)
 ```
 
-One processor per scraper, living next to it (`scrapers/myChart/chart/<name>.ts`
-gets `<name>.processor.ts`). The capability registry runs the scraper, then the
+One processor per scraper, in the scraper's own folder
+(`scrapers/myChart/chart/<name>/<name>.ts` beside `<name>.processor.ts`, with the
+folder's `__tests__/`). The capability registry runs the scraper, then the
 processor, and the `mode` becomes a parameter every read capability accepts.
 Clients pass whichever mode suits them; none of them post-processes.
 

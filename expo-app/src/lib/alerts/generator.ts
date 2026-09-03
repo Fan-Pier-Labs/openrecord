@@ -1,7 +1,7 @@
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
 import type { BillingStandard, BillingAccountStandard } from "../../../../scrapers/myChart/chart/bills/bills";
-import type { MedicationsStandard, PrescriptionStandard } from "../../../../scrapers/myChart/chart/medications";
+import type { MedicationsStandard, PrescriptionStandard } from "../../../../scrapers/myChart/chart/medications/medications";
 import type { LabResultsStandard, LabOrderStandard, LabComponentStandard } from "../../../../scrapers/myChart/chart/labs/labResults";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;

@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
-import { getMyChartProfile } from '../../chart/profile'
+import { getMyChartProfile } from '../../chart/profile/profile'
 import { setupTotp } from '../../auth/setupTotp'
 import { setRequireTerms, resetFakeMyChart } from './mountMode'
 

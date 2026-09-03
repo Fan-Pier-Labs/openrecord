@@ -143,7 +143,7 @@ answer depended on which client they asked.
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
 
-## The processor layer (`scrapers/myChart/processors/`, `chart/*.processor.ts`)
+## The processor layer (`scrapers/myChart/processors/`, `chart/<name>/<name>.processor.ts`)
 
 A read capability is two pure-ish halves. The scraper's `fetch…Raw(request, …)` talks to MyChart
 and records every request it makes into a `RawResponse` envelope (`core/rawResponse.ts`): path,

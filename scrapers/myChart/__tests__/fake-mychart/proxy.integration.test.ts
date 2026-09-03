@@ -12,9 +12,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
-import { getMyChartProfile } from '../../chart/profile'
-import { getMedications } from '../../chart/medications'
-import { getCareTeam } from '../../chart/careTeam'
+import { getMyChartProfile } from '../../chart/profile/profile'
+import { getMedications } from '../../chart/medications/medications'
+import { getCareTeam } from '../../chart/careTeam/careTeam'
 import {
   assertProxyReadContext,
   runListProxyTargets,

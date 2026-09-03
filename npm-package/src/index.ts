@@ -72,7 +72,7 @@ export {
   getEmail,
   type ProfileData,
   type ProfileStandard,
-} from '../../scrapers/myChart/chart/profile';
+} from '../../scrapers/myChart/chart/profile/profile';
 export {
   discoverProxyTargets,
   switchProxyTarget,
@@ -87,7 +87,7 @@ export {
   fetchHealthSummaryRaw,
   healthSummaryProcessor,
   type HealthSummaryStandard,
-} from '../../scrapers/myChart/chart/healthSummary';
+} from '../../scrapers/myChart/chart/healthSummary/healthSummary';
 export {
   getVitals,
   fetchVitalsRaw,
@@ -95,7 +95,7 @@ export {
   type VitalsStandard,
   type FlowsheetStandard,
   type VitalReadingStandard,
-} from '../../scrapers/myChart/chart/vitals';
+} from '../../scrapers/myChart/chart/vitals/vitals';
 
 // ─── Medications ──────────────────────────────────────────────────────────
 export {
@@ -106,11 +106,11 @@ export {
   type PrescriptionStandard,
   type RefillDetailsStandard,
   type OwningPharmacyStandard,
-} from '../../scrapers/myChart/chart/medications';
+} from '../../scrapers/myChart/chart/medications/medications';
 export {
   requestMedicationRefill,
   type RefillRequestResult,
-} from '../../scrapers/myChart/chart/medicationRefill';
+} from '../../scrapers/myChart/chart/medications/medicationRefill';
 
 // ─── Allergies / health issues / history / immunizations ──────────────────
 export {
@@ -118,14 +118,14 @@ export {
   fetchAllergiesRaw,
   allergiesProcessor,
   type AllergiesStandard,
-} from '../../scrapers/myChart/chart/allergies';
+} from '../../scrapers/myChart/chart/allergies/allergies';
 export {
   getHealthIssues,
   fetchHealthIssuesRaw,
   healthIssuesProcessor,
   type HealthIssuesStandard,
   type HealthIssueStandard,
-} from '../../scrapers/myChart/chart/healthIssues';
+} from '../../scrapers/myChart/chart/healthIssues/healthIssues';
 export {
   getMedicalHistory,
   fetchMedicalHistoryRaw,
@@ -134,14 +134,14 @@ export {
   type DiagnosisStandard,
   type SurgeryStandard,
   type FamilyMemberStandard,
-} from '../../scrapers/myChart/chart/medicalHistory';
+} from '../../scrapers/myChart/chart/medicalHistory/medicalHistory';
 export {
   getImmunizations,
   fetchImmunizationsRaw,
   immunizationsProcessor,
   type ImmunizationsStandard,
   type ImmunizationStandard,
-} from '../../scrapers/myChart/chart/immunizations';
+} from '../../scrapers/myChart/chart/immunizations/immunizations';
 
 // ─── Labs / imaging ───────────────────────────────────────────────────────
 export {
@@ -288,73 +288,73 @@ export {
   careTeamProcessor,
   type CareTeamStandard,
   type CareTeamProviderStandard,
-} from '../../scrapers/myChart/chart/careTeam';
+} from '../../scrapers/myChart/chart/careTeam/careTeam';
 export {
   getReferrals,
   fetchReferralsRaw,
   referralsProcessor,
   type ReferralsStandard,
   type ReferralStandard,
-} from '../../scrapers/myChart/chart/referrals';
+} from '../../scrapers/myChart/chart/referrals/referrals';
 export {
   getInsurance,
   fetchInsuranceRaw,
   insuranceProcessor,
   type InsuranceStandard,
   type InsuranceCoverageStandard,
-} from '../../scrapers/myChart/chart/insurance';
+} from '../../scrapers/myChart/chart/insurance/insurance';
 export {
   getDocuments,
   fetchDocumentsRaw,
   documentsProcessor,
   type DocumentsStandard,
-} from '../../scrapers/myChart/chart/documents';
+} from '../../scrapers/myChart/chart/documents/documents';
 export {
   getGoals,
   fetchGoalsRaw,
   goalsProcessor,
   type GoalsStandard,
-} from '../../scrapers/myChart/chart/goals';
+} from '../../scrapers/myChart/chart/goals/goals';
 export {
   getCareJourneys,
   fetchCareJourneysRaw,
   careJourneysProcessor,
   type CareJourneysStandard,
-} from '../../scrapers/myChart/chart/careJourneys';
+} from '../../scrapers/myChart/chart/careJourneys/careJourneys';
 export {
   getUpcomingOrders,
   fetchUpcomingOrdersRaw,
   upcomingOrdersProcessor,
   type UpcomingOrdersStandard,
   type UpcomingOrderStandard,
-} from '../../scrapers/myChart/chart/upcomingOrders';
+} from '../../scrapers/myChart/chart/upcomingOrders/upcomingOrders';
 export {
   getPreventiveCare,
   fetchPreventiveCareRaw,
   preventiveCareProcessor,
   type PreventiveCareStandard,
   type PreventiveCareItemStandard,
-} from '../../scrapers/myChart/chart/preventiveCare';
+} from '../../scrapers/myChart/chart/preventiveCare/preventiveCare';
 export {
   getEducationMaterials,
   fetchEducationMaterialsRaw,
   educationMaterialsProcessor,
   type EducationMaterialsStandard,
   type EducationMaterialStandard,
-} from '../../scrapers/myChart/chart/educationMaterials';
+} from '../../scrapers/myChart/chart/educationMaterials/educationMaterials';
 export {
   getQuestionnaires,
   fetchQuestionnairesRaw,
   questionnairesProcessor,
   type QuestionnairesStandard,
-} from '../../scrapers/myChart/chart/questionnaires';
+} from '../../scrapers/myChart/chart/questionnaires/questionnaires';
 export {
   getActivityFeed,
   fetchActivityFeedRaw,
   activityFeedProcessor,
   type ActivityFeedStandard,
   type FeedItemStandard,
-} from '../../scrapers/myChart/chart/activityFeed';
+} from '../../scrapers/myChart/chart/activityFeed/activityFeed';
 export {
   getLetters,
   getLetterDetails,
@@ -365,7 +365,7 @@ export {
   type LettersStandard,
   type LetterStandard,
   type LetterDetailsStandard,
-} from '../../scrapers/myChart/chart/letters';
+} from '../../scrapers/myChart/chart/letters/letters';
 
 // ─── Emergency contacts ──────────────────────────────────────────────────
 export {
@@ -380,7 +380,7 @@ export {
   type EmergencyContactInput,
   type EmergencyContactUpdateInput,
   type EmergencyContactResult,
-} from '../../scrapers/myChart/chart/emergencyContacts';
+} from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 // ─── Linked accounts / EHI export ────────────────────────────────────────
 export {
@@ -389,14 +389,14 @@ export {
   linkedAccountsProcessor,
   type LinkedAccountsStandard,
   type LinkedOrganizationStandard,
-} from '../../scrapers/myChart/chart/otherMyCharts';
+} from '../../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
 export {
   getEhiExportTemplates,
   fetchEhiExportRaw,
   ehiExportProcessor,
   type EhiExportStandard,
   type EhiTemplateStandard,
-} from '../../scrapers/myChart/chart/ehiExport';
+} from '../../scrapers/myChart/chart/ehiExport/ehiExport';
 
 // ─── Visit notes ─────────────────────────────────────────────────────────
 export {
@@ -411,7 +411,7 @@ export {
   type VisitNotesStandard,
   type VisitNoteStandard,
   type NoteContentStandard,
-} from '../../scrapers/myChart/chart/notes';
+} from '../../scrapers/myChart/chart/notes/notes';
 
 // ─── Capability registry ─────────────────────────────────────────────────
 // The single source of truth for what OpenRecord can do with a MyChart

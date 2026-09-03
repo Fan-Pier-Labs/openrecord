@@ -20,9 +20,9 @@ import { myChartUserPassLogin } from '../../auth/login';
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
 import { wireSilentReauthentication } from '../../auth/silentLogin';
 import { sessionStore } from '../../core/sessionStore';
-import { getAllergies } from '../../chart/allergies';
-import { getMedications } from '../../chart/medications';
-import { getImmunizations } from '../../chart/immunizations';
+import { getAllergies } from '../../chart/allergies/allergies';
+import { getMedications } from '../../chart/medications/medications';
+import { getImmunizations } from '../../chart/immunizations/immunizations';
 import { switchProxyTarget, verifyActiveProxyTarget } from '../../proxy/proxyContext';
 import { setMountMode } from './mountMode';
 

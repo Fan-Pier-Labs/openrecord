@@ -2,7 +2,7 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { logger } from '../../../../shared/logger';
 import { bool, list, rec, text } from '../../processors/read';
-import { requireJsonBody } from '../notes';
+import { requireJsonBody } from '../notes/notes';
 import {
   pastVisitsProcessor,
   upcomingVisitsProcessor,

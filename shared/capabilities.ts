@@ -40,17 +40,17 @@ import {
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
 
-import { fetchProfileRaw, profileProcessor } from '../scrapers/myChart/chart/profile';
-import { fetchHealthSummaryRaw, healthSummaryProcessor } from '../scrapers/myChart/chart/healthSummary';
-import { getMedications, fetchMedicationsRaw, medicationsProcessor } from '../scrapers/myChart/chart/medications';
-import { requestMedicationRefill } from '../scrapers/myChart/chart/medicationRefill';
-import { fetchAllergiesRaw, allergiesProcessor } from '../scrapers/myChart/chart/allergies';
-import { fetchHealthIssuesRaw, healthIssuesProcessor } from '../scrapers/myChart/chart/healthIssues';
-import { fetchVitalsRaw, vitalsProcessor } from '../scrapers/myChart/chart/vitals';
-import { fetchImmunizationsRaw, immunizationsProcessor } from '../scrapers/myChart/chart/immunizations';
-import { fetchPreventiveCareRaw, preventiveCareProcessor } from '../scrapers/myChart/chart/preventiveCare';
-import { fetchMedicalHistoryRaw, medicalHistoryProcessor } from '../scrapers/myChart/chart/medicalHistory';
-import { fetchGoalsRaw, goalsProcessor } from '../scrapers/myChart/chart/goals';
+import { fetchProfileRaw, profileProcessor } from '../scrapers/myChart/chart/profile/profile';
+import { fetchHealthSummaryRaw, healthSummaryProcessor } from '../scrapers/myChart/chart/healthSummary/healthSummary';
+import { getMedications, fetchMedicationsRaw, medicationsProcessor } from '../scrapers/myChart/chart/medications/medications';
+import { requestMedicationRefill } from '../scrapers/myChart/chart/medications/medicationRefill';
+import { fetchAllergiesRaw, allergiesProcessor } from '../scrapers/myChart/chart/allergies/allergies';
+import { fetchHealthIssuesRaw, healthIssuesProcessor } from '../scrapers/myChart/chart/healthIssues/healthIssues';
+import { fetchVitalsRaw, vitalsProcessor } from '../scrapers/myChart/chart/vitals/vitals';
+import { fetchImmunizationsRaw, immunizationsProcessor } from '../scrapers/myChart/chart/immunizations/immunizations';
+import { fetchPreventiveCareRaw, preventiveCareProcessor } from '../scrapers/myChart/chart/preventiveCare/preventiveCare';
+import { fetchMedicalHistoryRaw, medicalHistoryProcessor } from '../scrapers/myChart/chart/medicalHistory/medicalHistory';
+import { fetchGoalsRaw, goalsProcessor } from '../scrapers/myChart/chart/goals/goals';
 
 import {
   fetchUpcomingVisitsRaw,
@@ -64,7 +64,7 @@ import {
   fetchVisitAvsRaw,
   visitNotesProcessor,
   noteContentProcessor,
-} from '../scrapers/myChart/chart/notes';
+} from '../scrapers/myChart/chart/notes/notes';
 
 import {
   fetchLabResultsRaw,
@@ -96,24 +96,24 @@ import { sendReply } from '../scrapers/myChart/chart/messages/sendReply';
 import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage';
 
 import { fetchBillingRaw, billingProcessor } from '../scrapers/myChart/chart/bills/bills';
-import { fetchInsuranceRaw, insuranceProcessor } from '../scrapers/myChart/chart/insurance';
+import { fetchInsuranceRaw, insuranceProcessor } from '../scrapers/myChart/chart/insurance/insurance';
 
-import { fetchCareTeamRaw, careTeamProcessor } from '../scrapers/myChart/chart/careTeam';
-import { fetchReferralsRaw, referralsProcessor } from '../scrapers/myChart/chart/referrals';
+import { fetchCareTeamRaw, careTeamProcessor } from '../scrapers/myChart/chart/careTeam/careTeam';
+import { fetchReferralsRaw, referralsProcessor } from '../scrapers/myChart/chart/referrals/referrals';
 import {
   fetchLettersRaw,
   fetchLetterDetailsRaw,
   lettersProcessor,
   letterDetailsProcessor,
-} from '../scrapers/myChart/chart/letters';
-import { fetchDocumentsRaw, documentsProcessor } from '../scrapers/myChart/chart/documents';
-import { fetchUpcomingOrdersRaw, upcomingOrdersProcessor } from '../scrapers/myChart/chart/upcomingOrders';
-import { fetchQuestionnairesRaw, questionnairesProcessor } from '../scrapers/myChart/chart/questionnaires';
-import { fetchCareJourneysRaw, careJourneysProcessor } from '../scrapers/myChart/chart/careJourneys';
-import { fetchActivityFeedRaw, activityFeedProcessor } from '../scrapers/myChart/chart/activityFeed';
-import { fetchEducationMaterialsRaw, educationMaterialsProcessor } from '../scrapers/myChart/chart/educationMaterials';
-import { fetchEhiExportRaw, ehiExportProcessor } from '../scrapers/myChart/chart/ehiExport';
-import { fetchLinkedAccountsRaw, linkedAccountsProcessor } from '../scrapers/myChart/chart/otherMyCharts';
+} from '../scrapers/myChart/chart/letters/letters';
+import { fetchDocumentsRaw, documentsProcessor } from '../scrapers/myChart/chart/documents/documents';
+import { fetchUpcomingOrdersRaw, upcomingOrdersProcessor } from '../scrapers/myChart/chart/upcomingOrders/upcomingOrders';
+import { fetchQuestionnairesRaw, questionnairesProcessor } from '../scrapers/myChart/chart/questionnaires/questionnaires';
+import { fetchCareJourneysRaw, careJourneysProcessor } from '../scrapers/myChart/chart/careJourneys/careJourneys';
+import { fetchActivityFeedRaw, activityFeedProcessor } from '../scrapers/myChart/chart/activityFeed/activityFeed';
+import { fetchEducationMaterialsRaw, educationMaterialsProcessor } from '../scrapers/myChart/chart/educationMaterials/educationMaterials';
+import { fetchEhiExportRaw, ehiExportProcessor } from '../scrapers/myChart/chart/ehiExport/ehiExport';
+import { fetchLinkedAccountsRaw, linkedAccountsProcessor } from '../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
 
 import {
   fetchEmergencyContactsRaw,
@@ -121,7 +121,7 @@ import {
   addEmergencyContact,
   updateEmergencyContact,
   removeEmergencyContact,
-} from '../scrapers/myChart/chart/emergencyContacts';
+} from '../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 import {
   assertProxyReadContext,
