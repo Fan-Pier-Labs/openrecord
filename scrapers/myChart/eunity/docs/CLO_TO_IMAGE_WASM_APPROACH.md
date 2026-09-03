@@ -267,7 +267,7 @@ const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 ```
 
 ## Files Reference
-- `src/main/scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download pipeline (CLO files)
+- `src/main/scrapers/myChart/eunity/download.ts` — Direct HTTP download pipeline (CLO files)
 - `src/main/scrapers/myChart/eunity/imagingDownloader.ts` — Playwright-based download (export button approach)
 - `src/main/scrapers/myChart/eunity/imagingViewer.ts` — SAML chain + session management
 - `src/main/scrapers/myChart/eunity/docs/EUNITY_PROTOCOL.md` — Full eUnity protocol reverse engineering notes

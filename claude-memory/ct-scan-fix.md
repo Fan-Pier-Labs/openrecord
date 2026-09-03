@@ -26,7 +26,7 @@ Our scraper only does Phase 1 and uses the initial `serviceInstance` for image d
 - Our scraper sends: `image/CLWAVE;image/CLHAAR` (missing CLJPEG)
 
 ## Files to Modify
-- `scrapers/myChart/eunity/imagingDirectDownload.ts`:
+- `scrapers/myChart/eunity/amf.ts` / `session.ts` (split out of the former `imagingDirectDownload.ts`):
   - `initializeAmfSession()` — parse real serviceInstance from response
   - `downloadImagingStudyDirect()` — make second AMF call if serviceInstance differs
   - `downloadImage()` — add `image/CLJPEG` to contentType

@@ -54,7 +54,7 @@ import { getConversationMessages } from '../../chart/messages/messageThreads'
 import { requestMedicationRefill } from '../../chart/medications/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
 import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer'
-import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
+import { downloadImagingStudyDirect } from '../../eunity/download'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
 /** The allergy element shape is uncaptured; the fake nests it under allergyItem. */

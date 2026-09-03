@@ -6,7 +6,7 @@ import {
   isAmf3Externalizable,
   type Amf3Object,
 } from '../amf3Reader';
-import { parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';
+import { parseStudySeriesFromAmfStructured } from '../amf';
 import { Amf3Writer } from '../../../../shared/amf3Writer';
 
 // The fixtures are built with the real Amf3Writer — the same code whose output

@@ -75,7 +75,7 @@ import {
   labResultsProcessor,
   imagingResultsProcessor,
 } from '../scrapers/myChart/chart/labs/labResults';
-import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
+import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/download';
 import type { FdiContext } from '../scrapers/myChart/eunity/imagingViewer';
 
 import { fetchConversationsRaw, conversationsProcessor } from '../scrapers/myChart/chart/messages/conversations';
