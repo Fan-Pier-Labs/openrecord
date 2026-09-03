@@ -380,7 +380,7 @@ export type ToolGroup =
  * It lives on the tool spec rather than in a lookup table beside it so the two
  * cannot drift: declaring a write tool means writing the dialog that gates it,
  * and the type is what enforces that. The real iOS client derives the same
- * three fields from `kind: 'write'` in `shared/capabilities.ts`.
+ * three fields from `kind: 'write'` in `shared/capabilities/`.
  */
 export type WriteMeta = {
   /** Dialog title — the action, not the function name. "Send Message". */
