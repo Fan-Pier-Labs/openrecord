@@ -83,6 +83,20 @@ function renderExample(payload: unknown): string {
   return fence('json', clipped(JSON.stringify(payload, null, 2)));
 }
 
+/**
+ * Two things in the raw records change on every run, and both are the fake's
+ * doing rather than the processors': the per-session CSRF token the fake mints,
+ * and the now-based `oldestRenderedDate` the visits scraper puts in its query.
+ * Pin both to same-length constants so the doc only changes when the output
+ * does (CI regenerates it and fails on a diff). Same length keeps the sizes
+ * table honest.
+ */
+function stable(doc: string): string {
+  return doc
+    .replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`)
+    .replace(/oldestRenderedDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, 'oldestRenderedDate=2024-01-01T00:00:00.000Z');
+}
+
 function sizeOf(payload: unknown): number {
   return typeof payload === 'string' ? payload.length : JSON.stringify(payload).length;
 }
@@ -125,7 +139,8 @@ async function main(): Promise<void> {
     '[`processor-layer-proposal.md`](processor-layer-proposal.md).',
     '',
     `Every read capability, in all four modes. Raw and JSON examples longer than ${MAX_EXAMPLE_CHARS.toLocaleString()}`,
-    'characters are cut, and say so.',
+    'characters are cut, and say so. The fake\'s per-session CSRF token and the now-based',
+    '`oldestRenderedDate` query value are pinned so the doc only changes when the output does.',
     '',
     '## Sizes (characters)',
     '',
@@ -138,7 +153,7 @@ async function main(): Promise<void> {
   ].join('\n');
 
   const out = join(import.meta.dir, '..', 'docs', 'processor-layer-examples.md');
-  writeFileSync(out, doc);
+  writeFileSync(out, stable(doc));
   console.log(`wrote ${out} (${reads.length} capabilities)`);
   process.exit(0);
 }
