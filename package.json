@@ -21,6 +21,7 @@
     "fzstd": "^0.1.1",
     "html-to-text": "^10.0.1",
     "jpeg-js": "^0.4.4",
+    "js-base64": "^3.9.3",
     "markdown-table": "^3.0.4",
     "mkdirp": "^3.0.1",
     "node-sqlite3-wasm": "^0.8.60",
