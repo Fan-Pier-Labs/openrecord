@@ -453,10 +453,14 @@ export {
   ACCOUNT_PARAM_NAMES,
   PATIENT_PARAM,
   readAccountArg,
+  acceptsAccountParam,
   acceptsPatientParam,
+  isPublicCapability,
   CAPABILITIES,
   CAPABILITY_IDS,
   AGENT_CAPABILITIES,
+  PUBLIC_CAPABILITIES,
+  PUBLIC_CAPABILITY_IDS,
   WRITE_CAPABILITY_IDS,
   getCapability,
   capabilitiesByGroup,
@@ -473,6 +477,65 @@ export {
   type CapabilityParam,
   type StudyImagePayload,
 } from '../../shared/capabilities';
+
+// ─── Public directories — no MyChart account required ────────────────────
+//
+// CMS's NPI Registry and Epic's directory of MyChart instances. Both are
+// public data, so these are the two scrapers here that take no session: an
+// NPI turns into a provider, and a health system's name turns into the
+// hostname you would then connect an account on.
+export {
+  fetchNpiLookupRaw,
+  fetchNpiSearchRaw,
+  lookupNpi,
+  searchNpiRegistry,
+  npiLookupProcessor,
+  npiSearchProcessor,
+  isNpiRegistryErrors,
+  buildNpiSearchUrl,
+  isValidNpi,
+  NPI_REGISTRY_API_URL,
+  NPI_REGISTRY_API_VERSION,
+  NPI_REGISTRY_MAX_PAGE_SIZE,
+  NPI_REGISTRY_MAX_SKIP,
+  NPI_REGISTRY_DEFAULT_PAGE_SIZE,
+  type NpiProviderType,
+  type NpiSearchQuery,
+  type NpiRegistryOptions,
+  type NpiRegistryApiError,
+  type NpiRegistryErrors,
+  type NpiProviderStandard,
+  type NpiSearchStandard,
+  type NpiBasicStandard,
+  type NpiAddressStandard,
+  type NpiTaxonomyStandard,
+  type NpiIdentifierStandard,
+} from '../../scrapers/npi/npiRegistry';
+export {
+  fetchMyChartDirectory,
+  fetchMyChartIcon,
+  parseDirectoryPayload,
+  toSeedEntry,
+  logoUrlFor,
+  MYCHART_DIRECTORY_API_URL,
+  MYCHART_MEDIA_BASE,
+  type MyChartInstance,
+  type MyChartInstanceSeed,
+  type MyChartIcon,
+} from '../../scrapers/list-all-mycharts/directory';
+export {
+  searchMyChartDirectory,
+  rankDirectoryMatches,
+  clearDirectoryCache,
+  SANDBOX_INSTANCE,
+  DEFAULT_DIRECTORY_SEARCH_LIMIT,
+  MAX_DIRECTORY_SEARCH_LIMIT,
+  DIRECTORY_CACHE_TTL_MS,
+  type MyChartDirectoryMatch,
+  type MyChartDirectorySearchResult,
+  type MyChartDirectorySearchOptions,
+  type MyChartDirectorySource,
+} from '../../scrapers/list-all-mycharts/searchDirectory';
 
 // ─── High-level client ───────────────────────────────────────────────────
 export {

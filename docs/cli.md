@@ -114,8 +114,32 @@ Every read capability renders its payload in one of four modes (see
 mychart-cli --host mychart.example.org --action get_medications --mode concise
 ```
 
-`--arg mode=<mode>` means the same thing and wins when both are given. Writes
-and `download_imaging_study` ignore it.
+`--arg mode=<mode>` means the same thing and wins when both are given. Writes,
+`search_mycharts` and `download_imaging_study` ignore it.
+
+### Public lookups — no `--host`, no credentials
+
+Three capabilities read a source no MyChart account owns, so they run with no
+account at all: they are dispatched before the CLI resolves a single credential,
+and once rather than once per configured account.
+
+```bash
+mychart-cli --action search_mycharts --arg query=uchealth
+```
+
+```bash
+mychart-cli --action lookup_npi --arg npi=1234567893
+```
+
+```bash
+mychart-cli --action search_npi_registry --arg last_name=Hibbert --arg state=IL
+```
+
+`search_mycharts` searches Epic's live directory of every MyChart instance,
+falling back to the list checked into this repo when it can't reach it — the
+result's `source` field says which answered. `lookup_npi` and
+`search_npi_registry` read CMS's public NPI Registry and take `--mode` like any
+other read. Passing `--host` alongside one of these is harmless and ignored.
 
 ### `--show-all`
 

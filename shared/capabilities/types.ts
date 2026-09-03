@@ -22,7 +22,22 @@ export type CapabilityKind =
    * itself. Never offered to a model as a tool — clients surface these in
    * their own settings surface (CLI flags, app settings screen).
    */
-  | 'account';
+  | 'account'
+  /**
+   * Reads a public source that has nothing to do with any MyChart account —
+   * the NPI Registry, Epic's directory of MyChart instances. No login, no
+   * session, no patient.
+   *
+   * This is the one kind whose `run` never receives a {@link MyChartRequest}:
+   * see {@link PublicCapabilityImpl}. That is not a convenience, it is the
+   * guarantee — a capability that cannot reach a session cannot read a chart,
+   * so exempting it from the active-patient assertion is safe by construction
+   * rather than by review.
+   *
+   * Read-shaped in every other respect: clients annotate these read-only and
+   * offer them to a model, without an `account` parameter to fill in.
+   */
+  | 'public';
 
 export type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
 
@@ -100,7 +115,8 @@ export interface Capability {
 }
 
 /**
- * A capability plus its implementation. **Internal to this module on purpose.**
+ * A capability that runs against a MyChart session, plus its implementation.
+ * **Internal to this module on purpose.**
  *
  * `run` is deliberately absent from the exported {@link Capability}, so
  * `capability.run(...)` does not compile anywhere outside this file. That is
@@ -120,7 +136,8 @@ export interface Capability {
  * The last of those was live: `downloadStudyJpegs` reached `run` through
  * `getCapability`, in a file the regex never scanned.
  */
-export interface CapabilityImpl extends Capability {
+export interface AccountCapabilityImpl extends Capability {
+  kind: 'read' | 'write' | 'account';
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
   /**
    * For read capabilities: `run` returns the scraper's {@link RawResponse}
@@ -131,3 +148,25 @@ export interface CapabilityImpl extends Capability {
    */
   processor?: Processor;
 }
+
+/**
+ * A `public`-kind capability: it takes arguments and nothing else.
+ *
+ * The absent `request` parameter is the enforcement, not a simplification.
+ * Every guarantee in this registry about reading the right patient's chart
+ * rests on a session, and the way to be certain a capability cannot violate
+ * one is for it to have no session to violate it with. A public capability
+ * that grew a chart read would not compile.
+ *
+ * It is otherwise an ordinary read: a public *scraper* returns a `RawResponse`
+ * like every other one, and its `processor` gives it the same `raw` /
+ * `standard` / `concise` / `json` modes.
+ */
+export interface PublicCapabilityImpl extends Capability {
+  kind: 'public';
+  run: (args: CapabilityArgs) => Promise<unknown>;
+  /** As on {@link AccountCapabilityImpl}. Absent when `run` returns a finished object. */
+  processor?: Processor;
+}
+
+export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl;
