@@ -185,7 +185,7 @@ the rest of the contact-information body.
 | --- | --- | :-: | :-: | :-: | --- |
 | `name`, `dob`, `mrn`, `pcp` | Parsed from the `/Home` print header. `mrn`/`pcp` blank on MyChart Central-style instances | ✓ | ✓ | ✓ | Derived from the page HTML. The four facts that identify the record; every consumer needs them. |
 | `SecureCommunicationInfo.EmailAddress` | Account email | — | ✓ | ✓ | The contact detail a consumer most often needs; small enough for concise. |
-| `SecureCommunicationInfo.MobilePhone`, `HomePhone`, `WorkPhone` | Phone numbers | — | ✓ | — | Real contact data. Concise is the identity card, not the address book. |
+| `SecureCommunicationInfo.MobilePhone`, `HomePhone`, `WorkPhone` | Phone numbers (`HomePhone` / `WorkPhone` sit at the top level of the contact body) | — | ✓ | — | Real contact data. Concise is the identity card, not the address book. |
 | `SecureCommunicationInfo.SecureEmail`, `SecureMobile` | Verified-contact copies of the same values | — | — | — | Duplicate of `EmailAddress` / `MobilePhone`. |
 | `PreferredDevice` | Preferred contact channel | — | ✓ | — | A stated preference; useful to anyone contacting the patient, not part of identity. |
 | `PermanentAddress.FormattedValues[]` | Display lines of the home address | — | ✓ | — | The address as MyChart prints it. Standard carries contact data; concise does not. |
@@ -259,6 +259,7 @@ under `communityMembers[].prescriptionList.prescriptions[]`; the scraper keeps 1
 | `organizationName` | `organization.organizationName` lifted onto the row | ✓ | ✓ | — | Derived. Which health system holds the prescription; matters on multi-organization accounts and is emitted on all (rule 6). |
 | `organization.*` (on the prescription, the list and the community member) | The organization object, three times | — | — | — | Org blob. |
 | `target`, `isSigRTL`, `isTranslationFromOrderRTL`, `providerDisplayKey`, `showProviderInMedsCard`, `drawProviderDetailsLink`, `isSelected`, `showPrescriptionCardBottomDetails`, `showPrescriptionCardBottom`, `showDeleteButton`, `showRefillButton`, `showRefillStatus`, `showWaitingForInsuranceAuth`, `showOrderLevelStatus`, `showBannerMessage`, `showDuplicateWarning`, `showHomeHealthPendingUpdateWarning`, `showSig`, `showPendingUndoDeleteButton`, `showPendingUndoAddButton`, `disableValidation`, `prescriptionListType`, `hasPrescriptionColDetail`, `hasRefillColDetail`, `hasPharmacyColDetail`, `showDrivingDirections`, `showMessagePharmacyAction`, `showCostDetails`, `showPayButton`, `highlightMedIsHidden`, `proxiesWhoCantAccessConfMeds[]`, `showProxiesWhoCantAccessList`, `showOutpatientPauseWarning`, `outpatientPauseSummary`, `outpatientPauseExtraText`, `outpatientPauseDupMismatchType`, `iconPath`, `contentLinkURL`, `isPreviousTakingDiffSigRTL` | Card rendering | — | — | — | UI flag / portal link / asset. |
+| `prescriptionLists[]` | One entry per organization, holding the list-level fields below with `organizationName` | ✓ | ✓ | — | Derived grouping: prescriptions are flattened into one list, so the per-organization list fields need a home of their own. |
 | `prescriptionList.numRefillsDueSoon` | Count of refills due | — | ✓ | — | A real count; derivable but cheap to keep. |
 | `prescriptionList.pickups[]`, `.deliveries[]`, `.inProgressWorkRequests[]` | Pending pharmacy work | — | ✓ | — | Uncaptured; passed through. |
 | `prescriptionList.previousTakingValuesDate` | Date of the last "taking differently" review | — | ✓ | — | Chronology detail. |
@@ -338,8 +339,10 @@ scraper.
 | `readings[].id`, `.fsdId`, `.sourceRowId`, `.line`, `.valueType`, `.dataType`, `.decimalPlaces` | Storage ids and formatting | — | — | — | Internal, or duplicate of the row's formatting. |
 | `userSettings.*` | Session, device, patient ids | — | — | — | Session context. |
 
-Concise renders per vital type: name, units, the most recent reading, the
-number of readings, and the abnormal readings.
+Concise renders per vital type (`flowsheets[].rows[]`): `name`,
+`unitsDisplayName`, and three derived fields — `readingCount`, `latestReading`
+(`instantTakenIso`, `value`, `isAbnormal`) and `abnormalReadings[]`
+(`instantTakenIso`, `value`).
 
 ---
 

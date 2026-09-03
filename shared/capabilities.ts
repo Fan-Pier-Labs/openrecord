@@ -236,8 +236,10 @@ interface CapabilityImpl extends Capability {
    * For read capabilities: `run` returns the scraper's {@link RawResponse}
    * envelope and this turns it into the requested {@link OutputMode}. A
    * capability without one ignores `mode` (writes, account management, media).
+   * `unknown` rather than a per-entry type parameter: the registry only ever
+   * hands the processor to {@link renderOutput}, which is generic over it.
    */
-  processor?: Processor<never>;
+  processor?: Processor<unknown>;
 }
 
 // ── Argument coercion ───────────────────────────────────────────────────────

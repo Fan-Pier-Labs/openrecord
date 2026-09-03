@@ -314,6 +314,32 @@ The CLI stores credentials under `./.passkey-credentials/` and
 `./.totp-secrets/` (both relative to the cwd). Override either with
 `MYCHART_PASSKEY_DIR=/abs/path` or `MYCHART_TOTP_DIR=/abs/path`.
 
+## Output modes
+
+Every read capability renders its payload in one of four modes. The typed
+methods on `MyChartClient` (`getMedications()`, `pastVisits()`, …) return the
+**standard object**: every useful field, under MyChart's own field names, with
+derived fields (`bodyText`, `instantISO`, `organizationName`, …) beside them.
+`runCapability(id, { mode })` picks any of the four:
+
+| Mode | What you get |
+| --- | --- |
+| `json` | The standard object as JSON. **The default** for `runCapability` and for `mychart-cli` |
+| `standard` | The standard object as markdown |
+| `concise` | The interesting subset as markdown — what the desktop extension and the app show a model |
+| `raw` | Exactly what MyChart sent, untouched: the response body, or an envelope of every request the scraper made |
+
+```ts
+const md = await client.runCapability('get_lab_results', { mode: 'concise' });
+const everything = await client.runCapability('get_lab_results', { mode: 'raw' });
+```
+
+The `fetch…Raw` functions (`fetchMedicationsRaw(request)`, …) and the
+processors (`medicationsProcessor.standard(raw)`, `.concise(standard)`) are
+exported too, so a library consumer can keep the envelope and project it later.
+Field decisions per capability: `docs/processor-layer-proposal.md` in the
+repository; example output in every mode: `docs/processor-layer-examples.md`.
+
 ## Persisting sessions
 
 Cookie-based sessions are short-lived (MyChart times them out after

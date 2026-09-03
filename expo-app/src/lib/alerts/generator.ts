@@ -1,7 +1,7 @@
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
 import type { BillingAccount } from "../../../../scrapers/myChart/chart/bills/types";
-import type { MedicationsResult, Medication } from "../../../../scrapers/myChart/chart/medications";
+import type { MedicationsStandard, PrescriptionStandard } from "../../../../scrapers/myChart/chart/medications";
 import type { LabTestResultWithHistory } from "../../../../scrapers/myChart/chart/labs/labtestresulttype";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;
@@ -17,8 +17,8 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
       console.warn("[alerts] get_billing failed:", (err as Error).message);
     }
     try {
-      const meds = (await executeScraperTool("get_medications", hostname ? { instance: hostname } : {})) as MedicationsResult;
-      inputs.push(...buildRefillAlerts(meds.medications, hostname));
+      const meds = (await executeScraperTool("get_medications", { ...(hostname ? { instance: hostname } : {}), mode: "json" })) as MedicationsStandard;
+      inputs.push(...buildRefillAlerts(meds.prescriptions, hostname));
     } catch (err) {
       console.warn("[alerts] get_medications failed:", (err as Error).message);
     }
@@ -77,14 +77,15 @@ function buildBillAlerts(accounts: BillingAccount[], hostname?: string): AlertIn
   return out;
 }
 
-function buildRefillAlerts(meds: Medication[], hostname?: string): AlertInput[] {
+function buildRefillAlerts(meds: PrescriptionStandard[], hostname?: string): AlertInput[] {
   const out: AlertInput[] = [];
   for (const m of meds) {
-    if (!m.isRefillable) continue;
-    const drug = m.commonName?.trim() || m.name.trim();
+    if (!m.refillDetails?.isRefillable) continue;
+    const name = m.name ?? "";
+    const drug = m.patientFriendlyName.text?.trim() || name.trim();
     const dose = m.sig?.trim();
     const lastFilled = m.dateToDisplay?.trim();
-    const daySupply = m.refillDetails?.daySupply?.trim();
+    const daySupply = m.refillDetails.daySupply?.trim();
     const parts: string[] = [];
     if (dose) parts.push(dose);
     if (daySupply) parts.push(`${daySupply}-day supply`);
@@ -95,18 +96,18 @@ function buildRefillAlerts(meds: Medication[], hostname?: string): AlertInput[] 
       title: drug,
       description,
       metadata: {
-        medication_name: m.name,
-        common_name: m.commonName,
+        medication_name: name,
+        common_name: m.patientFriendlyName.text,
         sig: m.sig,
         last_filled: lastFilled ?? null,
         day_supply: daySupply ?? null,
-        prescriber: m.authorizingProviderName ?? m.orderingProviderName ?? null,
+        prescriber: m.authorizingProvider.name ?? m.orderingProvider.name ?? null,
       },
       cta_label: "Request refill",
       uses_ai: false,
       action_kind: "request_refill",
-      action_payload: { medication_name: m.name, instance: hostname },
-      dedup_key: `refill:${m.medicationKey ?? m.name}`,
+      action_payload: { medication_name: name, instance: hostname },
+      dedup_key: `refill:${m.id ?? name}`,
     });
   }
   return out;
