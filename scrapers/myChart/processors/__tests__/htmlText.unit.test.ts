@@ -32,6 +32,14 @@ describe('htmlToText', () => {
     expect(htmlToText('<pre>a\n  b</pre>')).toBe('a\n  b');
   });
 
+  it("empties a line Epic padded with a non-breaking space", () => {
+    // A blank line in a MyChart message body is a paragraph holding one
+    // `&nbsp;`. Left alone it comes back as an invisible-but-not-empty line.
+    expect(htmlToText('<div>one</div><div>&nbsp;</div><div>two</div>')).toBe('one\n\ntwo');
+    // Only trailing padding goes; a <pre>'s leading indent is content.
+    expect(htmlToText('<pre>a\n  b  </pre>')).toBe('a\n  b');
+  });
+
   it('passes plain text through and returns empty for empty', () => {
     expect(htmlToText('just text')).toBe('just text');
     expect(htmlToText('')).toBe('');

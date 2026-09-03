@@ -2,7 +2,7 @@
  * Encode a downloaded imaging study as JPEGs.
  *
  * The download itself is the shared `download_imaging_study` capability
- * (`shared/capabilities.ts`), which returns raw CLO bytes. Encoding is the
+ * (`shared/capabilities/`), which returns raw CLO bytes. Encoding is the
  * shared pure-JS exporter (`convertCloToJpgPureJs`) — the same code path the
  * Expo app uses, so an X-ray renders identically in every client. This module
  * is just the MCPB glue around it, kept out of tool registration so it can be

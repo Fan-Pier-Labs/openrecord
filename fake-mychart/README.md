@@ -296,9 +296,18 @@ fake-mychart/
   src/
     app/
       route.ts                    # GET / → 302 to /MyChart/ (firstPathPart discovery)
+      [...path]/
+        route.ts                  # Root-mounted instances — same handlers, no prefix
       MyChart/
-        [...path]/
-          route.ts                # Catch-all: dispatches all 80+ URL patterns
+        [[...path]]/
+          route.ts                # Catch-all: the mount guard, the session and
+                                  #   antiforgery gates, then a table lookup
+    handlers/                     # One module per capability domain
+      index.ts                    #   the route registry — every path we answer
+      types.ts                    #   the dispatcher: exact routes, then patterns
+      respond.ts, guards.ts,      #   the plumbing every handler shares
+        records.ts
+      medications.ts, labs.ts, …  #   named after scrapers/myChart/chart/<name>
     data/
       homer.ts                    # All Homer Simpson fake data (~800 lines)
     lib/
@@ -314,7 +323,19 @@ fake-mychart/
 
 ### Key design decisions
 
-- **Single catch-all route** — One file (`[...path]/route.ts`) handles everything. It parses the URL path segments and dispatches to handler functions. This keeps the server simple and easy to extend.
+- **One catch-all route, many handler modules** — Next's file-based routing can't express this
+  surface: the same routes are served from two mount points switched at runtime (`/MyChart/*` and
+  the domain root), matching is case-insensitive the way ASP.NET's is, and a fifth of the paths are
+  prefix matches. So `MyChart/[[...path]]/route.ts` stays the single entry point and owns only what
+  every path shares — the mount guard, the session and antiforgery gates, the header rewrite — and
+  dispatches through the tables in `src/handlers/`.
+- **A handler module per capability domain** — each is named after the scraper folder it stands in
+  for (`scrapers/myChart/chart/<name>`), so a capability's two halves are one file apart. Adding one
+  means adding a module and a line in `handlers/index.ts`, never editing a shared if-chain — which
+  is what used to make every parallel branch conflict on the same file.
+- **Exact routes beat pattern routes** — `billing/details` is a page and `billing/details/GetVisits`
+  is its data endpoint, so the lookup checks whole paths before prefixes. Registering the same path
+  twice throws at startup rather than leaving the second one silently unreachable.
 - **All state in RAM** — Sessions, conversations, and any mutations (sending messages, deleting threads) live in memory. Restarting the server resets everything to the Homer Simpson seed data.
 - **No HTTPS** — The fake server runs plain HTTP only. Scrapers pass `protocol: 'http'` to connect.
 - **Fake CSRF tokens** — Every HTML page includes a `__RequestVerificationToken` hidden input. The server generates tokens but never validates them, matching how scrapers interact with real MyChart.
@@ -377,6 +398,20 @@ Messages are fully interactive. You can:
 - **Delete a conversation** — removes it from the in-memory list
 
 All mutations persist in RAM until the server restarts.
+
+### A message body is HTML, never a bare string
+
+Real MyChart never stores or returns the text a patient typed. Every body comes
+back from `GetConversationList` wrapped in Epic's formatter markup — a
+`div.fmtConv`, one `<div data-paragraph="N">` per paragraph, the words inside an
+inline-styled `<span>`, `&nbsp;` for a blank line, and `\r\n` between the
+paragraph divs. Nine characters of message carry roughly 200 bytes of it.
+
+`src/lib/messageBody.ts` produces exactly that, and both the seeded threads and
+anything sent or replied through the fake go through it — so a body posted as
+text does not read back as the string that was posted. Undoing it is the
+processor's job (`bodyText` in `conversations.processor.ts`), and a fixture that
+skipped the wrapper would let a regression there pass the whole suite.
 
 ### Reading one thread
 
@@ -579,7 +614,8 @@ behaves, update the fake to match it exactly.
 To add a new endpoint:
 
 1. Add fake data to `src/data/homer.ts`
-2. Add the URL pattern match in `src/app/MyChart/[...path]/route.ts`
+2. Add the handler to the module for its domain under `src/handlers/` (create one named after the
+   scraper folder if it's a new domain, and register it in `src/handlers/index.ts`)
 3. If it's an HTML page parsed by cheerio, add a template under `src/lib/html/` (markup in
    the `.ts` module, any page JS as a file in `html/assets/`, `{{MP}}` for the mount prefix)
 4. Add a test case in `scrapers/myChart/__tests__/fake-mychart/fake-mychart.integration.test.ts`

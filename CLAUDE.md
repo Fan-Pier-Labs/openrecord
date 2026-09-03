@@ -15,7 +15,7 @@ short and put detail in `docs/`. See [Keeping this file small](#keeping-this-fil
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging) |
+| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging). `npi/` = the public NPI Registry (no login) |
 | `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
 | `npm-package/` | The `mychart-cli` CLI and importable library |
 | `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
@@ -47,7 +47,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   names, markup only in `raw`) and the `mode` param picks `raw` / `standard` / `concise` / `json`.
   Never rename a MyChart field or drop one for being empty — see
   [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
-- **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
+- **`shared/capabilities/` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
   everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side

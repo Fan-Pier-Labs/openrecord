@@ -1,0 +1,183 @@
+{
+  "result_count": 2,
+  "results": [
+    {
+      "addresses": [
+        {
+          "address_1": "123 EXAMPLE ST",
+          "address_2": "SUITE 400",
+          "address_purpose": "LOCATION",
+          "address_type": "DOM",
+          "city": "SPRINGFIELD",
+          "country_code": "US",
+          "country_name": "United States",
+          "fax_number": "555-010-0101",
+          "postal_code": "011010000",
+          "state": "MA",
+          "telephone_number": "555-010-0100"
+        },
+        {
+          "address_1": "PO BOX 1",
+          "address_purpose": "MAILING",
+          "address_type": "DOM",
+          "city": "SPRINGFIELD",
+          "country_code": "US",
+          "country_name": "United States",
+          "postal_code": "01101",
+          "state": "MA",
+          "telephone_number": "555-010-0100"
+        }
+      ],
+      "basic": {
+        "certification_date": "2024-01-15",
+        "credential": "M.D.",
+        "enumeration_date": "2006-08-23",
+        "first_name": "JANE",
+        "last_name": "DOEMANN",
+        "last_updated": "2024-01-15",
+        "middle_name": "Q",
+        "name_prefix": "Dr.",
+        "name_suffix": "Jr.",
+        "sex": "F",
+        "sole_proprietor": "NO",
+        "status": "A"
+      },
+      "created_epoch": "1156343752000",
+      "endpoints": [
+        {
+          "address_1": "123 EXAMPLE ST",
+          "address_type": "DOM",
+          "affiliation": "Y",
+          "affiliationName": "EXAMPLE HEALTH",
+          "city": "SPRINGFIELD",
+          "contentTypeDescription": "Other",
+          "country_code": "US",
+          "country_name": "United States",
+          "endpoint": "jane@direct.example.org",
+          "endpointType": "DIRECT",
+          "endpointTypeDescription": "Direct Messaging Address",
+          "postal_code": "01101",
+          "state": "MA",
+          "use": "HIE",
+          "useDescription": "Health Information Exchange (HIE)"
+        }
+      ],
+      "enumeration_type": "NPI-1",
+      "identifiers": [
+        {
+          "code": "05",
+          "desc": "MEDICAID",
+          "identifier": "MA000001",
+          "issuer": "",
+          "state": "MA"
+        }
+      ],
+      "last_updated_epoch": "1705276800000",
+      "number": "1234567893",
+      "other_names": [
+        {
+          "code": "1",
+          "first_name": "JANE",
+          "last_name": "ROEBERG",
+          "middle_name": "Q",
+          "prefix": "Dr.",
+          "type": "Former Name"
+        }
+      ],
+      "practiceLocations": [
+        {
+          "address_1": "456 SAMPLE AVE",
+          "address_purpose": "LOCATION",
+          "address_type": "DOM",
+          "city": "SHELBYVILLE",
+          "country_code": "US",
+          "country_name": "United States",
+          "postal_code": "01102",
+          "state": "MA",
+          "telephone_number": "555-010-0200"
+        }
+      ],
+      "taxonomies": [
+        {
+          "code": "207R00000X",
+          "desc": "Internal Medicine",
+          "license": "100001",
+          "primary": false,
+          "state": "MA",
+          "taxonomy_group": ""
+        },
+        {
+          "code": "207RC0000X",
+          "desc": "Internal Medicine, Cardiovascular Disease",
+          "license": "100001",
+          "primary": true,
+          "state": "MA",
+          "taxonomy_group": ""
+        }
+      ]
+    },
+    {
+      "addresses": [
+        {
+          "address_1": "1 HOSPITAL WAY",
+          "address_purpose": "LOCATION",
+          "address_type": "DOM",
+          "city": "SPRINGFIELD",
+          "country_code": "US",
+          "country_name": "United States",
+          "postal_code": "01101",
+          "state": "MA",
+          "telephone_number": "555-010-0300"
+        },
+        {
+          "address_1": "PO BOX 2",
+          "address_purpose": "MAILING",
+          "address_type": "DOM",
+          "city": "SPRINGFIELD",
+          "country_code": "US",
+          "country_name": "United States",
+          "postal_code": "01101",
+          "state": "MA",
+          "telephone_number": "555-010-0300"
+        }
+      ],
+      "basic": {
+        "authorized_official_first_name": "PAT",
+        "authorized_official_last_name": "EXAMPLE",
+        "authorized_official_telephone_number": "5550100300",
+        "authorized_official_title_or_position": "Chief Financial Officer",
+        "certification_date": "2023-06-01",
+        "enumeration_date": "2007-01-10",
+        "last_updated": "2023-06-01",
+        "organization_name": "SPRINGFIELD GENERAL HOSPITAL CARDIOLOGY",
+        "organizational_subpart": "YES",
+        "parent_organization_legal_business_name": "SPRINGFIELD GENERAL HOSPITAL",
+        "status": "A"
+      },
+      "created_epoch": "1168387200000",
+      "endpoints": [],
+      "enumeration_type": "NPI-2",
+      "identifiers": [],
+      "last_updated_epoch": "1685577600000",
+      "number": "9876543213",
+      "other_names": [
+        {
+          "code": "3",
+          "organization_name": "SGH HEART CENTER",
+          "type": "Doing Business As"
+        }
+      ],
+      "practiceLocations": [],
+      "taxonomies": [
+        {
+          "code": "261QM1300X",
+          "desc": "Clinic/Center, Multi-Specialty",
+          "license": "",
+          "primary": true,
+          "state": "MA",
+          "taxonomy_group": ""
+        }
+      ]
+    }
+  ]
+}
