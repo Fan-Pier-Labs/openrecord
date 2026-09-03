@@ -25,7 +25,7 @@ export { careTeamProcessor } from './careTeam.processor';
  * parameters return. Both require the antiforgery token from the activity
  * page, like the `/api/*` routes do. Field names and types were verified
  * against four live instances spanning both captured Epic releases; see
- * `docs/api-surface-gaps.md` §1a.
+ * `docs/api-surface-gaps.md`, "Shipped: Care Team".
  *
  * Neither call depends on the other. Care Everywhere is optional per
  * deployment, so a failure on the outside-provider arm is not fatal: a failed

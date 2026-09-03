@@ -30,5 +30,5 @@ members are all listed so nothing is implied.
 The selectors the scraper uses (`.coverage-card`, `.plan-name`, `.member-id`)
 match the fake's page and nothing captured from a real instance; the captured
 account had no coverage on file and every `/api/insurance-hub/*` endpoint
-answered 500 (`api-surface-gaps.md` §2d). `raw` mode carries the page for anyone
+answered 500 (`api-surface-gaps.md`, tier 4). `raw` mode carries the page for anyone
 checking the parser until a coverage page is captured.
