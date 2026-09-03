@@ -1,14 +1,13 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getConversationMessages, toThreadMessage } from '../messageThreads'
+import {
+  getConversationMessages,
+  fetchConversationThreadRaw,
+  conversationThreadProcessor,
+  MAX_PAGES,
+} from '../messageThreads'
 import { MyChartRequest } from '../../../core/myChartRequest'
-
-/**
- * MyChart's own wire shape, as captured from the conversation endpoints:
- * messages are `wmgId` / `body` / `deliveryInstantISO` / `author`, never the
- * camelCase names our output uses.
- */
-const HIBBERT = { empKey: 'PROV-HIBBERT', wprKey: '', displayName: 'Julius Hibbert, MD' }
-const HOMER = { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' }
+import { MissingVerificationTokenError } from '../../../core/util'
+import type { RawResponse } from '../../../core/rawResponse'
 
 /**
  * What the live instances actually send, without exception: exactly one key per
@@ -17,11 +16,6 @@ const HOMER = { empKey: '', wprKey: 'WPR-HOMER', displayName: 'Homer Simpson' }
  */
 const NAMELESS_STAFF = { displayName: '', empKey: 'PROV-HIBBERT' }
 const NAMELESS_PATIENT = { displayName: '', wprKey: 'WPR-HOMER' }
-
-const THREAD_MESSAGES = [
-  { wmgId: 'MSG-001', author: HIBBERT, deliveryInstantISO: '2026-01-10T14:30:00Z', body: 'How are you feeling?' },
-  { wmgId: 'MSG-002', author: HOMER, deliveryInstantISO: '2026-01-10T15:45:00Z', body: 'Much better, thanks.' },
-]
 
 const DIRECTORY = {
   users: { 'PROV-HIBBERT': { name: 'Julius Hibbert, MD' } },
@@ -34,9 +28,9 @@ type Call = { url: string; body: Record<string, unknown> }
 
 /**
  * Serve the token page first, then one canned response per API call, recording
- * what was asked for. The request bodies are the point of most of these tests:
- * the read endpoints key on `id`, and `conversationId` — the name the mutating
- * endpoints use — is a 500 on every real instance.
+ * what was asked for. The request bodies are the point of several of these
+ * tests: the read endpoints key on `id`, and `conversationId` — the name the
+ * mutating endpoints use — is a 500 on every real instance.
  */
 function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -48,7 +42,7 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
       calls.push({ url, body: JSON.parse(init.body as string) as Record<string, unknown> })
     }
     const r = responses[i++]
-    return new Response(r!.body, { status: r!.status ?? 200 })
+    return new Response(r!.body, { status: r!.status ?? 200, headers: { 'content-type': 'application/json' } })
   })
   return { req, calls }
 }
@@ -57,128 +51,80 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
 const json = (payload: unknown) => ({ body: JSON.stringify(payload) })
 
 const message = (wmgId: string, instant: string, author: Record<string, string>, body = 'text') =>
-  ({ wmgId, deliveryInstantISO: instant, body, author: { displayName: '', ...author } })
+  ({ wmgId, deliveryInstantISO: instant, body, author: { displayName: '', ...author }, isUnread: false, attachments: [], tasks: [], suggestedActions: [] })
 
-describe('toThreadMessage', () => {
-  it('maps MyChart field names onto the thread shape', () => {
-    expect(toThreadMessage(THREAD_MESSAGES[0]!)).toEqual({
-      messageId: 'MSG-001',
-      senderName: 'Julius Hibbert, MD',
-      sentDate: '2026-01-10T14:30:00Z',
-      messageBody: 'How are you feeling?',
-      isFromPatient: false,
-    })
-  })
+const DETAILS = {
+  hthId: 'conv-1',
+  subject: 'Follow-up',
+  numUnread: 1,
+  totalMessages: 2,
+  replyUrl: '/x',
+  replyFlags: { canReply: true, cannotReplyReason: 0 },
+  hasPreviouslyViewed: true,
+  hasAttachments: false,
+  hasTasks: false,
+  hasUrgentMsgs: false,
+  messageType: 'MedicalAdvice',
+  previewText: 'Much better, thanks.',
+  audience: [{ empId: 'E1', hipId: '', name: 'Julius Hibbert, MD', providerId: 'P1' }],
+  hasMoreMessages: false,
+  userOverrideNames: {},
+  ...DIRECTORY,
+  messages: [
+    message('MSG-001', '2026-01-10T14:30:00Z', NAMELESS_STAFF, 'How are you feeling?'),
+    message('MSG-002', '2026-01-10T15:45:00Z', NAMELESS_PATIENT, 'Much better, thanks.'),
+  ],
+}
 
-  it('treats an author with a viewer key and no staff key as the patient', () => {
-    expect(toThreadMessage(THREAD_MESSAGES[1]!).isFromPatient).toBe(true)
-  })
+function envelope(details: unknown, ...pages: unknown[]): RawResponse {
+  return {
+    requests: [
+      { path: '/app/communication-center', method: 'GET', status: 200, contentType: 'text/html', body: TOKEN_PAGE },
+      { path: '/api/conversations/GetConversationDetails', method: 'POST', requestBody: { id: 'conv-1' }, status: 200, contentType: 'application/json', body: details },
+      ...pages.map((body) => ({ path: '/api/conversations/GetConversationMessages', method: 'POST' as const, requestBody: { id: 'conv-1' }, status: 200, contentType: 'application/json', body })),
+    ],
+  }
+}
 
-  // Every message on the live instances we can check had an empty displayName,
-  // so the maps carry the whole load rather than filling an occasional gap.
-  it('resolves names through the key maps when displayName is empty', () => {
-    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_STAFF }, DIRECTORY).senderName)
-      .toBe('Julius Hibbert, MD')
-    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_PATIENT }, DIRECTORY).senderName)
-      .toBe('Homer Simpson')
-  })
-
-  it('attributes a nameless author by which key it carries', () => {
-    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_STAFF }).isFromPatient).toBe(false)
-    expect(toThreadMessage({ wmgId: 'M', author: NAMELESS_PATIENT }).isFromPatient).toBe(true)
-  })
-
-  // The bundle resolves a staff name as `userOverrideNames[empKey] || users[empKey].name`,
-  // so a thread that renames a participant wins over the shared map.
-  it("prefers the conversation's userOverrideNames over the shared users map", () => {
-    const named = toThreadMessage({ wmgId: 'M', author: NAMELESS_STAFF }, DIRECTORY, {
-      'PROV-HIBBERT': 'Springfield Spine Clinic',
-    })
-    expect(named.senderName).toBe('Springfield Spine Clinic')
-  })
-
-  it('falls back to displayName only when no map has the key', () => {
-    expect(toThreadMessage({ wmgId: 'M', author: { displayName: 'Dr. Nobody', empKey: 'EMP-9' } }, DIRECTORY).senderName)
-      .toBe('Dr. Nobody')
-  })
-
-  it('defaults every field on a message with nothing in it', () => {
-    expect(toThreadMessage({})).toEqual({
-      messageId: '',
-      senderName: '',
-      sentDate: '',
-      messageBody: '',
-      isFromPatient: false,
-    })
-  })
-})
-
-describe('getConversationMessages', () => {
-  it('returns empty thread when no token found', async () => {
+describe('fetchConversationThreadRaw', () => {
+  it('throws rather than returning an empty thread when the page has no token', async () => {
     const { req } = mockRequest([{ body: '<html></html>' }])
-    const result = await getConversationMessages(req, 'conv-1')
-    expect(result).toEqual({ conversationId: 'conv-1', subject: '', messages: [], truncated: false })
+    await expect(fetchConversationThreadRaw(req, 'conv-1')).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
-  it('seeds from GetConversationDetails, keyed on id', async () => {
-    const { req, calls } = mockRequest([
-      { body: TOKEN_PAGE },
-      json({ hthId: 'conv-1', subject: 'Follow-up', hasMoreMessages: false, ...DIRECTORY, messages: THREAD_MESSAGES }),
-    ])
+  it('seeds from GetConversationDetails, keyed on id, and records the exchange', async () => {
+    const { req, calls } = mockRequest([{ body: TOKEN_PAGE }, json(DETAILS)])
 
-    const result = await getConversationMessages(req, 'conv-1')
+    const raw = await fetchConversationThreadRaw(req, 'conv-1')
 
     expect(calls).toHaveLength(1)
     expect(calls[0]!.url).toContain('/api/conversations/GetConversationDetails')
     expect(calls[0]!.body.id).toBe('conv-1')
     expect(calls[0]!.body).not.toHaveProperty('conversationId')
 
-    expect(result).toEqual({
-      conversationId: 'conv-1',
-      subject: 'Follow-up',
-      truncated: false,
-      messages: [
-        {
-          messageId: 'MSG-001',
-          senderName: 'Julius Hibbert, MD',
-          sentDate: '2026-01-10T14:30:00Z',
-          messageBody: 'How are you feeling?',
-          isFromPatient: false,
-        },
-        {
-          messageId: 'MSG-002',
-          senderName: 'Homer Simpson',
-          sentDate: '2026-01-10T15:45:00Z',
-          messageBody: 'Much better, thanks.',
-          isFromPatient: true,
-        },
-      ],
-    })
+    expect(raw.requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+      'GET /app/communication-center',
+      'POST /api/conversations/GetConversationDetails',
+    ])
+    expect(raw.requests[1]!.requestBody).toMatchObject({ id: 'conv-1', maxReadMessages: 100 })
+    expect(raw.requests[1]!.body).toEqual(DETAILS)
   })
 
-  it('pages backwards through older messages until hasMoreMessages clears', async () => {
+  it('pages backwards through older messages until hasMoreMessages clears, recording every page', async () => {
     const { req, calls } = mockRequest([
       { body: TOKEN_PAGE },
-      json({
-        hthId: 'conv-1',
-        subject: 'Long thread',
-        hasMoreMessages: true,
-        ...DIRECTORY,
-        messages: [message('M3', '2026-03-03T00:00:00Z', { empKey: 'PROV-HIBBERT' })],
-      }),
-      json({ hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', { empKey: 'PROV-HIBBERT' })] }),
-      json({ hasMoreMessages: false, messages: [message('M1', '2026-03-01T00:00:00Z', { empKey: 'PROV-HIBBERT' })] }),
+      json({ ...DETAILS, hasMoreMessages: true, messages: [message('M3', '2026-03-03T00:00:00Z', NAMELESS_STAFF)] }),
+      json({ hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] }),
+      json({ hasMoreMessages: false, messages: [message('M1', '2026-03-01T00:00:00Z', NAMELESS_STAFF)] }),
     ])
 
-    const result = await getConversationMessages(req, 'conv-1')
+    const raw = await fetchConversationThreadRaw(req, 'conv-1')
 
-    // Oldest first, with each page prepended in front of what came before.
-    expect(result.messages.map(m => m.messageId)).toEqual(['M1', 'M2', 'M3'])
-    expect(result.truncated).toBe(false)
     // Every page asks for messages strictly older than the oldest one held.
-    expect(calls.map(c => c.body.startInstantISO)).toEqual([undefined, '2026-03-03T00:00:00Z', '2026-03-02T00:00:00Z'])
-    expect(calls.slice(1).every(c => c.url.includes('/api/conversations/GetConversationMessages'))).toBe(true)
-    expect(calls.slice(1).every(c => c.body.id === 'conv-1')).toBe(true)
+    expect(calls.map((c) => c.body.startInstantISO)).toEqual([undefined, '2026-03-03T00:00:00Z', '2026-03-02T00:00:00Z'])
+    expect(calls.slice(1).every((c) => c.url.includes('/api/conversations/GetConversationMessages'))).toBe(true)
+    expect(calls.slice(1).every((c) => c.body.id === 'conv-1')).toBe(true)
+    expect(raw.requests).toHaveLength(4)
   })
 
   it('stops when a page comes back empty even though hasMoreMessages stays set', async () => {
@@ -187,75 +133,194 @@ describe('getConversationMessages', () => {
       json({ hasMoreMessages: true, messages: [message('M1', '2026-03-01T00:00:00Z', { empKey: 'E' })] }),
       json({ hasMoreMessages: true, messages: [] }),
     ])
-
-    const result = await getConversationMessages(req, 'conv-1')
-
-    expect(result.messages.map(m => m.messageId)).toEqual(['M1'])
-    expect(result.truncated).toBe(false)
+    await fetchConversationThreadRaw(req, 'conv-1')
     expect(calls).toHaveLength(2)
   })
 
-  // The only way `truncated` is reachable now that the endpoint works: a server
-  // that keeps claiming more messages past the page cap.
-  it('reports truncated when the thread never stops claiming more', async () => {
+  it('stops at MAX_PAGES when the thread never stops claiming more', async () => {
     const page = (n: number) => json({
       hasMoreMessages: true,
       messages: [message(`M${n}`, `2026-03-${String(n).padStart(2, '0')}T00:00:00Z`, { empKey: 'E' })],
     })
     const { req, calls } = mockRequest([{ body: TOKEN_PAGE }, ...Array.from({ length: 60 }, (_, i) => page(60 - i))])
-
-    const result = await getConversationMessages(req, 'conv-1')
-
-    expect(result.truncated).toBe(true)
+    await fetchConversationThreadRaw(req, 'conv-1')
     // The seed plus MAX_PAGES pages, and not one request more.
-    expect(calls).toHaveLength(51)
-  })
-
-  it('handles missing fields with defaults', async () => {
-    const { req } = mockRequest([{ body: TOKEN_PAGE }, json({ messages: [{}] })])
-
-    const result = await getConversationMessages(req, 'conv-1')
-    expect(result.conversationId).toBe('conv-1')
-    expect(result.subject).toBe('')
-    expect(result.messages[0]).toEqual({
-      messageId: '',
-      senderName: '',
-      sentDate: '',
-      messageBody: '',
-      isFromPatient: false,
-    })
+    expect(calls).toHaveLength(MAX_PAGES + 1)
   })
 
   // The failure this whole module exists to stop being: an error read as an
   // empty thread looks exactly like a conversation with nothing in it.
-  it('throws rather than reporting an empty thread when the endpoint fails', async () => {
+  it('throws rather than recording an empty thread when the endpoint fails', async () => {
     const { req } = mockRequest([
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ Message: 'An error has occurred.' }), status: 500 },
     ])
-
-    await expect(getConversationMessages(req, 'conv-1')).rejects.toThrow('GetConversationDetails failed with status 500')
+    await expect(fetchConversationThreadRaw(req, 'conv-1')).rejects.toThrow('GetConversationDetails failed with status 500')
   })
 
-  // All four live instances answer GetConversationDetails with 200 and a
-  // literal `null` for an id they don't recognise — the tidy 500 is only what
-  // its sibling gives. A status-only check sails past that and then reads
-  // `null.messages`, so the payload is checked too.
-  it('rejects a 200 with a literal null body as an unknown conversation', async () => {
-    const { req } = mockRequest([{ body: TOKEN_PAGE }, { body: 'null' }])
-
-    await expect(getConversationMessages(req, 'conv-404')).rejects.toThrow(/No conversation conv-404/)
+  it('records a literal null from GetConversationDetails without paging', async () => {
+    const { req, calls } = mockRequest([{ body: TOKEN_PAGE }, { body: 'null' }])
+    const raw = await fetchConversationThreadRaw(req, 'conv-404')
+    expect(calls).toHaveLength(1)
+    expect(raw.requests[1]!.body).toBeNull()
   })
 
-  it('keeps paging robust if a later page answers null', async () => {
-    const { req } = mockRequest([
+  it('stops paging if a later page answers null', async () => {
+    const { req, calls } = mockRequest([
       { body: TOKEN_PAGE },
       json({ hasMoreMessages: true, messages: [message('M1', '2026-03-01T00:00:00Z', { empKey: 'E' })] }),
       { body: 'null' },
     ])
+    await fetchConversationThreadRaw(req, 'conv-1')
+    expect(calls).toHaveLength(2)
+  })
+})
 
+describe('conversationThreadProcessor', () => {
+  it('builds the standard object under MyChart names with names resolved through the maps', () => {
+    const standard = conversationThreadProcessor.standard(envelope(DETAILS))
+    expect(standard).toEqual({
+      hthId: 'conv-1',
+      subject: 'Follow-up',
+      audience: [{ name: 'Julius Hibbert, MD' }],
+      totalMessages: 2,
+      numUnread: 1,
+      truncated: false,
+      messages: [
+        {
+          wmgId: 'MSG-001',
+          deliveryInstantISO: '2026-01-10T14:30:00Z',
+          senderName: 'Julius Hibbert, MD',
+          isFromPatient: false,
+          isUnread: false,
+          bodyText: 'How are you feeling?',
+          author: { empKey: 'PROV-HIBBERT', wprKey: null },
+          attachments: [],
+          tasks: [],
+          suggestedActions: [],
+        },
+        {
+          wmgId: 'MSG-002',
+          deliveryInstantISO: '2026-01-10T15:45:00Z',
+          senderName: 'Homer Simpson',
+          isFromPatient: true,
+          isUnread: false,
+          bodyText: 'Much better, thanks.',
+          author: { empKey: null, wprKey: 'WPR-HOMER' },
+          attachments: [],
+          tasks: [],
+          suggestedActions: [],
+        },
+      ],
+      replyFlags: { canReply: true, cannotReplyReason: 0 },
+      hasPreviouslyViewed: true,
+      hasAttachments: false,
+      hasUrgentMsgs: false,
+      hasTasks: false,
+      messageType: 'MedicalAdvice',
+      previewText: 'Much better, thanks.',
+    })
+    expect(standard).not.toHaveProperty('replyUrl')
+    expect(standard).not.toHaveProperty('users')
+  })
+
+  it('merges every page ascending by deliveryInstantISO', () => {
+    const standard = conversationThreadProcessor.standard(envelope(
+      { ...DETAILS, hasMoreMessages: true, messages: [message('M3', '2026-03-03T00:00:00Z', NAMELESS_STAFF)] },
+      { hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] },
+      { hasMoreMessages: false, messages: [message('M1', '2026-03-01T00:00:00Z', NAMELESS_PATIENT)] },
+    ))!
+    expect(standard.messages.map((m) => m.wmgId)).toEqual(['M1', 'M2', 'M3'])
+    expect(standard.messages.map((m) => m.senderName)).toEqual(['Homer Simpson', 'Julius Hibbert, MD', 'Julius Hibbert, MD'])
+    expect(standard.truncated).toBe(false)
+  })
+
+  it('de-duplicates a message two pages both carry', () => {
+    const standard = conversationThreadProcessor.standard(envelope(
+      { ...DETAILS, hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] },
+      { hasMoreMessages: false, messages: [message('M1', '2026-03-01T00:00:00Z', NAMELESS_STAFF), message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] },
+    ))!
+    expect(standard.messages.map((m) => m.wmgId)).toEqual(['M1', 'M2'])
+  })
+
+  // A page's own userOverrideNames win over the shared users map, as the
+  // portal's bundle resolves `userOverrideNames[empKey] || users[empKey].name`.
+  it("prefers a page's userOverrideNames over the shared users map", () => {
+    const standard = conversationThreadProcessor.standard(envelope(
+      { ...DETAILS, hasMoreMessages: true, messages: [] },
+      { hasMoreMessages: false, userOverrideNames: { 'PROV-HIBBERT': 'Springfield Spine Clinic' }, messages: [message('M1', '2026-03-01T00:00:00Z', NAMELESS_STAFF)] },
+    ))!
+    expect(standard.messages[0]!.senderName).toBe('Springfield Spine Clinic')
+  })
+
+  // The only way `truncated` is reachable: the scraper hit its page cap on a
+  // non-empty page that still claimed older messages.
+  it('reports truncated when the last recorded page is non-empty and still claims more', () => {
+    const standard = conversationThreadProcessor.standard(envelope(
+      { ...DETAILS, hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] },
+      { hasMoreMessages: true, messages: [message('M1', '2026-03-01T00:00:00Z', NAMELESS_STAFF)] },
+    ))!
+    expect(standard.truncated).toBe(true)
+  })
+
+  it('does not report truncated for an empty or null final page', () => {
+    const seed = { ...DETAILS, hasMoreMessages: true, messages: [message('M2', '2026-03-02T00:00:00Z', NAMELESS_STAFF)] }
+    expect(conversationThreadProcessor.standard(envelope(seed, { hasMoreMessages: true, messages: [] }))!.truncated).toBe(false)
+    expect(conversationThreadProcessor.standard(envelope(seed, null))!.truncated).toBe(false)
+    expect(conversationThreadProcessor.standard(envelope(seed))!.truncated).toBe(true)
+  })
+
+  // All four live instances answer GetConversationDetails with 200 and a
+  // literal `null` for an id they don't recognise; it passes through as-is.
+  it('passes a literal null through as null', () => {
+    expect(conversationThreadProcessor.standard(envelope(null))).toBeNull()
+    expect(conversationThreadProcessor.concise(null)).toBeNull()
+    expect(conversationThreadProcessor.standard({ requests: [] })).toBeNull()
+  })
+
+  it('emits every listed field as null on a thread with nothing in it', () => {
+    const standard = conversationThreadProcessor.standard(envelope({ messages: [{}] }))!
+    expect(standard).toMatchObject({
+      hthId: null,
+      subject: null,
+      audience: [],
+      totalMessages: null,
+      numUnread: null,
+      truncated: false,
+      replyFlags: { canReply: null, cannotReplyReason: null },
+      hasPreviouslyViewed: null,
+      previewText: null,
+    })
+    expect(standard.messages[0]).toMatchObject({ wmgId: null, senderName: '', isFromPatient: false, bodyText: '' })
+  })
+
+  it('projects concise to identity, counts, truncation and every message', () => {
+    const concise = conversationThreadProcessor.concise(conversationThreadProcessor.standard(envelope(DETAILS)))
+    expect(concise).toEqual({
+      hthId: 'conv-1',
+      subject: 'Follow-up',
+      audience: [{ name: 'Julius Hibbert, MD' }],
+      totalMessages: 2,
+      numUnread: 1,
+      truncated: false,
+      messages: [
+        { deliveryInstantISO: '2026-01-10T14:30:00Z', senderName: 'Julius Hibbert, MD', isFromPatient: false, bodyText: 'How are you feeling?' },
+        { deliveryInstantISO: '2026-01-10T15:45:00Z', senderName: 'Homer Simpson', isFromPatient: true, bodyText: 'Much better, thanks.' },
+      ],
+    })
+  })
+})
+
+describe('getConversationMessages', () => {
+  it('returns the standard object', async () => {
+    const { req } = mockRequest([{ body: TOKEN_PAGE }, json(DETAILS)])
     const result = await getConversationMessages(req, 'conv-1')
-    expect(result.messages.map(m => m.messageId)).toEqual(['M1'])
-    expect(result.truncated).toBe(false)
+    expect(result!.subject).toBe('Follow-up')
+    expect(result!.messages.map((m) => m.wmgId)).toEqual(['MSG-001', 'MSG-002'])
+  })
+
+  it('returns null for an unknown conversation', async () => {
+    const { req } = mockRequest([{ body: TOKEN_PAGE }, { body: 'null' }])
+    expect(await getConversationMessages(req, 'conv-404')).toBeNull()
   })
 })

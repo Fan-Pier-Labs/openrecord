@@ -170,6 +170,14 @@ jobs:
       # it is the only place the gate can measure everything.
       - name: Run integration tests + coverage gate (Bun coverageThreshold, 75% per file)
         run: bun run test:coverage
+      # docs/processor-layer-examples.md is generated from the same fake. A stale
+      # copy is worse than none — it shows a reader output a processor no longer
+      # produces — so a PR that changes a processor or a fixture regenerates it
+      # (`bun dev-scripts/generate-processor-examples.ts`) or fails here.
+      - name: Processor examples doc is current
+        run: |
+          bun dev-scripts/generate-processor-examples.ts
+          git diff --exit-code -- docs/processor-layer-examples.md
       - name: Dump logs on failure
         if: failure()
         run: docker compose -f docker-compose.ci.yaml logs
