@@ -121,6 +121,23 @@ different family member's record than the one the call is about.
 > Switch to Bart's record and show his immunizations.
 > Switch back to my own record.
 
+### Output modes
+
+Every read tool takes an optional `mode`:
+
+| Mode | What Claude gets |
+| --- | --- |
+| `concise` | Markdown, the interesting fields only. **The default** — a full past-visits payload is ~200 KB of Epic view-model flags, and the concise rendering is a few KB |
+| `standard` | Markdown, every useful field, MyChart's own field names |
+| `json` | The same fields as `standard`, as JSON |
+| `raw` | Exactly what MyChart sent, untouched. Large; HTML and UI flags included |
+
+Claude asks for `standard`, `json` or `raw` by name when a concise answer is
+missing something. The field decisions per capability are in
+[`docs/processor-layer-proposal.md`](../docs/processor-layer-proposal.md);
+example output in every mode is in
+[`docs/processor-layer-examples.md`](../docs/processor-layer-examples.md).
+
 ## Architecture
 
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation

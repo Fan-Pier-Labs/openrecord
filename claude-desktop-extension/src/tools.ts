@@ -40,8 +40,12 @@ import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/au
 import {
   ACCOUNT_PARAM,
   CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsModeParam,
   acceptsPatientParam,
+  describeModeParam,
   executeCapability,
   readAccountArg,
   type Capability,
@@ -218,6 +222,12 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   // when omitted — before the capability runs, so a read refuses rather than
   // silently returning the wrong family member's chart.
   if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
+  // How the payload is rendered. This client talks to a model, so the default
+  // is the concise projection; the model asks for `standard`, `json` or `raw`
+  // by name when it needs more.
+  if (acceptsModeParam(capability)) {
+    shape[MODE_PARAM.name] = z.string().describe(describeModeParam(MODEL_FACING_OUTPUT_MODE)).optional();
+  }
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const annotations =
@@ -241,13 +251,19 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // active-patient assertion lives there. Branching to a direct
         // `capability.run` for the imaging tool is how that one tool ended up
         // returning a family member's X-rays.
-        const payload = await executeCapability(session, capability.id, args, contextFor(account));
+        const withMode =
+          acceptsModeParam(capability) && !args[MODE_PARAM.name]
+            ? { ...args, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
+            : args;
+        const payload = await executeCapability(session, capability.id, withMode, contextFor(account));
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
         }
-        return jsonResult(payload);
+        // The markdown modes come back as a string and go out as text; the
+        // data modes go out as JSON.
+        return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
