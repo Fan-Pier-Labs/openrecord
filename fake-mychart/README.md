@@ -551,7 +551,7 @@ study stays clean so both shapes are covered.
 
 ## The mychart.org Directory
 
-One surface in here is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
+One of the surfaces in here that is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
 every MyChart instance in the world. It lives on `mychart.org` rather than on an instance, and it is
 where every client's instance list comes from — so the fake serves it too, and the mobile app can
 point its first-boot refresh at localhost instead of Epic.
@@ -588,6 +588,41 @@ point its first-boot refresh at localhost instead of Epic.
   The two images are 240×88 PNGs (a cross and a wordmark bar on teal / grey), at roughly the aspect
   ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
   branding, and no hospital's trademark belongs in this repo.
+
+## The NPI Registry
+
+The other one: `GET /npiregistry/api/`, standing in for CMS's public provider
+directory at `npiregistry.cms.hhs.gov/api/`. `scrapers/npi/` reads it, and without a fake, testing
+that scraper over a socket means querying CMS about real, named clinicians on every CI run. The
+path mirrors the real host's, so a client pointed here with `apiUrl` sends the request it would
+send CMS:
+
+```ts
+fetchNpiLookupRaw('1234567893', { apiUrl: `${base}/npiregistry/api/` })
+```
+
+The behaviors it copies are the ones the scraper depends on, all observed on the live API
+(version 2.1) and tabulated in `scrapers/npi/README.md`:
+
+- **A refusal is HTTP 200 carrying an `Errors` array**, never a 4xx. This is the one to get right: a
+  client that treats non-2xx as the failure path reads a refused query as a *successful empty
+  search*, and tells a patient their doctor is not in the registry.
+- **`state` and `enumeration_type` are refused on their own**; every other criterion may stand
+  alone, and no criteria at all is refused too.
+- **A trailing `*` needs two leading characters** — `Jo*` searches, `J*` is refused.
+- **`limit` is clamped silently** to 200, and `0` becomes the default 10. **`skip` past 1000 is
+  refused**, which is what caps a query at 1,200 results.
+- **An unheld but well-formed number answers `result_count: 0`**, not a 404 — the processor renders
+  that as `null`.
+- **A person's `basic` and an organization's are disjoint key sets.** Not empty — absent. A single
+  unioned skeleton would have this server answer questions the live API leaves unanswered, so
+  `src/data/npiRegistry.ts` holds one shape for each and the route picks by `enumeration_type`.
+
+Both shapes come from the same live capture as
+`scrapers/npi/__tests__/fixtures/npi-search-response.json`, and are applied with `conformToShape`
+exactly like `realShapes.ts` — they live beside the fake data rather than in that file because it is
+generated from captures of real *MyChart* instances, and regenerating it must not have to know about
+CMS.
 
 ## The Pre-Login Surface
 

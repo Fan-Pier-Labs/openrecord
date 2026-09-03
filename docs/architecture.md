@@ -58,8 +58,8 @@ renews through the same `reauthenticate` hook before marking it expired. Call
 ## Capability registry (`shared/capabilities/`)
 
 **The single source of truth for what OpenRecord can do with a MyChart account.** One entry per
-capability — id, title, description, `kind` (`read` / `write` / `account`), parameter list, and a
-`run(request, args, ctx)` returning JSON-serializable data. All four clients *derive* their surface
+capability — id, title, description, `kind` (`read` / `write` / `account` / `public`), parameter
+list, and a `run(request, args, ctx)` returning JSON-serializable data. All four clients *derive* their surface
 from it and none hand-maintains a list: the desktop extension registers one MCP tool per entry, the
 mobile app puts one agent tool per entry in its prompt, the CLI gains `--action <id>`, and the npm
 client exposes `runCapability(id, args)`. Adding an entry here ships the capability everywhere.
@@ -76,7 +76,8 @@ answer depended on which client they asked.
 of an entry; `args.ts`, `params.ts`, `imaging.ts` and `resolve.ts` are the pieces entries share. The
 entries themselves live one file per group under `registry/` — `profile.ts`, `visits.ts`,
 `results.ts`, `messages.ts`, `billing.ts`, `care.ts`, `emergencyContacts.ts`, `prescriptions.ts`,
-`patients.ts`, `accountSecurity.ts` — each exporting one ordered array, which `index.ts` concatenates
+`patients.ts`, `accountSecurity.ts`, `providers.ts`, `directory.ts` — each exporting one ordered
+array, which `index.ts` concatenates
 in listing order. Group membership, ordering and `lessFrequentlyUsed` are presentation decisions, so
 they stay in the registry rather than moving out to the ~40 chart folders the entries call into;
 those folders keep knowing nothing about capabilities. **`CapabilityImpl` is exported from
@@ -92,6 +93,21 @@ not compile for any client — the enforcement for "every dispatch goes through 
   later sign-in and leaves a credential on the portal that outlives the session, so logging in
   recommends it and waits — `setup_account` / `complete_2fa` never call `register_passkey`
   themselves (`meta-tools.unit.test.ts` fails the build if the login path reaches `setupPasskey`).
+  `public` reads something no MyChart account owns — CMS's NPI Registry, Epic's directory of MyChart
+  instances — so it is read-shaped everywhere but takes no `account`, needs no session, and skips
+  the active-patient assertion.
+- **A `public` capability's `run` cannot take a `MyChartRequest`, and that is the enforcement.**
+  `PublicCapabilityImpl` declares `run(args)`, so a public entry that grew a chart read would not
+  compile; exempting it from the guard is then safe by construction rather than by review.
+  `executeCapability` takes `MyChartRequest | null` for them, and refuses a null for anything else
+  by name rather than failing fifteen frames into a scraper. Each client skips its own session
+  resolution the same way: the extension omits the `account` parameter, the CLI runs the action
+  once before it resolves a single credential (rather than once per connected account, after
+  logging in), the mobile app bypasses `requireSession`, and the library exposes them as **static**
+  methods on `MyChartClient` — constructing a client means logging in, which is a login for
+  nothing. This is where the extension's hand-written `search_mycharts` went: same tool name, same
+  result shape, now in every client, and searching Epic's live directory with the checked-in
+  `mychart-instances.json` as the fallback (the result says which answered).
 - **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
   not evenly valuable: labs, medications, visit notes and messages are the reason to connect an
   account at all, while goals, letters, education materials, care journeys, questionnaires, the
@@ -116,8 +132,9 @@ not compile for any client — the enforcement for "every dispatch goes through 
   (`scrapers/myChart/proxy/proxyTools.ts`), that MyChart is on the patient the call is about — refusing
   with the `switch_proxy_target` call that fixes it rather than returning the wrong family member's
   chart. Omitting `patient` means the account holder, explicitly. The `Patients` group and the
-  `account`-kind capabilities are exempt: guarding "you must already be on patient X" in front of
-  the tools that list and change X would make them unusable exactly when they are needed.
+  `account`- and `public`-kind capabilities are exempt: guarding "you must already be on patient X"
+  in front of the tools that list and change X would make them unusable exactly when they are
+  needed, and a public lookup has no chart to be on.
   **No client calls `capability.run` — every dispatch goes through `executeCapability`**, the
   `account`-kind ones included, and `capability-parity.unit.test.ts` greps the three client dispatch
   modules to keep it that way. The extension and the CLI each used to branch on `rendersMedia`
@@ -349,8 +366,8 @@ and had quietly stopped matching anything.
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `npm-package/README.md`.
 - **Claude Desktop extension** (`claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)
-  hand-writes only the account-management meta tools (`list_accounts`, `search_mycharts`,
-  `setup_account`, `complete_2fa`, `disconnect_account`), which manage credentials on this machine
+  hand-writes only the account-management meta tools (`list_accounts`, `setup_account`,
+  `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
   with the parameter list translated to zod. Includes an interactive setup widget with a tool-call
   fallback for non-widget clients. Credentials live in `~/.openrecord-mcpb/`, **keyed by (hostname,
@@ -361,9 +378,10 @@ and had quietly stopped matching anything.
   user's WebAuthn credential to whoever registered last, and silent login would then read the wrong
   patient's chart. The account id tools accept is `username@hostname`, resolved by `lookupAccount`
   in `src/credential-store.ts` on a perfect hostname + username match or not at all — no
-  hostname-only or fuzzy fallback. Ships a built-in
-  **Springfield General Hospital (test)** instance pointing at `fake-mychart.fanpierlabs.com`. See
-  `claude-desktop-extension/README.md`.
+  hostname-only or fuzzy fallback. `search_mycharts` is a registry capability rather than a meta
+  tool, and offers a built-in **Springfield General Hospital (test)** instance pointing at
+  `fake-mychart.fanpierlabs.com` (`SANDBOX_INSTANCE` in
+  `scrapers/list-all-mycharts/searchDirectory.ts`). See `claude-desktop-extension/README.md`.
 - **Mobile app** (`expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the
   registry and kept free of React Native imports so tests can read it;
   `src/lib/scrapers/session-manager.ts` dispatches every one through `executeCapability`, and

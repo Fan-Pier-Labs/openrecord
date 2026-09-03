@@ -376,6 +376,37 @@ export const TOOL_SPECS: ToolSpec[] = [
     description: 'Remove an emergency contact. Confirm with the user first.',
     args: { id: 'contact id', instance: 'optional' },
   },
+
+  // ── Providers (public — no account) ──
+  //
+  // The registry's `public` capabilities. They take no `instance`: the NPI
+  // Registry belongs to nobody, and the real clients offer these before a
+  // patient has connected anything.
+  {
+    name: 'lookup_npi',
+    group: 'Providers',
+    description:
+      'Look up a US healthcare provider by National Provider Identifier — the 10-digit number MyChart, Medicare and insurers use to name a clinician or organization. Public data; no MyChart account needed.',
+    args: { npi: '10-digit National Provider Identifier' },
+  },
+  {
+    name: 'search_npi_registry',
+    group: 'Providers',
+    description:
+      "Find US healthcare providers by name, specialty and/or place in CMS's public NPI Registry. At least one search criterion is required. Public data; no MyChart account needed.",
+    args: {
+      first_name: 'optional',
+      last_name: 'optional',
+      organization_name: 'optional',
+      specialty: 'optional — matched against taxonomy descriptions',
+      city: 'optional',
+      state: 'optional two-letter code',
+      postal_code: 'optional',
+      type: 'optional — "individual" or "organization"',
+      limit: 'number (default 10)',
+      skip: 'number (default 0)',
+    },
+  },
 ];
 
 export const TOOL_NAMES: string[] = TOOL_SPECS.map((t) => t.name);
@@ -1157,18 +1188,79 @@ const HANDLERS: Record<string, Handler> = {
     logActivity(s, 'contact', `Removed emergency contact ${removed.name}`);
     return { success: true, message: `Emergency contact ${removed.name} removed.` };
   },
+
+  // ── Providers (public — no account) ──
+
+  lookup_npi: (_s, args) => {
+    const npi = str(args, 'npi').trim();
+    // Format only. The real scraper also checks the NPI's Luhn digit before
+    // spending a request; here there is no request to spend, and rejecting a
+    // number the demo simply doesn't hold would be a worse answer than
+    // "not found".
+    if (!/^\d{10}$/.test(npi)) {
+      return fail(`"${npi}" is not a valid NPI — expected ten digits.`);
+    }
+    // `null` for an unheld number, exactly as npiLookupProcessor renders it.
+    return clone(data.npiProviders.find((p) => p.number === npi) ?? null);
+  },
+
+  search_npi_registry: (_s, args) => {
+    type Provider = (typeof data.npiProviders)[number];
+    const criteria: Array<(p: Provider) => boolean> = [];
+    // CMS stores a person's name in parts and the processor joins them into
+    // `providerName`, so first and last both match against that one field.
+    const firstName = str(args, 'first_name').trim().toLowerCase();
+    if (firstName) criteria.push((p) => p.providerName.toLowerCase().includes(firstName));
+    const lastName = str(args, 'last_name').trim().toLowerCase();
+    if (lastName) criteria.push((p) => p.providerName.toLowerCase().includes(lastName));
+    const organizationName = str(args, 'organization_name').trim().toLowerCase();
+    if (organizationName) criteria.push((p) => p.providerName.toLowerCase().includes(organizationName));
+    const specialty = str(args, 'specialty').trim().toLowerCase();
+    if (specialty) criteria.push((p) => p.taxonomies.some((t) => t.toLowerCase().includes(specialty)));
+    const city = str(args, 'city').trim().toLowerCase();
+    if (city) criteria.push((p) => p.city.toLowerCase().includes(city));
+    const state = str(args, 'state').trim().toLowerCase();
+    if (state) criteria.push((p) => p.state.toLowerCase() === state);
+    const postalCode = str(args, 'postal_code').trim();
+    if (postalCode) criteria.push((p) => p.postalCode.startsWith(postalCode));
+
+    if (criteria.length === 0) {
+      return fail(
+        'NPI Registry search needs at least one of: first_name, last_name, organization_name, specialty, city, state, postal_code.',
+      );
+    }
+
+    const type = str(args, 'type').trim().toLowerCase();
+    if (type && type !== 'individual' && type !== 'organization') {
+      return fail(`Unknown type "${type}". Expected "individual" or "organization".`);
+    }
+    const wantedType = type === 'individual' ? 'NPI-1' : type === 'organization' ? 'NPI-2' : '';
+
+    const limit = Math.min(200, Math.max(1, num(args, 'limit', 10)));
+    const skip = Math.max(0, num(args, 'skip', 0));
+    const matched = data.npiProviders
+      .filter((p) => (wantedType ? p.enumeration_type === wantedType : true))
+      .filter((p) => criteria.every((test) => test(p)));
+
+    // `{ result_count, results }` is the registry's own envelope — the count
+    // is what tells a caller whether the page it got was capped.
+    return { result_count: matched.length, results: clone(matched.slice(skip, skip + limit)) };
+  },
 };
 
 /**
  * Tools that run without a chart, so neither the credential check nor the
- * active-patient assertion applies to them: the account meta tools, and the
- * two proxy tools themselves. Guarding "you must already be on patient X" in
- * front of the tools that list and change X would make them unusable exactly
- * when they are needed — the registry exempts its `Patients` group for the
- * same reason.
+ * active-patient assertion applies to them: the account meta tools, the two
+ * proxy tools themselves, and the public provider lookups. Guarding "you must
+ * already be on patient X" in front of the tools that list and change X would
+ * make them unusable exactly when they are needed — the registry exempts its
+ * `Patients` group for the same reason, and its `public` kind because those
+ * capabilities have no session at all.
  */
 const CHARTLESS_TOOLS = new Set(
-  TOOL_SPECS.filter((spec) => spec.group === 'Account' || spec.group === 'Patients').map((spec) => spec.name),
+  TOOL_SPECS.filter(
+    (spec) => spec.group === 'Account' || spec.group === 'Patients' || spec.group === 'Providers',
+  ).map((spec) => spec.name),
 );
 
 /**

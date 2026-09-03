@@ -21,13 +21,20 @@ import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuth
 import { sendTelemetryEvent } from '../../shared/telemetry';
 import { checkForUpdate } from '../../shared/updateCheck';
 import { isBlockedInstance } from '../../scrapers/myChart/auth/blockedInstances';
-import { COMMON_CAPABILITIES, LESS_FREQUENTLY_USED_CAPABILITIES, getCapability, type Capability } from '../../shared/capabilities';
+import {
+  COMMON_CAPABILITIES,
+  LESS_FREQUENTLY_USED_CAPABILITIES,
+  getCapability,
+  isPublicCapability,
+  type Capability,
+} from '../../shared/capabilities';
 import {
   FULL_SCRAPE_CAPABILITIES,
   downloadAllImagingStudies,
   renderCapabilityList,
   resolveCliAction,
   runCapabilityAction,
+  runPublicCapabilityAction,
 } from './capabilityActions';
 import { renderCliHelp } from './help';
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
@@ -76,6 +83,8 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --list-capabilities [--show-all]                      (just the capability listing)
 //   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
 //   npx tsx src/cli.ts --host <hostname> --action get_medications --mode concise   (raw | standard | concise | json)
+//   npx tsx src/cli.ts --action search_mycharts --arg query=uchealth         (public: no host, no credentials)
+//   npx tsx src/cli.ts --action lookup_npi --arg npi=1234567893              (public: no host, no credentials)
 //
 // `--action` accepts any id from the shared capability registry
 // (`shared/capabilities/`) and prints its result as JSON, with parameters
@@ -692,9 +701,24 @@ async function main() {
     return;
   }
 
-  // The one action that needs no account: what the instance tells anyone
-  // about the health system behind it. Runs before credential resolution so
-  // no password store is opened and nothing is logged in.
+  // ── Actions that need no account ─────────────────────────────────────────
+  //
+  // The NPI Registry and Epic's MyChart directory belong to nobody, so a
+  // lookup against them must not be gated behind a login — and must not run
+  // once per configured account, which is what everything below `main`'s
+  // login block does. Handled here, before a single credential is resolved.
+  if (cliArgs.action) {
+    const publicCapability = resolveCliAction(cliArgs.action);
+    if (publicCapability && isPublicCapability(publicCapability)) {
+      const ok = await runPublicCapabilityAction(publicCapability, cliArgs.capabilityArgs ?? {});
+      closeRL();
+      process.exit(ok ? 0 : 1);
+    }
+  }
+
+  // What the instance tells anyone about the health system behind it. Same
+  // idea, still hand-written: `get_hospital_info` is not a registry entry yet,
+  // so it gets its own branch here rather than the `public` dispatch above.
   if (cliArgs.action === 'hospital-info' || cliArgs.action === 'get_hospital_info') {
     if (!cliArgs.host) {
       console.error('  --action hospital-info needs --host <hostname>.');

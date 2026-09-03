@@ -19,7 +19,7 @@ import { join } from 'path';
 import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
-import { CAPABILITIES, acceptsModeParam, executeCapability } from '../shared/capabilities';
+import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -106,7 +106,12 @@ async function main(): Promise<void> {
   if (login.state !== 'logged_in') throw new Error(`fake-mychart login failed: ${login.state}`);
   const session = login.mychartRequest;
 
-  const reads = CAPABILITIES.filter((c) => acceptsModeParam(c));
+  // Every read that this server can answer. The `public` capabilities have
+  // processors too, but they read CMS's NPI Registry rather than a MyChart —
+  // and hard-code its URL, so there is no way to point one at the fake. Their
+  // per-field contract is in `scrapers/npi/README.md`; running them here would
+  // mean querying the real registry from a docs script.
+  const reads = CAPABILITIES.filter((c) => acceptsModeParam(c) && !isPublicCapability(c));
   const sections: string[] = [];
   const sizes: string[] = ['| Capability | raw | json | standard | concise |', '| --- | ---: | ---: | ---: | ---: |'];
 
@@ -138,9 +143,11 @@ async function main(): Promise<void> {
     'after changing a processor. Field decisions are in',
     '[`processor-layer-proposal.md`](processor-layer-proposal.md).',
     '',
-    `Every read capability, in all four modes. Raw and JSON examples longer than ${MAX_EXAMPLE_CHARS.toLocaleString()}`,
-    'characters are cut, and say so. The fake\'s per-session CSRF token and the now-based',
-    '`oldestRenderedDate` query value are pinned so the doc only changes when the output does.',
+    `Every read capability this server can answer, in all four modes. Raw and JSON examples longer`,
+    `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token and the`,
+    'now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output',
+    'does. The `public` capabilities are absent: they read CMS\'s NPI Registry rather than a MyChart,',
+    'so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).',
     '',
     '## Sizes (characters)',
     '',

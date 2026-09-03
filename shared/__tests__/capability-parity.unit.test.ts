@@ -24,12 +24,16 @@ import {
   LESS_FREQUENTLY_USED_CAPABILITIES,
   MODE_PARAM,
   MODEL_FACING_OUTPUT_MODE,
+  PUBLIC_CAPABILITIES,
+  acceptsAccountParam,
   acceptsModeParam,
+  acceptsPatientParam,
   readOutputMode,
 } from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
 const AGENT_IDS = AGENT_CAPABILITIES.map((c) => c.id).sort();
+const PUBLIC_IDS = PUBLIC_CAPABILITIES.map((c) => c.id).sort();
 
 // ── 1. Claude Desktop extension (MCPB) ─────────────────────────────────────
 
@@ -80,9 +84,15 @@ describe('Claude Desktop extension', () => {
     const names = server.tools.map((t) => t.name);
     // Credentials live on this machine and setup happens in chat, so these
     // have no counterpart in the shared registry — but they must survive it.
-    for (const meta of ['list_accounts', 'search_mycharts', 'get_hospital_info', 'setup_account', 'complete_2fa', 'disconnect_account']) {
+    // `search_mycharts` used to be on this list; it is a `public` capability
+    // now, so it is covered by the registry check above instead.
+    // `get_hospital_info` is account-free the same way and could follow it.
+    for (const meta of ['list_accounts', 'get_hospital_info', 'setup_account', 'complete_2fa', 'disconnect_account']) {
       expect(names).toContain(meta);
     }
+    // …and it is still registered, under the same name, so a saved chat and
+    // the setup widget both keep working.
+    expect(names).toContain('search_mycharts');
   });
 
   it('gives every capability tool the registry’s account parameter plus its own declared ones', async () => {
@@ -95,14 +105,17 @@ describe('Claude Desktop extension', () => {
       const tool = server.tools.find((t) => t.name === capability.id);
       expect(tool).toBeDefined();
       const shape = tool!.config.inputSchema as Record<string, unknown>;
-      expect(Object.keys(shape)).toContain(ACCOUNT_PARAM.name);
+      // Every capability that touches MyChart takes the account selector; the
+      // `public` ones must NOT, or the model asks a patient to connect a chart
+      // before it will look a provider up in a public registry.
+      expect(Object.keys(shape).includes(ACCOUNT_PARAM.name)).toBe(acceptsAccountParam(capability));
       for (const param of capability.params) {
         expect(Object.keys(shape)).toContain(param.name);
       }
     }
   });
 
-  it('marks reads read-only and everything else destructive', async () => {
+  it('marks reads and public lookups read-only, and everything else destructive', async () => {
     const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,7 +124,7 @@ describe('Claude Desktop extension', () => {
     for (const capability of CAPABILITIES) {
       const tool = server.tools.find((t) => t.name === capability.id)!;
       const annotations = tool.config.annotations as { readOnlyHint?: boolean; destructiveHint?: boolean };
-      if (capability.kind === 'read') {
+      if (capability.kind === 'read' || capability.kind === 'public') {
         expect(annotations.readOnlyHint).toBe(true);
       } else {
         expect(annotations.readOnlyHint).toBe(false);
@@ -142,7 +155,9 @@ describe('mobile app', () => {
     const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
     for (const capability of AGENT_CAPABILITIES) {
       const tool = TOOLS.find((t) => t.name === capability.id)!;
-      expect(Object.keys(tool.args)).toContain(ACCOUNT_PARAM.name);
+      // Same rule as the extension: the account selector on everything that
+      // touches MyChart, and on nothing that doesn't.
+      expect(Object.keys(tool.args).includes(ACCOUNT_PARAM.name)).toBe(acceptsAccountParam(capability));
       for (const param of capability.params) {
         expect(Object.keys(tool.args)).toContain(param.name);
       }
@@ -162,7 +177,7 @@ describe('mobile app', () => {
 
   it('offers a patient argument on every chart-touching tool', async () => {
     const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
-    for (const capability of AGENT_CAPABILITIES.filter((c) => c.group !== 'Patients')) {
+    for (const capability of AGENT_CAPABILITIES.filter((c) => acceptsPatientParam(c))) {
       const tool = TOOLS.find((t) => t.name === capability.id)!;
       expect(Object.keys(tool.args)).toContain('patient');
     }
@@ -211,6 +226,69 @@ describe('the account selector', () => {
     expect(readAccountArg({ account: 'a.example.org', instance: 'b.example.org' })).toBe('a.example.org');
     expect(readAccountArg({})).toBeUndefined();
     expect(readAccountArg({ account: '   ' })).toBeUndefined();
+  });
+});
+
+// ── The account-free capabilities ──────────────────────────────────────────
+
+/**
+ * `public`-kind capabilities are the ones every client used to hand-write.
+ * `search_mycharts` lived only in the Claude Desktop extension, over a bundled
+ * snapshot, so the CLI and the app could not answer "which MyChart does my
+ * health system run?" at all — the exact drift the registry exists to kill.
+ *
+ * The blanket parity checks above already fail when a client drops one. What
+ * this block adds is the half that is specific to being account-free: no
+ * `account` parameter anywhere, no session in the dispatch, and no login in
+ * the CLI before one runs.
+ */
+describe('public capabilities', () => {
+  it('are a non-empty set, or every assertion below is vacuous', async () => {
+    expect(PUBLIC_IDS.length).toBeGreaterThan(0);
+    const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    for (const capability of PUBLIC_CAPABILITIES) {
+      expect(acceptsAccountParam(capability)).toBe(false);
+      // No session means no active patient to assert, so no `patient` param.
+      expect(acceptsPatientParam(capability)).toBe(false);
+      expect(capability.params.some((p) => p.name === 'patient')).toBe(false);
+      // …and neither reaches the model, in either model-facing client.
+      const tool = TOOLS.find((t) => t.name === capability.id)!;
+      expect(Object.keys(tool.args)).not.toContain('patient');
+      expect(Object.keys(tool.args)).not.toContain(ACCOUNT_PARAM.name);
+    }
+  });
+
+  it('are offered to the model everywhere a read is', async () => {
+    // They are ordinary reads as far as a model is concerned — they just read
+    // something other than a chart — so an `account`-kind exclusion must not
+    // sweep them out.
+    for (const id of PUBLIC_IDS) expect(AGENT_IDS).toContain(id);
+  });
+
+  it('run with no session at all', async () => {
+    const { executeCapability } = await import('../capabilities');
+    // A null request reaches `run` for a public capability. `lookup_npi`
+    // refuses a malformed number before making any request, which is a
+    // refusal that proves `run` was entered — with no session in hand.
+    await expect(executeCapability(null, 'lookup_npi', { npi: 'nope' })).rejects.toThrow(/not a valid NPI/);
+  });
+
+  it('are the only capabilities a null session is accepted for', async () => {
+    const { executeCapability } = await import('../capabilities');
+    await expect(executeCapability(null, 'get_medications', {})).rejects.toThrow(
+      /needs a connected MyChart account/,
+    );
+  });
+
+  it('are run by the CLI before it asks for a single credential', async () => {
+    const source = await Bun.file(new URL('../../npm-package/cli/cli.ts', import.meta.url)).text();
+    const publicBranch = source.indexOf('runPublicCapabilityAction(');
+    const login = source.indexOf('header(\'Logging In\')');
+    expect(publicBranch).toBeGreaterThan(-1);
+    expect(login).toBeGreaterThan(-1);
+    // Below the login block it would run once per connected account, and
+    // above `getCredentials` it needs none at all.
+    expect(publicBranch).toBeLessThan(login);
   });
 });
 
@@ -479,14 +557,29 @@ describe('npm library', () => {
       disable_totp: 'disableTotp',
     };
 
+    // The `public` capabilities are static instead: there is no session for an
+    // instance to supply, and constructing a client — which means logging in —
+    // to look up an NPI would be a login for nothing.
+    const staticMethodFor: Record<string, string> = {
+      lookup_npi: 'lookupNpi',
+      search_npi_registry: 'searchNpiRegistry',
+      search_mycharts: 'searchMyCharts',
+    };
+    expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
+
     // Every capability in the registry is implemented, so every one of them
     // maps to a library method — there is no "declared but not implemented"
     // state to carve out.
-    const unmapped = ALL.filter((id) => !methodFor[id]);
+    const unmapped = ALL.filter((id) => !methodFor[id] && !staticMethodFor[id]);
     expect(unmapped).toEqual([]);
 
     const absent = Object.values(methodFor).filter((m) => !methods.includes(m));
     expect(absent).toEqual([]);
+
+    const statics = Object.getOwnPropertyNames(MyChartClient);
+    const absentStatics = Object.values(staticMethodFor).filter((m) => !statics.includes(m));
+    expect(absentStatics).toEqual([]);
+    expect(typeof MyChartClient.runPublicCapability).toBe('function');
   });
 });
 
@@ -547,7 +640,9 @@ describe('the browser demo', () => {
     const extra = TOOL_SPECS.map((t) => resolveToolName(t.name)).filter((name) => !CAPABILITY_IDS.includes(name));
     // Account setup mirrors the extension's meta tools, which are per-machine
     // and deliberately outside the registry. Scheduling is demo-only until the
-    // real thing ships. Anything else appearing here is drift.
+    // real thing ships. `search_mycharts` is no longer here — it became a
+    // `public` capability, so the demo's copy is now checked against the
+    // registry like any other tool. Anything else appearing here is drift.
     expect(extra.sort()).toEqual(
       [
         'check_session',
@@ -555,7 +650,6 @@ describe('the browser demo', () => {
         'connect_instance',
         'disconnect_account',
         'list_accounts',
-        'search_mycharts',
         'setup_account',
         'get_available_appointments',
         'book_appointment',

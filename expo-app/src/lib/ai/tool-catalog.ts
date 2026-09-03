@@ -16,9 +16,9 @@
  * the whole emergency-contact write surface were simply absent on mobile, so
  * the answer a patient got depended on which client they asked.
  *
- * Only read + write capabilities appear. `account`-kind capabilities change
- * how the patient signs in to MyChart; those live on the settings screen,
- * where a human drives them.
+ * Only read, write and public capabilities appear. `account`-kind capabilities
+ * change how the patient signs in to MyChart; those live on the settings
+ * screen, where a human drives them.
  *
  * Dependency-free on purpose: no React Native imports, so bun unit tests can
  * read it directly.
@@ -30,6 +30,7 @@ import {
   MODE_PARAM,
   MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
   describeModeParam,
@@ -53,9 +54,13 @@ export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
   args: {
     // Declared by the registry, so the parity test can see it. This used to be
     // spelled `instance` here and `account` in the extension — the one
-    // parameter on every tool in every client, and the only one that had
-    // already drifted. `instance` is still accepted at execution time.
-    [ACCOUNT_PARAM.name]: ACCOUNT_PARAM.description,
+    // parameter on almost every tool in every client, and the only one that
+    // had already drifted. `instance` is still accepted at execution time.
+    // The `public` lookups (NPI Registry, MyChart directory) take no account:
+    // there is nothing to connect before using them.
+    ...(acceptsAccountParam(capability)
+      ? { [ACCOUNT_PARAM.name]: ACCOUNT_PARAM.description }
+      : {}),
     // Which patient the call is about. The dispatch asserts it before running
     // and refuses on a mismatch, so the model has to be able to say it.
     ...(acceptsPatientParam(capability)

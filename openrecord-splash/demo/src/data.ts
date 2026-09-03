@@ -827,6 +827,84 @@ export const directory = [
 ];
 
 /**
+ * A stand-in for CMS's NPI Registry, holding the demo's own providers.
+ *
+ * The real `lookup_npi` / `search_npi_registry` capabilities call the public
+ * registry at npiregistry.cms.hhs.gov, which would answer with real people —
+ * so the demo answers with its own cast instead. Every number here is a
+ * well-formed NPI (ten digits with a correct check digit), so a visitor who
+ * pastes one into the real registry gets a "not found", not a "malformed".
+ *
+ * The field names are the registry's own — `number`, `enumeration_type`, and
+ * the four derived fields the processor computes (`providerName`,
+ * `primarySpecialty`, `primaryAddress`, `primaryPhone`). See
+ * `scrapers/npi/README.md`. A demo answering in a shape the real capability
+ * never returns would teach a visitor the wrong thing about the product.
+ */
+export const npiProviders = [
+  {
+    number: '1234567893',
+    enumeration_type: 'NPI-1',
+    providerName: 'JULIUS HIBBERT, MD',
+    primarySpecialty: 'Internal Medicine',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345678',
+    taxonomies: ['Internal Medicine', 'Family Medicine'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1053380212',
+    enumeration_type: 'NPI-1',
+    providerName: 'NICK RIVIERA, MD',
+    primarySpecialty: 'Surgery',
+    primaryAddress: '1 Riviera Way, Springfield, IL 62704',
+    primaryPhone: '5553456789',
+    taxonomies: ['Surgery'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1245319599',
+    enumeration_type: 'NPI-1',
+    providerName: 'RUTH POWERS, RN',
+    primarySpecialty: 'Registered Nurse',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345680',
+    taxonomies: ['Registered Nurse'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1073666061',
+    enumeration_type: 'NPI-2',
+    providerName: 'SPRINGFIELD GENERAL HOSPITAL',
+    primarySpecialty: 'General Acute Care Hospital',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345600',
+    taxonomies: ['General Acute Care Hospital', 'Clinic/Center'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1063517217',
+    enumeration_type: 'NPI-2',
+    providerName: 'SHELBYVILLE REGIONAL MEDICAL',
+    primarySpecialty: 'General Acute Care Hospital',
+    primaryAddress: '400 Shelbyville Rd, Shelbyville, IL 62565',
+    primaryPhone: '5559871200',
+    taxonomies: ['General Acute Care Hospital'],
+    city: 'Shelbyville',
+    state: 'IL',
+    postalCode: '62565',
+  },
+];
+
+/**
  * The health digest and insight cards shown on the app's Insights screen.
  * In the real app these are model-generated from the record on first sync;
  * here they are pre-baked so the screen has content without burning a call.

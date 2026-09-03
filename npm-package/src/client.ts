@@ -18,6 +18,20 @@ import {
   type TwoFaDeliveryInfo,
 } from '../../scrapers/myChart/auth/login';
 import { generateTotpCode } from '../../scrapers/myChart/auth/totp';
+import {
+  lookupNpi,
+  searchNpiRegistry,
+  type NpiProviderStandard,
+  type NpiRegistryErrors,
+  type NpiRegistryOptions,
+  type NpiSearchQuery,
+  type NpiSearchStandard,
+} from '../../scrapers/npi/npiRegistry';
+import {
+  searchMyChartDirectory,
+  type MyChartDirectorySearchOptions,
+  type MyChartDirectorySearchResult,
+} from '../../scrapers/list-all-mycharts/searchDirectory';
 import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
@@ -347,6 +361,53 @@ export class MyChartClient {
    */
   runCapability(id: string, args: CapabilityArgs = {}, ctx?: CapabilityContext): Promise<unknown> {
     return executeCapability(this.req(), id, args, ctx);
+  }
+
+  // ── Public lookups ──────────────────────────────────────────────────────
+  //
+  // `public`-kind capabilities read something no account owns — CMS's NPI
+  // Registry, Epic's directory of MyChart instances. They are `static` because
+  // there is nothing for an instance to supply: no session, no cookies, no
+  // patient. Constructing a client (and therefore logging in) to look up an
+  // NPI would be a login for nothing.
+
+  /**
+   * Run a `public` capability by id — `runPublicCapability('lookup_npi', { npi })`.
+   *
+   * The dynamic counterpart to {@link runCapability}, for a caller dispatching
+   * on a name it was handed. Passing a chart capability's id here throws
+   * rather than silently doing something with no session.
+   */
+  static runPublicCapability(id: string, args: CapabilityArgs = {}): Promise<unknown> {
+    return executeCapability(null, id, args);
+  }
+
+  /**
+   * One provider, by National Provider Identifier. `null` when the registry
+   * has nobody by that number; {@link NpiRegistryErrors} when it refused the
+   * query — narrow it with `isNpiRegistryErrors`.
+   */
+  static lookupNpi(
+    npi: string,
+    options?: NpiRegistryOptions,
+  ): Promise<NpiProviderStandard | NpiRegistryErrors | null> {
+    return lookupNpi(npi, options);
+  }
+
+  /** Providers matching a name, specialty and/or place. One page per call. */
+  static searchNpiRegistry(
+    query: NpiSearchQuery,
+    options?: NpiRegistryOptions,
+  ): Promise<NpiSearchStandard | NpiRegistryErrors> {
+    return searchNpiRegistry(query, options);
+  }
+
+  /** The MyChart instances whose name, alias or hostname matches `query`. */
+  static searchMyCharts(
+    query: string,
+    options?: MyChartDirectorySearchOptions,
+  ): Promise<MyChartDirectorySearchResult> {
+    return searchMyChartDirectory(query, options);
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────

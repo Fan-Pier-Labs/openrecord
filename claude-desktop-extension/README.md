@@ -53,7 +53,9 @@ Without the widget (Claude.ai web, other MCP clients), Claude walks through the
 same setup sequence using ordinary tool calls:
 
 1. **`search_mycharts`** — Claude asks you for your health system name (e.g.
-   "uchealth", "mass general") and looks up the hostname.
+   "uchealth", "mass general") and looks up the hostname. Searches Epic's live
+   directory, falling back to the list bundled with this build when it can't
+   reach it.
 2. **`setup_account(hostname, username, password)`** — Claude asks you for
    your credentials in chat, then logs in. Credentials are stored locally in
    `~/.openrecord-mcpb/` on your machine. Never sent to Anthropic.
@@ -222,7 +224,6 @@ claude-desktop-extension/
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
     ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
-    ├── instances.ts        # picker data (sourced from scrapers/list-all-mycharts/)
     └── imaging/            # MCPB glue around the shared pure-JS CLO → JPEG exporter
 ```
 
