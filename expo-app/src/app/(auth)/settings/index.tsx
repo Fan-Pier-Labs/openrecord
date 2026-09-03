@@ -105,7 +105,7 @@ export default function SettingsScreen() {
   }
 
   /**
-   * Run one of the `account`-kind capabilities (`shared/capabilities.ts`).
+   * Run one of the `account`-kind capabilities (`shared/capabilities/`).
    *
    * These change how the patient signs in to MyChart, so they are never
    * offered to the model — the CLI drives them from flags and the app drives

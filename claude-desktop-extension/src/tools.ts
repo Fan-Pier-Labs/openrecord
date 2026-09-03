@@ -5,8 +5,10 @@
  *   1. Meta tools — list_accounts, search_mycharts, setup_account, complete_2fa,
  *                   disconnect_account. These are MCPB-specific: they manage
  *                   the credentials stored on this machine, which is not
- *                   something the other clients share.
- *   2. Capability tools — one per entry in `shared/capabilities.ts`, which is
+ *                   something the other clients share. get_hospital_info sits
+ *                   with them for a different reason: it needs no account at
+ *                   all, which the registry cannot express.
+ *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
@@ -40,8 +42,12 @@ import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/au
 import {
   ACCOUNT_PARAM,
   CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsModeParam,
   acceptsPatientParam,
+  describeModeParam,
   executeCapability,
   readAccountArg,
   type Capability,
@@ -50,6 +56,7 @@ import {
   type StudyImagePayload,
 } from '../../shared/capabilities';
 
+import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { searchInstances } from './instances';
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
@@ -218,6 +225,12 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   // when omitted — before the capability runs, so a read refuses rather than
   // silently returning the wrong family member's chart.
   if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
+  // How the payload is rendered. This client talks to a model, so the default
+  // is the concise projection; the model asks for `standard`, `json` or `raw`
+  // by name when it needs more.
+  if (acceptsModeParam(capability)) {
+    shape[MODE_PARAM.name] = z.string().describe(describeModeParam(MODEL_FACING_OUTPUT_MODE)).optional();
+  }
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const annotations =
@@ -241,13 +254,19 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // active-patient assertion lives there. Branching to a direct
         // `capability.run` for the imaging tool is how that one tool ended up
         // returning a family member's X-rays.
-        const payload = await executeCapability(session, capability.id, args, contextFor(account));
+        const withMode =
+          acceptsModeParam(capability) && !args[MODE_PARAM.name]
+            ? { ...args, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
+            : args;
+        const payload = await executeCapability(session, capability.id, withMode, contextFor(account));
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
         }
-        return jsonResult(payload);
+        // The markdown modes come back as a string and go out as text; the
+        // data modes go out as JSON.
+        return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
@@ -461,6 +480,43 @@ export function registerAllTools(server: McpServer): void {
   );
 
   server.registerTool(
+    'get_hospital_info',
+    {
+      title: 'Public profile of a health system',
+      description:
+        'What a MyChart instance publishes about its health system to anyone, with no account: the ' +
+        "organization's support, scheduling and billing phone lines and support email; the \"Find a Doctor\" " +
+        'directory of bookable providers (name, credentials, specialties, languages, photo) with every clinic ' +
+        'they work at (street address, phone, coordinates, hours); billing entities and their facilities; and ' +
+        'which portal features are switched on. Pass the `hostname` from search_mycharts. Slow on large ' +
+        'systems — one specialty is 0.6–2 MB and some list twenty — so narrow with `specialties` or skip the ' +
+        'crawl with `include_providers: false`. Never returns a fax number or an accepted-insurance list: ' +
+        'MyChart publishes neither (the payer list sits behind a reCAPTCHA-protected disclaimer).',
+      inputSchema: {
+        hostname: z.string().min(1).describe('The MyChart hostname, e.g. mychart.example.org. A full login URL also works.'),
+        specialties: z.array(z.string()).optional().describe('Only crawl these "Find a Doctor" specialties (by name). Default: all of them.'),
+        max_specialties: z.number().int().min(0).optional().describe('Stop after this many specialties.'),
+        include_providers: z.boolean().optional().describe('Crawl the provider and clinic directory (default true).'),
+        include_billing: z.boolean().optional().describe('Read the billing entities (default true).'),
+      } satisfies ZodRawShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ hostname, specialties, max_specialties, include_providers, include_billing }) => {
+      try {
+        const profile = await fetchHospitalNetworkProfile(hostname, {
+          ...(specialties ? { specialties } : {}),
+          ...(max_specialties !== undefined ? { maxSpecialties: max_specialties } : {}),
+          ...(include_providers !== undefined ? { includeProviders: include_providers } : {}),
+          ...(include_billing !== undefined ? { includeBilling: include_billing } : {}),
+        });
+        return jsonResult(profile);
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
+    },
+  );
+
+  server.registerTool(
     'setup_account',
     {
       title: 'Set up a MyChart account (step 1)',
@@ -605,7 +661,7 @@ export function registerAllTools(server: McpServer): void {
   );
 
   // register_passkey is NOT declared here — it is a capability
-  // (`shared/capabilities.ts`) so the CLI and the mobile app expose the same
+  // (`shared/capabilities/`) so the CLI and the mobile app expose the same
   // thing, and it is registered by the loop at the bottom of this function.
 
   server.registerTool(
@@ -630,7 +686,7 @@ export function registerAllTools(server: McpServer): void {
 
   // ── Capability tools ──────────────────────────────────────────────────────
   //
-  // Derived, not listed. `shared/capabilities.ts` is the single source of
+  // Derived, not listed. `shared/capabilities/` is the single source of
   // truth for what OpenRecord can do with a MyChart account; every entry there
   // becomes a tool here automatically, so this extension can never quietly
   // support less than the CLI or the mobile app does.

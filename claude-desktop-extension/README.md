@@ -95,7 +95,7 @@ session. An id resolves only on a perfect hostname + username match; there
 is no hostname-only shorthand, so a call can never land on the wrong login.
 
 The data tools are not listed anywhere in this package. They are generated
-from the shared capability registry (`shared/capabilities.ts`), which is also
+from the shared capability registry (`shared/capabilities/`), which is also
 what the CLI and the mobile app derive their surfaces from — so this extension
 cannot quietly support less than they do. `registerAllTools` hand-writes only
 the five account-management tools above, which manage credentials on this
@@ -120,6 +120,23 @@ different family member's record than the one the call is about.
 > Ask my uchealth account which records I can access.
 > Switch to Bart's record and show his immunizations.
 > Switch back to my own record.
+
+### Output modes
+
+Every read tool takes an optional `mode`:
+
+| Mode | What Claude gets |
+| --- | --- |
+| `concise` | Markdown, the interesting fields only. **The default** — a full past-visits payload is ~200 KB of Epic view-model flags, and the concise rendering is a few KB |
+| `standard` | Markdown, every useful field, MyChart's own field names |
+| `json` | The same fields as `standard`, as JSON |
+| `raw` | Exactly what MyChart sent, untouched. Large; HTML and UI flags included |
+
+Claude asks for `standard`, `json` or `raw` by name when a concise answer is
+missing something. The field decisions per capability are in
+[`docs/processor-layer-proposal.md`](../docs/processor-layer-proposal.md);
+example output in every mode is in
+[`docs/processor-layer-examples.md`](../docs/processor-layer-examples.md).
 
 ## Architecture
 

@@ -158,8 +158,11 @@ Sizes are the real response bodies.
 `get_insurance_payers` is implemented (`scrapers/myChart/chart/insurancePayers.ts`), modelled in
 fake-mychart (`/Insurance/Coverages/GetPayors`, shape `insuranceGetPayors` in `realShapes.ts`,
 data in `data/organization.ts`). Captured 2026-09 on **four live instances** (the three above plus a
-fourth, three behaving as November 2025 and one as August 2025). This is the candidate source for a
-"hospital network profile" (accepted insurance), and the capture settles what it is and isn't.
+fourth, three behaving as November 2025 and one as August 2025). This is the accepted-insurance
+half of the hospital network profile, and the capture settles what it is and isn't. The pre-login
+profile (`scrapers/myChart/prelogin/`) reports that list as `gated`, because the anonymous route to
+it is the last page of the guest price-estimate flow, behind a reCAPTCHA-protected disclaimer. This
+is the post-login way around that gate, and the only one: it needs an account on the instance.
 
 **`/api/insurance/LoadPayers` is the React `/app/insurance` activity's endpoint, and none of the
 four instances serves that activity.** `GET /app/insurance` answers 200 with the *Home* page, and
@@ -316,5 +319,5 @@ list above was built.
    every instance checked, a React `/app/<activity>` that isn't served falls through to the Home
    page with a 200, and its `/api/*` endpoints 500 no matter what they're sent.
 
-Anything added lands in `shared/capabilities.ts` with a matching fake-mychart route and a
+Anything added lands in `shared/capabilities/` with a matching fake-mychart route and a
 `realShapes.ts` skeleton generated from a live capture, per the fake's faithful-stand-in rule.

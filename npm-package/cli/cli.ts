@@ -30,6 +30,7 @@ import {
   runCapabilityAction,
 } from './capabilityActions';
 import { renderCliHelp } from './help';
+import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -74,9 +75,10 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --help --show-all                                     (…including the less-frequently-used ones)
 //   npx tsx src/cli.ts --list-capabilities [--show-all]                      (just the capability listing)
 //   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
+//   npx tsx src/cli.ts --host <hostname> --action get_medications --mode concise   (raw | standard | concise | json)
 //
 // `--action` accepts any id from the shared capability registry
-// (`shared/capabilities.ts`) and prints its result as JSON, with parameters
+// (`shared/capabilities/`) and prints its result as JSON, with parameters
 // supplied by repeated `--arg name=value`. That is what keeps the CLI from
 // drifting behind the extension and the app: a capability added there is a CLI
 // command the same day, with no flag plumbing to remember.
@@ -97,6 +99,8 @@ interface CliArgs {
   capabilityArgs?: Record<string, string>;
   /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
   output?: string;
+  /** Output mode for read capabilities: raw | standard | concise | json (default json). */
+  mode?: string;
 }
 
 function parseArgs(): CliArgs {
@@ -145,6 +149,8 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--save-clo') parsed.saveClo = true;
     // Output directory for capabilities that produce images (rendersMedia).
     else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
+    // How read capabilities render their payload. Validated by the registry.
+    else if (args[i] === '--mode' && args[i + 1]) parsed.mode = args[++i]!;
   }
   return parsed;
 }
@@ -510,6 +516,7 @@ async function scrapeAll(
       {},
       cliArgs.output,
       cliArgs.patient,
+      cliArgs.mode,
     );
     if (!ok) failures++;
   }
@@ -622,7 +629,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
 
     for (let i = 0; i < Math.min(convoList.length, 10); i++) {
       const c = convoList[i]!; // loop bound guarantees the index
-      const audience = c.audience?.map((a: { name: string }) => a.name).join(', ') || 'System';
+      const audience = c.audience.map((a) => a.name ?? '').filter(Boolean).join(', ') || 'System';
       console.log(`    [${i + 1}] "${c.subject}" - ${audience}`);
     }
 
@@ -632,7 +639,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
       console.log('  Invalid selection.');
       return;
     }
-    conversationId = convoList[convoIdx]!.hthId; // range-checked just above
+    conversationId = convoList[convoIdx]!.hthId ?? undefined; // range-checked just above
   }
 
   if (!messageBody) {
@@ -683,6 +690,35 @@ async function main() {
     console.log(renderCapabilityList({ showAll: cliArgs.showAll }));
     closeRL();
     return;
+  }
+
+  // The one action that needs no account: what the instance tells anyone
+  // about the health system behind it. Runs before credential resolution so
+  // no password store is opened and nothing is logged in.
+  if (cliArgs.action === 'hospital-info' || cliArgs.action === 'get_hospital_info') {
+    if (!cliArgs.host) {
+      console.error('  --action hospital-info needs --host <hostname>.');
+      closeRL();
+      process.exit(1);
+    }
+    const args = cliArgs.capabilityArgs ?? {};
+    const specialties = args.specialties?.split(',').map((s) => s.trim()).filter(Boolean);
+    try {
+      const profile = await fetchHospitalNetworkProfile(cliArgs.host, {
+        ...(cliArgs.local ? { protocol: 'http' } : {}),
+        ...(specialties && specialties.length > 0 ? { specialties } : {}),
+        ...(args.max_specialties ? { maxSpecialties: Number(args.max_specialties) } : {}),
+        includeProviders: args.providers !== 'false',
+        includeBilling: args.billing !== 'false',
+      });
+      console.log(JSON.stringify(profile, null, 2));
+      closeRL();
+      process.exit(0);
+    } catch (err) {
+      console.error(`  ${(err as Error).message}`);
+      closeRL();
+      process.exit(1);
+    }
   }
 
   header('MyChart Scraper - Terminal');
@@ -800,7 +836,7 @@ async function main() {
   ): Promise<never> => {
     let ok = true;
     for (const session of sessions) {
-      if (!(await runCapabilityAction(capability, session, passwordFor(session.hostname), args, cliArgs.output, cliArgs.patient))) {
+      if (!(await runCapabilityAction(capability, session, passwordFor(session.hostname), args, cliArgs.output, cliArgs.patient, cliArgs.mode))) {
         ok = false;
       }
     }

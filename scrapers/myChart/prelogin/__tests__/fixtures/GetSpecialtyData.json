@@ -1,0 +1,480 @@
+{
+  "WorkflowSettings": null,
+  "Providers": [
+    {
+      "Name": "Homer Simpson, MD",
+      "NameLastFirst": "Simpson, Homer J, MD",
+      "BioSlug": "HomerSimpsonMD",
+      "BioId": "WP-24FAKE0009-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "PcpType": null,
+      "SpecialtyIds": [
+        "17"
+      ],
+      "Specialties": [
+        {
+          "Value": "17",
+          "Number": "17",
+          "Title": "Internal Medicine",
+          "Abbreviation": "IM",
+          "Abbr": null,
+          "Comment": null,
+          "IsInactive": false,
+          "TitleUtf8": "Internal Medicine",
+          "AbbreviationUtf8": "IM",
+          "IsFallbackUsed": true
+        }
+      ],
+      "PhotoUrl": "https://example.invalid/photo.jpg",
+      "WebPageUrl": "app/providers/details?id=WP-24FAKE0008-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "AllowedTelemedicineLocations": "1:,2",
+      "PhotoClass": "color4",
+      "IsStandardProvider": false,
+      "IsPCP": false,
+      "TeamProviders": [],
+      "Languages": [
+        "English"
+      ],
+      "Gender": "Male",
+      "Credentials": "Physician",
+      "ClinicalInterests": [],
+      "Affiliations": null,
+      "SpecialtySearchTerms": [
+        {
+          "Id": "1000",
+          "Title": "Primary Care",
+          "Description": null,
+          "IconCategoryValue": 0,
+          "IconPath": null,
+          "TermSlug": null,
+          "TermPageKey": 0
+        }
+      ],
+      "ID": "WP-24FAKE0008-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    },
+    {
+      "Name": "Marge Bouvier, NP",
+      "NameLastFirst": "Bouvier, Marge, NP",
+      "BioSlug": "MargeBouvierNP",
+      "BioId": "WP-24FAKE0011-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "PcpType": null,
+      "SpecialtyIds": [
+        "17"
+      ],
+      "Specialties": [
+        {
+          "Value": "17",
+          "Number": "17",
+          "Title": "Internal Medicine",
+          "Abbreviation": "IM",
+          "Abbr": null,
+          "Comment": null,
+          "IsInactive": false,
+          "TitleUtf8": "Internal Medicine",
+          "AbbreviationUtf8": "IM",
+          "IsFallbackUsed": true
+        }
+      ],
+      "PhotoUrl": "",
+      "WebPageUrl": "app/providers/details?id=WP-24FAKE0010-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "AllowedTelemedicineLocations": "1:,2",
+      "PhotoClass": "color1",
+      "IsStandardProvider": false,
+      "IsPCP": false,
+      "TeamProviders": [],
+      "Languages": [
+        "English",
+        "Spanish"
+      ],
+      "Gender": "Female",
+      "Credentials": "Physician",
+      "ClinicalInterests": [],
+      "Affiliations": null,
+      "SpecialtySearchTerms": [
+        {
+          "Id": "1000",
+          "Title": "Primary Care",
+          "Description": null,
+          "IconCategoryValue": 0,
+          "IconPath": null,
+          "TermSlug": null,
+          "TermPageKey": 0
+        }
+      ],
+      "ID": "WP-24FAKE0010-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    },
+    {
+      "Name": "Julius Hibbert, MD",
+      "NameLastFirst": "Hibbert, Julius, MD",
+      "BioSlug": "JuliusHibbertMD",
+      "BioId": "WP-24FAKE0013-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "PcpType": null,
+      "SpecialtyIds": [
+        "17"
+      ],
+      "Specialties": [
+        {
+          "Value": "17",
+          "Number": "17",
+          "Title": "Internal Medicine",
+          "Abbreviation": "IM",
+          "Abbr": null,
+          "Comment": null,
+          "IsInactive": false,
+          "TitleUtf8": "Internal Medicine",
+          "AbbreviationUtf8": "IM",
+          "IsFallbackUsed": true
+        }
+      ],
+      "PhotoUrl": "",
+      "WebPageUrl": "app/providers/details?id=WP-24FAKE0012-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "AllowedTelemedicineLocations": "1:,2",
+      "PhotoClass": "color5",
+      "IsStandardProvider": false,
+      "IsPCP": false,
+      "TeamProviders": [],
+      "Languages": [
+        "English"
+      ],
+      "Gender": "Male",
+      "Credentials": "Physician",
+      "ClinicalInterests": [],
+      "Affiliations": null,
+      "SpecialtySearchTerms": [
+        {
+          "Id": "1000",
+          "Title": "Primary Care",
+          "Description": null,
+          "IconCategoryValue": 0,
+          "IconPath": null,
+          "TermSlug": null,
+          "TermPageKey": 0
+        }
+      ],
+      "ID": "WP-24FAKE0012-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    }
+  ],
+  "Departments": [
+    {
+      "Name": "Springfield Family Medicine",
+      "Address": [
+        "742 Evergreen Terrace",
+        "Suite 100",
+        "Springfield OR 97475"
+      ],
+      "Coordinates": {
+        "Latitude": 44.05,
+        "Longitude": -123.09
+      },
+      "PhoneNumber": "555-010-0100",
+      "OverridePhoneNumber": "",
+      "IsUsingOverridePhoneNumber": false,
+      "TimeZone": {
+        "CacheTimeZone": {
+          "Value": null,
+          "Number": "5",
+          "Title": "America/Chicago",
+          "Abbreviation": null,
+          "Abbr": "America/CHI",
+          "Comment": "",
+          "IsInactive": false,
+          "TitleUtf8": null,
+          "AbbreviationUtf8": null,
+          "IsFallbackUsed": false
+        },
+        "DisplayName": "CDT"
+      },
+      "FromMinutesOffset": null,
+      "FromDaysOffset": null,
+      "ToDaysOffset": null,
+      "LookbackDays": 1095,
+      "AllowTeamScheduling": null,
+      "AllowAppointmentRequest": true,
+      "DistanceFromHome": null,
+      "SpecialtyGroupId": "WP-24FAKE0006-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "IsEnabledForNewProviderWorkflow": false,
+      "HoursOfOperation": [],
+      "PhotoUrl": "",
+      "CanLoginToSchedule": false,
+      "ID": "WP-24FAKE0005-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    },
+    {
+      "Name": "Shelbyville Clinic",
+      "Address": [
+        "1 Shelbyville Way",
+        "Shelbyville OR 97476"
+      ],
+      "Coordinates": {
+        "Latitude": 44.05,
+        "Longitude": -123.09
+      },
+      "PhoneNumber": "555-010-0200",
+      "OverridePhoneNumber": "",
+      "IsUsingOverridePhoneNumber": false,
+      "TimeZone": {
+        "CacheTimeZone": {
+          "Value": null,
+          "Number": "5",
+          "Title": "America/Chicago",
+          "Abbreviation": null,
+          "Abbr": "America/CHI",
+          "Comment": "",
+          "IsInactive": false,
+          "TitleUtf8": null,
+          "AbbreviationUtf8": null,
+          "IsFallbackUsed": false
+        },
+        "DisplayName": "CDT"
+      },
+      "FromMinutesOffset": null,
+      "FromDaysOffset": null,
+      "ToDaysOffset": null,
+      "LookbackDays": 1095,
+      "AllowTeamScheduling": null,
+      "AllowAppointmentRequest": true,
+      "DistanceFromHome": null,
+      "SpecialtyGroupId": "WP-24FAKE0006-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "IsEnabledForNewProviderWorkflow": false,
+      "HoursOfOperation": [],
+      "PhotoUrl": "",
+      "CanLoginToSchedule": false,
+      "ID": "WP-24FAKE0007-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    }
+  ],
+  "Locations": [
+    {
+      "Name": "Springfield Area",
+      "Address": [],
+      "Coordinates": {
+        "Latitude": null,
+        "Longitude": null
+      },
+      "DistanceFromHome": null,
+      "DepartmentIds": [
+        "WP-24FAKE0005-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0007-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+      ],
+      "ID": "WP-24FAKE0014-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "NameUTF8": null
+    }
+  ],
+  "TelehealthLocations": null,
+  "HomeOrganizationName": "Springfield General Hospital",
+  "ProviderDepartmentPairs": [
+    {
+      "ProviderId": "WP-24FAKE0008-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "DepartmentId": "WP-24FAKE0005-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "ChildProviderIds": [],
+      "IsTeamMember": false,
+      "CanRequest": false,
+      "CanScheduleTelemedicine": true,
+      "CanLoginToSchedule": false,
+      "VisitTypeInformation": [
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0101-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0102-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0103-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0104-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        }
+      ],
+      "IsInNetwork": false,
+      "PoolLine": null,
+      "PoolTier": null
+    },
+    {
+      "ProviderId": "WP-24FAKE0010-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "DepartmentId": "WP-24FAKE0005-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "ChildProviderIds": [],
+      "IsTeamMember": false,
+      "CanRequest": false,
+      "CanScheduleTelemedicine": true,
+      "CanLoginToSchedule": false,
+      "VisitTypeInformation": [
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0101-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0102-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0103-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0104-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        }
+      ],
+      "IsInNetwork": false,
+      "PoolLine": null,
+      "PoolTier": null
+    },
+    {
+      "ProviderId": "WP-24FAKE0012-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "DepartmentId": "WP-24FAKE0007-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "ChildProviderIds": [],
+      "IsTeamMember": false,
+      "CanRequest": false,
+      "CanScheduleTelemedicine": true,
+      "CanLoginToSchedule": false,
+      "VisitTypeInformation": [
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0101-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0102-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0103-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        },
+        {
+          "SeesChildren": "0",
+          "SeesAdolescents": "1",
+          "VisitTypeID": "WP-24FAKE0104-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+        }
+      ],
+      "IsInNetwork": false,
+      "PoolLine": null,
+      "PoolTier": null
+    }
+  ],
+  "ReasonsForVisit": [
+    {
+      "Id": "WP-24FAKE0015-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "CategoryValue": "newprov_1",
+      "Title": "New Patient Visit",
+      "DisplayName": "New Patient Visit",
+      "CanDirectSchedule": true,
+      "CanRequest": true,
+      "CanRequestWithoutOverrides": true,
+      "DefaultVisitTypeId": "WP-24FAKE0016-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "AllowProviderSelect": true,
+      "ReasonForVisitFirst": true,
+      "ProviderFirst": false,
+      "ProviderDisplayString": null,
+      "LocationDisplayString": null,
+      "NumberOfAvailableProviders": 0,
+      "NumberOfAvailableLocations": 0,
+      "ProviderIds": null,
+      "DepartmentIds": null,
+      "DirectProviderDepartmentPairIDs": [
+        "WP-24FAKE0105-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0106-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0107-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0109-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0106-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0110-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0111-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0112-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0113-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0114-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0115-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0117-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0106-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0118-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0119-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0120-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0108-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0121-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0122-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0123-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+        "WP-24FAKE0124-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D^WP-24FAKE0116-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D"
+      ],
+      "RequestProviderDepartmentPairIDs": [],
+      "QuickScheduleProviderDepartmentPairIDs": [],
+      "RawApptComponents": null,
+      "ApptComponentItems": {
+        "FromDte": 0,
+        "ExpirationDte": 0
+      },
+      "PhotoUrl": null,
+      "PhotoFileName": "library.svg#schedulingrfv_genericred",
+      "SortOrder": 2,
+      "AppointmentRequestIds": [],
+      "AccessCode": null,
+      "AccessCodeFirstName": null,
+      "IsDemographicAuthRequired": false,
+      "SpecialtyGroupId": "WP-24FAKE0125-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D",
+      "EnabledForOnDemandVideoVisits": false,
+      "TelemedicineVendorId": null,
+      "TelemedicineVisitTypeId": null,
+      "ScheduledTelemedicineVendorId": null,
+      "OnDemandTelemedicineVendorId": null,
+      "TelemedicineHardwareTestFdiId": null,
+      "UseDeepLinkForHardwareTest": false,
+      "TelemedicineMobileHardwareTestFdiId": null,
+      "EnabledForQuickSchedule": false,
+      "AllowedTelemedicineLocations": null,
+      "AvailablePlatformsForLocalQuickSchedule": null,
+      "AvailablePlatformsForLocalOnDemand": null,
+      "InternallyAvailableForTelehealth": false,
+      "ExternallyAvailableForTelehealth": false,
+      "OnDemandRFV": null,
+      "OnDemandOrganization": null,
+      "OnDemandSlot": null,
+      "LineInWDF40040": null,
+      "LineInWDF15000": null,
+      "InitiallyHidden": false,
+      "Description": "",
+      "IconCategoryId": 0,
+      "CustomImage": "",
+      "HasIncompleteSchedulingData": false,
+      "ExpectedPatientType": 0,
+      "HasPool": false,
+      "Pool": null,
+      "IconImageUrl": null,
+      "IsPlaceholder": false
+    }
+  ],
+  "ReasonForVisitDepartmentOverrides": [],
+  "VisitTypes": [],
+  "ActionPreviews": [],
+  "VisitTypeDepartmentOverrides": [],
+  "Specialties": [],
+  "Tickets": [],
+  "OrderMap": {},
+  "OriginalAppointmentInfo": {
+    "BundleId": null,
+    "FromDte": null,
+    "ToDte": null,
+    "Dat": null,
+    "SingleReasonForVisitId": null,
+    "BundleReasonForVisitId": null,
+    "OriginalAppointments": null,
+    "IsForceSameDay": false
+  },
+  "OnDemandTelehealthData": null,
+  "FavoriteAppointments": [],
+  "SchedulingMenusViewModels": [],
+  "LoadError": null,
+  "IsWidget": false,
+  "PreselectedTicketStatus": 0,
+  "OtherRfvUrl": null,
+  "OtherRfvFilename": "library.svg#schedulingrfv_requestappointment"
+}

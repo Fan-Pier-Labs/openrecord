@@ -30,6 +30,30 @@ Every client's list of MyChart instances comes from Epic's own picker data, scra
 - fake-mychart serves both halves (`/cached-api/help/organizations/` and the mirrored media path) so
   neither the tests nor the mobile app's first-boot refresh has to reach Epic.
 
+## The pre-login surface (`scrapers/myChart/prelogin/`)
+
+What an instance tells anyone about the health system behind it, with no account. Verified on five
+real instances spanning both scheduling-bundle generations; the routes, request encoding and every
+key read are identical on all of them. `fetchHospitalNetworkProfile(hostname)` runs all three:
+
+- **Contact lines** — every pre-login page inlines `$$WP.Strings.addMnemonic("@MYCHART@HELPDESKPHONE@", …)`
+  plus `SCHEDULINGPHONE`, `BILLINGPHONE`, `HELPEMAIL`, `ORGNAME`, `APPTITLE`, `ABSOLUTEURL`. Values
+  are HTML (`tel:` anchors, or a bare span for a vanity number). Epic ships placeholders —
+  `(555) 555-5555` and `MyChartSupport@DoNotUse.DoNotUse` — which read as unset.
+- **"Find a Doctor"** — `GET /<mount>/OpenScheduling` sets a session cookie and issues an antiforgery
+  token; then form-encoded POSTs with the token as a header:
+  `Scheduling/Anonymous/GetSchedulingWorkflowData` (`schedulingParameters[workflow]=NewProvider&isFirstLoad=true`
+  → specialties + feature flags) and `Scheduling/Anonymous/GetSpecialtyData` (`SpecialtyId=…` → providers,
+  departments with street address/phone/coordinates/hours, provider-department pairs). One specialty is
+  0.6–2 MB. Bookable providers only, no NPI; the newer build adds `SpecialtySearchTerms` per provider.
+  A wrong payload gets the release's error surface (302 → `/Home/FiveHundred` or a bare 500), never JSON.
+- **Guest estimates** — `GET /<mount>/GuestEstimates` → `SelectServiceArea`, which inlines
+  `$$WP.Estimates.OtherSAs = [{Id,Title,Phone,…}]` (billing entities with customer-service lines);
+  `SelectLocation?svcArea=…` inlines `var model = {Locations:[…],HasCompletedCaptcha:false}`. The payer
+  list two steps on sits behind a disclaimer whose accept step is reCAPTCHA-protected; not scraped.
+- **Not published anywhere**: a fax number, an org-level mailing address, an accepted-insurance list.
+- The mychart.org directory (`fetchMyChartDirectory`) also carries `phone`, `email` and `faq` per org.
+
 ## Scraping Tips
 
 When reverse engineering health portal APIs (MyChart, etc.), the request headers must **exactly match** what the browser sends — including header name casing (lowercase), `origin` header, `user-agent` string version, and `x-clientversion`. A missing `origin` header alone causes a 403 Forbidden. Use Playwright MCP to capture the exact request the browser makes, then replicate it exactly in the scraper code. 

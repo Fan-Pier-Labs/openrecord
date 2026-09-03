@@ -58,7 +58,7 @@ const PROTOCOL_VERSION = '2025-06-18';
 
 /**
  * A floor, not the real count — `capability-parity.unit.test.ts` owns
- * exactness against `shared/capabilities.ts`, and duplicating the number here
+ * exactness against `shared/capabilities/`, and duplicating the number here
  * would just be a second thing to update. This only has to be high enough to
  * catch "the per-capability registration loop never ran", which is the failure
  * a booted-but-empty bundle presents as. The registry currently carries ~50.

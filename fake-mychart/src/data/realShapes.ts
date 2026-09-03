@@ -3593,6 +3593,583 @@ export const helpOrganization = {
   "aliases": []
 } as const;
 
+// /Scheduling/Anonymous/GetSchedulingWorkflowData
+export const anonymousSchedulingWorkflowData = {
+  "WorkflowSettings": {
+    "WorkflowType": 0,
+    "FromMinutesOffset": null,
+    "FromDaysOffset": 0,
+    "ToDaysOffset": 0,
+    "NewProvFromDaysOffset": 0,
+    "NewProvToDaysOffset": 0,
+    "TicketId": null,
+    "Csn": null,
+    "RootDecisionTreeId": "",
+    "DecisionTreeNodeId": "",
+    "DecisionTreeAnswerId": null,
+    "DecisionTreeNodeCsn": "",
+    "AllowedProviderIds": null,
+    "PreselectedProviderIds": null,
+    "AllowedDepartmentIds": null,
+    "PreselectedDepartmentIds": null,
+    "PreselectedPatientType": 0,
+    "AllowedReasonForVisitIds": null,
+    "AllowedVisitTypeIds": null,
+    "PreselectedReasonForVisitIds": null,
+    "AllowedSpecialtyIds": [],
+    "PreselectedSpecialtyId": null,
+    "PreselectedSlotUID": null,
+    "PromotedSpecialtyIds": [
+      ""
+    ],
+    "StartDate": null,
+    "EndDate": null,
+    "CampaignId": "",
+    "LinkSource": null,
+    "ReferringPage": null,
+    "TermIds": null,
+    "InsuranceId": null,
+    "ProviderStepSettings": {
+      "ReadOnly": false,
+      "Hide": false,
+      "HideIfOne": false,
+      "Collapse": false,
+      "CollapseIfOne": false
+    },
+    "DepartmentStepSettings": {
+      "ReadOnly": false,
+      "Hide": false,
+      "HideIfOne": false,
+      "Collapse": false,
+      "CollapseIfOne": false
+    },
+    "ReasonForVisitStepSettings": {
+      "ReadOnly": false,
+      "Hide": false,
+      "HideIfOne": false,
+      "Collapse": false,
+      "CollapseIfOne": false
+    },
+    "QuickScheduleStepSettings": null,
+    "SpecialtyStepSettings": {
+      "ReadOnly": false,
+      "Hide": false,
+      "HideIfOne": false,
+      "Collapse": false,
+      "CollapseIfOne": false
+    },
+    "DateRangeSettings": null,
+    "TimePreferences": null,
+    "UseOnFileTimePreferences": false,
+    "SchedulePreferences": {
+      "Days": [],
+      "Times": [],
+      "TimeStrings": []
+    },
+    "DaysOfWeekList": [
+      ""
+    ],
+    "PreselectedFilters": [],
+    "AvailableFilters": [],
+    "AllowTeamScheduling": 0,
+    "ShowTeamBeforeSearch": 0,
+    "SchedulingVerificationSteps": null,
+    "AllowODVVComments": false,
+    "RequireODVVComments": false,
+    "RequireRequestComments": false,
+    "ShowOtherProviderOption": false,
+    "ShowOtherRfvOption": false,
+    "MaxCommentsLength": 0,
+    "RequireECheckInForTelemedicine": false,
+    "MultiPhaseECheckInOn": false,
+    "AllowOpenSchedulingWizard": false,
+    "CanShowProviderFinderDefaultLink": false,
+    "CanShowLocationFinderDefaultLink": false,
+    "AllowOnMyWay": false,
+    "DisableFavoriteAppointments": false,
+    "RequestReasons": [],
+    "RequireRescheduleReason": false,
+    "RescheduleReasons": [
+      {
+        "Value": "",
+        "Number": "",
+        "Title": "",
+        "Abbreviation": "",
+        "Abbr": null,
+        "Comment": null,
+        "IsInactive": false,
+        "TitleUtf8": "",
+        "AbbreviationUtf8": "",
+        "IsFallbackUsed": false
+      }
+    ],
+    "LocationGroupMethod": 0,
+    "LocationGroupingBehavior": 0,
+    "ProviderNameDisplayFormat": 0,
+    "Viewers": [],
+    "AllowSelectViewers": false,
+    "ShowViewers": false,
+    "ShowInsuranceVerificationStep": false,
+    "ShowDemographicVerificationStep": false,
+    "HasOnDemandVideoVisitSecurity": false,
+    "ShowVideoVisitSidebar": false,
+    "HasQuickScheduleSecurity": false,
+    "ShowEVisitSidebar": false,
+    "HasAppointmentDetailsSecurity": false,
+    "HasProviderDetailsSecurity": false,
+    "IsAlwaysSelfPay": false,
+    "ShowSidebarLinks": false,
+    "GeolocationNumLocationsToSelect": 0,
+    "GeolocationInnerRadius": 0,
+    "GeolocationOuterRadius": 0,
+    "MaxOpenSchedulingApptCount": 0,
+    "CurrentDTE": 0,
+    "IsReservationAllowed": false,
+    "GeolocationDistanceUnits": 0,
+    "GeolocationStreetAddress": [],
+    "Banners": [],
+    "AllowSelfSignup": false,
+    "IsLoginEnabled": false,
+    "TopicIds": [],
+    "TopicNames": [],
+    "IsWorkflowTurnedOn": false,
+    "IsSortingByAvailability": false,
+    "ServiceAreas": null,
+    "StringKey": null,
+    "DisableScheduleAsGuest": false,
+    "DefaultProviderLanguages": [],
+    "IsStandaloneWidget": false,
+    "IsFromPrelogin": false,
+    "IsFromShopperState": false,
+    "HasSeparateLocationSelectionInTicketBundles": false,
+    "IsPatientLocationStepRequired": false,
+    "AccessCode": null,
+    "IsProxy": false,
+    "ProxyContextName": null,
+    "IsAdminLoginFromHyperspace": false,
+    "SkipMobileLogout": false,
+    "AllowMobileSchedulingInlineRedirects": false,
+    "HasPatientLocationRule": false,
+    "EmbeddedConsecutiveSlotLoadLimit": 0,
+    "CanUseCadenceAppointmentRequests": false,
+    "IsInSchedulingDebugMode": false,
+    "DebugModeBanner": null,
+    "SourceWorkflow": 0,
+    "HideBackNavigation": false,
+    "IsDemoMode": false,
+    "FinderType": null
+  },
+  "Providers": [],
+  "Departments": [],
+  "Locations": [],
+  "TelehealthLocations": null,
+  "HomeOrganizationName": "",
+  "ProviderDepartmentPairs": [],
+  "ReasonsForVisit": [],
+  "ReasonForVisitDepartmentOverrides": [],
+  "VisitTypes": [],
+  "ActionPreviews": [],
+  "VisitTypeDepartmentOverrides": [],
+  "Specialties": [
+    {
+      "Id": "",
+      "Name": "",
+      "HelpText": null,
+      "PhotoUrl": null,
+      "StandardSpecialtyValue": null
+    }
+  ],
+  "Tickets": [],
+  "OrderMap": {},
+  "OriginalAppointmentInfo": {
+    "BundleId": null,
+    "FromDte": null,
+    "ToDte": null,
+    "Dat": null,
+    "SingleReasonForVisitId": null,
+    "BundleReasonForVisitId": null,
+    "OriginalAppointments": null,
+    "IsForceSameDay": false
+  },
+  "OnDemandTelehealthData": {
+    "TelehealthLocations": [
+      {
+        "Number": "",
+        "Value": "",
+        "Title": "",
+        "Abbreviation": "",
+        "SelectedByDefault": false,
+        "SubLocations": [],
+        "ID": null,
+        "Name": null,
+        "NameUTF8": null
+      }
+    ],
+    "VideoVisitWaitTime": null,
+    "OnDemandVideoVisitCSN": null,
+    "XOrgId": null,
+    "XOrgCSN": null,
+    "ExistingVideoVisitCSN": null,
+    "ExistingVideoVisitProviders": null,
+    "ShowEmailOption": false,
+    "ShowSMSOption": false,
+    "CheckEmailOption": false,
+    "CheckSMSOption": false,
+    "EmailAddress": null,
+    "PhoneNumber": null,
+    "AreNewODVVsEnabled": false,
+    "IsPushNotificationEnabled": false,
+    "IsXOrgEnabled": false,
+    "InXOrgQueue": false,
+    "OnDemandVideoVisitError": false,
+    "HideInsuranceStepForXOrg": false,
+    "HideSchedulingOptions": false,
+    "ExpandSplashPageByDefault": false,
+    "HideEstimatedWait": false,
+    "HideEstimatedCost": false,
+    "ShowEstimatedCostForXORG": false,
+    "RequireLocationConfirmation": false,
+    "HomeLogoURL": null
+  },
+  "FavoriteAppointments": [],
+  "SchedulingMenusViewModels": [],
+  "LoadError": null,
+  "IsWidget": false,
+  "PreselectedTicketStatus": 0,
+  "OtherRfvUrl": null,
+  "OtherRfvFilename": ""
+} as const;
+
+// /Scheduling/Anonymous/GetSpecialtyData
+export const anonymousSpecialtyData = {
+  "WorkflowSettings": null,
+  "Providers": [
+    {
+      "Name": "",
+      "NameLastFirst": "",
+      "BioSlug": "",
+      "BioId": "",
+      "PcpType": null,
+      "SpecialtyIds": [
+        ""
+      ],
+      "Specialties": [
+        {
+          "Value": "",
+          "Number": "",
+          "Title": "",
+          "Abbreviation": "",
+          "Abbr": null,
+          "Comment": null,
+          "IsInactive": false,
+          "TitleUtf8": "",
+          "AbbreviationUtf8": "",
+          "IsFallbackUsed": false
+        }
+      ],
+      "PhotoUrl": "",
+      "WebPageUrl": "",
+      "AllowedTelemedicineLocations": "",
+      "PhotoClass": "",
+      "IsStandardProvider": false,
+      "IsPCP": false,
+      "TeamProviders": [
+        {
+          "ProviderId": "",
+          "DepartmentId": "",
+          "ChildProviderIds": [],
+          "IsTeamMember": false,
+          "CanRequest": false,
+          "CanScheduleTelemedicine": false,
+          "CanLoginToSchedule": false,
+          "VisitTypeInformation": [],
+          "IsInNetwork": false,
+          "PoolLine": null,
+          "PoolTier": null
+        }
+      ],
+      "Languages": [],
+      "Gender": "",
+      "Credentials": "",
+      "ClinicalInterests": [],
+      "Affiliations": null,
+      "ID": "",
+      "NameUTF8": null
+    }
+  ],
+  "Departments": [
+    {
+      "Name": "",
+      "Address": [
+        ""
+      ],
+      "Coordinates": {
+        "Latitude": 0,
+        "Longitude": 0
+      },
+      "PhoneNumber": "",
+      "OverridePhoneNumber": "",
+      "IsUsingOverridePhoneNumber": false,
+      "TimeZone": {
+        "CacheTimeZone": {
+          "Value": null,
+          "Number": "",
+          "Title": "",
+          "Abbreviation": null,
+          "Abbr": "",
+          "Comment": "",
+          "IsInactive": false,
+          "TitleUtf8": null,
+          "AbbreviationUtf8": null,
+          "IsFallbackUsed": false
+        },
+        "DisplayName": ""
+      },
+      "FromMinutesOffset": null,
+      "FromDaysOffset": 0,
+      "ToDaysOffset": 0,
+      "LookbackDays": 0,
+      "AllowTeamScheduling": null,
+      "AllowAppointmentRequest": false,
+      "DistanceFromHome": null,
+      "SpecialtyGroupId": "",
+      "IsEnabledForNewProviderWorkflow": false,
+      "HoursOfOperation": [],
+      "PhotoUrl": "",
+      "CanLoginToSchedule": false,
+      "ID": "",
+      "NameUTF8": null
+    }
+  ],
+  "Locations": [
+    {
+      "Name": "",
+      "Address": [],
+      "Coordinates": {
+        "Latitude": null,
+        "Longitude": null
+      },
+      "DistanceFromHome": null,
+      "DepartmentIds": [
+        ""
+      ],
+      "ID": "",
+      "NameUTF8": null
+    }
+  ],
+  "TelehealthLocations": null,
+  "HomeOrganizationName": "",
+  "ProviderDepartmentPairs": [
+    {
+      "ProviderId": "",
+      "DepartmentId": "",
+      "ChildProviderIds": [],
+      "IsTeamMember": false,
+      "CanRequest": false,
+      "CanScheduleTelemedicine": false,
+      "CanLoginToSchedule": false,
+      "VisitTypeInformation": [
+        {
+          "SeesChildren": "",
+          "SeesAdolescents": "",
+          "VisitTypeID": ""
+        }
+      ],
+      "IsInNetwork": false,
+      "PoolLine": null,
+      "PoolTier": null
+    }
+  ],
+  "ReasonsForVisit": [
+    {
+      "Id": "",
+      "CategoryValue": "",
+      "Title": "",
+      "DisplayName": "",
+      "CanDirectSchedule": false,
+      "CanRequest": false,
+      "CanRequestWithoutOverrides": false,
+      "DefaultVisitTypeId": "",
+      "AllowProviderSelect": false,
+      "ReasonForVisitFirst": false,
+      "ProviderFirst": false,
+      "ProviderDisplayString": null,
+      "LocationDisplayString": null,
+      "NumberOfAvailableProviders": 0,
+      "NumberOfAvailableLocations": 0,
+      "ProviderIds": null,
+      "DepartmentIds": null,
+      "DirectProviderDepartmentPairIDs": [
+        ""
+      ],
+      "RequestProviderDepartmentPairIDs": [],
+      "QuickScheduleProviderDepartmentPairIDs": [],
+      "RawApptComponents": null,
+      "ApptComponentItems": {
+        "FromDte": 0,
+        "ExpirationDte": 0
+      },
+      "PhotoUrl": null,
+      "PhotoFileName": "",
+      "SortOrder": 0,
+      "AppointmentRequestIds": [],
+      "AccessCode": null,
+      "AccessCodeFirstName": null,
+      "IsDemographicAuthRequired": false,
+      "SpecialtyGroupId": "",
+      "EnabledForOnDemandVideoVisits": false,
+      "TelemedicineVendorId": null,
+      "TelemedicineVisitTypeId": null,
+      "ScheduledTelemedicineVendorId": null,
+      "OnDemandTelemedicineVendorId": null,
+      "TelemedicineHardwareTestFdiId": null,
+      "UseDeepLinkForHardwareTest": false,
+      "TelemedicineMobileHardwareTestFdiId": null,
+      "EnabledForQuickSchedule": false,
+      "AllowedTelemedicineLocations": null,
+      "AvailablePlatformsForLocalQuickSchedule": null,
+      "AvailablePlatformsForLocalOnDemand": null,
+      "InternallyAvailableForTelehealth": false,
+      "ExternallyAvailableForTelehealth": false,
+      "OnDemandRFV": null,
+      "OnDemandOrganization": null,
+      "OnDemandSlot": null,
+      "LineInWDF40040": null,
+      "LineInWDF15000": null,
+      "InitiallyHidden": false,
+      "Description": "",
+      "IconCategoryId": 0,
+      "CustomImage": "",
+      "HasIncompleteSchedulingData": false,
+      "ExpectedPatientType": 0,
+      "HasPool": false,
+      "Pool": null,
+      "IconImageUrl": null,
+      "IsPlaceholder": false
+    }
+  ],
+  "ReasonForVisitDepartmentOverrides": [
+    {
+      "ReasonForVisitId": "",
+      "DepartmentId": "",
+      "VisitTypeId": "",
+      "CanDirectSchedule": false,
+      "CanRequest": false
+    }
+  ],
+  "VisitTypes": [
+    {
+      "Name": null,
+      "DisplayName": "",
+      "AllowProviderSelect": false,
+      "AllowChangeProvAndLocInResched": false,
+      "DefaultTelehealthMode": 0,
+      "AllowedTelehealthModes": [
+        0
+      ],
+      "TelehealthModeDisplayNames": {
+        "1": "",
+        "2": ""
+      },
+      "SchedulingInstructions": [],
+      "QuestionnaireId": "",
+      "DecisionTreeId": "",
+      "AnonymousSchedulingDecisionTreeId": "",
+      "CustomStepBodyKey": null,
+      "CustomStepHeader": null,
+      "CustomStepContinueButtonText": null,
+      "FromMinutesOffset": null,
+      "FromDaysOffset": null,
+      "ToDaysOffset": null,
+      "AllowTeamScheduling": null,
+      "IsAdvanced": false,
+      "IsConditionalPanel": null,
+      "CanLoadMoreTiers": false,
+      "TierSearchRange": null,
+      "Tier": null,
+      "PoolLine": null,
+      "IsPlaceholder": false,
+      "ShowPanelAsMultipleVisits": false,
+      "MenuLinkUri": "",
+      "MenuLinkCompleteUri": null,
+      "DataAttributes": null,
+      "HasSeparateLocationSelectionInPanels": false,
+      "ShowLocationStepForTelehealthVisit": false,
+      "AllowProviderStepInDirectSched": false,
+      "ActionPreviews": [],
+      "ID": "",
+      "NameUTF8": null
+    }
+  ],
+  "ActionPreviews": [],
+  "VisitTypeDepartmentOverrides": [
+    {
+      "VisitTypeId": "",
+      "DepartmentId": "",
+      "FromMinutesOffset": null,
+      "FromDaysOffset": 0,
+      "ToDaysOffset": 0,
+      "AllowTeamScheduling": 0
+    }
+  ],
+  "Specialties": [],
+  "Tickets": [],
+  "OrderMap": {},
+  "OriginalAppointmentInfo": {
+    "BundleId": null,
+    "FromDte": null,
+    "ToDte": null,
+    "Dat": null,
+    "SingleReasonForVisitId": null,
+    "BundleReasonForVisitId": null,
+    "OriginalAppointments": null,
+    "IsForceSameDay": false
+  },
+  "OnDemandTelehealthData": null,
+  "FavoriteAppointments": [],
+  "SchedulingMenusViewModels": [],
+  "LoadError": null,
+  "IsWidget": false,
+  "PreselectedTicketStatus": 0,
+  "OtherRfvUrl": null,
+  "OtherRfvFilename": ""
+} as const;
+
+// /GuestEstimates/SelectServiceArea (inlined $$WP.Estimates.OtherSAs element)
+export const guestEstimatesServiceArea = {
+  "Id": "",
+  "Title": "",
+  "Phone": "",
+  "PhoneText": "",
+  "Description": "",
+  "LogoURL": "",
+  "DefaultLogoURL": null,
+  "SelectLocations": false,
+  "BillingSystem": 0
+} as const;
+
+// /GuestEstimates/SelectLocation (inlined var model)
+export const guestEstimatesLocationModel = {
+  "Locations": [
+    {
+      "Id": "",
+      "Title": "",
+      "Phone": "",
+      "PhoneText": "",
+      "Description": "",
+      "LogoURL": "",
+      "DefaultLogoURL": null,
+      "SelectLocations": false,
+      "BillingSystem": 0
+    }
+  ],
+  "IsMultiServiceArea": false,
+  "ServiceArea": "",
+  "IsGuest": false,
+  "HasCompletedCaptcha": false,
+  "Template": ""
+} as const;
+
 // /insurance/coverages/getpayors — the legacy Insurance activity's payer
 // catalogue. Captured on four live instances (three November 2025, one August
 // 2025); the field set was identical on all four. `Fields` is a map keyed by

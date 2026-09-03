@@ -42,11 +42,21 @@ When no subcommand is given, the CLI defaults to MyChart behavior.
 By default (no `--action` flag), the CLI scrapes every argument-free read
 capability in the registry and prints each result as JSON under its own
 header. The set is `FULL_SCRAPE_CAPABILITIES` in
-`npm-package/cli/capabilityActions.ts` — derived from `shared/capabilities.ts`,
+`npm-package/cli/capabilityActions.ts` — derived from `shared/capabilities/`,
 never hand-listed, so a read capability added to the registry is part of the
 default scrape the same day. Every category dispatches through
 `executeCapability`, so the full scrape gets the same active-patient guard as
 any single `--action`.
+
+One action needs no account at all, so it runs before credential resolution:
+
+- `--host <hostname> --action hospital-info` — What the MyChart instance publishes about its health
+  system to anyone: support phone lines and email, the "Find a Doctor" provider directory with clinic
+  addresses and phones, billing entities with their customer-service lines, and the portal's feature
+  flags. `--arg specialties=a,b` limits the provider crawl (one specialty is 0.6–2 MB of JSON);
+  `--arg providers=false` / `--arg billing=false` skip a section; `--local` talks HTTP to a fake.
+  It never returns a fax number or an accepted-insurance list — MyChart publishes neither; the payer
+  picker sits behind a reCAPTCHA-protected disclaimer. Implemented in `scrapers/myChart/prelogin/`.
 
 Three actions are hand-written because they prompt interactively for their
 inputs:
@@ -68,7 +78,7 @@ JSON:
 ## Capabilities (`--action <capability-id>`)
 
 Beyond the hand-written actions above, `--action` accepts **any id from the
-shared capability registry** (`shared/capabilities.ts`) and prints the result as
+shared capability registry** (`shared/capabilities/`) and prints the result as
 JSON. That registry is the single source of truth for what OpenRecord can do
 with a MyChart account — the Claude Desktop extension registers one MCP tool per
 entry, the mobile app offers one agent tool per entry, and the CLI gets one
@@ -87,6 +97,25 @@ mychart-cli --list-capabilities
 `--list-capabilities` prints the listing on its own. Capabilities are grouped by
 area, with the arguments each takes. A `!` marks a command that changes
 something — a write to the chart, or the account's own sign-in settings.
+
+### `--mode`
+
+Every read capability renders its payload in one of four modes (see
+[`processor-layer-proposal.md`](processor-layer-proposal.md)):
+
+| Mode | What you get |
+| --- | --- |
+| `json` | The standard object as JSON — every useful field, MyChart's own names. **The CLI default.** |
+| `standard` | The same object as markdown |
+| `concise` | The interesting subset, as markdown — what the desktop extension and the app show a model by default |
+| `raw` | Exactly what MyChart sent, untouched. Large; HTML and Epic's UI flags included |
+
+```bash
+mychart-cli --host mychart.example.org --action get_medications --mode concise
+```
+
+`--arg mode=<mode>` means the same thing and wins when both are given. Writes
+and `download_imaging_study` ignore it.
 
 ### `--show-all`
 
@@ -113,7 +142,7 @@ mychart-cli --help --show-all
 appends them under a **Less frequently used** heading rather than mixing them
 back in, so the default listing keeps its shape.
 
-**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities.ts`
+**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities/`
 decides what a listing leads with and nothing else: a hidden capability is
 still registered in every client, still runs as `--action <id>`, and still
 takes the same arguments. Moving one in or out of the hidden set is a judgment

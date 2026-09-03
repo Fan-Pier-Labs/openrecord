@@ -419,16 +419,27 @@ export const insurance = [
 
 // Organization-level, not part of any patient's record: the payers this
 // hospital's portal offers when adding a coverage — the same list whichever
-// patient is active, exactly as the real endpoint behaves.
+// patient is active, exactly as the real endpoint behaves. Field names mirror
+// the real standard object: MyChart's own `Payors` / `Fields` / `CanUpload`,
+// with `requiredFields` / `optionalFields` derived from the 1|2 levels.
+function payer(Name: string, ID: string, required: string[], optional: string[] = []) {
+  const Fields: Record<string, number> = {};
+  for (const f of required) Fields[f] = 2;
+  for (const f of optional) Fields[f] = 1;
+  return { ID, Name, Fields, requiredFields: required, optionalFields: optional, CanUpload: true, IsNonConfiguredPayer: false };
+}
+
+const SUBSCRIBER_REQUIRED = ['MemberId', 'SubscriberFirstName', 'SubscriberLastName'];
+const SUBSCRIBER_OPTIONAL = ['SubscriberId', 'SubscriberDateOfBirth'];
+
 export const insurancePayers = {
-  scope: 'organization' as const,
-  payers: [
-    { name: 'Springfield Mutual Health', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
-    { name: 'Springfield Mutual Health - Medicare Advantage', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
-    { name: 'Shelbyville Blue Cross', fields: { MemberId: 'required', GroupNumber: 'optional', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
-    { name: 'Medicare', fields: { MemberId: 'required' }, canUploadCard: true },
-    { name: 'Globex Corporation Employee Health Plan', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
-    { name: 'Springfield Nuclear Power Plant Employee Health Plan', fields: { MemberId: 'required', GroupNumber: 'optional', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+  Payors: [
+    payer('Springfield Mutual Health', 'WP-24Q7mK2vX9cL4nR8tB1wZ5yP3', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Springfield Mutual Health - Medicare Advantage', 'WP-24Z3nW8bK1vT6yC9mQ2xL5pR7', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Shelbyville Blue Cross', 'WP-24L5pR9cX2vB7nK4mT1wQ8yZ3', SUBSCRIBER_REQUIRED, ['GroupNumber', ...SUBSCRIBER_OPTIONAL]),
+    payer('Medicare', 'WP-24B8yT3nQ6vK1cX9mR4wL7pZ2', ['MemberId']),
+    payer('Globex Corporation Employee Health Plan', 'WP-24X2vB6nK9cQ4mT7wR1yL8pZ5', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Springfield Nuclear Power Plant Employee Health Plan', 'WP-24N6kM3pV8rB2uW5xC1eY9tL4', SUBSCRIBER_REQUIRED, ['GroupNumber', ...SUBSCRIBER_OPTIONAL]),
   ],
 };
 

@@ -21,40 +21,55 @@ import { setupPasskey } from '../../auth/setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../auth/passkeyLoginRetry'
 
 // Scrapers
-import { getMyChartProfile, getEmail } from '../../chart/profile'
-import { getHealthSummary } from '../../chart/healthSummary'
-import { getMedications } from '../../chart/medications'
-import { getAllergies } from '../../chart/allergies'
-import { getHealthIssues } from '../../chart/healthIssues'
-import { getImmunizations } from '../../chart/immunizations'
-import { getVitals } from '../../chart/vitals'
-import { getInsurance } from '../../chart/insurance'
-import { getCareTeam } from '../../chart/careTeam'
-import { getReferrals } from '../../chart/referrals'
-import { getMedicalHistory } from '../../chart/medicalHistory'
-import { getPreventiveCare } from '../../chart/preventiveCare'
-import { getLetters } from '../../chart/letters'
-import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../../chart/emergencyContacts'
-import { getGoals } from '../../chart/goals'
-import { getDocuments } from '../../chart/documents'
-import { getUpcomingOrders } from '../../chart/upcomingOrders'
-import { getQuestionnaires } from '../../chart/questionnaires'
-import { getCareJourneys } from '../../chart/careJourneys'
-import { getActivityFeed } from '../../chart/activityFeed'
-import { getEducationMaterials } from '../../chart/educationMaterials'
-import { getEhiExportTemplates } from '../../chart/ehiExport'
+import { getMyChartProfile, getEmail } from '../../chart/profile/profile'
+import { getHealthSummary } from '../../chart/healthSummary/healthSummary'
+import { getMedications } from '../../chart/medications/medications'
+import { getAllergies } from '../../chart/allergies/allergies'
+import { getHealthIssues } from '../../chart/healthIssues/healthIssues'
+import { getImmunizations } from '../../chart/immunizations/immunizations'
+import { getVitals } from '../../chart/vitals/vitals'
+import { getInsurance } from '../../chart/insurance/insurance'
+import { getCareTeam } from '../../chart/careTeam/careTeam'
+import { getReferrals } from '../../chart/referrals/referrals'
+import { getMedicalHistory } from '../../chart/medicalHistory/medicalHistory'
+import { getPreventiveCare } from '../../chart/preventiveCare/preventiveCare'
+import { getLetters } from '../../chart/letters/letters'
+import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../../chart/emergencyContacts/emergencyContacts'
+import { getGoals } from '../../chart/goals/goals'
+import { getDocuments } from '../../chart/documents/documents'
+import { getUpcomingOrders } from '../../chart/upcomingOrders/upcomingOrders'
+import { getQuestionnaires } from '../../chart/questionnaires/questionnaires'
+import { getCareJourneys } from '../../chart/careJourneys/careJourneys'
+import { getActivityFeed } from '../../chart/activityFeed/activityFeed'
+import { getEducationMaterials } from '../../chart/educationMaterials/educationMaterials'
+import { getEhiExportTemplates } from '../../chart/ehiExport/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
-import { isVisitsScrapeError, type Visit } from '../../chart/visits/types'
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
+import type { VisitStandard } from '../../chart/visits/visits'
+import { executeCapability, decodeImageId } from '../../../../shared/capabilities'
+import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
 import { listConversations } from '../../chart/messages/conversations'
 import { getConversationMessages } from '../../chart/messages/messageThreads'
-import { requestMedicationRefill } from '../../chart/medicationRefill'
+import { requestMedicationRefill } from '../../chart/medications/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
-import { followSamlChain } from '../../eunity/imagingViewer'
+import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
+
+/** The allergy element shape is uncaptured; the fake nests it under allergyItem. */
+function allergyName(entry: unknown): string {
+  const e = entry as { allergyItem?: { name?: string }; name?: string }
+  return e.allergyItem?.name ?? e.name ?? ''
+}
+
+/** An imaging order with viewable pictures whose name contains `pattern`, plus the fdi/ord pair behind its image_id. */
+async function imagingOrder(session: MyChartRequest, pattern: string) {
+  const { orders } = await getImagingResults(session)
+  const order = orders.find(o => o.image_id && (o.orderName ?? '').includes(pattern))
+  expect(order).toBeDefined()
+  return { order: order!, fdiContext: decodeImageId(order!.image_id!) }
+}
 
 // One fake server stands in for both real MyChart deployment shapes, so every
 // scraper runs against each. setMountMode flips it; the session is established
@@ -140,59 +155,62 @@ for (const mode of MOUNT_MODES) {
     it('getHealthSummary returns Homer data', async () => {
       const result = await getHealthSummary(session)
       expect(result).toBeDefined()
-      expect(result.patientAge).toBe('69')
-      expect(result.bloodType).toBe('O+')
+      expect(result.header.patientAge).toBe('69')
+      expect(result.header.bloodType).toBe('O+')
       expect(result.patientFirstName).toBe('Homer')
     }, 10_000)
 
     it('getMedications returns medications', async () => {
       const result = await getMedications(session)
       expect(result).toBeDefined()
-      expect(Array.isArray(result.medications)).toBe(true)
-      expect(result.medications.length).toBeGreaterThan(0)
-      expect(result.patientFirstName).toBe('Homer')
-      const names = result.medications.map((m: { name: string }) => m.name)
+      expect(Array.isArray(result.prescriptions)).toBe(true)
+      expect(result.prescriptions.length).toBeGreaterThan(0)
+      expect(result.getPatientFirstName).toBe('Homer')
+      const names = result.prescriptions.map((m) => m.name)
       expect(names).toContain('Duff Beer Extract 500mg')
     }, 10_000)
 
     it('getAllergies returns allergies', async () => {
       const result = await getAllergies(session)
       expect(result).toBeDefined()
-      expect(Array.isArray(result.allergies)).toBe(true)
-      expect(result.allergies.length).toBeGreaterThan(0)
-      const names = result.allergies.map((a: { name: string }) => a.name)
+      expect(Array.isArray(result.dataList)).toBe(true)
+      expect(result.dataList.length).toBeGreaterThan(0)
+      const names = result.dataList.map((a) => allergyName(a))
       expect(names).toContain('Vegetables')
     }, 10_000)
 
     it('getHealthIssues returns health issues', async () => {
       const result = await getHealthIssues(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-      const names = result.map((h: { name: string }) => h.name)
+      expect(result.dataList.length).toBeGreaterThan(0)
+      const names = result.dataList.map((h) => h.healthIssueItem.name)
       expect(names).toContain('Obesity')
     }, 10_000)
 
     it('getImmunizations returns immunizations', async () => {
       const result = await getImmunizations(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.immunizations.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getVitals returns vitals, values included', async () => {
       const result = await getVitals(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.flowsheets.length).toBeGreaterThan(0)
 
       // Every reading must carry its value. Numeric rows (Pulse, Weight) arrive
       // as numericValue next to an EMPTY stringValue, which used to blank them
       // while a plain length check still passed.
-      for (const fs of result) {
+      const rowsByName = new Map<string, string>()
+      for (const fs of result.flowsheets) {
         expect(fs.readings.length).toBeGreaterThan(0)
         for (const r of fs.readings) expect(r.value).not.toBe('')
+        for (const row of fs.rows) if (row.id && row.name) rowsByName.set(row.name, row.id)
       }
-      expect(result.find(f => f.name === 'Weight')!.readings[0]!.value).toBe('260')
-      expect(result.find(f => f.name === 'Pulse')!.readings[0]!.value).toBe('88')
-      expect(result.find(f => f.name === 'Blood Pressure')!.readings[0]!.value).toBe('145/95')
+      const firstValue = (name: string) => {
+        const rowId = rowsByName.get(name)
+        return result.flowsheets.flatMap((fs) => fs.readings).find((r) => r.rowId === rowId)!.value
+      }
+      expect(firstValue('Weight')).toBe('260')
+      expect(firstValue('Pulse')).toBe('88')
+      expect(firstValue('Blood Pressure')).toBe('145/95')
     }, 10_000)
 
     it('getInsurance returns insurance data', async () => {
@@ -206,24 +224,24 @@ for (const mode of MOUNT_MODES) {
     it('getCareTeam returns internal and external providers', async () => {
       const result = await getCareTeam(session)
       expect(result.externalProvidersUnavailable).toBe(false)
-      const pcp = result.members.find(m => m.relation === 'Primary Care Provider')
-      expect(pcp?.name).toBeTruthy()
-      expect(pcp?.specialty).toBeTruthy()
-      expect(pcp?.isExternal).toBe(false)
-      expect(result.members.some(m => m.isExternal)).toBe(true)
+      const pcp = result.ProvidersList.find(m => m.Relation === 'Primary Care Provider')
+      expect(pcp?.Name).toBeTruthy()
+      expect(pcp?.Specialty).toBeTruthy()
+      expect(pcp?.IsExternal).toBe(false)
+      expect(pcp?.fromExternalList).toBe(false)
+      expect(result.ProvidersList.some(m => m.fromExternalList)).toBe(true)
 
       // A real care team is not all clinicians: one instance listed the
       // patient's insurance payer, with no NPI and no specialty.
-      const payer = result.members.find(m => m.relation === 'Payer')
-      expect(payer?.name).toBeTruthy()
-      expect(payer?.nationalProviderId).toBe('')
-      expect(payer?.specialty).toBe('')
+      const payer = result.ProvidersList.find(m => m.Relation === 'Payer')
+      expect(payer?.Name).toBeTruthy()
+      expect(payer?.NationalProviderID).toBe('')
+      expect(payer?.Specialty).toBe('')
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
       const result = await getReferrals(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.referralList.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getMedicalHistory returns structured history', async () => {
@@ -231,15 +249,16 @@ for (const mode of MOUNT_MODES) {
       expect(result).toBeDefined()
       expect(result.medicalHistory).toBeDefined()
       expect(result.surgicalHistory).toBeDefined()
-      expect(result.familyHistory).toBeDefined()
+      expect(result.familyHistoryAndStatus).toBeDefined()
       expect(Array.isArray(result.medicalHistory.diagnoses)).toBe(true)
       expect(Array.isArray(result.surgicalHistory.surgeries)).toBe(true)
-      expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
+      expect(Array.isArray(result.familyHistoryAndStatus.familyMembers)).toBe(true)
+      expect(result.socialHistory.smokingHistory).toHaveProperty('smokingTobaccoStatus')
     }, 10_000)
 
     it('getPreventiveCare returns one item per screening, none run together', async () => {
       const result = await getPreventiveCare(session)
-      expect(result).toEqual([
+      expect(result.items).toEqual([
         { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
         { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
         { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
@@ -247,26 +266,24 @@ for (const mode of MOUNT_MODES) {
     }, 10_000)
 
     it('getLetters returns letters sorted newest-first with undated last', async () => {
-      const result = await getLetters(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBe(3)
+      const { letters } = await getLetters(session)
+      expect(letters.length).toBe(3)
 
       // Fake-mychart serves these in [Nov-2025, undated, Jan-2026] order.
       // The scraper must reorder them: newest first, undated tail.
-      expect(result[0]!.dateISO).toBe('2026-01-10T16:00:00Z')
-      expect(result[0]!.reason).toContain('Annual Physical')
-      expect(result[1]!.dateISO).toBe('2025-11-20T16:00:00Z')
-      expect(result[1]!.reason).toContain('ER Visit')
-      expect(result[2]!.dateISO).toBe('')
-      expect(result[2]!.reason).toContain('Sector 7G')
+      expect(letters[0]!.dateISO).toBe('2026-01-10T16:00:00Z')
+      expect(letters[0]!.reason).toContain('Annual Physical')
+      expect(letters[1]!.dateISO).toBe('2025-11-20T16:00:00Z')
+      expect(letters[1]!.reason).toContain('ER Visit')
+      expect(letters[2]!.dateISO).toBe('')
+      expect(letters[2]!.reason).toContain('Sector 7G')
     }, 10_000)
 
     it('getEmergencyContacts returns contacts', async () => {
-      const result = await getEmergencyContacts(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-      expect(result[0]!.name).toBe('Marge Simpson')
-      expect(result[0]!.id).toBeDefined()
+      const { contacts } = await getEmergencyContacts(session)
+      expect(contacts.length).toBeGreaterThan(0)
+      expect(contacts[0]!.formattedName).toBe('Marge Simpson')
+      expect(contacts[0]!.id).toBeTruthy()
     }, 10_000)
 
     it('addEmergencyContact adds a new contact', async () => {
@@ -277,16 +294,16 @@ for (const mode of MOUNT_MODES) {
       })
       expect(result.success).toBe(true)
 
-      const contacts = await getEmergencyContacts(session)
-      const ned = contacts.find(c => c.name === 'Ned Flanders')
+      const { contacts } = await getEmergencyContacts(session)
+      const ned = contacts.find(c => c.formattedName === 'Ned Flanders')
       expect(ned).toBeDefined()
-      expect(ned!.relationshipType).toBe('Neighbor')
-      expect(ned!.phoneNumber).toBe('(555) 636-2900')
+      expect(ned!.relationToPatient.name).toBe('Neighbor')
+      expect(ned!.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('(555) 636-2900')
     }, 10_000)
 
     it('updateEmergencyContact updates an existing contact', async () => {
-      const contacts = await getEmergencyContacts(session)
-      const barney = contacts.find(c => c.name === 'Barney Gumble')
+      const { contacts } = await getEmergencyContacts(session)
+      const barney = contacts.find(c => c.formattedName === 'Barney Gumble')
       expect(barney).toBeDefined()
 
       const result = await updateEmergencyContact(session, {
@@ -296,20 +313,20 @@ for (const mode of MOUNT_MODES) {
       expect(result.success).toBe(true)
 
       const updated = await getEmergencyContacts(session)
-      const updatedBarney = updated.find(c => c.name === 'Barney Gumble')
-      expect(updatedBarney!.phoneNumber).toBe('(555) 999-0000')
+      const updatedBarney = updated.contacts.find(c => c.formattedName === 'Barney Gumble')
+      expect(updatedBarney!.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('(555) 999-0000')
     }, 10_000)
 
     it('removeEmergencyContact removes a contact', async () => {
-      const contacts = await getEmergencyContacts(session)
-      const ned = contacts.find(c => c.name === 'Ned Flanders')
+      const { contacts } = await getEmergencyContacts(session)
+      const ned = contacts.find(c => c.formattedName === 'Ned Flanders')
       expect(ned).toBeDefined()
 
       const result = await removeEmergencyContact(session, ned!.id!)
       expect(result.success).toBe(true)
 
       const after = await getEmergencyContacts(session)
-      expect(after.find(c => c.name === 'Ned Flanders')).toBeUndefined()
+      expect(after.contacts.find(c => c.formattedName === 'Ned Flanders')).toBeUndefined()
     }, 10_000)
 
     it('getGoals returns goals', async () => {
@@ -323,32 +340,28 @@ for (const mode of MOUNT_MODES) {
 
     it('getDocuments returns documents', async () => {
       const result = await getDocuments(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.documents.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getUpcomingOrders returns orders', async () => {
       const result = await getUpcomingOrders(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.orderList.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getQuestionnaires returns questionnaires', async () => {
       const result = await getQuestionnaires(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.questionnaires.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getCareJourneys returns care journeys', async () => {
       const result = await getCareJourneys(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.careJourneys.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getActivityFeed returns feed items', async () => {
       const result = await getActivityFeed(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      const items = result.singleItemFeedViewModels.flatMap((vm) => [...vm.feedItems, ...vm.todayItems, ...vm.forYouItems])
+      expect(items.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getEducationMaterials returns materials', async () => {
@@ -359,8 +372,7 @@ for (const mode of MOUNT_MODES) {
 
     it('getEhiExportTemplates returns templates', async () => {
       const result = await getEhiExportTemplates(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.ehieTemplates.length).toBeGreaterThan(0)
     }, 10_000)
 
     // What a consumer actually reads off a visit. These came back as empty
@@ -373,35 +385,33 @@ for (const mode of MOUNT_MODES) {
     // the fixture's internal consistency is owned by
     // fake-mychart/src/data/__tests__/visits.unit.test.ts, which can check it
     // without a second hand-written date parser living here.
-    const DISPLAY_FIELDS = [
-      'PrimaryDate', 'Date', 'Time', 'ShortDate', 'VisitTypeName',
-      'PrimaryProviderName', 'Csn',
-    ] as const
-
-    function expectVisitIsReadable(visit: Visit) {
-      expect(DISPLAY_FIELDS.filter(f => !visit[f])).toEqual([])
-      expect(visit.Providers[0]?.Name).toBeTruthy()
-      expect(visit.PrimaryDepartment.Name).toBeTruthy()
+    // The standard object keeps MyChart's names, so the same display fields
+    // are checked on it — a fixture that shadowed a real field with a blank
+    // (the bug #378 fixed) would show up here as an unreadable visit.
+    function expectVisitIsReadable(visit: VisitStandard) {
+      expect(visit.PrimaryDate).toBeTruthy()
+      expect(visit.VisitTypeName).toBeTruthy()
+      expect(visit.Instant).toBeTruthy()
+      expect(visit.instantISO).toBeTruthy()
+      expect(visit.Csn).toBeTruthy()
+      expect(visit.PrimaryProviderName || visit.Providers[0]?.Name).toBeTruthy()
+      expect(visit.PrimaryDepartment?.Name).toBeTruthy()
     }
 
     it('upcomingVisits returns visits whose display fields carry the appointment', async () => {
       const result = await upcomingVisits(session)
-      if (isVisitsScrapeError(result)) throw new Error(`upcomingVisits errored: ${result.error}`)
-
-      const visits = [...result.InProgressVisits, ...result.NextNDaysVisits, ...result.LaterVisitsList]
-      expect(visits.length).toBeGreaterThan(0)
-      for (const visit of visits) expectVisitIsReadable(visit)
+      expect(result).not.toBeNull()
+      expect(result!.visits.length).toBeGreaterThan(0)
+      for (const visit of result!.visits) expectVisitIsReadable(visit)
     }, 10_000)
 
     it('pastVisits returns visits whose display fields carry the encounter', async () => {
       const twoYearsAgo = new Date()
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
       const result = await pastVisits(session, twoYearsAgo)
-      if (isVisitsScrapeError(result)) throw new Error(`pastVisits errored: ${result.error}`)
-
-      const visits = Object.values(result.List).flatMap(org => org.List)
-      expect(visits.length).toBeGreaterThan(0)
-      for (const visit of visits) expectVisitIsReadable(visit)
+      expect(result).not.toBeNull()
+      expect(result!.visits.length).toBeGreaterThan(0)
+      for (const visit of result!.visits) expectVisitIsReadable(visit)
     }, 10_000)
 
     // The fake enforces the WebAuthn signature counter the way real MyChart
@@ -447,97 +457,94 @@ for (const mode of MOUNT_MODES) {
     it('pastVisits paginates past the first page and returns the full history', async () => {
       const longAgo = new Date('2000-01-01T00:00:00Z')
       const result = await pastVisits(session, longAgo)
+      expect(result).not.toBeNull()
 
-      if ('error' in result) throw new Error(`pastVisits errored: ${result.error}`)
-      expect(result.List).toBeDefined()
-
-      const allVisits = Object.values(result.List).flatMap(org => org.List)
       // 22 fixture visits — far more than a single 10-visit page would yield.
-      expect(allVisits.length).toBe(22)
+      expect(result!.count).toBe(22)
+      expect(result!.visits.length).toBe(22)
 
       // The oldest visit (CSN-HOMER-023, only reachable on the third page)
       // confirms we didn't stop early at the first or second page.
-      const csns = allVisits.map(v => v.Csn)
+      const csns = result!.visits.map(v => v.Csn)
       expect(csns).toContain('CSN-HOMER-023')
 
       // No org should still be flagged as having more data once we've drained it.
-      expect(Object.values(result.List).every(org => !org.HasMoreData)).toBe(true)
+      expect(result!.hasOlderVisits).toBe(false)
     }, 10_000)
 
     it('getVisitNotes returns the 3 ED notes for the Donut Incident visit', async () => {
-      const result = await getVisitNotes(session, 'CSN-HOMER-003')
+      const result = (await getVisitNotes(session, 'CSN-HOMER-003'))!
       expect(result.csn).toBe('CSN-HOMER-003')
-      expect(result.lrpId).toBe('LRP-HOMER-003')
+      expect(result.lrpID).toBe('LRP-HOMER-003')
       expect(result.depPhoneNumber).toBe('555-0123')
-      expect(result.notes.length).toBe(3)
-      const titles = result.notes.map(n => n.displayName).sort()
+      expect(result.noteList.length).toBe(3)
+      const titles = result.noteList.map(n => n.displayName ?? '').sort((a, b) => a.localeCompare(b))
       expect(titles).toEqual(['Discharge Summary', 'ED Provider Note', 'ED Triage Note'])
 
-      // Verify per-note normalization: scraper reads uppercase wire keys
-      // (hnoID/hnoDAT/magicID) and emits camelCase. Regression-proof the casing.
-      const triage = result.notes.find(n => n.displayName === 'ED Triage Note')!
-      expect(triage.hnoId).toBe('HNO-HOMER-003-A')
-      expect(triage.hnoDat).toBe('67890')
+      // The standard object keeps MyChart's wire casing (hnoID/hnoDAT/magicID);
+      // regression-proof that nothing renames them.
+      const triage = result.noteList.find(n => n.displayName === 'ED Triage Note')!
+      expect(triage.hnoID).toBe('HNO-HOMER-003-A')
+      expect(triage.hnoDAT).toBe('67890')
       expect(triage.iso).toBe('2025-11-20T14:15:00Z')
       expect(triage.isAddendum).toBe(false)
       expect(triage.isNoteSensitive).toBe(false)
-      expect(triage.providerName).toBe('Nick Riviera, MD')
-      expect(triage.providerMagicId).toBe('PROV-NICK')
+      expect(triage.provider.name).toBe('Nick Riviera, MD')
+      expect(triage.provider.magicID).toBe('PROV-NICK')
     }, 10_000)
 
     it('getVisitNotes returns an empty list for a visit with no notes', async () => {
-      const result = await getVisitNotes(session, 'CSN-HOMER-004')
+      const result = (await getVisitNotes(session, 'CSN-HOMER-004'))!
       expect(result.csn).toBe('CSN-HOMER-004')
-      expect(result.notes.length).toBe(0)
+      expect(result.noteList.length).toBe(0)
     }, 10_000)
 
     it('getNoteContent returns the ED Provider note body', async () => {
-      const notes = await getVisitNotes(session, 'CSN-HOMER-003')
-      const provNote = notes.notes.find(n => n.displayName === 'ED Provider Note')
+      const notes = (await getVisitNotes(session, 'CSN-HOMER-003'))!
+      const provNote = notes.noteList.find(n => n.displayName === 'ED Provider Note')
       expect(provNote).toBeDefined()
-      const content = await getNoteContent(session, {
+      const content = (await getNoteContent(session, {
         csn: 'CSN-HOMER-003',
-        lrpId: notes.lrpId,
-        hnoId: provNote!.hnoId,
-        hnoDat: provNote!.hnoDat,
-      })
-      expect(content.contentHtml).toContain('Nick Riviera')
-      expect(content.contentHtml).toContain('gastric distention')
-      expect(content.contentCss).toBe('')
+        lrpId: notes.lrpID!,
+        hnoId: provNote!.hnoID!,
+        hnoDat: provNote!.hnoDAT!,
+      }))!
+      // Markup never leaves raw: the standard object carries the text only.
+      expect(content.reportContentText).toContain('Nick Riviera')
+      expect(content.reportContentText).toContain('gastric distention')
+      expect(content.reportContentText).not.toContain('<')
     }, 10_000)
 
     it('getVisitAVS returns the AVS for the annual physical', async () => {
-      const result = await getVisitAVS(session, 'CSN-HOMER-002')
-      expect(result.contentHtml).toContain('After Visit Summary')
-      expect(result.contentHtml).toContain('Hibbert')
-      expect(result.contentHtml).toContain('Annual Physical')
-      expect(result.contentCss).toBe('')
+      const result = (await getVisitAVS(session, 'CSN-HOMER-002'))!
+      expect(result.reportContentText).toContain('After Visit Summary')
+      expect(result.reportContentText).toContain('Hibbert')
+      expect(result.reportContentText).toContain('Annual Physical')
+      expect(result.reportContentText).toContain('- Weight management')
     }, 10_000)
 
     it('getVisitAVS returns the radiation-screening AVS for CSN-HOMER-004', async () => {
-      const result = await getVisitAVS(session, 'CSN-HOMER-004')
-      expect(result.contentHtml).toContain('Radiation Exposure Screening')
-      expect(result.contentHtml).toContain('Sector 7G')
-      expect(result.contentCss).toBe('')
+      const result = (await getVisitAVS(session, 'CSN-HOMER-004'))!
+      expect(result.reportContentText).toContain('Radiation Exposure Screening')
+      expect(result.reportContentText).toContain('Sector 7G')
     }, 10_000)
 
     it('listLabResults returns lab results', async () => {
       const result = await listLabResults(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.orders.length).toBeGreaterThan(0)
     }, 30_000)
 
     it('listLabResults returns distinct details per lab order, not one panel repeated', async () => {
       const result = await listLabResults(session)
 
-      const names = result.map(r => r.orderName)
+      const names = result.orders.map(r => r.orderName)
       expect(names).toContain('Comprehensive Metabolic Panel')
       expect(names).toContain('Lipid Panel')
       expect(names).toContain('Complete Blood Count')
 
-      const cmp = result.find(r => r.orderName === 'Comprehensive Metabolic Panel')
-      const lipid = result.find(r => r.orderName === 'Lipid Panel')
-      const cbc = result.find(r => r.orderName === 'Complete Blood Count')
+      const cmp = result.orders.find(r => r.orderName === 'Comprehensive Metabolic Panel')
+      const lipid = result.orders.find(r => r.orderName === 'Lipid Panel')
+      const cbc = result.orders.find(r => r.orderName === 'Complete Blood Count')
       expect(cmp!.key).toBe('RES-CMP')
       expect(lipid!.key).toBe('RES-LIPID')
       expect(cbc!.key).toBe('RES-CBC')
@@ -550,8 +557,7 @@ for (const mode of MOUNT_MODES) {
 
     it('listConversations returns conversations, inlining only the newest page of each', async () => {
       const result = await listConversations(session)
-      expect(result).toBeDefined()
-      const conversations = result!.conversations!
+      const conversations = result.conversations
       expect(conversations.length).toBeGreaterThan(0)
 
       // Real MyChart inlines at most five messages per thread and flags the
@@ -563,20 +569,21 @@ for (const mode of MOUNT_MODES) {
       const short = conversations.find(c => c.hthId === 'CONV-001')!
       expect(short.hasMoreMessages).toBe(false)
 
-      // Names live in the users / viewers maps, never on the message itself.
-      expect(long.messages!.every(m => (m.author?.displayName ?? '') === '')).toBe(true)
+      // Names live in the users / viewers maps, never on the message itself;
+      // the processor resolves them onto `senderName`.
+      expect(long.messages.every(m => m.senderName !== '')).toBe(true)
     }, 10_000)
 
     it('getConversationMessages pages past the listing to return the whole thread', async () => {
-      const result = await getConversationMessages(session, 'CONV-003')
+      const result = (await getConversationMessages(session, 'CONV-003'))!
 
-      expect(result.conversationId).toBe('CONV-003')
+      expect(result.hthId).toBe('CONV-003')
       expect(result.subject).toBe('Back pain after the bowling tournament')
       // Eight messages, five to a page — the listing alone would have shown five.
-      expect(result.messages.map(m => m.messageId)).toEqual([
+      expect(result.messages.map(m => m.wmgId)).toEqual([
         'MSG-010', 'MSG-011', 'MSG-012', 'MSG-013', 'MSG-014', 'MSG-015', 'MSG-016', 'MSG-017',
       ])
-      expect(result.messages.every((m, i) => i === 0 || result.messages[i - 1]!.sentDate <= m.sentDate)).toBe(true)
+      expect(result.messages.every((m, i) => i === 0 || (result.messages[i - 1]!.deliveryInstantISO ?? '') <= (m.deliveryInstantISO ?? ''))).toBe(true)
 
       // Sender names come from the users / viewers maps, with the thread's
       // userOverrideNames winning for the imaging department.
@@ -585,28 +592,30 @@ for (const mode of MOUNT_MODES) {
       expect(result.messages[1]!.senderName).toBe('Julius Hibbert, MD')
       expect(result.messages[1]!.isFromPatient).toBe(false)
       expect(result.messages[4]!.senderName).toBe('Springfield Spine Clinic')
-      expect(result.messages.every(m => m.messageBody !== '' && m.sentDate !== '')).toBe(true)
+      expect(result.messages.every(m => m.bodyText !== '' && m.deliveryInstantISO)).toBe(true)
     }, 15_000)
 
     it('getConversationMessages returns a short thread in one page', async () => {
-      const result = await getConversationMessages(session, 'CONV-002')
+      const result = (await getConversationMessages(session, 'CONV-002'))!
       expect(result.subject).toBe('Discount Surgery Consultation')
-      expect(result.messages.map(m => m.messageId)).toEqual(['MSG-004', 'MSG-005'])
+      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005'])
     }, 10_000)
 
     // GetConversationDetails answers an unknown id with 200 and a literal null,
     // not an error status — so this is the case a status-only check waves
-    // through and then reports as a conversation with nothing in it.
-    it('getConversationMessages refuses an unknown conversation id rather than reporting it empty', async () => {
-      await expect(getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).rejects.toThrow(
+    // through and then reports as a conversation with nothing in it. The
+    // scraper passes the null through; the capability turns it into an error.
+    it('getConversationMessages passes an unknown conversation id through as null, and the capability refuses it', async () => {
+      expect(await getConversationMessages(session, 'CONV-DOES-NOT-EXIST')).toBeNull()
+      await expect(executeCapability(session, 'get_message_thread', { conversation_id: 'CONV-DOES-NOT-EXIST' })).rejects.toThrow(
         /No conversation CONV-DOES-NOT-EXIST/,
       )
     }, 10_000)
 
     it('getBillingHistory returns billing data', async () => {
       const result = await getBillingHistory(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.accounts.length).toBeGreaterThan(0)
+      expect(result.accounts[0]!.visits.length).toBeGreaterThan(0)
     }, 30_000)
 
     it('requestMedicationRefill succeeds', async () => {
@@ -616,33 +625,32 @@ for (const mode of MOUNT_MODES) {
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {
       const result = await getImagingResults(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThanOrEqual(2)
+      expect(result.orders.length).toBeGreaterThanOrEqual(2)
 
-      // X-ray result
-      const xray = result.find(r => r.orderName.includes('XR'))
-      expect(xray).toBeDefined()
-      expect(xray!.reportText).toContain('Calvarium')
-      expect(xray!.fdiContext).toBeDefined()
-      expect(xray!.fdiContext!.fdi).toBe('FDI-XRAY-001')
-      expect(xray!.samlUrl).toBeDefined()
+      // X-ray result: the report lives in the study narrative, the pictures
+      // behind the image_id (which encodes the fdi/ord pair; the single-use
+      // SAML URL is raw-only).
+      const xray = await imagingOrder(session, 'XR')
+      const xrayText = xray.order.results.map(r => `${r.studyResult.narrative.contentAsString}\n${r.reportContentText}`).join('\n')
+      expect(xrayText).toContain('Calvarium')
+      expect(xray.fdiContext.fdi).toBe('FDI-XRAY-001')
+      expect(xray.order.hasViewableImages).toBe(true)
+      expect(await getImageViewerSamlUrl(session, xray.fdiContext)).not.toBeNull()
 
       // CT result
-      const ct = result.find(r => r.orderName.includes('CT'))
-      expect(ct).toBeDefined()
-      expect(ct!.reportText).toContain('crayon')
-      expect(ct!.fdiContext).toBeDefined()
-      expect(ct!.fdiContext!.fdi).toBe('FDI-CT-001')
-      expect(ct!.samlUrl).toBeDefined()
+      const ct = await imagingOrder(session, 'CT')
+      const ctText = ct.order.results.map(r => `${r.studyResult.narrative.contentAsString}\n${r.reportContentText}`).join('\n')
+      expect(ctText).toContain('crayon')
+      expect(ct.fdiContext.fdi).toBe('FDI-CT-001')
     }, 30_000)
 
     it('followSamlChain reaches eUnity viewer', async () => {
       // Get imaging result with FDI context
-      const results = await getImagingResults(session)
-      const xray = results.find(r => r.fdiContext)
-      expect(xray?.samlUrl).toBeDefined()
+      const xray = await imagingOrder(session, 'XR')
+      const saml = await getImageViewerSamlUrl(session, xray.fdiContext)
+      expect(saml).not.toBeNull()
 
-      const viewerSession = await followSamlChain(session, xray!.samlUrl!)
+      const viewerSession = await followSamlChain(session, saml!.samlUrl)
       expect(viewerSession).not.toBeNull()
       expect(viewerSession!.viewerUrl).toContain('/e/viewer')
       // jsessionId may be empty if Set-Cookie isn't propagated via fetch
@@ -652,13 +660,11 @@ for (const mode of MOUNT_MODES) {
     }, 30_000)
 
     it('downloadImagingStudyDirect downloads X-ray CLO image data', async () => {
-      const results = await getImagingResults(session)
-      const xray = results.find(r => r.fdiContext && r.orderName.includes('XR'))
-      expect(xray?.fdiContext).toBeDefined()
+      const xray = await imagingOrder(session, 'XR')
 
       const result = await downloadImagingStudyDirect(
         session,
-        xray!.fdiContext!,
+        xray.fdiContext,
         'Homer Skull XRay',
         '/tmp/fake-mychart-test-images',
         { skipFileWrite: true },
@@ -674,13 +680,11 @@ for (const mode of MOUNT_MODES) {
     }, 60_000)
 
     it('downloadImagingStudyDirect downloads CT multi-slice images', async () => {
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
-      expect(ct?.fdiContext).toBeDefined()
+      const ct = await imagingOrder(session, 'CT')
 
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct',
         { skipFileWrite: true },
@@ -711,11 +715,10 @@ for (const mode of MOUNT_MODES) {
     }, 60_000)
 
     it('CT slices carry per-instance wrappers that sort them anatomically', async () => {
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const ct = await imagingOrder(session, 'CT')
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct-order',
         { skipFileWrite: true },
@@ -760,11 +763,10 @@ for (const mode of MOUNT_MODES) {
       // externalizable ArrayCollection overlays, and ImagePhaseInfo -1
       // sentinels. Each is a decode path the flat scalar wrappers never
       // reach, and all three must survive the strict reader.
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const ct = await imagingOrder(session, 'CT')
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct-rich',
         { skipFileWrite: true },

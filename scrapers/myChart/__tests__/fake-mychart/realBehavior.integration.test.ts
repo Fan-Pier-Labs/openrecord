@@ -34,16 +34,16 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../auth/login'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { listLabResults } from '../../chart/labs/labResults'
-import { getGoals } from '../../chart/goals'
-import { getActivityFeed } from '../../chart/activityFeed'
-import { getEducationMaterials } from '../../chart/educationMaterials'
-import { getEhiExportTemplates } from '../../chart/ehiExport'
-import { getUpcomingOrders } from '../../chart/upcomingOrders'
-import { getEmergencyContacts } from '../../chart/emergencyContacts'
-import { getVisitNotes } from '../../chart/notes'
-import { getCareTeam } from '../../chart/careTeam'
-import { getInsurancePayers } from '../../chart/insurancePayers'
-import { getLetterDetails } from '../../chart/letters'
+import { getGoals } from '../../chart/goals/goals'
+import { getActivityFeed } from '../../chart/activityFeed/activityFeed'
+import { getEducationMaterials } from '../../chart/educationMaterials/educationMaterials'
+import { getEhiExportTemplates } from '../../chart/ehiExport/ehiExport'
+import { getUpcomingOrders } from '../../chart/upcomingOrders/upcomingOrders'
+import { getEmergencyContacts } from '../../chart/emergencyContacts/emergencyContacts'
+import { getVisitNotes } from '../../chart/notes/notes'
+import { getCareTeam } from '../../chart/careTeam/careTeam'
+import { getInsurancePayers } from '../../chart/insurancePayers/insurancePayers'
+import { getLetterDetails } from '../../chart/letters/letters'
 import {
   buildSendPayload,
   getMessageRecipients,
@@ -167,32 +167,30 @@ describe('test-results fidelity', () => {
   })
 
   it('listLabResults end-to-end: distinct panels, trends attached, imaging included', async () => {
-    const results = await listLabResults(session)
-    const names = results.map(r => r.orderName)
+    const { orders } = await listLabResults(session)
+    const names = orders.map(r => r.orderName ?? '')
     expect(names).toContain('Comprehensive Metabolic Panel')
     expect(names).toContain('Lipid Panel')
     expect(names).toContain('Complete Blood Count')
     expect(names.some(n => n.startsWith('XR '))).toBe(true)
-    const lipid = results.find(r => r.orderName === 'Lipid Panel')!
-    expect(lipid.historicalResults?.historicalResults?.['COMP-CHOL']).toBeDefined()
+    const lipid = orders.find(r => r.orderName === 'Lipid Panel')!
+    expect(lipid.historicalResults['COMP-CHOL']).toBeDefined()
   })
 })
 
 describe('null answers for unknown ids', () => {
-  it('GetVisitNotes: unknown CSN → literal null; scraper returns an empty result', async () => {
+  it('GetVisitNotes: unknown CSN → literal null; the null passes through', async () => {
     const raw = await api('/api/visit-notes/GetVisitNotes', { CSN: 'CSN-DOES-NOT-EXIST', FromPvdPage: true })
     expect(raw.status).toBe(200)
     expect(await raw.text()).toBe('null')
-    const viaScraper = await getVisitNotes(session, 'CSN-DOES-NOT-EXIST')
-    expect(viaScraper.notes).toEqual([])
+    expect(await getVisitNotes(session, 'CSN-DOES-NOT-EXIST')).toBeNull()
   })
 
-  it('GetLetterDetails: unknown hnoId → literal null; scraper returns empty body', async () => {
+  it('GetLetterDetails: unknown hnoId → literal null; the null passes through', async () => {
     const raw = await api('/api/letters/GetLetterDetails', { hnoId: 'HNO-NOPE', csn: 'CSN-NOPE' })
     expect(raw.status).toBe(200)
     expect(await raw.text()).toBe('null')
-    const viaScraper = await getLetterDetails(session, 'HNO-NOPE', 'CSN-NOPE')
-    expect(viaScraper).toEqual({ bodyHTML: '' })
+    expect(await getLetterDetails(session, 'HNO-NOPE', 'CSN-NOPE')).toBeNull()
   })
 })
 
@@ -207,29 +205,30 @@ describe('real envelopes reach the scrapers end-to-end', () => {
   })
   it('activity feed', async () => {
     const feed = await getActivityFeed(session)
-    expect(feed.length).toBeGreaterThan(0)
-    expect(feed[0]!.title).not.toBe('')
+    const items = feed.singleItemFeedViewModels.flatMap((vm) => vm.feedItems)
+    expect(items.length).toBeGreaterThan(0)
+    expect(items[0]!.displayText).not.toBe('')
   })
   it('education materials', async () => {
     const materials = await getEducationMaterials(session)
     expect(materials.length).toBeGreaterThan(0)
-    expect(materials[0]!.title).not.toBe('')
+    expect(materials[0]!.displayName).not.toBe('')
   })
   it('EHI export templates', async () => {
     const templates = await getEhiExportTemplates(session)
-    expect(templates.length).toBeGreaterThan(0)
-    expect(templates[0]!.name).not.toBe('')
+    expect(templates.ehieTemplates.length).toBeGreaterThan(0)
+    expect(templates.ehieTemplates[0]!.name).not.toBe('')
   })
   it('upcoming orders', async () => {
     const orders = await getUpcomingOrders(session)
-    expect(orders.length).toBeGreaterThan(0)
-    expect(orders[0]!.orderName).not.toBe('')
+    expect(orders.orderList.length).toBeGreaterThan(0)
+    expect(orders.orderList[0]!.orderName).not.toBe('')
   })
   it('emergency contacts', async () => {
-    const contacts = await getEmergencyContacts(session)
+    const { contacts } = await getEmergencyContacts(session)
     expect(contacts.length).toBeGreaterThan(0)
-    expect(contacts[0]!.name).not.toBe('')
-    expect(contacts[0]!.phoneNumber).not.toBe('')
+    expect(contacts[0]!.formattedName).not.toBe('')
+    expect(contacts[0]!.contactInformation.phoneNumbers[0]?.phoneNumber).not.toBe('')
   })
 })
 
@@ -310,15 +309,16 @@ describe('care team fidelity', () => {
     const roleless = body.ProvidersList.find(p => p.Relation === null)
     expect(roleless).toBeDefined()
     const team = await getCareTeam(session)
-    expect(team.members.find(m => m.name === roleless!.Name)!.relation).toBe('')
+    // Rule 2: MyChart's null passes through as null, never rewritten to ''.
+    expect(team.ProvidersList.find(m => m.Name === roleless!.Name)!.Relation).toBeNull()
   })
 
   it('the scraper reads both lists', async () => {
     const team = await getCareTeam(session)
     expect(team.externalProvidersUnavailable).toBe(false)
-    expect(team.members.filter(m => !m.isExternal).length).toBeGreaterThan(0)
-    expect(team.members.filter(m => m.isExternal).length).toBeGreaterThan(0)
-    expect(team.members[0]!.relation).not.toBe('')
+    expect(team.ProvidersList.filter(m => !m.fromExternalList).length).toBeGreaterThan(0)
+    expect(team.ProvidersList.filter(m => m.fromExternalList).length).toBeGreaterThan(0)
+    expect(team.ProvidersList[0]!.Relation).toBeTruthy()
   })
 })
 
@@ -589,7 +589,7 @@ describe('the over-limit message body that the send endpoint drops silently', ()
     const list = await listConversations(session)
     expect(list?.conversations?.length ?? 0).toBe(before + 1)
     const filed = list?.conversations?.find((c) => c.hthId === result.conversationId)
-    expect(filed?.messages?.[0]?.body).toBe(body)
+    expect(filed?.messages?.[0]?.bodyText).toBe(body)
   }, 30_000)
 })
 
@@ -662,13 +662,17 @@ describe('insurance payer catalogue fidelity', () => {
     expect(scoped).toEqual(base)
   })
 
-  it('the scraper reads the catalogue and decodes the field requirement levels', async () => {
+  it('the scraper reads the catalogue and derives the field requirement levels', async () => {
     const result = await getInsurancePayers(session)
-    expect(result.scope).toBe('organization')
-    expect(result.payers.length).toBeGreaterThan(0)
-    const full = result.payers.find((p) => p.fields.SubscriberLastName)
-    expect(full?.fields).toMatchObject({ MemberId: 'required', SubscriberDateOfBirth: 'optional', SubscriberLastName: 'required' })
-    const memberOnly = result.payers.find((p) => Object.keys(p.fields).length === 1)
-    expect(memberOnly?.fields).toEqual({ MemberId: 'required' })
+    expect(result.Payors.length).toBeGreaterThan(0)
+    // MyChart's own field names and values pass through; the derived lists name
+    // what its 1/2 levels mean.
+    const full = result.Payors.find((p) => p.Fields.SubscriberLastName !== undefined)
+    expect(full?.Fields).toMatchObject({ MemberId: 2, SubscriberDateOfBirth: 1, SubscriberLastName: 2 })
+    expect(full?.requiredFields).toContain('MemberId')
+    expect(full?.optionalFields).toContain('SubscriberDateOfBirth')
+    const memberOnly = result.Payors.find((p) => Object.keys(p.Fields).length === 1)
+    expect(memberOnly?.requiredFields).toEqual(['MemberId'])
+    expect(memberOnly?.optionalFields).toEqual([])
   })
 })

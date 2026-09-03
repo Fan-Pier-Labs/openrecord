@@ -9,9 +9,10 @@
     },
     {
       "name": "fake-mychart",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "--cwd", "fake-mychart", "next", "dev", "-p", "4100"],
-      "port": 4100
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "cd fake-mychart && bun run dev"],
+      "port": 4000,
+      "autoPort": true
     }
   ]
 }

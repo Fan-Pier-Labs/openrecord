@@ -27,6 +27,7 @@ const {
   MyChartClient,
   MyChartRequest,
   getMedications,
+  decodeImageId,
   convertCloToBitmap,
   convertBitmapToJpg,
 } = await import('../../dist/index.js') as typeof import('../../dist/index.js');
@@ -79,13 +80,13 @@ test('getProfile returns Homer Simpson', async () => {
 test('getMedications returns a list', async () => {
   const meds = await client.getMedications();
   expect(meds).toBeDefined();
-  expect(Array.isArray(meds.medications)).toBe(true);
+  expect(Array.isArray(meds.prescriptions)).toBe(true);
 });
 
 test('raw scraper API also works (parity with class API)', async () => {
   const meds = await getMedications(client.request);
   expect(meds).toBeDefined();
-  expect(Array.isArray(meds.medications)).toBe(true);
+  expect(Array.isArray(meds.prescriptions)).toBe(true);
 });
 
 test('serialize → fromSerialized round-trips without re-login', async () => {
@@ -122,16 +123,15 @@ test('close() prevents further calls', async () => {
 
 test('downloadImagingStudyDirect → decode → export produces a valid JPEG', async () => {
   const imagingResults = await client.getImagingResults();
-  expect(Array.isArray(imagingResults)).toBe(true);
+  expect(Array.isArray(imagingResults.orders)).toBe(true);
 
-  const xray = imagingResults.find(
-    (r) => r.fdiContext && (r.orderName ?? '').includes('XR'),
+  const xray = imagingResults.orders.find(
+    (r) => r.image_id && (r.orderName ?? '').includes('XR'),
   );
   expect(xray).toBeDefined();
-  expect(xray!.fdiContext).toBeDefined();
 
   const downloadResult = await client.downloadImagingStudy(
-    xray!.fdiContext!,
+    decodeImageId(xray!.image_id!),
     'Homer Skull XRay',
     '/tmp/npm-package-xray-test',
     { skipFileWrite: true },
