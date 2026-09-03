@@ -89,12 +89,12 @@ describe('capability registry against fake-mychart', () => {
       args: async (s) => {
         const csn = await firstVisitCsn(s)
         const notes = (await executeCapability(s, 'get_visit_notes', { csn })) as {
-          lrpId: string
-          notes: Array<{ hnoId: string; hnoDat: string }>
+          lrpID: string
+          noteList: Array<{ hnoID: string; hnoDAT: string }>
         }
-        const note = notes.notes[0]
+        const note = notes.noteList[0]
         expect(note).toBeDefined()
-        return { csn, lrp_id: notes.lrpId, hno_id: note!.hnoId, hno_dat: note!.hnoDat }
+        return { csn, lrp_id: notes.lrpID, hno_id: note!.hnoID, hno_dat: note!.hnoDAT }
       },
     },
     {
@@ -104,10 +104,9 @@ describe('capability registry against fake-mychart', () => {
     {
       id: 'get_letter_details',
       args: async (s) => {
-        const letters = (await executeCapability(s, 'get_letters')) as Array<{
-          hnoId: string
-          csn: string
-        }>
+        const { letters } = (await executeCapability(s, 'get_letters')) as {
+          letters: Array<{ hnoId: string; csn: string }>
+        }
         expect(letters.length).toBeGreaterThan(0)
         return { hno_id: letters[0]!.hnoId, csn: letters[0]!.csn }
       },
@@ -136,28 +135,28 @@ describe('capability registry against fake-mychart', () => {
     const thread = (await executeCapability(session, 'get_message_thread', {
       conversation_id: conversation!.hthId,
     })) as {
-      conversationId: string
+      hthId: string
       subject: string
       truncated: boolean
       messages: Array<{
-        messageId: string
+        wmgId: string
         senderName: string
-        sentDate: string
-        messageBody: string
+        deliveryInstantISO: string
+        bodyText: string
         isFromPatient: boolean
       }>
     }
 
-    expect(thread.conversationId).toBe(conversation!.hthId)
+    expect(thread.hthId).toBe(conversation!.hthId)
     expect(thread.subject).toBe(conversation!.subject)
     expect(thread.messages.length).toBeGreaterThan(conversation!.messages.length)
     expect(thread.truncated).toBe(false)
 
     for (const message of thread.messages) {
-      expect(message.messageId).not.toBe('')
+      expect(message.wmgId).not.toBe('')
       expect(message.senderName).not.toBe('')
-      expect(message.sentDate).not.toBe('')
-      expect(message.messageBody).not.toBe('')
+      expect(message.deliveryInstantISO).not.toBe('')
+      expect(message.bodyText).not.toBe('')
     }
 
     // The fixture thread is a back-and-forth, so both sides must be attributed.
@@ -470,11 +469,9 @@ describe('capability registry against fake-mychart', () => {
  */
 async function firstVisitCsn(session: MyChartRequest): Promise<string> {
   const past = (await executeCapability(session, 'get_past_visits', { years_back: 20 })) as {
-    List?: Record<string, { List?: Array<{ Csn?: string }> }>
+    visits: Array<{ Csn: string | null }>
   }
-  const csn = Object.values(past.List ?? {})
-    .flatMap((org) => org.List ?? [])
-    .find((visit) => visit.Csn)?.Csn
+  const csn = past.visits.find((visit) => visit.Csn)?.Csn
   expect(csn).toBeTruthy()
   return csn!
 }

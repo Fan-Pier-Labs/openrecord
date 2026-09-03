@@ -52,8 +52,19 @@ import { fetchPreventiveCareRaw, preventiveCareProcessor } from '../scrapers/myC
 import { fetchMedicalHistoryRaw, medicalHistoryProcessor } from '../scrapers/myChart/chart/medicalHistory';
 import { fetchGoalsRaw, goalsProcessor } from '../scrapers/myChart/chart/goals';
 
-import { upcomingVisits, pastVisits } from '../scrapers/myChart/chart/visits/visits';
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../scrapers/myChart/chart/notes';
+import {
+  fetchUpcomingVisitsRaw,
+  fetchPastVisitsRaw,
+  upcomingVisitsProcessor,
+  pastVisitsProcessor,
+} from '../scrapers/myChart/chart/visits/visits';
+import {
+  fetchVisitNotesRaw,
+  fetchNoteContentRaw,
+  fetchVisitAvsRaw,
+  visitNotesProcessor,
+  noteContentProcessor,
+} from '../scrapers/myChart/chart/notes';
 
 import { listLabResults, getImagingResults } from '../scrapers/myChart/chart/labs/labResults';
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
@@ -77,8 +88,13 @@ import { getInsurance } from '../scrapers/myChart/chart/insurance';
 
 import { getCareTeam } from '../scrapers/myChart/chart/careTeam';
 import { getReferrals } from '../scrapers/myChart/chart/referrals';
-import { getLetters, getLetterDetails } from '../scrapers/myChart/chart/letters';
-import { getDocuments } from '../scrapers/myChart/chart/documents';
+import {
+  fetchLettersRaw,
+  fetchLetterDetailsRaw,
+  lettersProcessor,
+  letterDetailsProcessor,
+} from '../scrapers/myChart/chart/letters';
+import { fetchDocumentsRaw, documentsProcessor } from '../scrapers/myChart/chart/documents';
 import { getUpcomingOrders } from '../scrapers/myChart/chart/upcomingOrders';
 import { getQuestionnaires } from '../scrapers/myChart/chart/questionnaires';
 import { getCareJourneys } from '../scrapers/myChart/chart/careJourneys';
@@ -539,7 +555,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [],
-    run: (request) => upcomingVisits(request),
+    run: (request) => fetchUpcomingVisitsRaw(request),
+    processor: upcomingVisitsProcessor,
   },
   {
     id: 'get_past_visits',
@@ -551,18 +568,20 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     run: (request, args) => {
       const oldest = new Date();
       oldest.setFullYear(oldest.getFullYear() - num(args, 'years_back', 2));
-      return pastVisits(request, oldest);
+      return fetchPastVisitsRaw(request, oldest);
     },
+    processor: pastVisitsProcessor,
   },
   {
     id: 'get_visit_notes',
     title: 'Visit notes',
     description:
-      'List the clinical notes (operative, progress, anesthesia, …) attached to a past visit. Returns hnoId, hnoDat and lrpId — pass those to get_note_content.',
+      'List the clinical notes (operative, progress, anesthesia, …) attached to a past visit. Returns lrpID and, per note, hnoID and hnoDAT — pass those to get_note_content.',
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'csn', type: 'string', description: 'Visit CSN (encounter id) from get_past_visits.', required: true }],
-    run: (request, args) => getVisitNotes(request, requireStr(args, 'csn')),
+    run: (request, args) => fetchVisitNotesRaw(request, requireStr(args, 'csn')),
+    processor: visitNotesProcessor,
   },
   {
     id: 'get_note_content',
@@ -572,17 +591,18 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Visits',
     params: [
       { name: 'csn', type: 'string', description: 'Visit CSN from get_past_visits.', required: true },
-      { name: 'lrp_id', type: 'string', description: 'lrpId from get_visit_notes.', required: true },
-      { name: 'hno_id', type: 'string', description: 'hnoId of the chosen note.', required: true },
-      { name: 'hno_dat', type: 'string', description: 'hnoDat of the chosen note.', required: true },
+      { name: 'lrp_id', type: 'string', description: 'lrpID from get_visit_notes.', required: true },
+      { name: 'hno_id', type: 'string', description: 'hnoID of the chosen note.', required: true },
+      { name: 'hno_dat', type: 'string', description: 'hnoDAT of the chosen note.', required: true },
     ],
     run: (request, args) =>
-      getNoteContent(request, {
+      fetchNoteContentRaw(request, {
         csn: requireStr(args, 'csn'),
         lrpId: requireStr(args, 'lrp_id'),
         hnoId: requireStr(args, 'hno_id'),
         hnoDat: requireStr(args, 'hno_dat'),
       }),
+    processor: noteContentProcessor,
   },
   {
     id: 'get_visit_avs',
@@ -591,7 +611,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'csn', type: 'string', description: 'Visit CSN from get_past_visits.', required: true }],
-    run: (request, args) => getVisitAVS(request, requireStr(args, 'csn')),
+    run: (request, args) => fetchVisitAvsRaw(request, requireStr(args, 'csn')),
+    processor: noteContentProcessor,
   },
 
   // ── Results ───────────────────────────────────────────────────────────────
@@ -835,7 +856,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getLetters(request),
+    run: (request) => fetchLettersRaw(request),
+    processor: lettersProcessor,
   },
   {
     id: 'get_letter_details',
@@ -848,7 +870,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
       { name: 'hno_id', type: 'string', description: 'hnoId from the chosen get_letters entry.', required: true },
       { name: 'csn', type: 'string', description: 'csn from the chosen get_letters entry.', required: true },
     ],
-    run: (request, args) => getLetterDetails(request, requireStr(args, 'hno_id'), requireStr(args, 'csn')),
+    run: (request, args) => fetchLetterDetailsRaw(request, requireStr(args, 'hno_id'), requireStr(args, 'csn')),
+    processor: letterDetailsProcessor,
   },
   {
     id: 'get_documents',
@@ -857,7 +880,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getDocuments(request),
+    run: (request) => fetchDocumentsRaw(request),
+    processor: documentsProcessor,
   },
   {
     id: 'get_upcoming_orders',

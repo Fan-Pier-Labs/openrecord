@@ -143,6 +143,38 @@ answer depended on which client they asked.
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
 
+## The processor layer (`scrapers/myChart/processors/`, `chart/*.processor.ts`)
+
+A read capability is two pure-ish halves. The scraper's `fetch…Raw(request, …)` talks to MyChart
+and records every request it makes into a `RawResponse` envelope (`core/rawResponse.ts`): path,
+method, the body we posted, status, and the body MyChart sent, parsed when it was JSON. It never
+projects, renames, strips or merges. The sibling `<name>.processor.ts` turns the envelope into the
+four output modes: `raw` (the untouched body, or the envelope when there were several payload
+requests), `json` (the *standard object*), `standard` (that object as markdown) and `concise` (a
+projection of it as markdown). `executeCapability` runs the scraper, then the processor, driven by
+the `mode` argument the registry declares once as `MODE_PARAM`.
+
+The rules, with their reasoning, are in [`processor-layer-proposal.md`](processor-layer-proposal.md);
+the ones that bite when you add a capability:
+
+- **A MyChart field is never edited in place or shadowed.** Anything computed gets a new name
+  (`bodyText`, `instantISO`, `organizationName`). One name means one thing everywhere.
+- **Membership is by field name, never by value.** A field on a mode's list is emitted even when
+  empty, so "no allergies on file" survives. A field that is empty on every captured instance is
+  off the list. No `prune`, no drop-if-empty.
+- **Markup stays in `raw`.** HTML and RTF fields are not in `standard`; their `<field>Text`
+  derivative is (`processors/htmlText.ts`).
+- **Never invent a shape.** Only field names a captured real response has shown are projected;
+  uncaptured elements pass through whole. `docs/processor-layer-todo.md` lists which.
+- **A missing verification token throws** (`MissingVerificationTokenError`). It used to return an
+  empty result, which read as "this patient has no allergies".
+- **The model-facing clients default to `concise`** (`MODEL_FACING_OUTPUT_MODE`); the library and
+  the CLI default to `json`. One generic markdown renderer serves both markdown modes so a field
+  cannot be on the page and missing from the JSON.
+
+`dev-scripts/generate-processor-examples.ts` regenerates `docs/processor-layer-examples.md`, every
+read capability in all four modes against fake-mychart.
+
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere

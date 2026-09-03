@@ -203,7 +203,20 @@ export {
 } from '../../scrapers/myChart/clo-image-parser/exporters/to_tiff';
 
 // ─── Visits ───────────────────────────────────────────────────────────────
-export { upcomingVisits, pastVisits } from '../../scrapers/myChart/chart/visits/visits';
+export {
+  upcomingVisits,
+  pastVisits,
+  fetchUpcomingVisitsRaw,
+  fetchPastVisitsRaw,
+  upcomingVisitsProcessor,
+  pastVisitsProcessor,
+  visitStandard,
+  visitInstantMs,
+  type UpcomingVisitsStandard,
+  type PastVisitsStandard,
+  type VisitStandard,
+  type VisitStatus,
+} from '../../scrapers/myChart/chart/visits/visits';
 
 // ─── Messages ─────────────────────────────────────────────────────────────
 export {
@@ -255,7 +268,9 @@ export {
 } from '../../scrapers/myChart/chart/insurance';
 export {
   getDocuments,
-  type Document,
+  fetchDocumentsRaw,
+  documentsProcessor,
+  type DocumentsStandard,
 } from '../../scrapers/myChart/chart/documents';
 export {
   getGoals,
@@ -293,8 +308,13 @@ export {
 export {
   getLetters,
   getLetterDetails,
-  type Letter,
-  type LetterDetailsResponse,
+  fetchLettersRaw,
+  fetchLetterDetailsRaw,
+  lettersProcessor,
+  letterDetailsProcessor,
+  type LettersStandard,
+  type LetterStandard,
+  type LetterDetailsStandard,
 } from '../../scrapers/myChart/chart/letters';
 
 // ─── Emergency contacts ──────────────────────────────────────────────────
@@ -324,9 +344,14 @@ export {
   getVisitNotes,
   getNoteContent,
   getVisitAVS,
-  type VisitNote,
-  type GetVisitNotesResult,
-  type NoteContent,
+  fetchVisitNotesRaw,
+  fetchNoteContentRaw,
+  fetchVisitAvsRaw,
+  visitNotesProcessor,
+  noteContentProcessor,
+  type VisitNotesStandard,
+  type VisitNoteStandard,
+  type NoteContentStandard,
 } from '../../scrapers/myChart/chart/notes';
 
 // ─── Capability registry ─────────────────────────────────────────────────
