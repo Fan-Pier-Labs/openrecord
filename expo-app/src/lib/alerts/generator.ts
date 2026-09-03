@@ -40,7 +40,7 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
 function buildBillAlerts(accounts: BillingAccountStandard[], hostname?: string): AlertInput[] {
   const out: AlertInput[] = [];
   for (const acct of accounts) {
-    const payUrl = acct.URLMakePayment;
+    const payUrl = acct.paymentUrl ?? acct.URLMakePayment;
     for (const v of acct.visits) {
       if (!v.SelfAmountDueRaw || v.SelfAmountDueRaw <= 0) continue;
       const amount = v.SelfAmountDue ?? `$${v.SelfAmountDueRaw.toFixed(2)}`;

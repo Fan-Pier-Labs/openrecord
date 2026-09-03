@@ -9,6 +9,19 @@ import * as cheerio from 'cheerio';
 import { logger } from '../../../../shared/logger';
 import type { BillingAccount } from './types';
 
+/**
+ * The pay-online path the summary page carries in its inline config
+ * (`"URLMakePayment": "~/Billing/Payment?ID=…\u0026Context=…"`), as a path
+ * relative to the instance root. On the four live instances checked, this is
+ * where the link lives — `GetVisits`' `URLMakePayment` is null on all of them.
+ */
+export function parsePaymentPath(html: string): string | null {
+  const match = /"URLMakePayment":\s*"([^"]+)"/.exec(html);
+  if (!match) return null;
+  const path = match[1]!.replace(/^~/, '').replaceAll('\\u0026', '&');
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
 export function parsePaymentUrl(html: string): { id: string; context: string } | null {
   const regex = /"URLMakePayment":\s*"([^"]+)"/;
   const match = regex.exec(html);

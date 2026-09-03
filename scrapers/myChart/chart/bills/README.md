@@ -28,6 +28,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `guarantorNumber`, `patientName` | From the card header | ✓ | ✓ | ✓ | Derived from the summary HTML. Which account and whose. |
 | `amountDueNumber` | Card balance, parsed | ✓ | ✓ | ✓ | Derived. What is owed. |
+| `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
 

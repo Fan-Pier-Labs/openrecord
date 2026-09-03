@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { dte2date, date2dte } from '../utils'
+import { parsePaymentPath } from '../summaryHtml'
 
 /**
  * MyChart serialises billing dates as "dte" — whole days since 1840-12-31, the
@@ -87,5 +88,16 @@ describe('dte round-trip', () => {
         roundTripped.getDate(),
       ]).toEqual([original.getFullYear(), original.getMonth(), original.getDate()])
     }
+  })
+})
+
+describe('parsePaymentPath', () => {
+  it('reads the summary page pay-online path, decoding the escaped ampersand', () => {
+    const html = `<script>var config = {"URLMakePayment": "~/Billing/Payment?ID=12345\\u0026Context=ABC_XYZ"};</script>`
+    expect(parsePaymentPath(html)).toBe('/Billing/Payment?ID=12345&Context=ABC_XYZ')
+  })
+
+  it('returns null when the page carries no pay link', () => {
+    expect(parsePaymentPath('<html></html>')).toBeNull()
   })
 })

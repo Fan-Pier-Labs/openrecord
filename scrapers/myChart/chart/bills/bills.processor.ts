@@ -18,7 +18,7 @@
 import { findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
-import { parseBillingAccountsHtml } from './summaryHtml';
+import { parseBillingAccountsHtml, parsePaymentPath } from './summaryHtml';
 import type { BillingAccount } from './types';
 
 export type BillingVisitCategory =
@@ -160,6 +160,13 @@ export interface BillingAccountStandard {
   patientName: string;
   /** Derived: the card balance, parsed. */
   amountDueNumber: number | null;
+  /**
+   * Derived: the pay-online path from the summary page's inline config,
+   * relative to the instance root, when its `ID` is this account's. Kept
+   * because it is how a patient pays from the app (rule 4); `GetVisits`'
+   * own `URLMakePayment` is null on every live instance checked.
+   */
+  paymentUrl: string | null;
   /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
   visits: BillingVisitStandard[];
   VisitListAmount: string | null;
@@ -371,6 +378,7 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
     guarantorNumber: source.guarantorNumber,
     patientName: source.patientName,
     amountDueNumber: source.amountDue ?? null,
+    paymentUrl: paymentPathFor(raw, source),
     visits: mergeVisitLists(data),
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
@@ -400,6 +408,15 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
     ].map(statement),
     payments: list(rec(paymentsBody.Data).PaymentList).map(payment),
   };
+}
+
+/** The summary page's pay-online path, when it names this account's id. */
+function paymentPathFor(raw: RawResponse, source: BillingAccount): string | null {
+  const summary = text(findRequest(raw, '/Billing/Summary')?.body);
+  const path = parsePaymentPath(summary);
+  if (!path) return null;
+  const id = new URLSearchParams(path.split('?')[1] ?? '').get('ID');
+  return id === null || id === source.id ? path : null;
 }
 
 export const billingProcessor: Processor<BillingStandard> = {
