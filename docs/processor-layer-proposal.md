@@ -71,8 +71,17 @@ also rendered to markdown. There is never a field in `standard` that is not in
    (`Csn`, `hnoId`/`hnoDat`/`lrpId`, `hthId`, `image_id`, contact `id`, proxy
    `Id`) is in `standard` and `concise`. A concise view that cannot be followed
    up on is a dead end.
-6. **`false`, `0` and empty arrays are kept in `standard`.** "Not refillable"
-   and "no known allergies" are answers. `concise` may drop them.
+6. **Membership is decided by the field's name, never by its value.** Each
+   mode has a fixed field list per capability. A field on the list is emitted
+   every time, including when its value is `false`, `0`, `""`, `null` or `[]`:
+   "not refillable" and "no allergies on file" are answers, and a reader must
+   be able to tell "none" from "not looked at". A field that is empty on every
+   captured instance is off the list for `standard` and `concise` (the
+   provably-empty class in §2). A field that carries data on some responses
+   and not others is on the list, and the processor never looks at the value
+   to decide whether to emit it. The unmerged condensers' `row()` helper,
+   which drops a key when its value is empty, violates this and is not
+   carried over.
 7. **Errors pass through.** A scrape-error shape (`{ error }`), a WAF
    interstitial, a literal `null` from an unknown id: the processor returns it
    unchanged in every mode. Summarizing an error into nothing hides why the
@@ -156,7 +165,7 @@ away.
 | `SecureCommunicationInfo.MobilePhone`, `HomePhone`, `WorkPhone` | JSON | |
 | `PreferredDevice` | JSON | |
 | `PermanentAddress.FormattedValues[]`, `.Street`, `.City`, `.State.Title`, `.Zip`, `.Country.Title` | JSON | `FormattedValues` is the display form; the discrete parts are for consumers that need them. |
-| `TemporaryAddress` (same subset) plus `.StartDateDisplay`, `.EndDateDisplay` | JSON | Only when `TemporaryAddress.Street` is non-empty. |
+| `TemporaryAddress` (same subset) plus `.StartDateDisplay`, `.EndDateDisplay` | JSON | Emitted even when blank; an empty temporary address is a fact. |
 
 **Dropped.** `IsViewOnly`, `RequiredFieldNames`, `ReadOnlyFieldNames`,
 `ValidationErrors`, `PermanentDefaults`/`TemporaryDefaults`,
@@ -198,7 +207,7 @@ header body is ~500 lines and embeds a copy of the upcoming-visits view model.
 capability per fact).
 
 **Concise.** `patientAge`, `bloodType`, `height.value`, `weight.value` with
-their dates, `isPatientAdmitted` only when true, `lastVisit`, `nextVisit`.
+their dates, `isPatientAdmitted`, `lastVisit`, `nextVisit`.
 
 ---
 
@@ -225,7 +234,7 @@ prescription; the scraper keeps 12.
 | `refillDetails.writtenDispenseQuantity`, `.writtenDispenseUnit`, `.writtenDispenseAmount`, `.daySupply` | |
 | `refillDetails.lastDispense.dispenseQuantity`, `.dispenseUnit`, `.dispenseAmount`, `.dispenseDate`, `.isRxReady`, `.costDetails.formattedCopay`, `.delivery.formattedShipDate` | |
 | `refillDetails.owningPharmacy.name`, `.phoneNumber`, `.formattedAddress[]`, `.hours[]`, `.isPreferred` | |
-| `organizationName` **(derived)** | `organization.organizationName`, only when the account spans more than one organization. |
+| `organizationName` **(derived)** | `organization.organizationName`, lifted onto the row. Always emitted, single-organization accounts included. |
 | top-level `getPatientFirstName` | |
 | `prescriptionList.numRefillsDueSoon`, `.pickups[]`, `.deliveries[]`, `.inProgressWorkRequests[]` | The last three are uncaptured shapes; pass through. |
 
@@ -245,7 +254,7 @@ organization blob, `owningPharmacy.supportedDeliveryMethods`/`deliveryFee`/
 
 **Concise.** `name`, `patientFriendlyName.text`, `sig`, `dateToDisplay` with
 `dateDisplayKey`, `authorizingProvider.name`, `isRefillable`,
-`refillsRemaining`, `owningPharmacy.name`, and `isPatientReported` when true.
+`refillsRemaining`, `owningPharmacy.name`, `isPatientReported`.
 
 **Note: `medicationKey` is not a MyChart field.** The captured skeleton has
 `id`; `medicationKey` exists only in the fake's fixture, and `request_refill`
@@ -390,7 +399,8 @@ members as "relationship: conditions", smoking status, alcohol use.
 **Dropped.** `quickLinkDictionary`, `hasChartGraphSecurity`,
 `isSharingNotesEnabled` (page-level).
 
-**Concise.** `name`, `status`, `targetDate` where present.
+**Concise.** `name`, `status`, `targetDate`, once a capture confirms those
+names exist.
 
 **Note: the patient-goal shape is unverified and probably wrong.** The
 captured `loadPatientGoals` element has `goalId`, `goalType`, `readings[]`,
@@ -421,7 +431,7 @@ The visit object is ~160 fields. The date family, since it is the confusing part
 | `Date`, `Time`, `ShortDate`, `Month`, `DateOfMonth`, `Year`, `HighlightDate`, `IsAM` | locale renderings of the same instant | no |
 | `Dat` | Epic 1840-epoch day count | no |
 | `IsClientTime`, `ClientTimeZoneMarker` | about the caller | no |
-| `IsTimeToBeDetermined`, `IsHideVisitTime` | whether a time is meaningful | yes; `concise` omits the time when either is set |
+| `IsTimeToBeDetermined`, `IsHideVisitTime` | whether a time is meaningful | yes, in every mode; the markdown renderer prints "time TBD" instead of the clock time when either is true, but the fields themselves are always emitted |
 
 **Standard**, per visit:
 
@@ -454,13 +464,14 @@ clinical), provider photo fields, the three organization blobs, the top-level
 returned; the capability that was called already says which side of now the
 visit is on).
 
-**Concise**, per visit: `PrimaryDate` (time omitted when hidden or TBD),
-`VisitTypeName`, `status`, provider, `PrimaryDepartment.Name`, `Csn`,
-`ChiefComplaint`, diagnoses as "Description (Code)", procedures, admission
-range for inpatient stays, `organizationName` when the account spans
-organizations, and `notes_available` / `summary_available` **(derived)** when
-true. Upcoming adds the bucket. This is PR #377's `VisitSummary` plus the
-status word from PR #380.
+**Concise**, per visit: `PrimaryDate`, `IsTimeToBeDetermined`,
+`IsHideVisitTime`, `VisitTypeName`, `status`, `PrimaryProviderName`,
+`PrimaryDepartment.Name`, `Csn`, `ChiefComplaint`, `Diagnoses` (rendered as
+"Description (Code)"), `SurgicalProcedures[].Name`, `AdmissionDateRange`,
+`DischargeDate`, `organizationName`, `IsClinicalNoteAvailable`,
+`IsVisitSummaryEnabled`. Upcoming adds the bucket. Every field is emitted on
+every visit, empty or not. This is PR #377's `VisitSummary` plus the status
+word from PR #380, minus their drop-if-empty behavior.
 
 **Moves out of the scraper.** Page merging (`pastVisits`'s accumulator) and
 `visitTimestamp`. The scraper fetches pages until the window is covered and
@@ -681,10 +692,11 @@ names are resolved onto messages, `contexts[]`, `tags.Messages`,
 `.oldestSearchedInstantISO`, `externalSummaries`, `attachments[].dcsId`/
 `.etxId`/`.legacyUrlForCommunityJump`/`.organizationId`/`.type`.
 
-**Concise.** Per conversation: `hthId`, `subject`, with (audience names),
-unread / urgent when true, message count, and each inlined message as
-`senderName`, `deliveryInstantISO`, `bodyText`. `previewText` only when no
-messages were inlined. PR #380's `condenseMessages` plus sender resolution.
+**Concise.** Per conversation: `hthId`, `subject`, `audience[].name`,
+`tags.Unread`, `hasUrgentMsgs`, `hasMoreMessages`, `previewText`, and each
+inlined message as `senderName`, `deliveryInstantISO`, `bodyText`. All
+emitted on every conversation. PR #380's `condenseMessages` plus sender
+resolution, minus its drop-if-empty behavior.
 
 ---
 
@@ -899,8 +911,8 @@ item `identifier`, `displayText`, `titleDisplayText`, `announcementBody`,
 `zeroStateIconKey`, `isSelected`, and the whole `linkedAccountsViewModel`
 (covered by `get_linked_accounts`).
 
-**Concise.** `priorityInstantISO` · `displayText`, newest first, with the
-patient name when the account has more than one record.
+**Concise.** `priorityInstantISO` · `displayText`, newest first, under the
+view model's `displayName` (the patient the item is about).
 
 ---
 
@@ -952,7 +964,7 @@ patient name when the account has more than one record.
 `InProgressList`, `Fhir*`, `IsNPP`, `IsSelfVerified`, `H2GHasBeenViewed`,
 `IsConsentNeeded`, `HideAskLater`, `HasSearchableOrgs`.
 
-**Concise.** `OrganizationName` and the last-encounter line when present.
+**Concise.** `OrganizationName` and `LastEncounterDetail`.
 
 ---
 
@@ -1033,9 +1045,10 @@ response and decides what to keep moves.
 - **#380** adds `condense.ts` in the MCPB with seven hand-written condensers
   and a generic prune, plus a `get_raw_data` tool. The seven condensers are the
   `concise` processors for visits, labs, imaging, billing, messages and
-  recipients, with their `text()`/`rec()`/`row()` helpers reusable as-is. The
-  generic prune is what `standard` does for null/empty scalars on every
-  capability. `get_raw_data` is `mode: 'raw'` on the ordinary tool.
+  recipients. Their `text()`/`rec()` readers carry over; `row()` and the
+  generic `prune` do not, because both decide by value (a key is dropped when
+  empty), which rule 6 forbids. `get_raw_data` is `mode: 'raw'` on the
+  ordinary tool.
 
 None of the three should merge as written; each should be re-cut against the
 processor layer once it exists.
