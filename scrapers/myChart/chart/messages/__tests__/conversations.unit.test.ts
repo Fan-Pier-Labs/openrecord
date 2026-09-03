@@ -133,7 +133,7 @@ describe('conversationsProcessor', () => {
       senderName: 'Julius Hibbert, MD',
       isFromPatient: false,
       isUnread: true,
-      bodyText: 'Your recent results look normal.\nSee you next month.',
+      bodyText: 'Your recent results look normal.\n\nSee you next month.',
       author: { empKey: 'EMP-HIBBERT', wprKey: null },
       attachments: [{ name: 'results.pdf', fileExtension: 'pdf' }],
       tasks: [],
@@ -193,7 +193,7 @@ describe('conversationsProcessor', () => {
       deliveryInstantISO: '2026-01-10T14:30:00Z',
       senderName: 'Julius Hibbert, MD',
       isFromPatient: false,
-      bodyText: 'Your recent results look normal.\nSee you next month.',
+      bodyText: 'Your recent results look normal.\n\nSee you next month.',
     })
   })
 })

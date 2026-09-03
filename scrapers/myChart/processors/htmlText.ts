@@ -2,129 +2,36 @@
  * Markup to plain text, for the `<field>Text` fields.
  *
  * Markup never leaves `raw` (rule 9 in `docs/processor-layer-proposal.md`).
- * These produce the text the other modes carry: block elements become line
- * breaks, headings sit on their own lines, list items become bullets, table
- * rows become tab-separated cells. Both parse to a tree and never re-emit
- * markup, so nothing they return is ever rendered as HTML downstream.
+ * This produces the text the other modes carry, via `html-to-text`: block
+ * elements become line breaks, headings sit on their own lines, list items
+ * become bullets, tables become aligned columns. cheerio's `.text()` is not
+ * enough on its own — it drops every block boundary, so a note's paragraphs,
+ * list items and table cells run together into one line.
+ *
+ * The converter parses to a tree and never re-emits markup, so nothing it
+ * returns is ever rendered as HTML downstream.
  */
 
-import * as cheerio from 'cheerio';
-import { isTag, isText, type AnyNode } from 'domhandler';
+import { convert, type HtmlToTextOptions } from 'html-to-text';
 
-const BLOCK = new Set([
-  'p', 'div', 'section', 'article', 'header', 'footer', 'blockquote', 'pre',
-  'ul', 'ol', 'table', 'thead', 'tbody', 'tfoot', 'hr', 'address', 'fieldset', 'form',
-]);
-const HEADING = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
-const SKIP = new Set(['script', 'style', 'noscript', 'head', 'title']);
-
-/** Marks a paragraph break (kept as a blank line) versus a plain line break. */
-const PARAGRAPH = '\uE000';
-/** Protects leading whitespace inside <pre> from the line trim. */
-const PRE_SPACE = '\uE001';
-
-function walk(node: AnyNode, out: string[], inPre: boolean): void {
-  if (isText(node)) {
-    const data = node.data;
-    out.push(inPre ? data.replace(/^[ \t]+/gm, (m) => PRE_SPACE.repeat(m.length)) : data.replace(/\s+/g, ' '));
-    return;
-  }
-  if (!isTag(node)) return;
-  const tag = node.name.toLowerCase();
-  if (SKIP.has(tag)) return;
-
-  if (tag === 'br') {
-    out.push('\n');
-    return;
-  }
-  if (tag === 'hr') {
-    out.push(PARAGRAPH);
-    return;
-  }
-  if (tag === 'li') {
-    out.push('\n- ');
-    for (const child of node.children) walk(child, out, inPre);
-    out.push('\n');
-    return;
-  }
-  if (tag === 'tr') {
-    out.push('\n');
-    const cells: string[] = [];
-    for (const child of node.children) {
-      if (isTag(child) && (child.name === 'td' || child.name === 'th')) {
-        const cellOut: string[] = [];
-        for (const grandchild of child.children) walk(grandchild, cellOut, inPre);
-        cells.push(cellOut.join('').replace(/\s+/g, ' ').trim());
-      }
-    }
-    out.push(cells.join('\t'), '\n');
-    return;
-  }
-  if (HEADING.has(tag)) {
-    out.push(PARAGRAPH);
-    for (const child of node.children) walk(child, out, inPre);
-    out.push(PARAGRAPH);
-    return;
-  }
-  const block = BLOCK.has(tag);
-  if (block) out.push('\n');
-  for (const child of node.children) walk(child, out, inPre || tag === 'pre');
-  if (block) out.push('\n');
-}
+const OPTIONS: HtmlToTextOptions = {
+  wordwrap: false,
+  preserveNewlines: false,
+  selectors: [
+    // MyChart's notes are prose, not shouting: keep headings as written.
+    ...['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map((selector) => ({ selector, options: { uppercase: false } })),
+    // A link's href is portal plumbing; its text is the content.
+    { selector: 'a', options: { ignoreHref: true } },
+    { selector: 'img', format: 'skip' },
+    { selector: 'ul', options: { itemPrefix: '- ' } },
+    { selector: 'ol', options: { itemPrefix: '- ' } },
+    // Lab and visit tables read as columns; header cells stay as written.
+    { selector: 'table', format: 'dataTable', options: { uppercaseHeaderCells: false } },
+  ],
+};
 
 /** HTML (a fragment or a whole document) as plain text. */
 export function htmlToText(html: string): string {
   if (!html) return '';
-  const $ = cheerio.load(html, null, false);
-  const out: string[] = [];
-  for (const node of $.root().contents().toArray()) walk(node, out, false);
-  return out
-    .join('')
-    .split('\n')
-    .map((line) => line.trim())
-    .join('\n')
-    // Consecutive blocks sit on consecutive lines; only a heading or a rule
-    // earns a blank line.
-    .replace(/\n+/g, '\n')
-    .replace(/\n*\uE000+\n*/g, '\n\n')
-    .replace(/\uE001/g, ' ')
-    .trim();
-}
-
-/**
- * RTF to plain text: enough for the rich-text values MyChart marks
- * `isValueRtf` / `isRTF`, which are short and use a handful of control words.
- */
-export function rtfToText(rtf: string): string {
-  if (!rtf) return '';
-  if (!rtf.trimStart().startsWith('{\\rtf')) return rtf;
-  const ESC_OPEN = '\uE002';
-  const ESC_CLOSE = '\uE003';
-  const ESC_BACKSLASH = '\uE004';
-  return (
-    rtf
-      // Escaped delimiters are text; hold them aside while the structure goes.
-      .replace(/\\\\/g, ESC_BACKSLASH)
-      .replace(/\\\{/g, ESC_OPEN)
-      .replace(/\\\}/g, ESC_CLOSE)
-      // Destination groups (`{\*\...}`) and the header tables carry metadata,
-      // never text. One level of nesting covers the font and color tables.
-      .replace(/\{\\\*(?:[^{}]|\{[^{}]*\})*\}/g, '')
-      .replace(/\{\\(?:fonttbl|colortbl|stylesheet|info|listtable|listoverridetable)(?:[^{}]|\{[^{}]*\})*\}/g, '')
-      // Hex escapes: \'e9 → é
-      .replace(/\\'([0-9a-fA-F]{2})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
-      .replace(/\\par[d]?\b ?/g, '\n')
-      .replace(/\\line\b ?/g, '\n')
-      .replace(/\\tab\b ?/g, '\t')
-      // Every other control word, with its optional numeric argument and the
-      // single space that terminates it.
-      .replace(/\\[a-zA-Z]+-?\d* ?/g, '')
-      .replace(/[{}]/g, '')
-      .replace(new RegExp(ESC_OPEN, 'g'), '{')
-      .replace(new RegExp(ESC_CLOSE, 'g'), '}')
-      .replace(new RegExp(ESC_BACKSLASH, 'g'), '\\')
-      .replace(/[ \t]+\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-  );
+  return convert(html, OPTIONS).trim();
 }

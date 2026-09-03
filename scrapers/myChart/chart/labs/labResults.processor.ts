@@ -15,7 +15,7 @@
  */
 
 import { findRequests, type RawResponse } from '../../core/rawResponse';
-import { htmlToText, rtfToText } from '../../processors/htmlText';
+import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
 
@@ -38,7 +38,13 @@ export interface LabComponentStandard {
     units: string | null;
   };
   componentResultInfo: {
-    /** Derived: `value` with the RTF stripped when `isValueRtf`, else `value` itself. */
+    /**
+     * Derived: the value as plain text. Today this is `value` itself — no RTF
+     * value has ever been captured (`isValueRtf` exists only in the skeleton),
+     * so there is nothing to convert against. TODO(docs/processor-layer-todo.md
+     * §1): when a capture shows what MyChart's RTF looks like, strip it here
+     * with a real converter; until then an RTF value passes through as-is.
+     */
     valueText: string | null;
     numericValue: number | null;
     isValueRtf: boolean | null;
@@ -230,7 +236,7 @@ function component(value: unknown): LabComponentStandard {
       units: textOrNull(info.units),
     },
     componentResultInfo: {
-      valueText: rawValue !== null && resultInfo.isValueRtf === true ? rtfToText(rawValue) : rawValue,
+      valueText: rawValue,
       numericValue: num(resultInfo.numericValue),
       isValueRtf: boolOrNull(resultInfo.isValueRtf),
       referenceRange: referenceRange(resultInfo.referenceRange),

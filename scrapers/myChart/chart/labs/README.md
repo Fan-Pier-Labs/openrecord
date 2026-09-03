@@ -47,7 +47,7 @@ The `GetDetails` body, per order:
 | `results[].resultComponents[].componentInfo.componentID` | Component id; key into the trend map | — | ✓ | — | Internal handle; standard keeps it so the trend join is checkable. |
 | `…componentInfo.name`, `.commonName`, `.units` | Component name and units | — | ✓ | ✓ | The analyte and its units. |
 | `…componentResultInfo.value` | The value as MyChart prints it; RTF when `isValueRtf` | — | — | — | Markup stays in `raw` (rule 9). |
-| `valueText` | `value` with any RTF stripped | ✓ | ✓ | ✓ | Derived from `value` and `isValueRtf`. The result. |
+| `valueText` | The value as plain text | ✓ | ✓ | ✓ | Derived from `value`. Today it is `value` itself: no RTF value has ever been captured, so there is nothing to strip against; an RTF value passes through until one is (TODO §1). |
 | `…componentResultInfo.numericValue` | The value as a number | — | ✓ | — | For consumers that compute; concise shows the printed form. |
 | `…componentResultInfo.isValueRtf` | `value` carried RTF | — | ✓ | — | Says whether `valueText` was converted. |
 | `…componentResultInfo.referenceRange.formattedReferenceRange` | Range as printed | — | ✓ | ✓ | The only abnormality signal MyChart gives (#375); a value without its range is uninterpretable. |

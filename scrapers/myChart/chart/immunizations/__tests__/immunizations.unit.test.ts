@@ -63,7 +63,7 @@ describe('getImmunizations', () => {
     const req = mockRequest([TOKEN, { body: JSON.stringify({ organizationImmunizationList: [{ orgImmunizations: [{ name: 'Tdap', id: 'I2', formattedAdministeredDates: ['05/01/2019'] }] }] }) }])
     const raw = await fetchImmunizationsRaw(req)
     expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/Immunizations', '/api/immunizations/LoadImmunizations'])
-    expect(renderOutput(immunizationsProcessor, raw, 'concise')).toBe('\n## immunizations (1)\n\n| name | formattedAdministeredDates |\n| --- | --- |\n| Tdap | 05/01/2019 |\n'.trimStart())
+    expect(renderOutput(immunizationsProcessor, raw, 'concise')).toBe('\n## immunizations (1)\n\n| name | formattedAdministeredDates |\n| - | - |\n| Tdap | 05/01/2019 |\n'.trimStart())
     expect(renderOutput(immunizationsProcessor, raw, 'standard')).toContain('| id |')
   })
 })

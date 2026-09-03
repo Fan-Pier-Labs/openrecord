@@ -16,6 +16,8 @@
  *   - `null` / `undefined` → `(none)`; booleans and numbers verbatim
  */
 
+import { markdownTable } from 'markdown-table';
+
 const MAX_TABLE_CELL = 60;
 
 type Scalar = string | number | boolean | null | undefined;
@@ -64,12 +66,13 @@ function paragraph(text: string): string {
 function renderTable(rows: Record<string, unknown>[]): string[] {
   const columns: string[] = [];
   for (const row of rows) for (const key of Object.keys(row)) if (!columns.includes(key)) columns.push(key);
-  const lines = [
-    `| ${columns.join(' | ')} |`,
-    `| ${columns.map(() => '---').join(' | ')} |`,
-  ];
-  for (const row of rows) lines.push(`| ${columns.map((c) => cell(row[c])).join(' | ')} |`);
-  return lines;
+  // markdown-table owns the table syntax; `cell` owns what goes in a cell.
+  // Delimiters are not aligned: padding every cell to the widest one in its
+  // column turns a 20-visit table into mostly spaces.
+  return markdownTable(
+    [columns, ...rows.map((row) => columns.map((c) => cell(row[c])))],
+    { alignDelimiters: false },
+  ).split('\n');
 }
 
 function renderArray(key: string, items: unknown[], level: number, out: string[]): void {

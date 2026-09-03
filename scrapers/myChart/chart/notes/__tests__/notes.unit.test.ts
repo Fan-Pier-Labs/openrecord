@@ -193,7 +193,7 @@ describe('noteContentProcessor', () => {
       baseFontSize: 12,
       stylesheets: ['a.css'],
     }))
-    expect(standard).toEqual({ reportContentText: 'Assessment\n\nDoing well.\n- Item one\n- Item two' })
+    expect(standard).toEqual({ reportContentText: 'Assessment\n\nDoing well.\n\n- Item one\n- Item two' })
     expect(noteContentProcessor.concise(standard)).toBe(standard)
   })
 

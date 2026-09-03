@@ -27,6 +27,7 @@ fixture rebuilt from it.
 | `get_messages` / `get_message_thread` | conversation endpoints | `messages[].tasks[]`, `.suggestedActions[]` elements; whether `body` ever carries HTML | Decision recorded: plain text. Worth one confirming capture. |
 | `get_visit_notes` | `GetVisitNotes` | `noteList[].attachments[]` element | |
 | `get_lab_results` | `GetDetails` | `studyResult.transcriptions[]`, `.ecgDiagnosis[]`, `indicators[]`, `variants[]`, `providerComments[]` elements | ECG and genetic results |
+| `get_lab_results` | `GetDetails` | A component `value` with `isValueRtf: true` — what MyChart's RTF actually looks like | `valueText` passes such a value through untouched until one is captured (the hand-written RTF stripper was removed in review; no library does this on device) |
 | `get_letters` | `GetLettersList` | `departments{}` value shape (`{}` on capture) | |
 | `get_billing` | `GetVisits` | `UndistributedPayments[]` element; `EstimateInfo`, `VisitAutoPay`, `AgencyInformation` populated | |
 | `list_proxy_targets` | `/ProxySwitch`, `/Home` | Which discovery surface each captured instance uses | Three surfaces exist; only the JSON one has a skeleton |

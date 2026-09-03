@@ -144,7 +144,7 @@ describe('letterDetailsProcessor', () => {
 
   it('strips bodyHTML to bodyHTMLText and carries nothing else', () => {
     const standard = letterDetailsProcessor.standard(rawWith({ bodyHTML: '<p>Dear patient,</p><p>Your results are <b>normal</b>.</p>' }))
-    expect(standard).toEqual({ bodyHTMLText: 'Dear patient,\nYour results are normal.' })
+    expect(standard).toEqual({ bodyHTMLText: 'Dear patient,\n\nYour results are normal.' })
     expect(letterDetailsProcessor.concise(standard)).toBe(standard)
   })
 

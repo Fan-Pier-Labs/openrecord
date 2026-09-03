@@ -184,7 +184,7 @@ describe('getImagingResults', () => {
       isImagingByName: true,
       isImagingByContent: true,
     })
-    expect(result.orders[0]!.results[0]!.reportContentText).toBe('FINDINGS: none.\nView Images')
+    expect(result.orders[0]!.results[0]!.reportContentText).toBe('FINDINGS: none.\n\nView Images')
     expect(JSON.stringify(result)).not.toContain('data-fdi-context')
   })
 

@@ -543,7 +543,7 @@ describe('labResultsProcessor.standard', () => {
     })
   })
 
-  it('carries the value as valueText, stripping RTF when isValueRtf, and drops the abnormal flag', () => {
+  it('carries the value as valueText (an uncaptured RTF value passes through as-is) and drops the abnormal flag', () => {
     const [hgb, note] = standard.orders[0]!.results[0]!.resultComponents
     expect(hgb).toEqual({
       componentInfo: { componentID: 'comp-hgb', name: 'Hemoglobin', commonName: 'Hgb', units: 'g/dL' },
@@ -555,7 +555,8 @@ describe('labResultsProcessor.standard', () => {
       },
       componentComments: { contentAsString: 'Hemolyzed' },
     })
-    expect(note!.componentResultInfo.valueText).toBe('Sample slightly lipemic')
+    // No RTF value has ever been captured, so nothing strips it yet (TODO §1).
+    expect(note!.componentResultInfo.valueText).toBe('{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Sample \\b slightly\\b0  lipemic\\par}')
     expect(note!.componentResultInfo.isValueRtf).toBe(true)
     expect(note!.componentResultInfo.numericValue).toBeNull()
 
@@ -610,7 +611,7 @@ describe('labResultsProcessor.concise', () => {
         orderProviderName: 'Dr. Hibbert',
         resultComponents: [
           { name: 'Hemoglobin', commonName: 'Hgb', units: 'g/dL', valueText: '14.2', formattedReferenceRange: '13.5 - 17.5', contentAsString: 'Hemolyzed' },
-          { name: 'Comment', commonName: 'Comment', units: '', valueText: 'Sample slightly lipemic', formattedReferenceRange: '', contentAsString: '' },
+          { name: 'Comment', commonName: 'Comment', units: '', valueText: '{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Sample \\b slightly\\b0  lipemic\\par}', formattedReferenceRange: '', contentAsString: '' },
         ],
         narrative: '',
         impression: '',
