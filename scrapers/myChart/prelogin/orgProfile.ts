@@ -19,7 +19,15 @@
  *    vanity number ("800-4Sprng") that has no `tel:` link at all.
  *  - **`HTMLUnencode(...)` wraps the text ones**, so the JS string literal
  *    still holds entities (`&amp;`, `&#39;`) that have to be decoded.
+ *
+ * The `addMnemonic` lines are one per mnemonic and machine-generated, so a
+ * regex reads them. Their values are HTML, which is cheerio's job: decoding
+ * entities by hand is what this module used to do, and it got `&amp;lt;`,
+ * every named entity outside the big six, and out-of-range numeric
+ * references wrong.
  */
+
+import * as cheerio from 'cheerio';
 
 import type { OrgProfile, PhoneNumber } from './types';
 
@@ -48,30 +56,25 @@ function decodeJsString(literal: string): string {
   }
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'");
+/** A parsed fragment's text: tags dropped, entities decoded, spacing collapsed. */
+function textOf($: cheerio.CheerioAPI): string {
+  return $.root().text().replace(/\s+/g, ' ').trim();
 }
 
-function stripTags(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+/** One mnemonic value's HTML as plain text. */
+function toText(html: string): string {
+  return textOf(cheerio.load(html, null, false));
 }
 
 /** Turn one phone mnemonic's HTML into a number, or null for empty/placeholder. */
 export function parsePhone(raw: string | undefined): PhoneNumber | null {
   if (!raw) return null;
-  const display = stripTags(raw);
+  const $ = cheerio.load(raw, null, false);
+  const display = textOf($);
   if (!display) return null;
 
-  const tel = /href=['"]tel:([^'"]+)['"]/i.exec(raw)?.[1];
-  const telDigits = tel ? tel.replace(/\D/g, '') : '';
+  const href = $('a[href]').first().attr('href')?.trim() ?? '';
+  const telDigits = (/^tel:(.+)$/i.exec(href)?.[1] ?? '').replace(/\D/g, '');
   const displayDigits = display.replace(/\D/g, '');
   // A vanity number only has digits for its prefix; `tel:` is authoritative
   // when it exists, and a display that is all digits speaks for itself.
@@ -84,16 +87,15 @@ export function parsePhone(raw: string | undefined): PhoneNumber | null {
 /** The support email, or null for empty / Epic's DoNotUse placeholder. */
 export function parseEmail(raw: string | undefined): string | null {
   if (!raw) return null;
-  const email = stripTags(raw);
-  if (!email?.includes('@')) return null;
+  const email = toText(raw);
+  if (!email.includes('@')) return null;
   if (email.toLowerCase().endsWith('@' + PLACEHOLDER_EMAIL_DOMAIN)) return null;
   return email;
 }
 
 function textOrNull(raw: string | undefined): string | null {
   if (!raw) return null;
-  const text = stripTags(raw);
-  return text || null;
+  return toText(raw) || null;
 }
 
 /** Read the organization's profile out of any pre-login page's HTML. */
