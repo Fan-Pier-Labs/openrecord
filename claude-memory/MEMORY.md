@@ -115,7 +115,7 @@ An instance still on the legacy jQuery version of an activity answers `GET /app/
 The bundle still downloads, so the caller looks real. Check the page `<title>`, then read the legacy
 page's `bundles/<area>-controllers` for the real `makeLink("Area/Controller/Action")` call.
 `/api/insurance/LoadPayers` (dead on 4/4 instances) vs `Insurance/Coverages/GetPayors` (live,
-org-level payer catalogue) was this trap — `docs/api-surface-gaps.md` §1f, `docs/scraping.md`.
+org-level payer catalogue) was this trap — `docs/api-surface-gaps.md` ("Insurance payer catalogue"), `docs/scraping.md`.
 
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data

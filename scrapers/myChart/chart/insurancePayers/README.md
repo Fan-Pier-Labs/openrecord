@@ -20,7 +20,7 @@ members are all listed so nothing is implied.
 fields, plus the antiforgery token off `/Insurance`. Legacy MVC, so the
 envelope is PascalCase. Captured on four live instances spanning both Epic
 releases (18–40 payers each, identical field set and types); see
-[`api-surface-gaps.md`](../../../../docs/api-surface-gaps.md) §1f.
+[`api-surface-gaps.md`](../../../../docs/api-surface-gaps.md), "Insurance payer catalogue".
 
 **This is the organization's catalogue, not the patient's coverage** (that is
 `get_insurance`) and not an in-network guarantee. The request carries no

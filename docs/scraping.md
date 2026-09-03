@@ -78,7 +78,7 @@ perfectly real. The legacy page's own bundles (`/<mount>/bundles/<area>-controll
 listed as `<script src>` on the legacy page) hold the real endpoint, reached by
 `makeLink("Area/Controller/Action")` and usually a form-encoded `$.post`.
 `/api/insurance/LoadPayers` vs `Insurance/Coverages/GetPayors` was this exact
-trap on four out of four instances; see `api-surface-gaps.md` §1f.
+trap on four out of four instances; see `api-surface-gaps.md`, "Insurance payer catalogue".
 
 Worth knowing before guessing at a payload: **parameter names are per-endpoint,
 not per-area**. Under `/api/conversations/` the read endpoints
