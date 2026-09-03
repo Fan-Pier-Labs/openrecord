@@ -18,60 +18,54 @@
  *  - **Values are HTML**, usually a `tel:` anchor, sometimes a bare span for a
  *    vanity number ("800-4Sprng") that has no `tel:` link at all.
  *  - **`HTMLUnencode(...)` wraps the text ones**, so the JS string literal
- *    still holds entities (`&amp;`, `&#39;`) that have to be decoded.
+ *    still holds entities (`&amp;`, `&#39;`) after the script is parsed.
+ *
+ * So each value is read through two parsers and no hand-written scanner:
+ * `inlineScript` (acorn) turns the script into calls and their string
+ * arguments, then cheerio turns each argument's HTML into text.
  */
 
+import * as cheerio from 'cheerio';
+
+import { parseInlineScripts, readCallArguments } from './inlineScript';
 import type { OrgProfile, PhoneNumber } from './types';
 
-const MNEMONIC_RE =
-  /\$\$WP\.Strings\.addMnemonic\(\s*"@MYCHART@([A-Z_]+)@"\s*,\s*(HTMLUnencode\()?\s*"((?:[^"\\]|\\.)*)"/g;
+const MNEMONIC_CALL = '$$WP.Strings.addMnemonic';
+const MNEMONIC_NAME = /^@MYCHART@([A-Z_]+)@$/;
 
 const PLACEHOLDER_DIGITS = '5555555555';
 const PLACEHOLDER_EMAIL_DOMAIN = 'donotuse.donotuse';
 
-/** Every `@MYCHART@…@` mnemonic on the page, values still raw (HTML/JS-escaped). */
+/** Every `@MYCHART@…@` mnemonic on the page, values still raw HTML. */
 export function parseMnemonics(html: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const match of html.matchAll(MNEMONIC_RE)) {
-    const [, name, , literal] = match;
-    if (!name || literal === undefined) continue;
-    out[name] = decodeJsString(literal);
+  for (const [name, value] of readCallArguments(parseInlineScripts(html, 'addMnemonic'), MNEMONIC_CALL)) {
+    if (typeof name !== 'string' || typeof value !== 'string') continue;
+    const key = MNEMONIC_NAME.exec(name)?.[1];
+    if (key) out[key] = value;
   }
   return out;
 }
 
-function decodeJsString(literal: string): string {
-  try {
-    return JSON.parse(`"${literal}"`) as string;
-  } catch {
-    return literal.replace(/\\(["'\\/])/g, '$1');
-  }
+/** A parsed fragment's text: tags dropped, entities decoded, spacing collapsed. */
+function textOf($: cheerio.CheerioAPI): string {
+  return $.root().text().replace(/\s+/g, ' ').trim();
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'");
-}
-
-function stripTags(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+/** One mnemonic value's HTML as plain text. */
+function toText(html: string): string {
+  return textOf(cheerio.load(html, null, false));
 }
 
 /** Turn one phone mnemonic's HTML into a number, or null for empty/placeholder. */
 export function parsePhone(raw: string | undefined): PhoneNumber | null {
   if (!raw) return null;
-  const display = stripTags(raw);
+  const $ = cheerio.load(raw, null, false);
+  const display = textOf($);
   if (!display) return null;
 
-  const tel = /href=['"]tel:([^'"]+)['"]/i.exec(raw)?.[1];
-  const telDigits = tel ? tel.replace(/\D/g, '') : '';
+  const href = $('a[href]').first().attr('href')?.trim() ?? '';
+  const telDigits = (/^tel:(.+)$/i.exec(href)?.[1] ?? '').replace(/\D/g, '');
   const displayDigits = display.replace(/\D/g, '');
   // A vanity number only has digits for its prefix; `tel:` is authoritative
   // when it exists, and a display that is all digits speaks for itself.
@@ -84,16 +78,15 @@ export function parsePhone(raw: string | undefined): PhoneNumber | null {
 /** The support email, or null for empty / Epic's DoNotUse placeholder. */
 export function parseEmail(raw: string | undefined): string | null {
   if (!raw) return null;
-  const email = stripTags(raw);
-  if (!email?.includes('@')) return null;
+  const email = toText(raw);
+  if (!email.includes('@')) return null;
   if (email.toLowerCase().endsWith('@' + PLACEHOLDER_EMAIL_DOMAIN)) return null;
   return email;
 }
 
 function textOrNull(raw: string | undefined): string | null {
   if (!raw) return null;
-  const text = stripTags(raw);
-  return text || null;
+  return toText(raw) || null;
 }
 
 /** Read the organization's profile out of any pre-login page's HTML. */
@@ -112,7 +105,12 @@ export function parseOrgProfile(html: string): OrgProfile {
   };
 }
 
-/** Does this page carry the mnemonic block at all? False for a non-MyChart page. */
+/**
+ * Does this page carry the mnemonic block at all? False for a non-MyChart page.
+ *
+ * A presence check, so it stays a regex: there is no value to extract, and
+ * parsing every inline script to answer a boolean is not worth the work.
+ */
 export function hasOrgProfile(html: string): boolean {
   return /addMnemonic\(\s*"@MYCHART@(ORGNAME|APPTITLE)@"/.test(html);
 }

@@ -28,11 +28,16 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
+import { parseInlineScripts, readAssignedLiteral, readDeclaredLiteral } from './inlineScript';
 import { openPreloginPage } from './preloginSession';
 import type { BillingEntity } from './types';
 
 export const GUEST_ESTIMATES_PATH = '/GuestEstimates';
 const SERVICE_AREA_PATH = '/GuestEstimates/SelectServiceArea';
+
+/** Where the two pages put their data: an assignment, then a local variable. */
+const ESTIMATES_NAMESPACE = '$$WP.Estimates.';
+const MODEL_VARIABLE = 'model';
 
 export type RawServiceArea = {
   Id: string;
@@ -48,53 +53,11 @@ type RawLocationModel = {
   HasCompletedCaptcha?: boolean;
 };
 
-/** Read one `$$WP.Estimates.<name> = [...]` assignment out of the page. */
-function readAssignment(html: string, name: string): unknown {
-  const re = new RegExp(`\\$\\$WP\\.Estimates\\.${name}\\s*=\\s*`);
-  const m = re.exec(html);
-  if (!m) return undefined;
-  return parseJsonPrefix(html, m.index + m[0].length);
-}
-
-/**
- * Parse the JSON value that starts at `start`, however long it runs. The
- * page puts a whole array on one line and follows it with `;`, so a bracket
- * walk is the reliable way to find its end — the ids inside are opaque and
- * can contain anything.
- */
-function parseJsonPrefix(html: string, start: number): unknown {
-  const open = html[start];
-  const close = open === '[' ? ']' : open === '{' ? '}' : null;
-  if (!close) return undefined;
-  let depth = 0;
-  let inString = false;
-  for (let i = start; i < html.length; i++) {
-    const ch = html[i];
-    if (inString) {
-      if (ch === '\\') i++;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === '[' || ch === '{') depth++;
-    else if (ch === ']' || ch === '}') {
-      depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(html.slice(start, i + 1));
-        } catch {
-          return undefined;
-        }
-      }
-    }
-  }
-  return undefined;
-}
-
 /** The billing entities on the service-area page, or null if it isn't one. */
 export function parseServiceAreas(html: string): RawServiceArea[] | null {
-  const recent = readAssignment(html, 'RecentSAs');
-  const other = readAssignment(html, 'OtherSAs');
+  const scripts = parseInlineScripts(html, ESTIMATES_NAMESPACE);
+  const recent = readAssignedLiteral(scripts, `${ESTIMATES_NAMESPACE}RecentSAs`);
+  const other = readAssignedLiteral(scripts, `${ESTIMATES_NAMESPACE}OtherSAs`);
   if (!Array.isArray(recent) && !Array.isArray(other)) return null;
   const all = [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(other) ? other : [])] as RawServiceArea[];
   return all.filter((a) => typeof a?.Id === 'string' && typeof a?.Title === 'string');
@@ -102,9 +65,7 @@ export function parseServiceAreas(html: string): RawServiceArea[] | null {
 
 /** The `var model = {...}` on the location page, or null if it isn't one. */
 export function parseLocationModel(html: string): RawLocationModel | null {
-  const m = /var\s+model\s*=\s*/.exec(html);
-  if (!m) return null;
-  const model = parseJsonPrefix(html, m.index + m[0].length);
+  const model = readDeclaredLiteral(parseInlineScripts(html, MODEL_VARIABLE), MODEL_VARIABLE);
   return model && typeof model === 'object' ? model : null;
 }
 
