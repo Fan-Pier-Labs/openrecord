@@ -256,5 +256,5 @@ list above was built.
 6. **Second sweep over `/areas/**` legacy scripts** — the React sweep structurally cannot see them,
    and Care Team proves that's where real endpoints hide.
 
-Anything added lands in `shared/capabilities.ts` with a matching fake-mychart route and a
+Anything added lands in `shared/capabilities/` with a matching fake-mychart route and a
 `realShapes.ts` skeleton generated from a live capture, per the fake's faithful-stand-in rule.
