@@ -19,6 +19,29 @@ export function getRequestVerificationTokenFromBody(html: string): string | unde
 }
 
 /**
+ * A MyChart activity page that carried no `__RequestVerificationToken`. The
+ * API behind every activity refuses a request without one, so there is no
+ * honest way to continue — and returning an empty result here is how "the
+ * session died" used to read as "this patient has no allergies".
+ */
+export class MissingVerificationTokenError extends Error {
+  constructor(pagePath: string) {
+    super(
+      `No request verification token on ${pagePath}. The session may have expired, or this ` +
+        'instance does not serve that activity.',
+    );
+    this.name = 'MissingVerificationTokenError';
+  }
+}
+
+/** The page's antiforgery token, or a {@link MissingVerificationTokenError}. */
+export function requireVerificationToken(html: string, pagePath: string): string {
+  const token = getRequestVerificationTokenFromBody(html);
+  if (!token) throw new MissingVerificationTokenError(pagePath);
+  return token;
+}
+
+/**
  * Sentinel returned by parseMyChartDate for missing/unparseable input.
  * Negative-infinity sorts before any valid date (including pre-1970),
  * so a newest-first sort using this key always places undated items last.

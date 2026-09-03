@@ -8,7 +8,7 @@
  *                   something the other clients share. get_hospital_info sits
  *                   with them for a different reason: it needs no account at
  *                   all, which the registry cannot express.
- *   2. Capability tools — one per entry in `shared/capabilities.ts`, which is
+ *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
@@ -42,8 +42,12 @@ import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/au
 import {
   ACCOUNT_PARAM,
   CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsModeParam,
   acceptsPatientParam,
+  describeModeParam,
   executeCapability,
   readAccountArg,
   type Capability,
@@ -221,6 +225,12 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   // when omitted — before the capability runs, so a read refuses rather than
   // silently returning the wrong family member's chart.
   if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
+  // How the payload is rendered. This client talks to a model, so the default
+  // is the concise projection; the model asks for `standard`, `json` or `raw`
+  // by name when it needs more.
+  if (acceptsModeParam(capability)) {
+    shape[MODE_PARAM.name] = z.string().describe(describeModeParam(MODEL_FACING_OUTPUT_MODE)).optional();
+  }
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const annotations =
@@ -244,13 +254,19 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // active-patient assertion lives there. Branching to a direct
         // `capability.run` for the imaging tool is how that one tool ended up
         // returning a family member's X-rays.
-        const payload = await executeCapability(session, capability.id, args, contextFor(account));
+        const withMode =
+          acceptsModeParam(capability) && !args[MODE_PARAM.name]
+            ? { ...args, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
+            : args;
+        const payload = await executeCapability(session, capability.id, withMode, contextFor(account));
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
           return imagingResult(payload as StudyImagePayload);
         }
-        return jsonResult(payload);
+        // The markdown modes come back as a string and go out as text; the
+        // data modes go out as JSON.
+        return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
         return errorResult((err as Error).message);
       }
@@ -645,7 +661,7 @@ export function registerAllTools(server: McpServer): void {
   );
 
   // register_passkey is NOT declared here — it is a capability
-  // (`shared/capabilities.ts`) so the CLI and the mobile app expose the same
+  // (`shared/capabilities/`) so the CLI and the mobile app expose the same
   // thing, and it is registered by the loop at the bottom of this function.
 
   server.registerTool(
@@ -670,7 +686,7 @@ export function registerAllTools(server: McpServer): void {
 
   // ── Capability tools ──────────────────────────────────────────────────────
   //
-  // Derived, not listed. `shared/capabilities.ts` is the single source of
+  // Derived, not listed. `shared/capabilities/` is the single source of
   // truth for what OpenRecord can do with a MyChart account; every entry there
   // becomes a tool here automatically, so this extension can never quietly
   // support less than the CLI or the mobile app does.

@@ -55,7 +55,7 @@ hit `/Home/KeepAlive` + `/keepalive.asp` every 30s (MyChart's own cadence); the 
 renews through the same `reauthenticate` hook before marking it expired. Call
 `sessionStore.unregister(request)` when a client discards a session.
 
-## Capability registry (`shared/capabilities.ts`)
+## Capability registry (`shared/capabilities/`)
 
 **The single source of truth for what OpenRecord can do with a MyChart account.** One entry per
 capability — id, title, description, `kind` (`read` / `write` / `account`), parameter list, and a
@@ -71,6 +71,17 @@ build if any stops covering an entry.
 against fake-mychart, so the list is proven to work, not just to exist. This replaced four
 hand-maintained lists that had drifted to 46 / 43 / 46 / 38 capabilities, which meant a patient's
 answer depended on which client they asked.
+
+**Layout.** `index.ts` is the assembly, the lookup and `executeCapability`; `types.ts` is the shape
+of an entry; `args.ts`, `params.ts`, `imaging.ts` and `resolve.ts` are the pieces entries share. The
+entries themselves live one file per group under `registry/` — `profile.ts`, `visits.ts`,
+`results.ts`, `messages.ts`, `billing.ts`, `care.ts`, `emergencyContacts.ts`, `prescriptions.ts`,
+`patients.ts`, `accountSecurity.ts` — each exporting one ordered array, which `index.ts` concatenates
+in listing order. Group membership, ordering and `lessFrequentlyUsed` are presentation decisions, so
+they stay in the registry rather than moving out to the ~40 chart folders the entries call into;
+those folders keep knowing nothing about capabilities. **`CapabilityImpl` is exported from
+`types.ts` but deliberately *not* re-exported from `index.ts`**, so `capability.run(...)` still does
+not compile for any client — the enforcement for "every dispatch goes through `executeCapability`".
 
 - **`kind` decides how each client treats it.** `read` is safe to batch and needs no confirmation.
   `write` mutates the chart — the mobile app shows a confirmation popup, the extension marks it
@@ -142,6 +153,38 @@ answer depended on which client they asked.
 - **`shared/base64url.ts`** is the portable codec behind `image_id` — no `Buffer`, no `atob`,
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
+
+## The processor layer (`scrapers/myChart/processors/`, `chart/<name>/<name>.processor.ts`)
+
+A read capability is two pure-ish halves. The scraper's `fetch…Raw(request, …)` talks to MyChart
+and records every request it makes into a `RawResponse` envelope (`core/rawResponse.ts`): path,
+method, the body we posted, status, and the body MyChart sent, parsed when it was JSON. It never
+projects, renames, strips or merges. The sibling `<name>.processor.ts` turns the envelope into the
+four output modes: `raw` (the untouched body, or the envelope when there were several payload
+requests), `json` (the *standard object*), `standard` (that object as markdown) and `concise` (a
+projection of it as markdown). `executeCapability` runs the scraper, then the processor, driven by
+the `mode` argument the registry declares once as `MODE_PARAM`.
+
+The rules, with their reasoning, are in [`processor-layer-proposal.md`](processor-layer-proposal.md);
+the ones that bite when you add a capability:
+
+- **A MyChart field is never edited in place or shadowed.** Anything computed gets a new name
+  (`bodyText`, `instantISO`, `organizationName`). One name means one thing everywhere.
+- **Membership is by field name, never by value.** A field on a mode's list is emitted even when
+  empty, so "no allergies on file" survives. A field that is empty on every captured instance is
+  off the list. No `prune`, no drop-if-empty.
+- **Markup stays in `raw`.** HTML and RTF fields are not in `standard`; their `<field>Text`
+  derivative is (`processors/htmlText.ts`).
+- **Never invent a shape.** Only field names a captured real response has shown are projected;
+  uncaptured elements pass through whole. `docs/processor-layer-todo.md` lists which.
+- **A missing verification token throws** (`MissingVerificationTokenError`). It used to return an
+  empty result, which read as "this patient has no allergies".
+- **The model-facing clients default to `concise`** (`MODEL_FACING_OUTPUT_MODE`); the library and
+  the CLI default to `json`. One generic markdown renderer serves both markdown modes so a field
+  cannot be on the page and missing from the JSON.
+
+`dev-scripts/generate-processor-examples.ts` regenerates `docs/processor-layer-examples.md`, every
+read capability in all four modes against fake-mychart.
 
 ## The one outbound path (`scrapers/http.ts`)
 

@@ -1,6 +1,8 @@
 // All fake data for Homer Jay Simpson
 // Shaped to exactly match the JSON structures MyChart scrapers expect
 
+import { epicMessageBody } from '../lib/messageBody';
+
 // ─── Profile ─────────────────────────────────────────────────────────
 export const profile = {
   name: 'Homer Jay Simpson',
@@ -22,6 +24,8 @@ export const medications = {
           {
             name: 'Duff Beer Extract 500mg',
             medicationKey: 'FAKE-MED-KEY-001',
+            // The captured skeleton's id; medicationKey above is the fake's own guess (docs/processor-layer-todo.md §2).
+            id: 'FAKE-MED-KEY-001',
             patientFriendlyName: { text: 'Duff Beer Extract' },
             sig: 'Take 1 tablet by mouth as needed for relaxation',
             dateToDisplay: '01/15/2026',
@@ -43,6 +47,8 @@ export const medications = {
           {
             name: 'Donut Supplement 100mg',
             medicationKey: 'FAKE-MED-KEY-002',
+            // The captured skeleton's id; medicationKey above is the fake's own guess (docs/processor-layer-todo.md §2).
+            id: 'FAKE-MED-KEY-002',
             patientFriendlyName: { text: 'Donut Supplement' },
             sig: 'Take 1 tablet by mouth daily with breakfast',
             dateToDisplay: '01/15/2026',
@@ -64,6 +70,8 @@ export const medications = {
           {
             name: 'Lisinopril 10mg',
             medicationKey: 'FAKE-MED-KEY-003',
+            // The captured skeleton's id; medicationKey above is the fake's own guess (docs/processor-layer-todo.md §2).
+            id: 'FAKE-MED-KEY-003',
             patientFriendlyName: { text: 'Lisinopril' },
             sig: 'Take 1 tablet by mouth daily for blood pressure',
             dateToDisplay: '06/01/2025',
@@ -85,6 +93,8 @@ export const medications = {
           {
             name: 'Atorvastatin 20mg',
             medicationKey: 'FAKE-MED-KEY-004',
+            // The captured skeleton's id; medicationKey above is the fake's own guess (docs/processor-layer-todo.md §2).
+            id: 'FAKE-MED-KEY-004',
             patientFriendlyName: { text: 'Atorvastatin' },
             sig: 'Take 1 tablet by mouth at bedtime for cholesterol',
             dateToDisplay: '06/01/2025',
@@ -1268,6 +1278,11 @@ export type FakeConversationMessage = {
   wmgId: string;
   author: { displayName: string; empKey?: string; wprKey?: string };
   deliveryInstantISO: string;
+  /**
+   * Written here as the plain text the sender typed; `conversations` below
+   * serves every one of them through `epicMessageBody`, because real MyChart
+   * has no bare-string body. Newlines become separate Epic paragraphs.
+   */
   body: string;
 };
 
@@ -1281,11 +1296,19 @@ export type FakeConversationThread = {
   messages: FakeConversationMessage[];
 };
 
-export const conversations: {
+type FakeConversations = {
   conversations: FakeConversationThread[];
   users: Record<string, { name: string }>;
   viewers: Record<string, { name: string; isSelf: boolean }>;
-} = {
+};
+
+/**
+ * Bodies below are plain text; `conversations` wraps every one of them in
+ * Epic's formatter markup on the way out. Wrapping here, in one pass, rather
+ * than at each of the thirteen call sites, is what stops a fourteenth message
+ * from quietly shipping as a bare string.
+ */
+const SEEDED_CONVERSATIONS: FakeConversations = {
   conversations: [
     {
       hthId: 'CONV-001',
@@ -1303,7 +1326,10 @@ export const conversations: {
           wmgId: 'MSG-001',
           author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-10T14:30:00Z',
-          body: 'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.',
+          // Two paragraphs with a blank line between them: Epic renders that
+          // blank as an `&nbsp;`-only paragraph, and the processor has to give
+          // it back as a blank line rather than a stray space.
+          body: 'Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.\n\nYour cholesterol levels are concerning.',
         },
         {
           wmgId: 'MSG-002',
@@ -1330,7 +1356,9 @@ export const conversations: {
           wmgId: 'MSG-004',
           author: { empKey: 'PROV-NICK', displayName: '' },
           deliveryInstantISO: '2025-12-15T10:00:00Z',
-          body: "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
+          // The ampersand exercises the entity round-trip: Epic escapes it on
+          // the way out and the processor has to put it back.
+          body: "Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.",
         },
         {
           wmgId: 'MSG-005',
@@ -1412,6 +1440,12 @@ export const conversations: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },
   },
 };
+
+for (const thread of SEEDED_CONVERSATIONS.conversations) {
+  for (const message of thread.messages) message.body = epicMessageBody(message.body);
+}
+
+export const conversations: FakeConversations = SEEDED_CONVERSATIONS;
 
 // ─── Billing ────────────────────────────────────────────────────────
 export const billingSummary = [

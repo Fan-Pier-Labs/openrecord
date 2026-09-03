@@ -25,7 +25,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { myChartUserPassLogin } from '../../auth/login'
-import { getMyChartProfile } from '../../chart/profile'
+import { getMyChartProfile } from '../../chart/profile/profile'
 import { platformFetch } from '../../../http'
 import { setMountMode, setDiscoveryMode, resetFakeMyChart, type MountMode, type DiscoveryMode } from './mountMode'
 

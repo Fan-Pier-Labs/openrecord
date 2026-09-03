@@ -1,6 +1,6 @@
 {
   "name": "mychart-cli",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "description": "Programmatic access to Epic MyChart patient portals: login, scrape every section of a patient's chart, and act on it.",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Fan Pier Labs",
@@ -60,7 +60,9 @@
     "cheerio": "^1.2.0",
     "date-fns": "^4.4.0",
     "fzstd": "^0.1.1",
+    "html-to-text": "^10.0.1",
     "jpeg-js": "^0.4.4",
+    "markdown-table": "^3.0.4",
     "mkdirp": "^3.0.1",
     "sharp": "^0.35.3",
     "totp-generator": "^2.0.1",
@@ -68,6 +70,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
+    "@types/html-to-text": "^9.0.4",
     "@types/node": "^26.2.0",
     "publint": "^0.3.14",
     "tsup": "^8.5.1",

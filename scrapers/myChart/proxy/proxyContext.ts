@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from '../core/makeAuthenticatedRequest';
-import { getMyChartProfile } from '../chart/profile';
+import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
 
 export type ProxyTarget = {

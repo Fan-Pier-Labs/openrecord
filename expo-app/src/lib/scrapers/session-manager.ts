@@ -16,7 +16,7 @@ import {
 } from "../../../../scrapers/myChart/auth/login";
 
 // Every scraper this app can run comes from the shared capability registry —
-// see `shared/capabilities.ts`. It is a static import graph, which is what
+// see `shared/capabilities/`. It is a static import graph, which is what
 // Metro needs (no dynamic import with template literals), and it is the reason
 // this client can no longer fall behind the CLI or the desktop extension.
 import {
@@ -441,7 +441,7 @@ async function requireSession(hostname?: string): Promise<SessionEntry> {
  *
  * The dispatch used to be a hand-written switch, and it had drifted eight
  * tools behind the other clients. Everything now routes through the shared
- * registry (`shared/capabilities.ts`), so the app supports exactly what the
+ * registry (`shared/capabilities/`), so the app supports exactly what the
  * CLI and the desktop extension support.
  *
  * The one thing that stays here is imaging: the registry hands back raw CLO

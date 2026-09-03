@@ -4,7 +4,7 @@
  *
  * It reads each client's *real* surface — the tools the MCP server registers,
  * the tool catalog the mobile agent puts in its prompt, the CLI's dispatch, the
- * npm library's exports — and compares each against `shared/capabilities.ts`.
+ * npm library's exports — and compares each against `shared/capabilities/`.
  * It does not compare the clients against a list written here; a list written
  * here would be a fifth thing to forget.
  *
@@ -22,6 +22,10 @@ import {
   AGENT_CAPABILITIES,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
+  acceptsModeParam,
+  readOutputMode,
 } from '../capabilities';
 
 const ALL = [...CAPABILITY_IDS].sort();
@@ -246,7 +250,7 @@ describe('capability dispatch', () => {
   // This used to be a regex over three client source files. It is now the type
   // system's job: `run` is absent from the exported `Capability`, so reaching
   // it is a compile error in every client, whatever the spelling. See
-  // `CapabilityImpl` in shared/capabilities.ts and the `@ts-expect-error`
+  // `CapabilityImpl` in shared/capabilities/types.ts and the `@ts-expect-error`
   // assertion in capabilities.unit.test.ts.
   //
   // What remains here is the positive half — that each client actually calls
@@ -556,5 +560,48 @@ describe('the browser demo', () => {
         'book_appointment',
       ].sort(),
     );
+  });
+});
+
+// ── 7. The output mode ───────────────────────────────────────────────────────
+
+describe('the output mode', () => {
+  it('is offered by the extension on exactly the capabilities that have a processor', async () => {
+    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const server = recordingMcpServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    registerAllTools(server as any);
+    for (const capability of CAPABILITIES) {
+      const shape = server.tools.find((t) => t.name === capability.id)!.config.inputSchema as Record<string, unknown>;
+      expect(Object.keys(shape).includes(MODE_PARAM.name)).toBe(acceptsModeParam(capability));
+    }
+  });
+
+  it('is offered by the mobile app on exactly the capabilities that have a processor', async () => {
+    const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    for (const capability of AGENT_CAPABILITIES) {
+      const tool = TOOLS.find((t) => t.name === capability.id)!;
+      expect(Object.keys(tool.args).includes(MODE_PARAM.name)).toBe(acceptsModeParam(capability));
+    }
+  });
+
+  it('defaults to concise in the model-facing clients and says so', async () => {
+    expect(MODEL_FACING_OUTPUT_MODE).toBe('concise');
+    const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
+    const processed = AGENT_CAPABILITIES.find((c) => acceptsModeParam(c))!;
+    expect(TOOLS.find((t) => t.name === processed.id)!.args[MODE_PARAM.name]).toContain('Default: concise');
+  });
+
+  it('is accepted by the CLI as --mode and as --arg mode=', async () => {
+    const source = await Bun.file(new URL('../../npm-package/cli/cli.ts', import.meta.url)).text();
+    expect(source).toContain("'--mode'");
+    const actions = await Bun.file(new URL('../../npm-package/cli/capabilityActions.ts', import.meta.url)).text();
+    expect(actions).toContain('acceptsModeParam(capability)');
+  });
+
+  it('is rejected by executeCapability when it is not a known mode', () => {
+    expect(() => readOutputMode({ mode: 'summary' })).toThrow(/Unknown mode "summary"/);
+    expect(readOutputMode({})).toBe('json');
+    expect(readOutputMode({ mode: 'raw' })).toBe('raw');
   });
 });

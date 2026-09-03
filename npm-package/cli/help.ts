@@ -74,6 +74,7 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '',
     '  Other:',
     '    --output <dir>             Where downloaded images go (default ./imaging-output)',
+    '    --mode <mode>              Output mode for reads: raw | standard | concise | json (default json)',
     '    --local                    Talk HTTP instead of HTTPS (for a local fake-mychart)',
     '    --save-clo                 Keep the raw CLO bytes alongside downloaded images',
     '    --show-all                 Include the less-frequently-used capabilities in the listing',

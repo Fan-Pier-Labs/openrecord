@@ -12,9 +12,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
-import { getMyChartProfile } from '../../chart/profile'
-import { getMedications } from '../../chart/medications'
-import { getCareTeam } from '../../chart/careTeam'
+import { getMyChartProfile } from '../../chart/profile/profile'
+import { getMedications } from '../../chart/medications/medications'
+import { getCareTeam } from '../../chart/careTeam/careTeam'
 import {
   assertProxyReadContext,
   runListProxyTargets,
@@ -90,7 +90,7 @@ describe('proxy tools against fake-mychart', () => {
     // Care Team rides on its own legacy endpoints, so it gets the same check:
     // the child's providers, never the account holder's.
     const careTeam = await getCareTeam(session)
-    expect(careTeam.members.map(m => m.specialty)).toContain('Pediatric Pulmonology')
+    expect(careTeam.ProvidersList.map(m => m.Specialty)).toContain('Pediatric Pulmonology')
     expect(JSON.stringify(careTeam)).not.toContain('Nick Riviera')   // Homer's surgeon
     expect(JSON.stringify(careTeam)).not.toContain('Marvin Monroe')  // Homer's outside provider
   })
