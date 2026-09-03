@@ -1,8 +1,8 @@
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
-import type { BillingAccount } from "../../../../scrapers/myChart/chart/bills/types";
-import type { MedicationsResult, Medication } from "../../../../scrapers/myChart/chart/medications";
-import type { LabTestResultWithHistory } from "../../../../scrapers/myChart/chart/labs/labtestresulttype";
+import type { BillingStandard, BillingAccountStandard } from "../../../../scrapers/myChart/chart/bills/bills";
+import type { MedicationsStandard, PrescriptionStandard } from "../../../../scrapers/myChart/chart/medications/medications";
+import type { LabResultsStandard, LabOrderStandard, LabComponentStandard } from "../../../../scrapers/myChart/chart/labs/labResults";
 
 let inFlight: Promise<{ added: number; skipped: number }> | null = null;
 
@@ -11,20 +11,20 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
   inFlight = (async () => {
     const inputs: AlertInput[] = [];
     try {
-      const bills = (await executeScraperTool("get_billing", hostname ? { instance: hostname } : {})) as BillingAccount[];
-      inputs.push(...buildBillAlerts(bills, hostname));
+      const bills = (await executeScraperTool("get_billing", { ...(hostname ? { instance: hostname } : {}), mode: "json" })) as BillingStandard;
+      inputs.push(...buildBillAlerts(bills.accounts, hostname));
     } catch (err) {
       console.warn("[alerts] get_billing failed:", (err as Error).message);
     }
     try {
-      const meds = (await executeScraperTool("get_medications", hostname ? { instance: hostname } : {})) as MedicationsResult;
-      inputs.push(...buildRefillAlerts(meds.medications, hostname));
+      const meds = (await executeScraperTool("get_medications", { ...(hostname ? { instance: hostname } : {}), mode: "json" })) as MedicationsStandard;
+      inputs.push(...buildRefillAlerts(meds.prescriptions, hostname));
     } catch (err) {
       console.warn("[alerts] get_medications failed:", (err as Error).message);
     }
     try {
-      const labs = (await executeScraperTool("get_lab_results", hostname ? { instance: hostname } : {})) as LabTestResultWithHistory[];
-      inputs.push(...buildLabAlerts(labs));
+      const labs = (await executeScraperTool("get_lab_results", { ...(hostname ? { instance: hostname } : {}), mode: "json" })) as LabResultsStandard;
+      inputs.push(...buildLabAlerts(labs.orders));
     } catch (err) {
       console.warn("[alerts] get_lab_results failed:", (err as Error).message);
     }
@@ -37,16 +37,11 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
   }
 }
 
-function buildBillAlerts(accounts: BillingAccount[], hostname?: string): AlertInput[] {
+function buildBillAlerts(accounts: BillingAccountStandard[], hostname?: string): AlertInput[] {
   const out: AlertInput[] = [];
   for (const acct of accounts) {
-    const data = acct.billingDetails?.Data;
-    const visits = [
-      ...(data?.UnifiedVisitList ?? []),
-      ...(data?.InformationalVisitList ?? []),
-    ];
-    const payUrl = data?.URLMakePayment;
-    for (const v of visits) {
+    const payUrl = acct.paymentUrl ?? acct.URLMakePayment;
+    for (const v of acct.visits) {
       if (!v.SelfAmountDueRaw || v.SelfAmountDueRaw <= 0) continue;
       const amount = v.SelfAmountDue ?? `$${v.SelfAmountDueRaw.toFixed(2)}`;
       const service = v.Description?.trim() || "Medical visit";
@@ -70,21 +65,22 @@ function buildBillAlerts(accounts: BillingAccount[], hostname?: string): AlertIn
         action_payload: fullPayUrl
           ? { url: fullPayUrl }
           : { prompt: `Help me pay my bill for ${service} (${amount}).` },
-        dedup_key: `bill:${acct.guarantorNumber}:${v.HospitalAccountId ?? v.Index}`,
+        dedup_key: `bill:${acct.guarantorNumber}:${v.HospitalAccountId ?? `${v.StartDateDisplay ?? ""}:${service}`}`,
       });
     }
   }
   return out;
 }
 
-function buildRefillAlerts(meds: Medication[], hostname?: string): AlertInput[] {
+function buildRefillAlerts(meds: PrescriptionStandard[], hostname?: string): AlertInput[] {
   const out: AlertInput[] = [];
   for (const m of meds) {
-    if (!m.isRefillable) continue;
-    const drug = m.commonName?.trim() || m.name.trim();
+    if (!m.refillDetails?.isRefillable) continue;
+    const name = m.name ?? "";
+    const drug = m.patientFriendlyName.text?.trim() || name.trim();
     const dose = m.sig?.trim();
     const lastFilled = m.dateToDisplay?.trim();
-    const daySupply = m.refillDetails?.daySupply?.trim();
+    const daySupply = m.refillDetails.daySupply?.trim();
     const parts: string[] = [];
     if (dose) parts.push(dose);
     if (daySupply) parts.push(`${daySupply}-day supply`);
@@ -95,63 +91,77 @@ function buildRefillAlerts(meds: Medication[], hostname?: string): AlertInput[] 
       title: drug,
       description,
       metadata: {
-        medication_name: m.name,
-        common_name: m.commonName,
+        medication_name: name,
+        common_name: m.patientFriendlyName.text,
         sig: m.sig,
         last_filled: lastFilled ?? null,
         day_supply: daySupply ?? null,
-        prescriber: m.authorizingProviderName ?? m.orderingProviderName ?? null,
+        prescriber: m.authorizingProvider.name ?? m.orderingProvider.name ?? null,
       },
       cta_label: "Request refill",
       uses_ai: false,
       action_kind: "request_refill",
-      action_payload: { medication_name: m.name, instance: hostname },
-      dedup_key: `refill:${m.medicationKey ?? m.name}`,
+      action_payload: { medication_name: name, instance: hostname },
+      dedup_key: `refill:${m.id ?? name}`,
     });
   }
   return out;
 }
 
-function buildLabAlerts(tests: LabTestResultWithHistory[]): AlertInput[] {
+/**
+ * Whether a component sits outside its own numeric reference range.
+ *
+ * MyChart gives no per-value verdict — its abnormal flag reads "Unknown" on
+ * every real instance (#375) and the processor leaves it in raw — so the
+ * app draws this conclusion itself, for its own alert list, from the range
+ * MyChart printed. A component with no numeric value or no bounds is never
+ * flagged.
+ */
+export function isOutOfRange(component: LabComponentStandard): boolean {
+  const { numericValue, referenceRange } = component.componentResultInfo;
+  if (numericValue === null) return false;
+  const { low, high, lowerBoundExclusive, upperBoundExclusive } = referenceRange;
+  if (low !== null && (lowerBoundExclusive ? numericValue <= low : numericValue < low)) return true;
+  if (high !== null && (upperBoundExclusive ? numericValue >= high : numericValue > high)) return true;
+  return false;
+}
+
+function buildLabAlerts(orders: LabOrderStandard[]): AlertInput[] {
   const out: AlertInput[] = [];
-  for (const test of tests) {
-    for (const r of test.results ?? []) {
-      if (!r.isAbnormal) continue;
-      const flagged = (r.resultComponents ?? []).filter((c) => {
-        const v = c.componentResultInfo?.abnormalFlagCategoryValue;
-        return v !== undefined && v !== null && v !== "" && v !== 0;
-      });
+  for (const order of orders) {
+    for (const r of order.results) {
+      const flagged = r.resultComponents.filter(isOutOfRange);
+      if (flagged.length === 0) continue;
       const summary = flagged.slice(0, 2).map((c) => {
-        const name = c.componentInfo?.commonName || c.componentInfo?.name || "Component";
-        const value = c.componentResultInfo?.value ?? "";
-        const units = c.componentInfo?.units ?? "";
+        const name = c.componentInfo.commonName || c.componentInfo.name || "Component";
+        const value = c.componentResultInfo.valueText ?? "";
+        const units = c.componentInfo.units ?? "";
         return `${name}: ${value}${units ? ` ${units}` : ""}`;
       });
-      const date = r.orderMetadata?.resultTimestampDisplay?.trim();
-      const description = [summary.join(", "), date ? `(${date})` : null]
-        .filter(Boolean)
-        .join(" ") || "Abnormal lab result";
+      const date = r.orderMetadata.resultTimestampDisplay?.trim();
+      const testName = r.name || order.orderName || "Lab result";
+      const description = [summary.join(", "), date ? `(${date})` : null].filter(Boolean).join(" ") || "Out-of-range lab result";
       out.push({
         type: "lab",
-        title: `Abnormal: ${r.name || test.orderName}`,
+        title: `Out of range: ${testName}`,
         description,
         metadata: {
-          test_name: r.name || test.orderName,
+          test_name: testName,
           date: date ?? null,
-          provider: r.orderMetadata?.orderProviderName ?? null,
+          provider: r.orderMetadata.orderProviderName ?? null,
           flagged: flagged.map((c) => ({
-            name: c.componentInfo?.commonName || c.componentInfo?.name,
-            value: c.componentResultInfo?.value,
-            range: c.componentResultInfo?.referenceRange?.formattedReferenceRange,
+            name: c.componentInfo.commonName || c.componentInfo.name,
+            value: c.componentResultInfo.valueText,
+            range: c.componentResultInfo.referenceRange.formattedReferenceRange,
           })),
         },
         cta_label: "Discuss",
         uses_ai: true,
         action_kind: "ai_chat",
         action_payload: {
-          prompt: `My recent ${r.name || test.orderName} result came back abnormal${date ? ` on ${date}` : ""}: ${summary.join(", ")}. What does this mean and should I be concerned?`,
+          prompt: `My recent ${testName} result came back outside its reference range${date ? ` on ${date}` : ""}: ${summary.join(", ")}. What does this mean and should I be concerned?`,
         },
-        dedup_key: `lab:${r.key || r.name}`,
+        dedup_key: `lab:${r.key || testName}`,
       });
     }
   }

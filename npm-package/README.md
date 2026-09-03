@@ -314,6 +314,59 @@ The CLI stores credentials under `./.passkey-credentials/` and
 `./.totp-secrets/` (both relative to the cwd). Override either with
 `MYCHART_PASSKEY_DIR=/abs/path` or `MYCHART_TOTP_DIR=/abs/path`.
 
+## Output modes
+
+Every read capability renders its payload in one of four modes. The typed
+methods on `MyChartClient` (`getMedications()`, `pastVisits()`, …) return the
+**standard object**: every useful field, under MyChart's own field names, with
+derived fields (`bodyText`, `instantISO`, `organizationName`, …) beside them.
+`runCapability(id, { mode })` picks any of the four:
+
+| Mode | What you get |
+| --- | --- |
+| `json` | The standard object as JSON. **The default** for `runCapability` and for `mychart-cli` |
+| `standard` | The standard object as markdown |
+| `concise` | The interesting subset as markdown — what the desktop extension and the app show a model |
+| `raw` | Exactly what MyChart sent, untouched: the response body, or an envelope of every request the scraper made |
+
+```ts
+const md = await client.runCapability('get_lab_results', { mode: 'concise' });
+const everything = await client.runCapability('get_lab_results', { mode: 'raw' });
+```
+
+The `fetch…Raw` functions (`fetchMedicationsRaw(request)`, …) and the
+processors (`medicationsProcessor.standard(raw)`, `.concise(standard)`) are
+exported too, so a library consumer can keep the envelope and project it later.
+Field decisions per capability: `docs/processor-layer-proposal.md` in the
+repository; example output in every mode: `docs/processor-layer-examples.md`.
+
+## Changelog
+
+### 1.0.0 — the processor layer (breaking)
+
+Every read function returns the **standard object** now: MyChart's own field names and casing,
+derived fields under new names, markup only in `raw`. The projected types the 0.x line exported
+are gone. The renames a 0.x consumer will hit:
+
+| 0.x | 1.0 |
+| --- | --- |
+| `Medication`, `MedicationsResult` (`medications[]`, `commonName`, `isRefillable`, `medicationKey`) | `PrescriptionStandard`, `MedicationsStandard` (`prescriptions[]`, `patientFriendlyName.text`, `refillDetails.isRefillable`, `id`) |
+| `Flowsheet`, `VitalReading` (`date`, `units`) | `FlowsheetStandard`, `VitalReadingStandard` (`instantTakenIso`, row `unitsDisplayName`) |
+| `MedicalHistoryResult` (`familyHistory`) | `MedicalHistoryStandard` (`familyHistoryAndStatus`, plus `socialHistory`) |
+| `ConversationThread`, `ThreadMessage` (`conversationId`, `messageId`, `sentDate`, `messageBody`) | `ConversationThreadStandard` (`hthId`, `wmgId`, `deliveryInstantISO`, `bodyText`) |
+| `GetVisitNotesResult`, `VisitNote` (`lrpId`, `notes[]`, `hnoId`, `hnoDat`, `providerName`) | `VisitNotesStandard` (`lrpID`, `noteList[]`, `hnoID`, `hnoDAT`, `provider.name`) |
+| `NoteContent` (`contentHtml`) | `NoteContentStandard` (`reportContentText`) |
+| `LetterDetailsResponse` (`bodyHTML`) | `LetterDetailsStandard` (`bodyHTMLText`) |
+| `CareTeam`, `CareTeamMember` (`members[]`, `name`, `relation`) | `CareTeamStandard` (`ProvidersList[]`, `Name`, `Relation`) |
+| `LabTestResultWithHistory[]` | `LabResultsStandard` (`orders[]`), abnormal flag gone (raw only) |
+| `ImagingResult[]` (`fdiContext`, `samlUrl`) | `ImagingResultsStandard` (`orders[]`, `image_id`) |
+| `BillingAccount[]` | `BillingStandard` (`accounts[]`, merged `visits[]`) |
+| `upcomingVisits()` / `pastVisits()` containers (`List`, `InProgressVisits`, …) | `UpcomingVisitsStandard` / `PastVisitsStandard` (`visits[]`, `status`, `instantISO`) |
+| every other `get…()` array | `{ <listName>: [...] }` with MyChart's list name |
+
+A missing verification token throws `MissingVerificationTokenError` instead of returning an empty
+result. `runCapability(id, { mode })` selects `raw`, `standard`, `concise` or `json`.
+
 ## Persisting sessions
 
 Cookie-based sessions are short-lived (MyChart times them out after

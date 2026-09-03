@@ -9,7 +9,13 @@
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
 import { WRITE_TOOL_META } from "./tool-catalog";
-import { ACCOUNT_PARAM_NAMES } from "../../../../shared/capabilities";
+import {
+  ACCOUNT_PARAM_NAMES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
+  acceptsModeParam,
+  getCapability,
+} from "../../../../shared/capabilities";
 
 function formatArgs(input: Record<string, unknown>): string {
   // Which account it is going to is context, not payload — the patient is
@@ -58,8 +64,17 @@ export async function executeLocalTool(
         });
       }
     }
-    const result = await sessionExecute(toolName, input);
-    return JSON.stringify(result, null, 2);
+    // This executor feeds a model, so a read the model did not ask a mode for
+    // gets the concise projection. The alerts generator and anything else
+    // programmatic calls the session manager directly and gets JSON.
+    const capability = getCapability(toolName);
+    const withMode =
+      capability && acceptsModeParam(capability) && !input[MODE_PARAM.name]
+        ? { ...input, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
+        : input;
+    const result = await sessionExecute(toolName, withMode);
+    // The markdown modes are already text; the data modes are serialized.
+    return typeof result === "string" ? result : JSON.stringify(result, null, 2);
   } catch (err) {
     return JSON.stringify({
       error: `Failed to execute ${toolName}: ${(err as Error).message}`,

@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
 import { myChartUserPassLogin } from '../../../../scrapers/myChart/auth/login';
 import { getImagingResults } from '../../../../scrapers/myChart/chart/labs/labResults';
+import { decodeImageId } from '../../../../shared/capabilities';
 import type { MyChartRequest } from '../../../../scrapers/myChart/core/myChartRequest';
 import { downloadStudyJpegs } from '../download-study';
 
@@ -35,13 +36,14 @@ beforeAll(async () => {
 
 describe('downloadStudyJpegs (download_imaging_study tool)', () => {
   it('downloads the X-ray study and returns base64 JPEGs', async () => {
-    const imaging = await getImagingResults(session);
-    const xray = imaging.find((r) => r.fdiContext && r.orderName?.includes('XR'));
+    const { orders } = await getImagingResults(session);
+    const xray = orders.find((r) => r.image_id && r.orderName?.includes('XR'));
     expect(xray).toBeDefined();
-    expect(xray!.fdiContext!.fdi).toBeTruthy();
+    const fdiContext = decodeImageId(xray!.image_id!);
+    expect(fdiContext.fdi).toBeTruthy();
 
-    const result = await downloadStudyJpegs(session, xray!.fdiContext!, {
-      studyName: xray!.orderName,
+    const result = await downloadStudyJpegs(session, fdiContext, {
+      ...(xray!.orderName ? { studyName: xray!.orderName } : {}),
     });
 
     // The whole point of the bug: this must NOT be an empty array.
@@ -64,12 +66,12 @@ describe('downloadStudyJpegs (download_imaging_study tool)', () => {
   }, 120_000);
 
   it('downloads every real slice of the CT study, skipping SeriesSelector junk', async () => {
-    const imaging = await getImagingResults(session);
-    const ct = imaging.find((r) => r.fdiContext && r.orderName?.includes('CT'));
+    const { orders } = await getImagingResults(session);
+    const ct = orders.find((r) => r.image_id && r.orderName?.includes('CT'));
     expect(ct).toBeDefined();
 
-    const result = await downloadStudyJpegs(session, ct!.fdiContext!, {
-      studyName: ct!.orderName,
+    const result = await downloadStudyJpegs(session, decodeImageId(ct!.image_id!), {
+      ...(ct!.orderName ? { studyName: ct!.orderName } : {}),
     });
 
     // The CT study is multi-slice; everything with pixel data comes back.

@@ -24,6 +24,8 @@ import {
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
   executeCapability,
+  MODE_PARAM,
+  acceptsModeParam,
   getCapability,
   type Capability,
   type CapabilityContext,
@@ -305,11 +307,18 @@ export async function runCapabilityAction(
   args: Record<string, string>,
   outputDir?: string,
   patient?: string,
+  mode?: string,
 ): Promise<boolean> {
   console.log(`\n${'='.repeat(60)}\n  ${capability.title}: ${session.hostname}\n${'='.repeat(60)}`);
   try {
     const ctx = await capabilityContext(session.hostname, password);
-    const coerced = coerceCapabilityArgs(capability, args);
+    // `mode` is declared by the registry, not by each capability, so it is
+    // taken out before coercion (which rejects undeclared names) and folded in
+    // after. `--arg mode=` and `--mode` are the same thing; the former wins.
+    const { [MODE_PARAM.name]: argMode, ...ownArgs } = args;
+    const coerced = coerceCapabilityArgs(capability, ownArgs);
+    const requestedMode = argMode ?? mode;
+    if (requestedMode !== undefined && acceptsModeParam(capability)) coerced[MODE_PARAM.name] = requestedMode;
     // `patient` is declared by the registry, not by each capability, so it is
     // folded in AFTER coercion — coerceCapabilityArgs rejects any name the
     // capability did not declare. An explicit argument wins: on
@@ -337,7 +346,8 @@ export async function runCapabilityAction(
       return files.length > 0 || payload.errors.length === 0;
     }
 
-    console.log(JSON.stringify(result, jsonSafeReplacer, 2));
+    // The markdown modes are text already; the data modes are printed as JSON.
+    console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
   } catch (err) {
     console.log(`  ${(err as Error).message}`);

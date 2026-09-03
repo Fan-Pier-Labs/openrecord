@@ -20,13 +20,19 @@ import { myChartUserPassLogin } from '../../auth/login';
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
 import { wireSilentReauthentication } from '../../auth/silentLogin';
 import { sessionStore } from '../../core/sessionStore';
-import { getAllergies } from '../../chart/allergies';
-import { getMedications } from '../../chart/medications';
-import { getImmunizations } from '../../chart/immunizations';
+import { getAllergies } from '../../chart/allergies/allergies';
+import { getMedications } from '../../chart/medications/medications';
+import { getImmunizations } from '../../chart/immunizations/immunizations';
 import { switchProxyTarget, verifyActiveProxyTarget } from '../../proxy/proxyContext';
 import { setMountMode } from './mountMode';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
+
+/** The allergy element shape is uncaptured; the fake nests it under allergyItem. */
+function allergyName(entry: unknown): string {
+  const e = entry as { allergyItem?: { name?: string }; name?: string };
+  return e.allergyItem?.name ?? e.name ?? '';
+}
 
 async function invalidateAllSessions(): Promise<void> {
   const res = await fetch(`http://${HOST}/api/invalidate-sessions`, { method: 'POST' });
@@ -154,7 +160,7 @@ describe('expired-session handling in the scrapers', () => {
     await invalidateAllSessions();
 
     const result = await getAllergies(session);
-    expect(result.allergies.map((a) => a.name)).toContain('Vegetables');
+    expect(result.dataList.map(allergyName)).toContain('Vegetables');
     expect(hook.calls()).toBe(1);
     sessionStore.unregister(session);
   });
@@ -169,9 +175,9 @@ describe('expired-session handling in the scrapers', () => {
       getMedications(session),
       getImmunizations(session),
     ]);
-    expect(allergies.allergies.length).toBeGreaterThan(0);
-    expect(medications.medications.length).toBeGreaterThan(0);
-    expect(immunizations.length).toBeGreaterThan(0);
+    expect(allergies.dataList.length).toBeGreaterThan(0);
+    expect(medications.prescriptions.length).toBeGreaterThan(0);
+    expect(immunizations.immunizations.length).toBeGreaterThan(0);
     expect(hook.calls()).toBe(1);
     sessionStore.unregister(session);
   });
@@ -187,7 +193,7 @@ describe('expired-session handling in the scrapers', () => {
     await invalidateAllSessions();
 
     const result = await getAllergies(session);
-    expect(result.allergies.length).toBeGreaterThan(0);
+    expect(result.dataList.length).toBeGreaterThan(0);
     expect(renewed).toBe(1);
     sessionStore.unregister(session);
   });
@@ -211,7 +217,7 @@ describe('expired-session handling in the scrapers', () => {
     await invalidateAllSessions();
 
     const result = await getMedications(session);
-    expect(Array.isArray(result.medications)).toBe(true);
+    expect(Array.isArray(result.prescriptions)).toBe(true);
     sessionStore.unregister(session);
   });
 
@@ -229,7 +235,7 @@ describe('expired-session handling in the scrapers', () => {
     // Homer's 'Vegetables' allergy — the exact wrong-patient failure the
     // restore exists to prevent.
     const result = await getAllergies(session);
-    expect(result.allergies.map((a) => a.name)).toEqual(['Penicillin']);
+    expect(result.dataList.map(allergyName)).toEqual(['Penicillin']);
     expect(hook.calls()).toBe(1);
 
     const verified = await verifyActiveProxyTarget(session);
@@ -253,7 +259,7 @@ describe('expired-session handling in the scrapers', () => {
 
     // And the renewed session actually works without another renewal.
     const result = await getAllergies(session);
-    expect(result.allergies.length).toBeGreaterThan(0);
+    expect(result.dataList.length).toBeGreaterThan(0);
     expect(hook.calls()).toBe(1);
     sessionStore.unregister(session);
   });
