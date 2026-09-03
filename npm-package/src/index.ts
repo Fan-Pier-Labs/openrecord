@@ -304,6 +304,31 @@ export {
   type NoteContent,
 } from '../../scrapers/myChart/chart/notes';
 
+// ─── Public information, no account ─────────────────────────────────────
+// What a MyChart instance tells anyone about the health system behind it:
+// support lines, the bookable provider directory with clinic addresses, and
+// billing entities. Nothing here needs credentials.
+export {
+  fetchHospitalNetworkProfile,
+  fetchProviderDirectory,
+  fetchBillingEntities,
+  parseOrgProfile,
+  PreloginEndpointError,
+  INSURANCE_GATE_REASON,
+  type NetworkProfileOptions,
+  type ProviderDirectoryOptions,
+  type HospitalNetworkProfile,
+  type OrgProfile,
+  type PhoneNumber,
+  type Provider,
+  type Clinic,
+  type Specialty,
+  type BillingEntity,
+  type PortalFeatures,
+  type ProviderDirectory,
+  type InsuranceAvailability,
+} from '../../scrapers/myChart/prelogin';
+
 // ─── Capability registry ─────────────────────────────────────────────────
 // The single source of truth for what OpenRecord can do with a MyChart
 // account. The CLI, the Claude Desktop extension and the mobile app all derive

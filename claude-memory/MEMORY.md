@@ -101,6 +101,12 @@ pixel before windowing. Wide windows (centre 350/width 2000) still looked plausi
 this hid for so long. `parseWrapper` also dropped negative window centres behind a `> 0` guard —
 report/scout frames commonly use -512 and lung windows sit near -600.
 
+## MyChart Pre-Login Surface (2026-09-03)
+
+See [mychart-prelogin-surface.md](mychart-prelogin-surface.md). Phones, the bookable provider
+directory and billing entities are public on every instance with one schema; fax, mailing address
+and accepted insurance are not published. Implemented in `scrapers/myChart/prelogin/`.
+
 ## Project Patterns
 - Scrapers follow pattern: export async function that takes `MyChartRequest`, returns typed data
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`

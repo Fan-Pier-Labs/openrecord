@@ -76,7 +76,7 @@ describe('Claude Desktop extension', () => {
     const names = server.tools.map((t) => t.name);
     // Credentials live on this machine and setup happens in chat, so these
     // have no counterpart in the shared registry — but they must survive it.
-    for (const meta of ['list_accounts', 'search_mycharts', 'setup_account', 'complete_2fa', 'disconnect_account']) {
+    for (const meta of ['list_accounts', 'search_mycharts', 'get_hospital_info', 'setup_account', 'complete_2fa', 'disconnect_account']) {
       expect(names).toContain(meta);
     }
   });

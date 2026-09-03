@@ -12,7 +12,10 @@ import {
   renderProxySelector, PROXY_SELECTOR_PLACEHOLDER,
   type ProxySelectorModel,
 } from '@/lib/html';
+import { openSchedulingPage, guestEstimatesServiceAreaPage, guestEstimatesLocationPage } from '@/lib/html/prelogin';
 import * as homer from '@/data/homer';
+import * as prelogin from '@/data/prelogin';
+import { specialtySearchTermsFor } from '@/data/prelogin';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
@@ -431,7 +434,29 @@ function withModernResultFields(payload: unknown): unknown {
  * surface they give a token-less `/api/*` POST.
  */
 function requiresAntiforgeryToken(lower: string): boolean {
-  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/');
+  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/') || lower.startsWith('scheduling/anonymous/');
+}
+
+/**
+ * The newer scheduling build (three of five captured instances) attaches
+ * `SpecialtySearchTerms` to every provider and `UseLegacyQuestionnaires` to
+ * the workflow settings; the older build sends neither. Like the test-result
+ * trio in `withModernResultFields`, they ride on the epicVersion knob rather
+ * than living in the shape templates, so both shapes get exercised.
+ */
+function withNewerSchedulingFields(payload: unknown): unknown {
+  if (isLegacyEpicVersion()) return payload;
+  const p = payload as Record<string, unknown>;
+  if (p?.WorkflowSettings && typeof p.WorkflowSettings === 'object') {
+    p.WorkflowSettings = { ...(p.WorkflowSettings as Record<string, unknown>), UseLegacyQuestionnaires: false };
+  }
+  if (Array.isArray(p?.Providers)) {
+    p.Providers = p.Providers.map((provider: { Specialties: { Title: string }[] }) => ({
+      ...provider,
+      SpecialtySearchTerms: specialtySearchTermsFor(provider),
+    }));
+  }
+  return p;
 }
 
 function acceptAny(): boolean {
@@ -503,6 +528,38 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
 
   if (lower === 'authentication/termsconditions') {
     return html(termsConditionsPage());
+  }
+
+  // ── Pre-login activities ────────────────────────────────────────
+  // "Find a Doctor" and the guest price-estimate tool are open to anyone,
+  // served as the login shell with the activity's data inlined. Observed on
+  // five instances: `/GuestEstimates` 302s to its first step, and the
+  // location step is only reached for a service area that groups by location.
+  if (lower === 'openscheduling') {
+    return html(openSchedulingPage());
+  }
+
+  if (lower === 'guestestimates') {
+    return NextResponse.redirect(new URL(`${mountPrefix()}/GuestEstimates/SelectServiceArea`, publicBaseUrl(request)), 302);
+  }
+
+  if (lower === 'guestestimates/selectservicearea') {
+    return html(guestEstimatesServiceAreaPage());
+  }
+
+  if (lower === 'guestestimates/selectlocation') {
+    const url = new URL(request.url);
+    const svcArea = url.searchParams.get('svcArea') ?? '';
+    const area = prelogin.SERVICE_AREAS.find((a) => a.Id === svcArea);
+    // An area that doesn't group by location skips this step on real
+    // instances: the flow bounces on to the disclaimer.
+    if (!area || !area.SelectLocations) {
+      return NextResponse.redirect(
+        new URL(`${mountPrefix()}/GuestEstimates/AcceptDisclaimer?svcArea=${encodeURIComponent(svcArea)}`, publicBaseUrl(request)),
+        302,
+      );
+    }
+    return html(guestEstimatesLocationPage(area.Id, url.searchParams.get('isMultiSA')?.toLowerCase() === 'true'));
   }
 
   // ── Session enforcement ─────────────────────────────────────────
@@ -789,6 +846,28 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
     if (requiresAntiforgeryToken(lower) && !request.headers.get('__requestverificationtoken')) {
       return aspNetFailure(request, 'fivehundred', joined);
     }
+
+    // ── Anonymous scheduling ──────────────────────────────────────
+    // The one POST surface outside the login flow that needs no session:
+    // the "Find a Doctor" workflow's data calls. Form-encoded, the way the
+    // page's own `$$WPUtil.postify` sends them; a payload that isn't what
+    // the controller expects gets the release's error surface, not JSON.
+    if (lower === 'scheduling/anonymous/getschedulingworkflowdata') {
+      const form = new URLSearchParams(await request.text());
+      if (form.get('schedulingParameters[workflow]') !== 'NewProvider') {
+        return aspNetFailure(request, 'fivehundred', joined);
+      }
+      return json(withNewerSchedulingFields(conformToShape(shapes.anonymousSchedulingWorkflowData, prelogin.WORKFLOW_DATA)));
+    }
+    if (lower === 'scheduling/anonymous/getspecialtydata') {
+      const form = new URLSearchParams(await request.text());
+      const specialtyId = form.get('SpecialtyId');
+      if (!specialtyId) {
+        return aspNetFailure(request, 'fivehundred', joined);
+      }
+      return json(withNewerSchedulingFields(conformToShape(shapes.anonymousSpecialtyData, prelogin.specialtyData(specialtyId))));
+    }
+
     const redirect = requireSession(request);
     if (redirect) return redirect;
   }

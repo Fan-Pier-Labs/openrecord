@@ -2,6 +2,7 @@ import { generateCsrfToken } from '@/lib/csrf';
 
 import { inlineScript, inlineStyle } from './assets';
 import { MP, basePageShell } from './layout';
+import { preloginMnemonicsScript } from './prelogin';
 
 // ─── Login Page ──────────────────────────────────────────────────────
 export function loginPage(): string {
@@ -16,6 +17,7 @@ export function loginPage(): string {
 </head>
 <body class="loginPage isPrelogin">
   <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="${token}" /></div>
+  ${preloginMnemonicsScript()}
   <div class="login-box">
     <div class="logo">My<span>Chart</span></div>
     <div class="subtitle">Springfield General Hospital</div>

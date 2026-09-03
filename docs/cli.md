@@ -48,6 +48,16 @@ default scrape the same day. Every category dispatches through
 `executeCapability`, so the full scrape gets the same active-patient guard as
 any single `--action`.
 
+One action needs no account at all, so it runs before credential resolution:
+
+- `--host <hostname> --action hospital-info` — What the MyChart instance publishes about its health
+  system to anyone: support phone lines and email, the "Find a Doctor" provider directory with clinic
+  addresses and phones, billing entities with their customer-service lines, and the portal's feature
+  flags. `--arg specialties=a,b` limits the provider crawl (one specialty is 0.6–2 MB of JSON);
+  `--arg providers=false` / `--arg billing=false` skip a section; `--local` talks HTTP to a fake.
+  It never returns a fax number or an accepted-insurance list — MyChart publishes neither; the payer
+  picker sits behind a reCAPTCHA-protected disclaimer. Implemented in `scrapers/myChart/prelogin/`.
+
 Three actions are hand-written because they prompt interactively for their
 inputs:
 

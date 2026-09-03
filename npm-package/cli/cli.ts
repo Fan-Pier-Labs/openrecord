@@ -30,6 +30,7 @@ import {
   runCapabilityAction,
 } from './capabilityActions';
 import { renderCliHelp } from './help';
+import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -683,6 +684,35 @@ async function main() {
     console.log(renderCapabilityList({ showAll: cliArgs.showAll }));
     closeRL();
     return;
+  }
+
+  // The one action that needs no account: what the instance tells anyone
+  // about the health system behind it. Runs before credential resolution so
+  // no password store is opened and nothing is logged in.
+  if (cliArgs.action === 'hospital-info' || cliArgs.action === 'get_hospital_info') {
+    if (!cliArgs.host) {
+      console.error('  --action hospital-info needs --host <hostname>.');
+      closeRL();
+      process.exit(1);
+    }
+    const args = cliArgs.capabilityArgs ?? {};
+    const specialties = args.specialties?.split(',').map((s) => s.trim()).filter(Boolean);
+    try {
+      const profile = await fetchHospitalNetworkProfile(cliArgs.host, {
+        ...(cliArgs.local ? { protocol: 'http' } : {}),
+        ...(specialties && specialties.length > 0 ? { specialties } : {}),
+        ...(args.max_specialties ? { maxSpecialties: Number(args.max_specialties) } : {}),
+        includeProviders: args.providers !== 'false',
+        includeBilling: args.billing !== 'false',
+      });
+      console.log(JSON.stringify(profile, null, 2));
+      closeRL();
+      process.exit(0);
+    } catch (err) {
+      console.error(`  ${(err as Error).message}`);
+      closeRL();
+      process.exit(1);
+    }
   }
 
   header('MyChart Scraper - Terminal');

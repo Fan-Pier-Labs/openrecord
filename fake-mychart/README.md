@@ -544,6 +544,28 @@ point its first-boot refresh at localhost instead of Epic.
   ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
   branding, and no hospital's trademark belongs in this repo.
 
+## The Pre-Login Surface
+
+What the instance tells anyone with no account, for `scrapers/myChart/prelogin/`. All three are
+served as the login shell with the activity's data inlined, the way real instances do it
+(`src/lib/html/prelogin.ts`, data in `src/data/prelogin.ts`):
+
+- **Mnemonics** — every pre-login page (the login page included) carries the
+  `$$WP.Strings.addMnemonic("@MYCHART@…@", …)` block: `ORGNAME`, `APPTITLE`, `ABSOLUTEURL` (the
+  current mount), `HELPDESKPHONE`, `SCHEDULINGPHONE`, `BILLINGPHONE` (Epic's `(555) 555-5555`
+  placeholder, as most real instances leave it), `HELPEMAIL` (the `DoNotUse` placeholder).
+- **`GET /OpenScheduling`** — the "Find a Doctor" shell with an antiforgery token. Its data calls are
+  the only session-less POSTs outside `Authentication/*`: `Scheduling/Anonymous/GetSchedulingWorkflowData`
+  (form-encoded `schedulingParameters[workflow]=NewProvider`) and `Scheduling/Anonymous/GetSpecialtyData`
+  (`SpecialtyId=…`). Both need the token header, and a wrong payload gets the release's error surface
+  (`aspNetFailure`), exactly as observed live. Conformed to `anonymousSchedulingWorkflowData` /
+  `anonymousSpecialtyData`; the newer build's `SpecialtySearchTerms` and `UseLegacyQuestionnaires`
+  ride on the `November 2025` knob (`withNewerSchedulingFields`).
+- **`GET /GuestEstimates`** → 302 → `SelectServiceArea` (inlines `$$WP.Estimates.OtherSAs`) →
+  `SelectLocation?svcArea=…` (inlines `var model = {…, HasCompletedCaptcha: false}`) for an area that
+  groups by location; an area that doesn't bounces to `AcceptDisclaimer`, which — like the real
+  reCAPTCHA-gated step — is not implemented.
+
 ## What's NOT Implemented
 
 ### Draft Persistence

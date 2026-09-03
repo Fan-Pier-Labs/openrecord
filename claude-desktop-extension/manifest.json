@@ -26,6 +26,7 @@
   "tools": [
     { "name": "list_accounts", "description": "List configured MyChart accounts and their connection status. Returns the hostname for each — pass that as `account` to any other tool." },
     { "name": "search_mycharts", "description": "Search the directory of known MyChart instances by name." },
+    { "name": "get_hospital_info", "description": "Public profile of the health system behind a MyChart hostname — support phone lines, bookable providers, clinic addresses, billing entities. No account needed." },
     { "name": "get_setup_widget", "description": "Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup." },
     { "name": "setup_account", "description": "Attempt to log into MyChart with hostname + username + password. May return need_2fa." },
     { "name": "import_browser_passwords", "description": "Find MyChart logins already saved in this machine's browsers (Chrome, Arc, Brave, Edge, Firefox). Read-only; returns no passwords." },

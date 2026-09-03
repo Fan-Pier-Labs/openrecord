@@ -6,6 +6,13 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "--cwd", "openrecord-splash/demo", "dev", "--port", "5173", "--strictPort"],
       "port": 5173
+    },
+    {
+      "name": "fake-mychart",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "cd fake-mychart && bun run dev"],
+      "port": 4000,
+      "autoPort": true
     }
   ]
 }
