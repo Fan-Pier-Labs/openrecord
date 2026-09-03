@@ -95,7 +95,7 @@ session. An id resolves only on a perfect hostname + username match; there
 is no hostname-only shorthand, so a call can never land on the wrong login.
 
 The data tools are not listed anywhere in this package. They are generated
-from the shared capability registry (`shared/capabilities.ts`), which is also
+from the shared capability registry (`shared/capabilities/`), which is also
 what the CLI and the mobile app derive their surfaces from — so this extension
 cannot quietly support less than they do. `registerAllTools` hand-writes only
 the five account-management tools above, which manage credentials on this

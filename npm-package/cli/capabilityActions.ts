@@ -9,7 +9,7 @@
  * {@link FULL_SCRAPE_CAPABILITIES}, and every named action resolves to a
  * registry id (directly, or through {@link CLI_ACTION_ALIASES}). That is what
  * guarantees the CLI can do everything the Claude Desktop extension and the
- * mobile app can — every entry in `shared/capabilities.ts` is a command here,
+ * mobile app can — every entry in `shared/capabilities/` is a command here,
  * with no per-flag plumbing to remember — and that every read passes through
  * `executeCapability`'s active-patient guard.
  */

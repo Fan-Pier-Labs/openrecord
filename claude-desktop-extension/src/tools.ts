@@ -6,7 +6,7 @@
  *                   disconnect_account. These are MCPB-specific: they manage
  *                   the credentials stored on this machine, which is not
  *                   something the other clients share.
- *   2. Capability tools — one per entry in `shared/capabilities.ts`, which is
+ *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
@@ -621,7 +621,7 @@ export function registerAllTools(server: McpServer): void {
   );
 
   // register_passkey is NOT declared here — it is a capability
-  // (`shared/capabilities.ts`) so the CLI and the mobile app expose the same
+  // (`shared/capabilities/`) so the CLI and the mobile app expose the same
   // thing, and it is registered by the loop at the bottom of this function.
 
   server.registerTool(
@@ -646,7 +646,7 @@ export function registerAllTools(server: McpServer): void {
 
   // ── Capability tools ──────────────────────────────────────────────────────
   //
-  // Derived, not listed. `shared/capabilities.ts` is the single source of
+  // Derived, not listed. `shared/capabilities/` is the single source of
   // truth for what OpenRecord can do with a MyChart account; every entry there
   // becomes a tool here automatically, so this extension can never quietly
   // support less than the CLI or the mobile app does.

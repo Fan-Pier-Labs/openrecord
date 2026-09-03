@@ -8,7 +8,7 @@
  * exists to prevent.
  *
  * The list itself is *derived*, not written here — it comes from the shared
- * capability registry (`shared/capabilities.ts`), which the CLI, the npm
+ * capability registry (`shared/capabilities/`), which the CLI, the npm
  * client and the Claude Desktop extension also derive from. The mobile list
  * used to be hand-maintained and had fallen behind the other clients by eight
  * tools: visit notes, note contents, the After Visit Summary, questionnaires,

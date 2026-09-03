@@ -42,7 +42,7 @@ When no subcommand is given, the CLI defaults to MyChart behavior.
 By default (no `--action` flag), the CLI scrapes every argument-free read
 capability in the registry and prints each result as JSON under its own
 header. The set is `FULL_SCRAPE_CAPABILITIES` in
-`npm-package/cli/capabilityActions.ts` — derived from `shared/capabilities.ts`,
+`npm-package/cli/capabilityActions.ts` — derived from `shared/capabilities/`,
 never hand-listed, so a read capability added to the registry is part of the
 default scrape the same day. Every category dispatches through
 `executeCapability`, so the full scrape gets the same active-patient guard as
@@ -68,7 +68,7 @@ JSON:
 ## Capabilities (`--action <capability-id>`)
 
 Beyond the hand-written actions above, `--action` accepts **any id from the
-shared capability registry** (`shared/capabilities.ts`) and prints the result as
+shared capability registry** (`shared/capabilities/`) and prints the result as
 JSON. That registry is the single source of truth for what OpenRecord can do
 with a MyChart account — the Claude Desktop extension registers one MCP tool per
 entry, the mobile app offers one agent tool per entry, and the CLI gets one
@@ -132,7 +132,7 @@ mychart-cli --help --show-all
 appends them under a **Less frequently used** heading rather than mixing them
 back in, so the default listing keeps its shape.
 
-**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities.ts`
+**This is presentation only.** `lessFrequentlyUsed` in `shared/capabilities/`
 decides what a listing leads with and nothing else: a hidden capability is
 still registered in every client, still runs as `--action <id>`, and still
 takes the same arguments. Moving one in or out of the hidden set is a judgment

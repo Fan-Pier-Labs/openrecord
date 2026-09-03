@@ -47,7 +47,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   names, markup only in `raw`) and the `mode` param picks `raw` / `standard` / `concise` / `json`.
   Never rename a MyChart field or drop one for being empty — see
   [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
-- **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
+- **`shared/capabilities/` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
   everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
