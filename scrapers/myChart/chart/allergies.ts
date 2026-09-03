@@ -1,4 +1,4 @@
-import type { MyChartRequest } from './../core/myChartRequest';
+import type { MyChartRequest } from '../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../core/rawResponse';
 import { allergiesProcessor, type AllergiesStandard } from './allergies.processor';
 

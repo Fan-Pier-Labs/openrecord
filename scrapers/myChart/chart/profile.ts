@@ -71,7 +71,7 @@ export async function getMyChartProfile(
  */
 export async function fetchProfileRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
-  await collector.fetch({ path: '/Home' });
+  await collector.send({ path: '/Home' });
   try {
     await fetchContactInformation(collector);
   } catch (error) {
@@ -82,13 +82,13 @@ export async function fetchProfileRaw(mychartRequest: MyChartRequest): Promise<R
 }
 
 async function fetchContactInformation(collector: RawCollector): Promise<unknown> {
-  const page = await collector.fetch({ path: '/PersonalInformation' });
+  const page = await collector.send({ path: '/PersonalInformation' });
   const token = getRequestVerificationTokenFromBody(page.text);
   if (!token) {
     logger.debug('could not find request verification token');
     return null;
   }
-  const result = await collector.fetch({
+  const result = await collector.send({
     path: '/PersonalInformation/GetContactInformation?noCache=' + Math.random(),
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',

@@ -1,58 +1,19 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { documentsProcessor, type DocumentsStandard } from './documents.processor';
 
-export type Document = {
-  id: string;
-  title: string;
-  documentType: string;
-  date: string;
-  providerName: string;
-  organizationName: string;
-};
+export type { DocumentsStandard } from './documents.processor';
+export { documentsProcessor } from './documents.processor';
 
-type DocumentResponse = {
-  id?: string;
-  title?: string;
-  documentType?: string;
-  date?: string;
-  providerName?: string;
-  organizationName?: string;
-};
+/** `GET /app/documents` for the token, then `POST /api/documents/viewer/LoadOtherDocuments`. */
+export async function fetchDocumentsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/documents');
+  await collector.postJson('/api/documents/viewer/LoadOtherDocuments', token, {});
+  return collector.toRaw();
+}
 
-type LoadDocumentsResponse = {
-  documents?: DocumentResponse[];
-};
-
-export async function getDocuments(mychartRequest: MyChartRequest): Promise<Document[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/documents' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for documents');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/documents/viewer/LoadOtherDocuments',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: LoadDocumentsResponse = await resp.json();
-
-  return (json.documents ?? []).map((doc: DocumentResponse) => ({
-    id: doc.id || '',
-    title: doc.title || '',
-    documentType: doc.documentType || '',
-    date: doc.date || '',
-    providerName: doc.providerName || '',
-    organizationName: doc.organizationName || '',
-  }));
+/** The standard object — what `mode: 'json'` returns. */
+export async function getDocuments(mychartRequest: MyChartRequest): Promise<DocumentsStandard> {
+  return documentsProcessor.standard(await fetchDocumentsRaw(mychartRequest));
 }

@@ -1,4 +1,4 @@
-import type { MyChartRequest } from './../core/myChartRequest';
+import type { MyChartRequest } from '../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../core/rawResponse';
 import { logger } from '../../../shared/logger';
 import { list, rec, text } from '../processors/read';

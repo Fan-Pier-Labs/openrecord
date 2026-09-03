@@ -189,7 +189,7 @@ describe('getMedications', () => {
       hasRefillsRemaining: true,
       owningPharmacy: 'Kwik-E-Mart Pharmacy',
     })
-    expect(renderOutput(medicationsProcessor, raw, 'raw')).toBe(raw)
+    expect(renderOutput(medicationsProcessor, raw, 'raw')).toEqual(raw.requests[1]!.body)
     expect(renderOutput(medicationsProcessor, raw, 'json')).toEqual(medicationsProcessor.standard(raw))
     expect(renderOutput(medicationsProcessor, raw, 'standard')).toContain('Kwik-E-Mart Pharmacy')
     expect(renderOutput(medicationsProcessor, raw, 'concise')).toContain('| RX-1 |')

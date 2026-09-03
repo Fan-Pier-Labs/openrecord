@@ -66,7 +66,13 @@ import {
   noteContentProcessor,
 } from '../scrapers/myChart/chart/notes';
 
-import { listLabResults, getImagingResults } from '../scrapers/myChart/chart/labs/labResults';
+import {
+  fetchLabResultsRaw,
+  fetchImagingResultsRaw,
+  getImagingResults,
+  labResultsProcessor,
+  imagingResultsProcessor,
+} from '../scrapers/myChart/chart/labs/labResults';
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
 import type { FdiContext } from '../scrapers/myChart/eunity/imagingViewer';
 
@@ -89,8 +95,8 @@ import {
 import { sendReply } from '../scrapers/myChart/chart/messages/sendReply';
 import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage';
 
-import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
-import { getInsurance } from '../scrapers/myChart/chart/insurance';
+import { fetchBillingRaw, billingProcessor } from '../scrapers/myChart/chart/bills/bills';
+import { fetchInsuranceRaw, insuranceProcessor } from '../scrapers/myChart/chart/insurance';
 
 import { fetchCareTeamRaw, careTeamProcessor } from '../scrapers/myChart/chart/careTeam';
 import { fetchReferralsRaw, referralsProcessor } from '../scrapers/myChart/chart/referrals';
@@ -246,7 +252,7 @@ interface CapabilityImpl extends Capability {
    * `unknown` rather than a per-entry type parameter: the registry only ever
    * hands the processor to {@link renderOutput}, which is generic over it.
    */
-  processor?: Processor<unknown>;
+  processor?: Processor;
 }
 
 // ── Argument coercion ───────────────────────────────────────────────────────
@@ -632,7 +638,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Results',
     params: [],
-    run: (request) => listLabResults(request),
+    run: (request) => fetchLabResultsRaw(request),
+    processor: labResultsProcessor,
   },
   {
     id: 'get_imaging_results',
@@ -642,17 +649,11 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Results',
     params: [],
-    run: async (request) => {
-      const results = await getImagingResults(request);
-      // Collapse the raw { fdi, ord } pair into one opaque token: a single
-      // copy-paste value is far easier for a model to hand back than two
-      // fields it can mix up.
-      return results.map((r, index) => {
-        if (!r.fdiContext) return { ...r, index };
-        const { fdiContext, ...rest } = r;
-        return { ...rest, index, image_id: encodeImageId(fdiContext) };
-      });
-    },
+    // The processor mints `image_id` (one opaque token for the { fdi, ord }
+    // pair — a single copy-paste value is far easier for a model to hand
+    // back than two fields it can mix up) and `index`, the fallback handle.
+    run: (request) => fetchImagingResultsRaw(request),
+    processor: imagingResultsProcessor,
   },
   {
     id: 'download_imaging_study',
@@ -680,12 +681,12 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
         if (!Number.isInteger(index) || index < 0) {
           throw new Error('imaging_index must be a non-negative integer from get_imaging_results.');
         }
-        const results = await getImagingResults(request);
-        const study = results[index];
-        if (!study) throw new Error(`No imaging result at index ${index} (this account has ${results.length}).`);
-        if (!study.fdiContext) throw new Error(`The imaging result at index ${index} has no viewable images.`);
-        fdiContext = study.fdiContext;
-        studyName = studyName ?? study.orderName;
+        const { orders } = await getImagingResults(request);
+        const study = orders[index];
+        if (!study) throw new Error(`No imaging result at index ${index} (this account has ${orders.length}).`);
+        if (!study.image_id) throw new Error(`The imaging result at index ${index} has no viewable images.`);
+        fdiContext = decodeImageId(study.image_id);
+        studyName = studyName ?? study.orderName ?? undefined;
       } else {
         throw new Error('Pass either image_id (from get_imaging_results) or imaging_index.');
       }
@@ -841,7 +842,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Billing',
     params: [],
-    run: (request) => getBillingHistory(request),
+    run: (request) => fetchBillingRaw(request),
+    processor: billingProcessor,
   },
   {
     id: 'get_insurance',
@@ -850,7 +852,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Billing',
     params: [],
-    run: (request) => getInsurance(request),
+    run: (request) => fetchInsuranceRaw(request),
+    processor: insuranceProcessor,
   },
 
   // ── Care coordination ─────────────────────────────────────────────────────
@@ -1330,7 +1333,7 @@ export function readOutputMode(args: CapabilityArgs): OutputMode {
   const value = args[MODE_PARAM.name];
   if (value === undefined || value === null || value === '') return DEFAULT_OUTPUT_MODE;
   if (isOutputMode(value)) return value;
-  throw new Error(`Unknown mode "${String(value)}". Expected one of: ${OUTPUT_MODES.join(', ')}.`);
+  throw new Error(`Unknown mode ${JSON.stringify(value)}. Expected one of: ${OUTPUT_MODES.join(', ')}.`);
 }
 
 /**

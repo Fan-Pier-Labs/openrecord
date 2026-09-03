@@ -1,6 +1,15 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../emergencyContacts'
+import {
+  getEmergencyContacts,
+  fetchEmergencyContactsRaw,
+  emergencyContactsProcessor,
+  addEmergencyContact,
+  updateEmergencyContact,
+  removeEmergencyContact,
+} from '../emergencyContacts'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../core/util'
+import type { RawResponse } from '../../core/rawResponse'
 
 function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -8,67 +17,110 @@ function mockRequest(responses: Array<{ body: string; status?: number }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r!.body, { status: r!.status ?? 200 })
+    return new Response(r!.body, { status: r!.status ?? 200, headers: { 'content-type': 'application/json' } })
   })
   return req
 }
 
 const TOKEN_HTML = '<input name="__RequestVerificationToken" value="t" />'
 
+/** The captured `contacts` element: the fields the processor reads plus the edit-form state it drops. */
+const JANE = {
+  id: 'EC-1',
+  formattedName: 'Jane Doe',
+  relationToPatient: { name: 'Spouse', labelText: 'Spouse', isInactive: false },
+  isPrimaryContact: true,
+  isLinkedToOtherPatient: false,
+  isHCA: false,
+  isAddressLinkedToPatient: false,
+  contactInformation: {
+    address: { street: '1 Main St', city: 'Springfield', zip: '00000', formattedValues: ['1 Main St', 'Springfield 00000'], allowArbitraryInput: false },
+    emailAddress: 'jane@example.com',
+    phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }, { phoneNumber: '555-9999', type: 'Mobile' }],
+  },
+  savedSuccessfully: false,
+  isPending: false,
+  isVRK: false,
+}
+
+const JANE_STANDARD = {
+  id: 'EC-1',
+  formattedName: 'Jane Doe',
+  relationToPatient: { name: 'Spouse' },
+  contactInformation: {
+    phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }, { phoneNumber: '555-9999', type: 'Mobile' }],
+    emailAddress: 'jane@example.com',
+    address: { formattedValues: ['1 Main St', 'Springfield 00000'] },
+  },
+  isPrimaryContact: true,
+  isEmergencyContact: null,
+}
+
+const BODY = { isViewOnly: false, hideEmergencyContacts: false, contacts: [JANE], relationToPatientChoices: [], requiredFields: [], vrkFields: [], hasEndOfLifePageMnemonic: false }
+
+function envelope(body: unknown): RawResponse {
+  return { requests: [{ path: '/api/personalInformation/GetRelationships', method: 'POST', requestBody: {}, status: 200, contentType: 'application/json', body }] }
+}
+
+describe('fetchEmergencyContactsRaw', () => {
+  it('throws rather than returning no contacts when the page has no token', async () => {
+    await expect(fetchEmergencyContactsRaw(mockRequest([{ body: '<html></html>' }]))).rejects.toBeInstanceOf(MissingVerificationTokenError)
+  })
+
+  it('records the page and the GetRelationships POST', async () => {
+    const raw = await fetchEmergencyContactsRaw(mockRequest([{ body: TOKEN_HTML }, { body: JSON.stringify(BODY) }]))
+    expect(raw.requests.map((r) => `${r.method} ${r.path}`)).toEqual(['GET /app/personal-information', 'POST /api/personalInformation/GetRelationships'])
+    expect(raw.requests[1]!.body).toEqual(BODY)
+  })
+})
+
+describe('emergencyContactsProcessor', () => {
+  it('keeps the handle, name, relationship and contact details under MyChart names', () => {
+    const standard = emergencyContactsProcessor.standard(envelope(BODY))
+    expect(standard).toEqual({ hideEmergencyContacts: false, contacts: [JANE_STANDARD] })
+    expect(standard.contacts[0]!.relationToPatient).not.toHaveProperty('labelText')
+    expect(standard.contacts[0]!.contactInformation.address).not.toHaveProperty('street')
+  })
+
+  it('keeps isEmergencyContact where an instance sends it', () => {
+    const standard = emergencyContactsProcessor.standard(envelope({ contacts: [{ ...JANE, isEmergencyContact: true }] }))
+    expect(standard.contacts[0]!.isEmergencyContact).toBe(true)
+  })
+
+  it('emits every field as null on a contact with nothing in it', () => {
+    const standard = emergencyContactsProcessor.standard(envelope({ contacts: [{}] }))
+    expect(standard.contacts[0]).toEqual({
+      id: null,
+      formattedName: null,
+      relationToPatient: { name: null },
+      contactInformation: { phoneNumbers: [], emailAddress: null, address: { formattedValues: [] } },
+      isPrimaryContact: null,
+      isEmergencyContact: null,
+    })
+    expect(standard.hideEmergencyContacts).toBeNull()
+  })
+
+  it('reports an empty or missing list as empty', () => {
+    expect(emergencyContactsProcessor.standard(envelope({ contacts: [] })).contacts).toEqual([])
+    expect(emergencyContactsProcessor.standard({ requests: [] }).contacts).toEqual([])
+  })
+
+  it('projects concise to the handle, who, how related and one phone number', () => {
+    expect(emergencyContactsProcessor.concise(emergencyContactsProcessor.standard(envelope(BODY)))).toEqual({
+      contacts: [{
+        id: 'EC-1',
+        formattedName: 'Jane Doe',
+        relationToPatient: { name: 'Spouse' },
+        contactInformation: { phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }] },
+      }],
+    })
+  })
+})
+
 describe('getEmergencyContacts', () => {
-  it('returns empty array when no token found', async () => {
-    const req = mockRequest([{ body: '<html></html>' }])
-    expect(await getEmergencyContacts(req)).toEqual([])
-  })
-
-  it('parses contacts from API response', async () => {
-    const req = mockRequest([
-      { body: TOKEN_HTML },
-      {
-        body: JSON.stringify({
-          contacts: [
-            {
-              formattedName: 'Jane Doe',
-              relationToPatient: { name: 'Spouse' },
-              contactInformation: { phoneNumbers: [{ phoneNumber: '555-1234', type: 'Home' }] },
-              isEmergencyContact: true,
-            },
-          ],
-        }),
-      },
-    ])
-
-    const result = await getEmergencyContacts(req)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({
-      name: 'Jane Doe',
-      relationshipType: 'Spouse',
-      phoneNumber: '555-1234',
-      isEmergencyContact: true,
-    })
-  })
-
-  it('handles missing fields with defaults', async () => {
-    const req = mockRequest([
-      { body: TOKEN_HTML },
-      { body: JSON.stringify({ contacts: [{}] }) },
-    ])
-
-    const result = await getEmergencyContacts(req)
-    expect(result[0]).toEqual({
-      name: '',
-      relationshipType: '',
-      phoneNumber: '',
-      isEmergencyContact: true,
-    })
-  })
-
-  it('handles empty relationships list', async () => {
-    const req = mockRequest([
-      { body: TOKEN_HTML },
-      { body: JSON.stringify({ contacts: [] }) },
-    ])
-    expect(await getEmergencyContacts(req)).toEqual([])
+  it('returns the standard object', async () => {
+    const result = await getEmergencyContacts(mockRequest([{ body: TOKEN_HTML }, { body: JSON.stringify(BODY) }]))
+    expect(result.contacts[0]!.formattedName).toBe('Jane Doe')
   })
 })
 

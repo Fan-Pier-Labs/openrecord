@@ -1,55 +1,23 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { questionnairesProcessor, type QuestionnairesStandard } from './questionnaires.processor';
 
-export type Questionnaire = {
-  id: string;
-  name: string;
-  status: string;
-  dueDate: string;
-  completedDate: string;
+export type { QuestionnairesStandard } from './questionnaires.processor';
+export { questionnairesProcessor } from './questionnaires.processor';
+
+/**
+ * `GET /Questionnaire` for the token, then `POST /Questionnaire/GetQuestionnaireList`.
+ * `docs/api-surface-gaps.md` also saw a React-era `/api/questionnaire/GetQuestionnaireList`
+ * return data on a probed account, so the endpoint itself may change.
+ */
+export async function fetchQuestionnairesRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/Questionnaire');
+  await collector.postJson('/Questionnaire/GetQuestionnaireList', token, {});
+  return collector.toRaw();
 }
 
-type QuestionnaireResponse = {
-  id?: string;
-  name?: string;
-  status?: string;
-  dueDate?: string;
-  completedDate?: string;
-}
-
-type GetQuestionnaireListResponse = {
-  questionnaires?: QuestionnaireResponse[];
-}
-
-export async function getQuestionnaires(mychartRequest: MyChartRequest): Promise<Questionnaire[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/Questionnaire' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for questionnaires');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/Questionnaire/GetQuestionnaireList',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: GetQuestionnaireListResponse = await resp.json();
-
-  return (json.questionnaires ?? []).map((q: QuestionnaireResponse) => ({
-    id: q.id || '',
-    name: q.name || '',
-    status: q.status || '',
-    dueDate: q.dueDate || '',
-    completedDate: q.completedDate || '',
-  }));
+/** The standard object — what `mode: 'json'` returns. */
+export async function getQuestionnaires(mychartRequest: MyChartRequest): Promise<QuestionnairesStandard> {
+  return questionnairesProcessor.standard(await fetchQuestionnairesRaw(mychartRequest));
 }

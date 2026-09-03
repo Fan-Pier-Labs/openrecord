@@ -1,8 +1,11 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getCareTeam } from '../careTeam'
+import { getCareTeam, fetchCareTeamRaw, careTeamProcessor } from '../careTeam'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { SessionExpiredError } from '../../core/makeAuthenticatedRequest'
+import { MissingVerificationTokenError } from '../../core/util'
+import type { RawResponse } from '../../core/rawResponse'
 
-type Reply = { body: string; status?: number; headers?: Record<string, string> }
+type Reply = { body: string; status?: number; headers?: Record<string, string>; throws?: Error }
 
 type Sent = { path: string; method: string; headers: Record<string, string>; body: unknown }
 
@@ -21,80 +24,81 @@ function mockRequest(replies: Reply[]) {
     })
     const reply = replies[i++]
     if (!reply) throw new Error(`unexpected request ${i}: ${url}`)
-    return new Response(reply.body, { status: reply.status ?? 200, headers: reply.headers ?? {} })
+    if (reply.throws) throw reply.throws
+    return new Response(reply.body, { status: reply.status ?? 200, headers: reply.headers ?? { 'content-type': 'application/json' } })
   })
   return { req, sent }
 }
 
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok" />'
 
+/** One `ProvidersList` element as four live instances return it. */
 const HIBBERT = {
   ID: 'PROV-1',
   Name: 'Julius Hibbert, MD',
+  Photo: '/photos/1.jpg',
+  NationalProviderID: '1000000001',
+  WebPageUrl: '/Clinical/Provider/PROV-1',
+  InfoBlurbUrl: '',
+  // An array on every live instance (always empty), so it must not be read as text.
+  AboutMeBlurb: [],
+  CanViewProviderDetails: true,
+  CanDirectSchedule: false,
+  CanRequestAppointment: false,
+  CanMessage: true,
+  CommCenterMessageUrl: '/x',
+  CanRequestCustomAppt: false,
+  HasNoProviderRecord: false,
+  IsNewSchedulingEnabled: false,
+  Specialty: 'Internal Medicine',
+  Relation: 'Primary Care Provider',
+  SchedulableVisitTypes: null,
+  DepartmentID: 'DEP-1',
+  Organizations: null,
+  IsExternal: false,
+  CareTeamStatus: 0,
+  CanHideProvider: false,
+}
+
+const HIBBERT_STANDARD = {
+  Name: 'Julius Hibbert, MD',
   Relation: 'Primary Care Provider',
   Specialty: 'Internal Medicine',
+  IsExternal: false,
+  fromExternalList: false,
+  ID: 'PROV-1',
   NationalProviderID: '1000000001',
   DepartmentID: 'DEP-1',
-  Photo: '/photos/1.jpg',
-  WebPageUrl: '/Clinical/Provider/PROV-1',
-  // An array on both live instances (always empty), so it must not be read as text.
-  AboutMeBlurb: [],
-  Organizations: null,
-  SchedulableVisitTypes: null,
-  CareTeamStatus: 0,
   CanMessage: true,
 }
+
+const MONROE = { ID: 'PROV-EXT', Name: 'Marvin Monroe, MD', Specialty: 'Psychiatry', Relation: 'Outside Provider', IsExternal: true }
 
 function careTeamReplies(internal: unknown[], external: unknown[]): Reply[] {
   return [
     { body: TOKEN_PAGE },
-    { body: JSON.stringify({ ProvidersList: internal }) },
+    { body: JSON.stringify({ ProvidersList: internal, DescriptiveTitle: 'Your Care Team' }) },
     { body: JSON.stringify({ ProvidersList: external }) },
   ]
 }
 
-describe('getCareTeam', () => {
-  it('reads both provider lists and flags the outside providers', async () => {
-    const { req } = mockRequest(careTeamReplies(
-      [HIBBERT],
-      [{ ID: 'PROV-EXT', Name: 'Marvin Monroe, MD', Specialty: 'Psychiatry', Relation: 'Outside Provider' }],
-    ))
+function envelope(load: { body: unknown; status?: number }, loadExternal?: { body: unknown; status?: number }): RawResponse {
+  return {
+    requests: [
+      { path: '/Clinical/CareTeam', method: 'GET', status: 200, contentType: 'text/html', body: TOKEN_PAGE },
+      { path: '/Clinical/CareTeam/Load', method: 'POST', requestBody: {}, status: load.status ?? 200, contentType: 'application/json', body: load.body },
+      ...(loadExternal
+        ? [{ path: '/Clinical/CareTeam/LoadExternal', method: 'POST' as const, requestBody: {}, status: loadExternal.status ?? 200, contentType: 'application/json', body: loadExternal.body }]
+        : []),
+    ],
+  }
+}
 
-    const result = await getCareTeam(req)
+describe('fetchCareTeamRaw', () => {
+  it('POSTs both endpoints with the page token and an empty JSON body, recording all three', async () => {
+    const { req, sent } = mockRequest(careTeamReplies([HIBBERT], [MONROE]))
 
-    expect(result.externalProvidersUnavailable).toBe(false)
-    expect(result.members).toEqual([
-      {
-        id: 'PROV-1',
-        name: 'Julius Hibbert, MD',
-        relation: 'Primary Care Provider',
-        specialty: 'Internal Medicine',
-        nationalProviderId: '1000000001',
-        departmentId: 'DEP-1',
-        photoUrl: '/photos/1.jpg',
-        webPageUrl: '/Clinical/Provider/PROV-1',
-        canMessage: true,
-        isExternal: false,
-      },
-      {
-        id: 'PROV-EXT',
-        name: 'Marvin Monroe, MD',
-        relation: 'Outside Provider',
-        specialty: 'Psychiatry',
-        nationalProviderId: '',
-        departmentId: '',
-        photoUrl: '',
-        webPageUrl: '',
-        canMessage: false,
-        isExternal: true,
-      },
-    ])
-  })
-
-  it('POSTs both endpoints with the page token and an empty JSON body', async () => {
-    const { req, sent } = mockRequest(careTeamReplies([], []))
-
-    await getCareTeam(req)
+    const raw = await fetchCareTeamRaw(req)
 
     expect(sent.map((s) => `${s.method} ${s.path}`)).toEqual([
       'GET /MyChart/Clinical/CareTeam',
@@ -105,6 +109,8 @@ describe('getCareTeam', () => {
       expect(call.headers['__RequestVerificationToken']).toBe('tok')
       expect(call.body).toBe('{}')
     }
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/CareTeam', '/Clinical/CareTeam/Load', '/Clinical/CareTeam/LoadExternal'])
+    expect(raw.requests[1]!.body).toEqual({ ProvidersList: [HIBBERT], DescriptiveTitle: 'Your Care Team' })
   })
 
   // Both endpoints refuse a token-less POST, so a page with no token is an
@@ -112,70 +118,132 @@ describe('getCareTeam', () => {
   // one request later.
   it('throws when the activity page carries no token, without posting', async () => {
     const { req, sent } = mockRequest([{ body: '<html></html>' }])
-    await expect(getCareTeam(req)).rejects.toThrow(/No request verification token/)
+    await expect(fetchCareTeamRaw(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
     expect(sent).toHaveLength(1)
   })
 
-  it('honours IsExternal on a provider returned by the internal list', async () => {
-    const { req } = mockRequest(careTeamReplies([{ ...HIBBERT, IsExternal: true }], []))
-    const result = await getCareTeam(req)
-    expect(result.members[0]!.isExternal).toBe(true)
-  })
-
-  it('reports a genuinely empty care team as empty', async () => {
-    const { req } = mockRequest(careTeamReplies([], []))
-    expect(await getCareTeam(req)).toEqual({ members: [], externalProvidersUnavailable: false })
-  })
-
-  // The reason this scraper was withdrawn once already: an unrecognized
-  // response must never render to the patient as "you have no care team".
-  it('throws rather than reporting an empty team when the envelope is unrecognized', async () => {
-    const { req } = mockRequest([
-      { body: TOKEN_PAGE },
-      { body: JSON.stringify({ providers: [HIBBERT] }) },
-    ])
-    await expect(getCareTeam(req)).rejects.toThrow(/no ProvidersList/)
-  })
-
-  it('throws when the response is not JSON', async () => {
-    const { req } = mockRequest([
-      { body: TOKEN_PAGE },
-      { body: '<html>Sign in</html>', headers: { 'content-type': 'text/html' } },
-    ])
-    await expect(getCareTeam(req)).rejects.toThrow(/rather than JSON/)
-  })
-
-  it('throws when the endpoint returns an error status', async () => {
-    const { req } = mockRequest([
-      { body: TOKEN_PAGE },
-      { body: 'server error', status: 500 },
-    ])
-    await expect(getCareTeam(req)).rejects.toThrow(/HTTP 500/)
-  })
-
-  it('keeps the internal list and flags the gap when the external list fails', async () => {
+  it('records a failed LoadExternal response as it came', async () => {
     const { req } = mockRequest([
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
       { body: 'server error', status: 500 },
     ])
-
-    const result = await getCareTeam(req)
-
-    expect(result.members.map((m) => m.name)).toEqual(['Julius Hibbert, MD'])
-    expect(result.externalProvidersUnavailable).toBe(true)
+    const raw = await fetchCareTeamRaw(req)
+    expect(raw.requests[2]).toMatchObject({ path: '/Clinical/CareTeam/LoadExternal', status: 500, body: 'server error' })
   })
 
-  it('reads a null Relation as no stated role, which is how instances send it', async () => {
-    const { req } = mockRequest(careTeamReplies([{ ...HIBBERT, Relation: null }], []))
-    const result = await getCareTeam(req)
-    expect(result.members[0]!.relation).toBe('')
-    expect(result.members[0]!.name).toBe('Julius Hibbert, MD')
+  it('leaves no LoadExternal record when that call throws, and still returns', async () => {
+    const { req } = mockRequest([
+      { body: TOKEN_PAGE },
+      { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
+      { body: '', throws: new Error('socket hang up') },
+    ])
+    const raw = await fetchCareTeamRaw(req)
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/CareTeam', '/Clinical/CareTeam/Load'])
   })
 
-  it('fills a field an instance omits rather than dropping the entry', async () => {
-    const { req } = mockRequest(careTeamReplies([{ ID: 'PROV-9', Specialty: 'Cardiology' }], []))
+  it('does not swallow an expired session on the external arm', async () => {
+    const { req } = mockRequest([
+      { body: TOKEN_PAGE },
+      { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
+      { body: '', throws: new SessionExpiredError() },
+    ])
+    await expect(fetchCareTeamRaw(req)).rejects.toBeInstanceOf(SessionExpiredError)
+  })
+})
+
+describe('careTeamProcessor', () => {
+  it('merges both lists under ProvidersList and marks which came from LoadExternal', () => {
+    const standard = careTeamProcessor.standard(envelope(
+      { body: { ProvidersList: [HIBBERT], DescriptiveTitle: 'Your Care Team', TabColorClass: 'x' } },
+      { body: { ProvidersList: [MONROE] } },
+    ))
+    expect(standard).toEqual({
+      DescriptiveTitle: 'Your Care Team',
+      externalProvidersUnavailable: false,
+      ProvidersList: [
+        HIBBERT_STANDARD,
+        {
+          Name: 'Marvin Monroe, MD',
+          Relation: 'Outside Provider',
+          Specialty: 'Psychiatry',
+          IsExternal: true,
+          fromExternalList: true,
+          ID: 'PROV-EXT',
+          NationalProviderID: null,
+          DepartmentID: null,
+          CanMessage: null,
+        },
+      ],
+    })
+    expect(standard.ProvidersList[0]).not.toHaveProperty('Photo')
+    expect(standard.ProvidersList[0]).not.toHaveProperty('AboutMeBlurb')
+  })
+
+  it('keeps IsExternal on an internal-list provider distinct from fromExternalList', () => {
+    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [{ ...HIBBERT, IsExternal: true }] } }, { body: { ProvidersList: [] } }))
+    expect(standard.ProvidersList[0]).toMatchObject({ IsExternal: true, fromExternalList: false })
+  })
+
+  it('reports a genuinely empty care team as empty', () => {
+    expect(careTeamProcessor.standard(envelope({ body: { ProvidersList: [] } }, { body: { ProvidersList: [] } }))).toEqual({
+      DescriptiveTitle: null,
+      externalProvidersUnavailable: false,
+      ProvidersList: [],
+    })
+  })
+
+  // The reason this scraper was withdrawn once already: an unrecognized
+  // response must never render to the patient as "you have no care team".
+  it('throws rather than reporting an empty team when the Load envelope is unrecognized', () => {
+    expect(() => careTeamProcessor.standard(envelope({ body: { providers: [HIBBERT] } }))).toThrow(/no ProvidersList/)
+  })
+
+  it('throws when Load answered with a login page instead of JSON', () => {
+    expect(() => careTeamProcessor.standard(envelope({ body: '<html>Sign in</html>' }))).toThrow(/no ProvidersList/)
+  })
+
+  it('throws when Load answered with an error status', () => {
+    expect(() => careTeamProcessor.standard(envelope({ body: 'server error', status: 500 }))).toThrow(/HTTP 500/)
+    expect(() => careTeamProcessor.standard({ requests: [] })).toThrow(/HTTP nothing/)
+  })
+
+  it('keeps the internal list and flags the gap when LoadExternal failed or is missing', () => {
+    const failed = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: 'server error', status: 500 }))
+    expect(failed.ProvidersList.map((p) => p.Name)).toEqual(['Julius Hibbert, MD'])
+    expect(failed.externalProvidersUnavailable).toBe(true)
+
+    const unrecognized = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { providers: [] } }))
+    expect(unrecognized.externalProvidersUnavailable).toBe(true)
+
+    const absent = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }))
+    expect(absent.externalProvidersUnavailable).toBe(true)
+  })
+
+  it('reads a null Relation as no stated role, which is how instances send it', () => {
+    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [{ ...HIBBERT, Relation: null }] } }, { body: { ProvidersList: [] } }))
+    expect(standard.ProvidersList[0]).toMatchObject({ Relation: null, Name: 'Julius Hibbert, MD' })
+  })
+
+  it('projects concise to who, role, specialty and the two external flags', () => {
+    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
+    expect(careTeamProcessor.concise(standard)).toEqual({
+      externalProvidersUnavailable: false,
+      ProvidersList: [{ Name: 'Julius Hibbert, MD', Relation: 'Primary Care Provider', Specialty: 'Internal Medicine', IsExternal: false, fromExternalList: false }],
+    })
+  })
+})
+
+describe('getCareTeam', () => {
+  it('returns the standard object', async () => {
+    const { req } = mockRequest(careTeamReplies([HIBBERT], [MONROE]))
     const result = await getCareTeam(req)
-    expect(result.members[0]).toMatchObject({ id: 'PROV-9', name: '', specialty: 'Cardiology' })
+    expect(result.ProvidersList.map((p) => [p.Name, p.fromExternalList])).toEqual([['Julius Hibbert, MD', false], ['Marvin Monroe, MD', true]])
+    expect(result.externalProvidersUnavailable).toBe(false)
+  })
+
+  it('throws rather than reporting an empty team when Load fails', async () => {
+    const { req } = mockRequest([{ body: TOKEN_PAGE }, { body: 'server error', status: 500 }, { body: JSON.stringify({ ProvidersList: [] }) }])
+    await expect(getCareTeam(req)).rejects.toThrow(/HTTP 500/)
   })
 })

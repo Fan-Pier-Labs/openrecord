@@ -1,4 +1,4 @@
-import type { MyChartRequest } from './../core/myChartRequest';
+import type { MyChartRequest } from '../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../core/rawResponse';
 import { preventiveCareProcessor, type PreventiveCareStandard } from './preventiveCare.processor';
 
@@ -8,7 +8,7 @@ export { preventiveCareProcessor, parsePreventiveCareHtml } from './preventiveCa
 /** `GET /HealthAdvisories` — an HTML page; there is no JSON endpoint. */
 export async function fetchPreventiveCareRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
-  await collector.fetch({ path: '/HealthAdvisories' });
+  await collector.send({ path: '/HealthAdvisories' });
   return collector.toRaw();
 }
 

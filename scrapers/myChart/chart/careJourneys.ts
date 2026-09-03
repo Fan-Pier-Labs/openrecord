@@ -1,55 +1,19 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { careJourneysProcessor, type CareJourneysStandard } from './careJourneys.processor';
 
-export type CareJourney = {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  providerName: string;
+export type { CareJourneysStandard } from './careJourneys.processor';
+export { careJourneysProcessor } from './careJourneys.processor';
+
+/** `GET /app/care-journeys` for the token, then `POST /api/care-journeys/GetCareJourneys`. */
+export async function fetchCareJourneysRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/care-journeys');
+  await collector.postJson('/api/care-journeys/GetCareJourneys', token, {});
+  return collector.toRaw();
 }
 
-type CareJourneyResponse = {
-  id?: string;
-  name?: string;
-  description?: string;
-  status?: string;
-  providerName?: string;
-}
-
-type GetCareJourneysResponse = {
-  careJourneys?: CareJourneyResponse[];
-}
-
-export async function getCareJourneys(mychartRequest: MyChartRequest): Promise<CareJourney[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/care-journeys' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for care journeys');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/care-journeys/GetCareJourneys',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: GetCareJourneysResponse = await resp.json();
-
-  return (json.careJourneys ?? []).map((cj: CareJourneyResponse) => ({
-    id: cj.id || '',
-    name: cj.name || '',
-    description: cj.description || '',
-    status: cj.status || '',
-    providerName: cj.providerName || '',
-  }));
+/** The standard object — what `mode: 'json'` returns. */
+export async function getCareJourneys(mychartRequest: MyChartRequest): Promise<CareJourneysStandard> {
+  return careJourneysProcessor.standard(await fetchCareJourneysRaw(mychartRequest));
 }

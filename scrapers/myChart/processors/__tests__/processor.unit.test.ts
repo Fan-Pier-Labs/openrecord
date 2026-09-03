@@ -25,9 +25,9 @@ describe('RawCollector', () => {
       { body: JSON.stringify({ dataList: [] }) },
     ]);
     const collector = new RawCollector(req);
-    const page = await collector.fetch({ path: '/Clinical/Allergies?noCache=0.123' });
+    const page = await collector.send({ path: '/Clinical/Allergies?noCache=0.123' });
     expect(typeof page.body).toBe('string');
-    const api = await collector.fetch({
+    const api = await collector.send({
       path: '/api/allergies/LoadAllergies',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,7 +50,7 @@ describe('RawCollector', () => {
   it('keeps a non-JSON body as text and a form body as the string it was', async () => {
     const req = mockRequest([{ body: 'Request Rejected', contentType: 'text/html' }]);
     const collector = new RawCollector(req);
-    await collector.fetch({
+    await collector.send({
       path: '/x',
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -63,7 +63,7 @@ describe('RawCollector', () => {
   it('records a JSON body that failed to parse as the string it was', async () => {
     const req = mockRequest([{ body: '{}' }]);
     const collector = new RawCollector(req);
-    await collector.fetch({ path: '/x', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json' });
+    await collector.send({ path: '/x', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json' });
     expect(collector.requests[0]!.requestBody).toBe('{not json');
   });
 });

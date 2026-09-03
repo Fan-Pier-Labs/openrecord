@@ -1,184 +1,128 @@
-import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../../core/util";
-import type { PastVisitsContainer, Visit, VisitListContainer, VisitsScrapeError } from "./types";
+import type { MyChartRequest } from '../../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { logger } from '../../../../shared/logger';
+import { bool, list, rec, text } from '../../processors/read';
+import { requireJsonBody } from '../notes';
+import {
+  pastVisitsProcessor,
+  upcomingVisitsProcessor,
+  visitInstantMs,
+  type PastVisitsStandard,
+  type UpcomingVisitsStandard,
+} from './visits.processor';
 
+export type {
+  VisitStandard,
+  VisitConcise,
+  VisitStatus,
+  VisitBucket,
+  UpcomingVisitStandard,
+  UpcomingVisitsStandard,
+  PastVisitsStandard,
+  VisitDiagnosisStandard,
+  VisitProcedureStandard,
+  VisitProviderStandard,
+  VisitDepartmentStandard,
+  VisitPreadmissionLocationStandard,
+} from './visits.processor';
+export {
+  upcomingVisitsProcessor,
+  pastVisitsProcessor,
+  visitStandard,
+  visitConcise,
+  visitStatus,
+  visitInstantMs,
+} from './visits.processor';
 
-export async function upcomingVisits(myChartRequest: MyChartRequest): Promise<VisitListContainer | VisitsScrapeError> {
-
-  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
-
-  const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
-
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token', res)
-    return { visits: [], error: 'Authentication error: could not get CSRF token for visits' }
-  }
-
-
-  const result = await makeAuthenticatedRequest(myChartRequest, {
-    path: '/Visits/VisitsList/LoadUpcoming?timeZone=America%2FNew_York&ComponentNumber=5&noCache=' + Math.random(),
-    "headers": {
-      __requestverificationtoken: requestVerificationToken
-    },
-    "method": "POST",
-  })
-
-  const json = await result.json() as VisitListContainer
-
-  return json
-}
-
-
-
-// Hard cap on how many LoadPast pages we'll request in a single pastVisits()
-// call. MyChart returns 10 visits per org per page, so the default of 50 pages
-// covers ~500 visits per org — far more than the 2–3 years most callers ask
-// for, while still guaranteeing termination on accounts with huge histories.
-const MAX_PAST_VISIT_PAGES = 50;
-
-// Fetch a single LoadPast page. `serializedIndex` is the opaque, URL-encoded
-// continuation token from the previous page's top-level `SerializedIndex`
-// (omitted for the first page).
-async function loadPastVisitsPage(
-  myChartRequest: MyChartRequest,
-  requestVerificationToken: string,
-  oldestRenderedDate: Date,
-  serializedIndex?: string,
-): Promise<PastVisitsContainer> {
-  let path = '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate='
-    + oldestRenderedDate.toISOString() + '&ComponentNumber=7&noCache=' + Math.random();
-  if (serializedIndex) {
-    path += '&serializedIndex=' + encodeURIComponent(serializedIndex);
-  }
-
-  // Match LoadUpcoming's request shape: no body, no Content-Type header.
-  // The original implementation used application/x-www-form-urlencoded + body
-  // 'serializedIndex=', which trips F5 Volterra WAF rules on some MyChart
-  // deployments. The WAF returns 200 OK with a text/html "Request Rejected"
-  // page (served by 'volt-adc'), which makes the JSON parse throw
-  // 'Unexpected token <' rather than surface as an auth failure.
-  //
-  // Important: omit body entirely (not `body: ''`). On Node's undici fetch,
-  // an empty-string body still triggers an auto-added
-  // 'Content-Type: text/plain;charset=UTF-8'. Omitting body sends no
-  // Content-Type at all on both Bun and Node, which is the shape the WAF
-  // accepts and matches what upcomingVisits has always done.
-  const result = await makeAuthenticatedRequest(myChartRequest, {
-    path,
-    "headers": {
-      __requestverificationtoken: requestVerificationToken,
-    },
-    "method": "POST",
-  })
-
-  return await result.json() as PastVisitsContainer
-}
-
-// The epoch-millis timestamp of a visit, parsed from its `.Instant`
-// (`/Date(1761851400000)/`) field, falling back to `PrimaryDate`. Returns
-// null when neither yields a usable date so callers can keep paginating
-// rather than stop on an unparseable row.
-function visitTimestamp(visit: Visit): number | null {
-  const instant = /\/Date\((\d+)\)\//.exec(visit.Instant);
-  if (instant) return Number(instant[1]);
-  if (visit.PrimaryDate) {
-    const t = Date.parse(visit.PrimaryDate);
-    if (!Number.isNaN(t)) return t;
-  }
-  return null;
-}
+const VISITS_PAGE = '/Visits/VisitsList';
 
 /**
- * Fetch a patient's past visits, following MyChart's pagination so callers get
- * the full history back to `oldestRenderedDate` rather than just the most
- * recent 10.
+ * `GET /Visits/VisitsList` for the token, then `POST /Visits/VisitsList/LoadUpcoming`.
  *
- * MyChart's `LoadPast` endpoint returns visits 10-at-a-time per organization,
- * newest first. `oldestRenderedDate` is NOT a server-side "give me everything
- * since" filter — each response carries a `HasMoreData` flag and a top-level
- * `SerializedIndex` continuation token that must be echoed back on the next
- * request to retrieve the next 10. The original implementation issued a single
- * request and silently dropped everything past the first page (see issue #189).
- *
- * We page until one of: no organization reports `HasMoreData`, every visit on
- * the page predates `oldestRenderedDate` (results are newest→oldest, so once a
- * full page is older we've covered the requested window), the continuation
- * token stops advancing, or we hit `MAX_PAST_VISIT_PAGES`. Pages are merged
- * per-organization so the returned `PastVisitsContainer` keeps its original
- * shape; `HasMoreData` on the merged result reflects whether visits older than
- * the requested window remain.
+ * The POST carries no body and no Content-Type: an empty-string body still
+ * makes Node's undici add `Content-Type: text/plain`, which trips F5 Volterra
+ * WAF rules on some deployments.
  */
-export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date): Promise<PastVisitsContainer | VisitsScrapeError> {
+export async function fetchUpcomingVisitsRaw(myChartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(myChartRequest);
+  const token = await collector.pageToken(VISITS_PAGE + '?noCache=' + Math.random());
+  const result = await collector.send({
+    path: '/Visits/VisitsList/LoadUpcoming?timeZone=America%2FNew_York&ComponentNumber=5&noCache=' + Math.random(),
+    method: 'POST',
+    headers: { __requestverificationtoken: token },
+  });
+  requireJsonBody(result, '/Visits/VisitsList/LoadUpcoming');
+  return collector.toRaw();
+}
 
-  const res = await makeAuthenticatedRequest(myChartRequest, { path: '/Visits/VisitsList?noCache=' + Math.random() })
+/** The standard object — what `mode: 'json'` returns. */
+export async function upcomingVisits(myChartRequest: MyChartRequest): Promise<UpcomingVisitsStandard | null> {
+  return upcomingVisitsProcessor.standard(await fetchUpcomingVisitsRaw(myChartRequest));
+}
 
-  const requestVerificationToken = getRequestVerificationTokenFromBody(await res.text())
+// Hard cap on how many LoadPast pages one call will request. MyChart returns
+// 10 visits per organization per page, so 50 pages covers ~500 visits per
+// organization — far more than the 2–3 years most callers ask for, while still
+// guaranteeing termination on accounts with huge histories.
+const MAX_PAST_VISIT_PAGES = 50;
 
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token', res)
-    return { visits: [], error: 'Authentication error: could not get CSRF token for visits' }
-  }
-
+/**
+ * Fetch every `LoadPast` page back to `oldestRenderedDate` and record each one.
+ *
+ * `oldestRenderedDate` is NOT a server-side "everything since" filter: each
+ * response carries `HasMoreData` per organization and a top-level
+ * `SerializedIndex` continuation token that must be echoed back to get the
+ * next 10 (issue #189). The loop stops when no organization has more data,
+ * when every visit on the latest page predates the cutoff (results are
+ * newest→oldest), when the token is missing or stops advancing, or at
+ * `MAX_PAST_VISIT_PAGES`. The pages are NOT merged here — the processor does
+ * that — so `raw` mode is the envelope of every page fetched.
+ */
+export async function fetchPastVisitsRaw(myChartRequest: MyChartRequest, oldestRenderedDate: Date): Promise<RawResponse> {
+  const collector = new RawCollector(myChartRequest);
+  const token = await collector.pageToken(VISITS_PAGE + '?noCache=' + Math.random());
   const cutoffMs = oldestRenderedDate.getTime();
-  const firstPage = await loadPastVisitsPage(myChartRequest, requestVerificationToken, oldestRenderedDate);
 
-  // Defensive: a non-container response (e.g. a WAF/login interstitial) has no
-  // List — return it untouched so existing error handling stays intact.
-  if (!firstPage?.List) return firstPage;
-
-  // Accumulate visits per organization across pages. `latestPage` is the most
-  // recently fetched page; the stop conditions look at it (not the merged
-  // accumulator, which always still holds the newest visit) to decide whether
-  // another page is worth fetching.
-  const merged = firstPage;
-  let latestPage = firstPage;
-  let serializedIndex = firstPage.SerializedIndex;
-  let pagesFetched = 1;
-
+  let serializedIndex: string | undefined;
+  let pagesFetched = 0;
   while (pagesFetched < MAX_PAST_VISIT_PAGES) {
-    const latestOrgs = Object.values(latestPage.List);
+    let path =
+      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=' +
+      oldestRenderedDate.toISOString() +
+      '&ComponentNumber=7&noCache=' +
+      Math.random();
+    if (serializedIndex) path += '&serializedIndex=' + encodeURIComponent(serializedIndex);
 
-    // Stop once no organization has more data to give.
-    if (!latestOrgs.some(org => org.HasMoreData)) break;
-
-    // Stop once we've paged back far enough: results are newest→oldest, so once
-    // every visit on the latest page predates the cutoff, the next page would
-    // be older still and there's nothing left in the requested window. We only
-    // consider visits with a parseable timestamp.
-    const timestamps = latestOrgs.flatMap(org => org.List.map(visitTimestamp)).filter((t): t is number => t !== null);
-    if (timestamps.length > 0 && timestamps.every(t => t < cutoffMs)) break;
-
-    // No continuation token (or one that stopped advancing) → can't page further.
-    if (!serializedIndex) break;
-
-    const nextPage = await loadPastVisitsPage(myChartRequest, requestVerificationToken, oldestRenderedDate, serializedIndex);
-    if (!nextPage?.List) break;
-    if (nextPage.SerializedIndex === serializedIndex) break; // guard against a stuck cursor
-
-    // Merge each org's visits into the accumulator.
-    for (const [orgId, orgPage] of Object.entries(nextPage.List)) {
-      const existing = merged.List[orgId];
-      if (!existing) {
-        merged.List[orgId] = orgPage;
-      } else {
-        existing.List.push(...orgPage.List);
-        existing.ListSize = existing.List.length;
-        existing.HasMoreData = orgPage.HasMoreData;
-        existing.SerializedIndex = orgPage.SerializedIndex;
-      }
-    }
-
-    latestPage = nextPage;
-    serializedIndex = nextPage.SerializedIndex;
-    merged.SerializedIndex = nextPage.SerializedIndex;
+    // Same WAF-safe shape as LoadUpcoming: no body, no Content-Type.
+    const result = await collector.send({ path, method: 'POST', headers: { __requestverificationtoken: token } });
+    requireJsonBody(result, '/Visits/VisitsList/LoadPast');
     pagesFetched++;
+
+    const page = rec(result.body);
+    // A non-container response (a literal null, a login interstitial that
+    // happened to be JSON) cannot be paged; it is in the envelope as-is.
+    if (!page.List) break;
+
+    const orgs = Object.values(rec(page.List)).map(rec);
+    if (!orgs.some((org) => bool(org.HasMoreData))) break;
+
+    const timestamps = orgs
+      .flatMap((org) => list(org.List).map((v) => visitInstantMs(rec(v))))
+      .filter((t): t is number => t !== null);
+    if (timestamps.length > 0 && timestamps.every((t) => t < cutoffMs)) break;
+
+    const next = text(page.SerializedIndex);
+    if (!next || next === serializedIndex) break; // no cursor, or a stuck one
+    serializedIndex = next;
   }
 
   if (pagesFetched >= MAX_PAST_VISIT_PAGES) {
     logger.debug(`pastVisits: hit page cap (${MAX_PAST_VISIT_PAGES}); some older visits may be omitted`);
   }
+  return collector.toRaw();
+}
 
-  return merged;
+/** The standard object — what `mode: 'json'` returns. */
+export async function pastVisits(myChartRequest: MyChartRequest, oldestRenderedDate: Date): Promise<PastVisitsStandard | null> {
+  return pastVisitsProcessor.standard(await fetchPastVisitsRaw(myChartRequest, oldestRenderedDate));
 }

@@ -1,70 +1,19 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { referralsProcessor, type ReferralsStandard } from './referrals.processor';
 
-export type Referral = {
-  internalId: string;
-  externalId: string;
-  status: string;
-  statusString: string;
-  creationDate: string;
-  startDate: string;
-  endDate: string;
-  referredByProviderName: string;
-  referredToProviderName: string;
-  referredToFacility: string;
+export type { ReferralsStandard, ReferralStandard } from './referrals.processor';
+export { referralsProcessor } from './referrals.processor';
+
+/** `GET /app/referrals` for the token, then `POST /api/referrals/listReferrals`. */
+export async function fetchReferralsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/referrals');
+  await collector.postJson('/api/referrals/listReferrals', token, {});
+  return collector.toRaw();
 }
 
-type ReferralResponse = {
-  internalId?: string;
-  externalId?: string;
-  status?: string;
-  statusString?: string;
-  creationDate?: string;
-  start?: string;
-  end?: string;
-  referredByProviderName?: string;
-  referredToProviderName?: string;
-  referredToFacility?: string;
-}
-
-type ListReferralsResponse = {
-  referralList?: ReferralResponse[];
-}
-
-export async function getReferrals(mychartRequest: MyChartRequest): Promise<Referral[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/referrals' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for referrals');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/referrals/listReferrals',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: ListReferralsResponse = await resp.json();
-
-  return (json.referralList ?? []).map((ref: ReferralResponse) => ({
-    internalId: ref.internalId || '',
-    externalId: ref.externalId || '',
-    status: ref.status || '',
-    statusString: ref.statusString || '',
-    creationDate: ref.creationDate || '',
-    startDate: ref.start || '',
-    endDate: ref.end || '',
-    referredByProviderName: ref.referredByProviderName || '',
-    referredToProviderName: ref.referredToProviderName || '',
-    referredToFacility: ref.referredToFacility || '',
-  }));
+/** The standard object — what `mode: 'json'` returns. */
+export async function getReferrals(mychartRequest: MyChartRequest): Promise<ReferralsStandard> {
+  return referralsProcessor.standard(await fetchReferralsRaw(mychartRequest));
 }

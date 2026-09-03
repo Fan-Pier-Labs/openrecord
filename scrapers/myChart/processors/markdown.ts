@@ -78,7 +78,7 @@ function renderArray(key: string, items: unknown[], level: number, out: string[]
     return;
   }
   if (items.every(isScalar)) {
-    out.push(`- **${key}**: ${items.map((v) => scalarText(v as Scalar)).join(', ')}`);
+    out.push(`- **${key}**: ${items.map((v) => scalarText(v)).join(', ')}`);
     return;
   }
   out.push('', heading(level, `${key} (${items.length})`), '');

@@ -1,15 +1,15 @@
 import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { getRequestVerificationTokenFromBody } from '../core/util';
+import { emergencyContactsProcessor, type EmergencyContactsStandard } from './emergencyContacts.processor';
 
-export type EmergencyContact = {
-  id?: string;
-  name: string;
-  relationshipType: string;
-  phoneNumber: string;
-  isEmergencyContact: boolean;
-};
+export type {
+  EmergencyContactsStandard,
+  EmergencyContactStandard,
+  PhoneNumberStandard,
+} from './emergencyContacts.processor';
+export { emergencyContactsProcessor } from './emergencyContacts.processor';
 
 export type EmergencyContactInput = {
   name: string;
@@ -34,60 +34,26 @@ export type EmergencyContactResult = {
   error?: string;
 };
 
-// Real GetRelationships responses key the list as `contacts`, with the name
-// under `formattedName`, the relationship under `relationToPatient` and the
-// phone numbers under `contactInformation.phoneNumbers`. (An earlier version
-// read a flat `relationships` array that only the fake served, so this
-// scraper returned nothing against every real instance.) `isEmergencyContact`
-// itself appears on only some instances; contacts listed here without it are
-// treated as emergency contacts, which is what the page is for.
-type RelationshipResponse = {
-  id?: string;
-  formattedName?: string;
-  relationToPatient?: { name?: string };
-  contactInformation?: {
-    phoneNumbers?: Array<{ phoneNumber?: string; type?: string }>;
-  };
-  isEmergencyContact?: boolean;
-};
+const PERSONAL_INFORMATION = '/app/personal-information';
 
-type GetRelationshipsResponse = {
-  contacts?: RelationshipResponse[];
-};
-
-async function getToken(mychartRequest: MyChartRequest): Promise<string | null> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/personal-information' });
-  const html = await pageResp.text();
-  return getRequestVerificationTokenFromBody(html) ?? null;
+/** `GET /app/personal-information` for the token, then `POST /api/personalInformation/GetRelationships`. */
+export async function fetchEmergencyContactsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken(PERSONAL_INFORMATION);
+  await collector.postJson('/api/personalInformation/GetRelationships', token, {});
+  return collector.toRaw();
 }
 
-export async function getEmergencyContacts(mychartRequest: MyChartRequest): Promise<EmergencyContact[]> {
-  const token = await getToken(mychartRequest);
+/** The standard object — what `mode: 'json'` returns. */
+export async function getEmergencyContacts(mychartRequest: MyChartRequest): Promise<EmergencyContactsStandard> {
+  return emergencyContactsProcessor.standard(await fetchEmergencyContactsRaw(mychartRequest));
+}
 
-  if (!token) {
-    logger.debug('Could not find request verification token for emergency contacts');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/personalInformation/GetRelationships',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: GetRelationshipsResponse = await resp.json();
-
-  return (json.contacts ?? []).map((rel: RelationshipResponse) => ({
-    ...(rel.id && { id: rel.id }),
-    name: rel.formattedName || '',
-    relationshipType: rel.relationToPatient?.name || '',
-    phoneNumber: rel.contactInformation?.phoneNumbers?.[0]?.phoneNumber || '',
-    isEmergencyContact: rel.isEmergencyContact ?? true,
-  }));
+/** Token for the write endpoints below, or null when the page has none. */
+async function getToken(mychartRequest: MyChartRequest): Promise<string | null> {
+  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: PERSONAL_INFORMATION });
+  const html = await pageResp.text();
+  return getRequestVerificationTokenFromBody(html) ?? null;
 }
 
 export async function addEmergencyContact(

@@ -1,53 +1,36 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import { linkedAccountsProcessor, type LinkedAccountsStandard } from './otherMyCharts.processor';
 
-export interface LinkedMyChart {
-  name: string;
-  logoUrl: string;
-  lastEncounter: string | null;
-}
+export type {
+  LinkedAccountsStandard,
+  LinkedOrganizationStandard,
+  LastEncounterDetailStandard,
+} from './otherMyCharts.processor';
+export { linkedAccountsProcessor } from './otherMyCharts.processor';
 
-interface OrgListResponse {
-  OrgList: Record<string, { OrganizationName: string; LogoUrl: string; LastEncounterDetail: string | null }>;
-}
-
-export async function getLinkedMyChartAccounts(mychartRequest: MyChartRequest): Promise<LinkedMyChart[]> {
-
-  const res = await makeAuthenticatedRequest(mychartRequest, { path: '/Community/Manage' })
-
-  const html = await res.text()
-
-  const requestVerificationToken = getRequestVerificationTokenFromBody(html)
-
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token')
-    return [];
-  }
-
-  const res2 = await makeAuthenticatedRequest(mychartRequest, {
-    path: `/Community/Shared/LoadCommunityLinks?noCache=` + Math.random(),
-    "headers": {
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      __requestverificationtoken: requestVerificationToken
+/**
+ * `GET /Community/Manage` for the token, then the legacy form-encoded
+ * `POST /Community/Shared/LoadCommunityLinks` with the lower-case
+ * `__requestverificationtoken` header the page's own JS sends. The
+ * cache-buster keeps a repeat call from being served a stale org list.
+ */
+export async function fetchLinkedAccountsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/Community/Manage');
+  await collector.send({
+    path: `/Community/Shared/LoadCommunityLinks?noCache=${Math.random()}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      __requestverificationtoken: token,
     },
-    "body": 'controllerType=2&showDXROrgInMO=false',
-    "method": "POST",
+    body: 'controllerType=2&showDXROrgInMO=false',
   });
+  return collector.toRaw();
+}
 
-  const json = await res2.json() as OrgListResponse;
-
-  const ret: LinkedMyChart[] = []
-
-  for (const result of Object.values(json.OrgList)) {
-
-    ret.push({
-      name: result.OrganizationName,
-      logoUrl: result.LogoUrl,
-      lastEncounter: result.LastEncounterDetail,
-    })
-  }
-
-  return ret;
+/** The standard object — what `mode: 'json'` returns. */
+export async function getLinkedMyChartAccounts(mychartRequest: MyChartRequest): Promise<LinkedAccountsStandard> {
+  return linkedAccountsProcessor.standard(await fetchLinkedAccountsRaw(mychartRequest));
 }

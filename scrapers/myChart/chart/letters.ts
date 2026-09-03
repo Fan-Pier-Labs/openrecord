@@ -1,103 +1,45 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody, parseMyChartDate, sortNewestFirstByDate } from "../core/util";
-import { logger } from '../../../shared/logger';
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import {
+  letterDetailsProcessor,
+  lettersProcessor,
+  type LetterDetailsStandard,
+  type LettersStandard,
+} from './letters.processor';
 
-export type Letter = {
-  dateISO: string;
-  reason: string;
-  viewed: boolean;
-  providerName: string;
-  providerPhotoUrl: string;
-  hnoId: string;
-  csn: string;
+export type { LettersStandard, LetterStandard, LetterDetailsStandard } from './letters.processor';
+export { lettersProcessor, letterDetailsProcessor } from './letters.processor';
+
+/** `GET /app/letters` for the token, then `POST /api/letters/GetLettersList`. */
+export async function fetchLettersRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/letters');
+  await collector.postJson('/api/letters/GetLettersList', token, {});
+  return collector.toRaw();
 }
 
-type LetterResponse = {
-  dateISO?: string;
-  reason?: string;
-  viewed?: boolean;
-  empId?: string;
-  hnoId?: string;
-  csn?: string;
+/** The standard object — what `mode: 'json'` returns. */
+export async function getLetters(mychartRequest: MyChartRequest): Promise<LettersStandard> {
+  return lettersProcessor.standard(await fetchLettersRaw(mychartRequest));
 }
 
-type LetterUserResponse = {
-  name?: string;
-  photoUrl?: string;
-  empId?: string;
+/**
+ * `POST /api/letters/GetLetterDetails` `{ hnoId, csn }`. MyChart needs the
+ * encounter (csn) alongside the note id; sending only one returns someone
+ * else's letter or nothing at all.
+ */
+export async function fetchLetterDetailsRaw(mychartRequest: MyChartRequest, hnoId: string, csn: string): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken('/app/letters');
+  await collector.postJson('/api/letters/GetLetterDetails', token, { hnoId, csn });
+  return collector.toRaw();
 }
 
-type GetLettersListResponse = {
-  letters?: LetterResponse[];
-  users?: Record<string, LetterUserResponse>;
-}
-
-export async function getLetters(mychartRequest: MyChartRequest): Promise<Letter[]> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/letters' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    logger.debug('Could not find request verification token for letters');
-    return [];
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/letters/GetLettersList',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const json: GetLettersListResponse = await resp.json();
-
-  const users = json.users ?? {};
-
-  const letters: Letter[] = (json.letters ?? []).map((letter: LetterResponse) => {
-    const provider = users[letter.empId || ''] ?? {};
-    return {
-      dateISO: letter.dateISO || '',
-      reason: letter.reason || '',
-      viewed: letter.viewed || false,
-      providerName: provider.name || '',
-      providerPhotoUrl: provider.photoUrl || '',
-      hnoId: letter.hnoId || '',
-      csn: letter.csn || '',
-    };
-  });
-
-  // Sort newest-first by dateISO. Letters with missing/unparseable dates go last.
-  return sortNewestFirstByDate(letters, l => parseMyChartDate(l.dateISO));
-}
-
-export type LetterDetailsResponse = {
-  bodyHTML: string;
-}
-
-export async function getLetterDetails(mychartRequest: MyChartRequest, hnoId: string, csn: string): Promise<LetterDetailsResponse> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, { path: '/app/letters' });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-
-  if (!token) {
-    throw new Error('Could not find request verification token for letter details');
-  }
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/letters/GetLetterDetails',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      '__RequestVerificationToken': token,
-    },
-    body: JSON.stringify({ hnoId, csn }),
-  });
-
-  const json: LetterDetailsResponse | null = await resp.json();
-  // Real instances answer an unknown hnoId with a literal JSON null body.
-  return json ?? { bodyHTML: '' };
+/** The standard object — what `mode: 'json'` returns. `null` for an unknown letter. */
+export async function getLetterDetails(
+  mychartRequest: MyChartRequest,
+  hnoId: string,
+  csn: string,
+): Promise<LetterDetailsStandard | null> {
+  return letterDetailsProcessor.standard(await fetchLetterDetailsRaw(mychartRequest, hnoId, csn));
 }

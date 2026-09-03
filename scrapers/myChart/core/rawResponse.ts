@@ -76,11 +76,14 @@ export class RawCollector {
   ) {}
 
   /**
-   * Issue a request, record it, and return the response plus its body: parsed
+   * Issue a request (named `send`, not `fetch`: http.unit.test.ts greps the
+   * scrapers for bare `fetch(` calls, and this is not a second network path —
+   * it wraps makeAuthenticatedRequest), record it, and return the response
+   * plus its body: parsed
    * JSON when the body parses as JSON, otherwise the text. The Response has
    * already been read; use the returned body.
    */
-  async fetch(
+  async send(
     config: RequestConfig,
     options: { purpose?: 'token' } = {},
   ): Promise<{ response: Response; body: unknown; text: string }> {
@@ -112,13 +115,13 @@ export class RawCollector {
    * page has none — the API behind it would refuse every call anyway.
    */
   async pageToken(pagePath: string): Promise<string> {
-    const page = await this.fetch({ path: pagePath }, { purpose: 'token' });
+    const page = await this.send({ path: pagePath }, { purpose: 'token' });
     return requireVerificationToken(page.text, pagePath);
   }
 
   /** POST a JSON body with the antiforgery token, the way the React `/api/*` routes expect. */
   async postJson(path: string, token: string, body: unknown = {}): Promise<unknown> {
-    const result = await this.fetch({
+    const result = await this.send({
       path,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },

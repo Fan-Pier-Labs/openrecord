@@ -45,7 +45,7 @@ import { getEducationMaterials } from '../../chart/educationMaterials'
 import { getEhiExportTemplates } from '../../chart/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
 import type { VisitStandard } from '../../chart/visits/visits'
-import { executeCapability } from '../../../../shared/capabilities'
+import { executeCapability, decodeImageId } from '../../../../shared/capabilities'
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
@@ -53,7 +53,7 @@ import { listConversations } from '../../chart/messages/conversations'
 import { getConversationMessages } from '../../chart/messages/messageThreads'
 import { requestMedicationRefill } from '../../chart/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
-import { followSamlChain } from '../../eunity/imagingViewer'
+import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
@@ -61,6 +61,14 @@ const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 function allergyName(entry: unknown): string {
   const e = entry as { allergyItem?: { name?: string }; name?: string }
   return e.allergyItem?.name ?? e.name ?? ''
+}
+
+/** An imaging order with viewable pictures whose name contains `pattern`, plus the fdi/ord pair behind its image_id. */
+async function imagingOrder(session: MyChartRequest, pattern: string) {
+  const { orders } = await getImagingResults(session)
+  const order = orders.find(o => o.image_id && (o.orderName ?? '').includes(pattern))
+  expect(order).toBeDefined()
+  return { order: order!, fdiContext: decodeImageId(order!.image_id!) }
 }
 
 // One fake server stands in for both real MyChart deployment shapes, so every
@@ -470,7 +478,7 @@ for (const mode of MOUNT_MODES) {
       expect(result.lrpID).toBe('LRP-HOMER-003')
       expect(result.depPhoneNumber).toBe('555-0123')
       expect(result.noteList.length).toBe(3)
-      const titles = result.noteList.map(n => n.displayName).sort()
+      const titles = result.noteList.map(n => n.displayName ?? '').sort((a, b) => a.localeCompare(b))
       expect(titles).toEqual(['Discharge Summary', 'ED Provider Note', 'ED Triage Note'])
 
       // The standard object keeps MyChart's wire casing (hnoID/hnoDAT/magicID);
@@ -523,21 +531,20 @@ for (const mode of MOUNT_MODES) {
 
     it('listLabResults returns lab results', async () => {
       const result = await listLabResults(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.orders.length).toBeGreaterThan(0)
     }, 30_000)
 
     it('listLabResults returns distinct details per lab order, not one panel repeated', async () => {
       const result = await listLabResults(session)
 
-      const names = result.map(r => r.orderName)
+      const names = result.orders.map(r => r.orderName)
       expect(names).toContain('Comprehensive Metabolic Panel')
       expect(names).toContain('Lipid Panel')
       expect(names).toContain('Complete Blood Count')
 
-      const cmp = result.find(r => r.orderName === 'Comprehensive Metabolic Panel')
-      const lipid = result.find(r => r.orderName === 'Lipid Panel')
-      const cbc = result.find(r => r.orderName === 'Complete Blood Count')
+      const cmp = result.orders.find(r => r.orderName === 'Comprehensive Metabolic Panel')
+      const lipid = result.orders.find(r => r.orderName === 'Lipid Panel')
+      const cbc = result.orders.find(r => r.orderName === 'Complete Blood Count')
       expect(cmp!.key).toBe('RES-CMP')
       expect(lipid!.key).toBe('RES-LIPID')
       expect(cbc!.key).toBe('RES-CBC')
@@ -607,8 +614,8 @@ for (const mode of MOUNT_MODES) {
 
     it('getBillingHistory returns billing data', async () => {
       const result = await getBillingHistory(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.accounts.length).toBeGreaterThan(0)
+      expect(result.accounts[0]!.visits.length).toBeGreaterThan(0)
     }, 30_000)
 
     it('requestMedicationRefill succeeds', async () => {
@@ -618,33 +625,32 @@ for (const mode of MOUNT_MODES) {
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {
       const result = await getImagingResults(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThanOrEqual(2)
+      expect(result.orders.length).toBeGreaterThanOrEqual(2)
 
-      // X-ray result
-      const xray = result.find(r => r.orderName.includes('XR'))
-      expect(xray).toBeDefined()
-      expect(xray!.reportText).toContain('Calvarium')
-      expect(xray!.fdiContext).toBeDefined()
-      expect(xray!.fdiContext!.fdi).toBe('FDI-XRAY-001')
-      expect(xray!.samlUrl).toBeDefined()
+      // X-ray result: the report lives in the study narrative, the pictures
+      // behind the image_id (which encodes the fdi/ord pair; the single-use
+      // SAML URL is raw-only).
+      const xray = await imagingOrder(session, 'XR')
+      const xrayText = xray.order.results.map(r => `${r.studyResult.narrative.contentAsString}\n${r.reportContentText}`).join('\n')
+      expect(xrayText).toContain('Calvarium')
+      expect(xray.fdiContext.fdi).toBe('FDI-XRAY-001')
+      expect(xray.order.hasViewableImages).toBe(true)
+      expect(await getImageViewerSamlUrl(session, xray.fdiContext)).not.toBeNull()
 
       // CT result
-      const ct = result.find(r => r.orderName.includes('CT'))
-      expect(ct).toBeDefined()
-      expect(ct!.reportText).toContain('crayon')
-      expect(ct!.fdiContext).toBeDefined()
-      expect(ct!.fdiContext!.fdi).toBe('FDI-CT-001')
-      expect(ct!.samlUrl).toBeDefined()
+      const ct = await imagingOrder(session, 'CT')
+      const ctText = ct.order.results.map(r => `${r.studyResult.narrative.contentAsString}\n${r.reportContentText}`).join('\n')
+      expect(ctText).toContain('crayon')
+      expect(ct.fdiContext.fdi).toBe('FDI-CT-001')
     }, 30_000)
 
     it('followSamlChain reaches eUnity viewer', async () => {
       // Get imaging result with FDI context
-      const results = await getImagingResults(session)
-      const xray = results.find(r => r.fdiContext)
-      expect(xray?.samlUrl).toBeDefined()
+      const xray = await imagingOrder(session, 'XR')
+      const saml = await getImageViewerSamlUrl(session, xray.fdiContext)
+      expect(saml).not.toBeNull()
 
-      const viewerSession = await followSamlChain(session, xray!.samlUrl!)
+      const viewerSession = await followSamlChain(session, saml!.samlUrl)
       expect(viewerSession).not.toBeNull()
       expect(viewerSession!.viewerUrl).toContain('/e/viewer')
       // jsessionId may be empty if Set-Cookie isn't propagated via fetch
@@ -654,13 +660,11 @@ for (const mode of MOUNT_MODES) {
     }, 30_000)
 
     it('downloadImagingStudyDirect downloads X-ray CLO image data', async () => {
-      const results = await getImagingResults(session)
-      const xray = results.find(r => r.fdiContext && r.orderName.includes('XR'))
-      expect(xray?.fdiContext).toBeDefined()
+      const xray = await imagingOrder(session, 'XR')
 
       const result = await downloadImagingStudyDirect(
         session,
-        xray!.fdiContext!,
+        xray.fdiContext,
         'Homer Skull XRay',
         '/tmp/fake-mychart-test-images',
         { skipFileWrite: true },
@@ -676,13 +680,11 @@ for (const mode of MOUNT_MODES) {
     }, 60_000)
 
     it('downloadImagingStudyDirect downloads CT multi-slice images', async () => {
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
-      expect(ct?.fdiContext).toBeDefined()
+      const ct = await imagingOrder(session, 'CT')
 
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct',
         { skipFileWrite: true },
@@ -713,11 +715,10 @@ for (const mode of MOUNT_MODES) {
     }, 60_000)
 
     it('CT slices carry per-instance wrappers that sort them anatomically', async () => {
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const ct = await imagingOrder(session, 'CT')
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct-order',
         { skipFileWrite: true },
@@ -762,11 +763,10 @@ for (const mode of MOUNT_MODES) {
       // externalizable ArrayCollection overlays, and ImagePhaseInfo -1
       // sentinels. Each is a decode path the flat scalar wrappers never
       // reach, and all three must survive the strict reader.
-      const results = await getImagingResults(session)
-      const ct = results.find(r => r.fdiContext && r.orderName.includes('CT'))
+      const ct = await imagingOrder(session, 'CT')
       const result = await downloadImagingStudyDirect(
         session,
-        ct!.fdiContext!,
+        ct.fdiContext,
         'Homer CT Head',
         '/tmp/fake-mychart-test-ct-rich',
         { skipFileWrite: true },

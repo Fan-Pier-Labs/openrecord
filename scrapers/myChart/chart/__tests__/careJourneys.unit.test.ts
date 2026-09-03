@@ -1,6 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getCareJourneys } from '../careJourneys'
+import { getCareJourneys, fetchCareJourneysRaw, careJourneysProcessor } from '../careJourneys'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../core/util'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -8,54 +9,43 @@ function mockRequest(responses: Array<{ body: string }>) {
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++]
-    return new Response(r!.body, { status: 200 })
+    return new Response(r!.body, { status: 200, headers: { 'content-type': 'application/json' } })
   })
   return req
 }
 
-describe('getCareJourneys', () => {
-  it('returns empty array when no token found', async () => {
-    const req = mockRequest([{ body: '<html></html>' }])
-    expect(await getCareJourneys(req)).toEqual([])
+const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="t" />'
+const JOURNEY = { id: 'CJ1', name: 'Post-Surgery Recovery', description: 'Follow-up', status: 'Active', providerName: 'Dr. Jones' }
+
+describe('fetchCareJourneysRaw', () => {
+  it('throws rather than returning no journeys when the page has no token', async () => {
+    await expect(fetchCareJourneysRaw(mockRequest([{ body: '<html></html>' }]))).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
-  it('parses care journeys from API response', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      {
-        body: JSON.stringify({
-          careJourneys: [
-            { id: 'CJ1', name: 'Post-Surgery Recovery', description: 'Knee surgery follow-up', status: 'Active', providerName: 'Dr. Jones' },
-          ],
-        }),
-      },
-    ])
+  it('records the page and the GetCareJourneys POST', async () => {
+    const raw = await fetchCareJourneysRaw(mockRequest([{ body: TOKEN_PAGE }, { body: JSON.stringify({ careJourneys: [JOURNEY] }) }]))
+    expect(raw.requests.map((r) => `${r.method} ${r.path}`)).toEqual(['GET /app/care-journeys', 'POST /api/care-journeys/GetCareJourneys'])
+    expect(raw.requests[1]!.body).toEqual({ careJourneys: [JOURNEY] })
+  })
+})
 
-    const result = await getCareJourneys(req)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({
-      id: 'CJ1',
-      name: 'Post-Surgery Recovery',
-      description: 'Knee surgery follow-up',
-      status: 'Active',
-      providerName: 'Dr. Jones',
+describe('careJourneysProcessor', () => {
+  // No capture exists, so the element passes through whole (rule 10).
+  it('passes each journey through whole', () => {
+    const standard = careJourneysProcessor.standard({
+      requests: [{ path: '/api/care-journeys/GetCareJourneys', method: 'POST', status: 200, contentType: 'application/json', body: { careJourneys: [JOURNEY, {}] } }],
     })
+    expect(standard).toEqual({ careJourneys: [JOURNEY, {}] })
+    expect(careJourneysProcessor.concise(standard)).toEqual(standard)
   })
 
-  it('handles missing fields with defaults', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ careJourneys: [{}] }) },
-    ])
-    const result = await getCareJourneys(req)
-    expect(result[0]).toEqual({ id: '', name: '', description: '', status: '', providerName: '' })
+  it('reports an empty or missing list as empty', () => {
+    expect(careJourneysProcessor.standard({ requests: [] })).toEqual({ careJourneys: [] })
   })
+})
 
-  it('handles empty list', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ careJourneys: [] }) },
-    ])
-    expect(await getCareJourneys(req)).toEqual([])
+describe('getCareJourneys', () => {
+  it('returns the standard object', async () => {
+    expect(await getCareJourneys(mockRequest([{ body: TOKEN_PAGE }, { body: JSON.stringify({ careJourneys: [JOURNEY] }) }]))).toEqual({ careJourneys: [JOURNEY] })
   })
 })

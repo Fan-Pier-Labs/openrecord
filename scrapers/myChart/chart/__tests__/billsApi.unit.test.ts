@@ -1,6 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test'
 import {
   getBillingHistory,
+  fetchBillingRaw,
+  billingProcessor,
   getEncBillingId,
   getPaymentList,
   getStatementList,
@@ -9,6 +11,7 @@ import {
 import { date2dte } from '../bills/utils'
 import { MyChartRequest } from '../../core/myChartRequest'
 import type { BillingAccount, StatementItem } from '../bills/types'
+import { renderOutput } from '../../processors/processor'
 
 const ACCOUNT: BillingAccount = {
   guarantorNumber: 'G-1',
@@ -156,32 +159,70 @@ describe('getBillingHistory', () => {
     </div>
   `
 
+  const visit = (Description: string, SelfAmountDueRaw = 0) => ({
+    Description, StartDateDisplay: '01/10/2026', Patient: 'Homer Simpson', Provider: 'Dr. Hibbert',
+    HospitalAccountId: 'HAR-1', StartDate: 67000, SelfAmountDueRaw, SelfAmountDue: `$${SelfAmountDueRaw.toFixed(2)}`,
+  })
+
   const details = (visits: unknown[] = [], informational: unknown[] = []) =>
     JSON.stringify({
       Success: true,
-      Data: { UnifiedVisitList: visits, InformationalVisitList: informational },
+      Data: { UnifiedVisitList: visits, InformationalVisitList: informational, HasVisits: true, CanMakePayment: true },
     })
 
   function fullMock(overrides: Array<[string, string | (() => Response)]> = []) {
     return mockRouted([
       ...overrides,
       ['/Billing/Summary', SUMMARY_HTML],
-      ['GetVisits', details([{ v: 1 }], [{ v: 2 }])],
-      ['GetStatementList', JSON.stringify({ DataStatement: { StatementList: [] } })],
-      ['LoadPaymentList', JSON.stringify({ PaymentList: [] })],
+      ['GetVisits', details([visit('Annual physical', 42.5)], [visit('Flu shot')])],
+      ['GetStatementList', JSON.stringify({ DataStatement: { StatementList: [{ FormattedDateDisplay: 'Jan 15, 2026', StatementAmountDisplay: '$42.50', IsRead: false, RecordID: 'REC-1' }] }, DataDetailBill: { StatementList: [] } })],
+      ['LoadPaymentList', JSON.stringify({ Data: { PaymentList: [{ FormattedDateDisplay: 'Dec 5, 2025', Description: 'MyChart Payment', PaymentAmountDisplay: '$150.00' }] } })],
       ['/Billing/Details', '{"EncID":"ENC-7"}'],
     ])
   }
 
-  it('attaches details, statements, payments and the encrypted id to each account', async () => {
+  it('joins visits, statements and payments onto each account in the standard object', async () => {
     const { req } = fullMock()
-    const [account] = await getBillingHistory(req)
+    const result = await getBillingHistory(req)
 
-    expect(account!.guarantorNumber).toBe('7007')
-    expect(account!.billingDetails?.Success).toBe(true)
-    expect(account!.statementList).toBeDefined()
-    expect(account!.paymentList).toBeDefined()
-    expect(account!.encBillingId).toBe('ENC-7')
+    expect(result.totalDue).toBe(42.5)
+    const [account] = result.accounts
+    expect(account).toMatchObject({ guarantorNumber: '7007', patientName: 'Homer Simpson', amountDueNumber: 42.5, HasVisits: true, CanMakePayment: true })
+    expect(account!.visits.map((v) => [v.Description, v.category])).toEqual([
+      ['Flu shot', 'InformationalVisitList'],
+      ['Annual physical', 'UnifiedVisitList'],
+    ])
+    expect(account!.statements).toHaveLength(1)
+    expect(account!.statements[0]).toMatchObject({ FormattedDateDisplay: 'Jan 15, 2026', StatementAmountDisplay: '$42.50', IsRead: false, RecordID: 'REC-1' })
+    expect(account!.payments).toEqual([{
+      FormattedDateDisplay: 'Dec 5, 2025', Description: 'MyChart Payment', SubText: null,
+      PaymentAmountDisplay: '$150.00', UndistributedAmountDisplay: null, Receipt: null,
+    }])
+    // Account keys are internal: in raw as the request paths, not in standard.
+    expect(JSON.stringify(result)).not.toContain('ENC-7')
+    expect(JSON.stringify(result)).not.toContain('CTX7')
+  })
+
+  it('records the summary page and the four per-account calls, minus the cache-buster', async () => {
+    const { req } = fullMock()
+    const raw = await fetchBillingRaw(req)
+
+    expect(raw.requests.map((r) => r.path.split('?')[0])).toEqual([
+      '/Billing/Summary',
+      '/Billing/Details/GetVisits',
+      '/Billing/Details/GetStatementList',
+      '/Billing/Details/LoadPaymentList',
+      '/Billing/Details',
+    ])
+    for (const r of raw.requests.slice(1)) {
+      expect(r.path).not.toContain('noCache')
+      expect(r.path).toMatch(/id=ID7/i)
+      expect(r.path).toMatch(/context=CTX7/i)
+    }
+    // The details page is recorded whole (parsed, since this one is JSON-shaped); EncID is raw-only.
+    expect(raw.requests[4]!.body).toEqual({ EncID: 'ENC-7' })
+    expect(renderOutput(billingProcessor, raw, 'raw')).toBe(raw)
+    expect(renderOutput(billingProcessor, raw, 'concise')).toContain('- **totalDue**: 42.5')
   })
 
   it('searches a window wide enough to cover a lifetime of visits', async () => {
@@ -198,24 +239,29 @@ describe('getBillingHistory', () => {
     expect(stop).toBeGreaterThan(date2dte(new Date()))
   })
 
-  it('keeps the billing details when the supplementary calls fail', async () => {
+  it('keeps the visits when a supplementary call fails, and records the failure', async () => {
     // A statement-list outage should not cost the caller the visit history it
     // already retrieved.
     const { req } = mockRouted([
       ['/Billing/Summary', SUMMARY_HTML],
-      ['GetVisits', details([{ v: 1 }])],
+      ['GetVisits', details([visit('Annual physical')])],
       ['GetStatementList', () => new Response('not json', { status: 500 })],
-      ['LoadPaymentList', JSON.stringify({ PaymentList: [] })],
+      ['LoadPaymentList', () => { throw new Error('connection reset') }],
       ['/Billing/Details', '{"EncID":"ENC-7"}'],
     ])
 
-    const [account] = await getBillingHistory(req)
-    expect(account!.billingDetails?.Success).toBe(true)
-    expect(account!.statementList).toBeUndefined()
+    const raw = await fetchBillingRaw(req)
+    expect(raw.requests.find((r) => r.path.includes('GetStatementList'))).toMatchObject({ status: 500, body: 'not json' })
+    expect(raw.requests.some((r) => r.path.includes('LoadPaymentList'))).toBe(false)
+
+    const [account] = billingProcessor.standard(raw).accounts
+    expect(account!.visits.map((v) => v.Description)).toEqual(['Annual physical'])
+    expect(account!.statements).toEqual([])
+    expect(account!.payments).toEqual([])
   })
 
-  it('returns an empty list when the summary page has no accounts', async () => {
+  it('returns no accounts when the summary page has none', async () => {
     const { req } = mockRouted([['/Billing/Summary', '<html><body>No balance</body></html>']])
-    expect(await getBillingHistory(req)).toEqual([])
+    expect(await getBillingHistory(req)).toEqual({ totalDue: 0, accounts: [] })
   })
 })

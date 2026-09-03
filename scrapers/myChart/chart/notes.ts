@@ -1,225 +1,119 @@
-import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
-import type { MyChartRequest } from "../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../core/util";
+import type { MyChartRequest } from '../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../core/rawResponse';
+import {
+  noteContentProcessor,
+  visitNotesProcessor,
+  type NoteContentStandard,
+  type VisitNotesStandard,
+} from './notes.processor';
+
+export type { VisitNotesStandard, VisitNoteStandard, NoteContentStandard } from './notes.processor';
+export { visitNotesProcessor, noteContentProcessor } from './notes.processor';
 
 /**
- * Shape of a single note in a visit's Shared Notes tab.
- * Returned by /mychart/api/visit-notes/GetVisitNotes.
+ * The CSRF token. Uses /Visits/VisitsList for consistency with the sibling
+ * visits scraper.
  */
-export type VisitNote = {
-  hnoId: string;
-  hnoDat: string;
-  displayName: string;
-  iso: string;
-  isAddendum: boolean;
-  isNoteSensitive: boolean;
-  providerName: string;
-  providerMagicId: string;
-};
-
-export type GetVisitNotesResult = {
-  csn: string;
-  lrpId: string;
-  depPhoneNumber: string;
-  isAtLeastOneNoteSensitive: boolean;
-  notes: VisitNote[];
-};
-
-type VisitNoteApiNote = {
-  hnoID?: string;
-  hnoDAT?: string;
-  displayName?: string;
-  iso?: string;
-  isAddendum?: boolean;
-  isNoteSensitive?: boolean;
-  provider?: { name?: string; magicID?: string };
-};
-
-type GetVisitNotesApiResponse = {
-  lrpID?: string;
-  depPhoneNumber?: string;
-  isAtLeastOneNoteSensitive?: boolean;
-  noteList?: VisitNoteApiNote[];
-};
-
-type LoadReportContentApiResponse = {
-  reportContent?: string;
-  reportCss?: string;
-  baseFontSize?: number;
-  stylesheets?: string[];
-};
-
-export type NoteContent = {
-  contentHtml: string;
-  contentCss: string;
-};
+const VISITS_PAGE = '/Visits/VisitsList';
 
 /**
- * Fetch the CSRF token. Uses /Visits/VisitsList for consistency with the
- * sibling visits scraper.
+ * Surface F5 Volterra WAF rejections (200 OK with a text/html "Request
+ * Rejected" body) as a clear error rather than letting the caller find an
+ * HTML string where JSON was expected. Any other non-JSON answer is reported
+ * as a probably-expired session.
  */
-async function fetchVisitToken(mychartRequest: MyChartRequest): Promise<string> {
-  const pageResp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/Visits/VisitsList?noCache=' + Math.random(),
-  });
-  const html = await pageResp.text();
-  const token = getRequestVerificationTokenFromBody(html);
-  if (!token) {
-    throw new Error('Could not find request verification token for visit notes');
-  }
-  return token;
-}
-
-/**
- * Parse a JSON response, surfacing F5 Volterra WAF rejections (200 OK with
- * text/html "Request Rejected" body) as a clear authentication error rather
- * than letting JSON.parse throw 'Unexpected token <'.
- */
-async function parseJsonOrWafError<T>(resp: Response, endpoint: string): Promise<T> {
-  const contentType = resp.headers.get('content-type') || '';
-  if (!contentType.includes('json')) {
-    const server = resp.headers.get('server') || '';
-    const bodyPreview = (await resp.text()).slice(0, 200);
-    if (server.includes('volt') || bodyPreview.includes('Request Rejected')) {
-      throw new Error(
-        `MyChart WAF (${server || 'unknown'}) rejected ${endpoint}. ` +
-        `The session is likely valid but the WAF blocked this request shape. ` +
-        `Try refreshing your MyChart login.`
-      );
-    }
+export function requireJsonBody(
+  result: { response: Response; text: string },
+  endpoint: string,
+): void {
+  const contentType = result.response.headers.get('content-type') || '';
+  if (contentType.includes('json')) return;
+  const server = result.response.headers.get('server') || '';
+  const bodyPreview = result.text.slice(0, 200);
+  if (server.includes('volt') || bodyPreview.includes('Request Rejected')) {
     throw new Error(
-      `Expected JSON from ${endpoint} but got ${contentType || 'no content-type'}. ` +
-      `Session may have expired.`
+      `MyChart WAF (${server || 'unknown'}) rejected ${endpoint}. ` +
+        `The session is likely valid but the WAF blocked this request shape. ` +
+        `Try refreshing your MyChart login.`,
     );
   }
-  return resp.json() as Promise<T>;
-}
-
-/**
- * List the clinical notes attached to a past visit.
- * Each note has the hnoId/hnoDat needed to fetch its content with getNoteContent().
- */
-export async function getVisitNotes(
-  mychartRequest: MyChartRequest,
-  csn: string,
-): Promise<GetVisitNotesResult> {
-  const token = await fetchVisitToken(mychartRequest);
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/visit-notes/GetVisitNotes',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      __requestverificationtoken: token,
-    },
-    body: JSON.stringify({ CSN: csn, FromPvdPage: true }),
-  });
-
-  const json = await parseJsonOrWafError<GetVisitNotesApiResponse | null>(
-    resp,
-    '/api/visit-notes/GetVisitNotes'
+  throw new Error(
+    `Expected JSON from ${endpoint} but got ${contentType || 'no content-type'}. Session may have expired.`,
   );
+}
 
-  // Real instances answer an unknown CSN with a literal JSON null body.
-  if (json === null) {
-    return { csn, lrpId: '', depPhoneNumber: '', isAtLeastOneNoteSensitive: false, notes: [] };
-  }
+async function postJsonChecked(collector: RawCollector, path: string, token: string, body: unknown): Promise<void> {
+  const result = await collector.send({
+    path,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', __requestverificationtoken: token },
+    body: JSON.stringify(body),
+  });
+  requireJsonBody(result, path);
+}
 
-  const notes: VisitNote[] = (json.noteList ?? []).map((n) => ({
-    hnoId: n.hnoID || '',
-    hnoDat: n.hnoDAT || '',
-    displayName: n.displayName || '',
-    iso: n.iso || '',
-    isAddendum: !!n.isAddendum,
-    isNoteSensitive: !!n.isNoteSensitive,
-    providerName: n.provider?.name || '',
-    providerMagicId: n.provider?.magicID || '',
-  }));
+/** `POST /api/visit-notes/GetVisitNotes` `{ CSN, FromPvdPage }` — the notes attached to a past visit. */
+export async function fetchVisitNotesRaw(mychartRequest: MyChartRequest, csn: string): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken(VISITS_PAGE + '?noCache=' + Math.random());
+  await postJsonChecked(collector, '/api/visit-notes/GetVisitNotes', token, { CSN: csn, FromPvdPage: true });
+  return collector.toRaw();
+}
 
-  return {
-    csn,
-    lrpId: json.lrpID || '',
-    depPhoneNumber: json.depPhoneNumber || '',
-    isAtLeastOneNoteSensitive: !!json.isAtLeastOneNoteSensitive,
-    notes,
-  };
+/** The standard object — what `mode: 'json'` returns. `null` for an unknown CSN. */
+export async function getVisitNotes(mychartRequest: MyChartRequest, csn: string): Promise<VisitNotesStandard | null> {
+  return visitNotesProcessor.standard(await fetchVisitNotesRaw(mychartRequest, csn));
 }
 
 /**
- * Fetch the rendered HTML content of a single clinical note.
- * The lrpId is shared across all notes from a single visit; hnoId/hnoDat identify the note.
+ * `POST /api/report-content/LoadReportContent` with `OPEN_NOTES` — one note's
+ * rendered HTML. `lrpId` is shared by every note of a visit; `hnoId`/`hnoDat`
+ * identify the note.
  */
+export async function fetchNoteContentRaw(
+  mychartRequest: MyChartRequest,
+  params: { csn: string; lrpId: string; hnoId: string; hnoDat: string },
+): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken(VISITS_PAGE + '?noCache=' + Math.random());
+  await postJsonChecked(collector, '/api/report-content/LoadReportContent', token, {
+    reportMnemonic: 'OPEN_NOTES',
+    reportID: params.lrpId,
+    contextID: params.hnoId,
+    contextDAT: params.hnoDat,
+    contextINI: 'HNO',
+    csn: params.csn,
+    isFullReportPage: false,
+    uniqueClass: 'EID-1',
+    nonce: '',
+  });
+  return collector.toRaw();
+}
+
+/** The standard object — what `mode: 'json'` returns. */
 export async function getNoteContent(
   mychartRequest: MyChartRequest,
   params: { csn: string; lrpId: string; hnoId: string; hnoDat: string },
-): Promise<NoteContent> {
-  const token = await fetchVisitToken(mychartRequest);
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/report-content/LoadReportContent',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      __requestverificationtoken: token,
-    },
-    body: JSON.stringify({
-      reportMnemonic: 'OPEN_NOTES',
-      reportID: params.lrpId,
-      contextID: params.hnoId,
-      contextDAT: params.hnoDat,
-      contextINI: 'HNO',
-      csn: params.csn,
-      isFullReportPage: false,
-      uniqueClass: 'EID-1',
-      nonce: '',
-    }),
-  });
-
-  const json = await parseJsonOrWafError<LoadReportContentApiResponse>(
-    resp,
-    '/api/report-content/LoadReportContent'
-  );
-
-  return {
-    contentHtml: json.reportContent || '',
-    contentCss: json.reportCss || '',
-  };
+): Promise<NoteContentStandard | null> {
+  return noteContentProcessor.standard(await fetchNoteContentRaw(mychartRequest, params));
 }
 
-/**
- * Fetch the After Visit Summary (AVS) HTML for a past visit.
- * Uses the same /report-content endpoint with reportMnemonic=AMB_AVS.
- */
-export async function getVisitAVS(
-  mychartRequest: MyChartRequest,
-  csn: string,
-): Promise<NoteContent> {
-  const token = await fetchVisitToken(mychartRequest);
-
-  const resp = await makeAuthenticatedRequest(mychartRequest, {
-    path: '/api/report-content/LoadReportContent',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      __requestverificationtoken: token,
-    },
-    body: JSON.stringify({
-      reportMnemonic: 'AMB_AVS',
-      reportID: '',
-      csn,
-      isFullReportPage: false,
-      uniqueClass: 'EID-1',
-      nonce: '',
-    }),
+/** Same endpoint with `AMB_AVS` — the After Visit Summary for a past visit. */
+export async function fetchVisitAvsRaw(mychartRequest: MyChartRequest, csn: string): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  const token = await collector.pageToken(VISITS_PAGE + '?noCache=' + Math.random());
+  await postJsonChecked(collector, '/api/report-content/LoadReportContent', token, {
+    reportMnemonic: 'AMB_AVS',
+    reportID: '',
+    csn,
+    isFullReportPage: false,
+    uniqueClass: 'EID-1',
+    nonce: '',
   });
+  return collector.toRaw();
+}
 
-  const json = await parseJsonOrWafError<LoadReportContentApiResponse>(
-    resp,
-    '/api/report-content/LoadReportContent'
-  );
-
-  return {
-    contentHtml: json.reportContent || '',
-    contentCss: json.reportCss || '',
-  };
+/** The standard object — what `mode: 'json'` returns. */
+export async function getVisitAVS(mychartRequest: MyChartRequest, csn: string): Promise<NoteContentStandard | null> {
+  return noteContentProcessor.standard(await fetchVisitAvsRaw(mychartRequest, csn));
 }

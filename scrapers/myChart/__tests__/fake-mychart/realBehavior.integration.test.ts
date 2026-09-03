@@ -162,14 +162,14 @@ describe('test-results fidelity', () => {
   })
 
   it('listLabResults end-to-end: distinct panels, trends attached, imaging included', async () => {
-    const results = await listLabResults(session)
-    const names = results.map(r => r.orderName)
+    const { orders } = await listLabResults(session)
+    const names = orders.map(r => r.orderName ?? '')
     expect(names).toContain('Comprehensive Metabolic Panel')
     expect(names).toContain('Lipid Panel')
     expect(names).toContain('Complete Blood Count')
     expect(names.some(n => n.startsWith('XR '))).toBe(true)
-    const lipid = results.find(r => r.orderName === 'Lipid Panel')!
-    expect(lipid.historicalResults?.historicalResults?.['COMP-CHOL']).toBeDefined()
+    const lipid = orders.find(r => r.orderName === 'Lipid Panel')!
+    expect(lipid.historicalResults['COMP-CHOL']).toBeDefined()
   })
 })
 

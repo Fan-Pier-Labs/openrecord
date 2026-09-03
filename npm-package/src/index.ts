@@ -147,6 +147,14 @@ export {
 export {
   listLabResults,
   getImagingResults,
+  fetchLabResultsRaw,
+  fetchImagingResultsRaw,
+  labResultsProcessor,
+  imagingResultsProcessor,
+  type LabResultsStandard,
+  type LabOrderStandard,
+  type ImagingResultsStandard,
+  type ImagingOrderStandard,
 } from '../../scrapers/myChart/chart/labs/labResults';
 export {
   downloadImagingStudyDirect,
@@ -264,7 +272,14 @@ export {
 } from '../../scrapers/myChart/chart/messages/deleteMessage';
 
 // ─── Bills ────────────────────────────────────────────────────────────────
-export { getBillingHistory } from '../../scrapers/myChart/chart/bills/bills';
+export {
+  getBillingHistory,
+  fetchBillingRaw,
+  billingProcessor,
+  type BillingStandard,
+  type BillingAccountStandard,
+  type BillingVisitStandard,
+} from '../../scrapers/myChart/chart/bills/bills';
 
 // ─── Care coordination ───────────────────────────────────────────────────
 export {
@@ -283,8 +298,10 @@ export {
 } from '../../scrapers/myChart/chart/referrals';
 export {
   getInsurance,
-  type InsuranceCoverage,
-  type InsuranceResult,
+  fetchInsuranceRaw,
+  insuranceProcessor,
+  type InsuranceStandard,
+  type InsuranceCoverageStandard,
 } from '../../scrapers/myChart/chart/insurance';
 export {
   getDocuments,
