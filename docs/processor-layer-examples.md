@@ -30,8 +30,8 @@ characters are cut, and say so. The fake's per-session CSRF token and the now-ba
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
 | `get_lab_results` | 41884 | 17184 | 21357 | 5340 |
 | `get_imaging_results` | 42608 | 5204 | 6084 | 2783 |
-| `get_messages` | 5510 | 4399 | 5506 | 3356 |
-| `get_message_thread` | 2412 | 1486 | 1801 | 991 |
+| `get_messages` | 8224 | 4413 | 5523 | 3373 |
+| `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 40573 | 3476 | 4111 | 1025 |
@@ -10273,7 +10273,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Inbox conversations with the care team.
 
 <details>
-<summary><code>mode: raw</code> (5510 chars)</summary>
+<summary><code>mode: raw</code> (8224 chars)</summary>
 
 ```json
 {
@@ -10304,7 +10304,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-001",
           "isUnread": false,
           "deliveryInstantISO": "2026-01-10T14:30:00Z",
-          "body": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.</span></div>\r\n<div data-paragraph=\"2\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">&nbsp;</span></div>\r\n<div data-paragraph=\"3\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Your cholesterol levels are concerning.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-HIBBERT"
@@ -10317,7 +10317,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-002",
           "isUnread": false,
           "deliveryInstantISO": "2026-01-10T15:45:00Z",
-          "body": "But doc, donuts are a food group! Can't I just take more pills instead?",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">But doc, donuts are a food group! Can't I just take more pills instead?</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "",
@@ -10331,7 +10331,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-003",
           "isUnread": false,
           "deliveryInstantISO": "2026-01-11T09:00:00Z",
-          "body": "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-HIBBERT"
@@ -10379,7 +10379,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-004",
           "isUnread": false,
           "deliveryInstantISO": "2025-12-15T10:00:00Z",
-          "body": "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Hi-Everybody! I have great news about a new discount liposuction &amp; lap-band procedure. Only $29.95! Results may vary.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-NICK"
@@ -10392,7 +10392,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-005",
           "isUnread": false,
           "deliveryInstantISO": "2025-12-15T11:30:00Z",
-          "body": "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "",
@@ -10441,7 +10441,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-013",
           "isUnread": false,
           "deliveryInstantISO": "2025-11-02T16:20:00Z",
-          "body": "Let's get imaging. I have placed the order; the department will reach out to schedule.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Let's get imaging. I have placed the order; the department will reach out to schedule.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-HIBBERT"
@@ -10454,7 +10454,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-014",
           "isUnread": false,
           "deliveryInstantISO": "2025-11-03T09:05:00Z",
-          "body": "We have openings Thursday morning and Friday afternoon. Which works better?",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">We have openings Thursday morning and Friday afternoon. Which works better?</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-MONROE"
@@ -10467,7 +10467,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-015",
           "isUnread": false,
           "deliveryInstantISO": "2025-11-03T09:40:00Z",
-          "body": "Friday afternoon. Thursday is donut day at the plant.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Friday afternoon. Thursday is donut day at the plant.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "",
@@ -10481,7 +10481,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-016",
           "isUnread": false,
           "deliveryInstantISO": "2025-11-03T10:12:00Z",
-          "body": "Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-MONROE"
@@ -10494,7 +10494,7 @@ Inbox conversations with the care team.
           "wmgId": "MSG-017",
           "isUnread": false,
           "deliveryInstantISO": "2025-11-07T11:00:00Z",
-          "body": "Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.</span></div></div>",
           "author": {
             "displayName": "",
             "empKey": "PROV-HIBBERT"
@@ -10578,7 +10578,7 @@ Inbox conversations with the care team.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (5506 chars)</summary>
+<summary><code>mode: standard</code> (5523 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -10614,7 +10614,11 @@ Inbox conversations with the care team.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.
+- **bodyText**:
+
+Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.  
+  
+Your cholesterol levels are concerning.
 
 ###### author
 
@@ -10688,7 +10692,7 @@ Inbox conversations with the care team.
 - **senderName**: Nick Riviera, MD
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.
+- **bodyText**: Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.
 
 ###### author
 
@@ -10831,7 +10835,7 @@ Inbox conversations with the care team.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (3356 chars)</summary>
+<summary><code>mode: concise</code> (3373 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -10862,7 +10866,11 @@ Inbox conversations with the care team.
 - **deliveryInstantISO**: 2026-01-10T14:30:00Z
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
-- **bodyText**: Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.
+- **bodyText**:
+
+Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.  
+  
+Your cholesterol levels are concerning.
 
 ##### messages 2
 
@@ -10903,7 +10911,7 @@ Inbox conversations with the care team.
 - **deliveryInstantISO**: 2025-12-15T10:00:00Z
 - **senderName**: Nick Riviera, MD
 - **isFromPatient**: false
-- **bodyText**: Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.
+- **bodyText**: Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.
 
 ##### messages 2
 
@@ -10970,7 +10978,7 @@ Inbox conversations with the care team.
 </details>
 
 <details>
-<summary><code>mode: json</code> (4399 chars)</summary>
+<summary><code>mode: json</code> (4413 chars)</summary>
 
 ```json
 {
@@ -11000,7 +11008,7 @@ Inbox conversations with the care team.
           "senderName": "Julius Hibbert, MD",
           "isFromPatient": false,
           "isUnread": false,
-          "bodyText": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.",
+          "bodyText": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.\n\nYour cholesterol levels are concerning.",
           "author": {
             "empKey": "PROV-HIBBERT",
             "wprKey": null
@@ -11065,7 +11073,7 @@ Inbox conversations with the care team.
           "senderName": "Nick Riviera, MD",
           "isFromPatient": false,
           "isUnread": false,
-          "bodyText": "Hi-Everybody! I have great news about a new discount liposuction procedure. Only $29.95! Results may vary.",
+          "bodyText": "Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.",
           "author": {
             "empKey": "PROV-NICK",
             "wprKey": null
@@ -11207,7 +11215,7 @@ Arguments: ```json
 ```
 
 <details>
-<summary><code>mode: raw</code> (2412 chars)</summary>
+<summary><code>mode: raw</code> (3424 chars)</summary>
 
 ```json
 {
@@ -11289,7 +11297,7 @@ Arguments: ```json
       "wmgId": "MSG-001",
       "isUnread": false,
       "deliveryInstantISO": "2026-01-10T14:30:00Z",
-      "body": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.",
+      "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.</span></div>\r\n<div data-paragraph=\"2\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">&nbsp;</span></div>\r\n<div data-paragraph=\"3\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Your cholesterol levels are concerning.</span></div></div>",
       "author": {
         "displayName": "",
         "empKey": "PROV-HIBBERT"
@@ -11302,7 +11310,7 @@ Arguments: ```json
       "wmgId": "MSG-002",
       "isUnread": false,
       "deliveryInstantISO": "2026-01-10T15:45:00Z",
-      "body": "But doc, donuts are a food group! Can't I just take more pills instead?",
+      "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">But doc, donuts are a food group! Can't I just take more pills instead?</span></div></div>",
       "author": {
         "displayName": "",
         "empKey": "",
@@ -11316,7 +11324,7 @@ Arguments: ```json
       "wmgId": "MSG-003",
       "isUnread": false,
       "deliveryInstantISO": "2026-01-11T09:00:00Z",
-      "body": "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
+      "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.</span></div></div>",
       "author": {
         "displayName": "",
         "empKey": "PROV-HIBBERT"
@@ -11344,7 +11352,7 @@ Arguments: ```json
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1801 chars)</summary>
+<summary><code>mode: standard</code> (1807 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -11367,7 +11375,11 @@ Arguments: ```json
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.
+- **bodyText**:
+
+Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.  
+  
+Your cholesterol levels are concerning.
 
 #### author
 
@@ -11425,7 +11437,7 @@ Arguments: ```json
 </details>
 
 <details>
-<summary><code>mode: concise</code> (991 chars)</summary>
+<summary><code>mode: concise</code> (997 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -11446,7 +11458,11 @@ Arguments: ```json
 - **deliveryInstantISO**: 2026-01-10T14:30:00Z
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
-- **bodyText**: Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.
+- **bodyText**:
+
+Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.  
+  
+Your cholesterol levels are concerning.
 
 ### messages 2
 
@@ -11465,7 +11481,7 @@ Arguments: ```json
 </details>
 
 <details>
-<summary><code>mode: json</code> (1486 chars)</summary>
+<summary><code>mode: json</code> (1489 chars)</summary>
 
 ```json
 {
@@ -11486,7 +11502,7 @@ Arguments: ```json
       "senderName": "Julius Hibbert, MD",
       "isFromPatient": false,
       "isUnread": false,
-      "bodyText": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day. Your cholesterol levels are concerning.",
+      "bodyText": "Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.\n\nYour cholesterol levels are concerning.",
       "author": {
         "empKey": "PROV-HIBBERT",
         "wprKey": null
