@@ -6,6 +6,13 @@
 export { fetchHospitalNetworkProfile, INSURANCE_GATE_REASON, type NetworkProfileOptions } from './networkProfile';
 export { parseOrgProfile, parseMnemonics, parsePhone, parseEmail, hasOrgProfile } from './orgProfile';
 export { fetchProviderDirectory, fetchSchedulingWorkflow, type ProviderDirectoryOptions } from './providerDirectory';
+export {
+  fetchOpenSlots,
+  fetchProviderAvailability,
+  toEpicDte,
+  fromEpicDte,
+  type OpenSlotsOptions,
+} from './openSlots';
 export { fetchBillingEntities } from './guestEstimates';
 export { PreloginEndpointError } from './preloginSession';
 export type * from './types';

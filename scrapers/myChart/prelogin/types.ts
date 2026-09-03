@@ -143,3 +143,38 @@ export type HospitalNetworkProfile = {
    */
   warnings: string[];
 };
+
+/**
+ * One open appointment slot, as the anonymous scheduling search returns it.
+ *
+ * `providerId` and `clinicId` are the same opaque ids `Provider.id` and
+ * `Clinic.id` carry, so a slot joins straight onto the directory.
+ */
+export type OpenSlot = {
+  providerId: string;
+  clinicId: string;
+  visitTypeId: string | null;
+  /** ISO instant ("2026-09-08T17:00:00Z"). Null if the instance omitted it. */
+  startUtc: string | null;
+  /** The clinic's own rendering — "Tuesday September 8, 2026" / "1:00 PM". */
+  localDate: string | null;
+  localTime: string | null;
+  /** "EDT", "PST" — the marker MyChart displays, not an IANA zone. */
+  timeZoneMarker: string | null;
+  lengthInMinutes: number | null;
+  /** 1 = in person, 2 = video, on every instance captured so far. */
+  telehealthMode: number | null;
+  /** The untouched slot record, so nothing MyChart sent is lost. */
+  raw: unknown;
+};
+
+export type SlotSearchResult = {
+  specialty: Specialty;
+  slots: OpenSlot[];
+  /** How many `GetSlots` round trips it took. */
+  pages: number;
+  /** The instance applied back-pressure and the walk stopped early. */
+  throttled: boolean;
+  /** The server reported the search finished rather than the page cap hitting. */
+  complete: boolean;
+};
