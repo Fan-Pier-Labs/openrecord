@@ -70,7 +70,7 @@ describe('the registry itself', () => {
       for (const param of capability.params) {
         expect(param.name).toMatch(/^[a-z][a-z0-9_]*$/);
         expect(param.description.length).toBeGreaterThan(5);
-        expect(['string', 'number', 'boolean', 'object']).toContain(param.type);
+        expect(['string', 'number', 'boolean']).toContain(param.type);
       }
       const names = capability.params.map((p) => p.name);
       expect(new Set(names).size).toBe(names.length);

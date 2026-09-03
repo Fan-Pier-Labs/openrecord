@@ -49,6 +49,7 @@ import {
   executeCapability,
   readAccountArg,
   type Capability,
+  type CapabilityArgs,
   type CapabilityContext,
   type CapabilityParam,
   type StudyImagePayload,
@@ -178,9 +179,6 @@ function zodForParam(param: CapabilityParam): z.ZodType {
     case 'boolean':
       schema = z.boolean();
       break;
-    case 'object':
-      schema = z.unknown();
-      break;
     default:
       schema = z.string();
   }
@@ -243,8 +241,13 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       inputSchema: shape as any,
       annotations,
     },
-    async (args: Record<string, unknown>) => {
+    async (rawArgs: Record<string, unknown>) => {
       try {
+        // This client's arg check is the zod `shape` above: the MCP SDK
+        // safeParses the tool call against it and fails with InvalidParams
+        // before this handler runs, so every value here is already the scalar
+        // its param declared. The cast records that rather than re-checking it.
+        const args = rawArgs as CapabilityArgs;
         const account = readAccountArg(args) ?? '';
         const session = await resolveSession(account);
         // executeCapability, not capability.run, for EVERY capability: the

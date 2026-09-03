@@ -24,9 +24,11 @@ import {
   getCapability,
   readAccountArg,
   type Capability,
+  type CapabilityArgs,
   type CapabilityContext,
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
+import { toCapabilityArgs } from "./tool-args";
 import { TOTP } from "totp-generator";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
@@ -380,11 +382,14 @@ export async function executeScraperTool(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
+  // The model's JSON is untyped until here. Narrow it once, at the edge, so
+  // nothing downstream has to wonder what it is holding.
+  const args = toCapabilityArgs(input);
   // `account` is the registry's name; `instance` is what this app used to call
   // it and what the alerts generator still passes.
-  const hostname = readAccountArg(input);
+  const hostname = readAccountArg(args);
   const session = await requireSession(hostname);
-  return runScraper(session.request, toolName, input, contextFor(session));
+  return runScraper(session.request, toolName, args, contextFor(session));
 }
 
 /**
@@ -397,7 +402,7 @@ export async function executeScraperTool(
 export async function executeAccountCapability(
   accountId: string,
   capabilityId: string,
-  args: Record<string, unknown> = {},
+  args: CapabilityArgs = {},
 ): Promise<unknown> {
   const entry = sessions.get(accountId);
   if (entry?.status !== "logged_in") {
@@ -452,7 +457,7 @@ async function requireSession(hostname?: string): Promise<SessionEntry> {
 async function runScraper(
   request: MyChartRequest,
   toolName: string,
-  input: Record<string, unknown>,
+  input: CapabilityArgs,
   ctx?: CapabilityContext,
 ): Promise<unknown> {
   const capability = getCapability(toolName);
@@ -485,7 +490,7 @@ async function runScraper(
 async function downloadImagingStudyAsAttachment(
   capability: Capability,
   request: MyChartRequest,
-  input: Record<string, unknown>,
+  input: CapabilityArgs,
 ): Promise<unknown> {
   let payload: StudyImagePayload;
   try {
