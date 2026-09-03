@@ -46,15 +46,15 @@ describe('getPreventiveCare', () => {
     ])
   })
 
-  it('keeps the page text as the audit trail and the page itself as raw', async () => {
+  it('keeps the page itself in raw and only the parsed items in standard', async () => {
     const html = tablePage(`<tr><td>Colonoscopy</td><td>Overdue</td><td>Overdue since 01/01/2024</td></tr>`)
     const raw = await fetchPreventiveCareRaw(mockRequest(html))
     expect(raw.requests).toHaveLength(1)
     expect(raw.requests[0]!.path).toBe('/HealthAdvisories')
     expect(raw.requests[0]!.body).toBe(html)
     const standard = preventiveCareProcessor.standard(raw)
-    expect(standard.pageText).toContain('Colonoscopy\tOverdue\tOverdue since 01/01/2024')
-    expect(standard.pageText).not.toContain('<')
+    expect(standard.items[0]!.name).toBe('Colonoscopy')
+    expect(JSON.stringify(standard)).not.toContain('<')
     expect(renderOutput(preventiveCareProcessor, raw, 'raw')).toBe(html)
     const concise = renderOutput(preventiveCareProcessor, raw, 'concise') as string
     expect(concise).toContain('overdue')
@@ -152,7 +152,6 @@ describe('getPreventiveCare', () => {
   it('returns an empty item list for a page with no items', async () => {
     const html = '<html><body><p>No preventive care items.</p></body></html>'
     const result = await getPreventiveCare(mockRequest(html))
-    expect(result.items).toEqual([])
-    expect(result.pageText).toBe('No preventive care items.')
+    expect(result).toEqual({ items: [] })
   })
 })

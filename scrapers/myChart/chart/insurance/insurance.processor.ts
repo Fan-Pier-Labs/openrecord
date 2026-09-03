@@ -11,7 +11,6 @@
 
 import * as cheerio from 'cheerio';
 import { findRequest, type RawResponse } from '../../core/rawResponse';
-import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { text } from '../../processors/read';
 
@@ -28,8 +27,6 @@ export interface InsuranceStandard {
   coverages: InsuranceCoverageStandard[];
   /** The page did not say "no coverages" — "no coverage on file" is an answer. */
   hasCoverages: boolean;
-  /** Derived: the block-separated text of the page, the parser's audit trail. */
-  pageText: string;
 }
 
 /** Parse the insurance page. Exported for tests. */
@@ -60,7 +57,7 @@ export function parseInsuranceHtml(html: string): Pick<InsuranceStandard, 'cover
 export const insuranceProcessor: Processor<InsuranceStandard> = {
   standard(raw: RawResponse): InsuranceStandard {
     const html = text(findRequest(raw, '/Insurance')?.body);
-    return { ...parseInsuranceHtml(html), pageText: htmlToText(html) };
+    return { ...parseInsuranceHtml(html) };
   },
   concise(standard) {
     return {

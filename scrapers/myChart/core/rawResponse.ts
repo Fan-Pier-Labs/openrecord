@@ -147,19 +147,32 @@ export function unwrapRaw(raw: RawResponse): unknown {
   return payloads.length === 1 ? payloads[0]!.body : raw;
 }
 
-/** The first recorded request whose path contains `fragment` (case-insensitive). */
-export function findRequest(raw: RawResponse, fragment: string): RawRequestRecord | undefined {
-  const needle = fragment.toLowerCase();
-  return raw.requests.find((r) => r.path.toLowerCase().includes(needle));
+/**
+ * Whether a recorded request is the endpoint `name` names: its path (query
+ * string aside, case aside) is `name`, or ends with `/name`. Whole segments
+ * only — `Load` never matches `LoadExternal`, `GetFlowsheets` never matches
+ * `GetFlowsheetReadings`. A substring match here once returned the outside
+ * providers as the whole care team whenever `LoadExternal` answered first,
+ * because parallel requests land in the envelope in whatever order they
+ * resolved.
+ */
+export function isRequestFor(record: RawRequestRecord, name: string): boolean {
+  const pathname = record.path.split('?')[0]!.toLowerCase();
+  const needle = name.toLowerCase().replace(/^\/+/, '');
+  return pathname === `/${needle}` || pathname === needle || pathname.endsWith(`/${needle}`);
 }
 
-/** Every recorded request whose path contains `fragment` (case-insensitive). */
-export function findRequests(raw: RawResponse, fragment: string): RawRequestRecord[] {
-  const needle = fragment.toLowerCase();
-  return raw.requests.filter((r) => r.path.toLowerCase().includes(needle));
+/** The first recorded request for the endpoint `name` (a path, or its trailing segments). */
+export function findRequest(raw: RawResponse, name: string): RawRequestRecord | undefined {
+  return raw.requests.find((r) => isRequestFor(r, name));
 }
 
-/** The body of the first request matching `fragment`, or undefined. */
-export function bodyOf(raw: RawResponse, fragment: string): unknown {
-  return findRequest(raw, fragment)?.body;
+/** Every recorded request for the endpoint `name`. */
+export function findRequests(raw: RawResponse, name: string): RawRequestRecord[] {
+  return raw.requests.filter((r) => isRequestFor(r, name));
+}
+
+/** The body of the first request for the endpoint `name`, or undefined. */
+export function bodyOf(raw: RawResponse, name: string): unknown {
+  return findRequest(raw, name)?.body;
 }

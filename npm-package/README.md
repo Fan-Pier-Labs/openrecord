@@ -340,6 +340,33 @@ exported too, so a library consumer can keep the envelope and project it later.
 Field decisions per capability: `docs/processor-layer-proposal.md` in the
 repository; example output in every mode: `docs/processor-layer-examples.md`.
 
+## Changelog
+
+### 1.0.0 — the processor layer (breaking)
+
+Every read function returns the **standard object** now: MyChart's own field names and casing,
+derived fields under new names, markup only in `raw`. The projected types the 0.x line exported
+are gone. The renames a 0.x consumer will hit:
+
+| 0.x | 1.0 |
+| --- | --- |
+| `Medication`, `MedicationsResult` (`medications[]`, `commonName`, `isRefillable`, `medicationKey`) | `PrescriptionStandard`, `MedicationsStandard` (`prescriptions[]`, `patientFriendlyName.text`, `refillDetails.isRefillable`, `id`) |
+| `Flowsheet`, `VitalReading` (`date`, `units`) | `FlowsheetStandard`, `VitalReadingStandard` (`instantTakenIso`, row `unitsDisplayName`) |
+| `MedicalHistoryResult` (`familyHistory`) | `MedicalHistoryStandard` (`familyHistoryAndStatus`, plus `socialHistory`) |
+| `ConversationThread`, `ThreadMessage` (`conversationId`, `messageId`, `sentDate`, `messageBody`) | `ConversationThreadStandard` (`hthId`, `wmgId`, `deliveryInstantISO`, `bodyText`) |
+| `GetVisitNotesResult`, `VisitNote` (`lrpId`, `notes[]`, `hnoId`, `hnoDat`, `providerName`) | `VisitNotesStandard` (`lrpID`, `noteList[]`, `hnoID`, `hnoDAT`, `provider.name`) |
+| `NoteContent` (`contentHtml`) | `NoteContentStandard` (`reportContentText`) |
+| `LetterDetailsResponse` (`bodyHTML`) | `LetterDetailsStandard` (`bodyHTMLText`) |
+| `CareTeam`, `CareTeamMember` (`members[]`, `name`, `relation`) | `CareTeamStandard` (`ProvidersList[]`, `Name`, `Relation`) |
+| `LabTestResultWithHistory[]` | `LabResultsStandard` (`orders[]`), abnormal flag gone (raw only) |
+| `ImagingResult[]` (`fdiContext`, `samlUrl`) | `ImagingResultsStandard` (`orders[]`, `image_id`) |
+| `BillingAccount[]` | `BillingStandard` (`accounts[]`, merged `visits[]`) |
+| `upcomingVisits()` / `pastVisits()` containers (`List`, `InProgressVisits`, …) | `UpcomingVisitsStandard` / `PastVisitsStandard` (`visits[]`, `status`, `instantISO`) |
+| every other `get…()` array | `{ <listName>: [...] }` with MyChart's list name |
+
+A missing verification token throws `MissingVerificationTokenError` instead of returning an empty
+result. `runCapability(id, { mode })` selects `raw`, `standard`, `concise` or `json`.
+
 ## Persisting sessions
 
 Cookie-based sessions are short-lived (MyChart times them out after

@@ -42,6 +42,8 @@ import { resolveUnique } from './resolveUnique';
 
 import { fetchProfileRaw, profileProcessor } from '../scrapers/myChart/chart/profile/profile';
 import { fetchHealthSummaryRaw, healthSummaryProcessor } from '../scrapers/myChart/chart/healthSummary/healthSummary';
+// `getMedications` (the standard object) is for request_refill's name resolution;
+// the capability itself runs `fetchMedicationsRaw` + the processor like every read.
 import { getMedications, fetchMedicationsRaw, medicationsProcessor } from '../scrapers/myChart/chart/medications/medications';
 import { requestMedicationRefill } from '../scrapers/myChart/chart/medications/medicationRefill';
 import { fetchAllergiesRaw, allergiesProcessor } from '../scrapers/myChart/chart/allergies/allergies';

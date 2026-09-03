@@ -26,8 +26,6 @@ export interface PreventiveCareItemStandard {
 
 export interface PreventiveCareStandard {
   items: PreventiveCareItemStandard[];
-  /** Derived: the block-separated text of the page, so an `unknown` row can be checked. */
-  pageText: string;
 }
 
 type StatusDetails = Pick<PreventiveCareItemStandard, 'status' | 'overdueSince' | 'notDueUntil' | 'completedDate'>;
@@ -127,23 +125,15 @@ function parseRows($: cheerio.CheerioAPI): PreventiveCareItemStandard[] {
   return items;
 }
 
-// Block-level elements don't contribute whitespace to `.text()`, so sibling
-// cells and paragraphs come back glued together as one line. Separating them
-// first is what keeps unrelated records from merging into one string.
-function blockSeparatedText(html: string): string {
-  const $ = cheerio.load(html);
-  $('script, style, noscript, nav, header, footer').remove();
-  $('br, td, th, tr, li, p, div, section, article, h1, h2, h3, h4, h5, h6, span').each((_, el) => {
-    $(el).after('\n');
-  });
-  return $('body').text();
-}
-
 // Fallback for a page that renders advisories as flowing text rather than a
-// table: a screening name on one line, its status on the next.
+// table: a screening name on one line, its status on the next. The canonical
+// converter keeps block boundaries as line breaks and table cells as tabs;
+// the cells become lines too, since this parser pairs line with line.
 function parseLines(html: string): PreventiveCareItemStandard[] {
-  const lines = blockSeparatedText(html)
-    .split('\n')
+  const $ = cheerio.load(html);
+  $('nav, header, footer').remove();
+  const lines = htmlToText($.html())
+    .split(/[\n\t]/)
     .map((l) => clean(l))
     .filter((l) => l.length > 0);
 
@@ -182,7 +172,7 @@ export function parsePreventiveCareHtml(html: string): PreventiveCareItemStandar
 export const preventiveCareProcessor: Processor<PreventiveCareStandard> = {
   standard(raw: RawResponse): PreventiveCareStandard {
     const html = text(findRequest(raw, '/HealthAdvisories')?.body);
-    return { items: parsePreventiveCareHtml(html), pageText: htmlToText(html) };
+    return { items: parsePreventiveCareHtml(html) };
   },
   concise(standard) {
     return {

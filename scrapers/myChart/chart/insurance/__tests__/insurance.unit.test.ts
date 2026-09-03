@@ -38,12 +38,8 @@ describe('getInsurance', () => {
       groupNumber: 'GRP001',
       details: ['Effective: 01/01/2024', 'Co-pay: $20'],
     })
-    // The audit trail: the page as text, markup gone, blocks on their own lines.
-    expect(result.pageText.startsWith('Insurance')).toBe(true)
-    expect(result.pageText).toContain('Blue Cross Blue Shield')
-    expect(result.pageText).toContain('Alice Smith XYZ123456 GRP001')
-    expect(result.pageText).toContain('Effective: 01/01/2024\nCo-pay: $20')
-    expect(result.pageText).not.toContain('<')
+    // The page itself is raw-only; nothing in the standard object is markup.
+    expect(JSON.stringify(result)).not.toContain('<')
   })
 
   it('records the page as the one raw request', async () => {
@@ -65,14 +61,10 @@ describe('getInsurance', () => {
     expect(result.coverages[0]).toMatchObject({ subscriberName: '', memberId: '', groupNumber: '', details: [] })
   })
 
-  it('reports hasCoverages=false when page says no coverages, keeping the page text', async () => {
+  it('reports hasCoverages=false when page says no coverages', async () => {
     const html = '<html><body>You do not have any available coverages on file.</body></html>'
     const result = await getInsurance(mockRequest(html))
-    expect(result).toEqual({
-      coverages: [],
-      hasCoverages: false,
-      pageText: 'You do not have any available coverages on file.',
-    })
+    expect(result).toEqual({ coverages: [], hasCoverages: false })
   })
 
   it('reports hasCoverages=true when page has no warning text', async () => {
@@ -95,10 +87,10 @@ describe('getInsurance', () => {
 
 describe('insuranceProcessor', () => {
   it('reads an empty envelope as no coverages on a blank page', () => {
-    expect(insuranceProcessor.standard({ requests: [] })).toEqual({ coverages: [], hasCoverages: true, pageText: '' })
+    expect(insuranceProcessor.standard({ requests: [] })).toEqual({ coverages: [], hasCoverages: true })
   })
 
-  it('concise keeps the plan, member and group and drops the audit trail', async () => {
+  it('concise keeps the plan, member and group', async () => {
     const raw = await fetchInsuranceRaw(mockRequest(ONE_COVERAGE))
     expect(insuranceProcessor.concise(insuranceProcessor.standard(raw))).toEqual({
       coverages: [{ planName: 'Blue Cross Blue Shield', memberId: 'XYZ123456', groupNumber: 'GRP001' }],

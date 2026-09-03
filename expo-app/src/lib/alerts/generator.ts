@@ -12,7 +12,7 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
     const inputs: AlertInput[] = [];
     try {
       const bills = (await executeScraperTool("get_billing", { ...(hostname ? { instance: hostname } : {}), mode: "json" })) as BillingStandard;
-      inputs.push(...buildBillAlerts(bills.accounts));
+      inputs.push(...buildBillAlerts(bills.accounts, hostname));
     } catch (err) {
       console.warn("[alerts] get_billing failed:", (err as Error).message);
     }
@@ -37,15 +37,17 @@ export async function regenerateAlerts(hostname?: string): Promise<{ added: numb
   }
 }
 
-function buildBillAlerts(accounts: BillingAccountStandard[]): AlertInput[] {
+function buildBillAlerts(accounts: BillingAccountStandard[], hostname?: string): AlertInput[] {
   const out: AlertInput[] = [];
   for (const acct of accounts) {
+    const payUrl = acct.URLMakePayment;
     for (const v of acct.visits) {
       if (!v.SelfAmountDueRaw || v.SelfAmountDueRaw <= 0) continue;
       const amount = v.SelfAmountDue ?? `$${v.SelfAmountDueRaw.toFixed(2)}`;
       const service = v.Description?.trim() || "Medical visit";
       const date = v.StartDateDisplay?.trim();
       const description = date ? `${amount} for ${service} — ${date}` : `${amount} for ${service}`;
+      const fullPayUrl = payUrl ? toAbsoluteUrl(payUrl, hostname ?? acct.guarantorNumber) : null;
       out.push({
         type: "bill",
         title: "Outstanding bill",
@@ -59,10 +61,10 @@ function buildBillAlerts(accounts: BillingAccountStandard[]): AlertInput[] {
         },
         cta_label: "Pay bill",
         uses_ai: false,
-        // MyChart's pay-online link is a portal URL and stays in raw mode; the
-        // chat flow walks the patient through paying instead.
-        action_kind: "ai_chat",
-        action_payload: { prompt: `Help me pay my bill for ${service} (${amount}).` },
+        action_kind: fullPayUrl ? "open_url" : "ai_chat",
+        action_payload: fullPayUrl
+          ? { url: fullPayUrl }
+          : { prompt: `Help me pay my bill for ${service} (${amount}).` },
         dedup_key: `bill:${acct.guarantorNumber}:${v.HospitalAccountId ?? `${v.StartDateDisplay ?? ""}:${service}`}`,
       });
     }
@@ -164,4 +166,11 @@ function buildLabAlerts(orders: LabOrderStandard[]): AlertInput[] {
     }
   }
   return out;
+}
+
+function toAbsoluteUrl(maybeRelative: string, hostname: string): string {
+  if (/^https?:\/\//i.test(maybeRelative)) return maybeRelative;
+  const base = hostname.startsWith("http") ? hostname : `https://${hostname}`;
+  const path = maybeRelative.startsWith("/") ? maybeRelative : `/${maybeRelative}`;
+  return `${base}${path}`;
 }

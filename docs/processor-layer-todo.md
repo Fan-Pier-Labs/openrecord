@@ -56,12 +56,25 @@ Done in the implementation PR: the MCPB and the Expo agent default to `concise` 
 return the standard object and `runCapability(id, { mode })` picks any mode; `docs/cli.md`,
 `claude-desktop-extension/README.md` and `npm-package/README.md` describe it. Remaining:
 
-- The Expo alerts generator lost the "Pay bill" deep link: `URLMakePayment` is a portal link and
-  stays in `raw`. If the app wants it back, it reads `mode: 'raw'` for billing, or the field
-  gets promoted with a documented reason.
-- `docs/processor-layer-examples.md` is generated; regenerate it (`bun
-  dev-scripts/generate-processor-examples.ts` against fake-mychart) in any PR that changes a
-  processor, and consider a CI check that it is current.
+- `docs/processor-layer-examples.md` is generated and CI fails when it is stale (the fake-mychart
+  job regenerates it and diffs). Regenerate with `bun dev-scripts/generate-processor-examples.ts`
+  against fake-mychart in any PR that changes a processor or a fixture.
+
+## 7. Follow-ups from the #388 review
+
+- **Field-list conformance test.** Every processor reads its input through `rec()`/`text()` by
+  string key — roughly 600 reads with no compile-time check. A typo returns `null` forever and
+  passes 100% coverage. One test that every key of each `…Standard` interface (minus the derived
+  ones) exists on the matching `realShapes.ts` skeleton is rule 10 enforced mechanically. First.
+- **Typed raw.** `RawResponse` is a flat request log, so the labs processor re-joins details,
+  trend and report by reading `orderKey` / `orderID` / `reportID` out of `requestBody`. The
+  scraper knew the join at fetch time; a typed raw (`{ list, orders: Record<key, { details,
+  history, report? }> }`) lets the processor map over it. The flat log becomes a CLI `--trace`.
+- **Decompose `shared/capabilities.ts`.** Past 1,300 lines with 31 import pairs. Each chart
+  module exports its own capability entry (`fetch…Raw` + processor + params); the registry
+  becomes the ordered list.
+- **Typed reads.** `text()`/`rec()` over `unknown` should become typed reads once processors are
+  typed against the skeletons.
 
 ## 6. Endpoints worth exploring next (from `api-surface-gaps.md`)
 

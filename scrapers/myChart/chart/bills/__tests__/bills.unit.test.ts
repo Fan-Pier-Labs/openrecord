@@ -462,6 +462,7 @@ describe('billingProcessor.standard', () => {
       PaymentPlanVisitListAmount: '',
       PaymentPlanVisitListAutoPayAmount: null,
       CanMakePayment: true,
+      URLMakePayment: '~/Billing/Payment?ID=A1',
       HasUnconvertedPBVisits: false,
       HasVisits: true,
       PartialPaymentPlanAlert: { Code: 1, Banner: { HeaderText: 'Plan', DetailText: 'Partially paid' } },
@@ -471,7 +472,7 @@ describe('billingProcessor.standard', () => {
     // The account whose GetVisits failed is still reported — with nothing under it.
     expect(marge).toMatchObject({ visits: [], statements: [], payments: [], HasVisits: null, VisitListAmount: null })
     const json = JSON.stringify(standard)
-    for (const internal of ['ENC-1', 'URLMakePayment', 'ButtonLabel', 'AgencyID', 'EstimateID', 'HtmlSubText', 'BlobToken', 'Token"', 'ImagePath', 'ShowCoverageHelp', 'StartDayOfMonth']) {
+    for (const internal of ['ENC-1', 'ButtonLabel', 'AgencyID', 'EstimateID', 'HtmlSubText', 'BlobToken', 'Token"', 'ImagePath', 'ShowCoverageHelp', 'StartDayOfMonth']) {
       expect(json).not.toContain(internal)
     }
   })

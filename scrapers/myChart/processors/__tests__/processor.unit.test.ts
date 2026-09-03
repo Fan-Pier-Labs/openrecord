@@ -82,10 +82,24 @@ describe('raw envelope helpers', () => {
     expect(unwrapRaw(raw)).toBe(raw);
   });
 
-  it('finds requests by path fragment, case-insensitively', () => {
+  it('finds requests by endpoint name — whole trailing segments, case-insensitively, query aside', () => {
     expect(findRequest(raw, 'getdetails')?.body).toEqual({ key: 'A' });
+    expect(findRequest(raw, 'test-results/GetDetails')?.body).toEqual({ key: 'A' });
+    expect(findRequest(raw, '/api/test-results/GetDetails')?.body).toEqual({ key: 'A' });
     expect(findRequests(raw, 'GetDetails')).toHaveLength(2);
     expect(bodyOf(raw, 'nothing')).toBeUndefined();
+    // Never a substring: Load is a prefix of LoadExternal, GetFlowsheets of GetFlowsheetReadings.
+    const parallel = {
+      requests: [
+        { path: '/Clinical/CareTeam/LoadExternal', method: 'POST' as const, status: 200, contentType: 'json', body: 'ext' },
+        { path: '/Clinical/CareTeam/Load', method: 'POST' as const, status: 200, contentType: 'json', body: 'int' },
+        { path: '/Billing/Details/GetVisits?id=1&context=2', method: 'GET' as const, status: 200, contentType: 'json', body: 'visits' },
+      ],
+    };
+    expect(findRequest(parallel, 'CareTeam/Load')?.body).toBe('int');
+    expect(findRequest(parallel, 'Load')?.body).toBe('int');
+    expect(findRequest(parallel, 'GetVisits')?.body).toBe('visits');
+    expect(findRequest(parallel, 'Details')).toBeUndefined();
   });
 
   it('strips only the noCache parameter', () => {

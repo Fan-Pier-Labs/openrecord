@@ -175,6 +175,12 @@ export interface BillingAccountStandard {
   EstimatedPaymentPlanBalance: string | number | null;
   PaymentPlanVisitListPostResolutionAmount: string | null;
   CanMakePayment: boolean | null;
+  /**
+   * A portal link by class, kept on purpose (rule 4): it is how a patient pays
+   * a bill from the app, not a button MyChart's page renders. Relative to the
+   * instance; the app resolves it against the hostname.
+   */
+  URLMakePayment: string | null;
   HasUnconvertedPBVisits: boolean | null;
   HasVisits: boolean | null;
   PartialPaymentPlanAlert: { Code: number | null; Banner: { HeaderText: string | null; DetailText: string | null } };
@@ -379,6 +385,7 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
     EstimatedPaymentPlanBalance: scalarOrNull(data.EstimatedPaymentPlanBalance),
     PaymentPlanVisitListPostResolutionAmount: textOrNull(data.PaymentPlanVisitListPostResolutionAmount),
     CanMakePayment: boolOrNull(data.CanMakePayment),
+    URLMakePayment: textOrNull(data.URLMakePayment),
     HasUnconvertedPBVisits: boolOrNull(data.HasUnconvertedPBVisits),
     HasVisits: boolOrNull(data.HasVisits),
     PartialPaymentPlanAlert: {
