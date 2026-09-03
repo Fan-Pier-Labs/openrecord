@@ -70,33 +70,32 @@ describe('integration', () => {
   it('getHealthSummary returns summary data', async () => {
     const result = await getHealthSummary(session)
     expect(result).toBeDefined()
-    expect(typeof result.patientAge).toBe('string')
-    expect(typeof result.bloodType).toBe('string')
+    expect(result.header).toBeDefined()
     expect(typeof result.patientFirstName).toBe('string')
   }, 30_000)
 
   it('getMedications returns medication data', async () => {
     const result = await getMedications(session)
     expect(result).toBeDefined()
-    expect(Array.isArray(result.medications)).toBe(true)
-    expect(typeof result.patientFirstName).toBe('string')
+    expect(Array.isArray(result.prescriptions)).toBe(true)
+    expect(typeof result.getPatientFirstName).toBe('string')
   }, 30_000)
 
   it('getAllergies returns allergy data', async () => {
     const result = await getAllergies(session)
     expect(result).toBeDefined()
-    expect(Array.isArray(result.allergies)).toBe(true)
+    expect(Array.isArray(result.dataList)).toBe(true)
     expect(typeof result.allergiesStatus).toBe('number')
   }, 30_000)
 
   it('getHealthIssues returns an array', async () => {
     const result = await getHealthIssues(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.dataList)).toBe(true)
   }, 30_000)
 
   it('getImmunizations returns an array', async () => {
     const result = await getImmunizations(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.immunizations)).toBe(true)
   }, 30_000)
 
   it('getVitals returns an array', async () => {

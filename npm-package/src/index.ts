@@ -66,8 +66,12 @@ export {
 // ─── Profile ──────────────────────────────────────────────────────────────
 export {
   getMyChartProfile,
+  getProfile,
+  fetchProfileRaw,
+  profileProcessor,
   getEmail,
   type ProfileData,
+  type ProfileStandard,
 } from '../../scrapers/myChart/chart/profile';
 export {
   discoverProxyTargets,
@@ -80,20 +84,28 @@ export {
 // ─── Health summary / vitals ──────────────────────────────────────────────
 export {
   getHealthSummary,
-  type HealthSummary,
+  fetchHealthSummaryRaw,
+  healthSummaryProcessor,
+  type HealthSummaryStandard,
 } from '../../scrapers/myChart/chart/healthSummary';
 export {
   getVitals,
-  type Flowsheet,
-  type VitalReading,
+  fetchVitalsRaw,
+  vitalsProcessor,
+  type VitalsStandard,
+  type FlowsheetStandard,
+  type VitalReadingStandard,
 } from '../../scrapers/myChart/chart/vitals';
 
 // ─── Medications ──────────────────────────────────────────────────────────
 export {
   getMedications,
-  type MedicationsResult,
-  type Medication,
-  type Pharmacy,
+  fetchMedicationsRaw,
+  medicationsProcessor,
+  type MedicationsStandard,
+  type PrescriptionStandard,
+  type RefillDetailsStandard,
+  type OwningPharmacyStandard,
 } from '../../scrapers/myChart/chart/medications';
 export {
   requestMedicationRefill,
@@ -103,23 +115,32 @@ export {
 // ─── Allergies / health issues / history / immunizations ──────────────────
 export {
   getAllergies,
-  type AllergiesResult,
-  type Allergy,
+  fetchAllergiesRaw,
+  allergiesProcessor,
+  type AllergiesStandard,
 } from '../../scrapers/myChart/chart/allergies';
 export {
   getHealthIssues,
-  type HealthIssue,
+  fetchHealthIssuesRaw,
+  healthIssuesProcessor,
+  type HealthIssuesStandard,
+  type HealthIssueStandard,
 } from '../../scrapers/myChart/chart/healthIssues';
 export {
   getMedicalHistory,
-  type MedicalHistoryResult,
-  type Diagnosis,
-  type Surgery,
-  type FamilyMember,
+  fetchMedicalHistoryRaw,
+  medicalHistoryProcessor,
+  type MedicalHistoryStandard,
+  type DiagnosisStandard,
+  type SurgeryStandard,
+  type FamilyMemberStandard,
 } from '../../scrapers/myChart/chart/medicalHistory';
 export {
   getImmunizations,
-  type Immunization,
+  fetchImmunizationsRaw,
+  immunizationsProcessor,
+  type ImmunizationsStandard,
+  type ImmunizationStandard,
 } from '../../scrapers/myChart/chart/immunizations';
 
 // ─── Labs / imaging ───────────────────────────────────────────────────────
@@ -238,8 +259,9 @@ export {
 } from '../../scrapers/myChart/chart/documents';
 export {
   getGoals,
-  type Goal,
-  type GoalsResult,
+  fetchGoalsRaw,
+  goalsProcessor,
+  type GoalsStandard,
 } from '../../scrapers/myChart/chart/goals';
 export {
   getCareJourneys,
@@ -251,7 +273,10 @@ export {
 } from '../../scrapers/myChart/chart/upcomingOrders';
 export {
   getPreventiveCare,
-  type PreventiveCareItem,
+  fetchPreventiveCareRaw,
+  preventiveCareProcessor,
+  type PreventiveCareStandard,
+  type PreventiveCareItemStandard,
 } from '../../scrapers/myChart/chart/preventiveCare';
 export {
   getEducationMaterials,

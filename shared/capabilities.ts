@@ -40,17 +40,17 @@ import {
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
 
-import { getMyChartProfile, getEmail } from '../scrapers/myChart/chart/profile';
-import { getHealthSummary } from '../scrapers/myChart/chart/healthSummary';
-import { getMedications } from '../scrapers/myChart/chart/medications';
+import { fetchProfileRaw, profileProcessor } from '../scrapers/myChart/chart/profile';
+import { fetchHealthSummaryRaw, healthSummaryProcessor } from '../scrapers/myChart/chart/healthSummary';
+import { getMedications, fetchMedicationsRaw, medicationsProcessor } from '../scrapers/myChart/chart/medications';
 import { requestMedicationRefill } from '../scrapers/myChart/chart/medicationRefill';
-import { getAllergies } from '../scrapers/myChart/chart/allergies';
-import { getHealthIssues } from '../scrapers/myChart/chart/healthIssues';
-import { getVitals } from '../scrapers/myChart/chart/vitals';
-import { getImmunizations } from '../scrapers/myChart/chart/immunizations';
-import { getPreventiveCare } from '../scrapers/myChart/chart/preventiveCare';
-import { getMedicalHistory } from '../scrapers/myChart/chart/medicalHistory';
-import { getGoals } from '../scrapers/myChart/chart/goals';
+import { fetchAllergiesRaw, allergiesProcessor } from '../scrapers/myChart/chart/allergies';
+import { fetchHealthIssuesRaw, healthIssuesProcessor } from '../scrapers/myChart/chart/healthIssues';
+import { fetchVitalsRaw, vitalsProcessor } from '../scrapers/myChart/chart/vitals';
+import { fetchImmunizationsRaw, immunizationsProcessor } from '../scrapers/myChart/chart/immunizations';
+import { fetchPreventiveCareRaw, preventiveCareProcessor } from '../scrapers/myChart/chart/preventiveCare';
+import { fetchMedicalHistoryRaw, medicalHistoryProcessor } from '../scrapers/myChart/chart/medicalHistory';
+import { fetchGoalsRaw, goalsProcessor } from '../scrapers/myChart/chart/goals';
 
 import { upcomingVisits, pastVisits } from '../scrapers/myChart/chart/visits/visits';
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../scrapers/myChart/chart/notes';
@@ -356,21 +356,23 @@ async function resolveMedicationKey(request: MyChartRequest, args: CapabilityArg
   const query = str(args, 'medication_name').trim();
   if (!query) throw new Error('Pass either medication_key (from get_medications) or medication_name.');
 
-  const meds = (await getMedications(request)).medications;
+  const meds = (await getMedications(request)).prescriptions;
   // Match on the label the patient is most likely to use — "Lisinopril" as
   // well as "Lisinopril 10mg" — but exact-first, so naming a medication
   // precisely is never rejected for resembling another one.
   const med = resolveUnique(meds, query, {
-    getName: (m) => m.name,
+    getName: (m) => m.name ?? '',
     // Patients say "Lipitor" as often as "Atorvastatin 20mg".
-    getAlternateNames: (m) => (m.commonName ? [m.commonName] : []),
+    getAlternateNames: (m) => (m.patientFriendlyName.text ? [m.patientFriendlyName.text] : []),
     label: 'medication',
     stripTitles: false,
   });
 
-  if (!med.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
-  if (!med.medicationKey) throw new Error(`"${med.name}" has no medication key, so it cannot be refilled here.`);
-  return { key: med.medicationKey, name: med.name };
+  if (!med.refillDetails?.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
+  // `id` is the prescription's MyChart id. Whether the refill endpoint wants
+  // it under `medicationKey` is unverified — see docs/processor-layer-todo.md.
+  if (!med.id) throw new Error(`"${med.name}" has no prescription id, so it cannot be refilled here.`);
+  return { key: med.id, name: med.name ?? '' };
 }
 
 /** The raw, still-encoded images of one study. Clients encode them themselves. */
@@ -434,16 +436,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: async (request) => {
-      const profile = await getMyChartProfile(request);
-      let email: string | undefined;
-      try {
-        email = (await getEmail(request)) ?? undefined;
-      } catch {
-        // The email endpoint is missing on some instances; the profile is the point.
-      }
-      return { ...profile, email };
-    },
+    run: (request) => fetchProfileRaw(request),
+    processor: profileProcessor,
   },
   {
     id: 'get_health_summary',
@@ -452,7 +446,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getHealthSummary(request),
+    run: (request) => fetchHealthSummaryRaw(request),
+    processor: healthSummaryProcessor,
   },
   {
     id: 'get_medications',
@@ -461,7 +456,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getMedications(request),
+    run: (request) => fetchMedicationsRaw(request),
+    processor: medicationsProcessor,
   },
   {
     id: 'get_allergies',
@@ -470,7 +466,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getAllergies(request),
+    run: (request) => fetchAllergiesRaw(request),
+    processor: allergiesProcessor,
   },
   {
     id: 'get_health_issues',
@@ -479,7 +476,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getHealthIssues(request),
+    run: (request) => fetchHealthIssuesRaw(request),
+    processor: healthIssuesProcessor,
   },
   {
     id: 'get_vitals',
@@ -488,7 +486,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getVitals(request),
+    run: (request) => fetchVitalsRaw(request),
+    processor: vitalsProcessor,
   },
   {
     id: 'get_immunizations',
@@ -497,7 +496,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getImmunizations(request),
+    run: (request) => fetchImmunizationsRaw(request),
+    processor: immunizationsProcessor,
   },
   {
     id: 'get_preventive_care',
@@ -506,7 +506,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getPreventiveCare(request),
+    run: (request) => fetchPreventiveCareRaw(request),
+    processor: preventiveCareProcessor,
   },
   {
     id: 'get_medical_history',
@@ -515,7 +516,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getMedicalHistory(request),
+    run: (request) => fetchMedicalHistoryRaw(request),
+    processor: medicalHistoryProcessor,
   },
   {
     id: 'get_goals',
@@ -525,7 +527,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Profile',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getGoals(request),
+    run: (request) => fetchGoalsRaw(request),
+    processor: goalsProcessor,
   },
 
   // ── Visits + notes ────────────────────────────────────────────────────────
@@ -997,7 +1000,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Prescriptions',
     params: [
       { name: 'medication_name', type: 'string', description: 'Medication name as shown by get_medications.' },
-      { name: 'medication_key', type: 'string', description: 'Exact medicationKey from get_medications. Use instead of medication_name when you have it.' },
+      { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications. Use instead of medication_name when you have it.' },
     ],
     run: async (request, args) => {
       const { key, name } = await resolveMedicationKey(request, args);

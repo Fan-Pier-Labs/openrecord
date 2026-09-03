@@ -56,6 +56,12 @@ import { followSamlChain } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
+/** The allergy element shape is uncaptured; the fake nests it under allergyItem. */
+function allergyName(entry: unknown): string {
+  const e = entry as { allergyItem?: { name?: string }; name?: string }
+  return e.allergyItem?.name ?? e.name ?? ''
+}
+
 // One fake server stands in for both real MyChart deployment shapes, so every
 // scraper runs against each. setMountMode flips it; the session is established
 // afterwards, because login is where the path prefix gets discovered.
@@ -140,59 +146,62 @@ for (const mode of MOUNT_MODES) {
     it('getHealthSummary returns Homer data', async () => {
       const result = await getHealthSummary(session)
       expect(result).toBeDefined()
-      expect(result.patientAge).toBe('69')
-      expect(result.bloodType).toBe('O+')
+      expect(result.header.patientAge).toBe('69')
+      expect(result.header.bloodType).toBe('O+')
       expect(result.patientFirstName).toBe('Homer')
     }, 10_000)
 
     it('getMedications returns medications', async () => {
       const result = await getMedications(session)
       expect(result).toBeDefined()
-      expect(Array.isArray(result.medications)).toBe(true)
-      expect(result.medications.length).toBeGreaterThan(0)
-      expect(result.patientFirstName).toBe('Homer')
-      const names = result.medications.map((m: { name: string }) => m.name)
+      expect(Array.isArray(result.prescriptions)).toBe(true)
+      expect(result.prescriptions.length).toBeGreaterThan(0)
+      expect(result.getPatientFirstName).toBe('Homer')
+      const names = result.prescriptions.map((m) => m.name)
       expect(names).toContain('Duff Beer Extract 500mg')
     }, 10_000)
 
     it('getAllergies returns allergies', async () => {
       const result = await getAllergies(session)
       expect(result).toBeDefined()
-      expect(Array.isArray(result.allergies)).toBe(true)
-      expect(result.allergies.length).toBeGreaterThan(0)
-      const names = result.allergies.map((a: { name: string }) => a.name)
+      expect(Array.isArray(result.dataList)).toBe(true)
+      expect(result.dataList.length).toBeGreaterThan(0)
+      const names = result.dataList.map((a) => allergyName(a))
       expect(names).toContain('Vegetables')
     }, 10_000)
 
     it('getHealthIssues returns health issues', async () => {
       const result = await getHealthIssues(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-      const names = result.map((h: { name: string }) => h.name)
+      expect(result.dataList.length).toBeGreaterThan(0)
+      const names = result.dataList.map((h) => h.healthIssueItem.name)
       expect(names).toContain('Obesity')
     }, 10_000)
 
     it('getImmunizations returns immunizations', async () => {
       const result = await getImmunizations(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.immunizations.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getVitals returns vitals, values included', async () => {
       const result = await getVitals(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.flowsheets.length).toBeGreaterThan(0)
 
       // Every reading must carry its value. Numeric rows (Pulse, Weight) arrive
       // as numericValue next to an EMPTY stringValue, which used to blank them
       // while a plain length check still passed.
-      for (const fs of result) {
+      const rowsByName = new Map<string, string>()
+      for (const fs of result.flowsheets) {
         expect(fs.readings.length).toBeGreaterThan(0)
         for (const r of fs.readings) expect(r.value).not.toBe('')
+        for (const row of fs.rows) if (row.id && row.name) rowsByName.set(row.name, row.id)
       }
-      expect(result.find(f => f.name === 'Weight')!.readings[0]!.value).toBe('260')
-      expect(result.find(f => f.name === 'Pulse')!.readings[0]!.value).toBe('88')
-      expect(result.find(f => f.name === 'Blood Pressure')!.readings[0]!.value).toBe('145/95')
+      const firstValue = (name: string) => {
+        const rowId = rowsByName.get(name)
+        return result.flowsheets.flatMap((fs) => fs.readings).find((r) => r.rowId === rowId)!.value
+      }
+      expect(firstValue('Weight')).toBe('260')
+      expect(firstValue('Pulse')).toBe('88')
+      expect(firstValue('Blood Pressure')).toBe('145/95')
     }, 10_000)
 
     it('getInsurance returns insurance data', async () => {
@@ -231,15 +240,16 @@ for (const mode of MOUNT_MODES) {
       expect(result).toBeDefined()
       expect(result.medicalHistory).toBeDefined()
       expect(result.surgicalHistory).toBeDefined()
-      expect(result.familyHistory).toBeDefined()
+      expect(result.familyHistoryAndStatus).toBeDefined()
       expect(Array.isArray(result.medicalHistory.diagnoses)).toBe(true)
       expect(Array.isArray(result.surgicalHistory.surgeries)).toBe(true)
-      expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
+      expect(Array.isArray(result.familyHistoryAndStatus.familyMembers)).toBe(true)
+      expect(result.socialHistory.smokingHistory).toHaveProperty('smokingTobaccoStatus')
     }, 10_000)
 
     it('getPreventiveCare returns one item per screening, none run together', async () => {
       const result = await getPreventiveCare(session)
-      expect(result).toEqual([
+      expect(result.items).toEqual([
         { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
         { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
         { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },

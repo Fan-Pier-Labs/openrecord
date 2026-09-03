@@ -106,6 +106,15 @@ is.
     captured real response has shown. Where the element shape has never been
     captured, the processor passes the element through whole and the table
     says so. Fixture fields that exist only in the fake are not evidence.
+11. **A capability is not one MyChart endpoint.** There is no 1:1 relationship
+    between a scraper and a MyChart API. A scraper calls whatever it takes to
+    gather everything relevant to its category: several endpoints (labs is a
+    list call, then a details call, a trend call and a report call per order;
+    billing is a page scrape plus three calls per account), or one endpoint
+    many times (past visits pages; vitals pages per episode). The capabilities
+    are a re-organization of MyChart's API surface around what a reader asks
+    for, which is why `raw` is an envelope of requests rather than one body,
+    and why the join across those requests is processor work.
 
 ### The raw envelope for multi-request scrapers
 
