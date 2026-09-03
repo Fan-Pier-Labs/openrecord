@@ -213,6 +213,16 @@ Behavioral contract, all verified against the same captures and enforced by
   with a literal JSON `null`** (the same shape `GetVisitNotes` and
   `GetLetterDetails` use for unknown ids). A client that checks only the status
   code reads that null as a thread with nothing in it.
+- **`Insurance/Coverages/GetPayors` is organization-level and served from
+  `data/organization.ts`, not the per-patient dataset** — the same catalogue in
+  every record, proxy or not, as captured (no patient identifier in the request,
+  identical list with a real department id). POST-only with the antiforgery
+  token enforced like `/api/*`; a GET gets the *not-found* surface (`code=14`),
+  a token-less POST the 500 one. The legacy controller form-posts `encounterCsn`
+  and `encounterDepartmentId`, both empty on the standalone page; an encounter
+  the instance doesn't recognize is answered with **200 and an empty body, no
+  content type** — never an error — which a scraper must not read as "no
+  payers". `Fields` maps a coverage-form field to 1 (optional) or 2 (required).
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,

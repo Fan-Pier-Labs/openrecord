@@ -263,6 +263,12 @@ export const TOOL_SPECS: ToolSpec[] = [
     args: { instance: 'optional', limit: 'number (default 10)', offset: 'number' },
   },
   { name: 'get_insurance', group: 'Billing', description: 'Insurance plan, member id, copays, deductible', args: { instance: 'optional' } },
+  {
+    name: 'get_insurance_payers',
+    group: 'Billing',
+    description: "The insurance payers this hospital's portal accepts when adding a coverage — the organization's list, the same for every patient; not the patient's own plan",
+    args: { instance: 'optional' },
+  },
 
   // ── Messaging ──
   {
@@ -941,6 +947,9 @@ const HANDLERS: Record<string, Handler> = {
     return { totalVisits: total, offset, count, visits: clone(page) };
   },
   get_insurance: (s) => clone(record(s).insurance),
+  // Organization-level: deliberately not read through record(s), so switching
+  // patients never changes it.
+  get_insurance_payers: () => clone(data.insurancePayers),
 
   // ── Messaging ──
   get_messages: (s, args) => {

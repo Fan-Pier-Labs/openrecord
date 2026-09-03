@@ -530,6 +530,7 @@ describe('npm library', () => {
       delete_message: 'deleteMessage',
       get_billing: 'getBillingHistory',
       get_insurance: 'getInsurance',
+      get_insurance_payers: 'getInsurancePayers',
       get_care_team: 'getCareTeam',
       get_referrals: 'getReferrals',
       get_letters: 'getLetters',
