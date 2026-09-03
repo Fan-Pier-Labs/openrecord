@@ -153,6 +153,63 @@ Sizes are the real response bodies.
 
 ---
 
+## 1f. Insurance payer catalogue — DONE, and it is not `LoadPayers`
+
+`get_insurance_payers` is implemented (`scrapers/myChart/chart/insurancePayers.ts`), modelled in
+fake-mychart (`/Insurance/Coverages/GetPayors`, shape `insuranceGetPayors` in `realShapes.ts`,
+data in `data/organization.ts`). Captured 2026-09 on **four live instances** (the three above plus a
+fourth, three behaving as November 2025 and one as August 2025). This is the candidate source for a
+"hospital network profile" (accepted insurance), and the capture settles what it is and isn't.
+
+**`/api/insurance/LoadPayers` is the React `/app/insurance` activity's endpoint, and none of the
+four instances serves that activity.** `GET /app/insurance` answers 200 with the *Home* page, and
+`/Insurance` is the legacy jQuery activity (`bundles/insurance-controllers`). The React bundle calls
+`makeRequest({ path: "/api/insurance/LoadPayers" })` with **no request data at all** — no service
+area, no patient, nothing — and the runtime adapter only adds the antiforgery header, so the earlier
+500 was not a payload problem: with `{}`, with no body, and with the exact headers the runtime sends,
+all four instances answer `500 {"Message":"An error has occurred."}`; a GET is a 405. It is dead on
+these deployments, not "no coverage on file". The legacy controller (`$$WP.Insurance.CoveragesController`,
+which owns `UpdateCoverageController`) is what actually loads the payer dropdown:
+
+```
+POST /Insurance/Coverages/GetPayors            form-encoded: encounterCsn=&encounterDepartmentId=
+  → 200 {"Payors":[{ Fields, SampleCardImages, CanUpload, IsNonConfiguredPayer, SortKey, ID, Name, NameUTF8 }]}
+```
+
+- **Request.** Two form fields, both empty on the standalone Insurance page (they carry the
+  pre-visit insurance-verification context when the same component runs inside eCheck-In). A JSON
+  `{}` body with the token works too. The antiforgery token is required exactly as on `/api/*`: a
+  token-less POST is bounced through the ASP.NET dance to `/Home/Error?code=15` (a 200 HTML page);
+  a **GET** goes the same way to `code=14`. An encounter the instance doesn't recognize — a bogus
+  `encounterDepartmentId` or `encounterCsn` — is answered with **200, no content type, and an empty
+  body**, never an error; a real department id (from the care team) returned the identical list.
+  The scraper sends the standalone form and refuses an empty body rather than reading it as no
+  payers.
+- **Response.** PascalCase (legacy MVC). `ID` is an opaque `WP-` catalogue id; `Fields` maps a
+  coverage-form field name (`MemberId`, `GroupNumber`, `SubscriberId`, `SubscriberFirstName`,
+  `SubscriberLastName`, `SubscriberDateOfBirth`) to **1 = shown/optional, 2 = shown/required** —
+  the controller reads `> 0` to show a field and `> 1` to require it. Three field patterns were
+  seen: the full subscriber set (most payers), `MemberId` only, and the full set plus `GroupNumber`.
+  `CanUpload` was true, `IsNonConfiguredPayer` false, `SortKey` and `NameUTF8` null and
+  `SampleCardImages` empty on **every entry of all four instances**, so the scraper surfaces only
+  `ID`, `Name`, `Fields`, `CanUpload` and `IsNonConfiguredPayer`. Field set and types were identical
+  across both Epic releases. Counts: 18–40 payers per instance.
+- **Organization-level, as far as the capture can show.** The request carries no patient identifier;
+  a real department id changed nothing; and **zero payer ids were shared between the four
+  organizations** while the name overlap was one to six entries and regional (two systems in the
+  same state share more than either does with one across the country). The two-patient diff on one instance
+  was **not run** — none of the four accounts has proxy access — so treat "identical for every
+  patient" as the capability's documented assumption, with the encounter fields the only known
+  scoping knob. fake-mychart serves it from org-level data for that reason.
+- **How "accepted insurance" is it?** It is each organization's *configured payor catalogue* for
+  coverage entry: the payors the registration system knows how to file — Medicare, the state
+  Medicaid program, the regional commercial plans, a few Medicare Advantage variants — not an
+  in-network or contracted-plan list, and with no plan-level detail. There is **no "Other / not
+  listed" entry** in any of the four; the UI adds that option client-side (`-1`, free-text payor
+  name), and the model's `IsNonConfiguredPayer` flag for such an entry was never set. Good enough
+  for "which payers does this organization's MyChart accept" on a network profile; do not present
+  it as a coverage guarantee.
+
 # 2. Later — endpoint is live, but this account has nothing in it
 
 These returned 200 with `{}` / empty arrays, or a 500 that reads as "no data / feature not
@@ -207,9 +264,10 @@ the ambiguity: `/api/goals/LoadPatientGoals` also 500s on a bare `{}` even thoug
 fine — it just needs the right body.
 
 `/api/insurance-hub/*` (GetCoverageDetails, GetBenefitDetails, GetMemberDetails, GetPlanMembers,
-GetIDCardImages, GetEligInfo) · `/api/premium-billing/*` · `/api/insurance/LoadPayers` ·
-`/api/coordination-of-benefits/GetBuild` — all consistent with the "no coverage on file" signal from
-`GetBenefitsSummary`.
+GetIDCardImages, GetEligInfo) · `/api/premium-billing/*` · `/api/coordination-of-benefits/GetBuild`
+— all consistent with the "no coverage on file" signal from `GetBenefitsSummary`. (`/api/insurance/LoadPayers`
+used to sit in this list; §1f shows it 500s because the React insurance activity isn't served here at
+all, and the legacy `Insurance/Coverages/GetPayors` is the live one.)
 
 `/api/organ-donor/GetPatientInfo` (flag is on) · `/api/growth-charts/GetGrowthCharts` (pediatric —
 try a proxy child record) · `/api/genetic-profile/GetList` · `/api/family-history/LoadFamilyHistoryQuestion` ·
@@ -254,7 +312,9 @@ list above was built.
 5. **`/api/visits/*`** (§2b) — extract the request shape from the bundle, then decide whether to
    migrate off the legacy visits scrape.
 6. **Second sweep over `/areas/**` legacy scripts** — the React sweep structurally cannot see them,
-   and Care Team proves that's where real endpoints hide.
+   and Care Team and the payer catalogue (§1f) both prove that's where real endpoints hide: on
+   every instance checked, a React `/app/<activity>` that isn't served falls through to the Home
+   page with a 200, and its `/api/*` endpoints 500 no matter what they're sent.
 
 Anything added lands in `shared/capabilities.ts` with a matching fake-mychart route and a
 `realShapes.ts` skeleton generated from a live capture, per the fake's faithful-stand-in rule.

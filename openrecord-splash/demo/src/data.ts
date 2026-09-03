@@ -417,6 +417,21 @@ export const insurance = [
   },
 ];
 
+// Organization-level, not part of any patient's record: the payers this
+// hospital's portal offers when adding a coverage — the same list whichever
+// patient is active, exactly as the real endpoint behaves.
+export const insurancePayers = {
+  scope: 'organization' as const,
+  payers: [
+    { name: 'Springfield Mutual Health', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+    { name: 'Springfield Mutual Health - Medicare Advantage', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+    { name: 'Shelbyville Blue Cross', fields: { MemberId: 'required', GroupNumber: 'optional', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+    { name: 'Medicare', fields: { MemberId: 'required' }, canUploadCard: true },
+    { name: 'Globex Corporation Employee Health Plan', fields: { MemberId: 'required', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+    { name: 'Springfield Nuclear Power Plant Employee Health Plan', fields: { MemberId: 'required', GroupNumber: 'optional', SubscriberId: 'optional', SubscriberFirstName: 'required', SubscriberLastName: 'required', SubscriberDateOfBirth: 'optional' }, canUploadCard: true },
+  ],
+};
+
 export const immunizations = [
   { vaccine: 'Influenza (Flu)', date: '2025-10-15', site: 'Left arm', provider: 'Springfield General Hospital' },
   { vaccine: 'COVID-19 Booster (Pfizer)', date: '2025-09-20', site: 'Left arm', provider: 'Springfield General Hospital' },

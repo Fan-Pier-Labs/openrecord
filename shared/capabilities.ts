@@ -65,6 +65,7 @@ import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage'
 
 import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
 import { getInsurance } from '../scrapers/myChart/chart/insurance';
+import { getInsurancePayers } from '../scrapers/myChart/chart/insurancePayers';
 
 import { getCareTeam } from '../scrapers/myChart/chart/careTeam';
 import { getReferrals } from '../scrapers/myChart/chart/referrals';
@@ -788,6 +789,19 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Billing',
     params: [],
     run: (request) => getInsurance(request),
+  },
+  {
+    id: 'get_insurance_payers',
+    title: 'Insurance payers accepted',
+    description:
+      "The insurance payers this organization's MyChart offers when adding a coverage — the " +
+      'organization\'s configured payer catalogue, identical for every patient on the instance. ' +
+      'Not the patient\'s own coverage (use get_insurance) and not an in-network guarantee.',
+    kind: 'read',
+    group: 'Billing',
+    lessFrequentlyUsed: true,
+    params: [],
+    run: (request) => getInsurancePayers(request),
   },
 
   // ── Care coordination ─────────────────────────────────────────────────────

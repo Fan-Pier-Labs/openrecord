@@ -233,6 +233,12 @@ export {
   type InsuranceResult,
 } from '../../scrapers/myChart/chart/insurance';
 export {
+  getInsurancePayers,
+  type InsurancePayer,
+  type InsurancePayerCatalogue,
+  type InsurancePayerFieldRequirement,
+} from '../../scrapers/myChart/chart/insurancePayers';
+export {
   getDocuments,
   type Document,
 } from '../../scrapers/myChart/chart/documents';

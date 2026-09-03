@@ -6,6 +6,12 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "--cwd", "openrecord-splash/demo", "dev", "--port", "5173", "--strictPort"],
       "port": 5173
+    },
+    {
+      "name": "fake-mychart",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--cwd", "fake-mychart", "next", "dev", "-p", "4100"],
+      "port": 4100
     }
   ]
 }

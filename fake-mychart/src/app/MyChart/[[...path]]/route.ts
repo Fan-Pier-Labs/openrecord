@@ -13,6 +13,7 @@ import {
   type ProxySelectorModel,
 } from '@/lib/html';
 import * as homer from '@/data/homer';
+import { insurancePayers } from '@/data/organization';
 import { state, findUser, findUserByPasskey, resolveActiveRecord, type FakeUser, type ConversationStore } from '@/lib/state';
 import { selfDataset, type PatientDataset } from '@/lib/dataset';
 import { isDefaultAspDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
@@ -431,7 +432,7 @@ function withModernResultFields(payload: unknown): unknown {
  * surface they give a token-less `/api/*` POST.
  */
 function requiresAntiforgeryToken(lower: string): boolean {
-  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/');
+  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/') || lower === 'insurance/coverages/getpayors';
 }
 
 function acceptAny(): boolean {
@@ -635,6 +636,13 @@ async function renderGet(request: NextRequest, { params }: { params: Promise<{ p
   // instances: a GET answers 500 whatever query string it carries.
   if (lower === 'clinical/careteam/load' || lower === 'clinical/careteam/loadexternal') {
     return aspNetFailure(request, 'fivehundred', joined);
+  }
+
+  // The payer catalogue is POST-only too, but a GET is answered with the
+  // not-found surface (FourOhFour → /Home/Error?code=14 on November 2025),
+  // not the 500 the Care Team endpoints use — captured live.
+  if (lower === 'insurance/coverages/getpayors') {
+    return aspNetFailure(request, 'fourohfour', joined);
   }
 
   if (lower === 'insurance') {
@@ -1467,6 +1475,28 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
 
   if (lower === 'clinical/careteam/loadexternal') {
     return json(conformToShape(shapes.careTeamLoad, ds.careTeamExternal));
+  }
+
+  // ── Insurance payer catalogue (legacy Insurance activity) ───────────────
+  // Organization-level, so it comes from `data/organization`, never from the
+  // per-patient dataset: the request carries no patient identifier, and a
+  // real department id returned the identical list on the captured instance.
+  // The legacy controller posts the two encounter fields form-encoded (both
+  // empty on the standalone Insurance page); an encounter the instance does
+  // not recognize is answered with a 200, no content type and an EMPTY body —
+  // not an error — which is the trap a scraper must not read as "no payers".
+  if (lower === 'insurance/coverages/getpayors') {
+    const params = new URLSearchParams(await request.text());
+    const encounterCsn = params.get('encounterCsn') ?? '';
+    const encounterDepartmentId = params.get('encounterDepartmentId') ?? '';
+    const knownDepartments = new Set(ds.careTeam.ProvidersList.map((p) => p.DepartmentID));
+    const unknownContext =
+      (encounterCsn !== '' && !(encounterCsn in ds.visitNotesByCsn)) ||
+      (encounterDepartmentId !== '' && !knownDepartments.has(encounterDepartmentId));
+    if (unknownContext) {
+      return new NextResponse(null, { status: 200 });
+    }
+    return json(conformToShape(shapes.insuranceGetPayors, { Payors: insurancePayers }));
   }
 
   // ── Contact Information ───────────────────────────────────────

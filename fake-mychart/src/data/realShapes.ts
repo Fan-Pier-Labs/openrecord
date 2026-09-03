@@ -3592,3 +3592,25 @@ export const helpOrganization = {
   "faq": "",
   "aliases": []
 } as const;
+
+// /insurance/coverages/getpayors — the legacy Insurance activity's payer
+// catalogue. Captured on four live instances (three November 2025, one August
+// 2025); the field set was identical on all four. `Fields` is a map keyed by
+// coverage-form field name (MemberId, GroupNumber, SubscriberId, …) with a
+// numeric requirement level, so it is recorded as a "*" map.
+export const insuranceGetPayors = {
+  "Payors": [
+    {
+      "Fields": {
+        "*": 0
+      },
+      "SampleCardImages": [],
+      "CanUpload": false,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "",
+      "Name": "",
+      "NameUTF8": null
+    }
+  ]
+} as const;

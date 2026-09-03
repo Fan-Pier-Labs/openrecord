@@ -21,6 +21,10 @@
  *  - GetConversationMessages / GetConversationDetails key the thread on `id`,
  *    and reject a bad one DIFFERENTLY: Messages 500s, Details answers 200 with
  *    a literal null.
+ *  - Insurance/Coverages/GetPayors (the legacy payer catalogue) is
+ *    organization-level, POST-only with the token enforced, answers a GET with
+ *    the not-found surface and an unknown encounter context with a 200 EMPTY
+ *    body.
  *
  * Requires fake-mychart running on FAKE_MYCHART_HOST (default localhost:4000).
  * Run with: bun run test:integration
@@ -38,6 +42,7 @@ import { getUpcomingOrders } from '../../chart/upcomingOrders'
 import { getEmergencyContacts } from '../../chart/emergencyContacts'
 import { getVisitNotes } from '../../chart/notes'
 import { getCareTeam } from '../../chart/careTeam'
+import { getInsurancePayers } from '../../chart/insurancePayers'
 import { getLetterDetails } from '../../chart/letters'
 import {
   buildSendPayload,
@@ -586,4 +591,84 @@ describe('the over-limit message body that the send endpoint drops silently', ()
     const filed = list?.conversations?.find((c) => c.hthId === result.conversationId)
     expect(filed?.messages?.[0]?.body).toBe(body)
   }, 30_000)
+})
+
+describe('insurance payer catalogue fidelity', () => {
+  // The legacy Insurance activity's payer dropdown — Insurance/Coverages/GetPayors,
+  // not the React /api/insurance/LoadPayers, which the captured instances don't
+  // serve. Organization-level: no patient identifier in the request.
+  const FORM = { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', '__RequestVerificationToken': 'tok-test' }
+
+  it('answers a GET with the not-found surface, not the data', async () => {
+    const res = await session.makeRequest({ path: '/Insurance/Coverages/GetPayors', followRedirects: false })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FourOhFour')
+  })
+
+  it('refuses a token-less POST, exactly as the /api/* routes do', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetPayors',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: 'encounterCsn=&encounterDepartmentId=',
+      followRedirects: false,
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('returns the full PascalCase payer shape for the standalone form', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetPayors',
+      method: 'POST',
+      headers: FORM,
+      body: 'encounterCsn=&encounterDepartmentId=',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { Payors: Array<Record<string, unknown>> }
+    expect(body.Payors.length).toBeGreaterThan(0)
+    for (const field of ['Fields', 'SampleCardImages', 'CanUpload', 'IsNonConfiguredPayer', 'SortKey', 'ID', 'Name', 'NameUTF8']) {
+      expect(body.Payors[0]).toHaveProperty(field)
+    }
+    // Fields is a name → 1|2 map; SortKey/NameUTF8 null and SampleCardImages
+    // empty on every entry of every captured instance.
+    for (const payer of body.Payors) {
+      expect(Object.values(payer.Fields as Record<string, number>).every((v) => v === 1 || v === 2)).toBe(true)
+      expect(payer.SortKey).toBeNull()
+      expect(payer.NameUTF8).toBeNull()
+      expect(payer.SampleCardImages).toEqual([])
+      expect(String(payer.ID).startsWith('WP-')).toBe(true)
+    }
+  })
+
+  it('answers an unrecognized encounter context with a 200 EMPTY body, never an error', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetPayors',
+      method: 'POST',
+      headers: FORM,
+      body: 'encounterCsn=&encounterDepartmentId=999999999',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('')
+  })
+
+  it('returns the identical catalogue for a department the instance knows', async () => {
+    const base = await (await session.makeRequest({
+      path: '/Insurance/Coverages/GetPayors', method: 'POST', headers: FORM, body: 'encounterCsn=&encounterDepartmentId=',
+    })).json()
+    const scoped = await (await session.makeRequest({
+      path: '/Insurance/Coverages/GetPayors', method: 'POST', headers: FORM, body: 'encounterCsn=&encounterDepartmentId=DEP-IM-1',
+    })).json()
+    expect(scoped).toEqual(base)
+  })
+
+  it('the scraper reads the catalogue and decodes the field requirement levels', async () => {
+    const result = await getInsurancePayers(session)
+    expect(result.scope).toBe('organization')
+    expect(result.payers.length).toBeGreaterThan(0)
+    const full = result.payers.find((p) => p.fields.SubscriberLastName)
+    expect(full?.fields).toMatchObject({ MemberId: 'required', SubscriberDateOfBirth: 'optional', SubscriberLastName: 'required' })
+    const memberOnly = result.payers.find((p) => Object.keys(p.fields).length === 1)
+    expect(memberOnly?.fields).toEqual({ MemberId: 'required' })
+  })
 })
