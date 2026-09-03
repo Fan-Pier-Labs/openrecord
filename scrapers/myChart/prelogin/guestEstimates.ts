@@ -28,16 +28,11 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
-import { parseInlineScripts, readAssignedLiteral, readDeclaredLiteral } from './inlineScript';
 import { openPreloginPage } from './preloginSession';
 import type { BillingEntity } from './types';
 
 export const GUEST_ESTIMATES_PATH = '/GuestEstimates';
 const SERVICE_AREA_PATH = '/GuestEstimates/SelectServiceArea';
-
-/** Where the two pages put their data: an assignment, then a local variable. */
-const ESTIMATES_NAMESPACE = '$$WP.Estimates.';
-const MODEL_VARIABLE = 'model';
 
 export type RawServiceArea = {
   Id: string;
@@ -53,11 +48,39 @@ type RawLocationModel = {
   HasCompletedCaptcha?: boolean;
 };
 
+/**
+ * The JSON value that starts at `start`: the shortest prefix `JSON.parse`
+ * accepts.
+ *
+ * A value starting with `[` or `{` has no proper prefix that is itself valid
+ * JSON — a prefix only parses once its brackets balance, which is the whole
+ * value — so the first prefix that parses is the end of it. Letting the real
+ * parser decide is what keeps a `]` inside a title, an escaped quote, or a
+ * second statement on the same line from ending the value early.
+ */
+function valueAt(html: string, start: number): unknown {
+  for (let end = start + 1; end <= html.length; end++) {
+    const ch = html[end - 1];
+    if (ch !== ']' && ch !== '}') continue;
+    try {
+      return JSON.parse(html.slice(start, end));
+    } catch {
+      // Not the end of the value yet.
+    }
+  }
+  return undefined;
+}
+
+/** Read one `$$WP.Estimates.<name> = [...]` assignment out of the page. */
+function readAssignment(html: string, name: string): unknown {
+  const m = new RegExp(`\\$\\$WP\\.Estimates\\.${name}\\s*=\\s*`).exec(html);
+  return m ? valueAt(html, m.index + m[0].length) : undefined;
+}
+
 /** The billing entities on the service-area page, or null if it isn't one. */
 export function parseServiceAreas(html: string): RawServiceArea[] | null {
-  const scripts = parseInlineScripts(html, ESTIMATES_NAMESPACE);
-  const recent = readAssignedLiteral(scripts, `${ESTIMATES_NAMESPACE}RecentSAs`);
-  const other = readAssignedLiteral(scripts, `${ESTIMATES_NAMESPACE}OtherSAs`);
+  const recent = readAssignment(html, 'RecentSAs');
+  const other = readAssignment(html, 'OtherSAs');
   if (!Array.isArray(recent) && !Array.isArray(other)) return null;
   const all = [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(other) ? other : [])] as RawServiceArea[];
   return all.filter((a) => typeof a?.Id === 'string' && typeof a?.Title === 'string');
@@ -65,7 +88,11 @@ export function parseServiceAreas(html: string): RawServiceArea[] | null {
 
 /** The `var model = {...}` on the location page, or null if it isn't one. */
 export function parseLocationModel(html: string): RawLocationModel | null {
-  const model = readDeclaredLiteral(parseInlineScripts(html, MODEL_VARIABLE), MODEL_VARIABLE);
+  // Not a `$$WP.` assignment: the page wraps it in `$(function () { … })`,
+  // with more statements after it on the same line.
+  const m = /var\s+model\s*=\s*/.exec(html);
+  if (!m) return null;
+  const model = valueAt(html, m.index + m[0].length);
   return model && typeof model === 'object' ? model : null;
 }
 

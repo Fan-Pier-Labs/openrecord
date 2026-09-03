@@ -18,33 +18,42 @@
  *  - **Values are HTML**, usually a `tel:` anchor, sometimes a bare span for a
  *    vanity number ("800-4Sprng") that has no `tel:` link at all.
  *  - **`HTMLUnencode(...)` wraps the text ones**, so the JS string literal
- *    still holds entities (`&amp;`, `&#39;`) after the script is parsed.
+ *    still holds entities (`&amp;`, `&#39;`) that have to be decoded.
  *
- * So each value is read through two parsers and no hand-written scanner:
- * `inlineScript` (acorn) turns the script into calls and their string
- * arguments, then cheerio turns each argument's HTML into text.
+ * The `addMnemonic` lines are one per mnemonic and machine-generated, so a
+ * regex reads them. Their values are HTML, which is cheerio's job: decoding
+ * entities by hand is what this module used to do, and it got `&amp;lt;`,
+ * every named entity outside the big six, and out-of-range numeric
+ * references wrong.
  */
 
 import * as cheerio from 'cheerio';
 
-import { parseInlineScripts, readCallArguments } from './inlineScript';
 import type { OrgProfile, PhoneNumber } from './types';
 
-const MNEMONIC_CALL = '$$WP.Strings.addMnemonic';
-const MNEMONIC_NAME = /^@MYCHART@([A-Z_]+)@$/;
+const MNEMONIC_RE =
+  /\$\$WP\.Strings\.addMnemonic\(\s*"@MYCHART@([A-Z_]+)@"\s*,\s*(HTMLUnencode\()?\s*"((?:[^"\\]|\\.)*)"/g;
 
 const PLACEHOLDER_DIGITS = '5555555555';
 const PLACEHOLDER_EMAIL_DOMAIN = 'donotuse.donotuse';
 
-/** Every `@MYCHART@…@` mnemonic on the page, values still raw HTML. */
+/** Every `@MYCHART@…@` mnemonic on the page, values still raw (HTML/JS-escaped). */
 export function parseMnemonics(html: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [name, value] of readCallArguments(parseInlineScripts(html, 'addMnemonic'), MNEMONIC_CALL)) {
-    if (typeof name !== 'string' || typeof value !== 'string') continue;
-    const key = MNEMONIC_NAME.exec(name)?.[1];
-    if (key) out[key] = value;
+  for (const match of html.matchAll(MNEMONIC_RE)) {
+    const [, name, , literal] = match;
+    if (!name || literal === undefined) continue;
+    out[name] = decodeJsString(literal);
   }
   return out;
+}
+
+function decodeJsString(literal: string): string {
+  try {
+    return JSON.parse(`"${literal}"`) as string;
+  } catch {
+    return literal.replace(/\\(["'\\/])/g, '$1');
+  }
 }
 
 /** A parsed fragment's text: tags dropped, entities decoded, spacing collapsed. */
@@ -105,12 +114,7 @@ export function parseOrgProfile(html: string): OrgProfile {
   };
 }
 
-/**
- * Does this page carry the mnemonic block at all? False for a non-MyChart page.
- *
- * A presence check, so it stays a regex: there is no value to extract, and
- * parsing every inline script to answer a boolean is not worth the work.
- */
+/** Does this page carry the mnemonic block at all? False for a non-MyChart page. */
 export function hasOrgProfile(html: string): boolean {
   return /addMnemonic\(\s*"@MYCHART@(ORGNAME|APPTITLE)@"/.test(html);
 }

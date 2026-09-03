@@ -13,8 +13,6 @@
     "@anthropic-ai/sdk": "^0.116.0",
     "@expo/metro-runtime": "~57.0.9",
     "@react-native-google-signin/google-signin": "^16.1.4",
-    "acorn": "^8.18.0",
-    "acorn-walk": "^8.3.5",
     "assert": "^2.1.0",
     "browserify-zlib": "^0.2.0",
     "cheerio": "^1.2.0",

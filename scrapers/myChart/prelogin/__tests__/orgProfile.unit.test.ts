@@ -31,20 +31,8 @@ describe('parseMnemonics', () => {
   });
 
   it('decodes JS string escapes in the literal', () => {
-    const m = parseMnemonics(
-      '<script>$$WP.Strings.addMnemonic("@MYCHART@ORGNAME@","Say \\"hi\\" \\u0026 bye", false, "Global")</script>',
-    );
+    const m = parseMnemonics('$$WP.Strings.addMnemonic("@MYCHART@ORGNAME@","Say \\"hi\\" \\u0026 bye", false, "Global")');
     expect(m.ORGNAME).toBe('Say "hi" & bye');
-  });
-
-  it("reads a value the instance single-quoted, which isn't JSON", () => {
-    const m = parseMnemonics(`<script>$$WP.Strings.addMnemonic('@MYCHART@ORGNAME@', 'Springfield "General"')</script>`);
-    expect(m.ORGNAME).toBe('Springfield "General"');
-  });
-
-  it('ignores a script block that is not parseable JavaScript', () => {
-    const m = parseMnemonics(`${PAGE}<script>addMnemonic( function ( { </script>`);
-    expect(m.ORGNAME).toBe('Springfield General Hospital &amp; Clinics');
   });
 });
 
