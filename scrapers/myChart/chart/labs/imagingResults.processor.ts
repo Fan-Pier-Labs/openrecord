@@ -95,7 +95,7 @@ export function fdiContextForOrder(raw: RawResponse, order: LabOrderStandard): F
 }
 
 /**
- * Same encoding as `encodeImageId` in `shared/capabilities.ts` — duplicated
+ * Same encoding as `encodeImageId` in `shared/capabilities/imaging.ts` — duplicated
  * rather than imported because capabilities imports this scraper, and the
  * two must stay byte-for-byte equal so `download_imaging_study` decodes it.
  */

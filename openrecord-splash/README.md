@@ -89,7 +89,7 @@ judgement call — `shared/__tests__/capability-parity.unit.test.ts` holds it to
 | `src/bartRecord.ts` | The second chart the account reaches by proxy access — a different patient, not a relabelled copy. |
 | `src/patients.ts` | The patient roster the proxy tools list and switch between. |
 | `src/types.ts` | Shared types for the record, the tool layer, and the agent loop. |
-| `src/tools.ts` | Every MyChart tool in `shared/capabilities.ts`, plus the extension's account-setup tools, over those records. Write tools genuinely mutate session state, and reads assert which patient they are about. Coverage is enforced by `shared/__tests__/capability-parity.unit.test.ts`. |
+| `src/tools.ts` | Every MyChart tool in `shared/capabilities/`, plus the extension's account-setup tools, over those records. Write tools genuinely mutate session state, and reads assert which patient they are about. Coverage is enforced by `shared/__tests__/capability-parity.unit.test.ts`. |
 | `src/agent.ts` | The agent loop — a faithful port of `expo-app/src/lib/ai/claude-client.ts`, including the JSON tool-call protocol, read batching, and exclusive write tools. |
 | `src/stream.ts` | Reveals a finished reply at the pace a model would have produced it. |
 | `src/skills.ts` | The three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards. |

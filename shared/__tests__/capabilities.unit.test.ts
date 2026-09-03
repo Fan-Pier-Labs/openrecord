@@ -9,7 +9,7 @@
  * message threads, or touch emergency contacts at all; the CLI was missing
  * visit notes and the emergency-contact writes.
  *
- * Every client now derives its list from `shared/capabilities.ts`. These tests
+ * Every client now derives its list from `shared/capabilities/`. These tests
  * are what keeps that true: they read each client's real surface — the MCP
  * server's registered tools, the mobile agent's prompt, the CLI's dispatch,
  * the library's public exports — and fail if any of them stops covering an
@@ -17,6 +17,8 @@
  */
 
 import { describe, it, expect } from 'bun:test';
+
+import { readdir } from 'node:fs/promises';
 
 import {
   CAPABILITIES,
@@ -36,6 +38,31 @@ import {
 // ── Registry shape ──────────────────────────────────────────────────────────
 
 describe('the registry itself', () => {
+  /**
+   * The entries live one file per group under `registry/`, and `index.ts`
+   * concatenates them. A group file that nobody spreads into that list is the
+   * one failure this split can produce silently — the capability simply stops
+   * existing, in every client at once, and every other test here still passes
+   * because they all read `CAPABILITIES`. So this reads the directory rather
+   * than a list written here, which would be the same thing to forget.
+   */
+  it('ships every entry from every file in registry/', async () => {
+    const dir = new URL('../capabilities/registry/', import.meta.url);
+    const files = (await readdir(dir)).filter((f) => f.endsWith('.ts')).sort();
+    expect(files.length).toBeGreaterThan(0);
+
+    const onDisk: string[] = [];
+    for (const file of files) {
+      const module = (await import(new URL(file, dir).pathname)) as Record<string, unknown>;
+      const arrays = Object.values(module).filter(Array.isArray);
+      // One exported array per file, or the file is not a group file.
+      expect({ file, arrays: arrays.length }).toEqual({ file, arrays: 1 });
+      for (const entry of arrays[0] as Array<{ id: string }>) onDisk.push(entry.id);
+    }
+
+    expect([...CAPABILITY_IDS].sort()).toEqual(onDisk.sort());
+  });
+
   it('has unique ids, and no id collides with another entry’s alias', () => {
     const names: string[] = [];
     for (const capability of CAPABILITIES) {

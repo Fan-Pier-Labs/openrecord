@@ -214,7 +214,7 @@ A technically-perfect PR that takes the product somewhere we don't want is **not
 Decide direction **first**; if it's wrong, quality is moot.
 
 Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, and
-`LICENSE`. For what the product covers, the capability registry (`shared/capabilities.ts`) is the
+`LICENSE`. For what the product covers, the capability registry (`shared/capabilities/`) is the
 single source of truth; `docs/MYCHART_FEATURES.md` lists only the features we deliberately don't
 scrape. In short, this product is:
 
