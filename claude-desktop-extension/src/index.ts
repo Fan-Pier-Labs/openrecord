@@ -74,7 +74,13 @@ async function main(): Promise<void> {
         '     and explains what one changes. NEVER call register_passkey (or any other tool that ' +
         '     alters how an account signs in) unless the user has explicitly said yes to it.' +
         '\n  5. Use the data tools (get_medications, get_lab_results, send_message, etc.) with the ' +
-        '     `account` from the previous step.',
+        '     `account` from the previous step.' +
+        '\n\n' +
+        'Public information (no account): get_hospital_info(hostname) returns what a MyChart ' +
+        'instance publishes about its health system to anyone — support phone lines, the bookable ' +
+        'provider directory with clinic addresses, and billing entities. Use search_mycharts to find ' +
+        'the hostname first. It never returns a fax number or an accepted-insurance list; MyChart ' +
+        'does not publish those.',
     },
   );
 

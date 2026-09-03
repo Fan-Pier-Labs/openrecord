@@ -43,7 +43,33 @@ describe('parseDirectoryPayload', () => {
       countries: ['US'],
       brandName: 'MyChart',
       liveOnCentral: true,
+      phone: null,
+      email: null,
+      faqUrl: null,
     });
+  });
+
+  it('keeps the contact fields the directory publishes, and nulls the empty ones', () => {
+    const [org] = parseDirectoryPayload({
+      organizations: [
+        {
+          slgId: '9001',
+          name: 'Springfield General Hospital',
+          loginUrl: 'https://mychart.example.org/MyChart/',
+          phone: '555-010-0100',
+          email: 'mychart@example.org',
+          emailHref: 'mailto:mychart@example.org',
+          faq: 'https://mychart.example.org/MyChart/Authentication/Login?mode=stdfile&option=faq',
+        },
+        { slgId: '9002', name: 'Shelbyville Medical Group', loginUrl: 'https://mychart.example.net/', phone: '', email: '', faq: '' },
+      ],
+    });
+    expect(org).toMatchObject({
+      phone: '555-010-0100',
+      email: 'mychart@example.org',
+      faqUrl: 'https://mychart.example.org/MyChart/Authentication/Login?mode=stdfile&option=faq',
+    });
+    expect(instances.every((i) => i.phone === null && i.email === null && i.faqUrl === null)).toBe(true);
   });
 
   it('keeps the aliases an organization is also searched by', () => {

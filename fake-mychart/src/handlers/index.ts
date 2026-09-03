@@ -16,8 +16,10 @@
  *   2. GET is split into a public group and a private one, because real
  *      MyChart's session gate sits in the *middle* of the GET surface: login,
  *      terms, the keepalives and the ASP.NET error pages all answer without a
- *      session, and everything else 302s to the login page. POST needs no such
- *      split — its gate is at the top and keyed on `authentication/`.
+ *      session, and everything else 302s to the login page. POST is split the
+ *      same way, but far less evenly: `authentication/` skips both gates, the
+ *      anonymous scheduling workflow in `POST_PUBLIC` clears the antiforgery
+ *      gate and skips only the session one, and everything else takes both.
  */
 import { activityFeedPost } from './activityFeed';
 import { allergiesGet, allergiesPost } from './allergies';
@@ -44,6 +46,7 @@ import { messagesGet, messagesPost } from './messages';
 import { notesPost } from './notes';
 import { otherMyChartsPostPatterns } from './otherMyCharts';
 import { passkeysPost } from './passkeys';
+import { preloginGetPublic, preloginPostPublic } from './prelogin';
 import { preventiveCareGet } from './preventiveCare';
 import { profileGet, profilePostPatterns } from './profile';
 import { questionnairesPost } from './questionnaires';
@@ -57,7 +60,7 @@ import { vitalsGet, vitalsPost } from './vitals';
 import { mergeExact, type ExactRoutes, type PatternRoute } from './types';
 
 /** GET routes served before the session gate — the login flow and friends. */
-export const GET_PUBLIC: ExactRoutes = mergeExact(authGet, sessionGetPublic);
+export const GET_PUBLIC: ExactRoutes = mergeExact(authGet, sessionGetPublic, preloginGetPublic);
 export const GET_PUBLIC_PATTERNS: readonly PatternRoute[] = [...authGetPatterns];
 
 /** GET routes served only to a live session. */
@@ -92,6 +95,13 @@ export const GET_PRIVATE_PATTERNS: readonly PatternRoute[] = [
   ...billsGetPatterns,
   ...genericGetPatterns,
 ];
+
+/**
+ * POST routes served before the session gate, but still behind the antiforgery
+ * one. Only the anonymous scheduling workflow lives here: it is the one POST
+ * surface a real instance answers for a visitor with no account.
+ */
+export const POST_PUBLIC: ExactRoutes = mergeExact(preloginPostPublic);
 
 export const POST_ROUTES: ExactRoutes = mergeExact(
   authPost,

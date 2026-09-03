@@ -24,8 +24,12 @@ export function requireTermsRedirect(request: NextRequest): NextResponse | null 
  * Which POST paths reject a request with no antiforgery token. Every `/api/*`
  * route does, and so does the legacy Care Team activity's own endpoint pair —
  * both live instances answered a token-less POST there with the same error
- * surface they give a token-less `/api/*` POST.
+ * surface they give a token-less `/api/*` POST. So does the anonymous
+ * scheduling workflow, which takes no session but does take the token off the
+ * page that hosts it.
  */
 export function requiresAntiforgeryToken(lower: string): boolean {
-  return lower.startsWith('api/') || lower.startsWith('clinical/careteam/');
+  return lower.startsWith('api/')
+    || lower.startsWith('clinical/careteam/')
+    || lower.startsWith('scheduling/anonymous/');
 }

@@ -99,6 +99,10 @@ export interface DirectoryOrganization {
   states?: string[];
   countries?: string[];
   liveOnCentral?: boolean;
+  phone?: string;
+  email?: string;
+  emailHref?: string;
+  faq?: string;
 }
 
 /**
@@ -124,6 +128,16 @@ export interface MyChartInstance {
   brandName: string;
   /** Whether the instance participates in MyChart Central. */
   liveOnCentral: boolean;
+  /**
+   * The organization's MyChart support line, as Epic's picker shows it.
+   * Present for about two thirds of the directory; null when the entry has
+   * none.
+   */
+  phone: string | null;
+  /** The organization's MyChart support email, when the entry has one. */
+  email: string | null;
+  /** The organization's FAQ page — nearly always its own `stdfile` FAQ. */
+  faqUrl: string | null;
 }
 
 /**
@@ -196,7 +210,15 @@ function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
     countries: asStringArray(org.countries),
     brandName: typeof org.brandName === 'string' ? org.brandName : '',
     liveOnCentral: org.liveOnCentral === true,
+    phone: nonEmptyString(org.phone),
+    email: nonEmptyString(org.email),
+    faqUrl: nonEmptyString(org.faq),
   };
+}
+
+/** The directory sends `""` rather than omitting a contact field it lacks. */
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
 /**
