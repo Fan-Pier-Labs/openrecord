@@ -5,9 +5,11 @@
 after changing a processor. Field decisions are in
 [`processor-layer-proposal.md`](processor-layer-proposal.md).
 
-Every read capability, in all four modes. Raw and JSON examples longer than 12,000
-characters are cut, and say so. The fake's per-session CSRF token and the now-based
-`oldestRenderedDate` query value are pinned so the doc only changes when the output does.
+Every read capability this server can answer, in all four modes. Raw and JSON examples longer
+than 12,000 characters are cut, and say so. The fake's per-session CSRF token and the
+now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output
+does. The `public` capabilities are absent: they read CMS's NPI Registry rather than a MyChart,
+so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).
 
 ## Sizes (characters)
 
