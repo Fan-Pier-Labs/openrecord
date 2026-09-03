@@ -213,6 +213,15 @@ of each of the two), with the drop reasons from §2.
 | `get_linked_accounts` | [`scrapers/myChart/chart/otherMyCharts/README.md`](../scrapers/myChart/chart/otherMyCharts/README.md) |
 | `get_emergency_contacts` | [`scrapers/myChart/chart/emergencyContacts/README.md`](../scrapers/myChart/chart/emergencyContacts/README.md) |
 | `list_proxy_targets` | [`scrapers/myChart/proxy/README.md`](../scrapers/myChart/proxy/README.md) |
+| `lookup_npi`, `search_npi_registry` | [`scrapers/npi/README.md`](../scrapers/npi/README.md) |
+
+The NPI Registry is the one source here that is not MyChart — a public CMS API
+that needs no login. The rules are about a source's fields rather than about
+Epic, so they carry over unchanged, and reusing the envelope and the processor
+contract is what lets those two capabilities take the same `mode` parameter as
+every MyChart read. Its scraper builds the one-request envelope directly rather
+than through `RawCollector`, whose job is MyChart session expiry and the
+active-patient restore; there is no session to keep.
 
 ## 4. What moves out of the scrapers
 
