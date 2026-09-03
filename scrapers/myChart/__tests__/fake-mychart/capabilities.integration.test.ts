@@ -300,7 +300,7 @@ describe('capability registry against fake-mychart', () => {
       medication_name: refillable!.name!,
     })) as { success: boolean; medication: string }
     expect(result.success).toBe(true)
-    expect(result.medication).toBe(refillable!.name)
+    expect(result.medication).toBe(refillable!.name!)
   }, 30_000)
 
   it('refuses to guess which medication was meant', async () => {

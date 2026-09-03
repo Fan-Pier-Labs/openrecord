@@ -448,78 +448,76 @@ for (const mode of MOUNT_MODES) {
     it('pastVisits paginates past the first page and returns the full history', async () => {
       const longAgo = new Date('2000-01-01T00:00:00Z')
       const result = await pastVisits(session, longAgo)
+      expect(result).not.toBeNull()
 
-      if ('error' in result) throw new Error(`pastVisits errored: ${result.error}`)
-      expect(result.List).toBeDefined()
-
-      const allVisits = Object.values(result.List).flatMap(org => org.List)
       // 22 fixture visits — far more than a single 10-visit page would yield.
-      expect(allVisits.length).toBe(22)
+      expect(result!.count).toBe(22)
+      expect(result!.visits.length).toBe(22)
 
       // The oldest visit (CSN-HOMER-023, only reachable on the third page)
       // confirms we didn't stop early at the first or second page.
-      const csns = allVisits.map(v => v.Csn)
+      const csns = result!.visits.map(v => v.Csn)
       expect(csns).toContain('CSN-HOMER-023')
 
       // No org should still be flagged as having more data once we've drained it.
-      expect(Object.values(result.List).every(org => !org.HasMoreData)).toBe(true)
+      expect(result!.hasOlderVisits).toBe(false)
     }, 10_000)
 
     it('getVisitNotes returns the 3 ED notes for the Donut Incident visit', async () => {
-      const result = await getVisitNotes(session, 'CSN-HOMER-003')
+      const result = (await getVisitNotes(session, 'CSN-HOMER-003'))!
       expect(result.csn).toBe('CSN-HOMER-003')
-      expect(result.lrpId).toBe('LRP-HOMER-003')
+      expect(result.lrpID).toBe('LRP-HOMER-003')
       expect(result.depPhoneNumber).toBe('555-0123')
-      expect(result.notes.length).toBe(3)
-      const titles = result.notes.map(n => n.displayName).sort()
+      expect(result.noteList.length).toBe(3)
+      const titles = result.noteList.map(n => n.displayName).sort()
       expect(titles).toEqual(['Discharge Summary', 'ED Provider Note', 'ED Triage Note'])
 
-      // Verify per-note normalization: scraper reads uppercase wire keys
-      // (hnoID/hnoDAT/magicID) and emits camelCase. Regression-proof the casing.
-      const triage = result.notes.find(n => n.displayName === 'ED Triage Note')!
-      expect(triage.hnoId).toBe('HNO-HOMER-003-A')
-      expect(triage.hnoDat).toBe('67890')
+      // The standard object keeps MyChart's wire casing (hnoID/hnoDAT/magicID);
+      // regression-proof that nothing renames them.
+      const triage = result.noteList.find(n => n.displayName === 'ED Triage Note')!
+      expect(triage.hnoID).toBe('HNO-HOMER-003-A')
+      expect(triage.hnoDAT).toBe('67890')
       expect(triage.iso).toBe('2025-11-20T14:15:00Z')
       expect(triage.isAddendum).toBe(false)
       expect(triage.isNoteSensitive).toBe(false)
-      expect(triage.providerName).toBe('Nick Riviera, MD')
-      expect(triage.providerMagicId).toBe('PROV-NICK')
+      expect(triage.provider.name).toBe('Nick Riviera, MD')
+      expect(triage.provider.magicID).toBe('PROV-NICK')
     }, 10_000)
 
     it('getVisitNotes returns an empty list for a visit with no notes', async () => {
-      const result = await getVisitNotes(session, 'CSN-HOMER-004')
+      const result = (await getVisitNotes(session, 'CSN-HOMER-004'))!
       expect(result.csn).toBe('CSN-HOMER-004')
-      expect(result.notes.length).toBe(0)
+      expect(result.noteList.length).toBe(0)
     }, 10_000)
 
     it('getNoteContent returns the ED Provider note body', async () => {
-      const notes = await getVisitNotes(session, 'CSN-HOMER-003')
-      const provNote = notes.notes.find(n => n.displayName === 'ED Provider Note')
+      const notes = (await getVisitNotes(session, 'CSN-HOMER-003'))!
+      const provNote = notes.noteList.find(n => n.displayName === 'ED Provider Note')
       expect(provNote).toBeDefined()
-      const content = await getNoteContent(session, {
+      const content = (await getNoteContent(session, {
         csn: 'CSN-HOMER-003',
-        lrpId: notes.lrpId,
-        hnoId: provNote!.hnoId,
-        hnoDat: provNote!.hnoDat,
-      })
-      expect(content.contentHtml).toContain('Nick Riviera')
-      expect(content.contentHtml).toContain('gastric distention')
-      expect(content.contentCss).toBe('')
+        lrpId: notes.lrpID!,
+        hnoId: provNote!.hnoID!,
+        hnoDat: provNote!.hnoDAT!,
+      }))!
+      // Markup never leaves raw: the standard object carries the text only.
+      expect(content.reportContentText).toContain('Nick Riviera')
+      expect(content.reportContentText).toContain('gastric distention')
+      expect(content.reportContentText).not.toContain('<')
     }, 10_000)
 
     it('getVisitAVS returns the AVS for the annual physical', async () => {
-      const result = await getVisitAVS(session, 'CSN-HOMER-002')
-      expect(result.contentHtml).toContain('After Visit Summary')
-      expect(result.contentHtml).toContain('Hibbert')
-      expect(result.contentHtml).toContain('Annual Physical')
-      expect(result.contentCss).toBe('')
+      const result = (await getVisitAVS(session, 'CSN-HOMER-002'))!
+      expect(result.reportContentText).toContain('After Visit Summary')
+      expect(result.reportContentText).toContain('Hibbert')
+      expect(result.reportContentText).toContain('Annual Physical')
+      expect(result.reportContentText).toContain('- Weight management')
     }, 10_000)
 
     it('getVisitAVS returns the radiation-screening AVS for CSN-HOMER-004', async () => {
-      const result = await getVisitAVS(session, 'CSN-HOMER-004')
-      expect(result.contentHtml).toContain('Radiation Exposure Screening')
-      expect(result.contentHtml).toContain('Sector 7G')
-      expect(result.contentCss).toBe('')
+      const result = (await getVisitAVS(session, 'CSN-HOMER-004'))!
+      expect(result.reportContentText).toContain('Radiation Exposure Screening')
+      expect(result.reportContentText).toContain('Sector 7G')
     }, 10_000)
 
     it('listLabResults returns lab results', async () => {
