@@ -88,6 +88,25 @@ mychart-cli --list-capabilities
 area, with the arguments each takes. A `!` marks a command that changes
 something — a write to the chart, or the account's own sign-in settings.
 
+### `--mode`
+
+Every read capability renders its payload in one of four modes (see
+[`processor-layer-proposal.md`](processor-layer-proposal.md)):
+
+| Mode | What you get |
+| --- | --- |
+| `json` | The standard object as JSON — every useful field, MyChart's own names. **The CLI default.** |
+| `standard` | The same object as markdown |
+| `concise` | The interesting subset, as markdown — what the desktop extension and the app show a model by default |
+| `raw` | Exactly what MyChart sent, untouched. Large; HTML and Epic's UI flags included |
+
+```bash
+mychart-cli --host mychart.example.org --action get_medications --mode concise
+```
+
+`--arg mode=<mode>` means the same thing and wins when both are given. Writes
+and `download_imaging_study` ignore it.
+
 ### `--show-all`
 
 MyChart's surface is not evenly valuable. Labs, medications, visit notes and

@@ -19,28 +19,28 @@ import { getTestSession } from './testHelper'
 import type { MyChartRequest } from '../core/myChartRequest'
 
 // Scrapers
-import { getMyChartProfile, getEmail } from '../chart/profile'
-import { getHealthSummary } from '../chart/healthSummary'
-import { getMedications } from '../chart/medications'
-import { getAllergies } from '../chart/allergies'
-import { getHealthIssues } from '../chart/healthIssues'
-import { getImmunizations } from '../chart/immunizations'
-import { getVitals } from '../chart/vitals'
-import { getInsurance } from '../chart/insurance'
-import { getCareTeam } from '../chart/careTeam'
-import { getReferrals } from '../chart/referrals'
-import { getMedicalHistory } from '../chart/medicalHistory'
-import { getPreventiveCare } from '../chart/preventiveCare'
-import { getLetters } from '../chart/letters'
-import { getEmergencyContacts } from '../chart/emergencyContacts'
-import { getGoals } from '../chart/goals'
-import { getDocuments } from '../chart/documents'
-import { getUpcomingOrders } from '../chart/upcomingOrders'
-import { getQuestionnaires } from '../chart/questionnaires'
-import { getCareJourneys } from '../chart/careJourneys'
-import { getActivityFeed } from '../chart/activityFeed'
-import { getEducationMaterials } from '../chart/educationMaterials'
-import { getEhiExportTemplates } from '../chart/ehiExport'
+import { getMyChartProfile, getEmail } from '../chart/profile/profile'
+import { getHealthSummary } from '../chart/healthSummary/healthSummary'
+import { getMedications } from '../chart/medications/medications'
+import { getAllergies } from '../chart/allergies/allergies'
+import { getHealthIssues } from '../chart/healthIssues/healthIssues'
+import { getImmunizations } from '../chart/immunizations/immunizations'
+import { getVitals } from '../chart/vitals/vitals'
+import { getInsurance } from '../chart/insurance/insurance'
+import { getCareTeam } from '../chart/careTeam/careTeam'
+import { getReferrals } from '../chart/referrals/referrals'
+import { getMedicalHistory } from '../chart/medicalHistory/medicalHistory'
+import { getPreventiveCare } from '../chart/preventiveCare/preventiveCare'
+import { getLetters } from '../chart/letters/letters'
+import { getEmergencyContacts } from '../chart/emergencyContacts/emergencyContacts'
+import { getGoals } from '../chart/goals/goals'
+import { getDocuments } from '../chart/documents/documents'
+import { getUpcomingOrders } from '../chart/upcomingOrders/upcomingOrders'
+import { getQuestionnaires } from '../chart/questionnaires/questionnaires'
+import { getCareJourneys } from '../chart/careJourneys/careJourneys'
+import { getActivityFeed } from '../chart/activityFeed/activityFeed'
+import { getEducationMaterials } from '../chart/educationMaterials/educationMaterials'
+import { getEhiExportTemplates } from '../chart/ehiExport/ehiExport'
 import { upcomingVisits, pastVisits } from '../chart/visits/visits'
 import { listLabResults } from '../chart/labs/labResults'
 import { getBillingHistory } from '../chart/bills/bills'
@@ -70,33 +70,32 @@ describe('integration', () => {
   it('getHealthSummary returns summary data', async () => {
     const result = await getHealthSummary(session)
     expect(result).toBeDefined()
-    expect(typeof result.patientAge).toBe('string')
-    expect(typeof result.bloodType).toBe('string')
+    expect(result.header).toBeDefined()
     expect(typeof result.patientFirstName).toBe('string')
   }, 30_000)
 
   it('getMedications returns medication data', async () => {
     const result = await getMedications(session)
     expect(result).toBeDefined()
-    expect(Array.isArray(result.medications)).toBe(true)
-    expect(typeof result.patientFirstName).toBe('string')
+    expect(Array.isArray(result.prescriptions)).toBe(true)
+    expect(typeof result.getPatientFirstName).toBe('string')
   }, 30_000)
 
   it('getAllergies returns allergy data', async () => {
     const result = await getAllergies(session)
     expect(result).toBeDefined()
-    expect(Array.isArray(result.allergies)).toBe(true)
+    expect(Array.isArray(result.dataList)).toBe(true)
     expect(typeof result.allergiesStatus).toBe('number')
   }, 30_000)
 
   it('getHealthIssues returns an array', async () => {
     const result = await getHealthIssues(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.dataList)).toBe(true)
   }, 30_000)
 
   it('getImmunizations returns an array', async () => {
     const result = await getImmunizations(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.immunizations)).toBe(true)
   }, 30_000)
 
   it('getVitals returns an array', async () => {
@@ -113,19 +112,19 @@ describe('integration', () => {
 
   it('getCareTeam returns the provider list', async () => {
     const result = await getCareTeam(session)
-    expect(Array.isArray(result.members)).toBe(true)
+    expect(Array.isArray(result.ProvidersList)).toBe(true)
     // An unreadable outside-provider list is reported, never silently dropped;
     // both captured instances serve it, so a true here is a real regression.
     expect(result.externalProvidersUnavailable).toBe(false)
-    for (const member of result.members) {
-      expect(member.id).not.toBe('')
-      expect(member.name).not.toBe('')
+    for (const member of result.ProvidersList) {
+      expect(member.ID).toBeTruthy()
+      expect(member.Name).toBeTruthy()
     }
   }, 30_000)
 
   it('getReferrals returns an array', async () => {
     const result = await getReferrals(session)
-    expect(Array.isArray(result)).toBe(true)
+    expect(Array.isArray(result.referralList)).toBe(true)
   }, 30_000)
 
   it('getMedicalHistory returns structured history', async () => {
@@ -133,10 +132,10 @@ describe('integration', () => {
     expect(result).toBeDefined()
     expect(result.medicalHistory).toBeDefined()
     expect(result.surgicalHistory).toBeDefined()
-    expect(result.familyHistory).toBeDefined()
+    expect(result.familyHistoryAndStatus).toBeDefined()
     expect(Array.isArray(result.medicalHistory.diagnoses)).toBe(true)
     expect(Array.isArray(result.surgicalHistory.surgeries)).toBe(true)
-    expect(Array.isArray(result.familyHistory.familyMembers)).toBe(true)
+    expect(Array.isArray(result.familyHistoryAndStatus.familyMembers)).toBe(true)
   }, 30_000)
 
   it('getPreventiveCare returns an array', async () => {

@@ -131,15 +131,15 @@ describe('two logins on one hostname', () => {
   }, 60_000)
 
   it('a bare hostname is no match — the error lists the real ids', async () => {
-    const result = await call('get_profile', { account: HOST })
+    const result = await call('get_profile', { account: HOST, mode: 'json' })
     expect(result.isError).toBe(true)
     expect(result.content[0]!.text).toContain(`homer@${HOST}`)
     expect(result.content[0]!.text).toContain(`marge@${HOST}`)
   })
 
   it('each qualified id reads its own chart', async () => {
-    const homerProfile = parse(await call('get_profile', { account: `homer@${HOST}` }))
-    const margeProfile = parse(await call('get_profile', { account: `marge@${HOST}` }))
+    const homerProfile = parse(await call('get_profile', { account: `homer@${HOST}`, mode: 'json' }))
+    const margeProfile = parse(await call('get_profile', { account: `marge@${HOST}`, mode: 'json' }))
     expect(JSON.stringify(homerProfile)).toContain('Homer')
     expect(JSON.stringify(homerProfile)).not.toContain('Marge')
     expect(JSON.stringify(margeProfile)).toContain('Marge')
@@ -153,7 +153,7 @@ describe('two logins on one hostname', () => {
     sessionManager.clearSession(`marge@${HOST}`)
     store.clearAccountSession(HOST, 'marge')
 
-    const profile = parse(await call('get_profile', { account: `marge@${HOST}` }))
+    const profile = parse(await call('get_profile', { account: `marge@${HOST}`, mode: 'json' }))
     expect(JSON.stringify(profile)).toContain('Marge')
     expect(JSON.stringify(profile)).not.toContain('Homer')
   }, 60_000)

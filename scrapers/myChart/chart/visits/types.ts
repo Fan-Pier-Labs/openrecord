@@ -1,16 +1,9 @@
 /**
- * Returned by upcomingVisits/pastVisits instead of a container when the visits
- * pages can't be scraped (e.g. no CSRF token on the visits list page).
+ * Raw MyChart shapes for `/Visits/VisitsList/LoadUpcoming` and `LoadPast`,
+ * as captured in `fake-mychart/src/data/realShapes.ts`. Field names and
+ * casing are Epic's; the processor (`visits.processor.ts`) decides which of
+ * them a caller sees.
  */
-export interface VisitsScrapeError {
-  visits: never[];
-  error: string;
-}
-
-/** Narrows a visits result to the error shape so containers can be used safely. */
-export function isVisitsScrapeError(result: unknown): result is VisitsScrapeError {
-  return typeof result === 'object' && result !== null && 'error' in result;
-}
 
 export interface OrganizationLink {
   OrganizationId: string;
@@ -106,6 +99,11 @@ export interface VisitListContainer {
     CanRedirectToApptDetails: boolean;
     PastVisitBucket: string | number | null;
     IsClinicalInformationAvailable: boolean;
+    IsNotViewed?: boolean;
+    IsViewStatusVisible?: boolean;
+    IsClinicalNoteAvailable?: boolean;
+    IsNotesOnly?: boolean;
+    IsVisitAmbulatory?: boolean;
     OwnedBy: number;
     AdmissionDateRange: { Start: string; End: string } | null;
     IsApptDetailsEnabled: boolean;
@@ -172,7 +170,8 @@ export interface VisitListContainer {
     CanReschedule: boolean;
     RescheduledDat: string;
     IsDetailsEnabled: boolean;
-    ECheckIn: ECheckIn;
+    IsInHomeVisit?: boolean;
+    ECheckIn: ECheckIn | null;
     CanShowECheckIn: boolean;
     CanShowECheckInComplete: boolean;
     IsECheckInComplete: boolean;
@@ -201,6 +200,7 @@ export interface VisitListContainer {
     ArrivalStatus: number | null;
     PatientNextStepInstructions: string;
     ArrivalAdditionalActions: ArrivalAction[];
+    IsArrived?: boolean;
     IsProxyRequestMinorFormOn: boolean;
     ProxyRequestMinorForm: string;
     GuestPatientFirstName: string | null;
@@ -210,7 +210,8 @@ export interface VisitListContainer {
     EncounterIsSurgery: boolean;
     EncounterIsEDVisit: boolean;
     IsPreadmission: boolean;
-    SurgeryTimeOfDay: string | null;
+    /** A number on the November 2025 release, a string on August 2025. */
+    SurgeryTimeOfDay: string | number | null;
     PreadmissionLocation: PreadmissionLocation | null;
     Cases: CaseInfo[] | null;
     IsHovPreadmission: boolean;
@@ -223,6 +224,7 @@ export interface VisitListContainer {
     IsFullyPaid: boolean;
     CompleteECheckInCount: number;
     TotalECheckInCount: number;
+    EpisodeDetails?: { GestationalAge: string };
     ViewBagProperties?: ViewBagProperties;
     SerializedIndex?: string;
     List?: Record<string, PastVisitsByOrg>;

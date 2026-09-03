@@ -2,6 +2,8 @@ import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import * as cheerio from 'cheerio';
 import * as tough from 'tough-cookie';
 import type { MyChartRequest } from '../core/myChartRequest';
+import type { RawCollector } from '../core/rawResponse';
+import type { RequestConfig } from '../core/types';
 import { fetchSessionCsrfToken } from '../core/csrf';
 import type { ReportContent } from '../chart/labs/labtestresulttype';
 import { scraperFetch } from '../../http';
@@ -78,10 +80,14 @@ export function extractCopyContext(reportContentHtml: string): string | null {
  * Call the FdiData API to get the SAML URL that leads to the eUnity image viewer.
  *
  * Flow: MyChart → FdiData → SAML STS URL → (browser follows SAML chain) → eUnity viewer
+ *
+ * With a `collector`, the FdiData exchange is recorded in the caller's raw
+ * envelope (the CSRF token fetch is not — it is session plumbing, not data).
  */
 export async function getImageViewerSamlUrl(
   mychartRequest: MyChartRequest,
-  fdiContext: FdiContext
+  fdiContext: FdiContext,
+  collector?: RawCollector,
 ): Promise<ImagingViewerSession | null> {
   const token = await fetchSessionCsrfToken(mychartRequest);
   if (!token) {
@@ -89,7 +95,7 @@ export async function getImageViewerSamlUrl(
     return null;
   }
 
-  const res = await makeAuthenticatedRequest(mychartRequest, {
+  const config: RequestConfig = {
     path: `/Extensibility/Redirection/FdiData?fdi=${encodeURIComponent(fdiContext.fdi)}&ord=${encodeURIComponent(fdiContext.ord)}&patientIndex=undefined&noCache=${Math.random()}`,
     method: 'POST',
     headers: {
@@ -97,23 +103,33 @@ export async function getImageViewerSamlUrl(
     },
     body: `__RequestVerificationToken=${encodeURIComponent(token)}`,
     followRedirects: false,
-  });
+  };
 
-  if (!res.ok) {
-    logger.debug('FdiData request failed:', res.status);
+  let status: number;
+  let ok: boolean;
+  let data: unknown;
+  if (collector) {
+    const recorded = await collector.send(config);
+    ({ status, ok } = recorded.response);
+    data = recorded.body;
+  } else {
+    const res = await makeAuthenticatedRequest(mychartRequest, config);
+    ({ status, ok } = res);
+    data = ok ? ((await res.json()) as unknown) : undefined;
+  }
+
+  if (!ok) {
+    logger.debug('FdiData request failed:', status);
     return null;
   }
 
-  const data = await res.json() as { url: string; launchmode: number; IsFdiPost: boolean };
-
-  if (!data.url) {
+  const url = (data as { url?: unknown } | null)?.url;
+  if (typeof url !== 'string' || !url) {
     logger.debug('FdiData response missing URL');
     return null;
   }
 
-  return {
-    samlUrl: data.url,
-  };
+  return { samlUrl: url };
 }
 
 /**

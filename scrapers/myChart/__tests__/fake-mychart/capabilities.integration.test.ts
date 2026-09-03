@@ -89,12 +89,12 @@ describe('capability registry against fake-mychart', () => {
       args: async (s) => {
         const csn = await firstVisitCsn(s)
         const notes = (await executeCapability(s, 'get_visit_notes', { csn })) as {
-          lrpId: string
-          notes: Array<{ hnoId: string; hnoDat: string }>
+          lrpID: string
+          noteList: Array<{ hnoID: string; hnoDAT: string }>
         }
-        const note = notes.notes[0]
+        const note = notes.noteList[0]
         expect(note).toBeDefined()
-        return { csn, lrp_id: notes.lrpId, hno_id: note!.hnoId, hno_dat: note!.hnoDat }
+        return { csn, lrp_id: notes.lrpID, hno_id: note!.hnoID, hno_dat: note!.hnoDAT }
       },
     },
     {
@@ -104,10 +104,9 @@ describe('capability registry against fake-mychart', () => {
     {
       id: 'get_letter_details',
       args: async (s) => {
-        const letters = (await executeCapability(s, 'get_letters')) as Array<{
-          hnoId: string
-          csn: string
-        }>
+        const { letters } = (await executeCapability(s, 'get_letters')) as {
+          letters: Array<{ hnoId: string; csn: string }>
+        }
         expect(letters.length).toBeGreaterThan(0)
         return { hno_id: letters[0]!.hnoId, csn: letters[0]!.csn }
       },
@@ -136,28 +135,28 @@ describe('capability registry against fake-mychart', () => {
     const thread = (await executeCapability(session, 'get_message_thread', {
       conversation_id: conversation!.hthId,
     })) as {
-      conversationId: string
+      hthId: string
       subject: string
       truncated: boolean
       messages: Array<{
-        messageId: string
+        wmgId: string
         senderName: string
-        sentDate: string
-        messageBody: string
+        deliveryInstantISO: string
+        bodyText: string
         isFromPatient: boolean
       }>
     }
 
-    expect(thread.conversationId).toBe(conversation!.hthId)
+    expect(thread.hthId).toBe(conversation!.hthId)
     expect(thread.subject).toBe(conversation!.subject)
     expect(thread.messages.length).toBeGreaterThan(conversation!.messages.length)
     expect(thread.truncated).toBe(false)
 
     for (const message of thread.messages) {
-      expect(message.messageId).not.toBe('')
+      expect(message.wmgId).not.toBe('')
       expect(message.senderName).not.toBe('')
-      expect(message.sentDate).not.toBe('')
-      expect(message.messageBody).not.toBe('')
+      expect(message.deliveryInstantISO).not.toBe('')
+      expect(message.bodyText).not.toBe('')
     }
 
     // The fixture thread is a back-and-forth, so both sides must be attributed.
@@ -168,11 +167,10 @@ describe('capability registry against fake-mychart', () => {
   // ── Imaging ───────────────────────────────────────────────────────────────
 
   it('mints an image_id in get_imaging_results and downloads it back', async () => {
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      orderName: string
-    }>
-    const withImages = results.find((r) => r.image_id)
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; orderName: string | null }>
+    }
+    const withImages = orders.find((r) => r.image_id)
     expect(withImages).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
@@ -184,11 +182,10 @@ describe('capability registry against fake-mychart', () => {
   }, 60_000)
 
   it('accepts imaging_index as well as image_id, which is how the mobile app calls it', async () => {
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      index: number
-    }>
-    const withImages = results.find((r) => r.image_id)
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; index: number }>
+    }
+    const withImages = orders.find((r) => r.image_id)
     expect(withImages).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
@@ -207,11 +204,10 @@ describe('capability registry against fake-mychart', () => {
     // be skipped — never returned as images, and never allowed to turn the
     // whole download into an empty result — while every instance that does
     // carry pixel data comes back.
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      orderName: string
-    }>
-    const ct = results.find((r) => r.image_id && r.orderName.includes('CT'))
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; orderName: string | null }>
+    }
+    const ct = orders.find((r) => r.image_id && (r.orderName ?? '').includes('CT'))
     expect(ct).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
@@ -256,7 +252,8 @@ describe('capability registry against fake-mychart', () => {
   }, 30_000)
 
   it('adds, updates and removes an emergency contact — the writes mobile never had', async () => {
-    const before = (await executeCapability(session, 'get_emergency_contacts')) as unknown[]
+    type Contacts = { contacts: Array<{ id: string | null; formattedName: string | null; contactInformation: { phoneNumbers: Array<{ phoneNumber: string | null }> } }> }
+    const before = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
 
     const added = (await executeCapability(session, 'add_emergency_contact', {
       name: 'Capability Test Contact',
@@ -265,13 +262,9 @@ describe('capability registry against fake-mychart', () => {
     })) as { success: boolean }
     expect(added.success).toBe(true)
 
-    const after = (await executeCapability(session, 'get_emergency_contacts')) as Array<{
-      id?: string
-      name: string
-      phoneNumber: string
-    }>
-    expect(after.length).toBe(before.length + 1)
-    const created = after.find((c) => c.name === 'Capability Test Contact')
+    const after = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(after.contacts.length).toBe(before.contacts.length + 1)
+    const created = after.contacts.find((c) => c.formattedName === 'Capability Test Contact')
     expect(created).toBeDefined()
     expect(created!.id).toBeTruthy()
 
@@ -281,33 +274,30 @@ describe('capability registry against fake-mychart', () => {
     })) as { success: boolean }
     expect(updated.success).toBe(true)
 
-    const afterUpdate = (await executeCapability(session, 'get_emergency_contacts')) as Array<{
-      id?: string
-      phoneNumber: string
-    }>
-    expect(afterUpdate.find((c) => c.id === created!.id)?.phoneNumber).toBe('555-0199')
+    const afterUpdate = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(afterUpdate.contacts.find((c) => c.id === created!.id)?.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('555-0199')
 
     const removed = (await executeCapability(session, 'remove_emergency_contact', {
       id: created!.id,
     })) as { success: boolean }
     expect(removed.success).toBe(true)
 
-    const afterRemove = (await executeCapability(session, 'get_emergency_contacts')) as unknown[]
-    expect(afterRemove.length).toBe(before.length)
+    const afterRemove = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(afterRemove.contacts.length).toBe(before.contacts.length)
   }, 60_000)
 
   it('requests a refill by medication name, resolving the key itself', async () => {
     const meds = (await executeCapability(session, 'get_medications')) as {
-      medications: Array<{ name: string; isRefillable: boolean; medicationKey?: string }>
+      prescriptions: Array<{ name: string | null; id: string | null; refillDetails: { isRefillable: boolean | null } | null }>
     }
-    const refillable = meds.medications.find((m) => m.isRefillable && m.medicationKey)
+    const refillable = meds.prescriptions.find((m) => m.refillDetails?.isRefillable && m.id)
     expect(refillable).toBeDefined()
 
     const result = (await executeCapability(session, 'request_refill', {
-      medication_name: refillable!.name,
+      medication_name: refillable!.name!,
     })) as { success: boolean; medication: string }
     expect(result.success).toBe(true)
-    expect(result.medication).toBe(refillable!.name)
+    expect(result.medication).toBe(refillable!.name!)
   }, 30_000)
 
   it('refuses to guess which medication was meant', async () => {
@@ -470,11 +460,9 @@ describe('capability registry against fake-mychart', () => {
  */
 async function firstVisitCsn(session: MyChartRequest): Promise<string> {
   const past = (await executeCapability(session, 'get_past_visits', { years_back: 20 })) as {
-    List?: Record<string, { List?: Array<{ Csn?: string }> }>
+    visits: Array<{ Csn: string | null }>
   }
-  const csn = Object.values(past.List ?? {})
-    .flatMap((org) => org.List ?? [])
-    .find((visit) => visit.Csn)?.Csn
+  const csn = past.visits.find((visit) => visit.Csn)?.Csn
   expect(csn).toBeTruthy()
   return csn!
 }
