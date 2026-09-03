@@ -255,7 +255,8 @@ describe('capability registry against fake-mychart', () => {
   }, 30_000)
 
   it('adds, updates and removes an emergency contact — the writes mobile never had', async () => {
-    const before = (await executeCapability(session, 'get_emergency_contacts')) as unknown[]
+    type Contacts = { contacts: Array<{ id: string | null; formattedName: string | null; contactInformation: { phoneNumbers: Array<{ phoneNumber: string | null }> } }> }
+    const before = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
 
     const added = (await executeCapability(session, 'add_emergency_contact', {
       name: 'Capability Test Contact',
@@ -264,13 +265,9 @@ describe('capability registry against fake-mychart', () => {
     })) as { success: boolean }
     expect(added.success).toBe(true)
 
-    const after = (await executeCapability(session, 'get_emergency_contacts')) as Array<{
-      id?: string
-      name: string
-      phoneNumber: string
-    }>
-    expect(after.length).toBe(before.length + 1)
-    const created = after.find((c) => c.name === 'Capability Test Contact')
+    const after = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(after.contacts.length).toBe(before.contacts.length + 1)
+    const created = after.contacts.find((c) => c.formattedName === 'Capability Test Contact')
     expect(created).toBeDefined()
     expect(created!.id).toBeTruthy()
 
@@ -280,30 +277,27 @@ describe('capability registry against fake-mychart', () => {
     })) as { success: boolean }
     expect(updated.success).toBe(true)
 
-    const afterUpdate = (await executeCapability(session, 'get_emergency_contacts')) as Array<{
-      id?: string
-      phoneNumber: string
-    }>
-    expect(afterUpdate.find((c) => c.id === created!.id)?.phoneNumber).toBe('555-0199')
+    const afterUpdate = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(afterUpdate.contacts.find((c) => c.id === created!.id)?.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('555-0199')
 
     const removed = (await executeCapability(session, 'remove_emergency_contact', {
       id: created!.id,
     })) as { success: boolean }
     expect(removed.success).toBe(true)
 
-    const afterRemove = (await executeCapability(session, 'get_emergency_contacts')) as unknown[]
-    expect(afterRemove.length).toBe(before.length)
+    const afterRemove = (await executeCapability(session, 'get_emergency_contacts')) as Contacts
+    expect(afterRemove.contacts.length).toBe(before.contacts.length)
   }, 60_000)
 
   it('requests a refill by medication name, resolving the key itself', async () => {
     const meds = (await executeCapability(session, 'get_medications')) as {
-      medications: Array<{ name: string; isRefillable: boolean; medicationKey?: string }>
+      prescriptions: Array<{ name: string | null; id: string | null; refillDetails: { isRefillable: boolean | null } | null }>
     }
-    const refillable = meds.medications.find((m) => m.isRefillable && m.medicationKey)
+    const refillable = meds.prescriptions.find((m) => m.refillDetails?.isRefillable && m.id)
     expect(refillable).toBeDefined()
 
     const result = (await executeCapability(session, 'request_refill', {
-      medication_name: refillable!.name,
+      medication_name: refillable!.name!,
     })) as { success: boolean; medication: string }
     expect(result.success).toBe(true)
     expect(result.medication).toBe(refillable!.name)

@@ -215,24 +215,24 @@ for (const mode of MOUNT_MODES) {
     it('getCareTeam returns internal and external providers', async () => {
       const result = await getCareTeam(session)
       expect(result.externalProvidersUnavailable).toBe(false)
-      const pcp = result.members.find(m => m.relation === 'Primary Care Provider')
-      expect(pcp?.name).toBeTruthy()
-      expect(pcp?.specialty).toBeTruthy()
-      expect(pcp?.isExternal).toBe(false)
-      expect(result.members.some(m => m.isExternal)).toBe(true)
+      const pcp = result.ProvidersList.find(m => m.Relation === 'Primary Care Provider')
+      expect(pcp?.Name).toBeTruthy()
+      expect(pcp?.Specialty).toBeTruthy()
+      expect(pcp?.IsExternal).toBe(false)
+      expect(pcp?.fromExternalList).toBe(false)
+      expect(result.ProvidersList.some(m => m.fromExternalList)).toBe(true)
 
       // A real care team is not all clinicians: one instance listed the
       // patient's insurance payer, with no NPI and no specialty.
-      const payer = result.members.find(m => m.relation === 'Payer')
-      expect(payer?.name).toBeTruthy()
-      expect(payer?.nationalProviderId).toBe('')
-      expect(payer?.specialty).toBe('')
+      const payer = result.ProvidersList.find(m => m.Relation === 'Payer')
+      expect(payer?.Name).toBeTruthy()
+      expect(payer?.NationalProviderID).toBe('')
+      expect(payer?.Specialty).toBe('')
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {
       const result = await getReferrals(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.referralList.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getMedicalHistory returns structured history', async () => {
@@ -271,11 +271,10 @@ for (const mode of MOUNT_MODES) {
     }, 10_000)
 
     it('getEmergencyContacts returns contacts', async () => {
-      const result = await getEmergencyContacts(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-      expect(result[0]!.name).toBe('Marge Simpson')
-      expect(result[0]!.id).toBeDefined()
+      const { contacts } = await getEmergencyContacts(session)
+      expect(contacts.length).toBeGreaterThan(0)
+      expect(contacts[0]!.formattedName).toBe('Marge Simpson')
+      expect(contacts[0]!.id).toBeTruthy()
     }, 10_000)
 
     it('addEmergencyContact adds a new contact', async () => {
@@ -286,16 +285,16 @@ for (const mode of MOUNT_MODES) {
       })
       expect(result.success).toBe(true)
 
-      const contacts = await getEmergencyContacts(session)
-      const ned = contacts.find(c => c.name === 'Ned Flanders')
+      const { contacts } = await getEmergencyContacts(session)
+      const ned = contacts.find(c => c.formattedName === 'Ned Flanders')
       expect(ned).toBeDefined()
-      expect(ned!.relationshipType).toBe('Neighbor')
-      expect(ned!.phoneNumber).toBe('(555) 636-2900')
+      expect(ned!.relationToPatient.name).toBe('Neighbor')
+      expect(ned!.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('(555) 636-2900')
     }, 10_000)
 
     it('updateEmergencyContact updates an existing contact', async () => {
-      const contacts = await getEmergencyContacts(session)
-      const barney = contacts.find(c => c.name === 'Barney Gumble')
+      const { contacts } = await getEmergencyContacts(session)
+      const barney = contacts.find(c => c.formattedName === 'Barney Gumble')
       expect(barney).toBeDefined()
 
       const result = await updateEmergencyContact(session, {
@@ -305,20 +304,20 @@ for (const mode of MOUNT_MODES) {
       expect(result.success).toBe(true)
 
       const updated = await getEmergencyContacts(session)
-      const updatedBarney = updated.find(c => c.name === 'Barney Gumble')
-      expect(updatedBarney!.phoneNumber).toBe('(555) 999-0000')
+      const updatedBarney = updated.contacts.find(c => c.formattedName === 'Barney Gumble')
+      expect(updatedBarney!.contactInformation.phoneNumbers[0]?.phoneNumber).toBe('(555) 999-0000')
     }, 10_000)
 
     it('removeEmergencyContact removes a contact', async () => {
-      const contacts = await getEmergencyContacts(session)
-      const ned = contacts.find(c => c.name === 'Ned Flanders')
+      const { contacts } = await getEmergencyContacts(session)
+      const ned = contacts.find(c => c.formattedName === 'Ned Flanders')
       expect(ned).toBeDefined()
 
       const result = await removeEmergencyContact(session, ned!.id!)
       expect(result.success).toBe(true)
 
       const after = await getEmergencyContacts(session)
-      expect(after.find(c => c.name === 'Ned Flanders')).toBeUndefined()
+      expect(after.contacts.find(c => c.formattedName === 'Ned Flanders')).toBeUndefined()
     }, 10_000)
 
     it('getGoals returns goals', async () => {
@@ -337,26 +336,23 @@ for (const mode of MOUNT_MODES) {
 
     it('getUpcomingOrders returns orders', async () => {
       const result = await getUpcomingOrders(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.orderList.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getQuestionnaires returns questionnaires', async () => {
       const result = await getQuestionnaires(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.questionnaires.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getCareJourneys returns care journeys', async () => {
       const result = await getCareJourneys(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.careJourneys.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getActivityFeed returns feed items', async () => {
       const result = await getActivityFeed(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      const items = result.singleItemFeedViewModels.flatMap((vm) => [...vm.feedItems, ...vm.todayItems, ...vm.forYouItems])
+      expect(items.length).toBeGreaterThan(0)
     }, 10_000)
 
     it('getEducationMaterials returns materials', async () => {
@@ -367,8 +363,7 @@ for (const mode of MOUNT_MODES) {
 
     it('getEhiExportTemplates returns templates', async () => {
       const result = await getEhiExportTemplates(session)
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.ehieTemplates.length).toBeGreaterThan(0)
     }, 10_000)
 
     // What a consumer actually reads off a visit. These came back as empty

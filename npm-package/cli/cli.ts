@@ -628,7 +628,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
 
     for (let i = 0; i < Math.min(convoList.length, 10); i++) {
       const c = convoList[i]!; // loop bound guarantees the index
-      const audience = c.audience?.map((a: { name: string }) => a.name).join(', ') || 'System';
+      const audience = c.audience.map((a) => a.name ?? '').filter(Boolean).join(', ') || 'System';
       console.log(`    [${i + 1}] "${c.subject}" - ${audience}`);
     }
 
@@ -638,7 +638,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
       console.log('  Invalid selection.');
       return;
     }
-    conversationId = convoList[convoIdx]!.hthId; // range-checked just above
+    conversationId = convoList[convoIdx]!.hthId ?? undefined; // range-checked just above
   }
 
   if (!messageBody) {

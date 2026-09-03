@@ -221,12 +221,17 @@ export {
 // ─── Messages ─────────────────────────────────────────────────────────────
 export {
   listConversations,
-  type ConversationListResponse,
+  fetchConversationsRaw,
+  conversationsProcessor,
+  type ConversationsStandard,
+  type ConversationStandard,
+  type MessageStandard,
 } from '../../scrapers/myChart/chart/messages/conversations';
 export {
   getConversationMessages,
-  type ConversationThread,
-  type ThreadMessage,
+  fetchConversationThreadRaw,
+  conversationThreadProcessor,
+  type ConversationThreadStandard,
 } from '../../scrapers/myChart/chart/messages/messageThreads';
 export {
   sendNewMessage,
@@ -238,6 +243,16 @@ export {
   type SendNewMessageParams,
   type SendNewMessageResult,
 } from '../../scrapers/myChart/chart/messages/sendMessage';
+export {
+  fetchMessageRecipientsRaw,
+  fetchMessageTopicsRaw,
+  listMessageRecipients,
+  listMessageTopics,
+  messageRecipientsProcessor,
+  messageTopicsProcessor,
+  type MessageRecipientsStandard,
+  type MessageTopicsStandard,
+} from '../../scrapers/myChart/chart/messages/recipients';
 export {
   sendReply,
   type SendReplyParams,
@@ -254,12 +269,17 @@ export { getBillingHistory } from '../../scrapers/myChart/chart/bills/bills';
 // ─── Care coordination ───────────────────────────────────────────────────
 export {
   getCareTeam,
-  type CareTeam,
-  type CareTeamMember,
+  fetchCareTeamRaw,
+  careTeamProcessor,
+  type CareTeamStandard,
+  type CareTeamProviderStandard,
 } from '../../scrapers/myChart/chart/careTeam';
 export {
   getReferrals,
-  type Referral,
+  fetchReferralsRaw,
+  referralsProcessor,
+  type ReferralsStandard,
+  type ReferralStandard,
 } from '../../scrapers/myChart/chart/referrals';
 export {
   getInsurance,
@@ -280,11 +300,16 @@ export {
 } from '../../scrapers/myChart/chart/goals';
 export {
   getCareJourneys,
-  type CareJourney,
+  fetchCareJourneysRaw,
+  careJourneysProcessor,
+  type CareJourneysStandard,
 } from '../../scrapers/myChart/chart/careJourneys';
 export {
   getUpcomingOrders,
-  type UpcomingOrder,
+  fetchUpcomingOrdersRaw,
+  upcomingOrdersProcessor,
+  type UpcomingOrdersStandard,
+  type UpcomingOrderStandard,
 } from '../../scrapers/myChart/chart/upcomingOrders';
 export {
   getPreventiveCare,
@@ -295,15 +320,23 @@ export {
 } from '../../scrapers/myChart/chart/preventiveCare';
 export {
   getEducationMaterials,
-  type EducationMaterial,
+  fetchEducationMaterialsRaw,
+  educationMaterialsProcessor,
+  type EducationMaterialsStandard,
+  type EducationMaterialStandard,
 } from '../../scrapers/myChart/chart/educationMaterials';
 export {
   getQuestionnaires,
-  type Questionnaire,
+  fetchQuestionnairesRaw,
+  questionnairesProcessor,
+  type QuestionnairesStandard,
 } from '../../scrapers/myChart/chart/questionnaires';
 export {
   getActivityFeed,
-  type ActivityFeedItem,
+  fetchActivityFeedRaw,
+  activityFeedProcessor,
+  type ActivityFeedStandard,
+  type FeedItemStandard,
 } from '../../scrapers/myChart/chart/activityFeed';
 export {
   getLetters,
@@ -320,10 +353,13 @@ export {
 // ─── Emergency contacts ──────────────────────────────────────────────────
 export {
   getEmergencyContacts,
+  fetchEmergencyContactsRaw,
+  emergencyContactsProcessor,
   addEmergencyContact,
   updateEmergencyContact,
   removeEmergencyContact,
-  type EmergencyContact,
+  type EmergencyContactsStandard,
+  type EmergencyContactStandard,
   type EmergencyContactInput,
   type EmergencyContactUpdateInput,
   type EmergencyContactResult,
@@ -332,11 +368,17 @@ export {
 // ─── Linked accounts / EHI export ────────────────────────────────────────
 export {
   getLinkedMyChartAccounts,
-  type LinkedMyChart,
+  fetchLinkedAccountsRaw,
+  linkedAccountsProcessor,
+  type LinkedAccountsStandard,
+  type LinkedOrganizationStandard,
 } from '../../scrapers/myChart/chart/otherMyCharts';
 export {
   getEhiExportTemplates,
-  type EhiTemplate,
+  fetchEhiExportRaw,
+  ehiExportProcessor,
+  type EhiExportStandard,
+  type EhiTemplateStandard,
 } from '../../scrapers/myChart/chart/ehiExport';
 
 // ─── Visit notes ─────────────────────────────────────────────────────────

@@ -70,8 +70,14 @@ import { listLabResults, getImagingResults } from '../scrapers/myChart/chart/lab
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
 import type { FdiContext } from '../scrapers/myChart/eunity/imagingViewer';
 
-import { listConversations } from '../scrapers/myChart/chart/messages/conversations';
-import { getConversationMessages } from '../scrapers/myChart/chart/messages/messageThreads';
+import { fetchConversationsRaw, conversationsProcessor } from '../scrapers/myChart/chart/messages/conversations';
+import { fetchConversationThreadRaw, conversationThreadProcessor } from '../scrapers/myChart/chart/messages/messageThreads';
+import {
+  fetchMessageRecipientsRaw,
+  fetchMessageTopicsRaw,
+  messageRecipientsProcessor,
+  messageTopicsProcessor,
+} from '../scrapers/myChart/chart/messages/recipients';
 import {
   sendNewMessage,
   getMessageRecipients,
@@ -86,8 +92,8 @@ import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage'
 import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
 import { getInsurance } from '../scrapers/myChart/chart/insurance';
 
-import { getCareTeam } from '../scrapers/myChart/chart/careTeam';
-import { getReferrals } from '../scrapers/myChart/chart/referrals';
+import { fetchCareTeamRaw, careTeamProcessor } from '../scrapers/myChart/chart/careTeam';
+import { fetchReferralsRaw, referralsProcessor } from '../scrapers/myChart/chart/referrals';
 import {
   fetchLettersRaw,
   fetchLetterDetailsRaw,
@@ -95,16 +101,17 @@ import {
   letterDetailsProcessor,
 } from '../scrapers/myChart/chart/letters';
 import { fetchDocumentsRaw, documentsProcessor } from '../scrapers/myChart/chart/documents';
-import { getUpcomingOrders } from '../scrapers/myChart/chart/upcomingOrders';
-import { getQuestionnaires } from '../scrapers/myChart/chart/questionnaires';
-import { getCareJourneys } from '../scrapers/myChart/chart/careJourneys';
-import { getActivityFeed } from '../scrapers/myChart/chart/activityFeed';
-import { getEducationMaterials } from '../scrapers/myChart/chart/educationMaterials';
-import { getEhiExportTemplates } from '../scrapers/myChart/chart/ehiExport';
-import { getLinkedMyChartAccounts } from '../scrapers/myChart/chart/otherMyCharts';
+import { fetchUpcomingOrdersRaw, upcomingOrdersProcessor } from '../scrapers/myChart/chart/upcomingOrders';
+import { fetchQuestionnairesRaw, questionnairesProcessor } from '../scrapers/myChart/chart/questionnaires';
+import { fetchCareJourneysRaw, careJourneysProcessor } from '../scrapers/myChart/chart/careJourneys';
+import { fetchActivityFeedRaw, activityFeedProcessor } from '../scrapers/myChart/chart/activityFeed';
+import { fetchEducationMaterialsRaw, educationMaterialsProcessor } from '../scrapers/myChart/chart/educationMaterials';
+import { fetchEhiExportRaw, ehiExportProcessor } from '../scrapers/myChart/chart/ehiExport';
+import { fetchLinkedAccountsRaw, linkedAccountsProcessor } from '../scrapers/myChart/chart/otherMyCharts';
 
 import {
-  getEmergencyContacts,
+  fetchEmergencyContactsRaw,
+  emergencyContactsProcessor,
   addEmergencyContact,
   updateEmergencyContact,
   removeEmergencyContact,
@@ -712,7 +719,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [],
-    run: (request) => listConversations(request),
+    run: (request) => fetchConversationsRaw(request),
+    processor: conversationsProcessor,
   },
   {
     id: 'get_message_thread',
@@ -721,7 +729,19 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [{ name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true }],
-    run: (request, args) => getConversationMessages(request, requireStr(args, 'conversation_id')),
+    run: async (request, args) => {
+      const conversationId = requireStr(args, 'conversation_id');
+      const raw = await fetchConversationThreadRaw(request, conversationId);
+      // GetConversationDetails answers an unknown id with a literal JSON null
+      // (same as GetVisitNotes). Saying so beats rendering an empty thread.
+      if (raw.requests.find((r) => r.path.includes('GetConversationDetails'))?.body === null) {
+        throw new Error(
+          `No conversation ${conversationId} on the active patient record. Check the id from get_messages, and that the right patient is active.`,
+        );
+      }
+      return raw;
+    },
+    processor: conversationThreadProcessor,
   },
   {
     id: 'get_message_recipients',
@@ -730,7 +750,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [],
-    run: async (request) => ({ recipients: await getMessageRecipients(request, await messagingToken(request)) }),
+    run: (request) => fetchMessageRecipientsRaw(request),
+    processor: messageRecipientsProcessor,
   },
   {
     id: 'get_message_topics',
@@ -742,7 +763,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     // listing them up front is rarely a step anyone needs to take.
     lessFrequentlyUsed: true,
     params: [],
-    run: async (request) => ({ topics: await getMessageTopics(request, await messagingToken(request)) }),
+    run: (request) => fetchMessageTopicsRaw(request),
+    processor: messageTopicsProcessor,
   },
   {
     id: 'send_message',
@@ -839,7 +861,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getCareTeam(request),
+    run: (request) => fetchCareTeamRaw(request),
+    processor: careTeamProcessor,
   },
   {
     id: 'get_referrals',
@@ -848,7 +871,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getReferrals(request),
+    run: (request) => fetchReferralsRaw(request),
+    processor: referralsProcessor,
   },
   {
     id: 'get_letters',
@@ -892,7 +916,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getUpcomingOrders(request),
+    run: (request) => fetchUpcomingOrdersRaw(request),
+    processor: upcomingOrdersProcessor,
   },
   {
     id: 'get_questionnaires',
@@ -902,7 +927,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getQuestionnaires(request),
+    run: (request) => fetchQuestionnairesRaw(request),
+    processor: questionnairesProcessor,
   },
   {
     id: 'get_care_journeys',
@@ -912,7 +938,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getCareJourneys(request),
+    run: (request) => fetchCareJourneysRaw(request),
+    processor: careJourneysProcessor,
   },
   {
     id: 'get_activity_feed',
@@ -922,7 +949,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getActivityFeed(request),
+    run: (request) => fetchActivityFeedRaw(request),
+    processor: activityFeedProcessor,
   },
   {
     id: 'get_education_materials',
@@ -932,7 +960,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEducationMaterials(request),
+    run: (request) => fetchEducationMaterialsRaw(request),
+    processor: educationMaterialsProcessor,
   },
   {
     id: 'get_ehi_export',
@@ -942,7 +971,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEhiExportTemplates(request),
+    run: (request) => fetchEhiExportRaw(request),
+    processor: ehiExportProcessor,
   },
   {
     id: 'get_linked_accounts',
@@ -952,7 +982,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getLinkedMyChartAccounts(request),
+    run: (request) => fetchLinkedAccountsRaw(request),
+    processor: linkedAccountsProcessor,
   },
 
   // ── Emergency contacts ────────────────────────────────────────────────────
@@ -964,7 +995,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Emergency contacts',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEmergencyContacts(request),
+    run: (request) => fetchEmergencyContactsRaw(request),
+    processor: emergencyContactsProcessor,
   },
   {
     id: 'add_emergency_contact',
