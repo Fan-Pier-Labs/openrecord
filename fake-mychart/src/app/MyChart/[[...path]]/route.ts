@@ -22,6 +22,7 @@ import { getRequireTerms } from '@/lib/terms';
 import { isLegacyEpicVersion } from '@/lib/epicVersion';
 import { generateTotpSecret, verifyTotpCode } from '@/lib/totp';
 import { conformToShape } from '@/lib/shape';
+import { epicMessageBody } from '@/lib/messageBody';
 import * as shapes from '@/data/realShapes';
 
 import crypto from 'crypto';
@@ -1341,7 +1342,9 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
           wmgId: `MSG-${Date.now()}`,
           author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: new Date().toISOString(),
-          body: replyBody,
+          // Sent as text, stored and served as markup — Epic formats on the way
+          // in, so a body never reads back the way it was posted.
+          body: epicMessageBody(replyBody),
         });
       }
       // Real MyChart returns the conversation ID as a plain JSON string
@@ -1384,7 +1387,7 @@ async function renderPost(request: NextRequest, { params }: { params: Promise<{ 
             wmgId: `MSG-${Date.now()}`,
             author: { wprKey: 'WPR-HOMER', displayName: '' },
             deliveryInstantISO: new Date().toISOString(),
-            body: msgBody,
+            body: epicMessageBody(msgBody),
           },
         ],
       });
