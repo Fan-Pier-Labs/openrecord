@@ -34,6 +34,7 @@
     "html-to-text": "^10.0.1",
     "https-browserify": "^1.0.0",
     "jpeg-js": "^0.4.4",
+    "js-base64": "^3.9.3",
     "markdown-table": "^3.0.4",
     "os-browserify": "^0.3.0",
     "pako": "^3.0.1",
