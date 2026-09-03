@@ -74,6 +74,7 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --help --show-all                                     (…including the less-frequently-used ones)
 //   npx tsx src/cli.ts --list-capabilities [--show-all]                      (just the capability listing)
 //   npx tsx src/cli.ts --host <hostname> --action get_visit_notes --arg csn=123
+//   npx tsx src/cli.ts --host <hostname> --action get_medications --mode concise   (raw | standard | concise | json)
 //
 // `--action` accepts any id from the shared capability registry
 // (`shared/capabilities.ts`) and prints its result as JSON, with parameters
@@ -97,6 +98,8 @@ interface CliArgs {
   capabilityArgs?: Record<string, string>;
   /** Where media capabilities write their decoded JPEGs (default ./imaging-output). */
   output?: string;
+  /** Output mode for read capabilities: raw | standard | concise | json (default json). */
+  mode?: string;
 }
 
 function parseArgs(): CliArgs {
@@ -145,6 +148,8 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--save-clo') parsed.saveClo = true;
     // Output directory for capabilities that produce images (rendersMedia).
     else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
+    // How read capabilities render their payload. Validated by the registry.
+    else if (args[i] === '--mode' && args[i + 1]) parsed.mode = args[++i]!;
   }
   return parsed;
 }
@@ -510,6 +515,7 @@ async function scrapeAll(
       {},
       cliArgs.output,
       cliArgs.patient,
+      cliArgs.mode,
     );
     if (!ok) failures++;
   }
@@ -800,7 +806,7 @@ async function main() {
   ): Promise<never> => {
     let ok = true;
     for (const session of sessions) {
-      if (!(await runCapabilityAction(capability, session, passwordFor(session.hostname), args, cliArgs.output, cliArgs.patient))) {
+      if (!(await runCapabilityAction(capability, session, passwordFor(session.hostname), args, cliArgs.output, cliArgs.patient, cliArgs.mode))) {
         ok = false;
       }
     }

@@ -1286,8 +1286,22 @@ export const MODE_PARAM: CapabilityParam = {
   description:
     'Output mode: `concise` (markdown, the interesting fields), `standard` (markdown, every ' +
     'useful field), `json` (the standard fields as JSON), or `raw` (the untouched MyChart ' +
-    `response, large). Default: ${DEFAULT_OUTPUT_MODE}.`,
+    'response, large).',
 };
+
+/**
+ * What a model-facing client passes when the model said nothing. The MCPB and
+ * the mobile agent hand the payload straight to a context window, and a 200 KB
+ * visits payload is what started the processor layer; `concise` is the right
+ * default there, and the model can still ask for any other mode by name.
+ * Programmatic callers (the library, the CLI) get {@link DEFAULT_OUTPUT_MODE}.
+ */
+export const MODEL_FACING_OUTPUT_MODE: OutputMode = 'concise';
+
+/** {@link MODE_PARAM} with the client's default stated, for tool descriptions. */
+export function describeModeParam(defaultMode: OutputMode): string {
+  return `${MODE_PARAM.description} Default: ${defaultMode}.`;
+}
 
 /** Whether this capability accepts {@link MODE_PARAM} — i.e. it has a processor. */
 export function acceptsModeParam(capability: Capability): boolean {
