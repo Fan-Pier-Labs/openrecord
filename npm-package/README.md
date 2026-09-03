@@ -367,6 +367,31 @@ are gone. The renames a 0.x consumer will hit:
 A missing verification token throws `MissingVerificationTokenError` instead of returning an empty
 result. `runCapability(id, { mode })` selects `raw`, `standard`, `concise` or `json`.
 
+## Lookups that need no account
+
+Three capabilities read a source no MyChart account owns, so they are **static** — there is no
+session for an instance to supply, and constructing a client means logging in:
+
+```ts
+import { MyChartClient } from 'mychart-cli';
+
+// Which MyChart does a health system run? (Epic's live directory, with the
+// list bundled here as the fallback — `source` says which answered.)
+const { matches } = await MyChartClient.searchMyCharts('uchealth');
+
+// CMS's public NPI Registry, in both directions.
+const provider = await MyChartClient.lookupNpi('1234567893');
+const found = await MyChartClient.searchNpiRegistry({ lastName: 'Doe', state: 'MA', specialty: 'Cardiology' });
+
+// …or by id, for a caller dispatching on a name it was handed.
+await MyChartClient.runPublicCapability('lookup_npi', { npi: '1234567893' });
+```
+
+A refused NPI query comes back as data rather than a throw — `{ Errors: [{ description }] }`, which
+is how CMS answers — so narrow it with the exported `isNpiRegistryErrors` guard. An unheld but
+well-formed NPI is `null`. The underlying scrapers (`lookupNpi`, `searchNpiRegistry`,
+`fetchMyChartDirectory`, `searchMyChartDirectory`) are exported directly too.
+
 ## Persisting sessions
 
 Cookie-based sessions are short-lived (MyChart times them out after

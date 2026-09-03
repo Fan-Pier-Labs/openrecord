@@ -68,6 +68,18 @@ name to its cache-busting hash, so `epic.px.client.<page>.js` — e.g.
 endpoint name: the caller is right there, with the exact `requestData` keys, any
 `nonceProperty`, and the values its own caller passes.
 
+**Check the React activity is actually served before trusting its bundle.** An
+instance that still runs the legacy jQuery version of an activity answers
+`GET /app/<activity>` with a **200 Home page** (the `<title>` says "Home"), and
+every `/api/*` endpoint that activity's bundle names 500s with
+`{"Message":"An error has occurred."}` whatever it is sent — which reads exactly
+like "no data on file". The bundle is still downloadable, so the caller looks
+perfectly real. The legacy page's own bundles (`/<mount>/bundles/<area>-controllers`,
+listed as `<script src>` on the legacy page) hold the real endpoint, reached by
+`makeLink("Area/Controller/Action")` and usually a form-encoded `$.post`.
+`/api/insurance/LoadPayers` vs `Insurance/Coverages/GetPayors` was this exact
+trap on four out of four instances; see `api-surface-gaps.md`, "Insurance payer catalogue".
+
 Worth knowing before guessing at a payload: **parameter names are per-endpoint,
 not per-area**. Under `/api/conversations/` the read endpoints
 (`GetConversationDetails`, `GetConversationMessages`) key the thread on `id`,

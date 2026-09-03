@@ -23,6 +23,7 @@ import { setMountMode, resetFakeMyChart } from './mountMode'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
+  PUBLIC_CAPABILITY_IDS,
   executeCapability,
   getCapability,
   type StudyImagePayload,
@@ -445,8 +446,28 @@ describe('capability registry against fake-mychart', () => {
       'setup_totp',
       'disable_totp',
     ])
-    const untested = CAPABILITY_IDS.filter((id) => !exercised.has(id))
+    // The `public` capabilities are not in this suite's reach: they read CMS's
+    // NPI Registry and Epic's instance directory, neither of which this server
+    // is. They have their own integration suites, named below.
+    const untested = CAPABILITY_IDS.filter(
+      (id) => !exercised.has(id) && !PUBLIC_CAPABILITY_IDS.includes(id),
+    )
     expect(untested).toEqual([])
+  })
+
+  it('leaves the public capabilities to the suites that have a fake for them', async () => {
+    // Naming the suites here is what stops a new `public` capability arriving
+    // with no integration coverage at all — the exclusion above would swallow
+    // it silently otherwise.
+    const suites = [
+      'scrapers/npi/__tests__/npiRegistry.integration.test.ts',
+      'scrapers/list-all-mycharts/__tests__/directory.integration.test.ts',
+    ]
+    const sources = await Promise.all(
+      suites.map((path) => Bun.file(new URL(`../../../../${path}`, import.meta.url)).text()),
+    )
+    const joined = sources.join('\n')
+    for (const id of PUBLIC_CAPABILITY_IDS) expect(joined).toContain(id)
   })
 
   // send_reply / delete_message / delete_passkey need a thread and a passkey

@@ -38,6 +38,7 @@ import { healthSummaryPost } from './healthSummary';
 import { imagingPostPatterns } from './imaging';
 import { immunizationsGet, immunizationsPost } from './immunizations';
 import { insuranceGet } from './insurance';
+import { insurancePayersGet, insurancePayersPost } from './insurancePayers';
 import { labsGet, labsPost } from './labs';
 import { lettersGet, lettersPost } from './letters';
 import { medicalHistoryGet, medicalHistoryPost } from './medicalHistory';
@@ -77,6 +78,7 @@ export const GET_PRIVATE: ExactRoutes = mergeExact(
   healthIssuesGet,
   immunizationsGet,
   insuranceGet,
+  insurancePayersGet,
   labsGet,
   lettersGet,
   medicalHistoryGet,
@@ -117,6 +119,7 @@ export const POST_ROUTES: ExactRoutes = mergeExact(
   healthIssuesPost,
   healthSummaryPost,
   immunizationsPost,
+  insurancePayersPost,
   labsPost,
   lettersPost,
   medicalHistoryPost,
