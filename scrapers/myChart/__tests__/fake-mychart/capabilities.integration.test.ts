@@ -167,11 +167,10 @@ describe('capability registry against fake-mychart', () => {
   // ── Imaging ───────────────────────────────────────────────────────────────
 
   it('mints an image_id in get_imaging_results and downloads it back', async () => {
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      orderName: string
-    }>
-    const withImages = results.find((r) => r.image_id)
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; orderName: string | null }>
+    }
+    const withImages = orders.find((r) => r.image_id)
     expect(withImages).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
@@ -183,11 +182,10 @@ describe('capability registry against fake-mychart', () => {
   }, 60_000)
 
   it('accepts imaging_index as well as image_id, which is how the mobile app calls it', async () => {
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      index: number
-    }>
-    const withImages = results.find((r) => r.image_id)
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; index: number }>
+    }
+    const withImages = orders.find((r) => r.image_id)
     expect(withImages).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {
@@ -206,11 +204,10 @@ describe('capability registry against fake-mychart', () => {
     // be skipped — never returned as images, and never allowed to turn the
     // whole download into an empty result — while every instance that does
     // carry pixel data comes back.
-    const results = (await executeCapability(session, 'get_imaging_results')) as Array<{
-      image_id?: string
-      orderName: string
-    }>
-    const ct = results.find((r) => r.image_id && r.orderName.includes('CT'))
+    const { orders } = (await executeCapability(session, 'get_imaging_results')) as {
+      orders: Array<{ image_id: string | null; orderName: string | null }>
+    }
+    const ct = orders.find((r) => r.image_id && (r.orderName ?? '').includes('CT'))
     expect(ct).toBeDefined()
 
     const payload = (await executeCapability(session, 'download_imaging_study', {

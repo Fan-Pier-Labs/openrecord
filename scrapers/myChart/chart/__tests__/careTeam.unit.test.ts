@@ -247,3 +247,23 @@ describe('getCareTeam', () => {
     await expect(getCareTeam(req)).rejects.toThrow(/HTTP 500/)
   })
 })
+
+describe('careTeamProcessor request matching', () => {
+  it('reads the internal list from Load even when LoadExternal was recorded first', () => {
+    // The two calls run in parallel, so the envelope order is whichever
+    // answered first — and "Load" is a prefix of "LoadExternal".
+    const raw: RawResponse = {
+      requests: [
+        { path: '/Clinical/CareTeam', method: 'GET', status: 200, contentType: 'text/html', body: '', purpose: 'token' },
+        { path: '/Clinical/CareTeam/LoadExternal', method: 'POST', status: 200, contentType: 'json', body: { ProvidersList: [{ Name: 'Outside Doc', IsExternal: true }] } },
+        { path: '/Clinical/CareTeam/Load', method: 'POST', status: 200, contentType: 'json', body: { ProvidersList: [{ Name: 'Inside Doc', Relation: 'Primary Care Provider' }] } },
+      ],
+    }
+    const standard = careTeamProcessor.standard(raw)
+    expect(standard.ProvidersList.map((p) => [p.Name, p.fromExternalList])).toEqual([
+      ['Inside Doc', false],
+      ['Outside Doc', true],
+    ])
+    expect(standard.externalProvidersUnavailable).toBe(false)
+  })
+})

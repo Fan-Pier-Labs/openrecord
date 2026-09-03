@@ -23,7 +23,7 @@
  * surfaced: their shapes are unknown.
  */
 
-import { findRequest, type RawResponse } from '../core/rawResponse';
+import type { RawResponse } from '../core/rawResponse';
 import type { Processor } from '../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../processors/read';
 
@@ -72,7 +72,11 @@ function providersListOf(body: unknown): unknown[] | null {
 
 export const careTeamProcessor: Processor<CareTeamStandard> = {
   standard(raw: RawResponse): CareTeamStandard {
-    const load = findRequest(raw, 'CareTeam/Load');
+    // Exact path, not a fragment: `Load` is a prefix of `LoadExternal`, and the
+    // two are fetched in parallel, so whichever answered first is recorded
+    // first. A fragment match handed the outside providers back as the care
+    // team on every run where LoadExternal won the race.
+    const load = raw.requests.find((r) => r.path.toLowerCase().endsWith('/clinical/careteam/load'));
     const internal = load ? providersListOf(load.body) : null;
     if (!load || load.status < 200 || load.status >= 300) {
       throw new Error(`/Clinical/CareTeam/Load returned HTTP ${load?.status ?? 'nothing'}`);
@@ -85,7 +89,7 @@ export const careTeamProcessor: Processor<CareTeamStandard> = {
       );
     }
 
-    const loadExternal = findRequest(raw, 'CareTeam/LoadExternal');
+    const loadExternal = raw.requests.find((r) => r.path.toLowerCase().endsWith('/clinical/careteam/loadexternal'));
     const external =
       loadExternal && loadExternal.status >= 200 && loadExternal.status < 300 ? providersListOf(loadExternal.body) : null;
 
