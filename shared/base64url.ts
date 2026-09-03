@@ -20,13 +20,17 @@ export function base64UrlEncode(text: string): string {
 }
 
 /**
- * Decode unpadded (or padded) base64url. Throws on a character outside the
- * alphabet rather than silently producing garbage — `Base64.decode` strips
- * anything it doesn't recognize, including the `+` and `/` of standard base64.
+ * Decode unpadded (or padded) base64url.
+ *
+ * Deliberately no validation of its own. This used to reject any character
+ * outside the alphabet, which sounds safer than it is: corruption that stays
+ * inside the alphabet — a truncated or re-ordered token — passes such a check
+ * and decodes to garbage anyway, so it bought nothing against the failure that
+ * actually matters. What it did buy was rejecting input that decodes correctly
+ * (standard base64, a pasted newline, stray padding). `Base64.decode` throws on
+ * a length that cannot be base64 and tolerates the rest; callers that need to
+ * know a token is *theirs* validate the decoded payload — see `decodeImageId`.
  */
 export function base64UrlDecode(encoded: string): string {
-  const body = encoded.replace(/={0,2}$/, '');
-  const stray = /[^A-Za-z0-9_-]/.exec(body);
-  if (stray) throw new Error(`Not base64url: unexpected character ${JSON.stringify(stray[0])}`);
-  return Base64.decode(body);
+  return Base64.decode(encoded);
 }

@@ -73,16 +73,38 @@ describe('round-trip', () => {
 });
 
 describe('base64UrlDecode', () => {
-  it('rejects a character outside the alphabet instead of returning garbage', () => {
-    expect(() => base64UrlDecode('abc!def')).toThrow(/Not base64url/);
-    // '+' and '/' are standard base64 but not base64url.
-    expect(() => base64UrlDecode('ab+c')).toThrow(/Not base64url/);
-    expect(() => base64UrlDecode('ab/c')).toThrow(/Not base64url/);
-    // Padding is only padding at the end.
-    expect(() => base64UrlDecode('ab=cd')).toThrow(/Not base64url/);
+  it('tolerates the noise a copy-pasted token picks up', () => {
+    // Not strictness for its own sake: all of these carry the original bytes,
+    // and `js-base64` strips what is not alphabet before decoding.
+    const token = base64UrlEncode('{"fdi":"a:b","ord":"ORD%2F1"}');
+    for (const noisy of [token + '\n', token.slice(0, 5) + ' ' + token.slice(5), token + '==']) {
+      expect(base64UrlDecode(noisy)).toBe('{"fdi":"a:b","ord":"ORD%2F1"}');
+    }
+    // Standard base64 of the same bytes decodes too — '+' and '/' map back.
+    expect(base64UrlDecode(Buffer.from('ÿû', 'utf8').toString('base64'))).toBe('ÿû');
   });
 
-  it('names the offending character', () => {
-    expect(() => base64UrlDecode('ab!c')).toThrow('unexpected character "!"');
+  it('rejects or accepts a stray character depending only on the length left over', () => {
+    // Worth pinning because it is the reason this function does not try to
+    // validate: `js-base64` strips what is not alphabet, so whether a corrupt
+    // token throws comes down to whether the remainder is a decodable length.
+    // Same single-character corruption, opposite outcomes.
+    const throws = base64UrlEncode('x'.repeat(37)); // 50 chars -> 49 after the strip, not a base64 length
+    const decodes = base64UrlEncode('x'.repeat(36)); // 48 chars -> 47 after the strip, which is one
+    expect(throws.length % 4).toBe(2);
+    expect(decodes.length % 4).toBe(0);
+
+    expect(() => base64UrlDecode(throws.slice(0, 5) + '!' + throws.slice(6))).toThrow();
+    expect(base64UrlDecode(decodes.slice(0, 5) + '!' + decodes.slice(6))).not.toBe('x'.repeat(36));
+  });
+
+  it('does not pretend to authenticate a token', () => {
+    // The point of dropping the old alphabet check: corruption that stays
+    // inside the alphabet decodes to garbage either way, so validating the
+    // decoded payload — not the characters — is what catches a bad token.
+    const token = base64UrlEncode('{"fdi":"a:b","ord":"ORD%2F1"}');
+    const truncated = token.slice(0, 8) + token.slice(12);
+    expect(base64UrlDecode(truncated)).not.toBe('{"fdi":"a:b","ord":"ORD%2F1"}');
+    expect(() => JSON.parse(base64UrlDecode(truncated))).toThrow();
   });
 });
