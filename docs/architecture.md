@@ -55,7 +55,7 @@ hit `/Home/KeepAlive` + `/keepalive.asp` every 30s (MyChart's own cadence); the 
 renews through the same `reauthenticate` hook before marking it expired. Call
 `sessionStore.unregister(request)` when a client discards a session.
 
-## Capability registry (`shared/capabilities.ts`)
+## Capability registry (`shared/capabilities/`)
 
 **The single source of truth for what OpenRecord can do with a MyChart account.** One entry per
 capability — id, title, description, `kind` (`read` / `write` / `account`), parameter list, and a
@@ -71,6 +71,17 @@ build if any stops covering an entry.
 against fake-mychart, so the list is proven to work, not just to exist. This replaced four
 hand-maintained lists that had drifted to 46 / 43 / 46 / 38 capabilities, which meant a patient's
 answer depended on which client they asked.
+
+**Layout.** `index.ts` is the assembly, the lookup and `executeCapability`; `types.ts` is the shape
+of an entry; `args.ts`, `params.ts`, `imaging.ts` and `resolve.ts` are the pieces entries share. The
+entries themselves live one file per group under `registry/` — `profile.ts`, `visits.ts`,
+`results.ts`, `messages.ts`, `billing.ts`, `care.ts`, `emergencyContacts.ts`, `prescriptions.ts`,
+`patients.ts`, `accountSecurity.ts` — each exporting one ordered array, which `index.ts` concatenates
+in listing order. Group membership, ordering and `lessFrequentlyUsed` are presentation decisions, so
+they stay in the registry rather than moving out to the ~40 chart folders the entries call into;
+those folders keep knowing nothing about capabilities. **`CapabilityImpl` is exported from
+`types.ts` but deliberately *not* re-exported from `index.ts`**, so `capability.run(...)` still does
+not compile for any client — the enforcement for "every dispatch goes through `executeCapability`".
 
 - **`kind` decides how each client treats it.** `read` is safe to batch and needs no confirmation.
   `write` mutates the chart — the mobile app shows a confirmation popup, the extension marks it

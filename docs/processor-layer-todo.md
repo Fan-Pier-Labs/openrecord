@@ -71,9 +71,6 @@ return the standard object and `runCapability(id, { mode })` picks any mode; `do
   trend and report by reading `orderKey` / `orderID` / `reportID` out of `requestBody`. The
   scraper knew the join at fetch time; a typed raw (`{ list, orders: Record<key, { details,
   history, report? }> }`) lets the processor map over it. The flat log becomes a CLI `--trace`.
-- **Decompose `shared/capabilities.ts`.** Past 1,300 lines with 31 import pairs. Each chart
-  module exports its own capability entry (`fetch…Raw` + processor + params); the registry
-  becomes the ordered list.
 - **Typed reads.** `text()`/`rec()` over `unknown` should become typed reads once processors are
   typed against the skeletons.
 

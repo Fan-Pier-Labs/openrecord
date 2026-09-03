@@ -202,7 +202,7 @@ describe('registered surface', () => {
    * removes the password and the 2FA code from every later sign-in, and the
    * credential outlives the session. Logging in must never do it as a side
    * effect — only `register_passkey`, which the user asks for, may, and that
-   * one lives in `shared/capabilities.ts`.
+   * one lives in `shared/capabilities/`.
    *
    * Matches the module path rather than the identifier: a comment naming
    * `setupPasskey` should not fail the build, and an import is what actually

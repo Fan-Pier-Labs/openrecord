@@ -47,7 +47,7 @@ claim**. It is a bug when the demo shows a capability the product doesn't have, 
 does — that turns the demo into a promise nobody has to keep.
 
 So: the tool set, the write-confirmation set, and the account/patient model are held to
-`shared/capabilities.ts`. Presentation, playbook copy, and loop economics are not.
+`shared/capabilities/`. Presentation, playbook copy, and loop economics are not.
 
 ## Accepted divergences
 
@@ -73,7 +73,7 @@ sees an X-ray appear inline, which is the part that matters.
 Seven of them are account setup — `list_accounts`, `search_mycharts`, `setup_account`,
 `connect_instance`, `check_session`, `complete_2fa`, `disconnect_account`. They mirror the Claude
 Desktop extension's meta tools, which manage credentials on one machine and are deliberately
-outside `shared/capabilities.ts`. The demo implements them (a visitor can watch a login, a 2FA
+outside `shared/capabilities/`. The demo implements them (a visitor can watch a login, a 2FA
 prompt, and a disconnect play out) but never lists them in the model's prompt, because the session
 starts connected.
 
@@ -110,6 +110,6 @@ page-view rather than after ten minutes of a stranger's patience.
 
 If you find the demo offering a tool the registry doesn't have, missing one it does, gating a
 different set of writes, or spelling a shared parameter differently — that's a bug, not a
-simplification. `shared/capabilities.ts` is the source of truth, and the parity test now says so
+simplification. `shared/capabilities/` is the source of truth, and the parity test now says so
 for the catalogue. It cannot check what a tool *does*, so a tool that exists but answers nothing
 like the real one is still drift a person has to catch.

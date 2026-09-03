@@ -77,7 +77,7 @@ async function saveCachedSession(hostname: string, mychartRequest: MyChartReques
 //   npx tsx src/cli.ts --host <hostname> --action get_medications --mode concise   (raw | standard | concise | json)
 //
 // `--action` accepts any id from the shared capability registry
-// (`shared/capabilities.ts`) and prints its result as JSON, with parameters
+// (`shared/capabilities/`) and prints its result as JSON, with parameters
 // supplied by repeated `--arg name=value`. That is what keeps the CLI from
 // drifting behind the extension and the app: a capability added there is a CLI
 // command the same day, with no flag plumbing to remember.
