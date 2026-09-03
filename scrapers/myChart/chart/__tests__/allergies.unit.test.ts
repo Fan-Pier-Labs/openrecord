@@ -1,6 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getAllergies } from '../allergies'
+import { getAllergies, fetchAllergiesRaw, allergiesProcessor } from '../allergies'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../core/util'
+import { renderOutput } from '../../processors/processor'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -13,90 +15,46 @@ function mockRequest(responses: Array<{ body: string }>) {
   return req
 }
 
+const TOKEN = { body: '<input name="__RequestVerificationToken" value="t" />' }
+
 describe('getAllergies', () => {
-  it('returns empty when no verification token found', async () => {
-    const req = mockRequest([{ body: '<html><body>No token here</body></html>' }])
-    const result = await getAllergies(req)
-    expect(result).toEqual({ allergies: [], allergiesStatus: -1 })
+  it('throws when no verification token found', async () => {
+    const req = mockRequest([{ body: '<html></html>' }])
+    await expect(getAllergies(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
-  it('parses allergies from API response', async () => {
+  it('passes the allergy elements through whole and keeps the page-level status', async () => {
+    const dataList = [
+      { allergyItem: { name: 'Penicillin', id: 'A1', formattedDateNoted: '01/15/2020', type: 'Drug', reaction: 'Hives', severity: 'High' } },
+      { name: 'Peanuts', id: 'A2', reaction: 'Anaphylaxis' },
+    ]
     const req = mockRequest([
-      { body: '<html><input name="__RequestVerificationToken" value="tok123" /></html>' },
-      {
-        body: JSON.stringify({
-          dataList: [
-            {
-              allergyItem: {
-                name: 'Penicillin',
-                id: 'A1',
-                formattedDateNoted: '01/15/2020',
-                type: 'Medication',
-                reaction: 'Hives',
-                severity: 'Moderate',
-              },
-            },
-            {
-              allergyItem: {
-                name: 'Peanuts',
-                id: 'A2',
-                formattedDateNoted: '03/10/2018',
-                type: 'Food',
-                reaction: 'Anaphylaxis',
-                severity: 'Severe',
-              },
-            },
-          ],
-          allergiesStatus: 1,
-        }),
-      },
+      TOKEN,
+      { body: JSON.stringify({ dataList, allergiesStatus: 1, dateOfBirth: '01/01/1980', hasUpdateSecurity: true, showDxrRefreshBanner: false }) },
     ])
-
     const result = await getAllergies(req)
-    expect(result.allergiesStatus).toBe(1)
-    expect(result.allergies).toHaveLength(2)
-    expect(result.allergies[0]).toEqual({
-      name: 'Penicillin',
-      id: 'A1',
-      formattedDateNoted: '01/15/2020',
-      type: 'Medication',
-      reaction: 'Hives',
-      severity: 'Moderate',
-    })
-    expect(result.allergies[1]!.name).toBe('Peanuts')
+    expect(result).toEqual({ dataList, allergiesStatus: 1, dateOfBirth: '01/01/1980' })
   })
 
-  it('handles empty dataList', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ dataList: [], allergiesStatus: 0 }) },
-    ])
-    const result = await getAllergies(req)
-    expect(result.allergies).toEqual([])
-    expect(result.allergiesStatus).toBe(0)
+  it('keeps an empty list as the answer, with null for what MyChart did not send', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({ dataList: [] }) }])
+    expect(await getAllergies(req)).toEqual({ dataList: [], allergiesStatus: null, dateOfBirth: null })
   })
 
-  it('handles missing dataList', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({}) },
-    ])
-    const result = await getAllergies(req)
-    expect(result.allergies).toEqual([])
-    expect(result.allergiesStatus).toBe(-1)
+  it('handles a missing dataList', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({ allergiesStatus: 2 }) }])
+    expect((await getAllergies(req)).dataList).toEqual([])
   })
 
-  it('handles flat allergy items without nested allergyItem', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      {
-        body: JSON.stringify({
-          dataList: [{ name: 'Latex', id: 'L1', formattedDateNoted: '', type: '', reaction: '', severity: '' }],
-          allergiesStatus: 1,
-        }),
-      },
-    ])
-    const result = await getAllergies(req)
-    expect(result.allergies[0]!.name).toBe('Latex')
+  it('records the requests and renders every mode', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({ dataList: [{ name: 'Peanuts' }], allergiesStatus: 1, hasUpdateSecurity: true }) }])
+    const raw = await fetchAllergiesRaw(req)
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/Allergies', '/api/allergies/LoadAllergies'])
+    expect(renderOutput(allergiesProcessor, raw, 'raw')).toEqual({ dataList: [{ name: 'Peanuts' }], allergiesStatus: 1, hasUpdateSecurity: true })
+    expect(renderOutput(allergiesProcessor, raw, 'json')).toEqual({ dataList: [{ name: 'Peanuts' }], allergiesStatus: 1, dateOfBirth: null })
+    expect(renderOutput(allergiesProcessor, raw, 'standard')).toContain('| Peanuts |')
+    const concise = renderOutput(allergiesProcessor, raw, 'concise') as string
+    expect(concise).toContain('allergiesStatus')
+    expect(concise).not.toContain('dateOfBirth')
   })
 })

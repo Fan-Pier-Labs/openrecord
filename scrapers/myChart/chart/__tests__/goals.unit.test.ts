@@ -1,6 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getGoals } from '../goals'
+import { getGoals, fetchGoalsRaw, goalsProcessor } from '../goals'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../core/util'
+import { renderOutput } from '../../processors/processor'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -13,49 +15,34 @@ function mockRequest(responses: Array<{ body: string }>) {
   return req
 }
 
+const TOKEN = { body: '<input name="__RequestVerificationToken" value="t" />' }
+
 describe('getGoals', () => {
-  it('returns empty goals when no token found', async () => {
+  it('throws when no token found', async () => {
     const req = mockRequest([{ body: '<html></html>' }])
-    expect(await getGoals(req)).toEqual({ careTeamGoals: [], patientGoals: [] })
+    await expect(getGoals(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
-  it('parses goals from API response', async () => {
+  it('passes each list through whole, tagged with its source', async () => {
     const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ careTeamGoals: [{ name: 'Lower BP', description: 'Reduce to 120/80', status: 'active', startDate: '2024-01-01', targetDate: '2024-06-01' }] }) },
-      { body: JSON.stringify({ patientGoals: [{ name: 'Walk daily', description: '30 min walk', status: 'in_progress', startDate: '2024-02-01', targetDate: '2024-12-31' }] }) },
+      TOKEN,
+      { body: JSON.stringify({ careTeamGoals: [{ name: 'Lose weight', status: 'In Progress' }], quickLinkDictionary: {} }) },
+      // The captured patient-goal element has none of the fixture's display
+      // fields; whatever it carries is passed through untouched.
+      { body: JSON.stringify({ patientGoals: [{ goalId: 'G-1', goalType: 2, readings: [], complianceType: 0, lastUpdatedDate: '2026-01-01', creationDate: '2025-12-01' }] }) },
     ])
-
-    const result = await getGoals(req)
-    expect(result.careTeamGoals).toHaveLength(1)
-    expect(result.careTeamGoals[0]).toEqual({
-      name: 'Lower BP',
-      description: 'Reduce to 120/80',
-      status: 'active',
-      startDate: '2024-01-01',
-      targetDate: '2024-06-01',
-      source: 'care_team',
+    expect(await getGoals(req)).toEqual({
+      careTeamGoals: [{ name: 'Lose weight', status: 'In Progress', source: 'care_team' }],
+      patientGoals: [{ goalId: 'G-1', goalType: 2, readings: [], complianceType: 0, lastUpdatedDate: '2026-01-01', creationDate: '2025-12-01', source: 'patient' }],
     })
-    expect(result.patientGoals).toHaveLength(1)
-    expect(result.patientGoals[0]!.source).toBe('patient')
   })
 
-  it('handles missing fields with defaults', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ careTeamGoals: [{}] }) },
-      { body: JSON.stringify({ patientGoals: [] }) },
-    ])
-
-    const result = await getGoals(req)
-    expect(result.careTeamGoals[0]).toEqual({
-      name: '',
-      description: '',
-      status: '',
-      startDate: '',
-      targetDate: '',
-      source: 'care_team',
-    })
-    expect(result.patientGoals).toEqual([])
+  it('handles missing lists and renders every mode', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({}) }, { body: JSON.stringify({ patientGoals: [] }) }])
+    const raw = await fetchGoalsRaw(req)
+    expect(raw.requests.map((r) => r.path)).toEqual(['/app/goals', '/api/goals/LoadCareTeamGoals', '/api/goals/LoadPatientGoals'])
+    expect(goalsProcessor.standard(raw)).toEqual({ careTeamGoals: [], patientGoals: [] })
+    expect(renderOutput(goalsProcessor, raw, 'concise')).toBe('- **careTeamGoals**: (none)\n- **patientGoals**: (none)\n')
+    expect(renderOutput(goalsProcessor, raw, 'raw')).toBe(raw)
   })
 })

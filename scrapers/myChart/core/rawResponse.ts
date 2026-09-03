@@ -30,6 +30,12 @@ export interface RawRequestRecord {
   contentType: string;
   /** Parsed JSON when the response was JSON, otherwise the text. */
   body: unknown;
+  /**
+   * `token` marks the activity-page fetch made only to obtain the antiforgery
+   * token. It is part of the exchange, so it is recorded, but it is not the
+   * payload: {@link unwrapRaw} looks past it.
+   */
+  purpose?: 'token';
 }
 
 export interface RawResponse {
@@ -74,7 +80,10 @@ export class RawCollector {
    * JSON when the body parses as JSON, otherwise the text. The Response has
    * already been read; use the returned body.
    */
-  async fetch(config: RequestConfig): Promise<{ response: Response; body: unknown; text: string }> {
+  async fetch(
+    config: RequestConfig,
+    options: { purpose?: 'token' } = {},
+  ): Promise<{ response: Response; body: unknown; text: string }> {
     const response = await makeAuthenticatedRequest(this.request, config, this.options);
     const text = await response.text();
     const contentType = response.headers.get('content-type') ?? '';
@@ -93,6 +102,7 @@ export class RawCollector {
       status: response.status,
       contentType,
       body,
+      ...(options.purpose ? { purpose: options.purpose } : {}),
     });
     return { response, body, text };
   }
@@ -102,7 +112,7 @@ export class RawCollector {
    * page has none — the API behind it would refuse every call anyway.
    */
   async pageToken(pagePath: string): Promise<string> {
-    const page = await this.fetch({ path: pagePath });
+    const page = await this.fetch({ path: pagePath }, { purpose: 'token' });
     return requireVerificationToken(page.text, pagePath);
   }
 
@@ -124,12 +134,14 @@ export class RawCollector {
 }
 
 /**
- * What `raw` mode returns: the one body when the scraper made one request, the
- * whole envelope when it made several. A CLI user asking for the raw
- * medications payload wants MyChart's JSON, not a wrapper around it.
+ * What `raw` mode returns: the one payload body when the scraper made one
+ * payload request (token-page fetches do not count), the whole envelope when
+ * it made several. A CLI user asking for the raw medications payload wants
+ * MyChart's JSON, not a wrapper around it and the page that carried the token.
  */
 export function unwrapRaw(raw: RawResponse): unknown {
-  return raw.requests.length === 1 ? raw.requests[0]!.body : raw;
+  const payloads = raw.requests.filter((r) => r.purpose !== 'token');
+  return payloads.length === 1 ? payloads[0]!.body : raw;
 }
 
 /** The first recorded request whose path contains `fragment` (case-insensitive). */

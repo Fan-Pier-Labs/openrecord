@@ -1,6 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getHealthIssues } from '../healthIssues'
+import { getHealthIssues, fetchHealthIssuesRaw, healthIssuesProcessor } from '../healthIssues'
 import { MyChartRequest } from '../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../core/util'
+import { renderOutput } from '../../processors/processor'
 
 function mockRequest(responses: Array<{ body: string }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -13,45 +15,65 @@ function mockRequest(responses: Array<{ body: string }>) {
   return req
 }
 
+const TOKEN = { body: '<input name="__RequestVerificationToken" value="t" />' }
+
 describe('getHealthIssues', () => {
-  it('returns empty array when no token found', async () => {
+  it('throws when no token found', async () => {
     const req = mockRequest([{ body: '<html></html>' }])
-    expect(await getHealthIssues(req)).toEqual([])
+    await expect(getHealthIssues(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
-  it('parses health issues from API response', async () => {
+  it('keeps the health issue item, the cross-organization copies, and drops the duplicate localItem', async () => {
     const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
+      TOKEN,
       {
         body: JSON.stringify({
           dataList: [
-            { healthIssueItem: { name: 'Hypertension', id: 'H1', formattedDateNoted: '06/2019', isReadOnly: true } },
-            { healthIssueItem: { name: 'Type 2 Diabetes', id: 'H2', formattedDateNoted: '01/2021', isReadOnly: false } },
+            {
+              healthIssueItem: { name: 'Hypertension', id: 'HI-1', formattedDateNoted: '01/01/2020', isReadOnly: true, action: 2 },
+              localItem: { name: 'Hypertension', id: 'HI-1' },
+              externalItems: [{ name: 'HTN' }],
+              externalOrgs: [{ organizationName: 'Elsewhere' }],
+              hasLocalInstance: true,
+              contentLinkURL: '/edu/htn',
+            },
           ],
+          healthIssuesUrl: '/x',
         }),
       },
     ])
-
     const result = await getHealthIssues(req)
-    expect(result).toHaveLength(2)
-    expect(result[0]).toEqual({ name: 'Hypertension', id: 'H1', formattedDateNoted: '06/2019', isReadOnly: true })
-    expect(result[1]).toEqual({ name: 'Type 2 Diabetes', id: 'H2', formattedDateNoted: '01/2021', isReadOnly: false })
+    expect(result).toEqual({
+      dataList: [
+        {
+          healthIssueItem: { name: 'Hypertension', formattedDateNoted: '01/01/2020', id: 'HI-1', isReadOnly: true },
+          externalItems: [{ name: 'HTN' }],
+          externalOrgs: [{ organizationName: 'Elsewhere' }],
+          hasLocalInstance: true,
+        },
+      ],
+    })
   })
 
-  it('handles missing fields with defaults', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ dataList: [{ healthIssueItem: {} }] }) },
-    ])
-    const result = await getHealthIssues(req)
-    expect(result[0]).toEqual({ name: '', id: '', formattedDateNoted: '', isReadOnly: false })
+  it('emits null for missing fields rather than dropping them', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({ dataList: [{ healthIssueItem: { name: 'X' } }] }) }])
+    const item = (await getHealthIssues(req)).dataList[0]!
+    expect(item.healthIssueItem).toEqual({ name: 'X', formattedDateNoted: null, id: null, isReadOnly: null })
+    expect(item.hasLocalInstance).toBeNull()
   })
 
-  it('handles empty dataList', async () => {
-    const req = mockRequest([
-      { body: '<input name="__RequestVerificationToken" value="t" />' },
-      { body: JSON.stringify({ dataList: [] }) },
-    ])
-    expect(await getHealthIssues(req)).toEqual([])
+  it('handles empty dataList and renders every mode', async () => {
+    const req = mockRequest([TOKEN, { body: JSON.stringify({ dataList: [] }) }])
+    const raw = await fetchHealthIssuesRaw(req)
+    expect(healthIssuesProcessor.standard(raw)).toEqual({ dataList: [] })
+    expect(renderOutput(healthIssuesProcessor, raw, 'concise')).toBe('- **dataList**: (none)\n')
+    expect(renderOutput(healthIssuesProcessor, raw, 'raw')).toEqual({ dataList: [] })
+  })
+
+  it('concise keeps only the name and date', () => {
+    const concise = healthIssuesProcessor.concise({
+      dataList: [{ healthIssueItem: { name: 'A', formattedDateNoted: 'd', id: '1', isReadOnly: false }, externalItems: [], externalOrgs: [], hasLocalInstance: false }],
+    })
+    expect(concise).toEqual({ dataList: [{ name: 'A', formattedDateNoted: 'd' }] })
   })
 })

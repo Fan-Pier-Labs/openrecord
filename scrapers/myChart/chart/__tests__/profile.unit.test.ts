@@ -1,5 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getMyChartProfile, getEmail, parseProfileHtml } from '../profile'
+import { getMyChartProfile, getEmail, parseProfileHtml, fetchProfileRaw, profileProcessor } from '../profile'
+import { renderOutput } from '../../processors/processor'
 import { MyChartRequest } from '../../core/myChartRequest'
 
 function mockRequest(body: string) {
@@ -244,3 +245,53 @@ function mockSequence(bodies: string[]) {
   })
   return { req, calls }
 }
+
+describe('fetchProfileRaw + profileProcessor', () => {
+  const HOME = '<div class="printheader">Name: Jane Doe | DOB: 3/4/1988 | MRN: 998877 | PCP: Dr. Who</div>'
+  const CONTACT = {
+    SecureCommunicationInfo: { EmailAddress: 'patient@example.org', MobilePhone: '555-0101', CanSupportEmail: true },
+    HomePhone: '555-0102',
+    WorkPhone: '',
+    PreferredDevice: 'Mobile',
+    PermanentAddress: { FormattedValues: ['742 Evergreen Terrace', 'Springfield, NT 49007'], Street: '742 Evergreen Terrace', City: 'Springfield', State: { Title: 'NT', Number: '1' }, Zip: '49007', Country: { Title: 'United States' }, IsViewOnly: false },
+    TemporaryAddress: { FormattedValues: [], StartDateDisplay: '' },
+    ValidationErrors: [],
+  }
+
+  it('records the home page and the contact call, and builds the standard object', async () => {
+    const seq = mockSequence([HOME, '<input name="__RequestVerificationToken" value="tok" />', JSON.stringify(CONTACT)])
+    const raw = await fetchProfileRaw(seq.req)
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Home', '/PersonalInformation', '/PersonalInformation/GetContactInformation'])
+
+    const standard = profileProcessor.standard(raw)
+    expect(standard.name).toBe('Jane Doe')
+    expect(standard.mrn).toBe('998877')
+    expect(standard.SecureCommunicationInfo).toEqual({ EmailAddress: 'patient@example.org', MobilePhone: '555-0101' })
+    expect(standard.HomePhone).toBe('555-0102')
+    expect(standard.WorkPhone).toBe('')
+    expect(standard.PreferredDevice).toBe('Mobile')
+    expect(standard.PermanentAddress.FormattedValues).toEqual(['742 Evergreen Terrace', 'Springfield, NT 49007'])
+    expect(standard.PermanentAddress.State).toEqual({ Title: 'NT' })
+    expect(standard.PermanentAddress).not.toHaveProperty('IsViewOnly')
+    expect(standard.TemporaryAddress.Street).toBeNull()
+    expect(standard.TemporaryAddress.StartDateDisplay).toBe('')
+
+    expect(profileProcessor.concise(standard)).toEqual({ name: 'Jane Doe', dob: '3/4/1988', mrn: '998877', pcp: 'Dr. Who', EmailAddress: 'patient@example.org' })
+    expect(renderOutput(profileProcessor, raw, 'standard')).toContain('- **HomePhone**: 555-0102')
+    expect(renderOutput(profileProcessor, raw, 'raw')).toBe(raw)
+  })
+
+  it('tolerates a missing contact endpoint and still returns the header', async () => {
+    const seq = mockSequence([HOME, '<html>no token</html>'])
+    const standard = profileProcessor.standard(await fetchProfileRaw(seq.req))
+    expect(standard.name).toBe('Jane Doe')
+    expect(standard.SecureCommunicationInfo.EmailAddress).toBeNull()
+    expect(standard.PermanentAddress.FormattedValues).toEqual([])
+  })
+
+  it('yields blank identity fields when the header is unparseable', async () => {
+    const seq = mockSequence(['<html></html>', '<html></html>'])
+    const standard = profileProcessor.standard(await fetchProfileRaw(seq.req))
+    expect(standard).toMatchObject({ name: '', dob: '', mrn: '', pcp: '' })
+  })
+})

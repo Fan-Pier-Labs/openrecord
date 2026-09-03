@@ -165,3 +165,25 @@ describe('readers', () => {
     expect(isoFromMs(null)).toBeNull();
   });
 });
+
+describe('unwrapRaw and token pages', () => {
+  it('looks past the token-page fetch when unwrapping', async () => {
+    const req = mockRequest([
+      { body: '<input name="__RequestVerificationToken" value="t">', contentType: 'text/html' },
+      { body: JSON.stringify({ dataList: [] }) },
+    ]);
+    const collector = new RawCollector(req);
+    const token = await collector.pageToken('/Clinical/Allergies');
+    expect(token).toBe('t');
+    await collector.postJson('/api/allergies/LoadAllergies', token, {});
+    const raw = collector.toRaw();
+    expect(raw.requests[0]!.purpose).toBe('token');
+    expect(raw.requests[1]!.purpose).toBeUndefined();
+    expect(unwrapRaw(raw)).toEqual({ dataList: [] });
+  });
+
+  it('throws MissingVerificationTokenError from pageToken when the page has none', async () => {
+    const req = mockRequest([{ body: '<html></html>', contentType: 'text/html' }]);
+    await expect(new RawCollector(req).pageToken('/x')).rejects.toThrow(/No request verification token on \/x/);
+  });
+});

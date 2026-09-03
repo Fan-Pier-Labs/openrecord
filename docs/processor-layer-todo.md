@@ -51,7 +51,10 @@ fixture rebuilt from it.
 
 ## 5. Client wiring
 
-- **MCPB**: pass `mode: 'concise'` when the model omits it; expose `mode` on every read tool.
+- **The MCPB and the Expo app default to `concise`.** Both hand the payload to a model, and
+  a 200 KB visits payload is what started this work. The model can still ask for `standard`,
+  `json` or `raw` on any call; `concise` is only what it gets when it says nothing.
+- **MCPB**: expose `mode` on every read tool with the `concise` default above.
 - **Expo agent loop**: same default; the alerts generator keeps calling with `mode: 'json'`.
 - **CLI**: `--mode <raw|standard|concise|json>`, default `json`; `--arg mode=` also works.
 - **npm library**: typed methods return the standard object; `runCapability(id, { mode })` for the rest.
