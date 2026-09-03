@@ -1,209 +1,60 @@
-import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
-import type { HistoricalResultsResponse, ImagingResult, LabTestResult, LabTestResultWithHistory, ReportContent, ReportDetails } from "./labtestresulttype";
-import type { LabResultsList } from "./labtypes";
-import type { MyChartRequest } from "../../core/myChartRequest";
-import { getRequestVerificationTokenFromBody } from "../../core/util";
-import { extractFdiContext, extractFdiContextFromFdiLink, getImageViewerSamlUrl, followSamlChain } from "../../eunity/imagingViewer";
+import { SessionExpiredError } from '../../core/makeAuthenticatedRequest';
+import type { MyChartRequest } from '../../core/myChartRequest';
+import { RawCollector, type RawResponse } from '../../core/rawResponse';
+import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer';
+import { list, rec, text } from '../../processors/read';
 import { logger } from '../../../../shared/logger';
+import { labResultsProcessor, type LabResultsStandard } from './labResults.processor';
+import { fdiContextForOrder, imagingResultsProcessor, isImagingOrder, type ImagingResultsStandard } from './imagingResults.processor';
 
+export type {
+  LabResultsStandard,
+  LabOrderStandard,
+  LabOrderConcise,
+  LabResultStandard,
+  LabComponentStandard,
+  ReferenceRangeStandard,
+  SignedTextStandard,
+  StudyResultStandard,
+  ResultingLabStandard,
+  OrderMetadataStandard,
+  ProviderCommentStandard,
+  ImageStudyStandard,
+  ScanStandard,
+  HistoricalPointStandard,
+  HistoricalComponentStandard,
+} from './labResults.processor';
+export { labResultsProcessor, conciseLabOrder, recentTrendPoints, CONCISE_TREND_POINTS } from './labResults.processor';
+export type { ImagingResultsStandard, ImagingOrderStandard, ImagingOrderConcise } from './imagingResults.processor';
+export {
+  imagingResultsProcessor,
+  isImagingByName,
+  isImagingByContent,
+  isImagingOrder,
+  fdiContextForOrder,
+  imageIdFor,
+} from './imagingResults.processor';
 
-async function getReportContent(mychartRequest: MyChartRequest, reportDetails: ReportDetails, requestVerificationToken: string): Promise<ReportContent> {
-  const res = await makeAuthenticatedRequest(mychartRequest, {
-    path: `/api/report-content/LoadReportContent`,
-    "headers": {
-      "Content-Type": "application/json; charset=utf-8",
-      __requestverificationtoken: requestVerificationToken
-    },
-    "body": JSON.stringify({
-      "reportID": reportDetails.reportID,
-      "assumedVariables": {
-        "ordId": reportDetails.reportVars.ordId,
-        "ordDat": reportDetails.reportVars.ordDat
-      },
-      "isFullReportPage": false,
-      "uniqueClass": "EID-4",
-      "nonce": ""
-    }),
-    "method": "POST",
-  });
-
-  return res.json();
-}
-
-async function getRequestVerificationToken(mychartRequest: MyChartRequest) {
-
-  // Go to the communication center
-  const communicationCenterRes = await makeAuthenticatedRequest(mychartRequest, { path: '/app/test-results' })
-  return getRequestVerificationTokenFromBody(await communicationCenterRes.text())
-}
-
-
-/**
- * MyChart's per-component `abnormalFlagCategoryValue` is junk on every
- * instance, and we drop it rather than pass it on.
- *
- * Captured Sep 2026 against two real instances (Epic's August 2025 and
- * November 2025 releases): the field was the literal string `"Unknown"` on all
- * 175 components, including the 13 whose value sat outside their own numeric
- * reference range. Nothing else in the payload carries a verdict either —
- * `componentResultInfo` has exactly five keys, every result's `isAbnormal` was
- * `false`, the historical `showAbnormalFlag` is a per-graph display bit rather
- * than a per-value flag, and the rendered report HTML contains no abnormality
- * markup. fake-mychart serves `"Unknown"` for the same reason: it is what real
- * MyChart sends (`realBehavior.integration.test.ts` pins that).
- *
- * A field that always reads `"Unknown"` is worse than no field — a client sees
- * a flag-shaped value and takes it for a verdict. We do NOT replace it with a
- * derived one: comparing the value against `referenceRange` is a judgement
- * MyChart never made, and inventing it here would put words in the chart's
- * mouth. `value`, `numericValue` and `referenceRange` are passed through
- * untouched, so a client that wants to make that comparison still can.
- */
-function dropUnusableAbnormalFlag(info: Record<string, unknown> | undefined): void {
-  if (info) delete info['abnormalFlagCategoryValue'];
-}
-
-function dropUnusableAbnormalFlags(test: LabTestResult): LabTestResult {
-  for (const result of test.results ?? []) {
-    for (const component of result?.resultComponents ?? []) {
-      dropUnusableAbnormalFlag(component?.componentResultInfo as unknown as Record<string, unknown> | undefined);
-    }
-  }
-  return test;
-}
-
-async function getLabResult(mychartRequest: MyChartRequest, key: string, requestVerificationToken: string): Promise<LabTestResult> {
-  const res = await makeAuthenticatedRequest(mychartRequest, {
-    path: `/api/test-results/GetDetails`,
-    "headers": {
-      "Content-Type": "application/json; charset=utf-8",
-      __requestverificationtoken: requestVerificationToken
-    },
-    "body": JSON.stringify({ "orderKey": key, "organizationID": "", "PageNonce": "" }),
-    "method": "POST",
-  });
-
-  const out = dropUnusableAbnormalFlags(await res.json() as LabTestResult);
-
-  for (const result of out.results ?? []) {
-    if (result?.reportDetails?.reportID) {
-
-      const reportdata = await getReportContent(mychartRequest, result.reportDetails, requestVerificationToken)
-
-      result.reportDetails.reportContent = reportdata;
-    }
-  }
-
-  return out
-}
-
-
-async function getHistoricalResults(
-  mychartRequest: MyChartRequest,
-  orderKey: string,
-  requestVerificationToken: string
-): Promise<HistoricalResultsResponse | null> {
-  try {
-    const res = await makeAuthenticatedRequest(mychartRequest, {
-      path: '/api/past-results/GetMultipleHistoricalResultComponents',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        __requestverificationtoken: requestVerificationToken,
-      },
-      body: JSON.stringify({
-        orderID: orderKey,
-        selectedComponentIDs: [],
-        isInitialLoad: true,
-        startTime: '',
-        endTime: '',
-        organizationID: '',
-        isCustomFilterEnabled: false,
-        PageNonce: '',
-      }),
-      method: 'POST',
-    });
-
-    if (!res.ok) return null;
-
-    const history = await res.json() as HistoricalResultsResponse;
-    // Same junk field, same treatment, on every point of every trend.
-    for (const component of Object.values(history.historicalResults ?? {})) {
-      for (const point of component?.historicalResultData ?? []) {
-        dropUnusableAbnormalFlag(point as unknown as Record<string, unknown>);
-      }
-    }
-    return history;
-  } catch {
-    return null;
-  }
-}
-
-export async function listLabResults(mychartRequest: MyChartRequest): Promise<LabTestResultWithHistory[]> {
-
-  const requestVerificationToken = await getRequestVerificationToken(mychartRequest)
-
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token')
-    return []
-  }
-
-  const allresults: LabTestResultWithHistory[] = []
-  const seenKeys = new Set<string>();
-
-  // Fetch all group types (0-3) to capture all test results including blood panels
-  for (const groupType of [0, 1, 2, 3]) {
-    const out = await fetchResultGroupList(mychartRequest, groupType, requestVerificationToken);
-    if (!out) continue;
-
-    // Outside the swallow: these are results the instance says exist, so a
-    // failure here would return a short list indistinguishable from a
-    // complete one — "you have 39 results" when you have 60.
-    for (const newResultGroup of out.newResultGroups || []) {
-      if (seenKeys.has(newResultGroup.key)) continue;
-      seenKeys.add(newResultGroup.key);
-
-      const labResult: LabTestResultWithHistory = await getLabResult(mychartRequest, newResultGroup.key, requestVerificationToken);
-      logger.debug('got detail back:', labResult.orderName)
-
-      // Fetch historical trend data for this order
-      const history = await getHistoricalResults(mychartRequest, newResultGroup.key, requestVerificationToken);
-      if (history) {
-        labResult.historicalResults = history;
-      }
-
-      allresults.push(labResult)
-    }
-  }
-
-  return allresults;
-}
+const TEST_RESULTS_PAGE = '/app/test-results';
 
 /**
  * One `/api/test-results/GetList` page, or null when this instance does not
  * serve that group type. Group types 0-3 are probed speculatively, so a
  * failure here is expected — which is why it is the ONLY failure swallowed on
- * this path. A `SessionExpiredError` still propagates: reporting a dead
- * session as "unsupported group type" turns it into an empty chart.
+ * this path. A non-OK response is still recorded, with its status; a thrown
+ * transport error is not. A `SessionExpiredError` still propagates:
+ * reporting a dead session as "unsupported group type" turns it into an
+ * empty chart.
  */
-async function fetchResultGroupList(
-  mychartRequest: MyChartRequest,
-  groupType: number,
-  requestVerificationToken: string,
-): Promise<LabResultsList | null> {
+async function fetchResultGroupList(collector: RawCollector, groupType: number, token: string): Promise<unknown> {
   try {
-    const resp = await makeAuthenticatedRequest(mychartRequest, {
+    const { response, body } = await collector.send({
       path: '/api/test-results/GetList',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        '__RequestVerificationToken': requestVerificationToken,
-      },
-      body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
       method: 'POST',
+      headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+      body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
     });
-
-    if (!resp.ok) return null;
-
-    return await resp.json() as LabResultsList;
+    return response.ok ? body : null;
   } catch (err) {
     if (err instanceof SessionExpiredError) throw err;
     logger.debug(`test-results GetList failed for groupType ${groupType}:`, (err as Error).message);
@@ -211,120 +62,120 @@ async function fetchResultGroupList(
   }
 }
 
-
-export async function getImagingResults(mychartRequest: MyChartRequest, options?: { followSaml?: boolean }): Promise<ImagingResult[]> {
-  const requestVerificationToken = await getRequestVerificationToken(mychartRequest);
-
-  if (!requestVerificationToken) {
-    logger.debug('could not find request verification token for imaging');
-    return [];
+/** The trend body is best-effort: a failure is recorded (when there was a response) and otherwise tolerated. */
+async function fetchHistoricalResults(collector: RawCollector, orderKey: string, token: string): Promise<void> {
+  try {
+    await collector.postJson('/api/past-results/GetMultipleHistoricalResultComponents', token, {
+      orderID: orderKey,
+      selectedComponentIDs: [],
+      isInitialLoad: true,
+      startTime: '',
+      endTime: '',
+      organizationID: '',
+      isCustomFilterEnabled: false,
+      PageNonce: '',
+    });
+  } catch (err) {
+    if (err instanceof SessionExpiredError) throw err;
+    logger.debug(`historical results failed for ${orderKey}:`, (err as Error).message);
   }
+}
 
-  // Try multiple group types - imaging may be in a different group
-  const allResults: ImagingResult[] = [];
+/**
+ * Every request behind `get_lab_results`, recorded on `collector`: the page
+ * token, `GetList` for group types 0-3, then per unique order key
+ * `GetDetails`, `LoadReportContent` for each result that names a report, and
+ * `GetMultipleHistoricalResultComponents`. The join is the processor's.
+ */
+async function collectLabResults(collector: RawCollector): Promise<void> {
+  const token = await collector.pageToken(TEST_RESULTS_PAGE);
   const seenKeys = new Set<string>();
 
   for (const groupType of [0, 1, 2, 3]) {
-    const out = await fetchResultGroupList(mychartRequest, groupType, requestVerificationToken);
-    if (!out) continue;
+    const page = await fetchResultGroupList(collector, groupType, token);
+    if (page === null) continue;
 
-    // Outside the swallow, as in listLabResults.
-    for (const resultGroup of out.newResultGroups || []) {
-      if (seenKeys.has(resultGroup.key)) continue;
-      seenKeys.add(resultGroup.key);
+    // Outside the swallow: these are results the instance says exist, so a
+    // failure here would return a short list indistinguishable from a
+    // complete one — "you have 39 results" when you have 60.
+    for (const group of list(rec(page).newResultGroups)) {
+      const key = text(rec(group).key);
+      if (!key || seenKeys.has(key)) continue;
+      seenKeys.add(key);
 
-      const labResult = await getLabResult(mychartRequest, resultGroup.key, requestVerificationToken);
+      const details = rec(await collector.postJson('/api/test-results/GetDetails', token, { orderKey: key, organizationID: '', PageNonce: '' }));
+      logger.debug('got detail back:', details.orderName);
 
-      // Check if this result has imaging content (structured data or keyword match)
-      const nameLower = labResult.orderName?.toLowerCase() ?? '';
-      const isImagingByName =
-        nameLower.includes('x-ray') || nameLower.includes('xray') || nameLower.includes('xr ') ||
-        nameLower.includes('mri') || nameLower.includes('ct ') || nameLower.includes('ct,') ||
-        nameLower.includes('imaging') || nameLower.includes('radiology') ||
-        nameLower.includes('ultrasound') || nameLower.includes('fluoroscop') ||
-        nameLower.includes('arthrogram') || nameLower.includes('mammogram') ||
-        nameLower.includes('oct,') || nameLower.includes('oct ') ||
-        nameLower.includes('pathology') || nameLower.includes('excision');
-      const hasImagingData = labResult.results?.some(r =>
-        (r.imageStudies && r.imageStudies.length > 0) ||
-        (r.scans && r.scans.length > 0) ||
-        r.studyResult?.narrative?.hasContent ||
-        r.studyResult?.impression?.hasContent ||
-        r.reportDetails?.reportID
-      );
-      const hasImaging = isImagingByName || hasImagingData;
-
-      if (hasImaging) {
-        const imagingResult: ImagingResult = { ...labResult };
-
-        // Extract report text from narrative + impression
-        const reportParts: string[] = [];
-        const narrativeParts: string[] = [];
-        const impressionParts: string[] = [];
-        for (const r of labResult.results ?? []) {
-          if (r.studyResult?.narrative?.hasContent) {
-            reportParts.push(r.studyResult.narrative.contentAsString);
-            narrativeParts.push(r.studyResult.narrative.contentAsString);
-          }
-          if (r.studyResult?.impression?.hasContent) {
-            reportParts.push('IMPRESSION: ' + r.studyResult.impression.contentAsString);
-            impressionParts.push(r.studyResult.impression.contentAsString);
-          }
-        }
-        if (reportParts.length > 0) {
-          imagingResult.reportText = reportParts.join('\n\n');
-        }
-        if (narrativeParts.length > 0) {
-          imagingResult.narrative = narrativeParts.join('\n\n');
-        }
-        if (impressionParts.length > 0) {
-          imagingResult.impression = impressionParts.join('\n\n');
-        }
-
-        // Extract provider and date from first result
-        const firstResult = labResult.results?.[0];
-        if (firstResult?.orderMetadata) {
-          imagingResult.resultDate = firstResult.orderMetadata.resultTimestampDisplay || '';
-          imagingResult.orderProvider = firstResult.orderMetadata.orderProviderName || '';
-        }
-
-        // Extract FDI context (for image viewer access) — from the report
-        // content HTML, or from the structured fdiLink some instances (e.g.
-        // Mass General Brigham) serve instead of a data-fdi-context attribute.
-        for (const r of labResult.results ?? []) {
-          const reportHtml = r.reportDetails?.reportContent?.reportContent;
-          const fdi =
-            (reportHtml ? extractFdiContext(reportHtml) : null) ??
-            (r.fdiLink?.redirectUrl ? extractFdiContextFromFdiLink(r.fdiLink.redirectUrl) : null);
-          if (fdi) {
-            imagingResult.fdiContext = fdi;
-
-            // Get the SAML URL for the image viewer
-            try {
-              const session = await getImageViewerSamlUrl(mychartRequest, fdi);
-              if (session) {
-                imagingResult.samlUrl = session.samlUrl;
-
-                // Optionally follow the SAML chain to get the eUnity viewer URL
-                if (options?.followSaml) {
-                  const viewerSession = await followSamlChain(mychartRequest, session.samlUrl);
-                  if (viewerSession) {
-                    imagingResult.viewerUrl = viewerSession.viewerUrl;
-                  }
-                }
-              }
-            } catch (err) {
-              logger.debug('Error getting viewer URL:', (err as Error).message);
-            }
-
-            break; // Only need FDI from one result
-          }
-        }
-
-        allResults.push(imagingResult);
+      for (const result of list(details.results)) {
+        const reportDetails = rec(rec(result).reportDetails);
+        const reportID = text(reportDetails.reportID);
+        if (!reportID) continue;
+        const vars = rec(reportDetails.reportVars);
+        await collector.postJson('/api/report-content/LoadReportContent', token, {
+          reportID,
+          assumedVariables: { ordId: vars.ordId ?? '', ordDat: vars.ordDat ?? '' },
+          isFullReportPage: false,
+          uniqueClass: 'EID-4',
+          nonce: '',
+        });
       }
+
+      await fetchHistoricalResults(collector, key, token);
+    }
+  }
+}
+
+export async function fetchLabResultsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  await collectLabResults(collector);
+  return collector.toRaw();
+}
+
+/** The standard object — what `mode: 'json'` returns. */
+export async function listLabResults(mychartRequest: MyChartRequest): Promise<LabResultsStandard> {
+  return labResultsProcessor.standard(await fetchLabResultsRaw(mychartRequest));
+}
+
+/**
+ * The lab requests plus, for every imaging order with a viewer context, the
+ * `FdiData` exchange that mints the (single-use, short-lived) SAML URL. With
+ * `followSaml`, the chain is walked to the eUnity viewer and the final hop is
+ * recorded too, since it goes through its own cookie jar rather than the
+ * session's request path.
+ */
+export async function fetchImagingResultsRaw(
+  mychartRequest: MyChartRequest,
+  options?: { followSaml?: boolean },
+): Promise<RawResponse> {
+  const collector = new RawCollector(mychartRequest);
+  await collectLabResults(collector);
+
+  const labs = labResultsProcessor.standard(collector.toRaw());
+  for (const order of labs.orders) {
+    if (!isImagingOrder(order)) continue;
+    const fdi = fdiContextForOrder(collector.toRaw(), order);
+    if (!fdi) continue;
+    try {
+      const session = await getImageViewerSamlUrl(mychartRequest, fdi, collector);
+      if (session && options?.followSaml) {
+        const viewer = await followSamlChain(mychartRequest, session.samlUrl);
+        if (viewer) {
+          collector.requests.push({ path: viewer.viewerUrl, method: 'GET', status: 200, contentType: 'text/html', body: viewer.viewerBody });
+        }
+      }
+    } catch (err) {
+      if (err instanceof SessionExpiredError) throw err;
+      logger.debug('Error getting viewer URL:', (err as Error).message);
     }
   }
 
-  return allResults;
+  return collector.toRaw();
+}
+
+/** The standard object — what `mode: 'json'` returns. */
+export async function getImagingResults(
+  mychartRequest: MyChartRequest,
+  options?: { followSaml?: boolean },
+): Promise<ImagingResultsStandard> {
+  return imagingResultsProcessor.standard(await fetchImagingResultsRaw(mychartRequest, options));
 }

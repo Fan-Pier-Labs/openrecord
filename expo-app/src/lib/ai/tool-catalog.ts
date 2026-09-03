@@ -27,8 +27,12 @@
 import {
   ACCOUNT_PARAM,
   AGENT_CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
   PATIENT_PARAM,
+  acceptsModeParam,
   acceptsPatientParam,
+  describeModeParam,
   CAPABILITIES,
 } from "../../../../shared/capabilities";
 
@@ -56,6 +60,11 @@ export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
     // and refuses on a mismatch, so the model has to be able to say it.
     ...(acceptsPatientParam(capability)
       ? { patient: argHint("string", false, PATIENT_PARAM.description) }
+      : {}),
+    // How the payload is rendered. The executor fills in the concise default
+    // when the model says nothing; the model asks for more by name.
+    ...(acceptsModeParam(capability)
+      ? { [MODE_PARAM.name]: argHint("string", false, describeModeParam(MODEL_FACING_OUTPUT_MODE)) }
       : {}),
     ...Object.fromEntries(
       capability.params.map((p) => [p.name, argHint(p.type, p.required, p.description)]),

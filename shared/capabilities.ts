@@ -28,30 +28,64 @@
  */
 
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
+import type { RawResponse } from '../scrapers/myChart/core/rawResponse';
+import {
+  DEFAULT_OUTPUT_MODE,
+  OUTPUT_MODES,
+  isOutputMode,
+  renderOutput,
+  type OutputMode,
+  type Processor,
+} from '../scrapers/myChart/processors/processor';
 import { base64UrlEncode, base64UrlDecode } from './base64url';
 import { resolveUnique } from './resolveUnique';
 
-import { getMyChartProfile, getEmail } from '../scrapers/myChart/chart/profile';
-import { getHealthSummary } from '../scrapers/myChart/chart/healthSummary';
-import { getMedications } from '../scrapers/myChart/chart/medications';
-import { requestMedicationRefill } from '../scrapers/myChart/chart/medicationRefill';
-import { getAllergies } from '../scrapers/myChart/chart/allergies';
-import { getHealthIssues } from '../scrapers/myChart/chart/healthIssues';
-import { getVitals } from '../scrapers/myChart/chart/vitals';
-import { getImmunizations } from '../scrapers/myChart/chart/immunizations';
-import { getPreventiveCare } from '../scrapers/myChart/chart/preventiveCare';
-import { getMedicalHistory } from '../scrapers/myChart/chart/medicalHistory';
-import { getGoals } from '../scrapers/myChart/chart/goals';
+import { fetchProfileRaw, profileProcessor } from '../scrapers/myChart/chart/profile/profile';
+import { fetchHealthSummaryRaw, healthSummaryProcessor } from '../scrapers/myChart/chart/healthSummary/healthSummary';
+// `getMedications` (the standard object) is for request_refill's name resolution;
+// the capability itself runs `fetchMedicationsRaw` + the processor like every read.
+import { getMedications, fetchMedicationsRaw, medicationsProcessor } from '../scrapers/myChart/chart/medications/medications';
+import { requestMedicationRefill } from '../scrapers/myChart/chart/medications/medicationRefill';
+import { fetchAllergiesRaw, allergiesProcessor } from '../scrapers/myChart/chart/allergies/allergies';
+import { fetchHealthIssuesRaw, healthIssuesProcessor } from '../scrapers/myChart/chart/healthIssues/healthIssues';
+import { fetchVitalsRaw, vitalsProcessor } from '../scrapers/myChart/chart/vitals/vitals';
+import { fetchImmunizationsRaw, immunizationsProcessor } from '../scrapers/myChart/chart/immunizations/immunizations';
+import { fetchPreventiveCareRaw, preventiveCareProcessor } from '../scrapers/myChart/chart/preventiveCare/preventiveCare';
+import { fetchMedicalHistoryRaw, medicalHistoryProcessor } from '../scrapers/myChart/chart/medicalHistory/medicalHistory';
+import { fetchGoalsRaw, goalsProcessor } from '../scrapers/myChart/chart/goals/goals';
 
-import { upcomingVisits, pastVisits } from '../scrapers/myChart/chart/visits/visits';
-import { getVisitNotes, getNoteContent, getVisitAVS } from '../scrapers/myChart/chart/notes';
+import {
+  fetchUpcomingVisitsRaw,
+  fetchPastVisitsRaw,
+  upcomingVisitsProcessor,
+  pastVisitsProcessor,
+} from '../scrapers/myChart/chart/visits/visits';
+import {
+  fetchVisitNotesRaw,
+  fetchNoteContentRaw,
+  fetchVisitAvsRaw,
+  visitNotesProcessor,
+  noteContentProcessor,
+} from '../scrapers/myChart/chart/notes/notes';
 
-import { listLabResults, getImagingResults } from '../scrapers/myChart/chart/labs/labResults';
+import {
+  fetchLabResultsRaw,
+  fetchImagingResultsRaw,
+  getImagingResults,
+  labResultsProcessor,
+  imagingResultsProcessor,
+} from '../scrapers/myChart/chart/labs/labResults';
 import { downloadImagingStudyDirect } from '../scrapers/myChart/eunity/imagingDirectDownload';
 import type { FdiContext } from '../scrapers/myChart/eunity/imagingViewer';
 
-import { listConversations } from '../scrapers/myChart/chart/messages/conversations';
-import { getConversationMessages } from '../scrapers/myChart/chart/messages/messageThreads';
+import { fetchConversationsRaw, conversationsProcessor } from '../scrapers/myChart/chart/messages/conversations';
+import { fetchConversationThreadRaw, conversationThreadProcessor } from '../scrapers/myChart/chart/messages/messageThreads';
+import {
+  fetchMessageRecipientsRaw,
+  fetchMessageTopicsRaw,
+  messageRecipientsProcessor,
+  messageTopicsProcessor,
+} from '../scrapers/myChart/chart/messages/recipients';
 import {
   sendNewMessage,
   getMessageRecipients,
@@ -63,27 +97,33 @@ import {
 import { sendReply } from '../scrapers/myChart/chart/messages/sendReply';
 import { deleteMessage } from '../scrapers/myChart/chart/messages/deleteMessage';
 
-import { getBillingHistory } from '../scrapers/myChart/chart/bills/bills';
-import { getInsurance } from '../scrapers/myChart/chart/insurance';
+import { fetchBillingRaw, billingProcessor } from '../scrapers/myChart/chart/bills/bills';
+import { fetchInsuranceRaw, insuranceProcessor } from '../scrapers/myChart/chart/insurance/insurance';
 
-import { getCareTeam } from '../scrapers/myChart/chart/careTeam';
-import { getReferrals } from '../scrapers/myChart/chart/referrals';
-import { getLetters, getLetterDetails } from '../scrapers/myChart/chart/letters';
-import { getDocuments } from '../scrapers/myChart/chart/documents';
-import { getUpcomingOrders } from '../scrapers/myChart/chart/upcomingOrders';
-import { getQuestionnaires } from '../scrapers/myChart/chart/questionnaires';
-import { getCareJourneys } from '../scrapers/myChart/chart/careJourneys';
-import { getActivityFeed } from '../scrapers/myChart/chart/activityFeed';
-import { getEducationMaterials } from '../scrapers/myChart/chart/educationMaterials';
-import { getEhiExportTemplates } from '../scrapers/myChart/chart/ehiExport';
-import { getLinkedMyChartAccounts } from '../scrapers/myChart/chart/otherMyCharts';
+import { fetchCareTeamRaw, careTeamProcessor } from '../scrapers/myChart/chart/careTeam/careTeam';
+import { fetchReferralsRaw, referralsProcessor } from '../scrapers/myChart/chart/referrals/referrals';
+import {
+  fetchLettersRaw,
+  fetchLetterDetailsRaw,
+  lettersProcessor,
+  letterDetailsProcessor,
+} from '../scrapers/myChart/chart/letters/letters';
+import { fetchDocumentsRaw, documentsProcessor } from '../scrapers/myChart/chart/documents/documents';
+import { fetchUpcomingOrdersRaw, upcomingOrdersProcessor } from '../scrapers/myChart/chart/upcomingOrders/upcomingOrders';
+import { fetchQuestionnairesRaw, questionnairesProcessor } from '../scrapers/myChart/chart/questionnaires/questionnaires';
+import { fetchCareJourneysRaw, careJourneysProcessor } from '../scrapers/myChart/chart/careJourneys/careJourneys';
+import { fetchActivityFeedRaw, activityFeedProcessor } from '../scrapers/myChart/chart/activityFeed/activityFeed';
+import { fetchEducationMaterialsRaw, educationMaterialsProcessor } from '../scrapers/myChart/chart/educationMaterials/educationMaterials';
+import { fetchEhiExportRaw, ehiExportProcessor } from '../scrapers/myChart/chart/ehiExport/ehiExport';
+import { fetchLinkedAccountsRaw, linkedAccountsProcessor } from '../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
 
 import {
-  getEmergencyContacts,
+  fetchEmergencyContactsRaw,
+  emergencyContactsProcessor,
   addEmergencyContact,
   updateEmergencyContact,
   removeEmergencyContact,
-} from '../scrapers/myChart/chart/emergencyContacts';
+} from '../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 import {
   assertProxyReadContext,
@@ -207,6 +247,14 @@ export interface Capability {
  */
 interface CapabilityImpl extends Capability {
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
+  /**
+   * For read capabilities: `run` returns the scraper's {@link RawResponse}
+   * envelope and this turns it into the requested {@link OutputMode}. A
+   * capability without one ignores `mode` (writes, account management, media).
+   * `unknown` rather than a per-entry type parameter: the registry only ever
+   * hands the processor to {@link renderOutput}, which is generic over it.
+   */
+  processor?: Processor;
 }
 
 // ── Argument coercion ───────────────────────────────────────────────────────
@@ -341,21 +389,23 @@ async function resolveMedicationKey(request: MyChartRequest, args: CapabilityArg
   const query = str(args, 'medication_name').trim();
   if (!query) throw new Error('Pass either medication_key (from get_medications) or medication_name.');
 
-  const meds = (await getMedications(request)).medications;
+  const meds = (await getMedications(request)).prescriptions;
   // Match on the label the patient is most likely to use — "Lisinopril" as
   // well as "Lisinopril 10mg" — but exact-first, so naming a medication
   // precisely is never rejected for resembling another one.
   const med = resolveUnique(meds, query, {
-    getName: (m) => m.name,
+    getName: (m) => m.name ?? '',
     // Patients say "Lipitor" as often as "Atorvastatin 20mg".
-    getAlternateNames: (m) => (m.commonName ? [m.commonName] : []),
+    getAlternateNames: (m) => (m.patientFriendlyName.text ? [m.patientFriendlyName.text] : []),
     label: 'medication',
     stripTitles: false,
   });
 
-  if (!med.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
-  if (!med.medicationKey) throw new Error(`"${med.name}" has no medication key, so it cannot be refilled here.`);
-  return { key: med.medicationKey, name: med.name };
+  if (!med.refillDetails?.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
+  // `id` is the prescription's MyChart id. Whether the refill endpoint wants
+  // it under `medicationKey` is unverified — see docs/processor-layer-todo.md.
+  if (!med.id) throw new Error(`"${med.name}" has no prescription id, so it cannot be refilled here.`);
+  return { key: med.id, name: med.name ?? '' };
 }
 
 /** The raw, still-encoded images of one study. Clients encode them themselves. */
@@ -419,16 +469,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: async (request) => {
-      const profile = await getMyChartProfile(request);
-      let email: string | undefined;
-      try {
-        email = (await getEmail(request)) ?? undefined;
-      } catch {
-        // The email endpoint is missing on some instances; the profile is the point.
-      }
-      return { ...profile, email };
-    },
+    run: (request) => fetchProfileRaw(request),
+    processor: profileProcessor,
   },
   {
     id: 'get_health_summary',
@@ -437,7 +479,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getHealthSummary(request),
+    run: (request) => fetchHealthSummaryRaw(request),
+    processor: healthSummaryProcessor,
   },
   {
     id: 'get_medications',
@@ -446,7 +489,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getMedications(request),
+    run: (request) => fetchMedicationsRaw(request),
+    processor: medicationsProcessor,
   },
   {
     id: 'get_allergies',
@@ -455,7 +499,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getAllergies(request),
+    run: (request) => fetchAllergiesRaw(request),
+    processor: allergiesProcessor,
   },
   {
     id: 'get_health_issues',
@@ -464,7 +509,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getHealthIssues(request),
+    run: (request) => fetchHealthIssuesRaw(request),
+    processor: healthIssuesProcessor,
   },
   {
     id: 'get_vitals',
@@ -473,7 +519,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getVitals(request),
+    run: (request) => fetchVitalsRaw(request),
+    processor: vitalsProcessor,
   },
   {
     id: 'get_immunizations',
@@ -482,7 +529,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getImmunizations(request),
+    run: (request) => fetchImmunizationsRaw(request),
+    processor: immunizationsProcessor,
   },
   {
     id: 'get_preventive_care',
@@ -491,7 +539,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getPreventiveCare(request),
+    run: (request) => fetchPreventiveCareRaw(request),
+    processor: preventiveCareProcessor,
   },
   {
     id: 'get_medical_history',
@@ -500,7 +549,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Profile',
     params: [],
-    run: (request) => getMedicalHistory(request),
+    run: (request) => fetchMedicalHistoryRaw(request),
+    processor: medicalHistoryProcessor,
   },
   {
     id: 'get_goals',
@@ -510,7 +560,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Profile',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getGoals(request),
+    run: (request) => fetchGoalsRaw(request),
+    processor: goalsProcessor,
   },
 
   // ── Visits + notes ────────────────────────────────────────────────────────
@@ -521,7 +572,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [],
-    run: (request) => upcomingVisits(request),
+    run: (request) => fetchUpcomingVisitsRaw(request),
+    processor: upcomingVisitsProcessor,
   },
   {
     id: 'get_past_visits',
@@ -533,18 +585,20 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     run: (request, args) => {
       const oldest = new Date();
       oldest.setFullYear(oldest.getFullYear() - num(args, 'years_back', 2));
-      return pastVisits(request, oldest);
+      return fetchPastVisitsRaw(request, oldest);
     },
+    processor: pastVisitsProcessor,
   },
   {
     id: 'get_visit_notes',
     title: 'Visit notes',
     description:
-      'List the clinical notes (operative, progress, anesthesia, …) attached to a past visit. Returns hnoId, hnoDat and lrpId — pass those to get_note_content.',
+      'List the clinical notes (operative, progress, anesthesia, …) attached to a past visit. Returns lrpID and, per note, hnoID and hnoDAT — pass those to get_note_content.',
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'csn', type: 'string', description: 'Visit CSN (encounter id) from get_past_visits.', required: true }],
-    run: (request, args) => getVisitNotes(request, requireStr(args, 'csn')),
+    run: (request, args) => fetchVisitNotesRaw(request, requireStr(args, 'csn')),
+    processor: visitNotesProcessor,
   },
   {
     id: 'get_note_content',
@@ -554,17 +608,18 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Visits',
     params: [
       { name: 'csn', type: 'string', description: 'Visit CSN from get_past_visits.', required: true },
-      { name: 'lrp_id', type: 'string', description: 'lrpId from get_visit_notes.', required: true },
-      { name: 'hno_id', type: 'string', description: 'hnoId of the chosen note.', required: true },
-      { name: 'hno_dat', type: 'string', description: 'hnoDat of the chosen note.', required: true },
+      { name: 'lrp_id', type: 'string', description: 'lrpID from get_visit_notes.', required: true },
+      { name: 'hno_id', type: 'string', description: 'hnoID of the chosen note.', required: true },
+      { name: 'hno_dat', type: 'string', description: 'hnoDAT of the chosen note.', required: true },
     ],
     run: (request, args) =>
-      getNoteContent(request, {
+      fetchNoteContentRaw(request, {
         csn: requireStr(args, 'csn'),
         lrpId: requireStr(args, 'lrp_id'),
         hnoId: requireStr(args, 'hno_id'),
         hnoDat: requireStr(args, 'hno_dat'),
       }),
+    processor: noteContentProcessor,
   },
   {
     id: 'get_visit_avs',
@@ -573,7 +628,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'csn', type: 'string', description: 'Visit CSN from get_past_visits.', required: true }],
-    run: (request, args) => getVisitAVS(request, requireStr(args, 'csn')),
+    run: (request, args) => fetchVisitAvsRaw(request, requireStr(args, 'csn')),
+    processor: noteContentProcessor,
   },
 
   // ── Results ───────────────────────────────────────────────────────────────
@@ -584,7 +640,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Results',
     params: [],
-    run: (request) => listLabResults(request),
+    run: (request) => fetchLabResultsRaw(request),
+    processor: labResultsProcessor,
   },
   {
     id: 'get_imaging_results',
@@ -594,17 +651,11 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Results',
     params: [],
-    run: async (request) => {
-      const results = await getImagingResults(request);
-      // Collapse the raw { fdi, ord } pair into one opaque token: a single
-      // copy-paste value is far easier for a model to hand back than two
-      // fields it can mix up.
-      return results.map((r, index) => {
-        if (!r.fdiContext) return { ...r, index };
-        const { fdiContext, ...rest } = r;
-        return { ...rest, index, image_id: encodeImageId(fdiContext) };
-      });
-    },
+    // The processor mints `image_id` (one opaque token for the { fdi, ord }
+    // pair — a single copy-paste value is far easier for a model to hand
+    // back than two fields it can mix up) and `index`, the fallback handle.
+    run: (request) => fetchImagingResultsRaw(request),
+    processor: imagingResultsProcessor,
   },
   {
     id: 'download_imaging_study',
@@ -632,12 +683,12 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
         if (!Number.isInteger(index) || index < 0) {
           throw new Error('imaging_index must be a non-negative integer from get_imaging_results.');
         }
-        const results = await getImagingResults(request);
-        const study = results[index];
-        if (!study) throw new Error(`No imaging result at index ${index} (this account has ${results.length}).`);
-        if (!study.fdiContext) throw new Error(`The imaging result at index ${index} has no viewable images.`);
-        fdiContext = study.fdiContext;
-        studyName = studyName ?? study.orderName;
+        const { orders } = await getImagingResults(request);
+        const study = orders[index];
+        if (!study) throw new Error(`No imaging result at index ${index} (this account has ${orders.length}).`);
+        if (!study.image_id) throw new Error(`The imaging result at index ${index} has no viewable images.`);
+        fdiContext = decodeImageId(study.image_id);
+        studyName = studyName ?? study.orderName ?? undefined;
       } else {
         throw new Error('Pass either image_id (from get_imaging_results) or imaging_index.');
       }
@@ -671,7 +722,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [],
-    run: (request) => listConversations(request),
+    run: (request) => fetchConversationsRaw(request),
+    processor: conversationsProcessor,
   },
   {
     id: 'get_message_thread',
@@ -680,7 +732,19 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [{ name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true }],
-    run: (request, args) => getConversationMessages(request, requireStr(args, 'conversation_id')),
+    run: async (request, args) => {
+      const conversationId = requireStr(args, 'conversation_id');
+      const raw = await fetchConversationThreadRaw(request, conversationId);
+      // GetConversationDetails answers an unknown id with a literal JSON null
+      // (same as GetVisitNotes). Saying so beats rendering an empty thread.
+      if (raw.requests.find((r) => r.path.includes('GetConversationDetails'))?.body === null) {
+        throw new Error(
+          `No conversation ${conversationId} on the active patient record. Check the id from get_messages, and that the right patient is active.`,
+        );
+      }
+      return raw;
+    },
+    processor: conversationThreadProcessor,
   },
   {
     id: 'get_message_recipients',
@@ -689,7 +753,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Messages',
     params: [],
-    run: async (request) => ({ recipients: await getMessageRecipients(request, await messagingToken(request)) }),
+    run: (request) => fetchMessageRecipientsRaw(request),
+    processor: messageRecipientsProcessor,
   },
   {
     id: 'get_message_topics',
@@ -701,7 +766,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     // listing them up front is rarely a step anyone needs to take.
     lessFrequentlyUsed: true,
     params: [],
-    run: async (request) => ({ topics: await getMessageTopics(request, await messagingToken(request)) }),
+    run: (request) => fetchMessageTopicsRaw(request),
+    processor: messageTopicsProcessor,
   },
   {
     id: 'send_message',
@@ -778,7 +844,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Billing',
     params: [],
-    run: (request) => getBillingHistory(request),
+    run: (request) => fetchBillingRaw(request),
+    processor: billingProcessor,
   },
   {
     id: 'get_insurance',
@@ -787,7 +854,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Billing',
     params: [],
-    run: (request) => getInsurance(request),
+    run: (request) => fetchInsuranceRaw(request),
+    processor: insuranceProcessor,
   },
 
   // ── Care coordination ─────────────────────────────────────────────────────
@@ -798,7 +866,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getCareTeam(request),
+    run: (request) => fetchCareTeamRaw(request),
+    processor: careTeamProcessor,
   },
   {
     id: 'get_referrals',
@@ -807,7 +876,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getReferrals(request),
+    run: (request) => fetchReferralsRaw(request),
+    processor: referralsProcessor,
   },
   {
     id: 'get_letters',
@@ -817,7 +887,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getLetters(request),
+    run: (request) => fetchLettersRaw(request),
+    processor: lettersProcessor,
   },
   {
     id: 'get_letter_details',
@@ -830,7 +901,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
       { name: 'hno_id', type: 'string', description: 'hnoId from the chosen get_letters entry.', required: true },
       { name: 'csn', type: 'string', description: 'csn from the chosen get_letters entry.', required: true },
     ],
-    run: (request, args) => getLetterDetails(request, requireStr(args, 'hno_id'), requireStr(args, 'csn')),
+    run: (request, args) => fetchLetterDetailsRaw(request, requireStr(args, 'hno_id'), requireStr(args, 'csn')),
+    processor: letterDetailsProcessor,
   },
   {
     id: 'get_documents',
@@ -839,7 +911,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getDocuments(request),
+    run: (request) => fetchDocumentsRaw(request),
+    processor: documentsProcessor,
   },
   {
     id: 'get_upcoming_orders',
@@ -848,7 +921,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     params: [],
-    run: (request) => getUpcomingOrders(request),
+    run: (request) => fetchUpcomingOrdersRaw(request),
+    processor: upcomingOrdersProcessor,
   },
   {
     id: 'get_questionnaires',
@@ -858,7 +932,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getQuestionnaires(request),
+    run: (request) => fetchQuestionnairesRaw(request),
+    processor: questionnairesProcessor,
   },
   {
     id: 'get_care_journeys',
@@ -868,7 +943,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getCareJourneys(request),
+    run: (request) => fetchCareJourneysRaw(request),
+    processor: careJourneysProcessor,
   },
   {
     id: 'get_activity_feed',
@@ -878,7 +954,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getActivityFeed(request),
+    run: (request) => fetchActivityFeedRaw(request),
+    processor: activityFeedProcessor,
   },
   {
     id: 'get_education_materials',
@@ -888,7 +965,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEducationMaterials(request),
+    run: (request) => fetchEducationMaterialsRaw(request),
+    processor: educationMaterialsProcessor,
   },
   {
     id: 'get_ehi_export',
@@ -898,7 +976,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEhiExportTemplates(request),
+    run: (request) => fetchEhiExportRaw(request),
+    processor: ehiExportProcessor,
   },
   {
     id: 'get_linked_accounts',
@@ -908,7 +987,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Care',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getLinkedMyChartAccounts(request),
+    run: (request) => fetchLinkedAccountsRaw(request),
+    processor: linkedAccountsProcessor,
   },
 
   // ── Emergency contacts ────────────────────────────────────────────────────
@@ -920,7 +1000,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Emergency contacts',
     lessFrequentlyUsed: true,
     params: [],
-    run: (request) => getEmergencyContacts(request),
+    run: (request) => fetchEmergencyContactsRaw(request),
+    processor: emergencyContactsProcessor,
   },
   {
     id: 'add_emergency_contact',
@@ -982,7 +1063,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
     group: 'Prescriptions',
     params: [
       { name: 'medication_name', type: 'string', description: 'Medication name as shown by get_medications.' },
-      { name: 'medication_key', type: 'string', description: 'Exact medicationKey from get_medications. Use instead of medication_name when you have it.' },
+      { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications. Use instead of medication_name when you have it.' },
     ],
     run: async (request, args) => {
       const { key, name } = await resolveMedicationKey(request, args);
@@ -1240,7 +1321,54 @@ export async function executeCapability(
   if (needsPatientAssertion(capability)) {
     await assertProxyReadContext(request, optStr(args, 'patient'));
   }
-  return capability.run(request, args, ctx);
+  const result = await capability.run(request, args, ctx);
+  if (!capability.processor) return result;
+  return renderOutput(capability.processor, result as RawResponse, readOutputMode(args));
+}
+
+/**
+ * The output mode a caller asked for, defaulting to {@link DEFAULT_OUTPUT_MODE}.
+ * An unknown value is an error rather than a silent fallback: a caller that
+ * typed `mode: 'summary'` and got JSON back would not know it was ignored.
+ */
+export function readOutputMode(args: CapabilityArgs): OutputMode {
+  const value = args[MODE_PARAM.name];
+  if (value === undefined || value === null || value === '') return DEFAULT_OUTPUT_MODE;
+  if (isOutputMode(value)) return value;
+  throw new Error(`Unknown mode ${JSON.stringify(value)}. Expected one of: ${OUTPUT_MODES.join(', ')}.`);
+}
+
+/**
+ * How a read capability's payload is rendered. Declared once, like
+ * {@link PATIENT_PARAM}: every client offers it on every capability that
+ * {@link acceptsModeParam}, and {@link executeCapability} applies it.
+ */
+export const MODE_PARAM: CapabilityParam = {
+  name: 'mode',
+  type: 'string',
+  description:
+    'Output mode: `concise` (markdown, the interesting fields), `standard` (markdown, every ' +
+    'useful field), `json` (the standard fields as JSON), or `raw` (the untouched MyChart ' +
+    'response, large).',
+};
+
+/**
+ * What a model-facing client passes when the model said nothing. The MCPB and
+ * the mobile agent hand the payload straight to a context window, and a 200 KB
+ * visits payload is what started the processor layer; `concise` is the right
+ * default there, and the model can still ask for any other mode by name.
+ * Programmatic callers (the library, the CLI) get {@link DEFAULT_OUTPUT_MODE}.
+ */
+export const MODEL_FACING_OUTPUT_MODE: OutputMode = 'concise';
+
+/** {@link MODE_PARAM} with the client's default stated, for tool descriptions. */
+export function describeModeParam(defaultMode: OutputMode): string {
+  return `${MODE_PARAM.description} Default: ${defaultMode}.`;
+}
+
+/** Whether this capability accepts {@link MODE_PARAM} — i.e. it has a processor. */
+export function acceptsModeParam(capability: Capability): boolean {
+  return getCapabilityImpl(capability.id)?.processor !== undefined;
 }
 
 /**

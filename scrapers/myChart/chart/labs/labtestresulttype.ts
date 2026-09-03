@@ -85,10 +85,13 @@ export interface ComponentResultInfo {
   isValueRtf: boolean
   numericValue?: number
   referenceRange: ReferenceRange
-  // MyChart sends `abnormalFlagCategoryValue` here and it is always the
-  // literal "Unknown" — `dropUnusableAbnormalFlags` in labResults.ts deletes
-  // it on the way out, with the capture that proves it. Deliberately absent
-  // from this type: `referenceRange` is the only abnormality signal there is.
+  /**
+   * The literal `"Unknown"` on every component of every captured instance,
+   * out-of-range ones included (#375, docs/architecture.md). Raw keeps it
+   * because MyChart sends it; nothing downstream should read it for meaning —
+   * `referenceRange` is the only abnormality signal there is.
+   */
+  abnormalFlagCategoryValue: string | number
 }
 
 export interface ReferenceRange {

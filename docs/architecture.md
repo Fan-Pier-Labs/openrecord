@@ -143,6 +143,38 @@ answer depended on which client they asked.
   because the token round-trips through Hermes. Tested against Node's `Buffer` as the oracle, since
   a token minted by one client has to decode in every other.
 
+## The processor layer (`scrapers/myChart/processors/`, `chart/<name>/<name>.processor.ts`)
+
+A read capability is two pure-ish halves. The scraper's `fetch…Raw(request, …)` talks to MyChart
+and records every request it makes into a `RawResponse` envelope (`core/rawResponse.ts`): path,
+method, the body we posted, status, and the body MyChart sent, parsed when it was JSON. It never
+projects, renames, strips or merges. The sibling `<name>.processor.ts` turns the envelope into the
+four output modes: `raw` (the untouched body, or the envelope when there were several payload
+requests), `json` (the *standard object*), `standard` (that object as markdown) and `concise` (a
+projection of it as markdown). `executeCapability` runs the scraper, then the processor, driven by
+the `mode` argument the registry declares once as `MODE_PARAM`.
+
+The rules, with their reasoning, are in [`processor-layer-proposal.md`](processor-layer-proposal.md);
+the ones that bite when you add a capability:
+
+- **A MyChart field is never edited in place or shadowed.** Anything computed gets a new name
+  (`bodyText`, `instantISO`, `organizationName`). One name means one thing everywhere.
+- **Membership is by field name, never by value.** A field on a mode's list is emitted even when
+  empty, so "no allergies on file" survives. A field that is empty on every captured instance is
+  off the list. No `prune`, no drop-if-empty.
+- **Markup stays in `raw`.** HTML and RTF fields are not in `standard`; their `<field>Text`
+  derivative is (`processors/htmlText.ts`).
+- **Never invent a shape.** Only field names a captured real response has shown are projected;
+  uncaptured elements pass through whole. `docs/processor-layer-todo.md` lists which.
+- **A missing verification token throws** (`MissingVerificationTokenError`). It used to return an
+  empty result, which read as "this patient has no allergies".
+- **The model-facing clients default to `concise`** (`MODEL_FACING_OUTPUT_MODE`); the library and
+  the CLI default to `json`. One generic markdown renderer serves both markdown modes so a field
+  cannot be on the page and missing from the JSON.
+
+`dev-scripts/generate-processor-examples.ts` regenerates `docs/processor-layer-examples.md`, every
+read capability in all four modes against fake-mychart.
+
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere
@@ -257,7 +289,7 @@ Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
 `expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
-## MyChart's abnormal flags are junk, and the scraper drops them (`chart/labs/labResults.ts`)
+## MyChart's abnormal flags are junk (`chart/labs/labResults.processor.ts`)
 
 **Captured Sep 2026 against two real instances** (Epic's August 2025 and November 2025 releases,
 175 components across 39 results):
@@ -272,9 +304,10 @@ Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `componentResultInfo` has exactly five keys, so there is no other field to read: **`referenceRange`
 is the only abnormality signal MyChart gives us.**
 
-`dropUnusableAbnormalFlags` deletes `abnormalFlagCategoryValue` from every component and every trend
-point on the way out. A field that always reads `"Unknown"` is worse than no field — a client sees a
-flag-shaped value and takes it for a verdict.
+`abnormalFlagCategoryValue` stays in `raw` — that is a faithful recording of what MyChart sent —
+and the lab processor leaves it out of every other mode. A field that always reads `"Unknown"` is
+worse than no field in a shape a client reads for meaning: it sees a flag-shaped value and takes it
+for a verdict.
 
 **Nothing derived takes its place.** Comparing the value against `referenceRange` is a judgement
 MyChart never made, and writing it back into the chart would put words in the portal's mouth.
@@ -283,7 +316,8 @@ that conclusion for its own UI can — `expo-app/src/lib/alerts/outOfRange.ts` d
 the app, for its alert list.
 
 fake-mychart serves `"Unknown"` because real MyChart does. Do not "fix" the fixture to say High/Low;
-`realBehavior.integration.test.ts` pins it, and `fake-mychart.integration.test.ts` pins the strip.
+`realBehavior.integration.test.ts` pins the fake's side, and `fake-mychart.integration.test.ts` pins
+both halves — the field present in raw, absent from standard.
 
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)
 

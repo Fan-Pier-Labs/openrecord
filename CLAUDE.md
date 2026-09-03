@@ -41,6 +41,12 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   platform picks the transport. Tests use `setTestTransport` / `req.transport`.
 - **At most 10 in-flight requests per MyChart host, process-wide** (`shared/hostConcurrency.ts`).
   The permit wraps the individual fetch only, never the redirect recursion.
+- **A read scraper returns the raw MyChart response; its processor decides what a caller sees.**
+  `fetch…Raw` records every request into a `RawResponse` and never edits a field; the sibling
+  `.processor.ts` builds the standard object (MyChart's own field names, derived fields under new
+  names, markup only in `raw`) and the `mode` param picks `raw` / `standard` / `concise` / `json`.
+  Never rename a MyChart field or drop one for being empty — see
+  [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
 - **`shared/capabilities.ts` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list. Add an entry there and it ships
   everywhere. `capability-parity.unit.test.ts` fails if a client stops covering one.
