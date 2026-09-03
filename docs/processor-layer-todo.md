@@ -51,14 +51,17 @@ fixture rebuilt from it.
 
 ## 5. Client wiring
 
-- **The MCPB and the Expo app default to `concise`.** Both hand the payload to a model, and
-  a 200 KB visits payload is what started this work. The model can still ask for `standard`,
-  `json` or `raw` on any call; `concise` is only what it gets when it says nothing.
-- **MCPB**: expose `mode` on every read tool with the `concise` default above.
-- **Expo agent loop**: same default; the alerts generator keeps calling with `mode: 'json'`.
-- **CLI**: `--mode <raw|standard|concise|json>`, default `json`; `--arg mode=` also works.
-- **npm library**: typed methods return the standard object; `runCapability(id, { mode })` for the rest.
-- Update `docs/cli.md`, `claude-desktop-extension/README.md`, `npm-package/README.md`.
+Done in the implementation PR: the MCPB and the Expo agent default to `concise` and expose
+`mode` on every read tool; the CLI takes `--mode` (default `json`); the library's typed methods
+return the standard object and `runCapability(id, { mode })` picks any mode; `docs/cli.md`,
+`claude-desktop-extension/README.md` and `npm-package/README.md` describe it. Remaining:
+
+- The Expo alerts generator lost the "Pay bill" deep link: `URLMakePayment` is a portal link and
+  stays in `raw`. If the app wants it back, it reads `mode: 'raw'` for billing, or the field
+  gets promoted with a documented reason.
+- `docs/processor-layer-examples.md` is generated; regenerate it (`bun
+  dev-scripts/generate-processor-examples.ts` against fake-mychart) in any PR that changes a
+  processor, and consider a CI check that it is current.
 
 ## 6. Endpoints worth exploring next (from `api-surface-gaps.md`)
 
