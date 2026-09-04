@@ -37,13 +37,7 @@ import { join } from 'path';
 import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
-import {
-  CAPABILITIES,
-  acceptsModeParam,
-  capabilityDescription,
-  executeCapability,
-  isPublicCapability,
-} from '../shared/capabilities';
+import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -191,7 +185,7 @@ async function main(): Promise<void> {
       (mode) =>
         `<details>\n<summary><code>mode: ${mode}</code> (${sizeOf(outputs[mode])} chars)</summary>\n\n${renderExample(outputs[mode])}\n\n</details>`,
     );
-    sections.push(`### \`${capability.id}\`\n\n${capabilityDescription(capability)}\n${argLine}\n${blocks.join('\n\n')}`);
+    sections.push(`### \`${capability.id}\`\n\n${capability.description}\n${argLine}\n${blocks.join('\n\n')}`);
   }
 
   const doc = [

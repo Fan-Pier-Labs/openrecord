@@ -12,7 +12,10 @@ export const PRESCRIPTION_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'request_refill',
     title: 'Request a refill',
-    description: 'Request a refill for a current medication.',
+    description:
+      'Request a refill for a current medication. NOT IMPLEMENTED: this reads nothing, changes ' +
+      'nothing and submits nothing — the refill request has never been watched reaching a real ' +
+      'pharmacy. Ask the patient to request the refill in MyChart directly.',
     kind: 'write',
     group: 'Prescriptions',
     // A write nobody has ever watched land. The withdrawn scraper posted
@@ -22,15 +25,12 @@ export const PRESCRIPTION_CAPABILITIES: readonly CapabilityImpl[] = [
     // to anything, so the scraper passed its tests while quite possibly sending
     // a body real MyChart ignores — and a refill that silently does not reach
     // the pharmacy is a patient who stops taking a medication believing it is
-    // on the way. Verifying it means watching a real refill land, which is not
-    // something to do speculatively on someone's prescription.
+    // on the way. See REFILL.md for what a real implementation must establish.
     notImplemented:
-      'the refill request has never been watched reaching a real pharmacy, and the body the ' +
-      'withdrawn scraper sent used a field name (`medicationKey`) that only fake-mychart has ' +
-      'ever recognised. Ask the patient to request the refill in MyChart directly.',
-    // The schema is kept for the eventual implementation, but each parameter
-    // says it is ignored: otherwise a model resolves a medication name — a
-    // whole `get_medications` round trip — for a call that reads nothing.
+      'request_refill is not implemented: it did nothing, read nothing and changed nothing. The ' +
+      'refill request has never been watched reaching a real pharmacy, so OpenRecord will not ' +
+      'pretend to submit one. Ask the patient to request the refill in MyChart directly. Do not ' +
+      'report this as a completed action.',
     params: [
       {
         name: 'medication_name',

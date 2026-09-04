@@ -47,13 +47,7 @@ import { assertProxyReadContext } from '../../scrapers/myChart/proxy/proxyTools'
 import { optStr } from './args';
 import { readOutputMode } from './params';
 import { isPublicCapability } from './public';
-import type {
-  Capability,
-  CapabilityArgs,
-  CapabilityContext,
-  CapabilityImpl,
-  UnimplementedCapabilityImpl,
-} from './types';
+import type { Capability, CapabilityArgs, CapabilityContext, CapabilityImpl } from './types';
 
 import { PROFILE_CAPABILITIES } from './registry/profile';
 import { VISIT_CAPABILITIES } from './registry/visits';
@@ -140,13 +134,6 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
   (c) => c.lessFrequentlyUsed,
 );
 
-/**
- * The capabilities the registry declares and deliberately does not implement —
- * see {@link Capability.notImplemented}. They are listed by every client like
- * any other, and running one returns {@link unimplementedMessage} instead of
- * calling a scraper.
- */
-export const UNIMPLEMENTED_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.notImplemented);
 
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
@@ -164,29 +151,6 @@ const BY_NAME = new Map<string, CapabilityImpl>();
 for (const capability of CAPABILITY_IMPLS) {
   BY_NAME.set(capability.id, capability);
   for (const alias of capability.aliases ?? []) BY_NAME.set(alias, capability);
-}
-
-/**
- * Whether this capability ships no scraper — see
- * {@link Capability.notImplemented}.
- *
- * Exported because clients have to branch on it in their own surfaces, not just
- * their descriptions: the mobile app must not raise a "Request refill?"
- * confirmation for a call that does nothing, and the MCPB must not annotate one
- * `destructiveHint`. A capability that changes nothing is not a write, whatever
- * its `kind` says about the write it will be once implemented.
- */
-export function isUnimplemented(capability: Capability): boolean {
-  return capability.notImplemented !== undefined;
-}
-
-/**
- * The same question, narrowing the implementation union. Module-private: it is
- * what gives {@link executeCapability} a `run` to call, so a capability cannot
- * be both dispatched and unimplemented and the compiler is what says so.
- */
-function isUnimplementedImpl(capability: CapabilityImpl): capability is UnimplementedCapabilityImpl {
-  return capability.notImplemented !== undefined;
 }
 
 /** Look a capability up by id or alias. Returns undefined for unknown names. */
@@ -264,10 +228,10 @@ export async function executeCapability(
     throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
   }
   // Before anything else, including the patient assertion: a capability with no
-  // scraper has nothing to assert about and no session to spend on it. The type
-  // guard is also what tells the compiler that everything past this line has a
-  // `run` — the narrowing and the early return are the same fact.
-  if (isUnimplementedImpl(capability)) return unimplementedMessage(capability);
+  // scraper has nothing to assert about and no session to spend on it. Compared
+  // against undefined rather than for truthiness, because that is what narrows
+  // the union — everything past this line has a `run`.
+  if (capability.notImplemented !== undefined) return capability.notImplemented;
 
   let result: unknown;
   if (capability.kind === 'public') {
@@ -302,40 +266,8 @@ export function acceptsPatientParam(capability: Capability): boolean {
   return needsPatientAssertion(capability);
 }
 
-/**
- * The description every client shows, with the
- * {@link Capability.notImplemented} notice appended when there is one.
- *
- * Clients call this instead of reading `.description`, so a capability that
- * has only ever been checked against `fake-mychart` says so in the MCP tool
- * description, in `--help`, and in the mobile agent's prompt from the one
- * place that knows — rather than returning a confident empty list in all
- * three.
- */
-export function capabilityDescription(capability: Capability): string {
-  if (!capability.notImplemented) return capability.description;
-  return `${capability.description} NOT IMPLEMENTED: ${capability.notImplemented} Calling it does nothing and returns this notice — it reads no chart and changes nothing.`;
-}
-
-/**
- * What running a {@link Capability.notImplemented} capability returns.
- *
- * A sentence, not a thrown error and not an empty payload: an error reads as a
- * transient failure worth retrying, and an empty payload is the exact wrong
- * answer this whole mechanism exists to avoid. It leads with the capability's
- * own name so a model relaying it cannot turn it into "you have none" or
- * "done".
- */
-export function unimplementedMessage(capability: Capability): string {
-  return (
-    `${capability.id} is not implemented: it did nothing, read nothing and changed nothing. ` +
-    `${capability.notImplemented} ` +
-    'Do not report this as an empty result or as a completed action.'
-  );
-}
-
 /** One `name(param, param) — description` line per capability, for prompts and help. */
 export function describeCapability(capability: Capability): string {
   const params = capability.params.map((p) => (p.required ? p.name : `${p.name}?`)).join(', ');
-  return `${capability.id}(${params}) — ${capabilityDescription(capability)}`;
+  return `${capability.id}(${params}) — ${capability.description}`;
 }

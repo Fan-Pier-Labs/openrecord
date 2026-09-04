@@ -381,16 +381,12 @@ describe('executeCapability applies the guard to every capability', () => {
   })
 
   it('answers an unimplemented capability without ever consulting the chart', async () => {
-    // The guard's job is to refuse a read of the wrong patient's record. A
-    // capability that ships no scraper reads nobody's record, so it returns its
-    // notice rather than the refusal — and, more to the point, it must do so
-    // without spending a request finding out which patient is active.
+    // The property worth holding: a capability with no scraper spends no
+    // request at all — not even the /ProxySwitch the patient assertion would
+    // otherwise make — and hands back its own sentence.
     for (const capability of CAPABILITIES.filter((c) => c.notImplemented)) {
       const { req } = familyRequest(CHILD_ID)
-      const result = await executeCapability(req, capability.id, {})
-      expect(result).toContain(`${capability.id} is not implemented`)
-      // Not one request: no /ProxySwitch to discover the active patient, and
-      // certainly nothing to the capability's own endpoint.
+      expect(await executeCapability(req, capability.id, {})).toBe(capability.notImplemented)
       expect((req.makeRequest as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(0)
     }
   })

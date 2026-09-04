@@ -33,9 +33,7 @@ import {
   acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
-  capabilityDescription,
   describeModeParam,
-  isUnimplemented,
   CAPABILITIES,
 } from "../../../../shared/capabilities";
 
@@ -52,7 +50,7 @@ function argHint(type: string, required: boolean | undefined, description: strin
 
 export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
   name: capability.id,
-  description: capabilityDescription(capability),
+  description: capability.description,
   args: {
     // Declared by the registry, so the parity test can see it. This used to be
     // spelled `instance` here and `account` in the extension — the one
@@ -112,11 +110,11 @@ export const WRITE_TOOL_META: Record<string, WriteToolMeta> = Object.fromEntries
   // and "Request refill?" in front of a call that does nothing is a prompt that
   // teaches a patient their confirmations are noise. `kind` describes the write
   // it will be once implemented, not what it does today.
-  CAPABILITIES.filter((c) => c.kind === "write" && !isUnimplemented(c)).map((c) => [
+  CAPABILITIES.filter((c) => c.kind === "write" && !c.notImplemented).map((c) => [
     c.id,
     {
       title: c.title,
-      description: capabilityDescription(c),
+      description: c.description,
       ...(CONFIRM_LABELS[c.id] ? { confirmLabel: CONFIRM_LABELS[c.id] } : {}),
     },
   ]),

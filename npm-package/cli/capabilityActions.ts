@@ -20,8 +20,6 @@ import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest'
 import {
   CAPABILITIES,
   acceptsPatientParam,
-  capabilityDescription,
-  isUnimplemented,
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
@@ -97,9 +95,9 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
       // and a capability with no scraper changes nothing whatever its `kind`
       // says about the write it will be once implemented.
       const marker =
-        capability.kind === 'read' || capability.kind === 'public' || isUnimplemented(capability) ? ' ' : '!';
+        capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented ? ' ' : '!';
       lines.push(`   ${marker} ${capability.id}`);
-      lines.push(`       ${capabilityDescription(capability)}`);
+      lines.push(`       ${capability.description}`);
       for (const param of capability.params) {
         lines.push(
           `       --arg ${param.name}=<${param.type}>${param.required ? ' (required)' : ''}  ${param.description}`,

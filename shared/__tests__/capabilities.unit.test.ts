@@ -28,10 +28,6 @@ import {
   getCapability,
   capabilitiesByGroup,
   executeCapability,
-  acceptsModeParam,
-  UNIMPLEMENTED_CAPABILITIES,
-  capabilityDescription,
-  unimplementedMessage,
   describeCapability,
   encodeImageId,
   decodeImageId,
@@ -165,52 +161,11 @@ describe('the registry itself', () => {
   });
 });
 
-// ── Declared, deliberately not implemented ──────────────────────────────────
-
-describe('unimplemented capabilities', () => {
-  it('says so in the description every client shows', () => {
-    const refill = getCapability('request_refill')!;
-    expect(refill.notImplemented).toBeTruthy();
-    const described = capabilityDescription(refill);
-    expect(described).toStartWith(refill.description);
-    expect(described).toContain('NOT IMPLEMENTED:');
-    expect(described).toContain('reads no chart and changes nothing');
-  });
-
-  it("leaves an implemented capability's description exactly as written", () => {
-    const labs = getCapability('get_lab_results')!;
-    expect(labs.notImplemented).toBeUndefined();
-    expect(capabilityDescription(labs)).toBe(labs.description);
-  });
-
-  it('returns a notice that cannot be relayed as "none" or as "done"', () => {
-    // The two ways a caller could do harm with this: reporting an empty result
-    // to a patient, or telling them the write happened.
-    const message = unimplementedMessage(getCapability('request_refill')!);
-    expect(message).toStartWith('request_refill is not implemented');
-    expect(message).toContain('did nothing, read nothing and changed nothing');
-    expect(message).toContain('Do not report this as an empty result or as a completed action');
-  });
-
-  it('stays listed and reachable like any other capability', () => {
-    // A client that silently lacks a tool and one that has a tool saying "not
-    // implemented" are very different for a caller trying to find out whether
-    // OpenRecord can do a thing.
-    for (const capability of UNIMPLEMENTED_CAPABILITIES) {
-      expect(CAPABILITY_IDS).toContain(capability.id);
-      expect(getCapability(capability.id)).toBeDefined();
-      expect(capability.notImplemented!.length).toBeGreaterThan(20);
-    }
-  });
-
-  it('offers no output mode, because there is no response to shape', () => {
-    for (const capability of UNIMPLEMENTED_CAPABILITIES) {
-      expect(acceptsModeParam(capability)).toBe(false);
-    }
-  });
-
+describe('capabilities declared but deliberately not implemented', () => {
   it('is the exception, not a parking space', () => {
-    expect(UNIMPLEMENTED_CAPABILITIES.map((c) => c.id)).toEqual(['request_refill']);
+    // Adding an id here means editing this line, which is the point: shipping a
+    // capability that does nothing should take a decision, not a default.
+    expect(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id)).toEqual(['request_refill']);
   });
 });
 

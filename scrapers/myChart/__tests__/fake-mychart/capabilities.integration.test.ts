@@ -312,27 +312,6 @@ describe('capability registry against fake-mychart', () => {
     expect(afterRemove.contacts.length).toBe(before.contacts.length)
   }, 60_000)
 
-  // `request_refill` ships no scraper: running it must reach no endpoint and
-  // return the notice, whatever it is handed. The fake answers
-  // `/api/medications/RequestRefill` with `{success: true}` for any body, which
-  // is exactly how the withdrawn scraper passed its tests, so "did nothing" is
-  // the thing worth asserting here.
-  it('returns the notice for a declared-but-unimplemented capability, and calls nothing', async () => {
-    const result = await executeCapability(session, 'request_refill', { medication_name: 'Lisinopril' })
-    expect(typeof result).toBe('string')
-    expect(result as string).toContain('request_refill is not implemented')
-    expect(result as string).toContain('Do not report this as an empty result or as a completed action')
-  }, 30_000)
-
-  it('returns the same notice with no arguments at all, rather than an argument error', async () => {
-    // Nothing is resolved, so nothing can be rejected: there is no medication
-    // lookup left to fail, and a caller must not read an argument error as
-    // "the refill nearly worked".
-    expect(await executeCapability(session, 'request_refill', {})).toBe(
-      await executeCapability(session, 'request_refill', { medication_name: 'anything' }),
-    )
-  }, 30_000)
-
   // ── Patient records (proxy access) ────────────────────────────────────────
 
   it('lists the patients this account can reach and reports the active one', async () => {

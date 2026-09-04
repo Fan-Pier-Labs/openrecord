@@ -105,24 +105,18 @@ export interface Capability {
    */
   lessFrequentlyUsed?: boolean;
   /**
-   * Set when this capability deliberately ships **no scraper**: one sentence
-   * saying why, which is both appended to the description and returned to any
-   * caller that runs it.
+   * Set when this capability deliberately ships **no scraper**: the sentence a
+   * caller gets back instead, and the reason it says so.
    *
-   * The alternative — shipping a scraper written against `fake-mychart` and
-   * warning about it in prose — was tried and is worse. A read like that
-   * answers `[]`, which nobody reads as "this has never seen a real instance";
-   * they read it as "your chart has none". A write like that answers HTTP 200
-   * from an endpoint that ignored it, and the patient believes their refill was
-   * requested. Both are confident wrong answers, and a caveat in the tool
-   * description does not stop a model acting on the payload it was handed.
+   * Shipping a scraper we have never watched work and warning about it in the
+   * description was tried and is worse — a caveat does not stop a caller acting
+   * on the payload it was handed. A read like that answers `[]`, which reads as
+   * "your chart has none"; a write like that answers HTTP 200 from an endpoint
+   * that ignored it. So there is no payload: {@link executeCapability} returns
+   * this string, and {@link UnimplementedCapabilityImpl} has no `run` to call.
    *
-   * So there is no payload. {@link UnimplementedCapabilityImpl} has no `run`
-   * at all — attaching one is a compile error, not a review note — and
-   * {@link executeCapability} returns this sentence instead of calling
-   * anything. What we know about the endpoint lives in a README beside the
-   * capability's other code, where the person implementing it will look, rather
-   * than in a scraper that runs.
+   * The `description` of such a capability says so too — written into it, not
+   * assembled — so every client shows it without any client-side wiring.
    */
   notImplemented?: string;
   params: readonly CapabilityParam[];
@@ -159,6 +153,8 @@ export interface Capability {
  */
 export interface AccountCapabilityImpl extends Capability {
   kind: 'read' | 'write' | 'account';
+  /** Discriminates this from {@link UnimplementedCapabilityImpl}: it has a `run`. */
+  notImplemented?: never;
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
   /**
    * For read capabilities: `run` returns the scraper's {@link RawResponse}
@@ -185,6 +181,8 @@ export interface AccountCapabilityImpl extends Capability {
  */
 export interface PublicCapabilityImpl extends Capability {
   kind: 'public';
+  /** As on {@link AccountCapabilityImpl}. */
+  notImplemented?: never;
   run: (args: CapabilityArgs) => Promise<unknown>;
   /** As on {@link AccountCapabilityImpl}. Absent when `run` returns a finished object. */
   processor?: Processor;
@@ -193,17 +191,12 @@ export interface PublicCapabilityImpl extends Capability {
 /**
  * A capability the registry declares and deliberately does not implement.
  *
- * `run?: never` is the enforcement. A capability whose shape we have never
- * confirmed against a real MyChart cannot acquire a scraper by someone wiring
- * one up in a hurry — the entry has nowhere to put it, so the mistake is a type
- * error at the point of the mistake rather than an empty list in production.
- * `processor?: never` follows: there is no response to process, so `mode` is
- * meaningless here and clients do not offer it.
- *
- * The entry stays in the registry rather than being deleted, because a client
- * that silently lacks a tool and a client that has one saying "not implemented"
- * are very different for a caller trying to find out whether OpenRecord can do
- * a thing. `capability-parity.unit.test.ts` holds the second one.
+ * `run?: never` is the enforcement: a capability whose behaviour we have never
+ * confirmed cannot acquire a scraper by someone wiring one up in a hurry, since
+ * the entry has nowhere to put it. The entry stays in the registry rather than
+ * being deleted, because a client that silently lacks a tool and one that has a
+ * tool saying "not implemented" are very different for a caller trying to find
+ * out whether OpenRecord can do a thing.
  */
 export interface UnimplementedCapabilityImpl extends Capability {
   kind: 'read' | 'write';

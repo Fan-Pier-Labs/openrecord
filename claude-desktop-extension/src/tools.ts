@@ -55,9 +55,7 @@ import {
   acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
-  capabilityDescription,
   describeModeParam,
-  isUnimplemented,
   executeCapability,
   isPublicCapability,
   readAccountArg,
@@ -274,7 +272,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const hints =
-    capability.kind === 'read' || capability.kind === 'public' || isUnimplemented(capability)
+    capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented
       ? { readOnlyHint: true, openWorldHint: true }
       : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
@@ -282,7 +280,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
     capability.id,
     {
       ...toolMeta(capability.title, hints),
-      description: capabilityDescription(capability),
+      description: capability.description,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: shape as any,
     },
