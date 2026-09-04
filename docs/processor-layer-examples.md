@@ -221,12 +221,31 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
 {
   "requests": [
     {
-      "path": "/app/health-summary",
-      "method": "GET",
+      "path": "/api/health-summary/FetchH2GHeader",
+      "method": "POST",
+      "requestBody": {},
       "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "lastVisit": {
+          "date": "01/10/2026",
+          "visitType": "Annual Physical",
+          "visitDetailsURL": "",
+          "visitCategory": "",
+          "openRemotely": false,
+          "mode": ""
+        },
+        "nextVisit": {
+          "date": "",
+          "visitType": "",
+          "visitDetailsURL": "",
+          "visitCategory": "",
+          "openRemotely": false,
+          "mode": ""
+        },
+        "upcomingVisitsList": [],
+        "pastVisitsList": []
+      }
     },
     {
       "path": "/api/health-summary/FetchHealthSummary",
@@ -273,31 +292,12 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
       }
     },
     {
-      "path": "/api/health-summary/FetchH2GHeader",
-      "method": "POST",
-      "requestBody": {},
+      "path": "/app/health-summary",
+      "method": "GET",
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "lastVisit": {
-          "date": "01/10/2026",
-          "visitType": "Annual Physical",
-          "visitDetailsURL": "",
-          "visitCategory": "",
-          "openRemotely": false,
-          "mode": ""
-        },
-        "nextVisit": {
-          "date": "",
-          "visitType": "",
-          "visitDetailsURL": "",
-          "visitCategory": "",
-          "openRemotely": false,
-          "mode": ""
-        },
-        "upcomingVisitsList": [],
-        "pastVisitsList": []
-      }
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
     }
   ]
 }
@@ -1943,92 +1943,6 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 {
   "requests": [
     {
-      "path": "/app/track-my-health",
-      "method": "GET",
-      "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    },
-    {
-      "path": "/api/track-my-health/GetFlowsheets",
-      "method": "POST",
-      "requestBody": {
-        "organizationId": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "flowsheets": [
-          {
-            "episodeId": "EP-VITALS",
-            "templateId": "EP-VITALS",
-            "name": "Vitals Trending",
-            "entryType": "1",
-            "entryMode": "1",
-            "status": "1",
-            "startDateIso": "2114-10-15",
-            "endDateIso": "",
-            "instructions": "",
-            "hasMoreData": false,
-            "hasEpisodeData": false,
-            "rowGroups": [
-              {
-                "id": "-1",
-                "name": "",
-                "rowIds": [
-                  "row-bp",
-                  "row-hr",
-                  "row-wt"
-                ]
-              }
-            ],
-            "rows": [
-              {
-                "id": "row-bp",
-                "name": "Blood Pressure",
-                "rowType": "1",
-                "valueType": "4",
-                "decimalPlaces": 0,
-                "unitsDisplayName": "mmHg"
-              },
-              {
-                "id": "row-hr",
-                "name": "Pulse",
-                "rowType": "1",
-                "valueType": "1",
-                "decimalPlaces": 0
-              },
-              {
-                "id": "row-wt",
-                "name": "Weight",
-                "rowType": "1",
-                "valueType": "5",
-                "decimalPlaces": 0,
-                "units": "6",
-                "unitsDisplayName": "lbs"
-              }
-            ],
-            "readings": []
-          }
-        ],
-        "userSettings": {
-          "isAdmitted": false,
-          "isH2GSession": false,
-          "isMOContext": false,
-          "isDataTileContext": false,
-          "isProxyContext": false,
-          "myChartPatientId": "",
-          "myChartPatientName": "",
-          "myChartUserId": "",
-          "myChartUserName": "",
-          "devicePlatform": "",
-          "healthConnectAvailable": "",
-          "moVersionSupportsBluetooth": false
-        }
-      }
-    },
-    {
       "path": "/api/track-my-health/GetFlowsheetReadings",
       "method": "POST",
       "requestBody": {
@@ -2284,6 +2198,92 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "moVersionSupportsBluetooth": false
         }
       }
+    },
+    {
+      "path": "/api/track-my-health/GetFlowsheets",
+      "method": "POST",
+      "requestBody": {
+        "organizationId": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "flowsheets": [
+          {
+            "episodeId": "EP-VITALS",
+            "templateId": "EP-VITALS",
+            "name": "Vitals Trending",
+            "entryType": "1",
+            "entryMode": "1",
+            "status": "1",
+            "startDateIso": "2114-10-15",
+            "endDateIso": "",
+            "instructions": "",
+            "hasMoreData": false,
+            "hasEpisodeData": false,
+            "rowGroups": [
+              {
+                "id": "-1",
+                "name": "",
+                "rowIds": [
+                  "row-bp",
+                  "row-hr",
+                  "row-wt"
+                ]
+              }
+            ],
+            "rows": [
+              {
+                "id": "row-bp",
+                "name": "Blood Pressure",
+                "rowType": "1",
+                "valueType": "4",
+                "decimalPlaces": 0,
+                "unitsDisplayName": "mmHg"
+              },
+              {
+                "id": "row-hr",
+                "name": "Pulse",
+                "rowType": "1",
+                "valueType": "1",
+                "decimalPlaces": 0
+              },
+              {
+                "id": "row-wt",
+                "name": "Weight",
+                "rowType": "1",
+                "valueType": "5",
+                "decimalPlaces": 0,
+                "units": "6",
+                "unitsDisplayName": "lbs"
+              }
+            ],
+            "readings": []
+          }
+        ],
+        "userSettings": {
+          "isAdmitted": false,
+          "isH2GSession": false,
+          "isMOContext": false,
+          "isDataTileContext": false,
+          "isProxyContext": false,
+          "myChartPatientId": "",
+          "myChartPatientName": "",
+          "myChartUserId": "",
+          "myChartUserName": "",
+          "devicePlatform": "",
+          "healthConnectAvailable": "",
+          "moVersionSupportsBluetooth": false
+        }
+      }
+    },
+    {
+      "path": "/app/track-my-health",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
     }
   ]
 }
@@ -3298,14 +3298,6 @@ Care team goals and patient-set goals.
 {
   "requests": [
     {
-      "path": "/app/goals",
-      "method": "GET",
-      "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    },
-    {
       "path": "/api/goals/LoadCareTeamGoals",
       "method": "POST",
       "requestBody": {
@@ -3411,6 +3403,14 @@ Care team goals and patient-set goals.
           "TrackMyHealth": ""
         }
       }
+    },
+    {
+      "path": "/app/goals",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
     }
   ]
 }
@@ -7852,309 +7852,279 @@ Lab results with reference ranges and prior values for trending.
 {
   "requests": [
     {
-      "path": "/app/test-results",
-      "method": "GET",
-      "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    },
-    {
-      "path": "/api/test-results/GetList",
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
-        "groupType": 0,
-        "searchString": "",
-        "maxResults": 1000,
-        "isCurAdmFilterEnabled": false
+        "orderID": "GRP-CMP",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
       },
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "areResultsFullyLoaded": true,
-        "isGroupingFullyLoaded": true,
-        "groupBy": "ORDER",
-        "newResultGroups": [
-          {
-            "key": "GRP-CMP",
-            "contactType": "",
-            "resultList": [
-              "RES-CMP"
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-LIPID",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {
+          "COMP-CHOL": {
+            "oldestResultISO": "2024-01-08T09:00:00",
+            "hideGraph": false,
+            "showAbnormalFlag": true,
+            "historicalResultData": [
+              {
+                "value": "255",
+                "isValueRtf": false,
+                "numericValue": 255,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2024-01-08T09:00:00"
+              },
+              {
+                "value": "268",
+                "isValueRtf": false,
+                "numericValue": 268,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2025-01-06T09:00:00"
+              },
+              {
+                "value": "280",
+                "isValueRtf": false,
+                "numericValue": 280,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2026-01-10T09:00:00"
+              }
             ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
+            "componentID": "COMP-CHOL",
+            "name": "Total Cholesterol",
+            "commonName": "Total Cholesterol",
+            "units": "mg/dL"
           },
-          {
-            "key": "GRP-LIPID",
-            "contactType": "",
-            "resultList": [
-              "RES-LIPID"
+          "COMP-LDL": {
+            "oldestResultISO": "2024-01-08T09:00:00",
+            "hideGraph": false,
+            "showAbnormalFlag": true,
+            "historicalResultData": [
+              {
+                "value": "170",
+                "isValueRtf": false,
+                "numericValue": 170,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2024-01-08T09:00:00"
+              },
+              {
+                "value": "182",
+                "isValueRtf": false,
+                "numericValue": 182,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2025-01-06T09:00:00"
+              },
+              {
+                "value": "190",
+                "isValueRtf": false,
+                "numericValue": 190,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2026-01-10T09:00:00"
+              }
             ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-CBC",
-            "contactType": "",
-            "resultList": [
-              "RES-CBC"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-XRAY",
-            "contactType": "",
-            "resultList": [
-              "RES-XRAY"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2025-08-05T10:00:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Aug 5, 2025",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-CT",
-            "contactType": "",
-            "resultList": [
-              "RES-CT"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2025-09-15T14:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Sep 15, 2025",
-            "isLargeGroup": false
+            "componentID": "COMP-LDL",
+            "name": "LDL Cholesterol",
+            "commonName": "LDL Cholesterol",
+            "units": "mg/dL"
           }
+        },
+        "orderedComponentIDs": [
+          "COMP-CHOL",
+          "COMP-LDL"
         ],
-        "organizationLoadMoreInfo": {},
-        "newResults": {
-          "RES-CMP^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Comprehensive Metabolic Panel",
-            "key": "RES-CMP",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-LIPID^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Lipid Panel",
-            "key": "RES-LIPID",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": true
-          },
-          "RES-CBC^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Complete Blood Count",
-            "key": "RES-CBC",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-XRAY^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "XR Skull 2 Views",
-            "key": "RES-XRAY",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2025-08-05T11:00:00",
-              "prioritizedInstantDisplay": "Aug 5, 2025 11:00 AM",
-              "resultType": "IMAGING",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-CT^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "CT Head without Contrast",
-            "key": "RES-CT",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2025-09-15T15:00:00",
-              "prioritizedInstantDisplay": "Sep 15, 2025 3:00 PM",
-              "resultType": "IMAGING",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          }
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CBC",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-XRAY",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CT",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-XRAY-001",
+        "assumedVariables": {
+          "ordId": "ORD-XRAY-001",
+          "ordDat": "ORD-XRAY-001-DAT"
         },
-        "newProviderPhotoInfo": {
-          "PROV-HIBBERT^": {
-            "name": "Julius Hibbert, MD",
-            "empId": "",
-            "remoteEncrypted": false,
-            "photoUrl": "",
-            "providerId": "PROV-HIBBERT",
-            "organizationId": ""
-          }
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
+      }
+    },
+    {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-CT-001",
+        "assumedVariables": {
+          "ordId": "ORD-CT-001",
+          "ordDat": "ORD-CT-001-DAT"
         },
-        "newComments": {}
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
       }
     },
     {
@@ -8175,7 +8145,69 @@ Lab results with reference ranges and prior values for trending.
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "C
+            "name": "Comprehensive Metabolic Panel",
+            "key": "RES-CMP",
+            "showName": false,
+            "showDetails": true,
+            "orderMetadata": {
+              "orderProviderName": "Julius Hibbert, MD",
+              "readingProviderName": "",
+              "resultTimestampDisplay": "Jan 10, 2026 10:30 AM",
+              "prioritizedInstantISO": "2026-01-10T10:30:00",
+              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
+              "latestUpdateInstantISO": "2026-01-10T10:30:00",
+              "collectionTimestampsDisplay": "Jan 10, 2026 9:00 AM",
+              "specimensDisplay": "Blood",
+              "resultStatus": "Final",
+              "resultingLab": {
+                "name": "Springfield General Hospital Lab",
+                "address": [
+                  "123 Main Street",
+                  "Springfield, NT 49007"
+                ],
+                "phoneNumber": "(555) 636-3000",
+                "labDirector": "Julius Hibbert, MD",
+                "cliaNumber": "",
+                "accreditationType": ""
+              },
+              "resultType": "LAB",
+              "read": "Read",
+              "associatedDiagnoses": []
+            },
+            "resultComponents": [
+              {
+                "componentInfo": {
+                  "componentID": "COMP-GLU",
+                  "name": "Glucose",
+                  "commonName": "Glucose",
+                  "units": "mg/dL"
+                },
+                "componentResultInfo": {
+                  "value": "92",
+                  "isValueRtf": false,
+                  "numericValue": 92,
+                  "referenceRange": {
+                    "low": 65,
+                    "high": 99,
+                    "displayLow": "65",
+                    "displayHigh": "99",
+                    "lowerBoundExclusive": false,
+                    "upperBoundExclusive": false,
+                    "formattedReferenceRange": "65 - 99 mg/dL"
+                  },
+                  "abnormalFlagCategoryValue": "Unknown"
+                },
+                "componentComments": {
+                  "isRTF": false,
+                  "hasContent": false,
+                  "contentAsString": "",
+                  "contentAsHtml": ""
+                }
+              },
+              {
+                "componentInfo": {
+                  "componentID": "COMP-NA",
+                  "name": "
 … (truncated; 59318 more characters)
 ```
 
@@ -9753,309 +9785,279 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
 {
   "requests": [
     {
-      "path": "/app/test-results",
-      "method": "GET",
-      "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    },
-    {
-      "path": "/api/test-results/GetList",
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
-        "groupType": 0,
-        "searchString": "",
-        "maxResults": 1000,
-        "isCurAdmFilterEnabled": false
+        "orderID": "GRP-CMP",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
       },
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "areResultsFullyLoaded": true,
-        "isGroupingFullyLoaded": true,
-        "groupBy": "ORDER",
-        "newResultGroups": [
-          {
-            "key": "GRP-CMP",
-            "contactType": "",
-            "resultList": [
-              "RES-CMP"
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-LIPID",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {
+          "COMP-CHOL": {
+            "oldestResultISO": "2024-01-08T09:00:00",
+            "hideGraph": false,
+            "showAbnormalFlag": true,
+            "historicalResultData": [
+              {
+                "value": "255",
+                "isValueRtf": false,
+                "numericValue": 255,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2024-01-08T09:00:00"
+              },
+              {
+                "value": "268",
+                "isValueRtf": false,
+                "numericValue": 268,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2025-01-06T09:00:00"
+              },
+              {
+                "value": "280",
+                "isValueRtf": false,
+                "numericValue": 280,
+                "referenceRange": {
+                  "low": 125,
+                  "high": 200,
+                  "displayLow": "125",
+                  "displayHigh": "200",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "125 - 200 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2026-01-10T09:00:00"
+              }
             ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
+            "componentID": "COMP-CHOL",
+            "name": "Total Cholesterol",
+            "commonName": "Total Cholesterol",
+            "units": "mg/dL"
           },
-          {
-            "key": "GRP-LIPID",
-            "contactType": "",
-            "resultList": [
-              "RES-LIPID"
+          "COMP-LDL": {
+            "oldestResultISO": "2024-01-08T09:00:00",
+            "hideGraph": false,
+            "showAbnormalFlag": true,
+            "historicalResultData": [
+              {
+                "value": "170",
+                "isValueRtf": false,
+                "numericValue": 170,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2024-01-08T09:00:00"
+              },
+              {
+                "value": "182",
+                "isValueRtf": false,
+                "numericValue": 182,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2025-01-06T09:00:00"
+              },
+              {
+                "value": "190",
+                "isValueRtf": false,
+                "numericValue": 190,
+                "referenceRange": {
+                  "low": 0,
+                  "high": 100,
+                  "displayLow": "0",
+                  "displayHigh": "100",
+                  "lowerBoundExclusive": false,
+                  "upperBoundExclusive": false,
+                  "formattedReferenceRange": "0 - 100 mg/dL"
+                },
+                "abnormalFlagCategoryValue": "Unknown",
+                "dateISO": "2026-01-10T09:00:00"
+              }
             ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-CBC",
-            "contactType": "",
-            "resultList": [
-              "RES-CBC"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2026-01-10T10:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Jan 10, 2026",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-XRAY",
-            "contactType": "",
-            "resultList": [
-              "RES-XRAY"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2025-08-05T10:00:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Aug 5, 2025",
-            "isLargeGroup": false
-          },
-          {
-            "key": "GRP-CT",
-            "contactType": "",
-            "resultList": [
-              "RES-CT"
-            ],
-            "isInpatient": false,
-            "isEDVisit": false,
-            "isCurrentAdmission": false,
-            "formattedAdmitDate": "",
-            "formattedDischargeDate": "",
-            "visitProviderID": "PROV-HIBBERT",
-            "organizationID": "ORG-SPRINGFIELD",
-            "sortDate": "2025-09-15T14:30:00",
-            "admitInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "dischargeInstant": {
-              "instantISO": "",
-              "includesTime": false
-            },
-            "formattedDate": "Sep 15, 2025",
-            "isLargeGroup": false
+            "componentID": "COMP-LDL",
+            "name": "LDL Cholesterol",
+            "commonName": "LDL Cholesterol",
+            "units": "mg/dL"
           }
+        },
+        "orderedComponentIDs": [
+          "COMP-CHOL",
+          "COMP-LDL"
         ],
-        "organizationLoadMoreInfo": {},
-        "newResults": {
-          "RES-CMP^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Comprehensive Metabolic Panel",
-            "key": "RES-CMP",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-LIPID^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Lipid Panel",
-            "key": "RES-LIPID",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": true
-          },
-          "RES-CBC^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "Complete Blood Count",
-            "key": "RES-CBC",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2026-01-10T10:30:00",
-              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
-              "resultType": "LAB",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-XRAY^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "XR Skull 2 Views",
-            "key": "RES-XRAY",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2025-08-05T11:00:00",
-              "prioritizedInstantDisplay": "Aug 5, 2025 11:00 AM",
-              "resultType": "IMAGING",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          },
-          "RES-CT^": {
-            "canGenerateLLMSummary": false,
-            "feedbackSubmitted": false,
-            "isBedsideTablet": false,
-            "name": "CT Head without Contrast",
-            "key": "RES-CT",
-            "showName": false,
-            "showDetails": true,
-            "orderMetadata": {
-              "orderProviderName": "Julius Hibbert, MD",
-              "authorizingProviderName": "Julius Hibbert, MD",
-              "authorizingProviderID": "PROV-HIBBERT",
-              "prioritizedInstantISO": "2025-09-15T15:00:00",
-              "prioritizedInstantDisplay": "Sep 15, 2025 3:00 PM",
-              "resultType": "IMAGING",
-              "read": "Read"
-            },
-            "resultComponents": [],
-            "shouldHideHistoricalData": false,
-            "scans": [],
-            "shareEverywhereLogin": false,
-            "showProviderNotReviewed": false,
-            "providerComments": [],
-            "tooManyVariants": false,
-            "hasComment": false,
-            "hasAllDetails": false,
-            "isAbnormal": false
-          }
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CBC",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-XRAY",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CT",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-XRAY-001",
+        "assumedVariables": {
+          "ordId": "ORD-XRAY-001",
+          "ordDat": "ORD-XRAY-001-DAT"
         },
-        "newProviderPhotoInfo": {
-          "PROV-HIBBERT^": {
-            "name": "Julius Hibbert, MD",
-            "empId": "",
-            "remoteEncrypted": false,
-            "photoUrl": "",
-            "providerId": "PROV-HIBBERT",
-            "organizationId": ""
-          }
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
+      }
+    },
+    {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-CT-001",
+        "assumedVariables": {
+          "ordId": "ORD-CT-001",
+          "ordDat": "ORD-CT-001-DAT"
         },
-        "newComments": {}
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
       }
     },
     {
@@ -10076,7 +10078,69 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "C
+            "name": "Comprehensive Metabolic Panel",
+            "key": "RES-CMP",
+            "showName": false,
+            "showDetails": true,
+            "orderMetadata": {
+              "orderProviderName": "Julius Hibbert, MD",
+              "readingProviderName": "",
+              "resultTimestampDisplay": "Jan 10, 2026 10:30 AM",
+              "prioritizedInstantISO": "2026-01-10T10:30:00",
+              "prioritizedInstantDisplay": "Jan 10, 2026 10:30 AM",
+              "latestUpdateInstantISO": "2026-01-10T10:30:00",
+              "collectionTimestampsDisplay": "Jan 10, 2026 9:00 AM",
+              "specimensDisplay": "Blood",
+              "resultStatus": "Final",
+              "resultingLab": {
+                "name": "Springfield General Hospital Lab",
+                "address": [
+                  "123 Main Street",
+                  "Springfield, NT 49007"
+                ],
+                "phoneNumber": "(555) 636-3000",
+                "labDirector": "Julius Hibbert, MD",
+                "cliaNumber": "",
+                "accreditationType": ""
+              },
+              "resultType": "LAB",
+              "read": "Read",
+              "associatedDiagnoses": []
+            },
+            "resultComponents": [
+              {
+                "componentInfo": {
+                  "componentID": "COMP-GLU",
+                  "name": "Glucose",
+                  "commonName": "Glucose",
+                  "units": "mg/dL"
+                },
+                "componentResultInfo": {
+                  "value": "92",
+                  "isValueRtf": false,
+                  "numericValue": 92,
+                  "referenceRange": {
+                    "low": 65,
+                    "high": 99,
+                    "displayLow": "65",
+                    "displayHigh": "99",
+                    "lowerBoundExclusive": false,
+                    "upperBoundExclusive": false,
+                    "formattedReferenceRange": "65 - 99 mg/dL"
+                  },
+                  "abnormalFlagCategoryValue": "Unknown"
+                },
+                "componentComments": {
+                  "isRTF": false,
+                  "hasContent": false,
+                  "contentAsString": "",
+                  "contentAsHtml": ""
+                }
+              },
+              {
+                "componentInfo": {
+                  "componentID": "COMP-NA",
+                  "name": "
 … (truncated; 60232 more characters)
 ```
 
@@ -12125,11 +12189,11 @@ Billing history and account balances.
 {
   "requests": [
     {
-      "path": "/Billing/Summary",
+      "path": "/Billing/Details?ID=WP-BILLING-001&Context=WP-BILLING-CTX-001",
       "method": "GET",
       "status": 200,
       "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺<
 … (truncated; 34874 more characters)
 ```
 
