@@ -102,6 +102,47 @@ return the standard object and `runCapability(id, { mode })` picks any mode; `do
 - **Typed reads.** `text()`/`rec()` over `unknown` should become typed reads once processors are
   typed against the skeletons.
 
+## 8. Requests that tolerate failure — probably none of them should
+
+`RawCollector.send` throws on a failed answer (#406). Eight call sites opt out with
+`tolerateFailure`, each because it was already best-effort before the throw existed, and each
+processor now reports the gap under a name. The suspicion is that most of that tolerance is
+covering for requests we should not be making, or should be treating as the payload. Go through
+them and cut what the captures do not justify.
+
+- **Labs `GetList` group types 1, 2 and 3 (`labResults.ts`).** The 0–3 loop dates from the
+  initial commit, before any live capture, and appears to have been fishing for an imaging-only
+  or procedures-only list — the fake's `GetList` handler notes the old fake "invented" one. Nothing
+  in the repo, the docs, or MyChart's own page script gives 2 or 3 a meaning. Three live captures
+  across both Epic releases accept only 0 and 1, both returning the same combined list of labs,
+  imaging and procedures (which is why orders are de-duplicated by key), and answer 2 and 3 with a
+  500 (`realBehavior.integration.test.ts`). So every lab read pays two guaranteed 500s plus a
+  redundant fourth list, and the tolerance, the accepted-versus-speculative split, and the two
+  `failure` records in the raw envelope exist only to keep those expected failures from throwing.
+  Proposed: one `GetList` with group type 0, treated as the payload. Keeping 1 buys insurance
+  against an instance that rejects 0 but serves 1, which the unit test at `labResults.unit.test.ts`
+  ("still tolerates a group type this instance does not serve") models and no capture has shown.
+- **Labs trend body (`GetMultipleHistoricalResultComponents`).** Tolerated per order; a failure
+  loses that order's sparkline. Decide whether a 500 here should name the order in a gap field or
+  fail the read — today it is silent in `standard` (`historicalResults: {}`).
+- **Goals, both endpoints (#409).** Justified by one captured instance that 500s `LoadPatientGoals`
+  on every request while care-team goals load. Keep, but re-check that instance once more: if it
+  was a transient, both calls become the payload.
+- **Billing extras (`GetStatementList`, `LoadPaymentList`, the details page).** Tolerated so a
+  statement outage does not cost the visit history. No capture has shown any of the three failing
+  on a healthy instance; if none does, they are payload too. The details page is fetched only for
+  `EncID`, which no processor reads — probably drop the request outright.
+- **Profile `GetContactInformation`.** "Missing on some instances" is the stated reason; find
+  which instance, and whether it is missing (404 / FourOhFour dance) or failing. A missing
+  endpoint can be detected once and skipped rather than tolerated on every read.
+- **Care team `LoadExternal`.** Care Everywhere is optional per deployment, so this one is
+  probably legitimate — but confirm what a deployment without it actually answers (404 dance vs
+  500 vs an empty `ProvidersList`) on a live instance; if it is an empty list, the tolerance is
+  unnecessary.
+- **Imaging `FdiData` handshake.** Tolerated so an order without a working viewer still lists.
+  Check whether a failure here is ever anything but "this order has no images", in which case the
+  scraper should decide that from the order metadata before making the request.
+
 ## 6. Endpoints worth exploring next (from `api-surface-gaps.md`)
 
 Not processor work, but the same capture-first discipline applies. `api-surface-gaps.md` ranks the

@@ -156,7 +156,7 @@ describe('fetchProviderDirectory', () => {
     const bootstrap = callTo('/Scheduling/Anonymous/GetSchedulingWorkflowData');
     expect(bootstrap.url).toBe('https://mychart.example.org/MyChart-SGH/Scheduling/Anonymous/GetSchedulingWorkflowData');
     expect(bootstrap.method).toBe('POST');
-    expect(bootstrap.body).toBe('schedulingParameters%5Bworkflow%5D=NewProvider&isFirstLoad=true');
+    expect(bootstrap.body).toBe('schedulingParameters.workflow=NewProvider&isFirstLoad=true');
     expect(bootstrap.headers['__RequestVerificationToken']).toBe('tok-open');
     expect(bootstrap.headers['Content-Type']).toBe('application/x-www-form-urlencoded; charset=UTF-8');
     expect(bootstrap.headers['Referer']).toBe('https://mychart.example.org/MyChart-SGH/OpenScheduling');

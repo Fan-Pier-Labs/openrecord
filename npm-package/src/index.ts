@@ -39,6 +39,7 @@ export {
   SessionExpiredError,
   type AuthenticatedRequestOptions,
 } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
+export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
 export {
   silentLogin,
   wireSilentReauthentication,
@@ -417,23 +418,38 @@ export {
 
 // ─── Public information, no account ─────────────────────────────────────
 // What a MyChart instance tells anyone about the health system behind it:
-// support lines, the bookable provider directory with clinic addresses, and
-// billing entities. Nothing here needs credentials.
+// support lines, the bookable provider directory with clinic addresses, open
+// appointment availability, and billing entities. Nothing here needs
+// credentials.
 export {
   fetchHospitalNetworkProfile,
   fetchProviderDirectory,
+  fetchOpenSlots,
+  fetchProviderAvailability,
+  fetchSchedulingQuestionnaire,
+  submitSchedulingAnswers,
+  windowDates,
   fetchBillingEntities,
   parseOrgProfile,
   PreloginEndpointError,
   INSURANCE_GATE_REASON,
   type NetworkProfileOptions,
   type ProviderDirectoryOptions,
+  type OpenSlotsOptions,
+  type QuestionAnswer,
+  type SchedulingQuestion,
+  type SchedulingQuestionnaire,
+  type QuestionnaireAnswerToken,
+  type QuestionChoice,
+  type SchedulingWindow,
   type HospitalNetworkProfile,
   type OrgProfile,
   type PhoneNumber,
   type Provider,
   type Clinic,
   type Specialty,
+  type OpenSlot,
+  type SlotSearchResult,
   type BillingEntity,
   type PortalFeatures,
   type ProviderDirectory,

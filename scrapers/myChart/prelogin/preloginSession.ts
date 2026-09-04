@@ -69,8 +69,18 @@ export async function openPreloginPage(request: MyChartRequest, path: string): P
 }
 
 /**
- * Encode a payload the way MyChart's own page JS does (`$$WPUtil.postify`):
- * jQuery-style form encoding, nested objects as `outer[inner]=value`.
+ * Encode a payload the way MyChart's own page JS does (`$$WPUtil.postify`).
+ *
+ * Nested objects are `outer.inner=value`; brackets are for array indices only,
+ * so a list of objects is `list[0].Field=value`. This is not jQuery's
+ * `outer[inner]` convention, and the difference is not cosmetic: the ASP.NET
+ * model binder behind the scheduling endpoints rejects the bracket form with a
+ * 500 (November 2025 release) or a 302 to the error page (August 2025).
+ *
+ * Confirmed by replaying one captured `GetSlots` body against a live instance
+ * in both encodings — byte-for-byte identical except the separators, 200 for
+ * dots and 500 for brackets. Some endpoints bind either form, which is why the
+ * bracket version worked on the first instance it was tried against.
  */
 export function encodeForm(data: Record<string, unknown>): string {
   const params = new URLSearchParams();
@@ -79,7 +89,7 @@ export function encodeForm(data: Record<string, unknown>): string {
     if (Array.isArray(value)) {
       value.forEach((v, i) => add(`${key}[${i}]`, v));
     } else if (typeof value === 'object') {
-      for (const [k, v] of Object.entries(value as Record<string, unknown>)) add(`${key}[${k}]`, v);
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) add(`${key}.${k}`, v);
     } else {
       // Primitives only by now; JSON.stringify renders numbers and booleans
       // the way jQuery's serializer does ("1", "true").

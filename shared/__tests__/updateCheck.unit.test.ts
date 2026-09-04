@@ -1,42 +1,7 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
-import { compareSemver, checkForUpdate } from '../updateCheck';
+import { checkForUpdate } from '../updateCheck';
 
 describe('updateCheck', () => {
-  describe('compareSemver', () => {
-    test('equal versions return 0', () => {
-      expect(compareSemver('1.0.0', '1.0.0')).toBe(0);
-    });
-
-    test('older major returns -1', () => {
-      expect(compareSemver('1.0.0', '2.0.0')).toBe(-1);
-    });
-
-    test('newer major returns 1', () => {
-      expect(compareSemver('2.0.0', '1.0.0')).toBe(1);
-    });
-
-    test('older minor returns -1', () => {
-      expect(compareSemver('1.0.0', '1.1.0')).toBe(-1);
-    });
-
-    test('newer minor returns 1', () => {
-      expect(compareSemver('1.1.0', '1.0.0')).toBe(1);
-    });
-
-    test('older patch returns -1', () => {
-      expect(compareSemver('1.0.0', '1.0.1')).toBe(-1);
-    });
-
-    test('newer patch returns 1', () => {
-      expect(compareSemver('1.0.1', '1.0.0')).toBe(1);
-    });
-
-    test('handles different length versions', () => {
-      expect(compareSemver('1.0', '1.0.1')).toBe(-1);
-      expect(compareSemver('1.0.1', '1.0')).toBe(1);
-    });
-  });
-
   describe('checkForUpdate', () => {
     let originalFetch: typeof globalThis.fetch;
 
@@ -94,6 +59,33 @@ describe('updateCheck', () => {
     test('returns null on non-200 response', async () => {
       globalThis.fetch = mock(() =>
         Promise.resolve(new Response('not found', { status: 404 }))
+      ) as unknown as typeof fetch;
+
+      const result = await checkForUpdate({ currentVersion: '1.0.0', packageName: 'test' });
+      expect(result).toBeNull();
+    });
+
+    test('orders prerelease tags below the release', async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(new Response(JSON.stringify({ tag_name: 'v2.0.0' }), { status: 200 }))
+      ) as unknown as typeof fetch;
+
+      const result = await checkForUpdate({ currentVersion: '2.0.0-rc.1', packageName: 'test' });
+      expect(result).toEqual({ latestVersion: '2.0.0', updateAvailable: true });
+    });
+
+    test('compares partial versions against full ones', async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(new Response(JSON.stringify({ tag_name: 'v1.0.1' }), { status: 200 }))
+      ) as unknown as typeof fetch;
+
+      const result = await checkForUpdate({ currentVersion: '1.0', packageName: 'test' });
+      expect(result).toEqual({ latestVersion: '1.0.1', updateAvailable: true });
+    });
+
+    test('returns null on a tag that is not a version', async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(new Response(JSON.stringify({ tag_name: 'nightly' }), { status: 200 }))
       ) as unknown as typeof fetch;
 
       const result = await checkForUpdate({ currentVersion: '1.0.0', packageName: 'test' });

@@ -4,17 +4,24 @@
  * against fake-mychart in all four output modes, so the examples in the docs
  * are real output rather than hand-typed guesses.
  *
- * Needs the **compose service** on localhost:4000 (or FAKE_MYCHART_HOST):
+ * Needs a fake-mychart on localhost:4000 (or FAKE_MYCHART_HOST) — and it must
+ * be the **container**, not the dev server:
  *
  *   docker compose -f docker-compose.ci.yaml up -d --build --wait
  *   bun dev-scripts/generate-processor-examples.ts
  *
- * The container specifically, not a `bun run start` in the worktree: the two
- * send different `Content-Type` headers (`application/json;charset=utf-8` vs
- * `application/json`), `raw` mode records each response's header verbatim, and
- * regenerating against the wrong one produces a doc CI rejects — with a diff in
- * capabilities the PR never touched, which is the same false signal the pinned
- * clock below exists to remove, from a different source.
+ * `bun run dev` renders a handful of pages slightly differently from the
+ * production build, which shifts the character counts this doc prints. CI
+ * regenerates against the container and diffs, so a doc generated from the dev
+ * server fails that check with ~150 lines of byte-count churn and regenerating
+ * again from `dev` only entrenches it.
+ *
+ * A `bun run start` in the worktree is not close enough either, for a second
+ * reason: it answers `application/json` where the container answers
+ * `application/json;charset=utf-8`, and `raw` mode records each response's
+ * header verbatim. That one shows up as a diff in capabilities the PR never
+ * touched — the same false signal the pinned clock below exists to remove,
+ * arriving from a different direction.
  *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.

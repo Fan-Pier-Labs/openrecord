@@ -112,6 +112,12 @@ describe('getGoals', () => {
     expect(result.unavailable).toEqual([LOAD_PATIENT_GOALS_PATH])
   })
 
+  it('throws when neither endpoint answered — nothing loaded is a failed read, not no goals', async () => {
+    await expect(
+      getGoals(mockRequest([TOKEN, { body: 'server error', status: 500 }, { body: 'server error', status: 500 }])),
+    ).rejects.toThrow(/POST \/api\/goals\/LoadCareTeamGoals with HTTP 500/)
+  })
+
   it('handles missing lists and renders every mode', async () => {
     const raw = await fetchGoalsRaw(mockRequest([TOKEN, { body: '{}' }, { body: '{"patientGoals":[]}' }]))
     expect(goalsProcessor.standard(raw)).toEqual({ careTeamGoals: [], patientGoals: [], unavailable: [] })

@@ -32,6 +32,7 @@ const RESET_PAGE = `<!DOCTYPE html>
       <li>Return every session to the account holder's own patient record</li>
       <li>Restore the default path-prefixed mount mode</li>
       <li>Restore the default JSON proxy-discovery mode</li>
+      <li>Stop failing any endpoints set through /mode</li>
     </ul>
     <p style="margin-top: 20px;">
       <button id="reset-btn" onclick="doReset()">Reset Fake MyChart RAM</button>

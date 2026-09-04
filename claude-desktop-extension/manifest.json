@@ -12,9 +12,16 @@
   "homepage": "https://openrecord.fanpierlabs.com",
   "documentation": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/claude-desktop-extension",
   "support": "https://github.com/Fan-Pier-Labs/openrecord/issues",
+  "privacy_policies": ["https://openrecord.fanpierlabs.com/privacy.html"],
   "icon": "icon.png",
   "keywords": ["mychart", "epic", "health", "ehr", "medical-records"],
   "license": "SEE LICENSE IN LICENSE",
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
   "server": {
     "type": "node",
     "entry_point": "dist/server.cjs",
