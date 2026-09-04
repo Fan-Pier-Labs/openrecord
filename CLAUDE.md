@@ -36,9 +36,9 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   retries once. Raw `makeRequest` is only for the pre-login world (discovery, DoLogin, 2FA, terms,
   keepalive).
 - **Every outbound request leaves through `scraperFetch` (`scrapers/http.ts`)** — it owns the browser
-  headers, the cookie jar, and the per-host permit. A second fetch path silently loses all three;
-  `http.unit.test.ts` fails the build if one appears. **There is no injectable `fetchFn`** — the
-  platform picks the transport. Tests use `setTestTransport` / `req.transport`.
+  headers, the cookie jar, the per-host permit, and the 2-minute deadline. A second fetch path loses
+  all four; `http.unit.test.ts` fails the build if one appears. **There is no injectable `fetchFn`**
+  — the platform picks the transport. Tests use `setTestTransport` / `req.transport`.
 - **At most 10 in-flight requests per MyChart host, process-wide** (`shared/hostConcurrency.ts`).
   The permit wraps the individual fetch only, never the redirect recursion.
 - **A read scraper returns the raw MyChart response; its processor decides what a caller sees.**
