@@ -12,10 +12,11 @@
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.
  *
- * The clock is pinned (see `pinned-clock.ts`), so running this on any day —
- * or with `SOURCE_DATE_EPOCH` set to any instant — writes the same bytes.
+ * The clock is pinned, so running this on any day, anywhere, writes the same
+ * bytes.
  */
 
+import { setSystemTime } from 'bun:test';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -23,9 +24,21 @@ import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
 import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
-import { pinClock } from './pinned-clock';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
+
+// Everything below is committed, so it must not depend on when or where it runs.
+// The scrapers date-stamp some of their requests from the system clock, in local
+// time — vitals' `endInstantIso`, and past-visits' `oldestRenderedDate`, which is
+// also the cutoff deciding how far back the pagination walks, so the calendar
+// changed which visits the doc contained and not merely how a URL read. Freeze
+// both the instant and the zone, before any scraper runs.
+//
+// The instant sits after the newest past-visit fixture (2026-01-10) and every
+// vitals reading, and before the earliest upcoming visit (2026-04-08), so "past"
+// and "upcoming" in the examples still mean what they say.
+process.env.TZ = 'UTC';
+setSystemTime(new Date('2026-02-01T00:00:00Z'));
 
 /** Above this, a raw or json example is cut and the cut is said out loud. */
 const MAX_EXAMPLE_CHARS = 12_000;
@@ -92,12 +105,8 @@ function renderExample(payload: unknown): string {
  * doing rather than the processors': the per-session CSRF token it mints. Pin it
  * to a same-length constant so the doc only changes when the output does (CI
  * regenerates it and fails on a diff). Same length keeps the sizes table honest.
- * The clock-derived values in those records — vitals' `endInstantIso`,
- * past-visits' `oldestRenderedDate` — used to be patched here too. They no
- * longer need to be: `pinClock()` freezes the clock the scrapers read, which
- * also fixes what a regex over the output could not — `oldestRenderedDate` is
- * the cutoff deciding how far back the pagination walks, so an unpinned clock
- * changed which visits the doc contains, not just how the URL reads.
+ * The clock-derived values in those records need no such patching: the frozen
+ * clock above makes them deterministic at the source.
  */
 function stable(doc: string): string {
   return doc.replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`);
@@ -108,10 +117,6 @@ function sizeOf(payload: unknown): number {
 }
 
 async function main(): Promise<void> {
-  // Before the first scraper runs: some of them date-stamp their requests, and
-  // those stamps are recorded into the doc.
-  pinClock();
-
   const login = await myChartUserPassLogin({ hostname: HOST, user: 'homer', pass: 'donuts123', protocol: 'http' });
   if (login.state !== 'logged_in') throw new Error(`fake-mychart login failed: ${login.state}`);
   const session = login.mychartRequest;
@@ -175,9 +180,7 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-if (import.meta.main) {
-  main().catch((err: unknown) => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+main().catch((err: unknown) => {
+  console.error(err);
+  process.exit(1);
+});
