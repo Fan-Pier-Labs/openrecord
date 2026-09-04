@@ -201,10 +201,8 @@ describe('image_id', () => {
   });
 
   it('matches Node’s base64url so a token minted anywhere decodes everywhere', () => {
-    // Node's `Buffer` is the oracle: a token minted on-device, where there is
-    // no `Buffer`, has to decode in the CLI and vice versa. The lengths cover
-    // every remainder mod 3, which is where padding would appear if the
-    // unpadded url-safe variant were ever swapped for a padded one.
+    // A token minted on-device, where there is no `Buffer`, has to decode in
+    // the CLI. Lengths cover every remainder mod 3, where padding would show.
     for (const ord of ['x', 'xy', 'xyz', 'ré—sumé✓', '𝔘𝔫𝔦𝔠𝔬𝔡𝔢', 'a:b,c/d+e', '?x=1&y=2']) {
       const ctx = { fdi: 'abc', ord };
       const expected = Buffer.from(JSON.stringify({ fdi: ctx.fdi, ord }), 'utf8').toString('base64url');
@@ -219,16 +217,12 @@ describe('image_id', () => {
   });
 
   it('rejects a truncated token, which the alphabet alone cannot catch', () => {
-    // Why `decodeImageId` validates the decoded payload instead of the
-    // characters: corruption that stays inside the base64url alphabet decodes
-    // to garbage without ever looking wrong.
     const id = encodeImageId({ fdi: 'a:b', ord: 'ORD%2F1' });
     expect(() => decodeImageId(id.slice(0, 8) + id.slice(12))).toThrow(/Invalid image_id/);
   });
 
   it('survives the noise a copy-pasted token picks up', () => {
-    // A wrapped line or leftover padding still carries the original bytes, and
-    // a model that re-emits the token this way should not get an error.
+    // A wrapped line or leftover padding still carries the original bytes.
     const ctx = { fdi: 'a:b', ord: 'ORD%2F1' };
     const id = encodeImageId(ctx);
     for (const noisy of [id + '\n', id.slice(0, 5) + ' ' + id.slice(5), id + '==']) {

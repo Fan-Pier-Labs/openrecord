@@ -18,10 +18,8 @@ import type { FdiContext } from '../../scrapers/myChart/eunity/imagingViewer';
  * and base64url avoids delimiter collisions — `fdi`/`ord` are arbitrary
  * URL-encoded tokens that can contain a colon or comma.
  *
- * `js-base64` rather than `Buffer` or `btoa`: a token minted by any client has
- * to decode in every other one, and neither global is reliably present in
- * React Native's Hermes runtime. `encodeURI` is its unpadded base64url
- * variant — byte-for-byte what `Buffer.toString('base64url')` produces.
+ * `js-base64` because Hermes has neither `Buffer` nor `btoa`; `encodeURI` is
+ * its unpadded base64url, byte-for-byte Node's `toString('base64url')`.
  */
 export function encodeImageId(fdiContext: FdiContext): string {
   return Base64.encodeURI(JSON.stringify({ fdi: fdiContext.fdi, ord: fdiContext.ord }));
@@ -30,10 +28,8 @@ export function encodeImageId(fdiContext: FdiContext): string {
 /**
  * Inverse of {@link encodeImageId}. Throws if the token is malformed.
  *
- * `Base64.decode` does no alphabet validation of its own, which is the right
- * division of labour: corruption that stays inside the alphabet decodes to
- * garbage regardless, so what actually catches a bad token is validating the
- * decoded payload — the shape check below.
+ * `Base64.decode` checks no alphabet, and the shape check below is what
+ * catches a bad token — corruption inside the alphabet decodes to garbage.
  */
 export function decodeImageId(imageId: string): FdiContext {
   let parsed: unknown;
