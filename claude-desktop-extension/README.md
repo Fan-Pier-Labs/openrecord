@@ -218,11 +218,7 @@ The short version, for what this extension does:
   has 26, rollup 27) — so a normal `bun install` resolves only the slice
   matching the machine doing the install. `bun run pack` therefore overrides
   with `bun install --os='*' --cpu='*'`, `.mcpbignore` picks the four to keep
-  out of the twelve that pulls, and `scripts/verify-native-binaries.mjs`
-  **refuses to pack** if one is missing. That last check matters because the
-  failure is otherwise invisible: a `.mcpb` packed after a plain `bun install`
-  looks fine, installs fine, and silently stores credentials in plaintext for
-  everyone not on the packer's platform.
+  out of the twelve that pulls.
 
   Linux is not included (Claude Desktop has no Linux build, and the file
   fallback covers the raw server). Adding it is about +9 MB and three edits:
