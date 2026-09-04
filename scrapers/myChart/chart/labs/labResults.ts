@@ -38,15 +38,23 @@ export {
 const TEST_RESULTS_PAGE = '/app/test-results';
 
 /**
+ * The group types `GetList` is asked for. Every captured instance accepts 0
+ * and 1 — each answering the SAME combined list of labs, imaging and
+ * procedures, which is why orders are de-duplicated by key — and rejects 2
+ * and 3 with a 500. The accepted pair is the payload; the rest are
+ * speculative probes kept for an instance that might differ.
+ */
+const ACCEPTED_GROUP_TYPES = [0, 1];
+const SPECULATIVE_GROUP_TYPES = [2, 3];
+
+/**
  * One `/api/test-results/GetList` page, or the failure when this instance
- * does not serve that group type. Group types 0-3 are probed speculatively —
- * real instances accept only 0 and 1 and answer the rest with a 500 — so a
- * failure here is expected on some probes, which is why it is the ONLY
- * failure tolerated on this path. It is recorded with its status, and the
- * caller decides whether the probes as a whole came up empty. A thrown
- * transport error is not recorded. A `SessionExpiredError` still propagates:
- * reporting a dead session as "unsupported group type" turns it into an
- * empty chart.
+ * did not answer for that group type. A failure is recorded with its status
+ * (a thrown transport error is not) and handed back, so the caller can tell a
+ * rejected speculative probe — expected — from the accepted pair both
+ * failing, which is the payload failing. A `SessionExpiredError` still
+ * propagates: reporting a dead session as "unsupported group type" turns it
+ * into an empty chart.
  */
 async function fetchResultGroupList(
   collector: RawCollector,
@@ -104,19 +112,19 @@ async function fetchHistoricalResults(collector: RawCollector, orderKey: string,
 async function collectLabResults(collector: RawCollector): Promise<void> {
   const token = await collector.pageToken(TEST_RESULTS_PAGE);
   const seenKeys = new Set<string>();
-  // A probe the instance rejects is expected; every probe rejected is not. An
-  // instance that answered nothing has not said "no results", and the first
-  // failure is the one to report.
-  let firstFailure: Error | null = null;
-  let pagesRead = 0;
+  // The accepted group types answer the same list, so one of them answering
+  // is the whole list and the other failing costs nothing. Both failing is
+  // the payload failing: the instance has not said "no results", and the
+  // first failure is the one to report. A rejected speculative probe is
+  // expected and never an error.
+  const acceptedFailures: Error[] = [];
 
-  for (const groupType of [0, 1, 2, 3]) {
+  for (const groupType of [...ACCEPTED_GROUP_TYPES, ...SPECULATIVE_GROUP_TYPES]) {
     const outcome = await fetchResultGroupList(collector, groupType, token);
     if ('failure' in outcome) {
-      firstFailure ??= outcome.failure;
+      if (ACCEPTED_GROUP_TYPES.includes(groupType)) acceptedFailures.push(outcome.failure);
       continue;
     }
-    pagesRead++;
     const page = outcome.page;
 
     // Outside the swallow: these are results the instance says exist, so a
@@ -148,7 +156,7 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
     }
   }
 
-  if (pagesRead === 0 && firstFailure) throw firstFailure;
+  if (acceptedFailures.length === ACCEPTED_GROUP_TYPES.length) throw acceptedFailures[0]!;
 }
 
 export async function fetchLabResultsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {

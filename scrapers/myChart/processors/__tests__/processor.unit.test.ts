@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { MyChartRequest } from '../../core/myChartRequest';
-import { RawCollector, MyChartResponseError, unwrapRaw, findRequest, findRequests, bodyOf, displayPath } from '../../core/rawResponse';
+import { RawCollector, MyChartResponseError, unwrapRaw, findRequest, findRequests, bodyOf, okBodyOf, answered, displayPath } from '../../core/rawResponse';
 import { renderOutput, passthroughProcessor, isOutputMode, OUTPUT_MODES, type Processor } from '../processor';
 import { rec, list, text, textOrNull, bool, num, strings, epicInstantMs, isoFromMs } from '../read';
 
@@ -168,6 +168,24 @@ describe('RawCollector failed answers', () => {
     const ok = await okCollector.send({ path: '/x' });
     expect(ok.failure).toBeNull();
     expect(okCollector.requests[0]!.failure).toBeUndefined();
+  });
+
+  it('okBodyOf reads only an answered record, so a tolerant processor cannot read a 500 as {}', () => {
+    const raw = {
+      requests: [
+        { path: '/a', method: 'GET' as const, status: 200, contentType: 'application/json', body: { ok: true } },
+        { path: '/b', method: 'GET' as const, status: 500, contentType: 'text/html', body: '<html>error</html>', failure: 'HTTP 500 (text/html)' },
+        { path: '/c', method: 'GET' as const, status: 200, contentType: 'text/html', body: '<html>error</html>', failure: 'HTTP 200 from its error page' },
+      ],
+    };
+    expect(okBodyOf(raw, '/a')).toEqual({ ok: true });
+    expect(okBodyOf(raw, '/b')).toBeUndefined();
+    expect(okBodyOf(raw, '/c')).toBeUndefined();
+    expect(okBodyOf(raw, '/missing')).toBeUndefined();
+    expect(bodyOf(raw, '/b')).toBe('<html>error</html>');
+    expect(answered(raw.requests[0])).toBe(true);
+    expect(answered(raw.requests[2])).toBe(false);
+    expect(answered(undefined)).toBe(false);
   });
 
   it('postJson forwards the option', async () => {

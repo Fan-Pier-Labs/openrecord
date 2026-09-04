@@ -113,6 +113,14 @@ function isAspNetErrorPage(url: string | null | undefined): boolean {
  * Cheapest signal first. A redirect a caller asked to see for itself
  * (`followRedirects: false`) is only a failure when it points at the error
  * page; where it points otherwise is the caller's to read.
+ *
+ * The error-page check reads `response.url`, so it needs the transport to
+ * report where the final response came from. Node and Bun do. On device the
+ * transport is `expo/fetch` (`scrapers/http.ts`), whose `FetchResponse.url`
+ * is the native response URL (`metadata.url`, checked in Expo SDK 57) — and
+ * `makeRequest` follows redirects itself with `redirect: 'manual'`, so the
+ * response being classified is always the last hop's own, not a
+ * platform-followed one.
  */
 export function describeResponseFailure(
   response: Response,
@@ -141,7 +149,12 @@ export function describeResponseFailure(
   return null;
 }
 
-/** The first line or so of a body, tags stripped, for an error message. */
+/**
+ * The first line or so of a body, tags stripped, for an error message. This
+ * is page text — an error page's apology, a WAF's support id — never chart
+ * data: a failed answer carries none, which is the point. It does reach
+ * whatever logs the error message.
+ */
 function excerptOf(text: string): string {
   const plain = text
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -312,4 +325,22 @@ export function findRequests(raw: RawResponse, name: string): RawRequestRecord[]
 /** The body of the first request for the endpoint `name`, or undefined. */
 export function bodyOf(raw: RawResponse, name: string): unknown {
   return findRequest(raw, name)?.body;
+}
+
+/** Whether a recorded request came back as the data: recorded, no `failure`, 2xx. */
+export function answered(record: RawRequestRecord | undefined): record is RawRequestRecord {
+  return record !== undefined && record.failure === undefined && record.status >= 200 && record.status < 300;
+}
+
+/**
+ * The body of the first request for `name` when it answered, otherwise
+ * `undefined` — for a processor reading a request its scraper tolerated
+ * (`tolerateFailure`). Reading `bodyOf` there would turn a recorded 500 into
+ * `{}` and then into empty fields; this returns nothing, and the processor
+ * reports the gap under a name (`contactInformationUnavailable`,
+ * `unavailable: ['GetStatementList']`) instead of as empty data.
+ */
+export function okBodyOf(raw: RawResponse, name: string): unknown {
+  const record = findRequest(raw, name);
+  return answered(record) ? record.body : undefined;
 }
