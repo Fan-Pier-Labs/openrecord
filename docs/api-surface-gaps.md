@@ -141,19 +141,24 @@ modelled from them yet**, so they are not work items — they are re-probe targe
 they'd be worth *if* the data appeared.
 
 1. **`/api/insurance-hub/*`** — `GetIDCardImages`, `GetCoverageDetails`, `GetBenefitDetails`,
-   `GetMemberDetails`, `GetPlanMembers`, `GetEligInfo`. `get_insurance` today gives plan name,
-   subscriber, member id and group number, parsed out of HTML. Benefits, eligibility and **a photo of
-   the insurance card** are all genuinely additive and genuinely wanted. Consistent with the "no
-   coverage on file" signal from `billing-details/GetBenefitsSummary` (`{noCoverageAvailable: true}`),
-   so re-probe on an account with active coverage. Same for `/api/premium-billing/*` and
-   `/api/coordination-of-benefits/GetBuild`.
+   `GetMemberDetails`, `GetPlanMembers`, `GetEligInfo`. `get_insurance` now reads coverage name,
+   payer, subscriber, member id, group number and effective dates from
+   `Insurance/Coverages/GetCoverages`; benefits, eligibility and **a photo of the insurance card**
+   are what is still missing, and all three are genuinely wanted. Three of the four captured
+   instances set `Settings.CanViewDetails` and all four set `CanViewInsHub`, so the hub is enabled
+   even where these 500 — re-probe with a `cvgId` from `GetCoverages` rather than bare. Same for
+   `/api/premium-billing/*` and `/api/coordination-of-benefits/GetBuild`.
 
-   **`/api/insurance/LoadPayers` used to sit in this list and does not belong here** — its 500 was
-   never "no coverage on file". The React `/app/insurance` activity isn't served on any of the four
-   instances, so its endpoints 500 whatever they are sent, and the live route is the legacy
-   `Insurance/Coverages/GetPayors` now shipped as `get_insurance_payers`. That correction is the
-   clearest warning this document can give about tier 4: **a 500 can mean the activity is absent, not
-   that the patient has no data**, and the two are indistinguishable from the response.
+   **Two endpoints have already left this list, both for the same reason.**
+   `/api/insurance/LoadPayers` is the React `/app/insurance` activity's, and no captured instance
+   serves that activity, so it 500s whatever it is sent; the live route is the legacy
+   `Insurance/Coverages/GetPayors`, now shipped as `get_insurance_payers`. Its sibling
+   `Insurance/Coverages/GetCoverages` is the patient's own coverage list, now shipped as
+   `get_insurance` — and *that* one was never probed at all, because `/Insurance` looked like an
+   HTML activity when it is a React-era shell over the same controller. Together they are the
+   clearest warning this document can give about tier 4: **a 500, or a page with nothing in it, can
+   mean the activity moved, not that the patient has no data**, and the two are indistinguishable
+   from the response. When an activity looks empty, read its bundle before believing it.
 2. **`/api/now/*`** — 26 endpoints, an entire category we don't touch: hospital-stay schedule, bedside
    care team, memos, bed info, per-event details for appointments/med administration/surgery/tasks.
    `MYCHARTNOWINPATIENTENCOUNTERS` is enabled; `GetNowInfo` returns `{}` because there is no active

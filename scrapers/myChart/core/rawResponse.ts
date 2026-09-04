@@ -46,6 +46,13 @@ export interface RawRequestRecord {
    * payload: {@link unwrapRaw} looks past it.
    */
   purpose?: 'token';
+  /**
+   * Why the answer was not the data, when it was not
+   * ({@link describeResponseFailure}). Set on every failed record, tolerated
+   * or thrown, so a processor reading a tolerated record can tell Epic's
+   * 200 error page from data without repeating the classification.
+   */
+  failure?: string;
 }
 
 export interface RawResponse {
@@ -231,6 +238,7 @@ export class RawCollector {
     this.requests.push(record);
 
     const reason = describeResponseFailure(response, text, config);
+    if (reason) record.failure = reason;
     const failure = reason ? new MyChartResponseError(record, reason, excerptOf(text)) : null;
     if (failure && !options.tolerateFailure) throw failure;
     return { response, body, text, failure };

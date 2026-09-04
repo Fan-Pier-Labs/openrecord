@@ -160,7 +160,7 @@ export async function followSamlChain(
   const jar = new tough.CookieJar();
 
   // Helper: make a request against this chain's jar, manually following
-  // redirects. Headers and the per-host permit come from scraperFetch.
+  // redirects. Headers, the per-host permit and the deadline come from scraperFetch.
   // The SAML loop below carries `body`/`contentType` as locals that are undefined
   // on the GET hops, so they're `| undefined` rather than merely optional.
   async function req(url: string, opts: { method?: string | undefined; body?: string | undefined; contentType?: string | undefined } = {}) {

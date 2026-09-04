@@ -88,7 +88,11 @@ export function groupByHost(instances: { name: string; url: string }[]): HostEnt
   return [...byHost.values()];
 }
 
-/** A request whose every fetch gives up rather than hanging the whole sweep. */
+/**
+ * A request whose every fetch gives up after 20s — tighter than the two minutes
+ * scraperFetch gives everything, because 750 hosts at two minutes each is a
+ * sweep nobody waits out.
+ */
 export function timeBoundedRequest(host: string): MyChartRequest {
   const req = new MyChartRequest(host);
   req.transport = (url, init) =>

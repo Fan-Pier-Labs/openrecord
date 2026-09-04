@@ -161,10 +161,13 @@ describe('RawCollector failed answers', () => {
     const result = await collector.send({ path: '/Clinical/CareTeam/LoadExternal', method: 'POST' }, { tolerateFailure: true });
     expect(result.failure).toBeInstanceOf(MyChartResponseError);
     expect(result.body).toBe('server error');
-    expect(collector.requests[0]).toMatchObject({ status: 500, body: 'server error' });
+    // The record says why, so a processor reading it needs no status arithmetic.
+    expect(collector.requests[0]).toMatchObject({ status: 500, body: 'server error', failure: 'HTTP 500 (text/plain)' });
 
-    const ok = await new RawCollector(mockRequest([{ body: '{}' }])).send({ path: '/x' });
+    const okCollector = new RawCollector(mockRequest([{ body: '{}' }]));
+    const ok = await okCollector.send({ path: '/x' });
     expect(ok.failure).toBeNull();
+    expect(okCollector.requests[0]!.failure).toBeUndefined();
   });
 
   it('postJson forwards the option', async () => {
