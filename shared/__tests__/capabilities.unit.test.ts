@@ -201,14 +201,33 @@ describe('image_id', () => {
   });
 
   it('matches Node’s base64url so a token minted anywhere decodes everywhere', () => {
-    const ctx = { fdi: 'abc', ord: 'xyz' };
-    const expected = Buffer.from(JSON.stringify({ fdi: ctx.fdi, ord: ctx.ord }), 'utf8').toString('base64url');
-    expect(encodeImageId(ctx)).toBe(expected);
+    // A token minted on-device, where there is no `Buffer`, has to decode in
+    // the CLI. Lengths cover every remainder mod 3, where padding would show.
+    for (const ord of ['x', 'xy', 'xyz', 'ré—sumé✓', '𝔘𝔫𝔦𝔠𝔬𝔡𝔢', 'a:b,c/d+e', '?x=1&y=2']) {
+      const ctx = { fdi: 'abc', ord };
+      const expected = Buffer.from(JSON.stringify({ fdi: ctx.fdi, ord }), 'utf8').toString('base64url');
+      expect(encodeImageId(ctx)).toBe(expected);
+      expect(decodeImageId(expected)).toEqual(ctx);
+    }
   });
 
   it('rejects a malformed token rather than returning junk', () => {
     expect(() => decodeImageId('not-a-real-token')).toThrow(/Invalid image_id/);
     expect(() => decodeImageId(Buffer.from('{"fdi":1}').toString('base64url'))).toThrow(/Invalid image_id/);
+  });
+
+  it('rejects a truncated token, which the alphabet alone cannot catch', () => {
+    const id = encodeImageId({ fdi: 'a:b', ord: 'ORD%2F1' });
+    expect(() => decodeImageId(id.slice(0, 8) + id.slice(12))).toThrow(/Invalid image_id/);
+  });
+
+  it('survives the noise a copy-pasted token picks up', () => {
+    // A wrapped line or leftover padding still carries the original bytes.
+    const ctx = { fdi: 'a:b', ord: 'ORD%2F1' };
+    const id = encodeImageId(ctx);
+    for (const noisy of [id + '\n', id.slice(0, 5) + ' ' + id.slice(5), id + '==']) {
+      expect(decodeImageId(noisy)).toEqual(ctx);
+    }
   });
 });
 
