@@ -194,7 +194,13 @@ export const decisionTreePostPublic: ExactRoutes = {
   'decisiontrees/anonymousdecisiontree/nextstep': async ({ request, path }) => {
     const form = new URLSearchParams(await request.text());
     const treeId = form.get('traversalInfo.TreeID');
-    if (treeId !== prelogin.SCHEDULING_TREE_ID) {
+    const questions =
+      treeId === prelogin.SCHEDULING_TREE_ID
+        ? prelogin.SCHEDULING_QUESTIONS
+        : treeId === prelogin.SCHEDULING_UNSUPPORTED_TREE_ID
+          ? prelogin.SCHEDULING_UNSUPPORTED_QUESTIONS
+          : null;
+    if (treeId === null || questions === null) {
       return aspNetFailure(request, 'fivehundred', path);
     }
     // AdditionalContext is not optional on a real instance, and it is echoed
@@ -204,7 +210,6 @@ export const decisionTreePostPublic: ExactRoutes = {
       return aspNetFailure(request, 'fivehundred', path);
     }
 
-    const questions = prelogin.SCHEDULING_QUESTIONS;
     const answeredId = form.get('question.ID');
     const answeredChoice = form.get('question.Answer.Choices[0].Index');
     const restart = form.get('traversalInfo.RestartTree') === 'true';

@@ -120,20 +120,36 @@ export function parseQuestion(raw: RawQuestion | null | undefined): SchedulingQu
   };
 }
 
+/** Raised for a question shape this scraper cannot answer yet. */
+export class WorkInProgressError extends Error {
+  constructor(what: string) {
+    super(`${what}: work in progress`);
+    this.name = 'WorkInProgressError';
+  }
+}
+
 /**
  * The `question` field of a `NextStep` post: the question's identity echoed
  * back, with the answer under `Answer`. The prompt and choice list are
  * deliberately not sent back — the live page does not send them either.
  *
- * The shape comes from Epic's own serializer rather than from guessing at the
- * wire. `ChoiceCollection.convertToCoreChoiceArray` walks every choice and
- * pushes the selected ones, and `Choice.convertToCoreChoiceModel` reduces each
- * to `{ Index }` — so one selection and five are the same call, and a
- * multi-response question is answered with more entries. A free-text question
- * sets `Answer.Text` alongside those choices.
+ * Single-select is the only shape verified against a live instance. Epic's own
+ * serializer says what the others look like — `convertToCoreChoiceArray` pushes
+ * every selected choice and `convertToCoreChoiceModel` reduces each to
+ * `{ Index }`, so multi-response is more entries, and `FreeTextQuestion` sets
+ * `Answer.Text` beside them — but reading the client is not the same as having
+ * driven a real tree that asks one. Sampling 198 gated instances turned up 3
+ * multi-response and 6 free-text opening questions and none of them has been
+ * walked, so both refuse rather than send a payload nobody has watched work.
  */
 export function answerPayload(raw: RawQuestion, answer: QuestionAnswer): Record<string, unknown> {
+  if (answer.text !== undefined) {
+    throw new WorkInProgressError('answering a free-text scheduling question');
+  }
   const indexes = answer.choiceIndex === undefined ? [] : [answer.choiceIndex].flat();
+  if (indexes.length > 1) {
+    throw new WorkInProgressError('answering a multi-response scheduling question');
+  }
   return {
     ID: raw.ID,
     DAT: raw.DAT,
@@ -145,10 +161,7 @@ export function answerPayload(raw: RawQuestion, answer: QuestionAnswer): Record<
     IsEnabled: raw.IsEnabled,
     DisplayStyle: raw.DisplayStyle ?? '',
     DisplayStyleVal: raw.DisplayStyleVal ?? 0,
-    Answer: {
-      Choices: indexes.map((Index) => ({ Index })),
-      ...(answer.text === undefined ? {} : { Text: answer.text }),
-    },
+    Answer: { Choices: indexes.map((Index) => ({ Index })) },
   };
 }
 

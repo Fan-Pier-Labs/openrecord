@@ -188,8 +188,15 @@ export function specialtySearchTermsFor(p: { Specialties: { Title: string }[] })
   return p.Specialties.map((s, i) => ({ Id: String(1000 + i), Title: s.Title, Description: null, IconCategoryValue: 0, IconPath: null, TermSlug: null }));
 }
 
-/** The decision tree Primary Care is gated behind. */
+/** The decision tree Primary Care is gated behind — all single-select. */
 export const SCHEDULING_TREE_ID = id(50);
+
+/**
+ * A second tree, on Dermatology, whose questions the scraper cannot answer
+ * yet: one multi-response and one free-text. Kept separate so the answerable
+ * path still reaches a token while the unanswerable one stays exercisable.
+ */
+export const SCHEDULING_UNSUPPORTED_TREE_ID = id(60);
 
 /**
  * `ProviderId^DepartmentId` for every pair but the last.
@@ -267,7 +274,8 @@ export function specialtyData(specialtyId: string) {
         AllowedTelehealthModes: [],
         SchedulingInstructions: [],
         QuestionnaireId: '',
-        AnonymousSchedulingDecisionTreeId: index === 0 ? SCHEDULING_TREE_ID : null,
+        AnonymousSchedulingDecisionTreeId:
+          index === 0 ? SCHEDULING_TREE_ID : index === 2 ? SCHEDULING_UNSUPPORTED_TREE_ID : null,
       },
     ],
     ActionPreviews: [],
@@ -332,6 +340,10 @@ export const SCHEDULING_QUESTIONS = [
     IncludeUnknown: false,
     Name: 'SGH MYCHART APPT ENTRY ESTABLISHED',
   },
+];
+
+/** The questions on the unsupported tree — neither shape can be answered yet. */
+export const SCHEDULING_UNSUPPORTED_QUESTIONS = [
   {
     // Multi-response: Epic's serializer collects every selected choice into one
     // array, so a client answering this sends several `Answer.Choices` entries.

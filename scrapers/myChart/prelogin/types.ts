@@ -222,14 +222,15 @@ export type SchedulingQuestion = {
   choices: QuestionChoice[];
   required: boolean;
   /**
-   * The question accepts more than one choice — answer it by passing several
-   * indexes. Across 204 gated instances only 61% of opening questions were
-   * plain yes/no, and choice counts ran as high as 35.
+   * The question accepts more than one choice. Answering one is not supported
+   * yet — `answerPayload` throws `WorkInProgressError` rather than send a
+   * payload no live instance has been watched accept. 3 of 198 sampled
+   * instances open with one.
    */
   multiResponse: boolean;
   /**
-   * The question takes typed text rather than (or as well as) a choice.
-   * Answer it with `text`.
+   * The question takes typed text. Also not supported yet, and also a throw
+   * rather than a guess. 6 of 198 sampled instances open with one.
    */
   freeText: boolean;
   helpText: string | null;
@@ -238,10 +239,10 @@ export type SchedulingQuestion = {
 /**
  * How a caller answers one question.
  *
- * `choiceIndex` takes a single index or several — Epic's own serializer
- * collects every selected choice into one array, so a multi-response question
- * is answered by passing more of them. `text` is for a free-text question,
- * which the client sends as `Answer.Text` beside the choices.
+ * Only a single `choiceIndex` works today. The array and `text` forms are the
+ * shapes Epic's serializer implies for multi-response and free-text questions,
+ * and both currently throw `WorkInProgressError` — they are declared so the
+ * gap is visible in the type rather than discovered when a tree stalls.
  */
 export type QuestionAnswer = {
   questionId: string;
