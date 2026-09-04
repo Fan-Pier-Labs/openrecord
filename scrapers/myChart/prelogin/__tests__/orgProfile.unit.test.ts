@@ -60,6 +60,28 @@ describe('parsePhone', () => {
   });
 });
 
+describe('entity decoding', () => {
+  /** Swap ORGNAME's value, which `PAGE` states before MYORGNAME's. */
+  const withOrgName = (value: string) => PAGE.replace('Springfield General Hospital &amp; Clinics', value);
+
+  it('leaves the mnemonic value raw and decodes it on the way into the profile', () => {
+    const page = withOrgName('Children&rsquo;s Hospital &amp; Clinics&reg;');
+    expect(parseMnemonics(page).ORGNAME).toBe('Children&rsquo;s Hospital &amp; Clinics&reg;');
+    expect(parseOrgProfile(page).organizationName).toBe('Children’s Hospital & Clinics®');
+  });
+
+  it('does not decode an entity twice', () => {
+    // `&amp;lt;b&amp;gt;` is the text `<b>` spelled out, not a bold tag.
+    // Decoding it a second time is how a value that merely mentions markup
+    // turns into markup.
+    expect(parseOrgProfile(withOrgName('&amp;lt;b&amp;gt;')).organizationName).toBe('&lt;b&gt;');
+  });
+
+  it('survives a numeric reference outside the Unicode range', () => {
+    expect(parseOrgProfile(withOrgName('&#1114112;')).organizationName).toBe('�');
+  });
+});
+
 describe('parseEmail', () => {
   it("treats Epic's DoNotUse placeholder as unset", () => {
     expect(parseEmail('MyChartSupport@DoNotUse.DoNotUse')).toBeNull();
