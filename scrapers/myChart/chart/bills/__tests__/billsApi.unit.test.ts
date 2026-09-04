@@ -8,7 +8,7 @@ import {
   getStatementList,
   saveStatementPdf,
 } from '../bills'
-import { date2dte } from '../utils'
+import { toEpicDteLocal } from '../../../../../shared/epicDate'
 import { MyChartRequest } from '../../../core/myChartRequest'
 import type { BillingAccount, StatementItem } from '../types'
 import { renderOutput } from '../../../processors/processor'
@@ -235,8 +235,8 @@ describe('getBillingHistory', () => {
     const start = Number(new URL(url).searchParams.get('searchStartDTE'))
     const stop = Number(new URL(url).searchParams.get('searchStopDTE'))
 
-    expect(start).toBeLessThanOrEqual(date2dte(new Date()) - 100 * 365)
-    expect(stop).toBeGreaterThan(date2dte(new Date()))
+    expect(start).toBeLessThanOrEqual(toEpicDteLocal(new Date()) - 100 * 365)
+    expect(stop).toBeGreaterThan(toEpicDteLocal(new Date()))
   })
 
   it('keeps the visits when a supplementary call fails, and records the failure', async () => {

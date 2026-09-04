@@ -14,6 +14,8 @@
  * and are added by the route on the `November 2025` knob, not here.
  */
 
+import { fromEpicDte } from '@shared/epicDate';
+
 const id = (n: number) => `WP-24FAKE${String(n).padStart(4, '0')}-3D-3D-24xxxxxxxxxxxxxxxxxxxx-3D`;
 
 // ─── Login shell mnemonics ──────────────────────────────────────────────────
@@ -423,7 +425,7 @@ export function slotsForPair(pair: { ProviderId: string; DepartmentId: string },
   return [0, 1].flatMap((dayOffset) =>
     times.map((t) => {
       const dte = startDte + 3 + dayOffset;
-      const utc = new Date(Date.UTC(1840, 11, 31) + dte * 86_400_000);
+      const utc = fromEpicDte(dte);
       utc.setUTCHours(t.hour + 4, t.minute, 0, 0); // EDT, as the captures show
       return {
         ProviderId: pair.ProviderId,
