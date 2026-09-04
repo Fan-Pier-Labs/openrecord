@@ -2,7 +2,7 @@
  * The single outbound HTTP path for the scrapers.
  *
  * Every request this repo aims at a health system goes through `scraperFetch`,
- * because three things have to be true of all of them and none of the three
+ * because four things have to be true of all of them and none of the four
  * survives being reimplemented at a call site:
  *
  *  - **The browser header block.** MyChart and the eUnity image servers behind
@@ -14,6 +14,8 @@
  *  - **The per-host permit.** A full 30-category scrape otherwise arrives at
  *    one hospital as ~60 simultaneous requests, which is how an instance ends
  *    up in `blockedInstances.ts`.
+ *  - **The deadline.** A host that accepts the connection and never answers
+ *    hangs the scrape forever, holding a permit the whole time.
  *
  * A second raw-fetch path is exactly how the cap silently stops applying — it
  * keeps working, so nobody notices it isn't limited. So there isn't one. If you
@@ -133,24 +135,6 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
 export const platformFetch: Transport = (url, init) => resolveTransport(undefined, null)(url, init);
 
 /**
- * `AbortSignal.timeout` polyfill.
- *
- * React Native (0.86 at time of writing) polyfills `AbortSignal` with the
- * `abort-controller` package, which implements the constructor and `abort()`
- * but not the static `timeout()`. Calling it there throws, which would take
- * out the 30s cap on eUnity image downloads — the one place we use it, and one
- * that runs on device. Node and Bun both have the real thing and get it.
- */
-export function abortAfter(ms: number): AbortSignal {
-  if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function') {
-    return (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(ms);
-  }
-  const ctrl = new AbortController();
-  setTimeout(() => ctrl.abort(), ms);
-  return ctrl.signal;
-}
-
-/**
  * `RequestInit` with headers narrowed to a plain object.
  *
  * `Omit` rather than an intersection with `RequestInit`, and that is
@@ -211,7 +195,24 @@ export async function scraperFetch(
     if (cookie) headers['Cookie'] = cookie;
   }
 
-  const response = await withHostLimit(url, () => transport(url, { ...init, headers }));
+  // Two minutes, then give up. A host that accepts the connection and never
+  // answers would otherwise hang the scrape forever while holding one of that
+  // host's ten permits, so a few of them starve every other category on it.
+  // `AbortSignal.timeout` would be the one-liner, but React Native's polyfill
+  // (`abort-controller`) doesn't have that static — AbortController it does
+  // have. One deadline per network call, so a redirect chain gets a fresh one
+  // per hop, the same shape as the permit.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 120_000);
+
+  let response: Response;
+  try {
+    response = await withHostLimit(url, () =>
+      transport(url, { ...init, headers, signal: abort.signal }),
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (cookieJar) {
     await storeSetCookies(cookieJar, url, response);
