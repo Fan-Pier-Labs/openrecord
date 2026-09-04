@@ -201,12 +201,11 @@ the ones that bite when you add a capability:
   cannot be on the page and missing from the JSON.
 
 `dev-scripts/generate-processor-examples.ts` regenerates `docs/processor-layer-examples.md`, every
-read capability in all four modes against fake-mychart. It runs on a clock pinned by
-`dev-scripts/pinned-clock.ts` (fixed instant, UTC, overridable with `SOURCE_DATE_EPOCH`), because
-the scrapers date-stamp some of their requests — vitals' `endInstantIso`, past-visits'
-`oldestRenderedDate`, which also decides how far back the pagination walks. Unpinned, the doc
-changes on days nothing else did and CI's regenerate-and-diff step fails every PR that stays open
-across midnight.
+read capability in all four modes against fake-mychart. It freezes the clock and the zone
+(`setSystemTime`, `TZ=UTC`) first, because the scrapers date-stamp some of their requests —
+vitals' `endInstantIso`, past-visits' `oldestRenderedDate`, which also decides how far back the
+pagination walks. Unpinned, the doc changes on days nothing else did and CI's regenerate-and-diff
+step fails every PR that stays open across midnight.
 
 ## The one outbound path (`scrapers/http.ts`)
 
