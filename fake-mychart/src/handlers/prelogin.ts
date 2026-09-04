@@ -209,9 +209,33 @@ export const decisionTreePostPublic: ExactRoutes = {
     const answeredChoice = form.get('question.Answer.Choices[0].Index');
     const restart = form.get('traversalInfo.RestartTree') === 'true';
 
+    // A question is answered by its selected choices, its typed text, or both.
+    // Every index the client selected arrives as its own `Choices[n]` entry,
+    // which is how a multi-response question is answered.
+    const answeredIndexes: string[] = [];
+    for (let i = 0; ; i++) {
+      const index = form.get(`question.Answer.Choices[${i}].Index`);
+      if (index === null) break;
+      answeredIndexes.push(index);
+    }
+    const answeredText = form.get('question.Answer.Text');
+
     // A restart drops whatever was answered and serves question one again.
     const answeredIndex = restart || !answeredId ? -1 : questions.findIndex((q) => q.ID === answeredId);
     const nextIndex = answeredIndex + 1;
+
+    // Validate the answer before interpreting it: a single-select question
+    // given several choices is malformed, whatever those choices happen to be.
+    if (answeredIndex >= 0) {
+      const answered = questions[answeredIndex]!;
+      const gaveNothing = answeredIndexes.length === 0 && (answeredText ?? '') === '';
+      if (answered.IsRequired && gaveNothing) {
+        return aspNetFailure(request, 'fivehundred', path);
+      }
+      if (!answered.IsMultiResponse && answeredIndexes.length > 1) {
+        return aspNetFailure(request, 'fivehundred', path);
+      }
+    }
 
     // Answering "yes" to the emergency question ends the walk with no answer
     // id: a real instance routes an emergency out of online scheduling.

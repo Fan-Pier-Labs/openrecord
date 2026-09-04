@@ -222,18 +222,32 @@ export type SchedulingQuestion = {
   choices: QuestionChoice[];
   required: boolean;
   /**
-   * The question accepts more than one choice. `QuestionAnswer` carries a
-   * single `choiceIndex` and cannot answer one of these — nor a free-text
-   * question — so a walk will stall on it. Worth checking: across 204 gated
-   * instances only 61% of opening questions were plain yes/no, and choice
-   * counts ran as high as 35.
+   * The question accepts more than one choice — answer it by passing several
+   * indexes. Across 204 gated instances only 61% of opening questions were
+   * plain yes/no, and choice counts ran as high as 35.
    */
   multiResponse: boolean;
+  /**
+   * The question takes typed text rather than (or as well as) a choice.
+   * Answer it with `text`.
+   */
+  freeText: boolean;
   helpText: string | null;
 };
 
-/** How a caller answers: the choice `index` for a given question. */
-export type QuestionAnswer = { questionId: string; choiceIndex: string };
+/**
+ * How a caller answers one question.
+ *
+ * `choiceIndex` takes a single index or several — Epic's own serializer
+ * collects every selected choice into one array, so a multi-response question
+ * is answered by passing more of them. `text` is for a free-text question,
+ * which the client sends as `Answer.Text` beside the choices.
+ */
+export type QuestionAnswer = {
+  questionId: string;
+  choiceIndex?: string | string[];
+  text?: string;
+};
 
 /**
  * The ids a completed questionnaire yields, and what a slot search needs.

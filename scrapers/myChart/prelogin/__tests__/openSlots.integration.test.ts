@@ -34,16 +34,27 @@ function request(): MyChartRequest {
   return req;
 }
 
-/** Walk the tree by always answering "No", the way the reference org's flow goes. */
+/**
+ * Walk the whole tree, answering each question the way its shape allows: "No"
+ * for a yes/no, every choice for a multi-response, text for a free-text.
+ */
 async function answerEverything(specialty: string) {
   let questionnaire = await fetchSchedulingQuestionnaire(request(), { specialty });
   const answers: QuestionAnswer[] = [];
   while (!questionnaire.complete && questionnaire.nextQuestion) {
     const question = questionnaire.nextQuestion;
-    const no = question.choices.find((c) => c.text === 'No');
-    if (!no) throw new Error(`no "No" choice on ${question.prompt}`);
-    answers.push({ questionId: question.id, choiceIndex: no.index });
-    questionnaire = await submitSchedulingAnswers(request(), answers, { specialty });
+    if (question.freeText) {
+      answers.push({ questionId: question.id, text: 'knee pain since March' });
+    } else if (question.multiResponse) {
+      // Every selected index rides in one answer.
+      answers.push({ questionId: question.id, choiceIndex: question.choices.map((c) => c.index) });
+    } else {
+      const no = question.choices.find((c) => c.text === 'No');
+      if (!no) throw new Error(`no "No" choice on ${question.prompt}`);
+      answers.push({ questionId: question.id, choiceIndex: no.index });
+    }
+    // Hand the previous round back, so no specialty payload is re-downloaded.
+    questionnaire = await submitSchedulingAnswers(request(), answers, questionnaire);
   }
   return { questionnaire, answers };
 }
@@ -178,7 +189,44 @@ describe('the screening questionnaire over HTTP', () => {
     expect(questionnaire.questions.map((q) => q.prompt)).toEqual([
       expect.stringMatching(/life threatening emergency/i),
       expect.stringMatching(/seen at Springfield General/i),
+      expect.stringMatching(/select all that apply/i),
+      expect.stringMatching(/what would you like to discuss/i),
     ]);
+  });
+
+  it('answers a multi-response question with several choices at once', async () => {
+    const { questionnaire } = await answerEverything('Primary Care');
+    const multi = questionnaire.questions.find((q) => q.multiResponse);
+
+    expect(multi).toBeDefined();
+    expect(multi!.choices.length).toBeGreaterThan(2);
+    // The fake refuses more than one choice on a single-select question, so
+    // reaching the end at all proves the several-choice answer was accepted.
+    expect(questionnaire.complete).toBe(true);
+    expect(questionnaire.answerToken).not.toBeNull();
+  });
+
+  it('answers a free-text question with typed text', async () => {
+    const { questionnaire } = await answerEverything('Primary Care');
+    const free = questionnaire.questions.find((q) => q.freeText);
+
+    expect(free).toBeDefined();
+    expect(free!.choices).toEqual([]);
+    expect(questionnaire.answerToken).not.toBeNull();
+  });
+
+  it('is refused when several choices are sent to a single-select question', async () => {
+    const first = await fetchSchedulingQuestionnaire(request(), { specialty: 'Primary Care' });
+    const question = first.nextQuestion!;
+    expect(question.multiResponse).toBe(false);
+
+    await expect(
+      submitSchedulingAnswers(
+        request(),
+        [{ questionId: question.id, choiceIndex: question.choices.map((c) => c.index) }],
+        first,
+      ),
+    ).rejects.toBeInstanceOf(PreloginEndpointError);
   });
 
   it('unlocks the search with the token, from a session that never walked the tree', async () => {

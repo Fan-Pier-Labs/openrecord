@@ -113,16 +113,27 @@ export function parseQuestion(raw: RawQuestion | null | undefined): SchedulingQu
       .map((c) => ({ index: c.Index!, text: c.Text?.trim() ?? '' })),
     required: raw.IsRequired === true,
     multiResponse: raw.IsMultiResponse === true,
+    // ResponseType 8 is the choice list every captured scheduling tree used;
+    // a question offering no choices at all is one that wants typing.
+    freeText: (raw.Choices ?? []).length === 0,
     helpText: raw.HelpText?.trim() || null,
   };
 }
 
 /**
  * The `question` field of a `NextStep` post: the question's identity echoed
- * back, with the chosen choice under `Answer`. The prompt and choice list are
+ * back, with the answer under `Answer`. The prompt and choice list are
  * deliberately not sent back — the live page does not send them either.
+ *
+ * The shape comes from Epic's own serializer rather than from guessing at the
+ * wire. `ChoiceCollection.convertToCoreChoiceArray` walks every choice and
+ * pushes the selected ones, and `Choice.convertToCoreChoiceModel` reduces each
+ * to `{ Index }` — so one selection and five are the same call, and a
+ * multi-response question is answered with more entries. A free-text question
+ * sets `Answer.Text` alongside those choices.
  */
-export function answerPayload(raw: RawQuestion, choiceIndex: string): Record<string, unknown> {
+export function answerPayload(raw: RawQuestion, answer: QuestionAnswer): Record<string, unknown> {
+  const indexes = answer.choiceIndex === undefined ? [] : [answer.choiceIndex].flat();
   return {
     ID: raw.ID,
     DAT: raw.DAT,
@@ -134,7 +145,10 @@ export function answerPayload(raw: RawQuestion, choiceIndex: string): Record<str
     IsEnabled: raw.IsEnabled,
     DisplayStyle: raw.DisplayStyle ?? '',
     DisplayStyleVal: raw.DisplayStyleVal ?? 0,
-    Answer: { Choices: [{ Index: choiceIndex }] },
+    Answer: {
+      Choices: indexes.map((Index) => ({ Index })),
+      ...(answer.text === undefined ? {} : { Text: answer.text }),
+    },
   };
 }
 
@@ -155,7 +169,7 @@ export async function walkSchedulingQuestionnaire(
   options: { token: string | null; treeId: string; visitTypeId: string | null; answers?: QuestionAnswer[] },
 ): Promise<QuestionnaireWalk> {
   const { token, treeId, visitTypeId, answers = [] } = options;
-  const byQuestion = new Map(answers.map((a) => [a.questionId, a.choiceIndex]));
+  const byQuestion = new Map(answers.map((a) => [a.questionId, a]));
   const questions: SchedulingQuestion[] = [];
   /**
    * Questions already answered in this walk.
@@ -211,8 +225,8 @@ export async function walkSchedulingQuestionnaire(
     }
     questions.push(question);
 
-    const choiceIndex = byQuestion.get(question.id);
-    if (choiceIndex === undefined) {
+    const answer = byQuestion.get(question.id);
+    if (answer === undefined) {
       logger.debug(`questionnaire on ${request.hostname} needs an answer for ${JSON.stringify(question.prompt)}`);
       return { treeId, treeAnswerId: null, questions, unanswered: question, traversalComplete: false };
     }
@@ -235,7 +249,7 @@ export async function walkSchedulingQuestionnaire(
         DeclutterNavigationButtons: node?.DeclutterNavigationButtons ?? false,
         Question: null,
       },
-      question: answerPayload(rawQuestion, choiceIndex),
+      question: answerPayload(rawQuestion, answer),
     };
   }
 

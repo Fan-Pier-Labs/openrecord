@@ -75,6 +75,7 @@ describe('parseQuestion', () => {
       ],
       required: true,
       multiResponse: false,
+      freeText: false,
       helpText: null,
     });
   });
@@ -87,12 +88,30 @@ describe('parseQuestion', () => {
 
 describe('answerPayload', () => {
   it('echoes the question identity and carries the chosen index', () => {
-    const payload = answerPayload(QUESTION_ONE, '2');
+    const payload = answerPayload(QUESTION_ONE, { questionId: 'Q1', choiceIndex: '2' });
     expect(payload).toMatchObject({ ID: 'Q1', DAT: 'DAT1', QuestionType: 2, ResponseType: 8 });
     expect(payload.Answer).toEqual({ Choices: [{ Index: '2' }] });
     // The page does not send the prompt or the choice list back.
     expect(payload).not.toHaveProperty('Prompt');
     expect(payload).not.toHaveProperty('Choices');
+  });
+
+  it('sends every selected choice for a multi-response question', () => {
+    // Epic's ChoiceCollection.convertToCoreChoiceArray pushes each selected
+    // choice, reduced by convertToCoreChoiceModel to `{ Index }` — so one
+    // selection and several are the same shape.
+    const payload = answerPayload(QUESTION_ONE, { questionId: 'Q1', choiceIndex: ['1', '3', '4'] });
+    expect(payload.Answer).toEqual({ Choices: [{ Index: '1' }, { Index: '3' }, { Index: '4' }] });
+  });
+
+  it('carries typed text beside the choices for a free-text question', () => {
+    const payload = answerPayload(QUESTION_ONE, { questionId: 'Q1', text: 'knee pain since March' });
+    expect(payload.Answer).toEqual({ Choices: [], Text: 'knee pain since March' });
+  });
+
+  it('omits Text entirely when the caller supplied none', () => {
+    const payload = answerPayload(QUESTION_ONE, { questionId: 'Q1', choiceIndex: '2' });
+    expect(payload.Answer).not.toHaveProperty('Text');
   });
 });
 
