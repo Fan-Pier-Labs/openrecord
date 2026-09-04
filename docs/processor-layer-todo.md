@@ -76,7 +76,11 @@ return the standard object and `runCapability(id, { mode })` picks any mode; `do
 
 - `docs/processor-layer-examples.md` is generated and CI fails when it is stale (the fake-mychart
   job regenerates it and diffs). Regenerate with `bun dev-scripts/generate-processor-examples.ts`
-  against fake-mychart in any PR that changes a processor or a fixture.
+  in any PR that changes a processor or a fixture — against the **compose service**
+  (`docker compose -f docker-compose.ci.yaml up -d --build --wait`), not a `bun run start` in the
+  worktree: the two send different `Content-Type` headers, `raw` mode records them verbatim, and
+  the difference shows up as a diff in capabilities the PR never touched. See
+  `dev-scripts/pinned-clock.ts`.
 
 ## 7. Follow-ups from the #388 review
 
