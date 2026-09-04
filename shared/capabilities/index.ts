@@ -134,6 +134,7 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
   (c) => c.lessFrequentlyUsed,
 );
 
+
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 
@@ -226,6 +227,12 @@ export async function executeCapability(
   if (!capability) {
     throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
   }
+  // Before anything else, including the patient assertion: a capability with no
+  // scraper has nothing to assert about and no session to spend on it. Compared
+  // against undefined rather than for truthiness, because that is what narrows
+  // the union — everything past this line has a `run`.
+  if (capability.notImplemented !== undefined) return capability.notImplemented;
+
   let result: unknown;
   if (capability.kind === 'public') {
     // Public capabilities are the reason `request` is nullable: they read the

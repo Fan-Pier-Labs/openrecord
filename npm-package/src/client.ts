@@ -50,7 +50,6 @@ import {
 import { getHealthSummary } from '../../scrapers/myChart/chart/healthSummary/healthSummary';
 import { getVitals } from '../../scrapers/myChart/chart/vitals/vitals';
 import { getMedications } from '../../scrapers/myChart/chart/medications/medications';
-import { requestMedicationRefill } from '../../scrapers/myChart/chart/medications/medicationRefill';
 import { getAllergies } from '../../scrapers/myChart/chart/allergies/allergies';
 import { getHealthIssues } from '../../scrapers/myChart/chart/healthIssues/healthIssues';
 import { getMedicalHistory } from '../../scrapers/myChart/chart/medicalHistory/medicalHistory';
@@ -435,7 +434,6 @@ export class MyChartClient {
 
   // ── Medications ─────────────────────────────────────────────────────────
   getMedications() { return getMedications(this.req()); }
-  requestMedicationRefill(medicationKey: string) { return requestMedicationRefill(this.req(), medicationKey); }
 
   // ── Allergies / health issues / history / immunizations ────────────────
   getAllergies()      { return getAllergies(this.req()); }

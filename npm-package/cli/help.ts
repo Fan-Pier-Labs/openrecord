@@ -63,7 +63,7 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '    --action get-imaging       Every imaging study, downloaded and decoded to JPEGs',
     '    --action get-thread --conversation-id <id>       One conversation\'s messages',
     '    --action delete-message --conversation-id <id>   Delete a conversation from the inbox',
-    '    --action request-refill --arg medication_name=…  Request a medication refill',
+    '    --action request-refill --arg medication_name=…  Refills (declared, not implemented)',
     '    --action list-proxies                            Patient records this account can reach',
     '',
     "  The account's own sign-in settings:",

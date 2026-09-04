@@ -50,6 +50,7 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
+import { toEpicDte, toEpicDteLocal } from '../../../shared/epicDate';
 import { postForm } from './preloginSession';
 import { OPEN_SCHEDULING_PATH } from './providerDirectory';
 import { resolveSchedulingContext, type SchedulingSelector } from './schedulingContext';
@@ -59,32 +60,8 @@ import type { OpenSlot, SchedulingQuestionnaire, SlotSearchResult } from './type
 
 const SLOTS_PATH = '/Scheduling/Anonymous/GetSlots';
 
-/**
- * Epic counts days from 1840-12-31 (the MUMPS `$HOROLOG` epoch), and every
- * date in the scheduling payloads — `Dte`, `SearchRangeStartDte`, `startDte` —
- * is that number. Verified against a live response: Dte 67821 is 2026-09-08.
- */
-export const EPIC_EPOCH_UTC = Date.UTC(1840, 11, 31);
-
-export function toEpicDte(date: Date): number {
-  return Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - EPIC_EPOCH_UTC) / 86_400_000);
-}
-
-/**
- * Today, by the wall clock rather than UTC.
- *
- * Epic's page sends the browser's local date. Deriving it from UTC would skip
- * the rest of the current day for anyone west of Greenwich in the evening —
- * at 9pm Pacific, UTC is already tomorrow — which reads as "the scraper never
- * finds same-day slots".
- */
-export function localTodayDte(now: Date = new Date()): number {
-  return toEpicDte(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
-}
-
-export function fromEpicDte(dte: number): Date {
-  return new Date(EPIC_EPOCH_UTC + dte * 86_400_000);
-}
+// Every date in the scheduling payloads — `Dte`, `SearchRangeStartDte`,
+// `startDte` — is an Epic day number; `shared/epicDate.ts` converts them.
 
 // ── Raw shapes ───────────────────────────────────────────────────────────────
 
@@ -276,7 +253,9 @@ export async function fetchOpenSlots(
     return { specialty, slots: [], pages: 0, errorCode: null, complete: true, questionnaire };
   }
 
-  const startDte = options.startDate ? toEpicDte(options.startDate) : localTodayDte();
+  // Today comes off the wall clock, not UTC: at 9pm Pacific it is already
+  // tomorrow in UTC, and starting the search there silently skips same-day slots.
+  const startDte = options.startDate ? toEpicDte(options.startDate) : toEpicDteLocal(new Date());
   const maxPages = options.maxPages ?? 10;
   const slots: OpenSlot[] = [];
   let cursor: ContinueInfo | null = null;
