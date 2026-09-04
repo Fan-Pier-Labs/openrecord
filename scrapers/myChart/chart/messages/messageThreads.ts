@@ -62,15 +62,16 @@ export const MAX_PAGES = 50;
  * last page says older messages exist. Every page is recorded; the processor
  * merges them.
  *
- * A non-2xx answer throws: a 500 here is an error, and an error read as an
- * empty thread looks exactly like a conversation with nothing in it.
+ * A non-2xx answer throws (`RawCollector.send` refuses it): a 500 here is an
+ * error, and an error read as an empty thread looks exactly like a
+ * conversation with nothing in it.
  */
 export async function fetchConversationThreadRaw(mychartRequest: MyChartRequest, conversationId: string): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
   const token = await collector.pageToken('/app/communication-center');
 
   const post = async (action: 'GetConversationDetails' | 'GetConversationMessages', body: Record<string, unknown>) => {
-    const { response, body: payload } = await collector.send({
+    const { body: payload } = await collector.send({
       path: `/api/conversations/${action}`,
       method: 'POST',
       headers: {
@@ -80,7 +81,6 @@ export async function fetchConversationThreadRaw(mychartRequest: MyChartRequest,
       },
       body: JSON.stringify({ ...body, PageNonce: '' }),
     });
-    if (!response.ok) throw new Error(`${action} failed with status ${response.status}`);
     return payload;
   };
 

@@ -61,7 +61,7 @@ export const goalsProcessor: Processor<GoalsStandard> = {
 
     function envelope(path: string): Record<string, unknown> {
       const record = findRequest(raw, path);
-      if (!record || record.status < 200 || record.status >= 300) {
+      if (!record || record.failure || record.status < 200 || record.status >= 300) {
         unavailable.push(path);
         return {};
       }

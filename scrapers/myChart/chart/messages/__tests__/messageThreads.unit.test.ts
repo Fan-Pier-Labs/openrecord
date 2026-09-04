@@ -155,7 +155,7 @@ describe('fetchConversationThreadRaw', () => {
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ Message: 'An error has occurred.' }), status: 500 },
     ])
-    await expect(fetchConversationThreadRaw(req, 'conv-1')).rejects.toThrow('GetConversationDetails failed with status 500')
+    await expect(fetchConversationThreadRaw(req, 'conv-1')).rejects.toThrow(/POST \/api\/conversations\/GetConversationDetails with HTTP 500/)
   })
 
   it('records a literal null from GetConversationDetails without paging', async () => {
