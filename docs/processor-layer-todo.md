@@ -18,7 +18,7 @@ fixture rebuilt from it.
 | `get_upcoming_orders` | `POST /api/upcoming-orders/GetUpcomingOrders` | Element shape of `orderList{}` values, and of `orderGroupList{}` / `providerList{}` (all `{}` on every capture) | |
 | `get_allergies` | `POST /api/allergies/LoadAllergies` | `dataList[]` element (`[]` on the captured account). The scraper hedges between `allergyItem.*` and flat fields | |
 | `get_documents` | `POST /api/documents/viewer/LoadOtherDocuments` | The whole response; never captured | |
-| `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call | |
+| `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `scrapers/myChart/api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call | |
 | `get_care_journeys` | `POST /api/care-journeys/GetCareJourneys` | The whole response; never captured | |
 | `get_health_summary` | `FetchHealthSummary` | `conditionList[]`, `journeyList[]`, `actionPlans[]` elements (`[]` on every capture) | |
 | `get_medications` | `LoadMedicationsPage` | `prescriptionList.pickups[]`, `.deliveries[]`, `.inProgressWorkRequests[]`, `owningPharmacy.hours[]`, `lastDispense.delivery.shipmentTrackingInfo[]` elements | Mail-order accounts only |
@@ -143,9 +143,9 @@ them and cut what the captures do not justify.
   Check whether a failure here is ever anything but "this order has no images", in which case the
   scraper should decide that from the order metadata before making the request.
 
-## 6. Endpoints worth exploring next (from `api-surface-gaps.md`)
+## 6. Endpoints worth exploring next (from `scrapers/myChart/api-surface-gaps.md`)
 
-Not processor work, but the same capture-first discipline applies. `api-surface-gaps.md` ranks the
+Not processor work, but the same capture-first discipline applies. `scrapers/myChart/api-surface-gaps.md` ranks the
 whole surface by conviction; its top of the list:
 
 - Third-party and portal access logs (`/api/access-logs/*`): which apps read which categories of the
@@ -159,4 +159,4 @@ whole surface by conviction; its top of the list:
 
 Pedigree, trends dashboard, preferred pharmacies and PCP were demoted: each largely re-states data
 `get_medical_history`, `get_vitals`/`get_lab_results`, `get_medications` and `get_care_team` already
-return. See the overlap table in `api-surface-gaps.md`.
+return. See the overlap table in `scrapers/myChart/api-surface-gaps.md`.

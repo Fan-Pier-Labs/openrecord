@@ -1,7 +1,7 @@
 # MyChart features we don't cover
 
 What the product *does* cover is not documented here — the capability registry
-([`shared/capabilities/`](../shared/capabilities/)) is the single source of truth, currently 51
+([`shared/capabilities/`](../../shared/capabilities/)) is the single source of truth, currently 51
 capabilities across every client. Run `bun run cli --list-capabilities --show-all` for the live
 list.
 

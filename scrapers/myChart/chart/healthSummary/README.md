@@ -1,4 +1,39 @@
-# `healthSummary` — what each mode carries
+# `healthSummary`
+
+The top-of-chart summary card: age, blood type, latest height and weight, whether the
+patient is admitted right now, and the last and next visit.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_health_summary` (read) |
+| **Source** | [`healthSummary.ts`](healthSummary.ts) · [`healthSummary.processor.ts`](healthSummary.processor.ts) |
+| **Activity** | React `/app/health-summary` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/health-summary` | — | antiforgery token |
+| `POST /api/health-summary/FetchHealthSummary` | `{}` | conditions, journeys, action plans, quick links |
+| `POST /api/health-summary/FetchH2GHeader` | `{}` | the header card — age, blood type, height, weight, last/next visit |
+
+The two POSTs are independent and are issued together.
+
+## Notes and research
+
+- **This activity is a re-cut of other capabilities, not a source of record.** The header
+  body is ~500 lines and embeds a whole copy of the upcoming-visits view model; that copy is
+  dropped, because `get_upcoming_visits` owns the fact and one capability per fact is the
+  rule. Read this for the summary card, and the owning capability for anything else.
+- `isPatientAdmitted` is the field that most earns its place: whether the patient is in
+  hospital *right now* is a clinical state nothing else here reports, and it is small enough
+  for `concise`.
+- `conditionList[]`, `journeyList[]` and `actionPlans[]` are uncaptured on every account so
+  far and pass through whole.
+- "H2G" in `FetchH2GHeader` is Epic's Happy Together — the cross-organization aggregation
+  that also drives `get_linked_accounts`.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

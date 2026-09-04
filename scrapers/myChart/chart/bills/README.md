@@ -1,4 +1,66 @@
-# `bills` — what each mode carries
+# `bills`
+
+Billing: guarantor accounts, the charges on each, statements, and payment history.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_billing` (read) |
+| **Source** | [`bills.ts`](bills.ts) · [`bills.processor.ts`](bills.processor.ts) · [`summaryHtml.ts`](summaryHtml.ts) · [`types.ts`](types.ts) · [`shared/epicDate.ts`](../../../../shared/epicDate.ts) |
+| **Activity** | Legacy `/Billing/*` |
+
+## Endpoints
+
+| Request | Purpose |
+| --- | --- |
+| `GET /Billing/Summary` | HTML — one `.ba_card` per guarantor account |
+| `GET /Billing/Details/GetVisits?…&filterOption=1&searchStartDTE=…&searchStopDTE=…` | the charges (**payload**) |
+| `GET /Billing/Details/GetStatementList?…` | statements (best effort) |
+| `GET /Billing/Details/LoadPaymentList?…` | payment history (best effort) |
+| `GET /Billing/Details?ID=…&Context=…` | HTML — carries `EncID`, the statement-PDF token (best effort) |
+
+Everything after the summary runs **per account**. The summary and the visit list are the
+payload and a failure there throws; the other three are best effort — a statement-list
+outage should not cost the caller their charge history — and a failed response is still
+recorded, with the processor naming it in a per-account `unavailable` list.
+
+Every URL carries `noCache=<random>`.
+
+## Notes and research
+
+- **Dates on these routes are `dte`, an Epic day number** — whole days since 1840-12-31,
+  which is 47,117 days before the Unix epoch, because Epic runs on MUMPS and `$HOROLOG`
+  counts from there. [`shared/epicDate.ts`](../../../../shared/epicDate.ts) converts both
+  ways, and is shared with the visit list (`Dat`) and the anonymous scheduler (`Dte`) — same
+  number, three names. The search window sent here is deliberately absurd (100 years back,
+  1 year forward), because the endpoint filters on explicit dates rather than offering
+  "all".
+- **Account discovery is HTML parsing, and it has three fallbacks.** `ID`/`Context` are
+  read from the `ba_card_status_recentPaymentLabel` link; some instances have no such link,
+  so any `/Billing/Details` link in the card is tried next, then the page's inline
+  `URLMakePayment` config ([#47](https://github.com/Fan-Pier-Labs/openrecord/pull/47)). An
+  account whose keys cannot be found is skipped rather than guessed at.
+- **The pay-online link lives on the summary page, not in the payload.**
+  `GetVisits`' own `URLMakePayment` is `null` on every live instance checked; the summary
+  page's inline `"URLMakePayment": "~/Billing/Payment?ID=…"` is the one that works. It is
+  kept despite being a portal link by class, because it is how a patient pays a bill from
+  the app.
+- **`parseAmount` exists because `parseFloat` read `"$1,234.56"` as `1`** — it stopped at
+  the thousands comma. Everything that is not a digit, sign or decimal point is stripped
+  first.
+- **The charge lists overlap between releases.** `GetVisits` returns nine of them
+  (`UnifiedVisitList`, `VisitList`, `BadDebtVisitList`, `PaymentPlanVisitList`, …). Reading
+  one loses charges on whichever release does not populate it; reading all double-counts.
+  The processor merges them and de-duplicates on
+  (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`), keeping which list
+  a row came from as `category` — "bad debt" and "payment plan" change what a charge means.
+- Statements arrive in **two lists** (`DataStatement` and `DataDetailBill`); they are
+  merged with `IsDetailBill` telling them apart. `bills.ts` also carries statement-PDF
+  download helpers (`getEncBillingId`, `saveStatementPdf`, `getBillingStatementPDFs`) which
+  are **not** part of the read capability and are called directly.
+- **Procedure descriptions arrive with markup inside them** (`<span class='subtlecolor'>`),
+  so they need the same text conversion any other MyChart prose field does.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

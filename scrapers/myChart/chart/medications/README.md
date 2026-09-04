@@ -1,4 +1,50 @@
-# `medications` — what each mode carries
+# `medications`
+
+The medication list — current prescriptions with directions, prescriber, refill state and
+pharmacy.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_medications` (read) · `request_refill` (**declared, not implemented** — [`REFILL.md`](REFILL.md)) |
+| **Source** | [`medications.ts`](medications.ts) · [`medications.processor.ts`](medications.processor.ts) |
+| **Activity** | Legacy jQuery `/Clinical/Medications` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/Medications` | — | antiforgery token |
+| `POST /api/medications/LoadMedicationsPage` | `{}` | every prescription |
+
+## Notes and research
+
+- **The response is enormous and mostly UI.** Roughly 150 fields per prescription live
+  under `communityMembers[].prescriptionList.prescriptions[]`, of which about a dozen are
+  the medication. The mode table below is the map of which is which; most of the rest is
+  card-rendering state (`showRefillButton`, `showPayButton`, `highlightMedIsHidden`, …).
+- **Prescriptions are grouped by organization** on a Happy Together account. The processor
+  flattens them into one list with `organizationName` lifted onto each row, and keeps the
+  per-organization list-level fields in a `prescriptionLists[]` of their own so nothing is
+  lost in the flattening.
+- `dateToDisplay` is meaningless without `dateDisplayKey`: MyChart chooses which date to
+  show ("Started", "Last filled") per prescription, and the key is what it means.
+- `isPatientReported` is emitted even when false. A patient-reported medication was never
+  prescribed here, and a reader has to be able to tell.
+- One captured field is an **Epic serializer leak**:
+  `varianceReason.epic.Core.Data.ICommentable.CommentClientEditable`, alongside a duplicate
+  of `varianceComment`. Both are dropped.
+
+### `request_refill` ships no scraper
+
+The capability is registered with `notImplemented`, so every client lists it and running it
+returns a notice rather than posting anything. **`id` is the prescription handle** this read
+surfaces, and it is what a real implementation would take.
+
+[`REFILL.md`](REFILL.md) has the endpoint the withdrawn scraper used, why a write that
+cannot be verified is worse than a missing one, and the four things to establish before
+implementing it.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the
@@ -21,7 +67,7 @@ under `communityMembers[].prescriptionList.prescriptions[]`; the scraper keeps 1
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
-| `id` | MyChart's prescription id | — | ✓ | ✓ | Handle: the id a refill request will need. See the `medicationKey` note. |
+| `id` | MyChart's prescription id | — | ✓ | ✓ | Handle: the prescription id, and what a refill implementation would take. |
 | `name` | Order name (drug, strength, form) | — | ✓ | ✓ | The medication. |
 | `patientFriendlyName.text`, `.caption`, `.captionType` | Plain-language name | — | ✓ | ✓ (`text`) | The name a patient recognizes; the caption explains the friendly name and is detail. |
 | `sig` | Directions | — | ✓ | ✓ | How to take it. |
@@ -60,8 +106,6 @@ under `communityMembers[].prescriptionList.prescriptions[]`; the scraper keeps 1
 | `getPatientFirstName` | First name | — | ✓ | — | Real; `get_profile` is the identity capability. |
 | `showPatientAdmittedBanner`, `isProxyView`, `enableSelectionMode`, `hostedInIFrame`, `backToContextSet`, `medSettings.*`, `medicationsUrl` | Page config | — | — | — | UI flag / session context / portal link. |
 
-**`medicationKey` is not a MyChart field.** The captured skeleton has `id`;
-`medicationKey` exists only in the fake's fixture, and `request_refill` posts it
-as `{ medicationKey }` to `/api/medications/RequestRefill`. Either the real
-request shape is `{ id }` or it is something not yet captured. Out of scope
-here, but the processor surfaces `id` and does not invent `medicationKey`.
+**The prescription handle is `id`.** That is what the captured skeleton has, and
+what the processor surfaces. There is no `medicationKey` field on this API —
+see [`REFILL.md`](REFILL.md).

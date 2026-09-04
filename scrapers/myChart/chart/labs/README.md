@@ -1,4 +1,86 @@
-# `labs` — what each mode carries
+# `labs`
+
+Test results — labs, imaging and procedures all come off the same endpoints — plus the
+trend history and the rendered report for each, and the imaging half that hands off to the
+eUnity viewer.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_lab_results` (read) · `get_imaging_results` (read) · `download_imaging_study` (read, media) |
+| **Source** | [`labResults.ts`](labResults.ts) · [`labResults.processor.ts`](labResults.processor.ts) · [`imagingResults.processor.ts`](imagingResults.processor.ts) · [`labtestresulttype.ts`](labtestresulttype.ts) · [`labtypes.ts`](labtypes.ts) |
+| **Activity** | React `/app/test-results` |
+
+Downloading the pixels is [`../../eunity/`](../../eunity/); decoding them is
+[`../../clo-image-parser/`](../../clo-image-parser/).
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/test-results` | — | antiforgery token |
+| `POST /api/test-results/GetList` | `{ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }` | the order list, once per group type |
+| `POST /api/test-results/GetDetails` | `{ orderKey, organizationID: '', PageNonce: '' }` | one order's results and components |
+| `POST /api/past-results/GetMultipleHistoricalResultComponents` | `{ orderID, selectedComponentIDs: [], isInitialLoad: true, … }` | the trend, per order (best effort) |
+| `POST /api/report-content/LoadReportContent` | `{ reportID, assumedVariables: { ordId, ordDat }, uniqueClass: 'EID-4', … }` | the rendered report, per result that names one |
+| `POST /Extensibility/Redirection/FdiData?fdi=…&ord=…` | — | imaging only: the single-use SAML URL for the viewer |
+
+## Notes and research
+
+- **Group types 0 and 1 are the accepted pair; 2 and 3 are speculative probes.** Every
+  captured instance accepts 0 and 1 — **each answering the same combined list** of labs,
+  imaging and procedures, which is why orders are de-duplicated by key — and rejects 2 and 3
+  with a 500. So one of the accepted pair answering is the whole list and the other failing
+  costs nothing; **both** failing is the payload failing and throws
+  ([#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406)). A rejected speculative
+  probe is expected and is never an error.
+- **`maxResults` is a hard cap on how many orders come back**, so it is sent at 1000. There
+  is no "all", and a low value returns a short list that looks like a complete one.
+- **MyChart gives no abnormality verdict.** Checked across 175 components in 39 results on
+  two real accounts, one per Epic release
+  ([#375](https://github.com/Fan-Pier-Labs/openrecord/pull/375)):
+
+  | Field | What real MyChart sent |
+  | --- | --- |
+  | `componentResultInfo.abnormalFlagCategoryValue` | the literal `"Unknown"`, **175 of 175** — including the 13 components whose value sat outside their own reference range |
+  | `results[].isAbnormal` | `false` on all 39, including the orders holding those components |
+  | historical `showAbnormalFlag` | a per-graph display bit, never a per-value verdict |
+  | the rendered report HTML | no abnormality markup or CSS classes at all |
+
+  `componentResultInfo` has exactly five keys, so there is no other field to read.
+  **`referenceRange` is the only abnormality signal there is.** Neither mode derives a
+  verdict from it: the value, the number and the range pass through, and that judgement is
+  the client's. fake-mychart's `"Unknown"` is faithful, not lazy, and a fidelity test says
+  so out loud so nobody "fixes" the fixture to say High/Low.
+- **The rendered report often carries what the structured fields do not** — pathology and
+  microbiology in particular — which is why `reportContentText` is in `concise`.
+- Trend points are **sorted before the concise cap is applied**, so the cap keeps the
+  newest whatever order the instance sent.
+- Results are sorted newest-first ([#156](https://github.com/Fan-Pier-Labs/openrecord/pull/156)).
+- The trend body and the imaging `FdiData` exchange are the two `tolerateFailure` calls
+  here; nothing tolerates a failure on the payload requests.
+
+### Imaging
+
+- `get_imaging_results` is the same requests, **filtered to imaging orders** by a keyword
+  heuristic (`mri`, `x-ray`, `ct`, `ultrasound`, …) and by structured-data checks
+  (`imageStudies`, `scans`, `narrative`, `reportDetails`). Because the classifier is a
+  heuristic, it publishes its own audit trail: `isImagingByName` and `isImagingByContent`
+  say *why* an order was classified as imaging.
+- **Two ways to find the viewer context.** Normally the report HTML embeds a
+  `data-fdi-context` JSON attribute holding `fdi` and `ord`. Some instances (observed on
+  Mass General Brigham) never embed it — each result instead carries a structured
+  `fdiLink.redirectUrl` of the form
+  `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…`, which
+  `extractFdiContextFromFdiLink()` parses as a fallback
+  ([#280](https://github.com/Fan-Pier-Labs/openrecord/pull/280)).
+- `image_id` is a base64url packing of `{ fdi, ord }` — one opaque token a model can
+  round-trip from `get_imaging_results` into `download_imaging_study` — with `index` as the
+  fallback for when a model garbles it. `hasViewableImages` says explicitly whether there
+  are pictures to look at or only a report to read.
+- The `FdiData` response (`samlUrl`) acts like a credential and **expires in a minute or
+  two**, so it stays in `raw` only; it is dead by the time anyone reads it.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

@@ -1,4 +1,48 @@
-# `notes` — what each mode carries
+# `notes`
+
+Clinical notes attached to a past visit, the text of any one of them, and the After Visit
+Summary.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_visit_notes` (read) · `get_note_content` (read) · `get_visit_avs` (read) |
+| **Source** | [`notes.ts`](notes.ts) · [`notes.processor.ts`](notes.processor.ts) |
+| **Activity** | Legacy `/Visits/VisitsList` (for the token) |
+
+Every call here is keyed on a **CSN** — Epic's contact serial number for an encounter —
+which comes from [`../visits/`](../visits/).
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Visits/VisitsList?noCache=<random>` | — | antiforgery token |
+| `POST /api/visit-notes/GetVisitNotes` | `{ CSN, FromPvdPage: true }` | the notes on that visit |
+| `POST /api/report-content/LoadReportContent` | `{ reportMnemonic: 'OPEN_NOTES', reportID: lrpId, contextID: hnoId, contextDAT: hnoDat, contextINI: 'HNO', csn, … }` | one note's text |
+| `POST /api/report-content/LoadReportContent` | `{ reportMnemonic: 'AMB_AVS', reportID: '', csn, … }` | the After Visit Summary |
+
+`LoadReportContent` is a **general report renderer**, dispatched by `reportMnemonic`. The
+lab scraper calls the same endpoint with a report id for result reports. `lrpId` is shared
+by every note of a visit; `hnoId`/`hnoDat` identify the note within it.
+
+## Notes and research
+
+- **An unknown CSN answers `200` with a literal JSON `null`**, not a 404 — as
+  `GetLetterDetails` and `GetConversationDetails` also do. The `null` is passed through in
+  every mode rather than being read as a visit with no notes.
+- **`requireJsonBody` lives here and is shared with the visits scraper.** Some deployments
+  sit behind an F5 Volterra WAF that answers a rejected request shape with **HTTP 200 and a
+  `text/html` "Request Rejected" body**. Without the check, the caller finds an HTML string
+  where JSON was expected and the most likely reading is an empty chart. The check names the
+  WAF explicitly and distinguishes it from a probably-expired session.
+- The token header on these calls is the **lower-case** `__requestverificationtoken`.
+- Note content is an HTML fragment. Markup stays in `raw`; `reportContentText` is derived
+  beside it. A note has no shorter faithful form — a model may summarize one, a processor
+  must not — so `concise` carries the whole text.
+- Shipped in [#154](https://github.com/Fan-Pier-Labs/openrecord/pull/154), with fixtures in
+  [#164](https://github.com/Fan-Pier-Labs/openrecord/pull/164).
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

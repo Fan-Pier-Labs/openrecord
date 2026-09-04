@@ -3,7 +3,7 @@
  *
  * A CLO wrapper is a 16-byte `CLOHEADERZ01` header followed by a zlib-deflated
  * AMF3 `com.clientoutlook.data.ImageDescription` object carrying the DICOM
- * display metadata for one image — see `docs/clo-format.md` for the full field
+ * display metadata for one image — see `scrapers/myChart/clo-image-parser/CLO-FORMAT.md` for the full field
  * inventory captured from real eUnity responses.
  *
  * Two callers need to produce one, and they must produce the *same* thing:

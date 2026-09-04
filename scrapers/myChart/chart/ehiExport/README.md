@@ -1,4 +1,33 @@
-# `ehiExport` — what each mode carries
+# `ehiExport`
+
+The Electronic Health Information export templates an instance offers — the
+21st Century Cures Act "export your whole record" surface.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_ehi_export` (read, `lessFrequentlyUsed`) |
+| **Source** | [`ehiExport.ts`](ehiExport.ts) · [`ehiExport.processor.ts`](ehiExport.processor.ts) |
+| **Activity** | React `/app/release-of-information` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/release-of-information` | — | antiforgery token |
+| `POST /api/release-of-information/GetEHIETemplates` | `{}` | the templates on offer |
+
+## Notes and research
+
+- **This lists what can be requested; it does not request anything.** Submitting an export
+  is a write, it generates a package a human has to collect, and the request endpoint is
+  deliberately not implemented. Reading the catalogue is safe and answers the question
+  patients actually ask — *does this hospital offer a full export at all?*
+- Coverage is uneven per deployment: an instance that has not configured the activity
+  serves it and returns an empty template list.
+- The templates are the closest thing MyChart has to a "download everything" button, which
+  is why the capability exists at all despite returning no clinical data itself.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

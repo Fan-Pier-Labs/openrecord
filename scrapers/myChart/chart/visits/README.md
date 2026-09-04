@@ -1,4 +1,63 @@
-# `visits` — what each mode carries
+# `visits`
+
+Appointments and encounters, past and upcoming. Every other visit-scoped capability —
+notes, After Visit Summary — is keyed on the **CSN** this scraper returns.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_past_visits` (read) · `get_upcoming_visits` (read) |
+| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) · [`types.ts`](types.ts) |
+| **Activity** | Legacy `/Visits/VisitsList` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Visits/VisitsList?noCache=<random>` | — | antiforgery token |
+| `POST /Visits/VisitsList/LoadUpcoming?timeZone=…&ComponentNumber=5&noCache=…` | **none** | three buckets: `InProgressVisits`, `NextNDaysVisits`, `LaterVisitsList` |
+| `POST /Visits/VisitsList/LoadPast?loadpast=1&oldestRenderedDate=…&ComponentNumber=7&serializedIndex=…` | **none** | one page of past visits, per organization |
+
+**Both POSTs deliberately carry no body and no `Content-Type`.** An empty-string body still
+makes Node's undici add `Content-Type: text/plain`, which trips F5 Volterra WAF rules on
+some deployments. Everything travels in the query string, and the token goes in the
+lower-case `__requestverificationtoken` header.
+
+## Notes and research
+
+- **`oldestRenderedDate` is not a server-side filter.** `LoadPast` paginates: **10 visits
+  per organization per page**, newest first, with `HasMoreData` per organization and an
+  opaque top-level `SerializedIndex` continuation token that must be echoed back to get the
+  next 10. A single request answers with the 10 most recent visits and looks exactly like a
+  complete history, however far back `years_back` asked; walking the cursor returns 50–56
+  visits over the same window on a real account
+  ([#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190)).
+- The paging loop stops when no organization reports `HasMoreData`, when every visit on the
+  latest page predates the cutoff (results are newest→oldest), when the continuation token
+  is missing or **stops advancing** (a stuck-cursor guard), or at `MAX_PAST_VISIT_PAGES`
+  (50 pages ≈ 500 visits per organization). Pages are **not** merged in the scraper — `raw`
+  is the envelope of every page fetched, and the merge is the processor's.
+- **The visit object is ~159 fields, of which about five are load-bearing:** when, what,
+  who, where, and the CSN. The rest is portal UI (`IsTransmitDirectEnabled`,
+  `GeolocationArrival`, `ShouldShowECheckInInGuideBanner`), and MyChart nests it two levels
+  deep under a `List` keyed by organization id. 20 past visits is ~220 KB — enough to
+  overflow the context window the answer has to live in — so the model-facing clients get a
+  condensed projection (22 visits: 234 KB → 6.5 KB) with `full_detail` as the escape hatch
+  ([#377](https://github.com/Fan-Pier-Labs/openrecord/pull/377)).
+- **`Csn` can be blank on some rows**; `CsnForECheckIn` is the fallback. Losing the CSN
+  makes a visit's notes unreachable, so both are carried.
+- **`IsPastVisit` is always wrong** — `false` on rows `LoadPast` itself returned. The
+  capability that was called already says which side of now the visit is on.
+- **`status` is derived from seven booleans, most-specific first**:
+  `canceled` › `no_show` › `left_without_being_seen` › `in_progress` › `arrived` ›
+  `completed` › `cancel_requested` › `confirmed` › `scheduled`. A canceled visit reported
+  as "completed" is a lie about care the patient never received.
+- `Instant` is Epic's `/Date(ms)/`; `Dat` is the 1840-epoch day count (offset 47,117 days —
+  see [`shared/epicDate.ts`](../../../../shared/epicDate.ts)). `PrimaryDate` is clinic-local with no zone,
+  which is why `TimeZone` rides beside it.
+- `requireJsonBody` (shared with [`../notes/`](../notes/)) guards the F5 WAF's
+  200-with-HTML rejection on both calls.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

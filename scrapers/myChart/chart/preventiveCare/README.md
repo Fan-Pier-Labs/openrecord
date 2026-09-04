@@ -1,4 +1,41 @@
-# `preventiveCare` — what each mode carries
+# `preventiveCare`
+
+Health maintenance — the screenings and vaccines that are due, overdue or done: Epic's
+"Health Advisories".
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_preventive_care` (read) |
+| **Source** | [`preventiveCare.ts`](preventiveCare.ts) · [`preventiveCare.processor.ts`](preventiveCare.processor.ts) |
+| **Activity** | Legacy `/HealthAdvisories` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /HealthAdvisories` | — | the page |
+
+**There is no JSON endpoint.** This is the only chart scraper whose payload is HTML and
+nothing else; everything it returns is parsed out of the page, which is why every field in
+the mode table is marked derived.
+
+## Notes and research
+
+- **Parse rows, not flattened text.** One `<tr>` is one screening. **Block-level elements
+  contribute no whitespace to cheerio's `.text()`**, so flattening the page runs the whole
+  table onto one line and any line-pairing heuristic then reads page chrome as a record. A
+  row with no status anywhere is skipped, which keeps unrelated tables out of the results.
+- **A text fallback handles instances that render advisories as flowing text** rather than
+  a table. It inserts newlines at block boundaries before splitting, and rejects column
+  headers, status badges, `Previously done:` lines and bare dates as screening names, so it
+  cannot invent a record out of page chrome either.
+- `pageText` is the parser's audit trail. The parser is heuristic; when a row comes back
+  `unknown`, `pageText` is what lets a caller see what it was looking at.
+- **The visible table is the contract.** fake-mychart serves no hidden
+  scraper-convenience markup, so a parser that only works against a flattened-text shortcut
+  fails there rather than in production.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

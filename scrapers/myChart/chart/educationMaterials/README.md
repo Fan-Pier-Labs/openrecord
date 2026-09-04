@@ -1,4 +1,35 @@
-# `educationMaterials` — what each mode carries
+# `educationMaterials`
+
+Patient-education material assigned by the care team — the leaflets and articles a
+clinician attached to a visit or a diagnosis.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_education_materials` (read, `lessFrequentlyUsed`) |
+| **Source** | [`educationMaterials.ts`](educationMaterials.ts) · [`educationMaterials.processor.ts`](educationMaterials.processor.ts) |
+| **Activity** | React `/app/education` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/education` | — | antiforgery token |
+| `POST /api/education/GetPatEducationTitles` | `{}` | assigned titles |
+
+As its name says, `GetPatEducationTitles` returns **titles**. Fetching a material's body is
+not implemented; no such exchange has been captured.
+
+## Notes and research
+
+- The response is a **bare array**, not an envelope with a list inside it — unusual on this
+  API, where nearly every endpoint wraps its payload.
+- Roughly half of each element is bedside-TV support, thumbnails and a points/gamification
+  block; the material itself is `displayName` plus `assignedDate`. The mode table below
+  says which is which and why.
+- `numPagesReviewed` / `numPagesUnderstood` / `numPagesQuestions` are the patient's own
+  progress through the material — real data rather than UI state, so `standard` keeps them.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

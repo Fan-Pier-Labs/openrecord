@@ -1,4 +1,41 @@
-# `allergies` — what each mode carries
+# `allergies`
+
+The patient's allergy list, plus the review status that says whether an empty list means
+"none on file" or "never reviewed".
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_allergies` (read) |
+| **Source** | [`allergies.ts`](allergies.ts) · [`allergies.processor.ts`](allergies.processor.ts) |
+| **Activity** | Legacy jQuery `/Clinical/Allergies` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/Allergies` | — | antiforgery token |
+| `POST /api/allergies/LoadAllergies` | `{}` | the list |
+
+## Notes and research
+
+- **The element shape is unverified.** Every account captured so far has an empty
+  `dataList`, so the envelope (`dataList`, `allergiesStatus`, `dateOfBirth`) is confirmed
+  and the *element* is not. The scraper hedges — `allergyItem.*` with flat fallbacks — and
+  the processor passes elements through whole rather than narrowing to guessed names. See
+  [`docs/processor-layer-todo.md`](../../../../docs/processor-layer-todo.md).
+- Deliberately **not** flagged `unverified` in the registry
+  ([#405](https://github.com/Fan-Pier-Labs/openrecord/pull/405)): the envelope *is*
+  confirmed and elements pass through whole, so an empty answer here is honest. The flag is
+  a warning about capabilities that would confidently invent an empty list, not a
+  disclaimer to sprinkle.
+- `allergiesStatus` is the field that earns its place: an empty list with an
+  unreviewed status is not the same claim as an empty list with a reviewed one, and that
+  distinction is the whole value of the field.
+- `get_allergies` is one of the three capabilities `serverErrors.integration.test.ts` uses
+  to pin that a failed answer throws in every output mode rather than rendering as "no
+  allergies on file" — see [`../../core/`](../../core/).
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

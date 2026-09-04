@@ -1,4 +1,39 @@
-# `letters` — what each mode carries
+# `letters`
+
+Letters written to the patient by a provider — work notes, referral letters, results
+letters — and the full text of any one of them.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_letters` (read, `lessFrequentlyUsed`) · `get_letter_details` (read, `lessFrequentlyUsed`) |
+| **Source** | [`letters.ts`](letters.ts) · [`letters.processor.ts`](letters.processor.ts) |
+| **Activity** | React `/app/letters` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/letters` | — | antiforgery token |
+| `POST /api/letters/GetLettersList` | `{}` | the list |
+| `POST /api/letters/GetLetterDetails` | `{ hnoId, csn }` | one letter's body |
+
+## Notes and research
+
+- **`GetLetterDetails` needs both ids.** `hnoId` identifies the note and `csn` the encounter
+  it belongs to; sending only one does not return the letter. `get_letters` therefore emits
+  both on every row, and they are the handle `get_letter_details` takes.
+- **An unknown id answers `200` with a literal JSON `null`**, not a 404 — the same
+  behaviour `GetVisitNotes` and `GetConversationDetails` have. `if (!response.ok) throw` is
+  not enough on this API: a `null` read as an object becomes an empty letter. The processor
+  passes the `null` through as `null`.
+- The letter body arrives as HTML (`bodyHTML`). Markup stays in `raw`; the readable
+  `bodyHTMLText` is derived beside it, the same treatment message bodies and visit notes get.
+- Author names are not on the letter — `empId` is a key into a `users` directory in the same
+  response, which the processor resolves into `providerName`.
+- The list is sorted newest-first, with unparseable dates last
+  ([#156](https://github.com/Fan-Pier-Labs/openrecord/pull/156)); `dateISO` can be blank.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

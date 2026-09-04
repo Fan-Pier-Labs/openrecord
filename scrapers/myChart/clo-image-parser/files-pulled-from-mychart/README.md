@@ -27,7 +27,7 @@ point.
 
 The protocol notes derived from reading them live in
 `../../eunity/docs/EUNITY_PROTOCOL.md` and
-`../../eunity/docs/CLO_TO_IMAGE_WASM_APPROACH.md`.
+`../CLO_TO_IMAGE_WASM_APPROACH.md`.
 
 ## Before you touch this folder
 

@@ -36,7 +36,7 @@
  *
  * The web UI's own request shape is in
  * `scripts/lib/pxbuild/epic.px.client.communication-center.js` on any instance
- * — see `docs/scraping.md`.
+ * — see `scrapers/SCRAPING.md`.
  */
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';

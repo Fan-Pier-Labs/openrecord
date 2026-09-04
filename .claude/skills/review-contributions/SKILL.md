@@ -215,7 +215,7 @@ Decide direction **first**; if it's wrong, quality is moot.
 
 Ground yourself in the actual vision before judging — read `CLAUDE.md`, `readme.md`, and
 `LICENSE`. For what the product covers, the capability registry (`shared/capabilities/`) is the
-single source of truth; `docs/MYCHART_FEATURES.md` lists only the features we deliberately don't
+single source of truth; `scrapers/myChart/NOT-SCRAPED.md` lists only the features we deliberately don't
 scrape. In short, this product is:
 
 - A **patient-controlled health-data aggregator** for Epic MyChart portals: scrape and consolidate

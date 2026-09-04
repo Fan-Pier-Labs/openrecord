@@ -1,4 +1,48 @@
-# `otherMyCharts` — what each mode carries
+# `otherMyCharts`
+
+MyChart accounts at *other* organizations that are linked into this one — Epic's Happy
+Together / Care Everywhere ("DXR") record sharing.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_linked_accounts` (read, `lessFrequentlyUsed`) |
+| **Source** | [`otherMyCharts.ts`](otherMyCharts.ts) · [`otherMyCharts.processor.ts`](otherMyCharts.processor.ts) |
+| **Activity** | Legacy jQuery `/Community/Manage` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Community/Manage` | — | antiforgery token |
+| `POST /Community/Shared/LoadCommunityLinks?noCache=<random>` | `controllerType=2&showDXROrgInMO=false` (form-encoded) | the linked organizations |
+
+Three things about this request are unusual and all three are load-bearing:
+
+- it is **form-encoded**, not JSON, like every legacy MVC route here;
+- the token header is **lower-case** `__requestverificationtoken`, which is what the page's
+  own JS sends;
+- the `noCache` query parameter matters — without it a repeat call can be served a stale
+  organization list.
+
+## Notes and research
+
+- **This is a map of where else the record lives.** It answers "which other health systems
+  hold my records", which is a question no other capability answers, and it is how a user
+  discovers the *next* MyChart instance worth connecting.
+- `OrgList` is a map of ~50-field organization records, and most of those fields are link
+  UI and DXR plumbing. The one clinical fact per organization is
+  `LastEncounterDetail` — the patient, physician, department, date and time of the last
+  visit there.
+- The **link-problem fields** (`IsDisabled`, `IsInvalidCeLink`, `InvalidLinkReason`,
+  `ErrorMessage`, …) are kept in `standard` on purpose: a broken link is the explanation for
+  data that is missing from the rest of the chart.
+- `LastAccessTokenDateTime` says how stale the linked organization's data is.
+- One of the capabilities pinned by
+  [#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406) — and the legacy form-POST
+  representative in `serverErrors.integration.test.ts`, so a failed answer here cannot read
+  as "no linked accounts".
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

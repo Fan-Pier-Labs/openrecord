@@ -1,4 +1,40 @@
-# `medicalHistory` — what each mode carries
+# `medicalHistory`
+
+Past medical history as the patient and clinicians have recorded it: prior diagnoses, past
+surgeries, family history, and the social history (tobacco, alcohol).
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_medical_history` (read) |
+| **Source** | [`medicalHistory.ts`](medicalHistory.ts) · [`medicalHistory.processor.ts`](medicalHistory.processor.ts) |
+| **Activity** | React `/app/histories` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/histories` | — | antiforgery token |
+| `POST /api/histories/LoadHistoriesViewModel` | `{}` | all four histories in one body |
+
+One request returns `medicalHistory`, `surgicalHistory`, `familyHistoryAndStatus` and
+`socialHistory` together.
+
+## Notes and research
+
+- **This is history, not the problem list.** Active conditions are `get_health_issues`;
+  what is here is what was true before. The two overlap by design in MyChart and are kept
+  apart here.
+- **The social-history block is part of the answer**, not page furniture: smoking status
+  and alcohol use are among the first questions in any clinical history. Status is in
+  `concise`, the amounts and quit dates in `standard`.
+- Family history is per relative: `relationshipToPatientName` plus `conditions[]`, with
+  `statusName` (living / deceased) and, in `standard`, the relative's age — age at diagnosis
+  or death is what makes a family history clinically usable.
+- The rest of `familyMembers[]` is code-table ids and edit-form state
+  (`removeFamilyMember`, `createdOnClient`, `changes[]`), which is the shape of an activity
+  the patient can edit rather than a read-only record.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

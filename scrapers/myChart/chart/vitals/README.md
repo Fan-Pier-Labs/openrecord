@@ -1,4 +1,63 @@
-# `vitals` — what each mode carries
+# `vitals`
+
+Track My Health flowsheets — blood pressure, weight, pulse and anything else the care team
+or the patient records over time.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_vitals` (read) |
+| **Source** | [`vitals.ts`](vitals.ts) · [`vitals.processor.ts`](vitals.processor.ts) |
+| **Activity** | React `/app/track-my-health` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/track-my-health` | — | antiforgery token |
+| `POST /api/track-my-health/GetFlowsheets` | `{ organizationId: '' }` | flowsheet **definitions** — episode ids and row metadata, no values |
+| `POST /api/track-my-health/GetFlowsheetReadings` | `{ episodeId, endInstantIso, numReadings }` | the readings for one episode, one page |
+
+## Notes and research
+
+Three things about this API return a plausible-looking answer if you get them wrong, so
+they are worth knowing before changing anything here.
+
+- **`GetFlowsheets` never carries values.** Its top-level `readings` array is **always
+  empty**: it returns flowsheet *definitions* only, and the values come from the second
+  endpoint. The id field on a definition is `templateId` / `episodeId` — there is no
+  `flowsheetId`.
+
+- **`hasMoreData` cannot be used for paging: MyChart reports it `false` while older
+  readings still exist.** The loop instead walks back from the oldest instant each page
+  returned, and stops only when a request reaches no further back. Consecutive pages overlap
+  on the boundary instant, so readings are de-duplicated.
+
+- **`numReadings` caps distinct reading *instants* (flowsheet columns), not individual
+  readings.** At 200 that is roughly 693 readings across 7 vital types — enough to look
+  like a full history while silently truncating it. It is 1000 here, with a 100-page bound.
+
+- **A reading's value is in one of two fields, and the other one is present but empty.**
+  Pulse and Weight carry the number in `numericValue` beside an **empty** `stringValue`;
+  Blood Pressure fills `stringValue` with `"145/95"`. Take the first field that actually
+  holds something — `stringValue ?? numericValue` reads the empty string as a value and
+  blanks every numeric vital ([#370](https://github.com/Fan-Pier-Labs/openrecord/pull/370)).
+
+- **`units` is unverified.** `unitsDisplayName` appears in **no captured skeleton**:
+  `realShapes.ts`, generated from three real instances, records flowsheet rows as
+  `{ id, name, rowType, valueType, decimalPlaces }`. The fixture's `'mmHg'`/`'lbs'` are
+  curated, not observed, so if real rows carry no units field then every vital OpenRecord
+  returns is unitless on a real instance while the fake makes units look fine — the fidelity
+  contract running backwards. The likeliest explanation is that the captured flowsheet held
+  only Blood Pressure. `dev-scripts/probe-flowsheet-shape.ts` settles it against a real
+  account ([#381](https://github.com/Fan-Pier-Labs/openrecord/pull/381)); it reports field
+  names and presence only, never a reading's value or date.
+
+- `instantTakenIso` is **clinic-local with no zone suffix**; `timeZone` beside it is what
+  makes it interpretable.
+- `isAbnormal` is the one verdict MyChart does give on a vital — unlike labs, where the
+  abnormal flag is always `"Unknown"` (see [`../labs/`](../labs/)).
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the
