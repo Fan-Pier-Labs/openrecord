@@ -92,9 +92,12 @@ function renderExample(payload: unknown): string {
  * doing rather than the processors': the per-session CSRF token it mints. Pin it
  * to a same-length constant so the doc only changes when the output does (CI
  * regenerates it and fails on a diff). Same length keeps the sizes table honest.
- * The clock-derived values in those records — `endInstantIso`,
- * `oldestRenderedDate` — need no such patching: `pinClock()` already froze the
- * clock the scrapers read.
+ * The clock-derived values in those records — vitals' `endInstantIso`,
+ * past-visits' `oldestRenderedDate` — used to be patched here too. They no
+ * longer need to be: `pinClock()` freezes the clock the scrapers read, which
+ * also fixes what a regex over the output could not — `oldestRenderedDate` is
+ * the cutoff deciding how far back the pagination walks, so an unpinned clock
+ * changed which visits the doc contains, not just how the URL reads.
  */
 function stable(doc: string): string {
   return doc.replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`);
