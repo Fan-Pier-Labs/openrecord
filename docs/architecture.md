@@ -196,6 +196,21 @@ the ones that bite when you add a capability:
   uncaptured elements pass through whole. `docs/processor-layer-todo.md` lists which.
 - **A missing verification token throws** (`MissingVerificationTokenError`). It used to return an
   empty result, which read as "this patient has no allergies".
+- **A failed answer to a request the collector sent throws** (`MyChartResponseError`), in every
+  mode. `RawCollector.send` records the response and then refuses a non-2xx status, Epic's own
+  error page (a November 2025 instance bounces a failed request through `/Home/FiveHundred` to a
+  **200** `/Home/Error` page, so the status alone is not enough) and an F5 block page. Before
+  this, only five processors looked at the status; for the rest a 500 was `{}`, projected to
+  `[]`, rendered as "no allergies on file". A best-effort request — an optional endpoint, a
+  speculative probe — opts out per call with `tolerateFailure`; the record then carries
+  `failure`, and its processor reads it through `okBodyOf` / `answered` and reports the gap under
+  a name (`externalProvidersUnavailable`, `contactInformationUnavailable`, `unavailable`). Never
+  the payload. fake-mychart's `failingEndpoints` knob is how a test proves a capability fails
+  loudly. Every read capability goes through the collector; the reads that still call
+  `makeAuthenticatedRequest` directly sit outside this guarantee on purpose or by omission:
+  `getMyChartProfile` (the proxy-verification primitive, which returns `null` by contract),
+  `proxyContext`'s `/Home` load, the token fetch behind the emergency-contact writes, and the
+  billing statement helpers in `bills.ts` that no capability uses.
 - **The model-facing clients default to `concise`** (`MODEL_FACING_OUTPUT_MODE`); the library and
   the CLI default to `json`. One generic markdown renderer serves both markdown modes so a field
   cannot be on the page and missing from the JSON.

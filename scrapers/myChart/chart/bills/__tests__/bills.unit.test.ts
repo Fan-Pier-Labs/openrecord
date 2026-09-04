@@ -558,6 +558,29 @@ describe('billingProcessor.standard', () => {
   it('reads an empty envelope as nothing owed and no accounts', () => {
     expect(billingProcessor.standard({ requests: [] })).toEqual({ totalDue: 0, accounts: [] })
   })
+
+  it('names a best-effort endpoint that did not answer instead of reporting its list empty', () => {
+    // A1's three calls all answered; A2 never got a payment list at all.
+    expect(standard.accounts[0]!.unavailable).toEqual([])
+    expect(standard.accounts[1]!.unavailable).toEqual(['LoadPaymentList'])
+
+    // A tolerated 500 on the statement list — recorded with `failure` by the
+    // collector — is "statements unknown", not "no statements".
+    const failed: RawResponse = {
+      requests: [
+        RAW.requests[0]!,
+        RAW.requests[1]!,
+        { ...get('/Billing/Details/GetStatementList?id=A1&context=C1&cid=', '<html>error</html>', 500), contentType: 'text/html', failure: 'HTTP 500 (text/html)' },
+        RAW.requests[3]!,
+      ],
+    }
+    const account = billingProcessor.standard(failed).accounts[0]!
+    expect(account.statements).toEqual([])
+    expect(account.payments).toHaveLength(2)
+    expect(account.unavailable).toEqual(['GetStatementList'])
+    const concise = billingProcessor.concise(billingProcessor.standard(failed)) as { accounts: Array<{ unavailable: string[] }> }
+    expect(concise.accounts[0]!.unavailable).toEqual(['GetStatementList'])
+  })
 })
 
 describe('billingProcessor.concise', () => {
@@ -580,6 +603,7 @@ describe('billingProcessor.concise', () => {
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$350.00' },
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$150.00' },
       ],
+      unavailable: [],
     })
     expect(JSON.stringify(concise)).not.toContain('ProcedureList')
   })

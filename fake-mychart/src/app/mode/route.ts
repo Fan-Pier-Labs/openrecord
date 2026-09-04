@@ -12,6 +12,7 @@ import {
 } from '@/lib/proxy';
 import { getRequireTerms, setRequireTerms } from '@/lib/terms';
 import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from '@/lib/epicVersion';
+import { getFailingEndpoints, setFailingEndpoints } from '@/lib/outage';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
@@ -39,12 +40,17 @@ import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from 
  *   - `requireTerms` — whether logging in lands on `/Home` or bounces to
  *     `/Authentication/TermsConditions` until the patient accepts once. See
  *     `src/lib/terms.ts`.
+ *   - `failingEndpoints` — paths below the mount that answer with the active
+ *     release's server-error surface instead of their data, for proving a
+ *     scraper reports an outage rather than an empty chart. See
+ *     `src/lib/outage.ts`.
  *
  *   GET  /mode                              → every knob's current value
  *   POST /mode {"mode":"root"}              → root-mounted, still announced by redirect
  *   POST /mode {"discovery":"meta-refresh"} → still under /MyChart, announced by meta refresh (Renown)
  *   POST /mode {"proxyDiscovery":"script"}  → proxy records only in the script payload
  *   POST /mode {"requireTerms":true}        → login lands on the T&C page first
+ *   POST /mode {"failingEndpoints":["api/allergies/LoadAllergies"]}  → that endpoint 500s; [] restores it
  *   POST /mode {"mode":"root","discovery":"meta-refresh"}  → several at once
  *
  * Whatever a request omits is left alone, so a caller that only cares about one
@@ -71,6 +77,7 @@ function currentSettings() {
     proxyDiscovery: getProxyDiscoveryMode(),
     requireTerms: getRequireTerms(),
     epicVersion: getEpicVersion(),
+    failingEndpoints: getFailingEndpoints(),
   };
 }
 
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion } = body ?? {};
+  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints } = body ?? {};
 
   if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
@@ -139,6 +146,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    failingEndpoints !== undefined
+    && (!Array.isArray(failingEndpoints) || !failingEndpoints.every(p => typeof p === 'string'))
+  ) {
+    return NextResponse.json(
+      { error: 'failingEndpoints must be an array of path strings below the mount, e.g. ["api/allergies/LoadAllergies"]; [] clears it', received: failingEndpoints },
+      { status: 400 },
+    );
+  }
+
   // `moved-host` with nowhere to move to would answer every request with a 500,
   // which is a confusing way to find out the call was incomplete.
   const effectiveMovedHost = movedHost !== undefined ? movedHost : getMovedHost();
@@ -152,9 +169,10 @@ export async function POST(request: NextRequest) {
   if (
     mode === undefined && discovery === undefined && movedHost === undefined
     && proxyDiscovery === undefined && requireTerms === undefined && epicVersion === undefined
+    && failingEndpoints === undefined
   ) {
     return NextResponse.json(
-      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion' },
+      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints' },
       { status: 400 },
     );
   }
@@ -165,6 +183,7 @@ export async function POST(request: NextRequest) {
   if (proxyDiscovery !== undefined) setProxyDiscoveryMode(proxyDiscovery as ProxyDiscoveryMode);
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
   if (epicVersion !== undefined) setEpicVersion(epicVersion as EpicVersion);
+  if (failingEndpoints !== undefined) setFailingEndpoints(failingEndpoints as string[]);
 
   return NextResponse.json({ ok: true, ...currentSettings() });
 }

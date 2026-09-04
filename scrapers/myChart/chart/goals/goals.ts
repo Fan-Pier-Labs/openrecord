@@ -1,5 +1,5 @@
 import type { MyChartRequest } from '../../core/myChartRequest';
-import { RawCollector, type RawResponse } from '../../core/rawResponse';
+import { RawCollector, type RawResponse, type MyChartResponseError } from '../../core/rawResponse';
 import {
   LOAD_CARE_TEAM_GOALS_PATH,
   LOAD_PATIENT_GOALS_PATH,
@@ -22,15 +22,25 @@ export { goalsProcessor, LOAD_CARE_TEAM_GOALS_PATH, LOAD_PATIENT_GOALS_PATH } fr
  * is a superset of the other by construction, so the activity's is the one to
  * ask for.
  *
- * Neither call is allowed to fail the whole read: one captured instance answers
- * `LoadPatientGoals` with HTTP 500 every time while care-team goals load fine,
- * and the processor names a failed endpoint rather than calling it empty.
+ * Neither call alone is allowed to fail the whole read: one captured instance
+ * answers `LoadPatientGoals` with HTTP 500 every time while care-team goals
+ * load fine, so each is tolerated and the processor names a failed endpoint
+ * rather than calling it empty. Both failing is a failed read, though — there
+ * is nothing loaded to return — and throws the first failure.
  */
 export async function fetchGoalsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
   const token = await collector.pageToken('/app/goals');
-  await collector.postJson(LOAD_CARE_TEAM_GOALS_PATH, token, { FullLoad: true });
-  await collector.postJson(LOAD_PATIENT_GOALS_PATH, token, {});
+  const failures: MyChartResponseError[] = [];
+  for (const [path, body] of [
+    [LOAD_CARE_TEAM_GOALS_PATH, { FullLoad: true }],
+    [LOAD_PATIENT_GOALS_PATH, {}],
+  ] as const) {
+    const request = { path, method: 'POST' as const, headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token }, body: JSON.stringify(body) };
+    const { failure } = await collector.send(request, { tolerateFailure: true });
+    if (failure) failures.push(failure);
+  }
+  if (failures.length === 2) throw failures[0]!;
   return collector.toRaw();
 }
 

@@ -119,6 +119,30 @@ function stable(doc: string): string {
   return doc.replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`);
 }
 
+/**
+ * Put a raw record's requests in a fixed order.
+ *
+ * A scraper that fires its calls with `Promise.all` records them in completion
+ * order, so the same capability writes them in a different order run to run —
+ * `get_health_summary` posts `FetchHealthSummary` and `FetchH2GHeader`
+ * together, and either can land first. That makes this doc's diff a coin flip
+ * and fails the CI check on whichever PR is unlucky, with no code change
+ * behind it. Sorting by path keeps the document readable and deterministic;
+ * the order requests happened to complete in was never the point.
+ *
+ * Only the doc is reordered. `RawResponse` itself is untouched, so a caller
+ * still sees exactly what the scraper recorded.
+ */
+function orderRequests(output: unknown): unknown {
+  if (output === null || typeof output !== 'object') return output;
+  const record = output as { requests?: unknown };
+  if (!Array.isArray(record.requests)) return output;
+  const requests = [...(record.requests as { path?: string; method?: string }[])].sort((a, b) =>
+    `${a.path ?? ''} ${a.method ?? ''}`.localeCompare(`${b.path ?? ''} ${b.method ?? ''}`),
+  );
+  return { ...record, requests };
+}
+
 function sizeOf(payload: unknown): number {
   return typeof payload === 'string' ? payload.length : JSON.stringify(payload).length;
 }
@@ -141,7 +165,7 @@ async function main(): Promise<void> {
     const args = ARGS[capability.id] ? await ARGS[capability.id]!(session) : {};
     const outputs: Partial<Record<OutputMode, unknown>> = {};
     for (const mode of OUTPUT_MODES) {
-      outputs[mode] = await executeCapability(session, capability.id, { ...args, mode });
+      outputs[mode] = orderRequests(await executeCapability(session, capability.id, { ...args, mode }));
     }
     sizes.push(
       `| \`${capability.id}\` | ${sizeOf(outputs.raw)} | ${sizeOf(outputs.json)} | ${sizeOf(outputs.standard)} | ${sizeOf(outputs.concise)} |`,
