@@ -9,10 +9,10 @@
     "cli": "bun npm-package/cli/entry.ts",
     "fake-mychart": "cd fake-mychart && bun run dev",
     "test": "bun test --isolate .unit.test.ts",
-    "test:integration": "bun fake-mychart/scripts/with-fake-mychart.ts bun test --isolate .integration.test.ts",
+    "test:integration": "bun tests/with-fake-mychart.ts bun test --isolate .integration.test.ts",
     "test:real-mychart": "NODE_ENV=development bun test --isolate .real-mychart.test.ts",
     "test:unit": "bun run test",
-    "test:coverage": "bun fake-mychart/scripts/with-fake-mychart.ts bun test --isolate --coverage .unit.test.ts .integration.test.ts"
+    "test:coverage": "bun tests/with-fake-mychart.ts bun test --isolate --coverage .unit.test.ts .integration.test.ts"
   },
   "dependencies": {
     "cbor-x": "^1.6.5",

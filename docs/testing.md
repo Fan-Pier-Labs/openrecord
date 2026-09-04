@@ -77,9 +77,8 @@ still leaves the first suite of a run trusting the previous `bun test` invocatio
 
 ## CI integration tests
 
-Integration tests in `tests/integration/ci/` run against the same fake-mychart every other
-integration suite uses — in CI the dockerized one from `docker-compose.ci.yaml` on `localhost:4000`,
-locally one that `bun run test:integration` starts on a free port of its own:
+Integration tests in `tests/integration/ci/` run against the dockerized fake-mychart from
+`docker-compose.ci.yaml` (served on `localhost:4000`):
 
 - `cli-passkey.integration.test.ts` — spawns the built CLI (`npm-package/dist/cli.cjs`) to exercise
   passkey setup, passkey auto-login, and passkey removal end to end. Build the CLI first
@@ -157,9 +156,9 @@ a *mode* over the two CI kinds, not a fourth suite. It cannot be folded into eit
 measuring the unit suite alone counts every scraper that is only covered end-to-end as untested, and
 measuring the integration suite alone does the reverse. Coverage has to see both at once.
 
-**It needs everything the integration suite needs** — a fake-mychart, npm-package's `dist/` built,
-and every package's deps installed — so the CI step lives in the `integration` job, the only one
-with all of that. Locally the server is handled for you; the rest is
+**It needs everything the integration suite needs** — the compose service, npm-package's `dist/`
+built, and every package's deps installed — so the CI step lives in the `integration` job, the only
+one with all of that. Locally the server is handled for you; the rest is
 `cd npm-package && bun install && bun run build`.
 
 Three things to know before touching it:

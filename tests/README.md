@@ -39,9 +39,8 @@ tests/
 
 ## `tests/integration/ci/`
 
-Runs against the same fake-mychart every other integration suite uses: in CI
-the `docker-compose.ci.yaml` service on `localhost:4000`, locally one that
-`bun run test:integration` starts on a free port of its own.
+Runs against the fake-mychart service defined in `docker-compose.ci.yaml`
+(served on `localhost:4000`) — the same one every other integration suite uses.
 `cli-passkey.integration.test.ts` also needs the CLI binary built first
 (`cd npm-package && bun run build`).
 
@@ -58,6 +57,10 @@ reasons that look nothing like the cause.
 
 ### Running locally
 
+`bun run test:integration` starts a fake-mychart on a random port and stops it
+again afterwards, so no server needs starting first — and no fixed port for a
+run in another worktree to be squatting on.
+
 ```bash
 # Build the CLI binary the passkey test spawns
 cd npm-package && bun run build && cd ..
@@ -65,19 +68,8 @@ cd npm-package && bun run build && cd ..
 # Chromium for the passkey UI test — without it that one suite skips
 bunx playwright install chromium
 
-# Run every integration suite. This builds fake-mychart, starts it on a free
-# port, and stops it again on the way out — no Docker, and no fixed port for a
-# server in another worktree to be squatting on.
+# Run every integration suite
 bun run test:integration
-```
-
-To run one suite by hand instead, start a server yourself and tell the suite
-where it is — the test files still fall back to `localhost:4000`, which is
-whatever happens to be on that port:
-
-```bash
-bun run fake-mychart   # prints the port it picked
-FAKE_MYCHART_HOST=localhost:<port> bun test path/to/one.integration.test.ts
 ```
 
 ### Dependencies

@@ -124,7 +124,7 @@ bun run lint
 bun run test
 ```
 
-Also run the integration suite. It starts its own fake-mychart on a free port, so it needs no Docker and nothing started beforehand:
+Also run the integration suite. It starts its own fake-mychart, so it needs no Docker and nothing started beforehand:
 ```bash
 bun run test:integration
 ```
@@ -159,7 +159,7 @@ Start the dev server and hit at least one route to confirm the app actually runs
 cd fake-mychart && PORT=4000 bun run dev &
 ```
 
-`PORT` is pinned here only so the `curl` below knows where to look; without it the server picks a free port and prints it. Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
+Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
 
 For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `expo-app/`. Don't try to launch the simulator unless the user asks.
 
