@@ -6,9 +6,9 @@ after changing a processor. Field decisions are in
 [`processor-layer-proposal.md`](processor-layer-proposal.md).
 
 Every read capability this server can answer, in all four modes. Raw and JSON examples longer
-than 12,000 characters are cut, and say so. The fake's per-session CSRF token and the
-now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output
-does. The `public` capabilities are absent: they read CMS's NPI Registry rather than a MyChart,
+than 12,000 characters are cut, and say so. The fake's per-session CSRF token is
+pinned and the script runs on a frozen clock, so the doc only changes when the output does.
+The `public` capabilities are absent: they read CMS's NPI Registry rather than a MyChart,
 so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).
 
 ## Sizes (characters)
@@ -26,7 +26,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_medical_history` | 1602 | 1184 | 1286 | 534 |
 | `get_goals` | 2528 | 758 | 931 | 931 |
 | `get_upcoming_visits` | 6341 | 1982 | 2493 | 620 |
-| `get_past_visits` | 130565 | 38752 | 48756 | 11414 |
+| `get_past_visits` | 145522 | 42626 | 53632 | 12554 |
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
@@ -2033,7 +2033,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "POST",
       "requestBody": {
         "episodeId": "EP-VITALS",
-        "endInstantIso": "2026-09-04T23:59:59",
+        "endInstantIso": "2026-02-02T23:59:59",
         "numReadings": 1000
       },
       "status": 200,
@@ -4083,7 +4083,7 @@ Upcoming appointments.
 Past visits within the last `years_back` years (default 2).
 
 <details>
-<summary><code>mode: raw</code> (130565 chars)</summary>
+<summary><code>mode: raw</code> (145522 chars)</summary>
 
 ```json
 {
@@ -4097,7 +4097,7 @@ Past visits within the last `years_back` years (default 2).
       "purpose": "token"
     },
     {
-      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2024-01-01T00:00:00.000Z&ComponentNumber=7",
+      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2024-02-01T00:00:00.000Z&ComponentNumber=7",
       "method": "POST",
       "status": 200,
       "contentType": "application/json;charset=utf-8",
@@ -4369,18 +4369,18 @@ Past visits within the last `years_back` years (default 2).
                   "Specialty": {
                     "Value": "",
                     "Title": "",
-… (truncated; 233907 more characters)
+… (truncated; 261838 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (48756 chars)</summary>
+<summary><code>mode: standard</code> (53632 chars)</summary>
 
-- **count**: 20
-- **hasOlderVisits**: true
+- **count**: 22
+- **hasOlderVisits**: false
 
-## visits (20)
+## visits (22)
 
 ### visits 1
 
@@ -6362,15 +6362,213 @@ Past visits within the last `years_back` years (default 2).
 - **IsNotViewed**: false
 - **IsVisitAmbulatory**: false
 
+### visits 21
+
+- **Csn**: CSN-HOMER-022
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-022
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1669973400000)/
+- **instantISO**: 2022-12-02T09:30:00.000Z
+- **PrimaryDate**: 12/02/2022 09:30:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Office Visit
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 22
+
+- **Csn**: CSN-HOMER-023
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-023
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1660563900000)/
+- **instantISO**: 2022-08-15T11:45:00.000Z
+- **PrimaryDate**: 08/15/2022 11:45:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Annual Physical
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (11414 chars)</summary>
+<summary><code>mode: concise</code> (12554 chars)</summary>
 
-- **count**: 20
-- **hasOlderVisits**: true
+- **count**: 22
+- **hasOlderVisits**: false
 
-## visits (20)
+## visits (22)
 
 ### visits 1
 
@@ -6812,15 +7010,59 @@ Past visits within the last `years_back` years (default 2).
 - **IsClinicalNoteAvailable**: false
 - **IsVisitSummaryEnabled**: false
 
+### visits 21
+
+- **Csn**: CSN-HOMER-022
+- **PrimaryDate**: 12/02/2022 09:30:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Office Visit
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 22
+
+- **Csn**: CSN-HOMER-023
+- **PrimaryDate**: 08/15/2022 11:45:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Annual Physical
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (38752 chars)</summary>
+<summary><code>mode: json</code> (42626 chars)</summary>
 
 ```json
 {
-  "count": 20,
-  "hasOlderVisits": true,
+  "count": 22,
+  "hasOlderVisits": false,
   "visits": [
     {
       "Csn": "CSN-HOMER-002",
@@ -7226,8 +7468,8 @@ Past visits within the last `years_back` years (default 2).
       "IsResidentialMed": false,
       "ChiefComplaint": "",
       "Diagnoses": [],
-      "SurgicalProc
-… (truncated; 42828 more characters)
+      "SurgicalPro
+… (truncated; 48308 more characters)
 ```
 
 </details>

@@ -11,6 +11,9 @@
  *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.
+ *
+ * The clock is pinned (see `pinned-clock.ts`), so running this on any day —
+ * or with `SOURCE_DATE_EPOCH` set to any instant — writes the same bytes.
  */
 
 import { writeFileSync } from 'fs';
@@ -20,6 +23,7 @@ import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
 import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
+import { pinClock } from './pinned-clock';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -84,17 +88,16 @@ function renderExample(payload: unknown): string {
 }
 
 /**
- * Two things in the raw records change on every run, and both are the fake's
- * doing rather than the processors': the per-session CSRF token the fake mints,
- * and the now-based `oldestRenderedDate` the visits scraper puts in its query.
- * Pin both to same-length constants so the doc only changes when the output
- * does (CI regenerates it and fails on a diff). Same length keeps the sizes
- * table honest.
+ * One thing in the raw records still changes on every run, and it is the fake's
+ * doing rather than the processors': the per-session CSRF token it mints. Pin it
+ * to a same-length constant so the doc only changes when the output does (CI
+ * regenerates it and fails on a diff). Same length keeps the sizes table honest.
+ * The clock-derived values in those records — `endInstantIso`,
+ * `oldestRenderedDate` — need no such patching: `pinClock()` already froze the
+ * clock the scrapers read.
  */
 function stable(doc: string): string {
-  return doc
-    .replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`)
-    .replace(/oldestRenderedDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, 'oldestRenderedDate=2024-01-01T00:00:00.000Z');
+  return doc.replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`);
 }
 
 function sizeOf(payload: unknown): number {
@@ -102,6 +105,10 @@ function sizeOf(payload: unknown): number {
 }
 
 async function main(): Promise<void> {
+  // Before the first scraper runs: some of them date-stamp their requests, and
+  // those stamps are recorded into the doc.
+  pinClock();
+
   const login = await myChartUserPassLogin({ hostname: HOST, user: 'homer', pass: 'donuts123', protocol: 'http' });
   if (login.state !== 'logged_in') throw new Error(`fake-mychart login failed: ${login.state}`);
   const session = login.mychartRequest;
@@ -144,9 +151,9 @@ async function main(): Promise<void> {
     '[`processor-layer-proposal.md`](processor-layer-proposal.md).',
     '',
     `Every read capability this server can answer, in all four modes. Raw and JSON examples longer`,
-    `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token and the`,
-    'now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output',
-    'does. The `public` capabilities are absent: they read CMS\'s NPI Registry rather than a MyChart,',
+    `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token is`,
+    'pinned and the script runs on a frozen clock, so the doc only changes when the output does.',
+    'The `public` capabilities are absent: they read CMS\'s NPI Registry rather than a MyChart,',
     'so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).',
     '',
     '## Sizes (characters)',
@@ -165,7 +172,9 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
