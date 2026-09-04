@@ -2033,7 +2033,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "POST",
       "requestBody": {
         "episodeId": "EP-VITALS",
-        "endInstantIso": "2026-09-04T23:59:59",
+        "endInstantIso": "2024-01-01T23:59:59",
         "numReadings": 1000
       },
       "status": 200,
