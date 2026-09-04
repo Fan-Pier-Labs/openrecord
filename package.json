@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "cli": "bun npm-package/cli/entry.ts",
     "fake-mychart": "cd fake-mychart && bun run dev",
+    "version:manifest": "bun openrecord-splash/generate-version.ts",
     "test": "bun test --isolate .unit.test.ts",
     "test:integration": "bun test --isolate .integration.test.ts",
     "test:real-mychart": "NODE_ENV=development bun test --isolate .real-mychart.test.ts",

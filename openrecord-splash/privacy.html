@@ -274,6 +274,16 @@
         <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
       </p>
 
+      <h2>The update check</h2>
+      <p>
+        On start, the command-line tool fetches a small file from this site listing the current
+        version of each thing we publish, so it can tell you when you are running an old one. It
+        sends no information about you. Like any web request it reveals <strong>your IP address to
+        our CDN, and how often you run the tool</strong> — never your username, the health system
+        you use, or anything from your record. The same
+        <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> turns it off.
+      </p>
+
       <h2>What we never do</h2>
       <ul>
         <li>We do not sell your personal information, and we do not share it with advertisers or data brokers.</li>

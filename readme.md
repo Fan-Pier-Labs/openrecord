@@ -113,6 +113,12 @@ No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out.
 
+On start the CLI also fetches a small version manifest from
+`openrecord.fanpierlabs.com` to tell you if a newer release exists. That request
+reaches our CDN, so it reveals your IP address and how often you run the CLI —
+nothing else, and no chart content. The same
+`MYCHART_CLI_TELEMETRY_DISABLED=1` turns it off.
+
 ## Privacy
 
 [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) — what stays on

@@ -42,6 +42,7 @@
     "read-local-passwords/**/*.ts",
     "dev-scripts/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
+    "openrecord-splash/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
     "tests/**/*.ts"
   ]

@@ -46,7 +46,11 @@ function analyticsEndpoint(): string {
 /** How long we'll wait on a telemetry request before giving up. */
 const REQUEST_TIMEOUT_MS = 5000;
 
-function isTelemetryDisabled(): boolean {
+/**
+ * The opt-out, honoured by everything in the product that contacts a Fan Pier
+ * Labs server on its own initiative — telemetry events and the version check.
+ */
+export function isTelemetryDisabled(): boolean {
   return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
 }
 

@@ -15,6 +15,8 @@ real React + TypeScript app because it is a real application.
 index.html      marketing splash — hand-written, no build step
 privacy.html    privacy policy — linked from the splash and the app stores
 terms.html      terms of service — same, and the app stores' custom EULA
+mcpb_version.json     the update manifest every shipped client polls — generated
+generate-version.ts   generates it from the packages' package.json versions
 demo/           React + TypeScript demo (Vite)
   demo.html       entry HTML
   src/            application source
@@ -65,6 +67,45 @@ Two things are easy to get wrong and are covered by `__tests__/metadata.test.ts`
   path, so the preview silently falls back to a bare link.
 - **Every referenced asset must be in `deploy.sh`.** A file that exists locally but was never
   uploaded looks fine in a local browser and 403s in production.
+
+## The update manifest (`mcpb_version.json`)
+
+Every shipped client asks `https://openrecord.fanpierlabs.com/mcpb_version.json` whether it
+is behind. The reader is [`scrapers/metadata/version.ts`](../scrapers/metadata/version.ts);
+this site is where the answer lives.
+
+```json
+{
+  "versions":   { "scrapers": "…", "cli": "…", "mcpb": "…", "app": "…" },
+  "updateUrls": { "scrapers": "…", "cli": "…", "mcpb": "…", "app": "…" }
+}
+```
+
+**Nothing here is hand-maintained.** `generate-version.ts` reads the version out of each
+package (for the extension, out of `manifest.json` — the file Claude Desktop reads), so the
+manifest cannot disagree with what shipped:
+
+```bash
+bun run version:manifest     # from the repo root
+```
+
+`deploy.sh` runs it immediately before uploading, so a deploy can't publish a stale
+manifest, and it gets the same 5-minute TTL as the HTML — a day-long cache would hide a
+release.
+
+Both ways this breaks are invisible in a browser, so `__tests__/version.unit.test.ts`
+covers them: **stale** (the committed file is diffed against a fresh generation) and
+**malformed** (it is validated with the reader's own `parseVersionManifest`, not a
+restatement of its rules).
+
+The filename says `mcpb`, but the document covers all four targets and the CLI reads it
+too. The URL is published, so it stays; read it as "the manifest".
+
+**There is deliberately no `schema` field.** The parser validates the shape, and a client
+that can't read the document treats it as "couldn't tell", so a *key* change is already
+safe. What isn't is a semantic change that keeps the same keys — so **add a `schema` field
+before changing what an existing key means**, and have the reader refuse a version it
+wasn't written for.
 
 ## The demo (`demo/`)
 

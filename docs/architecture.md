@@ -273,6 +273,30 @@ permits, so a handful of hung requests starve every other category on the instan
 `AbortController` rather than `AbortSignal.timeout`, because React Native's `AbortSignal` comes from
 the `abort-controller` package, which has the constructor but not that static.
 
+## The version check (`scrapers/metadata/version.ts`)
+
+A client asks whether it is behind by reading a manifest we publish at
+`https://openrecord.fanpierlabs.com/mcpb_version.json`, through `scraperFetch` like everything else.
+
+It names a version and an update URL for each of four targets — `scrapers`, `cli`, `mcpb`, `app` —
+because they are versioned separately, so a single "the version" would be wrong for someone. The URL
+travels in the document so an installed client can be sent somewhere new without needing the update
+it is announcing.
+
+`openrecord-splash/mcpb_version.json` is generated from each package's own `package.json` by
+`openrecord-splash/generate-version.ts` (`bun run version:manifest`), which `deploy.sh` runs
+immediately before uploading. `openrecord-splash/__tests__/version.unit.test.ts` fails the build when
+a version is bumped without regenerating it.
+
+Everything on the reading side is best-effort: unreachable, 404, not JSON, malformed, or a version on
+either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
+`null`. "We could not reach the site" and "you are up to date" are different facts.
+
+**It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
+makes no request at all when it is set. It is a request to our own server on every run, so it puts
+the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
+of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
+
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
 `scraperFetch` holds a per-hostname permit for the duration of each fetch. At most **10 requests are

@@ -19,7 +19,7 @@ import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passke
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 import { sendTelemetryEvent } from '../../shared/telemetry';
-import { checkForUpdate } from '../../shared/updateCheck';
+import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
 import { isBlockedInstance } from '../../scrapers/myChart/auth/blockedInstances';
 import {
   COMMON_CAPABILITIES,
@@ -685,8 +685,12 @@ async function main() {
     host: cliArgs.host || 'unknown',
   }, 'cli');
 
-  // Fire-and-forget update check — never blocks or breaks the CLI
-  void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
+  // Fire-and-forget update check — never blocks or breaks the CLI. Null when
+  // the site is unreachable, the answer is unparseable, or the user opted out
+  // of telemetry; silence is the right output for all three.
+  void checkVersion({ currentVersion: CLI_VERSION, target: 'cli' }).then((check) => {
+    if (check?.updateAvailable) console.warn(`\n  ${formatUpdateNotice(check)}\n`);
+  });
 
   // Saying what the CLI can do needs no account and no network. Both listings
   // lead with the commonly-used capabilities and name `--show-all` for the rest.
@@ -1070,6 +1074,12 @@ async function main() {
 export async function runCli(): Promise<void> {
   try {
     await main();
+    // Exit rather than return. The update check is fire-and-forget, and an
+    // in-flight fetch keeps the event loop alive on its own — so a hung request
+    // to the manifest would hold the CLI open for the full two-minute scraper
+    // deadline after it had finished printing. Every other terminal path here
+    // already exits; this one just returned.
+    process.exit(process.exitCode ?? 0);
   } catch (err) {
     console.error('Fatal error:', err);
     closeRL();
