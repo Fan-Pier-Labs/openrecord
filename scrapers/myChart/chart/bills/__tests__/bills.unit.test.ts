@@ -1,90 +1,8 @@
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
+import { parsePaymentPath } from '../summaryHtml'
 import type { RawResponse } from '../../../core/rawResponse'
 import { renderOutput } from '../../../processors/processor'
-import { date2dte } from '../utils'
-
-describe('date2dte', () => {
-  it('converts Unix epoch (Jan 1, 1970) to DTE value of 47117', () => {
-    // The DTE epoch is Dec 31, 1840, so Jan 1, 1970 should be 47117 days after that
-    const epoch = new Date(1970, 0, 1)
-    expect(date2dte(epoch)).toBe(47117)
-  })
-
-  it('converts a known date correctly', () => {
-    // Jan 2, 1970 should be 47118
-    const jan2 = new Date(1970, 0, 2)
-    expect(date2dte(jan2)).toBe(47118)
-  })
-
-  it('handles dates in the 2020s', () => {
-    // Jan 1, 2024 = 47117 + days from 1970 to 2024
-    const jan1_2024 = new Date(2024, 0, 1)
-    const result = date2dte(jan1_2024)
-    // 54 years, accounting for leap years
-    // From 1970 to 2024: 19723 days
-    expect(result).toBe(47117 + 19723)
-  })
-
-  it('handles dates before 1970', () => {
-    // Dec 31, 1969 should be 47116
-    const dec31_1969 = new Date(1969, 11, 31)
-    expect(date2dte(dec31_1969)).toBe(47116)
-  })
-
-  it('returns an integer for any date', () => {
-    const date = new Date(2023, 5, 15)
-    const result = date2dte(date)
-    expect(Number.isInteger(result)).toBe(true)
-  })
-
-  it('consecutive days have consecutive DTE values', () => {
-    const day1 = new Date(2023, 0, 1)
-    const day2 = new Date(2023, 0, 2)
-    const day3 = new Date(2023, 0, 3)
-    expect(date2dte(day2) - date2dte(day1)).toBe(1)
-    expect(date2dte(day3) - date2dte(day2)).toBe(1)
-  })
-
-  it('handles leap year date', () => {
-    const feb29 = new Date(2024, 1, 29)
-    const mar1 = new Date(2024, 2, 1)
-    expect(date2dte(mar1) - date2dte(feb29)).toBe(1)
-  })
-
-  it('puts day 0 on the DTE base date (Dec 31, 1840)', () => {
-    expect(date2dte(new Date(1840, 11, 31))).toBe(0)
-    expect(date2dte(new Date(1841, 0, 1))).toBe(1)
-  })
-
-  it('handles Y2K', () => {
-    // 10957 days from Jan 1, 1970 to Jan 1, 2000
-    expect(date2dte(new Date(2000, 0, 1))).toBe(47117 + 10957)
-  })
-
-  it('handles a far future date', () => {
-    const result = date2dte(new Date(2100, 0, 1))
-    expect(result).toBeGreaterThan(47117)
-    expect(Number.isInteger(result)).toBe(true)
-  })
-
-  it('skips Feb 29 in a non-leap year', () => {
-    const feb28 = new Date(2023, 1, 28)
-    const mar1 = new Date(2023, 2, 1)
-    expect(date2dte(mar1) - date2dte(feb28)).toBe(1)
-  })
-
-  it('counts 365 days in a non-leap year and 366 in a leap year', () => {
-    expect(date2dte(new Date(2024, 0, 1)) - date2dte(new Date(2023, 0, 1))).toBe(365)
-    expect(date2dte(new Date(2025, 0, 1)) - date2dte(new Date(2024, 0, 1))).toBe(366)
-  })
-
-  it('is deterministic for the same date', () => {
-    // The function builds a UTC date internally, so local time must not matter
-    const date = new Date(2023, 6, 4)
-    expect(date2dte(date)).toBe(date2dte(date))
-  })
-})
 
 describe('parsePaymentUrl', () => {
   it('extracts ID and Context from URLMakePayment JSON', () => {
@@ -154,6 +72,17 @@ describe('parsePaymentUrl', () => {
       id: 'GA_100200',
       context: 'EPIC_CONTEXT_1234',
     })
+  })
+})
+
+describe('parsePaymentPath', () => {
+  it('reads the summary page pay-online path, decoding the escaped ampersand', () => {
+    const html = `<script>var config = {"URLMakePayment": "~/Billing/Payment?ID=12345\\u0026Context=ABC_XYZ"};</script>`
+    expect(parsePaymentPath(html)).toBe('/Billing/Payment?ID=12345&Context=ABC_XYZ')
+  })
+
+  it('returns null when the page carries no pay link', () => {
+    expect(parsePaymentPath('<html></html>')).toBeNull()
   })
 })
 

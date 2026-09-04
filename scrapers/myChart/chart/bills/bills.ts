@@ -3,10 +3,10 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
-import { date2dte } from './utils';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
 import { mkdirp } from 'mkdirp';
 import { logger } from '../../../../shared/logger';
+import { toEpicDteLocal } from '../../../../shared/epicDate';
 import { parseBillingAccountsHtml } from './summaryHtml';
 import { billingProcessor, type BillingStandard } from './bills.processor';
 
@@ -36,7 +36,7 @@ function accountQuery(account: BillingAccount): string {
 function visitsPath(account: BillingAccount): string {
   const date100YearsAgo = subYears(new Date(), 100);
   const date1YearFromNow = addYears(new Date(), 1);
-  return `/Billing/Details/GetVisits?noCache=${Math.random()}&${accountQuery(account)}&filterOption=1&searchStartDTE=${date2dte(date100YearsAgo)}&searchStopDTE=${date2dte(date1YearFromNow)}&cid=`;
+  return `/Billing/Details/GetVisits?noCache=${Math.random()}&${accountQuery(account)}&filterOption=1&searchStartDTE=${toEpicDteLocal(date100YearsAgo)}&searchStopDTE=${toEpicDteLocal(date1YearFromNow)}&cid=`;
 }
 
 function paymentListPath(account: BillingAccount): string {
