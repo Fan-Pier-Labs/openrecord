@@ -47,7 +47,7 @@ import { messagesGet, messagesPost } from './messages';
 import { notesPost } from './notes';
 import { otherMyChartsPostPatterns } from './otherMyCharts';
 import { passkeysPost } from './passkeys';
-import { preloginGetPublic, preloginPostPublic } from './prelogin';
+import { decisionTreePostPublic, preloginGetPublic, preloginPostPublic } from './prelogin';
 import { preventiveCareGet } from './preventiveCare';
 import { profileGet, profilePostPatterns } from './profile';
 import { questionnairesPost } from './questionnaires';
@@ -103,7 +103,7 @@ export const GET_PRIVATE_PATTERNS: readonly PatternRoute[] = [
  * one. Only the anonymous scheduling workflow lives here: it is the one POST
  * surface a real instance answers for a visitor with no account.
  */
-export const POST_PUBLIC: ExactRoutes = mergeExact(preloginPostPublic);
+export const POST_PUBLIC: ExactRoutes = mergeExact(preloginPostPublic, decisionTreePostPublic);
 
 export const POST_ROUTES: ExactRoutes = mergeExact(
   authPost,
