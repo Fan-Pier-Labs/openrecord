@@ -26,7 +26,7 @@ import { getAllergies } from '../chart/allergies/allergies'
 import { getHealthIssues } from '../chart/healthIssues/healthIssues'
 import { getImmunizations } from '../chart/immunizations/immunizations'
 import { getVitals } from '../chart/vitals/vitals'
-import { getInsurance } from '../chart/insurance/insurance'
+import { COVERAGE_BUCKETS, getInsurance } from '../chart/insurance/insurance'
 import { getCareTeam } from '../chart/careTeam/careTeam'
 import { getReferrals } from '../chart/referrals/referrals'
 import { getMedicalHistory } from '../chart/medicalHistory/medicalHistory'
@@ -103,11 +103,17 @@ describe('integration', () => {
     expect(Array.isArray(result)).toBe(true)
   }, 30_000)
 
-  it('getInsurance returns insurance data', async () => {
+  it('getInsurance returns every coverage bucket', async () => {
     const result = await getInsurance(session)
-    expect(result).toBeDefined()
-    expect(Array.isArray(result.coverages)).toBe(true)
-    expect(typeof result.hasCoverages).toBe('boolean')
+    for (const bucket of COVERAGE_BUCKETS) expect(Array.isArray(result[bucket])).toBe(true)
+    expect(typeof result.hasNoCoverages).toBe('boolean')
+    // The page-scraping version of this returned an empty list on every real
+    // instance and passed a check like the one above. A coverage must carry
+    // the fields a clinic asks for, or the endpoint is not being read.
+    for (const coverage of result.ActiveCoverages) {
+      expect(coverage.CoverageName).toBeTruthy()
+      expect(coverage.MemberId).toBeTruthy()
+    }
   }, 30_000)
 
   it('getCareTeam returns the provider list', async () => {
