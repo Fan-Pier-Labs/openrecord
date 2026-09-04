@@ -24,7 +24,7 @@
  * there is no lenient mode. Resilience belongs at the call site, where each
  * caller knows what a failed decode should cost:
  *
- * - getStudyListMeta responses (imagingDirectDownload.ts): a throw falls back
+ * - getStudyListMeta responses (amf.ts): a throw falls back
  *   to the heuristic UID scan. A misdecoded UID must surface as an error,
  *   never as a plausible-but-wrong download request.
  * - CLO wrapper metadata (clo-image-parser/clo_to_bitmap.ts parseWrapper and
@@ -32,7 +32,7 @@
  *   detection / the server's image order. The image still renders; only
  *   windowing or slice order degrades, and the fallback logs itself.
  *
- * The writer test (__tests__/imagingDirectDownload.unit.test.ts) also decodes
+ * The writer test (__tests__/amf.unit.test.ts) also decodes
  * frames with this class. What keeps that from being an encoder checked
  * against its own mirror image is the pinned GOLDEN_FRAME_HEX fixture there:
  * the exact bytes of a frame a real eUnity server accepted. A shared
@@ -74,7 +74,7 @@ const EXTERNALIZABLE_READERS: Record<string, (r: Amf3Reader) => unknown> = {
   // StudyListRequest externalizes as: a 4-byte big-endian format header
   // (value 2), a method-qualifier string ("getStudyList"), a version string
   // ("1.2.0"), then the payload object. Mirrors the layout
-  // buildGetStudyListMetaRequest emits (imagingDirectDownload.ts); the writer
+  // buildGetStudyListMetaRequest emits (amf.ts); the writer
   // test decodes its frames back through this reader.
   'com.clientoutlook.web.metaservices.StudyListRequest': (r) => ({
     header: r.readBE32(),

@@ -162,7 +162,7 @@ export {
   type DirectDownloadedImage,
   type DirectDownloadOptions,
   type SeriesInfo,
-} from '../../scrapers/myChart/eunity/imagingDirectDownload';
+} from '../../scrapers/myChart/eunity/download';
 
 // ─── CLO image conversion ────────────────────────────────────────────────
 // Two steps, deliberately not one: decode the raw CLO bytes from

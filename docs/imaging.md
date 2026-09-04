@@ -5,7 +5,9 @@ The `get-imaging` CLI action (`--action get-imaging`) scrapes imaging results (M
 ## Key Files
 
 - `scrapers/myChart/eunity/imagingViewer.ts` — FDI context extraction, FdiData API, SAML chain following (uses `globalThis.fetch` for TLS fingerprinting compatibility)
-- `scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol (`buildAmfCall()`, `initializeAmfSession()`, `downloadImagingStudyDirect()`), encoding frames with the shared `Amf3Writer`
+- `scrapers/myChart/eunity/amf.ts` — the AMF3 wire layer: `buildAmfCall()` and the getStudyListMeta response parsers. Pure, no network; encodes frames with the shared `Amf3Writer`
+- `scrapers/myChart/eunity/session.ts` — SAML chain → study params → `initializeAmfSession()`, the server-side session CustomImageServlet requires
+- `scrapers/myChart/eunity/download.ts` — `downloadSingleImage()` and `downloadImagingStudyDirect()`, the direct HTTP pixel pull
 - `shared/amf3Writer.ts` — The repo's only AMF3 writer; also used by fake-mychart, so a request frame and the server's answer are built by one encoder
 - `scrapers/myChart/eunity/amf3Reader.ts` — Strict AMF3 decoder for the `getStudyListMeta` response; `parseStudySeriesFromAmfStructured()` walks the decoded Study → Series → Image tree for exact UID pairing (the positional heuristic `parseStudySeriesFromAmf` remains as fallback)
 - `scrapers/myChart/chart/labs/labResults.ts` — `getImagingResults()` and `listLabResults()`

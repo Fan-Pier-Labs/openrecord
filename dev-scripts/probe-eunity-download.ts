@@ -12,7 +12,7 @@ import * as path from 'path';
 import { myChartPasskeyLogin } from '../scrapers/myChart/auth/login';
 import { passkeyLoginWithCounterRetry } from '../scrapers/myChart/auth/passkeyLoginRetry';
 import { serializeCredential, deserializeCredential } from '../scrapers/myChart/auth/softwareAuthenticator';
-import { initEunitySession } from '../scrapers/myChart/eunity/imagingDirectDownload';
+import { initEunitySession } from '../scrapers/myChart/eunity/session';
 import { decodeImageId } from '../shared/capabilities';
 import { scraperFetch } from '../scrapers/http';
 

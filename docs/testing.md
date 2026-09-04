@@ -201,7 +201,7 @@ env var silently leaves you pointed at the developer's real credentials.
 
 ### Known coverage gaps
 
-Not blockers, but where to spend the next test-writing effort: `eunity/imagingDirectDownload.ts` and
+Not blockers, but where to spend the next test-writing effort: `eunity/download.ts` and
 `eunity/imagingViewer.ts` (need a live eUnity server), `setupTotp.ts` / `setupPasskey.ts`
 (interactive flows), `login.ts`, and the scraper-tool handler bodies in
 `claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is
@@ -214,7 +214,7 @@ covered today). All three files in `clo-image-parser/` now run.
 `clo-image-parser/generate_clo.ts` came *off* the waiver list in #245 without a single new assertion,
 because it was never under-tested — its only uncoverable part was an `import.meta.main` demo block,
 which is unreachable from a test by construction (96% lines without it). Some of what remains on that
-list is likely partly dead too, not hard to test: most of `eunity/imagingDirectDownload.ts`'s gap is a
+list is likely partly dead too, not hard to test: most of `eunity/download.ts`'s gap is a
 superseded copy of the download loop that no caller reaches, and removing it would take the file to
 93%/93%. That one is parked until the live path can be verified against a real eUnity instance — the
 account it was tried on turned out not to use eUnity at all.

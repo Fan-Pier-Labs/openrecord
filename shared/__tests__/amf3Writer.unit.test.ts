@@ -5,7 +5,7 @@
  * suite deliberately crosses that boundary: the writer's whole job is to
  * produce bytes that reader accepts. What keeps the pair from agreeing on a
  * shared misreading of the spec is GOLDEN_FRAME_HEX in
- * `scrapers/myChart/eunity/__tests__/imagingDirectDownload.unit.test.ts`, which
+ * `scrapers/myChart/eunity/__tests__/amf.unit.test.ts`, which
  * pins the writer to bytes a real eUnity server accepted.
  */
 import { describe, expect, it } from 'bun:test';

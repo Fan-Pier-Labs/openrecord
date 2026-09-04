@@ -5,7 +5,7 @@
  * with what a real ClientOutlook/eUnity server accepts:
  *
  * - the scraper, building `AmfServicesServlet` request frames
- *   (`scrapers/myChart/eunity/imagingDirectDownload.ts`)
+ *   (`scrapers/myChart/eunity/amf.ts`)
  * - fake-mychart, answering those frames and synthesizing the CLO wrappers its
  *   image servlet serves — plus `generate_clo.ts`, which writes the committed
  *   `.clo` fixtures fake-mychart serves for single-wrapper series
@@ -20,7 +20,7 @@
  * The counterpart reader lives at `scrapers/myChart/eunity/amf3Reader.ts` — it
  * stays scraper-side because nothing else decodes AMF3. That the two are not
  * mirror images of one shared misreading is pinned by `GOLDEN_FRAME_HEX` in
- * `scrapers/myChart/eunity/__tests__/imagingDirectDownload.unit.test.ts`: the
+ * `scrapers/myChart/eunity/__tests__/amf.unit.test.ts`: the
  * exact bytes of a request frame a real eUnity server accepted.
  *
  * Two writing styles are supported, because the callers genuinely differ:

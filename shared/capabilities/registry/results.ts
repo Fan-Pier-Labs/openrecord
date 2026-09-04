@@ -7,7 +7,7 @@ import {
   labResultsProcessor,
   imagingResultsProcessor,
 } from '../../../scrapers/myChart/chart/labs/labResults';
-import { downloadImagingStudyDirect } from '../../../scrapers/myChart/eunity/imagingDirectDownload';
+import { downloadImagingStudyDirect } from '../../../scrapers/myChart/eunity/download';
 import type { FdiContext } from '../../../scrapers/myChart/eunity/imagingViewer';
 import { num, optStr } from '../args';
 import { decodeImageId, type StudyImagePayload } from '../imaging';

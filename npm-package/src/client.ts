@@ -61,7 +61,7 @@ import {
   downloadImagingStudyDirect,
   type DirectDownloadOptions,
   type DirectDownloadResult,
-} from '../../scrapers/myChart/eunity/imagingDirectDownload';
+} from '../../scrapers/myChart/eunity/download';
 
 import { upcomingVisits, pastVisits } from '../../scrapers/myChart/chart/visits/visits';
 

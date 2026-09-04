@@ -20,7 +20,7 @@ A static TypeScript scraper exists that can:
 ### Key Files
 
 - `src/main/scrapers/myChart/eunity/imagingViewer.ts` — FDI context extraction, FdiData API, SAML chain following
-- `src/main/scrapers/myChart/eunity/imagingDirectDownload.ts` — Direct HTTP download with AMF3 binary protocol, `AMF3Writer` class
+- `src/main/scrapers/myChart/eunity/amf.ts`, `session.ts`, `download.ts` — Direct HTTP download with AMF3 binary protocol, `AMF3Writer` class
 - `src/main/scrapers/myChart/labs_and_procedure_results/labResults.ts` — `getImagingResults()` function
 - `src/main/scrapers/myChart/labs_and_procedure_results/labtestresulttype.ts` — `ImagingResult` interface
 
@@ -110,7 +110,7 @@ The eUnity viewer exposes a rich JS API:
 
 ### Option 1: Direct HTTP Download (In Progress — Recommended)
 
-The `imagingDirectDownload.ts` module implements direct HTTP image download without Playwright:
+The `amf.ts` / `session.ts` / `download.ts` modules implement direct HTTP image download without Playwright:
 
 ```typescript
 // Full pipeline implemented in downloadImagingStudyDirect():
