@@ -52,6 +52,7 @@ import {
   acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
+  capabilityDescription,
   describeModeParam,
   executeCapability,
   isPublicCapability,
@@ -251,7 +252,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   server.registerTool(
     capability.id,
     {
-      description: capability.description,
+      description: capabilityDescription(capability),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: shape as any,
       annotations,

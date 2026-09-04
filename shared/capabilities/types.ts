@@ -104,6 +104,27 @@ export interface Capability {
    * {@link COMMON_CAPABILITIES}.
    */
   lessFrequentlyUsed?: boolean;
+  /**
+   * Why this capability's output has never been confirmed against a real
+   * MyChart, in one sentence. Absent means it has been.
+   *
+   * A scraper written against `fake-mychart` alone can be wrong in the way
+   * that is hardest to notice: it returns a well-formed empty answer. Nobody
+   * reads "coverages: []" as "this tool has never seen a real insurance page"
+   * — they read it as "you have no insurance on file", which is a different
+   * and much worse sentence to put in front of a patient.
+   *
+   * So the caveat travels with the capability instead of living in a doc. It
+   * is one string in the registry, {@link capabilityDescription} appends it to
+   * the description, and every client — MCP tool descriptions, `--help`, the
+   * mobile agent's prompt — inherits it without being asked. Clearing it is
+   * the last step of a capture: verify the shape against a real instance, then
+   * delete the line.
+   *
+   * This changes nothing about what runs. An unverified capability is still
+   * dispatched, still returns its data, and is still listed everywhere.
+   */
+  unverified?: string;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to

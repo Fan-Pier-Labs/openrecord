@@ -15,31 +15,31 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 
 | Capability | raw | json | standard | concise |
 | --- | ---: | ---: | ---: | ---: |
-| `get_profile` | 35805 | 702 | 1016 | 166 |
-| `get_health_summary` | 2312 | 369 | 452 | 342 |
+| `get_profile` | 35791 | 702 | 1016 | 166 |
+| `get_health_summary` | 2284 | 369 | 452 | 342 |
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
 | `get_health_issues` | 1927 | 969 | 1241 | 297 |
-| `get_vitals` | 6406 | 1632 | 1216 | 861 |
+| `get_vitals` | 6364 | 1632 | 1216 | 861 |
 | `get_immunizations` | 891 | 601 | 432 | 236 |
 | `get_preventive_care` | 14380 | 397 | 311 | 284 |
 | `get_medical_history` | 1602 | 1184 | 1286 | 534 |
-| `get_goals` | 2528 | 758 | 931 | 931 |
+| `get_goals` | 2827 | 948 | 1100 | 1100 |
 | `get_upcoming_visits` | 6341 | 1982 | 2493 | 620 |
-| `get_past_visits` | 130565 | 38752 | 48756 | 11414 |
+| `get_past_visits` | 130537 | 38752 | 48756 | 11414 |
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 41884 | 17184 | 21357 | 5340 |
-| `get_imaging_results` | 42608 | 5204 | 6084 | 2783 |
+| `get_lab_results` | 41660 | 17184 | 21357 | 5340 |
+| `get_imaging_results` | 42356 | 5204 | 6084 | 2783 |
 | `get_messages` | 8224 | 4413 | 5523 | 3373 |
 | `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40573 | 3476 | 4111 | 1025 |
-| `get_insurance` | 14195 | 262 | 292 | 193 |
+| `get_billing` | 40531 | 3476 | 4111 | 1025 |
+| `get_insurance` | 2002 | 1430 | 1781 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19281 | 1228 | 878 | 532 |
+| `get_care_team` | 19253 | 1228 | 878 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
@@ -60,7 +60,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 Patient profile (name, date of birth, medical record number, primary care provider) plus the account email address.
 
 <details>
-<summary><code>mode: raw</code> (35805 chars)</summary>
+<summary><code>mode: raw</code> (35791 chars)</summary>
 
 ```json
 {
@@ -71,7 +71,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Home</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"active\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a href=\"
-… (truncated; 26163 more characters)
+… (truncated; 26149 more characters)
 ```
 
 </details>
@@ -215,7 +215,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
 Health summary — vitals snapshot, blood type, smoking status and similar top-level facts.
 
 <details>
-<summary><code>mode: raw</code> (2312 chars)</summary>
+<summary><code>mode: raw</code> (2284 chars)</summary>
 
 ```json
 {
@@ -233,7 +233,7 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
       "method": "POST",
       "requestBody": {},
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "header": {
           "patientAge": "69",
@@ -277,7 +277,7 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
       "method": "POST",
       "requestBody": {},
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "lastVisit": {
           "date": "01/10/2026",
@@ -1937,7 +1937,7 @@ Active health issues / problem list.
 Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, glucose, etc.).
 
 <details>
-<summary><code>mode: raw</code> (6406 chars)</summary>
+<summary><code>mode: raw</code> (6364 chars)</summary>
 
 ```json
 {
@@ -1957,7 +1957,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         "organizationId": ""
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "flowsheets": [
           {
@@ -2033,11 +2033,11 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "POST",
       "requestBody": {
         "episodeId": "EP-VITALS",
-        "endInstantIso": "2026-09-04T23:59:59",
+        "endInstantIso": "2026-09-05T23:59:59",
         "numReadings": 1000
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "flowsheet": {
           "episodeId": "EP-VITALS",
@@ -2199,7 +2199,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         "numReadings": 1000
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "flowsheet": {
           "episodeId": "EP-VITALS",
@@ -3292,7 +3292,7 @@ Past medical, surgical, family and social history.
 Care team goals and patient-set goals.
 
 <details>
-<summary><code>mode: raw</code> (2528 chars)</summary>
+<summary><code>mode: raw</code> (2827 chars)</summary>
 
 ```json
 {
@@ -3308,24 +3308,53 @@ Care team goals and patient-set goals.
     {
       "path": "/api/goals/LoadCareTeamGoals",
       "method": "POST",
-      "requestBody": {},
+      "requestBody": {
+        "FullLoad": true
+      },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "careTeamGoals": [
           {
-            "name": "Lose 50 lbs",
-            "description": "Reduce body weight from 260 lbs to 210 lbs through diet and exercise",
-            "status": "In Progress",
-            "startDate": "01/10/2026",
-            "targetDate": "07/10/2026"
+            "goalId": "IGO-1001",
+            "title": "Lose 50 lbs",
+            "goalType": 3,
+            "complianceType": 1,
+            "createdByUser": "Julius Hibbert, MD",
+            "creationDate": "01/10/2026",
+            "readings": [
+              {
+                "value": "260",
+                "numericValue": "260",
+                "instantTakenIso": "2026-01-10T09:00:00Z",
+                "pattern": "lt",
+                "target1": "210"
+              },
+              {
+                "value": "252",
+                "numericValue": "252",
+                "instantTakenIso": "2026-03-14T09:00:00Z",
+                "pattern": "lt",
+                "target1": "210"
+              }
+            ]
           },
           {
-            "name": "Lower cholesterol",
-            "description": "Reduce total cholesterol below 200 mg/dL",
-            "status": "In Progress",
-            "startDate": "01/10/2026",
-            "targetDate": "04/10/2026"
+            "goalId": "IGO-1002",
+            "title": "Lower cholesterol",
+            "goalType": 5,
+            "complianceType": 1,
+            "createdByUser": "Julius Hibbert, MD",
+            "creationDate": "01/10/2026",
+            "readings": [
+              {
+                "value": "245",
+                "numericValue": "245",
+                "instantTakenIso": "2026-01-10T09:00:00Z",
+                "pattern": "lt",
+                "target1": "200"
+              }
+            ]
           }
         ],
         "hasChartGraphSecurity": false,
@@ -3346,9 +3375,19 @@ Care team goals and patient-set goals.
       "method": "POST",
       "requestBody": {},
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "patientGoals": [
+          {
+            "goalId": "PGO-2001",
+            "goalType": 6,
+            "readings": [],
+            "complianceType": 0,
+            "lastUpdatedDate": "01/15/2026",
+            "creationDate": "01/15/2026",
+            "isSharingNotesEnabled": false,
+            "text": "Eat one vegetable per week"
+          },
           {
             "goalId": "",
             "goalType": 0,
@@ -3357,11 +3396,7 @@ Care team goals and patient-set goals.
             "lastUpdatedDate": "",
             "creationDate": "",
             "isSharingNotesEnabled": false,
-            "name": "Eat one vegetable per week",
-            "description": "Incorporate at least one serving of vegetables into weekly diet",
-            "status": "Not Started",
-            "startDate": "01/15/2026",
-            "targetDate": "12/31/2026"
+            "text": ""
           }
         ],
         "hasChartGraphSecurity": false,
@@ -3384,131 +3419,163 @@ Care team goals and patient-set goals.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (931 chars)</summary>
+<summary><code>mode: standard</code> (1100 chars)</summary>
 
 ## careTeamGoals (2)
 
 ### careTeamGoals 1
 
-- **name**: Lose 50 lbs
-- **description**: Reduce body weight from 260 lbs to 210 lbs through diet and exercise
-- **status**: In Progress
-- **startDate**: 01/10/2026
-- **targetDate**: 07/10/2026
+- **goalId**: IGO-1001
+- **title**: Lose 50 lbs
+- **goalType**: 3
+- **complianceType**: 1
+- **createdByUser**: Julius Hibbert, MD
+- **creationDate**: 01/10/2026
+
+#### readings (2)
+
+| value | numericValue | instantTakenIso | pattern | target1 |
+| - | - | - | - | - |
+| 260 | 260 | 2026-01-10T09:00:00Z | lt | 210 |
+| 252 | 252 | 2026-03-14T09:00:00Z | lt | 210 |
 - **source**: care_team
 
 ### careTeamGoals 2
 
-- **name**: Lower cholesterol
-- **description**: Reduce total cholesterol below 200 mg/dL
-- **status**: In Progress
-- **startDate**: 01/10/2026
-- **targetDate**: 04/10/2026
+- **goalId**: IGO-1002
+- **title**: Lower cholesterol
+- **goalType**: 5
+- **complianceType**: 1
+- **createdByUser**: Julius Hibbert, MD
+- **creationDate**: 01/10/2026
+
+#### readings (1)
+
+| value | numericValue | instantTakenIso | pattern | target1 |
+| - | - | - | - | - |
+| 245 | 245 | 2026-01-10T09:00:00Z | lt | 200 |
 - **source**: care_team
 
 ## patientGoals (1)
 
-### patientGoals 1
-
-- **goalId**: (empty)
-- **goalType**: 0
-- **readings**: (none)
-- **complianceType**: 0
-- **lastUpdatedDate**: (empty)
-- **creationDate**: (empty)
-- **isSharingNotesEnabled**: false
-- **name**: Eat one vegetable per week
-- **description**: Incorporate at least one serving of vegetables into weekly diet
-- **status**: Not Started
-- **startDate**: 01/15/2026
-- **targetDate**: 12/31/2026
-- **source**: patient
+| goalId | goalType | readings | complianceType | lastUpdatedDate | creationDate | isSharingNotesEnabled | text | source |
+| - | - | - | - | - | - | - | - | - |
+| PGO-2001 | 6 | | 0 | 01/15/2026 | 01/15/2026 | false | Eat one vegetable per week | patient |
+- **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (931 chars)</summary>
+<summary><code>mode: concise</code> (1100 chars)</summary>
 
 ## careTeamGoals (2)
 
 ### careTeamGoals 1
 
-- **name**: Lose 50 lbs
-- **description**: Reduce body weight from 260 lbs to 210 lbs through diet and exercise
-- **status**: In Progress
-- **startDate**: 01/10/2026
-- **targetDate**: 07/10/2026
+- **goalId**: IGO-1001
+- **title**: Lose 50 lbs
+- **goalType**: 3
+- **complianceType**: 1
+- **createdByUser**: Julius Hibbert, MD
+- **creationDate**: 01/10/2026
+
+#### readings (2)
+
+| value | numericValue | instantTakenIso | pattern | target1 |
+| - | - | - | - | - |
+| 260 | 260 | 2026-01-10T09:00:00Z | lt | 210 |
+| 252 | 252 | 2026-03-14T09:00:00Z | lt | 210 |
 - **source**: care_team
 
 ### careTeamGoals 2
 
-- **name**: Lower cholesterol
-- **description**: Reduce total cholesterol below 200 mg/dL
-- **status**: In Progress
-- **startDate**: 01/10/2026
-- **targetDate**: 04/10/2026
+- **goalId**: IGO-1002
+- **title**: Lower cholesterol
+- **goalType**: 5
+- **complianceType**: 1
+- **createdByUser**: Julius Hibbert, MD
+- **creationDate**: 01/10/2026
+
+#### readings (1)
+
+| value | numericValue | instantTakenIso | pattern | target1 |
+| - | - | - | - | - |
+| 245 | 245 | 2026-01-10T09:00:00Z | lt | 200 |
 - **source**: care_team
 
 ## patientGoals (1)
 
-### patientGoals 1
-
-- **goalId**: (empty)
-- **goalType**: 0
-- **readings**: (none)
-- **complianceType**: 0
-- **lastUpdatedDate**: (empty)
-- **creationDate**: (empty)
-- **isSharingNotesEnabled**: false
-- **name**: Eat one vegetable per week
-- **description**: Incorporate at least one serving of vegetables into weekly diet
-- **status**: Not Started
-- **startDate**: 01/15/2026
-- **targetDate**: 12/31/2026
-- **source**: patient
+| goalId | goalType | readings | complianceType | lastUpdatedDate | creationDate | isSharingNotesEnabled | text | source |
+| - | - | - | - | - | - | - | - | - |
+| PGO-2001 | 6 | | 0 | 01/15/2026 | 01/15/2026 | false | Eat one vegetable per week | patient |
+- **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (758 chars)</summary>
+<summary><code>mode: json</code> (948 chars)</summary>
 
 ```json
 {
   "careTeamGoals": [
     {
-      "name": "Lose 50 lbs",
-      "description": "Reduce body weight from 260 lbs to 210 lbs through diet and exercise",
-      "status": "In Progress",
-      "startDate": "01/10/2026",
-      "targetDate": "07/10/2026",
+      "goalId": "IGO-1001",
+      "title": "Lose 50 lbs",
+      "goalType": 3,
+      "complianceType": 1,
+      "createdByUser": "Julius Hibbert, MD",
+      "creationDate": "01/10/2026",
+      "readings": [
+        {
+          "value": "260",
+          "numericValue": "260",
+          "instantTakenIso": "2026-01-10T09:00:00Z",
+          "pattern": "lt",
+          "target1": "210"
+        },
+        {
+          "value": "252",
+          "numericValue": "252",
+          "instantTakenIso": "2026-03-14T09:00:00Z",
+          "pattern": "lt",
+          "target1": "210"
+        }
+      ],
       "source": "care_team"
     },
     {
-      "name": "Lower cholesterol",
-      "description": "Reduce total cholesterol below 200 mg/dL",
-      "status": "In Progress",
-      "startDate": "01/10/2026",
-      "targetDate": "04/10/2026",
+      "goalId": "IGO-1002",
+      "title": "Lower cholesterol",
+      "goalType": 5,
+      "complianceType": 1,
+      "createdByUser": "Julius Hibbert, MD",
+      "creationDate": "01/10/2026",
+      "readings": [
+        {
+          "value": "245",
+          "numericValue": "245",
+          "instantTakenIso": "2026-01-10T09:00:00Z",
+          "pattern": "lt",
+          "target1": "200"
+        }
+      ],
       "source": "care_team"
     }
   ],
   "patientGoals": [
     {
-      "goalId": "",
-      "goalType": 0,
+      "goalId": "PGO-2001",
+      "goalType": 6,
       "readings": [],
       "complianceType": 0,
-      "lastUpdatedDate": "",
-      "creationDate": "",
+      "lastUpdatedDate": "01/15/2026",
+      "creationDate": "01/15/2026",
       "isSharingNotesEnabled": false,
-      "name": "Eat one vegetable per week",
-      "description": "Incorporate at least one serving of vegetables into weekly diet",
-      "status": "Not Started",
-      "startDate": "01/15/2026",
-      "targetDate": "12/31/2026",
+      "text": "Eat one vegetable per week",
       "source": "patient"
     }
-  ]
+  ],
+  "unavailable": []
 }
 ```
 
@@ -4083,7 +4150,7 @@ Upcoming appointments.
 Past visits within the last `years_back` years (default 2).
 
 <details>
-<summary><code>mode: raw</code> (130565 chars)</summary>
+<summary><code>mode: raw</code> (130537 chars)</summary>
 
 ```json
 {
@@ -4100,7 +4167,7 @@ Past visits within the last `years_back` years (default 2).
       "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2024-01-01T00:00:00.000Z&ComponentNumber=7",
       "method": "POST",
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "ViewBagProperties": {
           "LoadingOrgNames": "",
@@ -4369,7 +4436,8 @@ Past visits within the last `years_back` years (default 2).
                   "Specialty": {
                     "Value": "",
                     "Title": "",
-… (truncated; 233907 more characters)
+             
+… (truncated; 233879 more characters)
 ```
 
 </details>
@@ -7537,7 +7605,7 @@ Follow up in 3 months. Schedule lipid panel before next visit.
 Lab results with reference ranges and prior values for trending.
 
 <details>
-<summary><code>mode: raw</code> (41884 chars)</summary>
+<summary><code>mode: raw</code> (41660 chars)</summary>
 
 ```json
 {
@@ -7560,7 +7628,7 @@ Lab results with reference ranges and prior values for trending.
         "isCurAdmFilterEnabled": false
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "areResultsFullyLoaded": true,
         "isGroupingFullyLoaded": true,
@@ -7857,7 +7925,7 @@ Lab results with reference ranges and prior values for trending.
         "PageNonce": ""
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "orderName": "Comprehensive Metabolic Panel",
         "key": "RES-CMP",
@@ -7866,8 +7934,8 @@ Lab results with reference ranges and prior values for trending.
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "C
-… (truncated; 59318 more characters)
+            "name": "Comprehensive Metabolic Panel
+… (truncated; 59094 more characters)
 ```
 
 </details>
@@ -9438,7 +9506,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries that have viewable pictures carry an `image_id` — pass that to download_imaging_study to get the actual images.
 
 <details>
-<summary><code>mode: raw</code> (42608 chars)</summary>
+<summary><code>mode: raw</code> (42356 chars)</summary>
 
 ```json
 {
@@ -9461,7 +9529,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
         "isCurAdmFilterEnabled": false
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "areResultsFullyLoaded": true,
         "isGroupingFullyLoaded": true,
@@ -9758,7 +9826,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
         "PageNonce": ""
       },
       "status": 200,
-      "contentType": "application/json;charset=utf-8",
+      "contentType": "application/json",
       "body": {
         "orderName": "Comprehensive Metabolic Panel",
         "key": "RES-CMP",
@@ -9767,8 +9835,8 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "C
-… (truncated; 60232 more characters)
+            "name": "Comprehensive Metabolic Panel
+… (truncated; 59980 more characters)
 ```
 
 </details>
@@ -11810,7 +11878,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (40573 chars)</summary>
+<summary><code>mode: raw</code> (40531 chars)</summary>
 
 ```json
 {
@@ -11821,7 +11889,7 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a
-… (truncated; 34874 more characters)
+… (truncated; 34832 more characters)
 ```
 
 </details>
@@ -12174,339 +12242,220 @@ Billing history and account balances.
 Insurance coverages on file.
 
 <details>
-<summary><code>mode: raw</code> (14195 chars)</summary>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MyChart - Insurance</title>
-  <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }
-a { color: #1a6fa5; text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Header */
-.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
-.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-.mc-header .logo span { color: #5dade2; }
-.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }
-.mc-header .user-info a { color: #aed6f1; }
-.mc-header .user-info a:hover { color: #fff; }
-
-/* Layout */
-.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
-
-/* Sidebar */
-.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }
-.mc-sidebar .nav-group { margin-bottom: 8px; }
-.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }
-.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }
-.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }
-.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }
-.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }
-
-/* Main content */
-.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }
-.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }
-.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }
-
-/* Cards */
-.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }
-.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-.card .meta { font-size: 13px; color: #666; margin-top: 4px; }
-.card .detail { font-size: 14px; color: #444; margin-top: 4px; }
-
-/* Grid cards */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.card-grid .card { margin-bottom: 0; }
-
-/* Dashboard cards */
-.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }
-.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }
-.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }
-.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }
-
-/* Badges */
-.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.badge-red { background: #fde8e8; color: #c0392b; }
-.badge-yellow { background: #fef9e7; color: #b7950b; }
-.badge-green { background: #e8f8f5; color: #1e8449; }
-.badge-blue { background: #d4eaf7; color: #1a5276; }
-.badge-gray { background: #eee; color: #666; }
-
-/* Tables */
-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }
-th { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
-td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fafbfc; }
-.abnormal { color: #c0392b; font-weight: 600; }
-
-/* Messages */
-.msg-list { display: flex; flex-direction: column; gap: 2px; }
-.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }
-.msg-item:hover { background: #f0f7fd; }
-.msg-item.unread { border-left: 4px solid #1a5276; }
-.msg-subject { font-weight: 600; font-size: 15px; }
-.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }
-.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }
-.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
-.msg-thread.visible { display: block; }
-.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }
-.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }
-.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }
-.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }
-.msg-bubble .body { font-size: 14px; line-height: 1.5; }
-
-/* Tabs */
-.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }
-.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
-.tab:hover { color: #1a5276; }
-.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }
-
-/* Loading */
-.loading { text-align: center; padding: 40px; color: #888; }
-
-/* Print header (scraper compat) */
-.proxy-switcher { position: relative; }
-.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }
-.proxy-switcher > summary::-webkit-details-marker { display: none; }
-.proxy-switcher > summary:hover { background: #17527a; }
-.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
-.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }
-.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }
-.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }
-.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }
-.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }
-.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }
-.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }
-.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }
-
-/* Letter detail */
-.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }
-.letter-body h2 { margin: 0 0 12px; }
-.letter-body p { margin: 8px 0; }
-
-/* Vitals chart placeholder */
-.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }
-.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }
-</style>
-</head>
-<body>
-  <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="fake-csrf-token-00000000000000000000000000000000" /></div>
-  <script>
-(function () {
-  var originalFetch = window.fetch;
-  window.fetch = function (url, opts) {
-    opts = opts || {};
-    if ((opts.method || 'GET').toUpperCase() === 'POST') {
-      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');
-      if (el) {
-        opts.headers = opts.headers || {};
-        if (!opts.headers['__RequestVerificationToken']) {
-          opts.headers['__RequestVerificationToken'] = el.value;
-        }
-      }
-    }
-    return originalFetch.call(this, url, opts);
-  };
-})();
-</script>
-  <header class="mc-header">
-    <div class="logo">My<span>Chart</span></div>
-    <div class="user-info">
-      <details class="proxy-switcher">
-      <summary><span class="proxy-switcher-label">Viewing</span><strong>Homer Jay Simpson</strong><span class="proxy-switcher-caret">▾</span></summary>
-      <div class="proxySelectorDropDown">
-        <div class="proxy-switcher-heading">Switch patient record</div>
-        <a class="proxySubjectLink currentContext" data-id="WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C" href="/MyChart/inside.asp" aria-label="Access your record"><span class="proxySelectorDropDownNameEllipsis">Homer Jay Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C" aria-label="Access Bart Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Bart Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4" aria-label="Access Lisa Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Lisa Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6" aria-label="Access Maggie Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Maggie Simpson</span></a>
-      </div>
-    </details>
-      <a href="/MyChart/Authentication/Login">Sign out</a>
-    </div>
-  </header>
-  <div class="mc-layout">
-    <nav class="mc-sidebar">
-    <div class="nav-group">
-      <div class="nav-group-title">Overview</div>
-      
-        <a href="/MyChart/Home" class="">
-          <span class="nav-icon">🏠</span>Home
-        </a>
-      
-        <a href="/MyChart/Messaging" class="">
-          <span class="nav-icon">💬</span>Messages
-        </a>
-      
-        <a href="/MyChart/Visits" class="">
-          <span class="nav-icon">📅</span>Visits
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Health</div>
-      
-        <a href="/MyChart/TestResults" class="">
-          <span class="nav-icon">🧪</span>Test Results
-        </a>
-      
-        <a href="/MyChart/Clinical/Medications" class="">
-          <span class="nav-icon">💊</span>Medications
-        </a>
-      
-        <a href="/MyChart/Clinical/Allergies" class="">
-          <span class="nav-icon">⚠️</span>Allergies
-        </a>
-      
-        <a href="/MyChart/Clinical/HealthIssues" class="">
-          <span class="nav-icon">🩺</span>Health Issues
-        </a>
-      
-        <a href="/MyChart/Clinical/Immunizations" class="">
-          <span class="nav-icon">💉</span>Immunizations
-        </a>
-      
-        <a href="/MyChart/TrackMyHealth" class="">
-          <span class="nav-icon">📊</span>Vitals
-        </a>
-      
-        <a href="/MyChart/MedicalHistory" class="">
-          <span class="nav-icon">📋</span>Medical History
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Care</div>
-      
-        <a href="/MyChart/Clinical/CareTeam" class="">
-          <span class="nav-icon">👨‍⚕️</span>Care Team
-        </a>
-      
-        <a href="/MyChart/Goals" class="">
-          <span class="nav-icon">🎯</span>Goals
-        </a>
-      
-        <a href="/MyChart/Referrals" class="">
-          <span class="nav-icon">🔀</span>Referrals
-        </a>
-      
-        <a href="/MyChart/HealthAdvisories" class="">
-          <span class="nav-icon">✅</span>Preventive Care
-        </a>
-      
-        <a href="/MyChart/CareJourneys" class="">
-          <span class="nav-icon">🛤️</span>Care Journeys
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Records</div>
-      
-        <a href="/MyChart/Letters" class="">
-          <span class="nav-icon">✉️</span>Letters
-        </a>
-      
-        <a href="/MyChart/Documents" class="">
-          <span class="nav-icon">📄</span>Documents
-        </a>
-      
-        <a href="/MyChart/Education" class="">
-          <span class="nav-icon">📚</span>Education
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Account</div>
-      
-        <a href="/MyChart/Billing/Summary" class="">
-          <span class="nav-icon">💳</span>Billing
-        </a>
-      
-        <a href="/MyChart/Insurance" class="active">
-          <span class="nav-icon">🛡️</span>Insurance
-        </a>
-      
-        <a href="/MyChart/PersonalInformation" class="">
-          <span class="nav-icon">👤</span>Profile
-        </a>
-      
-        <a href="/MyChart/EmergencyContacts" class="">
-          <span class="nav-icon">📞</span>Emergency Contacts
-        </a>
-      
-        <a href="/MyChart/Settings" class="">
-          <span class="nav-icon">⚙️</span>Settings
-        </a>
-      
-    </div>
-  </nav>
-    <main class="mc-main"><h1>Insurance</h1>
-    <div class="card coverage-card">
-      <h3>Springfield Nuclear Power Plant Employee Health Plan</h3>
-      <div class="detail subscriber-name">Subscriber: Homer Jay Simpson</div>
-      <div class="meta member-id">Member ID: HSJ-12345</div>
-      <div class="meta group-number">Group: SNPP-742</div>
-    </div>
-  </main>
-  </div>
-</body>
-</html>
-
-</details>
-
-<details>
-<summary><code>mode: standard</code> (292 chars)</summary>
-
-## coverages (1)
-
-| planName | subscriberName | memberId | groupNumber | details |
-| - | - | - | - | - |
-| Springfield Nuclear Power Plant Employee Health Plan | Subscriber: Homer Jay Simpson | Member ID: HSJ-12345 | Group: SNPP-742 | Subscriber: Homer Jay Simpson |
-- **hasCoverages**: true
-
-</details>
-
-<details>
-<summary><code>mode: concise</code> (193 chars)</summary>
-
-## coverages (1)
-
-| planName | memberId | groupNumber |
-| - | - | - |
-| Springfield Nuclear Power Plant Employee Health Plan | Member ID: HSJ-12345 | Group: SNPP-742 |
-- **hasCoverages**: true
-
-</details>
-
-<details>
-<summary><code>mode: json</code> (262 chars)</summary>
+<summary><code>mode: raw</code> (2002 chars)</summary>
 
 ```json
 {
-  "coverages": [
+  "ActiveCoverages": [
     {
-      "planName": "Springfield Nuclear Power Plant Employee Health Plan",
-      "subscriberName": "Subscriber: Homer Jay Simpson",
-      "memberId": "Member ID: HSJ-12345",
-      "groupNumber": "Group: SNPP-742",
-      "details": [
-        "Subscriber: Homer Jay Simpson"
-      ]
+      "CoverageId": "WP-COVERAGE-SNPP-1",
+      "CoverageName": "Springfield Nuclear Power Plant Employee Health Plan (PPO)",
+      "Index": "",
+      "Status": 1,
+      "CoverageType": 1,
+      "PayorId": "",
+      "PayorName": "Springfield Mutual Health",
+      "PlanName": "SNPP Employee PPO",
+      "SubscriberId": "HSJ-12345",
+      "SubscriberName": "Homer J Simpson",
+      "SubscriberFirstName": "",
+      "SubscriberLastName": "",
+      "SubscriberDateOfBirth": null,
+      "SubscriberIsSelf": true,
+      "MemberId": "HSJ-12345",
+      "MemberName": "Homer J Simpson",
+      "MemberFirstName": null,
+      "MemberLastName": null,
+      "MemberDateOfBirth": null,
+      "GroupNumber": "SNPP-742",
+      "Comments": "",
+      "PatientIsSubscriber": null,
+      "FrontDocument": null,
+      "BackDocument": null,
+      "IsCoverageDocumentFromPayer": null,
+      "CvgCoveredStatus": 0,
+      "CvgReason": 0,
+      "FormattedEffectiveDate": "01/01/2026",
+      "FormattedEndDate": "",
+      "Future": false,
+      "Termed": false,
+      "PbiId": "",
+      "SuspendedText": "",
+      "CoverageFHIRId": "",
+      "OrganizationId": ""
     }
   ],
-  "hasCoverages": true
+  "CoveragesPendingSubmission": [
+    {
+      "CoverageId": "WP-COVERAGE-DENTAL-2",
+      "CoverageName": "Springfield Dental Group Plan",
+      "Index": "",
+      "Status": 1,
+      "CoverageType": 1,
+      "PayorId": "",
+      "PayorName": "Springfield Dental Group",
+      "PlanName": "",
+      "SubscriberId": "MBS-99001",
+      "SubscriberName": "Marge B Simpson",
+      "SubscriberFirstName": "",
+      "SubscriberLastName": "",
+      "SubscriberDateOfBirth": null,
+      "SubscriberIsSelf": false,
+      "MemberId": "MBS-99001-02",
+      "MemberName": "Homer J Simpson",
+      "MemberFirstName": null,
+      "MemberLastName": null,
+      "MemberDateOfBirth": null,
+      "GroupNumber": "SDG-100",
+      "Comments": "",
+      "PatientIsSubscriber": null,
+      "FrontDocument": null,
+      "BackDocument": null,
+      "IsCoverageDocumentFromPayer": null,
+      "CvgCoveredStatus": 0,
+      "CvgReason": 0,
+      "FormattedEffectiveDate": "02/01/2026",
+      "FormattedEndDate": "",
+      "Future": false,
+      "Termed": false,
+      "PbiId": "",
+      "SuspendedText": "",
+      "CoverageFHIRId": "",
+      "OrganizationId": ""
+    }
+  ],
+  "CoveragesPendingDeletion": [],
+  "CoveragesInReview": [],
+  "CoveragesInVerification": [],
+  "IsProxyContext": false,
+  "Settings": {
+    "IsStandAlone": true,
+    "CanUpdate": true,
+    "CanViewDetails": true,
+    "CanPayPremium": false,
+    "CanViewInsHub": true,
+    "IsInsHubOn": true
+  },
+  "HasExistingCoveragesInRTE": false
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (1781 chars)</summary>
+
+## ActiveCoverages (1)
+
+| CoverageId | CoverageName | PayorId | PayorName | PlanName | SubscriberId | SubscriberName | SubscriberIsSelf | MemberId | MemberName | GroupNumber | FormattedEffectiveDate | FormattedEndDate | Future | Termed | Comments | SuspendedText | Status | CoverageType | CvgCoveredStatus | CvgReason | bucket |
+| - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| WP-COVERAGE-SNPP-1 | Springfield Nuclear Power Plant Employee Health Plan (PPO) | (empty) | Springfield Mutual Health | SNPP Employee PPO | HSJ-12345 | Homer J Simpson | true | HSJ-12345 | Homer J Simpson | SNPP-742 | 01/01/2026 | (empty) | false | false | (empty) | (empty) | 1 | 1 | 0 | 0 | ActiveCoverages |
+
+## CoveragesPendingSubmission (1)
+
+| CoverageId | CoverageName | PayorId | PayorName | PlanName | SubscriberId | SubscriberName | SubscriberIsSelf | MemberId | MemberName | GroupNumber | FormattedEffectiveDate | FormattedEndDate | Future | Termed | Comments | SuspendedText | Status | CoverageType | CvgCoveredStatus | CvgReason | bucket |
+| - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| WP-COVERAGE-DENTAL-2 | Springfield Dental Group Plan | (empty) | Springfield Dental Group | (empty) | MBS-99001 | Marge B Simpson | false | MBS-99001-02 | Homer J Simpson | SDG-100 | 02/01/2026 | (empty) | false | false | (empty) | (empty) | 1 | 1 | 0 | 0 | CoveragesPendingSubmission |
+- **CoveragesPendingDeletion**: (none)
+- **CoveragesInReview**: (none)
+- **CoveragesInVerification**: (none)
+- **hasNoCoverages**: false
+- **IsProxyContext**: false
+
+## Settings
+
+- **IsStandAlone**: true
+- **CanUpdate**: true
+- **CanViewDetails**: true
+- **CanPayPremium**: false
+- **CanViewInsHub**: true
+- **IsInsHubOn**: true
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (433 chars)</summary>
+
+## coverages (2)
+
+| CoverageName | PayorName | MemberId | GroupNumber | FormattedEffectiveDate | bucket |
+| - | - | - | - | - | - |
+| Springfield Nuclear Power Plant Employee Health Plan (PPO) | Springfield Mutual Health | HSJ-12345 | SNPP-742 | 01/01/2026 | ActiveCoverages |
+| Springfield Dental Group Plan | Springfield Dental Group | MBS-99001-02 | SDG-100 | 02/01/2026 | CoveragesPendingSubmission |
+- **hasNoCoverages**: false
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (1430 chars)</summary>
+
+```json
+{
+  "ActiveCoverages": [
+    {
+      "CoverageId": "WP-COVERAGE-SNPP-1",
+      "CoverageName": "Springfield Nuclear Power Plant Employee Health Plan (PPO)",
+      "PayorId": "",
+      "PayorName": "Springfield Mutual Health",
+      "PlanName": "SNPP Employee PPO",
+      "SubscriberId": "HSJ-12345",
+      "SubscriberName": "Homer J Simpson",
+      "SubscriberIsSelf": true,
+      "MemberId": "HSJ-12345",
+      "MemberName": "Homer J Simpson",
+      "GroupNumber": "SNPP-742",
+      "FormattedEffectiveDate": "01/01/2026",
+      "FormattedEndDate": "",
+      "Future": false,
+      "Termed": false,
+      "Comments": "",
+      "SuspendedText": "",
+      "Status": 1,
+      "CoverageType": 1,
+      "CvgCoveredStatus": 0,
+      "CvgReason": 0,
+      "bucket": "ActiveCoverages"
+    }
+  ],
+  "CoveragesPendingSubmission": [
+    {
+      "CoverageId": "WP-COVERAGE-DENTAL-2",
+      "CoverageName": "Springfield Dental Group Plan",
+      "PayorId": "",
+      "PayorName": "Springfield Dental Group",
+      "PlanName": "",
+      "SubscriberId": "MBS-99001",
+      "SubscriberName": "Marge B Simpson",
+      "SubscriberIsSelf": false,
+      "MemberId": "MBS-99001-02",
+      "MemberName": "Homer J Simpson",
+      "GroupNumber": "SDG-100",
+      "FormattedEffectiveDate": "02/01/2026",
+      "FormattedEndDate": "",
+      "Future": false,
+      "Termed": false,
+      "Comments": "",
+      "SuspendedText": "",
+      "Status": 1,
+      "CoverageType": 1,
+      "CvgCoveredStatus": 0,
+      "CvgReason": 0,
+      "bucket": "CoveragesPendingSubmission"
+    }
+  ],
+  "CoveragesPendingDeletion": [],
+  "CoveragesInReview": [],
+  "CoveragesInVerification": [],
+  "hasNoCoverages": false,
+  "IsProxyContext": false,
+  "Settings": {
+    "IsStandAlone": true,
+    "CanUpdate": true,
+    "CanViewDetails": true,
+    "CanPayPremium": false,
+    "CanViewInsHub": true,
+    "IsInsHubOn": true
+  }
 }
 ```
 
@@ -12833,7 +12782,7 @@ The insurance payers this organization's MyChart offers when adding a coverage �
 Providers on the care team, including outside providers, each with their role and specialty.
 
 <details>
-<summary><code>mode: raw</code> (19281 chars)</summary>
+<summary><code>mode: raw</code> (19253 chars)</summary>
 
 ```json
 {
@@ -12844,7 +12793,7 @@ Providers on the care team, including outside providers, each with their role an
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n      
-… (truncated; 9315 more characters)
+… (truncated; 9287 more characters)
 ```
 
 </details>
@@ -13428,7 +13377,7 @@ Standing/upcoming orders — labs, imaging and procedures the care team has orde
 
 ### `get_questionnaires`
 
-Open and completed questionnaires / health assessments.
+Open and completed questionnaires / health assessments. UNVERIFIED: no real instance has ever returned a questionnaire here — three of four serve the legacy activity and answer with an empty list, and the fourth answers /Questionnaire itself with HTTP 500. The React /api/questionnaire/GetQuestionnaireList endpoint is the one to move to. Treat an empty or partial result as "not confirmed", not as "the chart has none".
 
 <details>
 <summary><code>mode: raw</code> (260 chars)</summary>

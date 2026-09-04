@@ -134,6 +134,14 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
   (c) => c.lessFrequentlyUsed,
 );
 
+/**
+ * The capabilities whose response shape has never been confirmed against a
+ * real MyChart — see {@link Capability.unverified}. Exported so a client can
+ * mark them in its own way; the caveat itself reaches every client through
+ * {@link capabilityDescription}.
+ */
+export const UNVERIFIED_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.unverified);
+
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 
@@ -259,8 +267,30 @@ export function acceptsPatientParam(capability: Capability): boolean {
   return needsPatientAssertion(capability);
 }
 
+/**
+ * The description every client shows, with the {@link Capability.unverified}
+ * caveat appended when there is one.
+ *
+ * Clients call this instead of reading `.description`, so a capability that
+ * has only ever been checked against `fake-mychart` says so in the MCP tool
+ * description, in `--help`, and in the mobile agent's prompt from the one
+ * place that knows — rather than returning a confident empty list in all
+ * three.
+ */
+export function capabilityDescription(capability: Capability): string {
+  if (!capability.unverified) return capability.description;
+  // The advice differs by kind, because the failure does. An unverified read
+  // fails by returning a confident empty list; an unverified write fails by
+  // appearing to succeed.
+  const advice =
+    capability.kind === 'write' || capability.kind === 'account'
+      ? 'Do not report it as done on the strength of a success response.'
+      : 'Treat an empty or partial result as "not confirmed", not as "the chart has none".';
+  return `${capability.description} UNVERIFIED: ${capability.unverified} ${advice}`;
+}
+
 /** One `name(param, param) — description` line per capability, for prompts and help. */
 export function describeCapability(capability: Capability): string {
   const params = capability.params.map((p) => (p.required ? p.name : `${p.name}?`)).join(', ');
-  return `${capability.id}(${params}) — ${capability.description}`;
+  return `${capability.id}(${params}) — ${capabilityDescription(capability)}`;
 }

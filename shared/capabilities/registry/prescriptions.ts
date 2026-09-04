@@ -41,6 +41,10 @@ export const PRESCRIPTION_CAPABILITIES: readonly CapabilityImpl[] = [
     description: 'Request a refill for a current medication. Give the medication name; an ambiguous name is an error rather than a guess.',
     kind: 'write',
     group: 'Prescriptions',
+    unverified:
+      'the request body has never been checked against a real instance: it posts `medicationKey`, ' +
+      'a field that exists only in fake-mychart, while the captured medications response names the ' +
+      'prescription `id`. A refill request may simply not reach the pharmacy.',
     params: [
       { name: 'medication_name', type: 'string', description: 'Medication name as shown by get_medications.' },
       { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications. Use instead of medication_name when you have it.' },
