@@ -84,12 +84,13 @@ function renderExample(payload: unknown): string {
 }
 
 /**
- * Two things in the raw records change on every run, and both are the fake's
- * doing rather than the processors': the per-session CSRF token the fake mints,
- * and the now-based `oldestRenderedDate` the visits scraper puts in its query.
- * Pin both to same-length constants so the doc only changes when the output
- * does (CI regenerates it and fails on a diff). Same length keeps the sizes
- * table honest.
+ * Three things in the raw records change on their own, none of them the
+ * processors' doing: the per-session CSRF token the fake mints, the now-based
+ * `oldestRenderedDate` the visits scraper puts in its query, and the
+ * end-of-day-tomorrow instant vitals starts its paging from. Pin all three to
+ * same-length constants so the doc only changes when the output does (CI
+ * regenerates it and fails on a diff). Same length keeps the sizes table
+ * honest.
  */
 function stable(doc: string): string {
   return doc
