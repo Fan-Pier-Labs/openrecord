@@ -28,7 +28,7 @@ export { insurancePayersProcessor, GET_PAYORS_PATH } from './insurancePayers.pro
  * The catalogue is organization-level as far as the capture can show: no
  * patient identifier in the request, an identical list with a real department
  * id, and zero payer ids shared between the four organizations. See
- * `docs/api-surface-gaps.md`, "Insurance payer catalogue".
+ * `scrapers/myChart/api-surface-gaps.md`, "Insurance payer catalogue".
  *
  * Two answers are recorded rather than raised here, because reading either as
  * "no payers" is the failure this capability has to avoid, and both are the

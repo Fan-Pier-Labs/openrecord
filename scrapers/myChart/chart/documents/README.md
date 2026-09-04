@@ -1,4 +1,35 @@
-# `documents` — what each mode carries
+# `documents`
+
+Clinical documents and visit records filed to the chart — the "Document Center" activity.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_documents` (read) |
+| **Source** | [`documents.ts`](documents.ts) · [`documents.processor.ts`](documents.processor.ts) |
+| **Activity** | React `/app/documents` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/documents` | — | antiforgery token |
+| `POST /api/documents/viewer/LoadOtherDocuments` | `{}` | the document list |
+
+`LoadOtherDocuments` is the only endpoint this scraper calls.
+
+## Notes and research
+
+- **No captured skeleton.** The six fields the scraper reads exist only in the fixture, so
+  `realShapes.ts` cannot hold this endpoint to a live shape. Elements therefore pass through
+  whole, and concise will narrow to title / type / date / provider once a real response is
+  captured.
+- Deliberately **not** flagged `unverified`
+  ([#405](https://github.com/Fan-Pier-Labs/openrecord/pull/405)): passing elements through
+  whole means the answer is honest even when the element shape is unknown.
+- Downloading a document's bytes is not implemented — no download exchange for this
+  activity has been captured.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

@@ -9,13 +9,13 @@ Proprietary source-available license (see `LICENSE`) — personal/educational us
 use, redistribution, or SaaS offerings without written permission from Fan Pier Labs.
 
 **This file is an index of invariants, not a changelog.** It loads on every session, so keep it
-short and put detail in `docs/`. See [Keeping this file small](#keeping-this-file-small).
+short and put detail in `docs/` or the relevant `README.md`. See [Keeping this file small](#keeping-this-file-small).
 
 ## Repo map
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared scraper core — every client calls into this. `myChart/` = `core/` (request + session), `auth/`, `proxy/` (patient switching), `chart/` (one per data category), `eunity/` (imaging), `prelogin/` (what an instance publishes with no account). `npi/` = the public NPI Registry (no login) |
+| `scrapers/` | Shared scraper core — every client calls into this. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
 | `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
 | `npm-package/` | The `mychart-cli` CLI and importable library |
 | `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
@@ -44,9 +44,12 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 - **A read scraper returns the raw MyChart response; its processor decides what a caller sees.**
   `fetch…Raw` records every request into a `RawResponse` and never edits a field; the sibling
   `.processor.ts` builds the standard object (MyChart's own field names, derived fields under new
-  names, markup only in `raw`) and the `mode` param picks `raw` / `standard` / `concise` / `json`.
-  Never rename a MyChart field or drop one for being empty — see
-  [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
+  names, markup only in `raw`) and `mode` picks `raw` / `standard` / `concise` / `json`. Never
+  rename a field or drop one for being empty — [`docs/processor-layer-proposal.md`](docs/processor-layer-proposal.md).
+- **A scraper's `README.md`, in its own folder, is that scraper's documentation** — endpoints,
+  request bodies, the behaviours that bite, the research behind them, and its per-mode field
+  contract. Change how it talks to MyChart and you update that file in the same PR. Index:
+  [`scrapers/README.md`](scrapers/README.md).
 - **`shared/capabilities/` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list — including account-free lookups,
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
@@ -76,7 +79,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
-| `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery; sends no credentials |
+| `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
 
 All five packages are on TypeScript 6 — `moduleResolution: "Node"`, `baseUrl`, and paths without a
 leading `./` no longer parse, so don't reintroduce them.
@@ -156,9 +159,9 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
   shorten or delete in the same PR. It got to 65KB by only ever being appended to.
 - **Write a line here only if getting it wrong breaks something and the code wouldn't tell you.**
   Everything else is discoverable by reading the repo.
-- **Detail belongs in `docs/` or the package's README**; this file gets the one-line rule and the
-  pointer. Rationale, history ("this replaced X"), endpoint lists, per-file inventories, and
-  exhaustive flag lists all go there.
+- **Detail belongs in `docs/`, the package's README, or the scraper's own README**; this file
+  gets the one-line rule and the pointer. Rationale, history, endpoint lists, per-file
+  inventories and exhaustive flag lists all go there.
 - **Prune on sight.** Stale, duplicated, or now-documented-elsewhere lines get deleted in whatever
   PR you're already writing — no permission needed.
 - **Don't restate the code.** No signatures, no file-by-file listings, no enumerating tests by name.
@@ -170,10 +173,8 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
 - [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
 - [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
 - [CLI reference](docs/cli.md) — cookie caching, credential resolution, 2FA, actions, proxy flags
-- [Imaging scraper](docs/imaging.md) — eUnity protocol, AMF3, instance-specific notes
-- [Scraping guide](docs/scraping.md) — MyChart login, scraping tips, tooling
-- [MyChart features](docs/MYCHART_FEATURES.md) — MyChart features we deliberately don't scrape
-- [MyChart TOTP](docs/mychart-totp.md) — authenticator-app 2FA setup, endpoints, CLI flags
+- [Scrapers](scrapers/README.md) — the map; each scraper's own README is its documentation
+- [Scraping guide](scrapers/SCRAPING.md) — finding the request the web UI sends, and the traps
 - Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,
   `openrecord-demo-lambda/`, `openrecord-splash/`
 

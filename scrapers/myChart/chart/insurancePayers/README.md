@@ -1,4 +1,53 @@
-# `insurancePayers` — what each mode carries
+# `insurancePayers`
+
+The **organization's** insurance payer catalogue — the payers MyChart offers when a patient
+files a new coverage, and the closest thing the portal has to "which insurance does this
+hospital take".
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_insurance_payers` (read, `lessFrequentlyUsed`) |
+| **Source** | [`insurancePayers.ts`](insurancePayers.ts) · [`insurancePayers.processor.ts`](insurancePayers.processor.ts) |
+| **Activity** | Legacy jQuery `/Insurance` |
+
+For the **patient's** own coverages see the sibling [`../insurance/`](../insurance/).
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Insurance` | — | antiforgery token |
+| `POST /Insurance/Coverages/GetPayors` | `encounterCsn=&encounterDepartmentId=` (form-encoded) | `{ Payors: [...] }` |
+
+## Notes and research
+
+- **`POST /api/insurance/LoadPayers` is not the endpoint**, though it looks like it should
+  be. It belongs to the React `/app/insurance` activity, which **none of the four captured
+  instances serves**: `GET /app/insurance` answers 200 with the *Home* page, and `LoadPayers`
+  500s there whatever it is sent — the bundle calls it with no request data at all, so no
+  payload fixes it (`{}`, no body and exact runtime headers all 500; `GET` gives 405). This
+  was the canonical instance of the "check the React activity is actually served" trap; see
+  [`../../../SCRAPING.md`](../../../SCRAPING.md).
+- **The catalogue is organization-level, as far as the capture can show.** No patient
+  identifier is in the request, a real department id returned the identical list, and zero
+  payer ids are shared between the four organizations. The two-patient diff was **not** run
+  — none of the four accounts has proxy access — so "same for every patient" is documented
+  as this capability's assumption rather than as a finding.
+- **There is no "Other / not listed" entry** in any captured catalogue: the web UI adds
+  that option client-side. A payer absent from this list is not necessarily unfileable.
+- Error surface, all three observed: a token-less POST does the ASP.NET dance to
+  `/Home/Error?code=15`; a `GET` gives `code=14`; and an **unrecognized encounter context
+  answers 200 with an empty body and no content type** — which a status check alone reads as
+  success. The processor rejects all three rather than reporting an empty catalogue, because
+  "this hospital accepts no insurance" is the failure this capability exists to avoid.
+- This is also the post-login route around a pre-login gate: the anonymous network profile
+  in [`../../prelogin/`](../../prelogin/) reports the accepted-insurance list as `gated`,
+  because the public route to it sits behind a reCAPTCHA-protected price-transparency
+  disclaimer.
+- Shipped in [#390](https://github.com/Fan-Pier-Labs/openrecord/pull/390); 18–40 payers per
+  organization, identical field set and types on both Epic releases.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the
@@ -20,7 +69,7 @@ members are all listed so nothing is implied.
 fields, plus the antiforgery token off `/Insurance`. Legacy MVC, so the
 envelope is PascalCase. Captured on four live instances spanning both Epic
 releases (18–40 payers each, identical field set and types); see
-[`api-surface-gaps.md`](../../../../docs/api-surface-gaps.md), "Insurance payer catalogue".
+[`api-surface-gaps.md`](../../api-surface-gaps.md), "Insurance payer catalogue".
 
 **This is the organization's catalogue, not the patient's coverage** (that is
 `get_insurance`) and not an in-network guarantee. The request carries no

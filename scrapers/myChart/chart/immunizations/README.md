@@ -1,4 +1,34 @@
-# `immunizations` — what each mode carries
+# `immunizations`
+
+The vaccination record: each vaccine and every date it was administered, grouped by the
+organization that gave it.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_immunizations` (read) |
+| **Source** | [`immunizations.ts`](immunizations.ts) · [`immunizations.processor.ts`](immunizations.processor.ts) |
+| **Activity** | Legacy jQuery `/Clinical/Immunizations` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/Immunizations` | — | antiforgery token |
+| `POST /api/immunizations/LoadImmunizations` | `{}` | the record |
+
+## Notes and research
+
+- **The response is grouped by organization**, not flat:
+  `organizationImmunizationList[].orgImmunizations[]`. On a Happy Together account the same
+  vaccine can appear under more than one organization, so the processor lifts
+  `organizationName` onto each row rather than flattening the groups away — otherwise two
+  records of one dose read as two doses.
+- A vaccine record **is its dates**: `formattedAdministeredDates[]` is an array, one entry
+  per dose, and it is the only clinical content in the element. Everything else is an id or
+  page chrome.
+- Dates arrive pre-formatted by the instance; there is no ISO variant on this endpoint.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

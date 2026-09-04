@@ -7,7 +7,7 @@ export { questionnairesProcessor } from './questionnaires.processor';
 
 /**
  * `GET /Questionnaire` for the token, then `POST /Questionnaire/GetQuestionnaireList`.
- * `docs/api-surface-gaps.md` also saw a React-era `/api/questionnaire/GetQuestionnaireList`
+ * `scrapers/myChart/api-surface-gaps.md` also saw a React-era `/api/questionnaire/GetQuestionnaireList`
  * return data on a probed account, so the endpoint itself may change.
  */
 export async function fetchQuestionnairesRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {

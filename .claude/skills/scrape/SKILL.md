@@ -131,7 +131,7 @@ Do NOT move on to documentation until the CLI scrape works end-to-end.
 
 ## Critical Rules
 
-- **Headers must match the browser EXACTLY** — including lowercase casing, `origin`, `user-agent` version strings, and any custom headers. Use Playwright MCP to capture the exact headers. See "Scraping Tips" in `docs/scraping.md`.
+- **Headers must match the browser EXACTLY** — including lowercase casing, `origin`, `user-agent` version strings, and any custom headers. Use Playwright MCP to capture the exact headers. See "Scraping Tips" in `scrapers/SCRAPING.md`.
 - **Always use Playwright MCP** for browser investigation — never write one-off Playwright scripts
 - **Type everything** — no `any` types
 - **Run tests** before committing: `bun test scrapers/<scraper_name>/__tests__/`

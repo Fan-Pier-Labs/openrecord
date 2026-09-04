@@ -1,4 +1,63 @@
-# `visits` — what each mode carries
+# `visits`
+
+Appointments and encounters, past and upcoming. Every other visit-scoped capability —
+notes, After Visit Summary — is keyed on the **CSN** this scraper returns.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_past_visits` (read) · `get_upcoming_visits` (read) |
+| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) · [`types.ts`](types.ts) |
+| **Activity** | Legacy `/Visits/VisitsList` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Visits/VisitsList?noCache=<random>` | — | antiforgery token |
+| `POST /Visits/VisitsList/LoadUpcoming?timeZone=…&ComponentNumber=5&noCache=…` | **none** | three buckets: `InProgressVisits`, `NextNDaysVisits`, `LaterVisitsList` |
+| `POST /Visits/VisitsList/LoadPast?loadpast=1&oldestRenderedDate=…&ComponentNumber=7&serializedIndex=…` | **none** | one page of past visits, per organization |
+
+**Both POSTs deliberately carry no body and no `Content-Type`.** An empty-string body still
+makes Node's undici add `Content-Type: text/plain`, which trips F5 Volterra WAF rules on
+some deployments. Everything travels in the query string, and the token goes in the
+lower-case `__requestverificationtoken` header.
+
+## Notes and research
+
+- **`oldestRenderedDate` is not a server-side filter.** `LoadPast` paginates: **10 visits
+  per organization per page**, newest first, with `HasMoreData` per organization and an
+  opaque top-level `SerializedIndex` continuation token that must be echoed back to get the
+  next 10. The scraper issued a single request and silently dropped both, so
+  `get_past_visits` only ever returned the **10 most recent visits** however far back
+  `years_back` asked ([#189](https://github.com/Fan-Pier-Labs/openrecord/issues/189), fixed
+  in [#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190): 50–56 visits across the
+  requested window against a real account, versus 10).
+- The paging loop stops when no organization reports `HasMoreData`, when every visit on the
+  latest page predates the cutoff (results are newest→oldest), when the continuation token
+  is missing or **stops advancing** (a stuck-cursor guard), or at `MAX_PAST_VISIT_PAGES`
+  (50 pages ≈ 500 visits per organization). Pages are **not** merged in the scraper — `raw`
+  is the envelope of every page fetched, and the merge is the processor's.
+- **The visit object is ~159 fields, of which about five are load-bearing:** when, what,
+  who, where, and the CSN. The rest is portal UI (`IsTransmitDirectEnabled`,
+  `GeolocationArrival`, `ShouldShowECheckInInGuideBanner`). 20 past visits came to ~220 KB,
+  which overflowed a model's context window outright; the condensed projection introduced in
+  [#377](https://github.com/Fan-Pier-Labs/openrecord/pull/377) cut fake-mychart's 22-visit
+  history from 234 KB to 6.5 KB, with `full_detail` as the escape hatch.
+- **`Csn` can be blank on some rows**; `CsnForECheckIn` is the fallback. Losing the CSN
+  makes a visit's notes unreachable, so both are carried.
+- **`IsPastVisit` is always wrong** — `false` on rows `LoadPast` itself returned. The
+  capability that was called already says which side of now the visit is on.
+- **`status` is derived from seven booleans, most-specific first**:
+  `canceled` › `no_show` › `left_without_being_seen` › `in_progress` › `arrived` ›
+  `completed` › `cancel_requested` › `confirmed` › `scheduled`. A canceled visit reported
+  as "completed" is a lie about care the patient never received.
+- `Instant` is Epic's `/Date(ms)/`; `Dat` is the 1840-epoch day count (offset 47,117 days —
+  see [`../bills/utils.ts`](../bills/utils.ts)). `PrimaryDate` is clinic-local with no zone,
+  which is why `TimeZone` rides beside it.
+- `requireJsonBody` (shared with [`../notes/`](../notes/)) guards the F5 WAF's
+  200-with-HTML rejection on both calls.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

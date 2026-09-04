@@ -1,4 +1,72 @@
-# `npiRegistry` — what each mode carries
+# `npi` — the NPI Registry
+
+CMS's public directory of every US healthcare provider. **The one scraper in this repo whose
+source is not MyChart**, and the only one that needs no account at all.
+
+| | |
+| --- | --- |
+| **Capabilities** | `lookup_npi` · `search_npi_registry` — both `kind: 'public'`: no `account` parameter, no session, and they cannot reach a chart |
+| **Source** | [`npiRegistry.ts`](npiRegistry.ts) · [`npiRegistry.processor.ts`](npiRegistry.processor.ts) |
+
+A National Provider Identifier is the 10-digit number Medicare, insurers and MyChart itself
+use to name a clinician or an organization. MyChart hands a few of them out — the care team
+lists each provider's `NationalProviderID` — and names many more providers *without* one
+(visits, notes, letters, message senders). This goes both directions: an NPI to the provider
+it belongs to, or a name / specialty / place to the providers that match.
+
+## Endpoint
+
+| Request | Purpose |
+| --- | --- |
+| `GET https://npiregistry.cms.hhs.gov/api/?version=2.1&number=…` | `lookup_npi` |
+| `GET https://npiregistry.cms.hhs.gov/api/?version=2.1&<name/specialty/place criteria>` | `search_npi_registry` |
+
+One request, **no key and no login**. Both answer with the same
+`{ result_count, results[] }` envelope, so one element mapping serves both; `lookup_npi`
+returns `results[0]`, or `null` when the number is unheld.
+
+## What the API enforces
+
+Observed September 2026, API version 2.1:
+
+- **At most 200 results per page.** A larger `limit` is silently clamped, and `0` silently
+  becomes the default 10.
+- **`skip` pages further, with a documented ceiling of 1,000** — so a single query yields at
+  most 1,200 results. Narrow the query rather than paging past that.
+- **A trailing `*` wildcard needs two or more leading characters**: `Jo*` works, `J*` is
+  refused.
+- **`state` and `enumeration_type` are refused on their own**; every other criterion may
+  stand alone. No criteria at all is also refused.
+- **Refusals are HTTP 200 with an `Errors` array**, not a non-2xx status. Each
+  `description` is a complete sentence about what was wrong with the query, and that body
+  reaches the caller unchanged in every mode rather than becoming an empty result set.
+
+## Notes and research
+
+- **Nothing is bundled.** The same data is published as a bulk file — about 1.1 GB zipped,
+  ~10 GB of CSV, refreshed monthly with weekly deltas. It would not fit in any client, and
+  the live API is current where the file is up to a month stale.
+- **`RawCollector` is deliberately not reused.** It wraps `makeAuthenticatedRequest`, whose
+  whole job is MyChart session expiry and the active-patient restore; there is no session
+  here. These build their single record directly, still through `scraperFetch`, so the
+  per-host permit and the test transport still apply. The `RawResponse` envelope *is* reused
+  — nothing in it is Epic-specific, and that is what lets these capabilities take the same
+  `mode` parameter as every MyChart read.
+- **CMS stores a person's name only in parts**, so `providerName` is derived (parts joined,
+  credential after a comma) rather than leaving every caller to re-implement the join.
+  `primarySpecialty`, `primaryAddress` and `primaryPhone` are derived for the same reason.
+- **`created_epoch` / `last_updated_epoch` are not duplicates of the date strings beside
+  them** — the two disagreed on **102 of 883** sampled records, so keeping only one would
+  silently pick a day. Both stay, neither is reformatted.
+- **Evidence base:** field names and key sets come from **883 live records** across six
+  queries spanning individuals, organizations, organization subparts, and populated
+  `other_names` / `identifiers` / `practiceLocations` / `endpoints` arrays. The counts in the
+  mode table are from that sample.
+- Added in [#391](https://github.com/Fan-Pier-Labs/openrecord/pull/391); wired into the
+  capability registry as account-free reads by
+  [#396](https://github.com/Fan-Pier-Labs/openrecord/pull/396).
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a source field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

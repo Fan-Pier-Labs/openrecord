@@ -1,4 +1,37 @@
-# `healthIssues` — what each mode carries
+# `healthIssues`
+
+The problem list — the conditions a clinician has entered on the chart, with the date each
+was noted.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_health_issues` (read) |
+| **Source** | [`healthIssues.ts`](healthIssues.ts) · [`healthIssues.processor.ts`](healthIssues.processor.ts) |
+| **Activity** | Legacy jQuery `/Clinical/HealthIssues` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/HealthIssues` | — | antiforgery token |
+| `POST /api/HealthIssues/LoadHealthIssuesData` | `{}` | the problem list |
+
+Note the capitalised `HealthIssues` in the path. This API is not consistent about case —
+most `/api/*` segments are lower-case or kebab-case — and the path is matched literally.
+
+## Notes and research
+
+- Each element carries the problem **twice**: `healthIssueItem` and an identical
+  `localItem`. The processor keeps one.
+- `externalItems[]` / `externalOrgs[]` are the same problem as other organizations recorded
+  it, arriving through Care Everywhere. They are uncaptured, so they pass through whole
+  rather than being narrowed to guessed names.
+- The endpoint also returns the patient's date of birth, which `get_profile` already owns;
+  it is dropped here rather than reported twice.
+- `showDxrRefreshBanner` / `showDxrBannerAction` are Care Everywhere ("DXR") banner state,
+  not chart data.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

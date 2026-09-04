@@ -1,4 +1,67 @@
-# `careTeam` — what each mode carries
+# `careTeam`
+
+The providers on the patient's care team — this organization's, and outside providers
+reached through Care Everywhere — each with their role, specialty and NPI.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_care_team` (read) |
+| **Source** | [`careTeam.ts`](careTeam.ts) · [`careTeam.processor.ts`](careTeam.processor.ts) |
+| **Activity** | Legacy jQuery `/Clinical/CareTeam` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/CareTeam` | — | antiforgery token |
+| `POST /Clinical/CareTeam/Load` | `{}` | this organization's providers |
+| `POST /Clinical/CareTeam/LoadExternal` | `{}` | outside / Care Everywhere providers |
+
+Both are **POST-only** — a GET is refused with the instance's own ASP.NET error surface (a
+bare 500 on the August 2025 release, a 302 to `/Home/FiveHundred` on November 2025) rather
+than serving the data — and both **require the antiforgery token**, exactly as `/api/*`
+routes do. Every parameter the page's own JS sends (`hfrId`, `sources`, `actions`,
+`isPrimaryStandalone`) is optional: a bare `{}` returns the identical list.
+
+The envelope is **PascalCase** (`ProvidersList`), not the camelCase the React `/api/*`
+routes use — this is a legacy jQuery/Handlebars activity.
+
+The two calls are independent. Care Everywhere is optional per deployment, so a failure on
+the outside-provider arm is not fatal: it is reported as `externalProvidersUnavailable`
+rather than as "no outside providers".
+
+## Notes and research
+
+This capability has been **built, withdrawn and rebuilt**, and the reason is worth keeping.
+
+- The first implementation was guesses: three HTML container selectors and four name
+  selectors, six JSON wrapper keys and four spellings per field — and it read the
+  **message-recipients** endpoint as a stand-in for the care team. Nothing came from a
+  capture; fake-mychart had been written to match the guesses, so the tests proved only that
+  the code agreed with itself. [#312](https://github.com/Fan-Pier-Labs/openrecord/pull/312)
+  trimmed the invented field names; [#313](https://github.com/Fan-Pier-Labs/openrecord/pull/313)
+  withdrew the capability entirely and made it `comingSoon`.
+- Why so drastic: **a wrong guess here does not fail visibly. It renders as "you have no
+  care team."** Telling a patient they have no providers when they have several is the
+  failure mode this codebase treats as unacceptable.
+- [#379](https://github.com/Fan-Pier-Labs/openrecord/pull/379) rebuilt it against a real
+  capture and then verified that capture against **two live instances, one on each Epic
+  release we model**. Envelope keys and all 23 provider fields were identical on both.
+- Four things the live probe corrected, each now pinned by a test:
+  - **`AboutMeBlurb` is an array, not a string** (empty on every provider of both
+    instances, so its element shape is still unknown). Reading it as text would have
+    produced an empty string forever.
+  - **`CareTeamStatus` is a number**, not a string.
+  - **The antiforgery token is required on these legacy routes.** fake-mychart had been
+    enforcing it on `/api/*` only, so it was accepting a request real MyChart refuses.
+  - **`Relation` can be `null`** as well as `""`, for a provider with no stated role.
+- `Relation` is also where the **PCP designation** lives, and an entry there can be the
+  insurance payer rather than a clinician — which is why it is in `concise`.
+- **Never "you have no care team":** a non-2xx, a non-JSON body, or JSON with no
+  `ProvidersList` array all throw. Only an actual empty `ProvidersList` returns an empty
+  list.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

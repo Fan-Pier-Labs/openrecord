@@ -256,7 +256,7 @@ describe("parseWrapper", () => {
 
   it("extracts a VOI LUT carried as an AMF3 byte array", () => {
     // Real CT/MR wrappers carry the LUT as a nested voiLut object whose `lut`
-    // member is an AMF3 byte array (docs/clo-format.md) — the one wrapper
+    // member is an AMF3 byte array (scrapers/myChart/clo-image-parser/CLO-FORMAT.md) — the one wrapper
     // shape the scalar-only cases never reach.
     const lut = Buffer.alloc(8);
     for (let i = 0; i < 4; i++) lut.writeUInt16LE(1000 + i, i * 2);

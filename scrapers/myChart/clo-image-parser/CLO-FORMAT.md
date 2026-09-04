@@ -286,43 +286,9 @@ For PET/nuclear medicine SUV (Standardized Uptake Value) calculation:
 
 ## eUnity Download Protocol
 
-### Endpoints
-
-All endpoints are on the eUnity server (e.g., `eunitypg.partners.org`).
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/e/AmfServicesServlet` | POST | AMF3 binary protocol for study metadata |
-| `/e/CustomImageServlet` | POST | Image data download (`CLOWRAPPER` or `CLOPIXEL`) |
-
-### Authentication
-
-1. SAML chain from MyChart → eUnity yields a `JSESSIONID` cookie
-2. `CLOAccessKeyID` tokens are single-use and expire in ~1–2 minutes
-3. `node-fetch` fails at SAML selfauth (TLS fingerprinting) — must use `globalThis.fetch`
-
-### AMF Protocol
-
-Request/response use AMF3 binary serialization with typed objects:
-
-- `com.clientoutlook.web.metaservices.AmfServicesMessage` — outer wrapper (sealed: `messageID`, `messageType`, `body`)
-- `com.clientoutlook.web.metaservices.AmfServicesRequest` — request body (sealed: `service`, `method`, `parameters`)
-- `com.clientoutlook.web.metaservices.AmfServicesResponse` — response body (sealed: `code`, `response`)
-
-### Download Flow
-
-1. SAML chain → `JSESSIONID`
-2. AMF `getStudyListMeta` → study metadata with all series/instance UIDs
-3. For each (seriesUID, instanceUID) pair:
-   - `CustomImageServlet` with `CLOWRAPPER` → wrapper CLO file
-   - `CustomImageServlet` with `CLOPIXEL` → pixel CLO file
-
-### Key Protocol Details
-
-- `patientId` format: `<MRN>$$$<SITE>` (triple dollar signs)
-- Each image has its own seriesUID — requesting the same seriesUID with different objectUIDs returns errors
-- `level` parameter varies per series (0, 3, 4)
-- The AMF3 writer needs a string reference table for correct encoding
+How the bytes are fetched — the SAML chain, the AMF3 session init, and
+`CustomImageServlet` — is [`../eunity/README.md`](../eunity/README.md), with the byte-level
+notes in [`../eunity/docs/EUNITY_PROTOCOL.md`](../eunity/docs/EUNITY_PROTOCOL.md).
 
 ## Implementation Files
 

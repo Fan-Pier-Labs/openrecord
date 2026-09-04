@@ -1,4 +1,64 @@
-# `insurance` — what each mode carries
+# `insurance`
+
+The patient's own insurance coverages, kept in MyChart's five workflow buckets.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_insurance` (read) |
+| **Source** | [`insurance.ts`](insurance.ts) · [`insurance.processor.ts`](insurance.processor.ts) |
+| **Activity** | Legacy jQuery `/Insurance` |
+
+For the **organization's** payer catalogue — which payers this hospital accepts — see the
+sibling [`../insurancePayers/`](../insurancePayers/).
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Insurance` | — | antiforgery token only (see below) |
+| `POST /Insurance/Coverages/GetCoverages` | `isStandAlone=true&encounterCsn=&encounterDepartmentId=&encounterDTE=` (form-encoded) | the coverages |
+
+The four form fields are `$$WP.Insurance.CoveragesController._loadCoverages`' own.
+`isStandAlone` is true on the standalone Insurance activity; the three `encounter*` fields
+carry pre-visit verification context when the same component runs inside eCheck-In, and are
+empty here exactly as the standalone page sends them.
+
+## Notes and research
+
+- **`GET /Insurance` contains no insurance.** Its entire body is:
+
+  ```html
+  <div class="section"><div class="content">
+    <div id="coverages-list"></div>
+  </div></div>
+  ```
+
+  `$$WP.Insurance.CoveragesController` (in `bundles/insurance-controllers`) fills it over
+  AJAX. The scraper used to parse `.coverage-card` / `.plan-name` / `.member-id` — selectors
+  that **exist nowhere in Epic's markup**; they had been written against fake-mychart. So
+  the capability returned an empty list from every real instance, whatever the patient's
+  coverage was, and passed its tests doing it
+  ([#409](https://github.com/Fan-Pier-Labs/openrecord/pull/409), split from
+  [#405](https://github.com/Fan-Pier-Labs/openrecord/pull/405)). The page is still fetched,
+  for its token, and is recorded as `purpose: 'token'` so `raw` unwraps to the payload
+  rather than to a page of markup.
+- **The five buckets stay apart.** `ActiveCoverages`, `CoveragesPendingSubmission`,
+  `CoveragesPendingDeletion`, `CoveragesInReview`, `CoveragesInVerification` — flattening
+  them is how a card that is still being verified reads as billable today. `concise`
+  returns one flat list with the `bucket` riding on each coverage.
+- **"No coverage" here is an observed answer, not an inference.** Of the four live accounts
+  the field set was captured from (three November 2025 instances, one August 2025), one
+  genuinely has no coverage on file.
+- The processor **throws** rather than reporting "no insurance on file" for a non-2xx, for
+  the 200-with-an-empty-body an unrecognized encounter context gets, or for a body carrying
+  none of the five lists (an expired session's login page).
+- Each coverage passes through **whole**; the mode table names what the captures showed,
+  not a filter. Nothing is dropped for being empty on those accounts — none of them had
+  uploaded a card, which says nothing about whether `FrontDocument` is ever populated.
+- Measured effect of the fix on one account: `raw` went from 14,195 characters of HTML to
+  2,002 characters of actual payload.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

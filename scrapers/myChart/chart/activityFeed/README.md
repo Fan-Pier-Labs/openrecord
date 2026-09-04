@@ -1,4 +1,45 @@
-# `activityFeed` — what each mode carries
+# `activityFeed`
+
+Recent account-activity items — the "what's new" feed the MyChart home page renders:
+new results, new messages, upcoming appointments, filed documents.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_activity_feed` (read, `lessFrequentlyUsed`) |
+| **Source** | [`activityFeed.ts`](activityFeed.ts) · [`activityFeed.processor.ts`](activityFeed.processor.ts) |
+| **Activity** | React `/app/home` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /app/home` | — | antiforgery token (recorded as `purpose: 'token'`) |
+| `POST /api/item-feed/FetchItemFeed` | `{ maxItems: 50, offset: 0 }` | the feed |
+
+`offset` is the paging cursor; the scraper takes one page of 50 and does not walk it,
+because the feed is a recency view rather than a record — everything in it is reachable
+in full from the capability that owns that data.
+
+## Notes and research
+
+- The feed is **derived**, not a source of record: every item points at data another
+  capability returns in full. It is worth calling to find out *what changed*, not to read
+  a chart.
+- **On a proxy account the feed mixes patients.** Items sit under
+  `singleItemFeedViewModels[]` — one view model per patient record the account can see —
+  so every item has to be reported with the `displayName` of the record it belongs to, or a
+  child's result reads as the account holder's.
+- Feed items are heterogeneous: an announcement carries a title and body, a contact-info
+  nag carries phone and email fields, a result item carries a portal link. `type`
+  discriminates them.
+- `priorityInstant` is **epoch milliseconds**, not the ISO string the rest of this API
+  uses; the processor derives `priorityInstantISO` beside it.
+- Some releases also serve `todayItems` / `forYouItems` alongside `feedItems`.
+- The idea long predates the endpoint: a change-notification system was the subject of
+  [#13](https://github.com/Fan-Pier-Labs/openrecord/pull/13), and the feed is the portal's
+  own answer to the same question.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

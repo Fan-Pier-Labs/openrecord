@@ -60,7 +60,7 @@ These have been reviewed and are staying. Don't re-file them.
 | Tool | `download_imaging_study` (`rendersMedia: true`) | `download_imaging_study` |
 | Argument | `image_id` from `get_imaging_results`, or `imaging_index` | same |
 | Token the model emits | `[image:IMAGE_ID]` | a fixed `[image:xray]` |
-| Where the pixels come from | the eUnity protocol (see [imaging.md](imaging.md)) | `components/Radiograph.tsx` draws it procedurally |
+| Where the pixels come from | the eUnity protocol (see [`scrapers/myChart/eunity/`](../scrapers/myChart/eunity/README.md)) | `components/Radiograph.tsx` draws it procedurally |
 
 The tool, its identifiers, and its refusals now match: a study with pictures carries an `image_id`,
 a report-only study carries none and refuses the download. What stays divergent is the picture

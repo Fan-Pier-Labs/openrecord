@@ -1,4 +1,60 @@
-# `medications` — what each mode carries
+# `medications`
+
+The medication list — current prescriptions with directions, prescriber, refill state and
+pharmacy — and the (withdrawn-in-review) refill request.
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_medications` (read) · `request_refill` (write — see the warning below) |
+| **Source** | [`medications.ts`](medications.ts) · [`medications.processor.ts`](medications.processor.ts) · [`medicationRefill.ts`](medicationRefill.ts) |
+| **Activity** | Legacy jQuery `/Clinical/Medications` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /Clinical/Medications` | — | antiforgery token |
+| `POST /api/medications/LoadMedicationsPage` | `{}` | every prescription |
+| `POST /api/medications/RequestRefill` | `{ medicationKey }` | request a refill — **see below** |
+
+## Notes and research
+
+- **The response is enormous and mostly UI.** Roughly 150 fields per prescription live
+  under `communityMembers[].prescriptionList.prescriptions[]`, of which about a dozen are
+  the medication. The mode table below is the map of which is which; most of the rest is
+  card-rendering state (`showRefillButton`, `showPayButton`, `highlightMedIsHidden`, …).
+- **Prescriptions are grouped by organization** on a Happy Together account. The processor
+  flattens them into one list with `organizationName` lifted onto each row, and keeps the
+  per-organization list-level fields in a `prescriptionLists[]` of their own so nothing is
+  lost in the flattening.
+- `dateToDisplay` is meaningless without `dateDisplayKey`: MyChart chooses which date to
+  show ("Started", "Last filled") per prescription, and the key is what it means.
+- `isPatientReported` is emitted even when false. A patient-reported medication was never
+  prescribed here, and a reader has to be able to tell.
+- One captured field is an **Epic serializer leak**:
+  `varianceReason.epic.Core.Data.ICommentable.CommentClientEditable`, alongside a duplicate
+  of `varianceComment`. Both are dropped.
+
+### `request_refill` — do not trust this
+
+**`medicationKey` is not a MyChart field.** The captured `LoadMedicationsPage` response
+names the prescription `id`; `medicationKey` exists only in fake-mychart's fixture, and the
+name appears to have been invented alongside that fixture and then read back out of it. No
+capture, bundle read or live request has ever shown MyChart accepting it.
+
+The fake answers `{success: true}` to *any* body, so the scraper passes its unit and
+integration tests while quite possibly sending something real MyChart ignores. **A refill
+that silently never reaches the pharmacy is a patient who stops taking a medication
+believing it is on the way.**
+
+[#410](https://github.com/Fan-Pier-Labs/openrecord/pull/410) proposes withdrawing the
+scraper and declaring the capability `notImplemented` until a real refill has been watched
+landing on an account whose prescriptions are safe to touch. It is **open, not merged**, so
+the endpoint above is still what ships. Verifying it properly means establishing four
+things: the path from the shipped bundle, the field names, what a refusal looks like, and
+one observed refill.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

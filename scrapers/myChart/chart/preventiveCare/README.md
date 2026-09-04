@@ -1,4 +1,51 @@
-# `preventiveCare` — what each mode carries
+# `preventiveCare`
+
+Health maintenance — the screenings and vaccines that are due, overdue or done: Epic's
+"Health Advisories".
+
+| | |
+| --- | --- |
+| **Capabilities** | `get_preventive_care` (read) |
+| **Source** | [`preventiveCare.ts`](preventiveCare.ts) · [`preventiveCare.processor.ts`](preventiveCare.processor.ts) |
+| **Activity** | Legacy `/HealthAdvisories` |
+
+## Endpoints
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `GET /HealthAdvisories` | — | the page |
+
+**There is no JSON endpoint.** This is the only chart scraper whose payload is HTML and
+nothing else; everything it returns is parsed out of the page, which is why every field in
+the mode table is marked derived.
+
+## Notes and research
+
+- **Parse rows, not text.** The original parser flattened the page with `$('body').text()`
+  and paired adjacent lines. Block-level elements contribute no whitespace to `.text()`, so
+  the whole results table collapsed onto one line, the page heading matched
+  `/Overdue since (.+)/`, and the capability emitted a **synthetic first record** whose date
+  fields were three unrelated screenings run together
+  ([#374](https://github.com/Fan-Pier-Labs/openrecord/pull/374)):
+
+  ```json
+  { "name": "Preventive Care", "status": "completed",
+    "overdueSince": "01/01/2024Influenza VaccineDueNot due until 10/01/2026Lipid Panel…" }
+  ```
+
+  One `<tr>` is now one screening, and a row with no status anywhere is skipped — which also
+  keeps unrelated tables on the page out of the results.
+- **The text fallback still exists**, for instances that render advisories as flowing text
+  rather than a table. It inserts newlines at block boundaries before splitting, and rejects
+  column headers, status badges, `Previously done:` lines and bare dates as screening names,
+  so it cannot invent a record out of page chrome either.
+- `pageText` is the parser's audit trail. The parser is heuristic; when a row comes back
+  `unknown`, `pageText` is what lets a caller see what it was looking at.
+- fake-mychart used to carry a hidden newline-separated `healthAdvisories` div "for scraper
+  compat". It was an accommodation for the broken parser, not something real MyChart emits,
+  and it is gone — the visible table is the contract.
+
+## Modes: what each mode carries
 
 Part of the processor layer. The rules (never rename a MyChart field, membership by field
 name, markup only in `raw`, never invent a shape) and the drop-reason tags used in the

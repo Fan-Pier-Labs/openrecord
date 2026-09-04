@@ -12,7 +12,7 @@ a mode is a separate change.
 The inventory behind every table came from reading each scraper, the captured
 live skeletons in `fake-mychart/src/data/realShapes.ts`, the fixtures in
 `fake-mychart/src/data/homer.ts`, `realBehavior.integration.test.ts`,
-`docs/api-surface-gaps.md`, and the three PRs that already started this work
+`scrapers/myChart/api-surface-gaps.md`, and the three PRs that already started this work
 (#375, #377, #380).
 
 ## 1. The layer
