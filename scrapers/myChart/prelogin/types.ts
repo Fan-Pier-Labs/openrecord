@@ -173,6 +173,18 @@ export type OpenSlot = {
   raw: unknown;
 };
 
+/**
+ * The screening questionnaire standing between a caller and the slot search.
+ *
+ * Present only when the org gates the visit type behind one and it has not
+ * been answered. `unanswered` is the question the walk stopped on.
+ */
+export type QuestionnaireState = {
+  required: true;
+  questions: import('./schedulingQuestionnaire').SchedulingQuestion[];
+  unanswered: import('./schedulingQuestionnaire').SchedulingQuestion | null;
+};
+
 export type SlotSearchResult = {
   specialty: Specialty;
   slots: OpenSlot[];
@@ -186,4 +198,10 @@ export type SlotSearchResult = {
   errorCode: number | string | null;
   /** The server reported the search finished rather than the page cap hitting. */
   complete: boolean;
+  /**
+   * Set when the org requires a screening questionnaire that has not been
+   * answered. The search still runs, but the instance will answer
+   * `LqfAnswersRequired` rather than return slots.
+   */
+  questionnaire: QuestionnaireState | null;
 };

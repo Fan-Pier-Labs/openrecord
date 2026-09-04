@@ -52,7 +52,8 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
 import { postForm } from './preloginSession';
 import { fetchSchedulingWorkflow, fetchSpecialtyData, OPEN_SCHEDULING_PATH, parseSpecialties } from './providerDirectory';
-import type { OpenSlot, SlotSearchResult, Specialty } from './types';
+import { walkSchedulingQuestionnaire, type QuestionAnswer } from './schedulingQuestionnaire';
+import type { OpenSlot, QuestionnaireState, SlotSearchResult, Specialty } from './types';
 
 const SLOTS_PATH = '/Scheduling/Anonymous/GetSlots';
 
@@ -195,6 +196,12 @@ export type OpenSlotsOptions = {
    * the full set; a large specialty is ~200 pairs and makes for a slow search.
    */
   maxPairs?: number;
+  /**
+   * Answers to the screening questionnaire, when the org attaches one. Without
+   * them a gated instance answers `LqfAnswersRequired` and the result carries
+   * the questions instead of slots — see `schedulingQuestionnaire.ts`.
+   */
+  answers?: QuestionAnswer[];
 };
 
 type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
@@ -207,10 +214,12 @@ type RawReason = {
   DefaultVisitTypeId?: string | null;
 };
 
+type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
+
 type RawSpecialtyPayload = {
   ProviderDepartmentPairs?: RawPair[] | null;
   ReasonsForVisit?: RawReason[] | null;
-  VisitTypes?: { ID: string }[] | null;
+  VisitTypes?: RawVisitType[] | null;
 };
 
 /**
@@ -260,6 +269,23 @@ export async function fetchOpenSlots(
     reason = reasons.find((r) => r.CanDirectSchedule) ?? reasons[0] ?? null;
   }
   const visitTypeId = reason?.DefaultVisitTypeId ?? specialtyData.VisitTypes?.[0]?.ID ?? null;
+  const visitType = specialtyData.VisitTypes?.find((v) => v.ID === visitTypeId) ?? null;
+
+  // An org can gate the search behind a screening questionnaire. Walk it now
+  // so the ids are ready; with no answers this only reads the first question.
+  const treeId = visitType?.AnonymousSchedulingDecisionTreeId?.trim() || null;
+  let lqfIds: string[] = [];
+  let patientAnswerIds: string[] = [];
+  let questionnaire: QuestionnaireState | null = null;
+  if (treeId) {
+    const walk = await walkSchedulingQuestionnaire(request, token, treeId, visitTypeId, options.answers ?? []);
+    if (walk.complete && walk.treeAnswerId) {
+      lqfIds = [walk.treeId];
+      patientAnswerIds = [walk.treeAnswerId];
+    } else {
+      questionnaire = { required: true, questions: walk.questions, unanswered: walk.unanswered };
+    }
+  }
 
   let pairs = (specialtyData.ProviderDepartmentPairs ?? [])
     .filter((p) => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string')
@@ -271,7 +297,7 @@ export async function fetchOpenSlots(
   }
   if (options.maxPairs !== undefined && options.maxPairs >= 0) pairs = pairs.slice(0, options.maxPairs);
   if (pairs.length === 0) {
-    return { specialty, slots: [], pages: 0, errorCode: null, complete: true };
+    return { specialty, slots: [], pages: 0, errorCode: null, complete: true, questionnaire };
   }
 
   const startDte = options.startDate ? toEpicDte(options.startDate) : localTodayDte();
@@ -294,7 +320,14 @@ export async function fetchOpenSlots(
       },
       appointmentBuilder: {
         Appointments: [
-          { VisitTypeId: visitTypeId, ProviderDepartmentPairs: pairs, Slot: '', SelectedTelehealthMode: 0, CanSkipLicensureCheck: true },
+          {
+            VisitTypeId: visitTypeId,
+            ProviderDepartmentPairs: pairs,
+            Slot: '',
+            SelectedTelehealthMode: 0,
+            CanSkipLicensureCheck: true,
+            ...(lqfIds.length ? { LqfIds: lqfIds, PatientAnswerIds: patientAnswerIds } : {}),
+          },
         ],
         ReasonForVisitLine: reason?.Id ?? null,
         ReasonForVisitValue: reason?.CategoryValue ?? null,
@@ -321,7 +354,7 @@ export async function fetchOpenSlots(
     cursor = data.ContinueInfo ?? null;
   }
 
-  return { specialty, slots, pages, errorCode, complete };
+  return { specialty, slots, pages, errorCode, complete, questionnaire };
 }
 
 /**

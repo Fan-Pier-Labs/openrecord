@@ -19,6 +19,12 @@ export {
   localTodayDte,
   type OpenSlotsOptions,
 } from './openSlots';
+export {
+  walkSchedulingQuestionnaire,
+  type QuestionAnswer,
+  type SchedulingQuestion,
+  type QuestionnaireWalk,
+} from './schedulingQuestionnaire';
 export { fetchBillingEntities } from './guestEstimates';
 export { PreloginEndpointError } from './preloginSession';
 export type * from './types';
