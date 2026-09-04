@@ -20,13 +20,13 @@ export async function checkForUpdate(opts: {
   logger?: { warn: (msg: string) => void };
 }): Promise<UpdateCheckResult | null> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    // AbortSignal.timeout over a manual setTimeout: its timer doesn't hold the
+    // event loop open, so a throw between here and clearTimeout can't delay the
+    // CLI's exit by up to 3s.
     const res = await fetch(GITHUB_RELEASES_URL, {
-      signal: controller.signal,
+      signal: AbortSignal.timeout(3000),
       headers: { Accept: 'application/vnd.github.v3+json' },
     });
-    clearTimeout(timeout);
 
     if (!res.ok) return null;
 
