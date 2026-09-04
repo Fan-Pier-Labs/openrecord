@@ -3,7 +3,7 @@
  * latest GitHub release. Fire-and-forget — never throws or blocks the caller.
  */
 
-import { compareVersions, validate } from 'compare-versions';
+import { compareVersions } from 'compare-versions';
 
 import { logger } from './logger';
 const GITHUB_RELEASES_URL =
@@ -34,12 +34,6 @@ export async function checkForUpdate(opts: {
     if (!data.tag_name) return null;
 
     const latestVersion = data.tag_name.replace(/^v/, '');
-
-    // A release can be tagged anything at all ("nightly", "2026-09-04"), and
-    // compareVersions throws on input it can't parse — so gate on validate()
-    // rather than reporting a bogus result.
-    if (!validate(latestVersion) || !validate(opts.currentVersion)) return null;
-
     const updateAvailable = compareVersions(opts.currentVersion, latestVersion) < 0;
 
     if (updateAvailable) {
