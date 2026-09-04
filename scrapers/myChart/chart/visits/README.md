@@ -52,7 +52,7 @@ lower-case `__requestverificationtoken` header.
   `completed` › `cancel_requested` › `confirmed` › `scheduled`. A canceled visit reported
   as "completed" is a lie about care the patient never received.
 - `Instant` is Epic's `/Date(ms)/`; `Dat` is the 1840-epoch day count (offset 47,117 days —
-  see [`../bills/utils.ts`](../bills/utils.ts)). `PrimaryDate` is clinic-local with no zone,
+  see [`shared/epicDate.ts`](../../../../shared/epicDate.ts)). `PrimaryDate` is clinic-local with no zone,
   which is why `TimeZone` rides beside it.
 - `requireJsonBody` (shared with [`../notes/`](../notes/)) guards the F5 WAF's
   200-with-HTML rejection on both calls.

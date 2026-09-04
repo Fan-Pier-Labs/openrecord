@@ -46,11 +46,10 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   retries once. Raw `makeRequest` is only for the pre-login world (discovery, DoLogin, 2FA, terms,
   keepalive).
 - **Every outbound request leaves through `scraperFetch` (`scrapers/http.ts`)** — it owns the browser
-  headers, the cookie jar, the per-host permit, and the 2-minute deadline. A second fetch path loses
-  all four; `http.unit.test.ts` fails the build if one appears. **There is no injectable `fetchFn`**
-  — the platform picks the transport. Tests use `setTestTransport` / `req.transport`.
-- **At most 10 in-flight requests per MyChart host, process-wide** (`shared/hostConcurrency.ts`).
-  The permit wraps the individual fetch only, never the redirect recursion.
+  headers, the cookie jar, the per-host permit (10 in flight per host, process-wide) and the 2-minute
+  deadline. A second fetch path loses all four; `http.unit.test.ts` fails the build if one appears.
+  **There is no injectable `fetchFn`** — the platform picks the transport; tests use
+  `setTestTransport` / `req.transport`.
 - **A read scraper returns the raw MyChart response; its processor decides what a caller sees.**
   `fetch…Raw` records every request into a `RawResponse` and never edits a field; the sibling
   `.processor.ts` builds the standard object (MyChart's own field names, derived fields under new
@@ -65,8 +64,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
   entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
-  session state, so every chart-touching capability asserts the patient before running and refuses
-  with the fix rather than returning the wrong family member's record.
+  session state, so every chart-touching capability asserts the patient first and refuses with the
+  fix rather than returning the wrong family member's record.
 - **fake-mychart must behave EXACTLY like real MyChart** — response shapes, field casing, pagination
   sizes, status codes, server-side enforcement. It is a faithful stand-in, not a convenience mock.
   Never simplify a contract to make a test easier; size the fixture around the real behavior.

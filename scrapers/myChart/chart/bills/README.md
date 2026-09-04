@@ -5,7 +5,7 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 | | |
 | --- | --- |
 | **Capabilities** | `get_billing` (read) |
-| **Source** | [`bills.ts`](bills.ts) · [`bills.processor.ts`](bills.processor.ts) · [`summaryHtml.ts`](summaryHtml.ts) · [`utils.ts`](utils.ts) · [`types.ts`](types.ts) |
+| **Source** | [`bills.ts`](bills.ts) · [`bills.processor.ts`](bills.processor.ts) · [`summaryHtml.ts`](summaryHtml.ts) · [`types.ts`](types.ts) · [`shared/epicDate.ts`](../../../../shared/epicDate.ts) |
 | **Activity** | Legacy `/Billing/*` |
 
 ## Endpoints
@@ -27,11 +27,13 @@ Every URL carries `noCache=<random>`.
 
 ## Notes and research
 
-- **Dates on these routes are `dte`, a 1840-epoch day count.** A `dte` is whole days since
-  1840-12-31, which is 47,117 days before the Unix epoch — the epoch mainframes use.
-  [`utils.ts`](utils.ts) converts both ways; the functions were lifted out of MyChart's own
-  front-end JS. The search window sent is deliberately absurd (100 years back, 1 year
-  forward), because the endpoint filters on explicit dates rather than offering "all".
+- **Dates on these routes are `dte`, an Epic day number** — whole days since 1840-12-31,
+  which is 47,117 days before the Unix epoch, because Epic runs on MUMPS and `$HOROLOG`
+  counts from there. [`shared/epicDate.ts`](../../../../shared/epicDate.ts) converts both
+  ways, and is shared with the visit list (`Dat`) and the anonymous scheduler (`Dte`) — same
+  number, three names. The search window sent here is deliberately absurd (100 years back,
+  1 year forward), because the endpoint filters on explicit dates rather than offering
+  "all".
 - **Account discovery is HTML parsing, and it has three fallbacks.** `ID`/`Context` are
   read from the `ba_card_status_recentPaymentLabel` link; some instances have no such link,
   so any `/Billing/Details` link in the card is tried next, then the page's inline

@@ -1,13 +1,12 @@
 # `medications`
 
 The medication list — current prescriptions with directions, prescriber, refill state and
-pharmacy — plus a refill request that ships but has never been verified against a real
-MyChart. See the warning below before using it.
+pharmacy.
 
 | | |
 | --- | --- |
-| **Capabilities** | `get_medications` (read) · `request_refill` (write — see the warning below) |
-| **Source** | [`medications.ts`](medications.ts) · [`medications.processor.ts`](medications.processor.ts) · [`medicationRefill.ts`](medicationRefill.ts) |
+| **Capabilities** | `get_medications` (read) · `request_refill` (**declared, not implemented** — [`REFILL.md`](REFILL.md)) |
+| **Source** | [`medications.ts`](medications.ts) · [`medications.processor.ts`](medications.processor.ts) |
 | **Activity** | Legacy jQuery `/Clinical/Medications` |
 
 ## Endpoints
@@ -16,7 +15,6 @@ MyChart. See the warning below before using it.
 | --- | --- | --- |
 | `GET /Clinical/Medications` | — | antiforgery token |
 | `POST /api/medications/LoadMedicationsPage` | `{}` | every prescription |
-| `POST /api/medications/RequestRefill` | `{ medicationKey }` | request a refill — **see below** |
 
 ## Notes and research
 
@@ -36,24 +34,15 @@ MyChart. See the warning below before using it.
   `varianceReason.epic.Core.Data.ICommentable.CommentClientEditable`, alongside a duplicate
   of `varianceComment`. Both are dropped.
 
-### `request_refill` — do not trust this
+### `request_refill` ships no scraper
 
-**`medicationKey` is not a MyChart field.** The captured `LoadMedicationsPage` response
-names the prescription `id`; `medicationKey` exists only in fake-mychart's fixture, and the
-name appears to have been invented alongside that fixture and then read back out of it. No
-capture, bundle read or live request has ever shown MyChart accepting it.
+The capability is registered with `notImplemented`, so every client lists it and running it
+returns a notice rather than posting anything. **`id` is the prescription handle** this read
+surfaces, and it is what a real implementation would take.
 
-The fake answers `{success: true}` to *any* body, so the scraper passes its unit and
-integration tests while quite possibly sending something real MyChart ignores. **A refill
-that silently never reaches the pharmacy is a patient who stops taking a medication
-believing it is on the way.**
-
-[#410](https://github.com/Fan-Pier-Labs/openrecord/pull/410) proposes withdrawing the
-scraper and declaring the capability `notImplemented` until a real refill has been watched
-landing on an account whose prescriptions are safe to touch. It is **open, not merged**, so
-the endpoint above is still what ships. Verifying it properly means establishing four
-things: the path from the shipped bundle, the field names, what a refusal looks like, and
-one observed refill.
+[`REFILL.md`](REFILL.md) has the endpoint the withdrawn scraper used, why a write that
+cannot be verified is worse than a missing one, and the four things to establish before
+implementing it.
 
 ## Modes: what each mode carries
 
@@ -78,7 +67,7 @@ under `communityMembers[].prescriptionList.prescriptions[]`; the scraper keeps 1
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
-| `id` | MyChart's prescription id | — | ✓ | ✓ | Handle: the id a refill request will need. See the `medicationKey` note. |
+| `id` | MyChart's prescription id | — | ✓ | ✓ | Handle: the prescription id, and what a refill implementation would take. |
 | `name` | Order name (drug, strength, form) | — | ✓ | ✓ | The medication. |
 | `patientFriendlyName.text`, `.caption`, `.captionType` | Plain-language name | — | ✓ | ✓ (`text`) | The name a patient recognizes; the caption explains the friendly name and is detail. |
 | `sig` | Directions | — | ✓ | ✓ | How to take it. |
@@ -117,8 +106,6 @@ under `communityMembers[].prescriptionList.prescriptions[]`; the scraper keeps 1
 | `getPatientFirstName` | First name | — | ✓ | — | Real; `get_profile` is the identity capability. |
 | `showPatientAdmittedBanner`, `isProxyView`, `enableSelectionMode`, `hostedInIFrame`, `backToContextSet`, `medSettings.*`, `medicationsUrl` | Page config | — | — | — | UI flag / session context / portal link. |
 
-**`medicationKey` is not a MyChart field.** The captured skeleton has `id`;
-`medicationKey` exists only in the fake's fixture, and `request_refill` posts it
-as `{ medicationKey }` to `/api/medications/RequestRefill`. Either the real
-request shape is `{ id }` or it is something not yet captured. Out of scope
-here, but the processor surfaces `id` and does not invent `medicationKey`.
+**The prescription handle is `id`.** That is what the captured skeleton has, and
+what the processor surfaces. There is no `medicationKey` field on this API —
+see [`REFILL.md`](REFILL.md).

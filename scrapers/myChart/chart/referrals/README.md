@@ -28,7 +28,7 @@ Note the lower-case `listReferrals` — most sibling endpoints are PascalCase.
   detail can be missing on one deployment and present on another, which is why it survives
   into `standard` rather than being dropped as a UI flag.
 - `dte` is Epic's mainframe day count (days since 1840-12-31) of `creationDate` — the same
-  encoding the billing scraper converts in [`../bills/utils.ts`](../bills/utils.ts). It is
+  encoding the billing scraper converts in [`shared/epicDate.ts`](../../../../shared/epicDate.ts). It is
   dropped here because the formatted date is beside it.
 - One of the capabilities pinned by
   [#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406): the processor refuses to
