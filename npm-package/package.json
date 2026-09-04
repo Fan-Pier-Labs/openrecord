@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "cheerio": "^1.2.0",
+    "compare-versions": "^6.1.1",
     "date-fns": "^4.4.0",
     "fzstd": "^0.1.1",
     "html-to-text": "^10.0.1",
