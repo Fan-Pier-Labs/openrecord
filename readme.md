@@ -113,6 +113,13 @@ No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out.
 
+## Privacy
+
+[Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) — what stays on
+your device (everything scraped, plus your credentials), what leaves it (the AI
+call you make, and the anonymous events above), and who receives it for each
+client.
+
 ## License
 
 Proprietary source-available license (see `LICENSE`). Viewing and personal/educational use permitted; no commercial use, redistribution, SaaS offerings, or competing products without written permission from Fan Pier Labs.
