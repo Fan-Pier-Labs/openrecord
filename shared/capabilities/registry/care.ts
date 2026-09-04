@@ -92,6 +92,10 @@ export const CARE_CAPABILITIES: readonly CapabilityImpl[] = [
     kind: 'read',
     group: 'Care',
     lessFrequentlyUsed: true,
+    unverified:
+      'no real instance has ever returned a questionnaire here — three of four serve the legacy ' +
+      'activity and answer with an empty list, and the fourth answers /Questionnaire itself with ' +
+      'HTTP 500. The React /api/questionnaire/GetQuestionnaireList endpoint is the one to move to.',
     params: [],
     run: (request) => fetchQuestionnairesRaw(request),
     processor: questionnairesProcessor,

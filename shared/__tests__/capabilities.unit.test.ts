@@ -28,6 +28,8 @@ import {
   getCapability,
   capabilitiesByGroup,
   executeCapability,
+  UNVERIFIED_CAPABILITIES,
+  capabilityDescription,
   describeCapability,
   encodeImageId,
   decodeImageId,
@@ -152,6 +154,45 @@ describe('the registry itself', () => {
   it('describes a capability as a callable signature', () => {
     const line = describeCapability(getCapability('get_note_content')!);
     expect(line).toStartWith('get_note_content(csn, lrp_id, hno_id, hno_dat) — ');
+  });
+});
+
+// ── The unverified caveat ───────────────────────────────────────────────────
+
+describe('unverified capabilities', () => {
+  it('carries the caveat into the description every client shows', () => {
+    const questionnaires = getCapability('get_questionnaires')!;
+    expect(questionnaires.unverified).toBeTruthy();
+    const described = capabilityDescription(questionnaires);
+    expect(described).toStartWith(questionnaires.description);
+    expect(described).toContain('UNVERIFIED:');
+    // The point of the caveat: an empty answer from an unverified capability
+    // is not evidence the chart is empty.
+    expect(described).toContain('not confirmed');
+  });
+
+  it('gives a write the advice that fits how a write fails', () => {
+    // An unverified read fails by returning a confident empty list; an
+    // unverified write fails by appearing to have succeeded.
+    const refill = capabilityDescription(getCapability('request_refill')!);
+    expect(refill).toContain('Do not report it as done');
+    expect(refill).not.toContain('the chart has none');
+  });
+
+  it('leaves a verified capability\'s description exactly as written', () => {
+    const labs = getCapability('get_lab_results')!;
+    expect(labs.unverified).toBeUndefined();
+    expect(capabilityDescription(labs)).toBe(labs.description);
+  });
+
+  it('changes nothing about what is listed or dispatched', () => {
+    for (const capability of UNVERIFIED_CAPABILITIES) {
+      expect(CAPABILITY_IDS).toContain(capability.id);
+      expect(capability.unverified!.length).toBeGreaterThan(20);
+    }
+    // Not a dumping ground: a capability whose shape is confirmed must not be
+    // marked, and a marked one has to be in the registry like any other.
+    expect(UNVERIFIED_CAPABILITIES.map((c) => c.id)).toEqual(['get_questionnaires', 'request_refill']);
   });
 });
 

@@ -33,6 +33,7 @@ import {
   acceptsAccountParam,
   acceptsModeParam,
   acceptsPatientParam,
+  capabilityDescription,
   describeModeParam,
   CAPABILITIES,
 } from "../../../../shared/capabilities";
@@ -50,7 +51,7 @@ function argHint(type: string, required: boolean | undefined, description: strin
 
 export const TOOLS: ToolSpec[] = AGENT_CAPABILITIES.map((capability) => ({
   name: capability.id,
-  description: capability.description,
+  description: capabilityDescription(capability),
   args: {
     // Declared by the registry, so the parity test can see it. This used to be
     // spelled `instance` here and `account` in the extension — the one
@@ -110,7 +111,7 @@ export const WRITE_TOOL_META: Record<string, WriteToolMeta> = Object.fromEntries
     c.id,
     {
       title: c.title,
-      description: c.description,
+      description: capabilityDescription(c),
       ...(CONFIRM_LABELS[c.id] ? { confirmLabel: CONFIRM_LABELS[c.id] } : {}),
     },
   ]),

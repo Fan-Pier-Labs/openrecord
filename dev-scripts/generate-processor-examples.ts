@@ -4,10 +4,17 @@
  * against fake-mychart in all four output modes, so the examples in the docs
  * are real output rather than hand-typed guesses.
  *
- * Needs a fake-mychart on localhost:4000 (or FAKE_MYCHART_HOST):
+ * Needs the **compose service** on localhost:4000 (or FAKE_MYCHART_HOST):
  *
- *   cd fake-mychart && PORT=4000 bun run dev
+ *   docker compose -f docker-compose.ci.yaml up -d --build --wait
  *   bun dev-scripts/generate-processor-examples.ts
+ *
+ * The container specifically, not a `bun run start` in the worktree: the two
+ * send different `Content-Type` headers (`application/json;charset=utf-8` vs
+ * `application/json`), `raw` mode records each response's header verbatim, and
+ * regenerating against the wrong one produces a doc CI rejects — with a diff in
+ * capabilities the PR never touched, which is the same false signal the pinned
+ * clock below exists to remove, from a different source.
  *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.
@@ -23,7 +30,13 @@ import { join } from 'path';
 import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
-import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
+import {
+  CAPABILITIES,
+  acceptsModeParam,
+  capabilityDescription,
+  executeCapability,
+  isPublicCapability,
+} from '../shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -147,7 +160,7 @@ async function main(): Promise<void> {
       (mode) =>
         `<details>\n<summary><code>mode: ${mode}</code> (${sizeOf(outputs[mode])} chars)</summary>\n\n${renderExample(outputs[mode])}\n\n</details>`,
     );
-    sections.push(`### \`${capability.id}\`\n\n${capability.description}\n${argLine}\n${blocks.join('\n\n')}`);
+    sections.push(`### \`${capability.id}\`\n\n${capabilityDescription(capability)}\n${argLine}\n${blocks.join('\n\n')}`);
   }
 
   const doc = [

@@ -20,6 +20,7 @@ import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest'
 import {
   CAPABILITIES,
   acceptsPatientParam,
+  capabilityDescription,
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
@@ -94,7 +95,7 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
       // public lookups read too — they just read something other than a chart.
       const marker = capability.kind === 'read' || capability.kind === 'public' ? ' ' : '!';
       lines.push(`   ${marker} ${capability.id}`);
-      lines.push(`       ${capability.description}`);
+      lines.push(`       ${capabilityDescription(capability)}`);
       for (const param of capability.params) {
         lines.push(
           `       --arg ${param.name}=<${param.type}>${param.required ? ' (required)' : ''}  ${param.description}`,
