@@ -44,6 +44,34 @@ describe('parseServiceAreas', () => {
   it('returns null for a page that is not the service-area step', () => {
     expect(parseServiceAreas('<html><body>Login Page</body></html>')).toBeNull();
   });
+
+  // The three shapes that end a value in the wrong place if you look for the
+  // `;` at the end of the line instead of asking JSON.parse where it ends.
+  it('stops at the end of its own value when two assignments share a line', () => {
+    const page = `<script>$$WP.Estimates.RecentSAs = [];$$WP.Estimates.OtherSAs = ${JSON.stringify(serviceAreas)};</script>`;
+    expect(parseServiceAreas(page)!.map((a) => a.Title)).toEqual([
+      'Springfield General Hospital',
+      'Shelbyville Physicians Group',
+    ]);
+  });
+
+  it('keeps a title that contains the characters that end a statement', () => {
+    const page = `<script>$$WP.Estimates.OtherSAs = [{"Id":"a","Title":"Radiology }; Imaging"}];</script>`;
+    expect(parseServiceAreas(page)!.map((a) => a.Title)).toEqual(['Radiology }; Imaging']);
+  });
+
+  it('reads an assignment that is wrapped in a function rather than alone on its line', () => {
+    const page = `<script>$(function () { $$WP.Estimates.OtherSAs = [{"Id":"a","Title":"T"}]; init(); });</script>`;
+    expect(parseServiceAreas(page)!.map((a) => a.Title)).toEqual(['T']);
+  });
+
+  it('reports nothing rather than guessing when the value is not JSON', () => {
+    // The limit of reading these with JSON.parse: an instance that wrote the
+    // value as a JavaScript object literal — unquoted keys, single quotes —
+    // reads as absent. Every instance measured emits JSON; if one ever does
+    // not, this is the line that has to change (to a JS parser).
+    expect(parseServiceAreas(`<script>$$WP.Estimates.OtherSAs = [{Id: 'a', Title: 'T'}];</script>`)).toBeNull();
+  });
 });
 
 describe('parseLocationModel', () => {
@@ -58,6 +86,13 @@ describe('parseLocationModel', () => {
 
   it('returns null when there is no model', () => {
     expect(parseLocationModel('<html></html>')).toBeNull();
+  });
+
+  it('reads the model out of the wrapper the real page puts it in', () => {
+    // Real instances emit it inside `$(function () { … })`, with a second
+    // statement after it on the same line.
+    const page = `<script>$(function () { var model = {"Locations":[{"Id":"1","Title":"A }; B"}]}; var c = new $$WP.Estimates.EstimatesLocationController('', model); });</script>`;
+    expect(parseLocationModel(page)!.Locations!.map((l) => l.Title)).toEqual(['A }; B']);
   });
 });
 

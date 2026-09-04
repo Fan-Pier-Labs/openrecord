@@ -48,47 +48,33 @@ type RawLocationModel = {
   HasCompletedCaptcha?: boolean;
 };
 
-/** Read one `$$WP.Estimates.<name> = [...]` assignment out of the page. */
-function readAssignment(html: string, name: string): unknown {
-  const re = new RegExp(`\\$\\$WP\\.Estimates\\.${name}\\s*=\\s*`);
-  const m = re.exec(html);
-  if (!m) return undefined;
-  return parseJsonPrefix(html, m.index + m[0].length);
-}
-
 /**
- * Parse the JSON value that starts at `start`, however long it runs. The
- * page puts a whole array on one line and follows it with `;`, so a bracket
- * walk is the reliable way to find its end — the ids inside are opaque and
- * can contain anything.
+ * The JSON value that starts at `start`: the shortest prefix `JSON.parse`
+ * accepts.
+ *
+ * A value starting with `[` or `{` has no proper prefix that is itself valid
+ * JSON — a prefix only parses once its brackets balance, which is the whole
+ * value — so the first prefix that parses is the end of it. Letting the real
+ * parser decide is what keeps a `]` inside a title, an escaped quote, or a
+ * second statement on the same line from ending the value early.
  */
-function parseJsonPrefix(html: string, start: number): unknown {
-  const open = html[start];
-  const close = open === '[' ? ']' : open === '{' ? '}' : null;
-  if (!close) return undefined;
-  let depth = 0;
-  let inString = false;
-  for (let i = start; i < html.length; i++) {
-    const ch = html[i];
-    if (inString) {
-      if (ch === '\\') i++;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === '[' || ch === '{') depth++;
-    else if (ch === ']' || ch === '}') {
-      depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(html.slice(start, i + 1));
-        } catch {
-          return undefined;
-        }
-      }
+function valueAt(html: string, start: number): unknown {
+  for (let end = start + 1; end <= html.length; end++) {
+    const ch = html[end - 1];
+    if (ch !== ']' && ch !== '}') continue;
+    try {
+      return JSON.parse(html.slice(start, end));
+    } catch {
+      // Not the end of the value yet.
     }
   }
   return undefined;
+}
+
+/** Read one `$$WP.Estimates.<name> = [...]` assignment out of the page. */
+function readAssignment(html: string, name: string): unknown {
+  const m = new RegExp(`\\$\\$WP\\.Estimates\\.${name}\\s*=\\s*`).exec(html);
+  return m ? valueAt(html, m.index + m[0].length) : undefined;
 }
 
 /** The billing entities on the service-area page, or null if it isn't one. */
@@ -102,9 +88,11 @@ export function parseServiceAreas(html: string): RawServiceArea[] | null {
 
 /** The `var model = {...}` on the location page, or null if it isn't one. */
 export function parseLocationModel(html: string): RawLocationModel | null {
+  // Not a `$$WP.` assignment: the page wraps it in `$(function () { … })`,
+  // with more statements after it on the same line.
   const m = /var\s+model\s*=\s*/.exec(html);
   if (!m) return null;
-  const model = parseJsonPrefix(html, m.index + m[0].length);
+  const model = valueAt(html, m.index + m[0].length);
   return model && typeof model === 'object' ? model : null;
 }
 
