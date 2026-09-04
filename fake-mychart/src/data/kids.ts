@@ -173,14 +173,40 @@ const bart: KidRecord = {
       TabColorClass: 'tab-01',
       CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
-    insurance: [
-      {
-        planName: 'Springfield Nuclear Power Plant Employee Health Plan',
-        subscriberName: 'Homer Jay Simpson',
-        memberId: 'HSJ-12345-02',
-        groupNumber: 'SNPP-742',
+    // A child's coverage: the parent is the subscriber, so `SubscriberIsSelf`
+    // is false and the member id is the dependent's, not the subscriber's.
+    insurance: {
+      ActiveCoverages: [
+        {
+          CoverageId: 'WP-COVERAGE-SNPP-02',
+          CoverageName: 'Springfield Nuclear Power Plant Employee Health Plan (PPO)',
+          Status: 1,
+          CoverageType: 1,
+          PayorName: 'Springfield Mutual Health',
+          PlanName: 'SNPP Employee PPO',
+          SubscriberId: 'HSJ-12345',
+          SubscriberName: 'Homer J Simpson',
+          SubscriberIsSelf: false,
+          MemberId: 'HSJ-12345-02',
+          MemberName: 'Bart J Simpson',
+          GroupNumber: 'SNPP-742',
+          FormattedEffectiveDate: '01/01/2026',
+          Future: false,
+          Termed: false,
+        },
+      ],
+      // No pending coverage on a child's record: the parent's is the one with
+      // something mid-workflow.
+      CoveragesPendingSubmission: [],
+      Settings: {
+        IsStandAlone: true,
+        CanUpdate: true,
+        CanViewDetails: true,
+        CanPayPremium: false,
+        CanViewInsHub: true,
+        IsInsHubOn: true,
       },
-    ],
+    },
   },
 };
 
@@ -229,14 +255,40 @@ const lisa: KidRecord = {
       TabColorClass: 'tab-01',
       CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
-    insurance: [
-      {
-        planName: 'Springfield Nuclear Power Plant Employee Health Plan',
-        subscriberName: 'Homer Jay Simpson',
-        memberId: 'HSJ-12345-03',
-        groupNumber: 'SNPP-742',
+    // A child's coverage: the parent is the subscriber, so `SubscriberIsSelf`
+    // is false and the member id is the dependent's, not the subscriber's.
+    insurance: {
+      ActiveCoverages: [
+        {
+          CoverageId: 'WP-COVERAGE-SNPP-03',
+          CoverageName: 'Springfield Nuclear Power Plant Employee Health Plan (PPO)',
+          Status: 1,
+          CoverageType: 1,
+          PayorName: 'Springfield Mutual Health',
+          PlanName: 'SNPP Employee PPO',
+          SubscriberId: 'HSJ-12345',
+          SubscriberName: 'Homer J Simpson',
+          SubscriberIsSelf: false,
+          MemberId: 'HSJ-12345-03',
+          MemberName: 'Lisa M Simpson',
+          GroupNumber: 'SNPP-742',
+          FormattedEffectiveDate: '01/01/2026',
+          Future: false,
+          Termed: false,
+        },
+      ],
+      // No pending coverage on a child's record: the parent's is the one with
+      // something mid-workflow.
+      CoveragesPendingSubmission: [],
+      Settings: {
+        IsStandAlone: true,
+        CanUpdate: true,
+        CanViewDetails: true,
+        CanPayPremium: false,
+        CanViewInsHub: true,
+        IsInsHubOn: true,
       },
-    ],
+    },
   },
 };
 
@@ -280,14 +332,40 @@ const maggie: KidRecord = {
       TabColorClass: 'tab-01',
       CustomRequestAppointmentLink: '/MyChart/scheduling/request',
     },
-    insurance: [
-      {
-        planName: 'Springfield Nuclear Power Plant Employee Health Plan',
-        subscriberName: 'Homer Jay Simpson',
-        memberId: 'HSJ-12345-04',
-        groupNumber: 'SNPP-742',
+    // A child's coverage: the parent is the subscriber, so `SubscriberIsSelf`
+    // is false and the member id is the dependent's, not the subscriber's.
+    insurance: {
+      ActiveCoverages: [
+        {
+          CoverageId: 'WP-COVERAGE-SNPP-04',
+          CoverageName: 'Springfield Nuclear Power Plant Employee Health Plan (PPO)',
+          Status: 1,
+          CoverageType: 1,
+          PayorName: 'Springfield Mutual Health',
+          PlanName: 'SNPP Employee PPO',
+          SubscriberId: 'HSJ-12345',
+          SubscriberName: 'Homer J Simpson',
+          SubscriberIsSelf: false,
+          MemberId: 'HSJ-12345-04',
+          MemberName: 'Maggie Simpson',
+          GroupNumber: 'SNPP-742',
+          FormattedEffectiveDate: '01/01/2026',
+          Future: false,
+          Termed: false,
+        },
+      ],
+      // No pending coverage on a child's record: the parent's is the one with
+      // something mid-workflow.
+      CoveragesPendingSubmission: [],
+      Settings: {
+        IsStandAlone: true,
+        CanUpdate: true,
+        CanViewDetails: true,
+        CanPayPremium: false,
+        CanViewInsHub: true,
+        IsInsHubOn: true,
       },
-    ],
+    },
   },
 };
 

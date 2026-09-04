@@ -213,12 +213,18 @@ for (const mode of MOUNT_MODES) {
       expect(firstValue('Blood Pressure')).toBe('145/95')
     }, 10_000)
 
-    it('getInsurance returns insurance data', async () => {
+    it('getInsurance reads the coverages off GetCoverages, not the page', async () => {
       const result = await getInsurance(session)
-      expect(result).toBeDefined()
-      expect(Array.isArray(result.coverages)).toBe(true)
-      expect(result.coverages.length).toBeGreaterThan(0)
-      expect(result.hasCoverages).toBe(true)
+      expect(result.hasNoCoverages).toBe(false)
+      expect(result.ActiveCoverages.length).toBeGreaterThan(0)
+      const active = result.ActiveCoverages[0]!
+      expect(active.MemberId).toBeTruthy()
+      expect(active.GroupNumber).toBeTruthy()
+      expect(active.bucket).toBe('ActiveCoverages')
+      // Buckets stay apart: a coverage still awaiting submission is not one a
+      // clinic can bill today.
+      expect(result.CoveragesPendingSubmission.length).toBeGreaterThan(0)
+      expect(result.CoveragesPendingSubmission[0]!.SubscriberIsSelf).toBe(false)
     }, 10_000)
 
     it('getCareTeam returns internal and external providers', async () => {
@@ -329,13 +335,14 @@ for (const mode of MOUNT_MODES) {
       expect(after.contacts.find(c => c.formattedName === 'Ned Flanders')).toBeUndefined()
     }, 10_000)
 
-    it('getGoals returns goals', async () => {
+    it('getGoals returns goals, minus the empty slot MyChart appends', async () => {
       const result = await getGoals(session)
-      expect(result).toBeDefined()
-      expect(Array.isArray(result.careTeamGoals)).toBe(true)
-      expect(Array.isArray(result.patientGoals)).toBe(true)
+      expect(result.unavailable).toEqual([])
       expect(result.careTeamGoals.length).toBeGreaterThan(0)
-      expect(result.patientGoals.length).toBeGreaterThan(0)
+      // The fixture holds one real goal and the empty editable slot every real
+      // instance appends; only the real one is a goal.
+      expect(result.patientGoals).toHaveLength(1)
+      expect(result.patientGoals[0]!.text).toBeTruthy()
     }, 10_000)
 
     it('getDocuments returns documents', async () => {
