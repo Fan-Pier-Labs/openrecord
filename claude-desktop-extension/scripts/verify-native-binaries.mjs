@@ -18,13 +18,6 @@
  * The platform list is read out of .mcpbignore rather than duplicated here —
  * that file is where the "which platforms do we ship" decision already lives,
  * and a second copy would be one more thing to forget.
- *
- * manifest.json's `compatibility.platforms` is the one place that list HAS to
- * be restated, because Claude Desktop reads the manifest and never sees
- * .mcpbignore. So the two are asserted equal here. Drift in either direction is
- * a real bug: a manifest platform with no shipped binary installs and silently
- * falls back to plaintext credentials, and a shipped binary with no manifest
- * platform is dead weight users on that OS are refused the extension over.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -64,23 +57,21 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-// ── manifest.json must advertise exactly the platforms we ship binaries for ──
-
-/** `@napi-rs/keyring-win32-arm64-msvc` → `win32`; the OS is the first segment. */
-const shipped = [
-  ...new Set(slices.map(pkg => pkg.replace('@napi-rs/keyring-', '').split('-')[0])),
-].sort();
+// ── manifest.json must advertise the platforms we ship binaries for ─────────
+//
+// Claude Desktop reads the manifest and never sees .mcpbignore, so the list is
+// restated there. Hardcoded rather than derived from `slices`: it is two values
+// that change about never, and the only job here is to fail loudly if someone
+// edits one file and forgets the other.
+const PLATFORMS = ['darwin', 'win32'];
 
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf-8'));
 const declared = [...(manifest.compatibility?.platforms ?? [])].sort();
 
-if (declared.join() !== shipped.join()) {
+if (String(declared) !== String(PLATFORMS)) {
   console.error(
-    `\nRefusing to pack: manifest.json compatibility.platforms disagrees with .mcpbignore.\n` +
-      `  .mcpbignore ships binaries for: ${shipped.join(', ') || '(none)'}\n` +
-      `  manifest.json declares:         ${declared.join(', ') || '(unset)'}`,
+    `\nRefusing to pack: manifest.json compatibility.platforms should be ` +
+      `[${PLATFORMS.join(', ')}], got [${declared.join(', ') || 'unset'}].`,
   );
   process.exit(1);
 }
-
-console.log(`  ✓ manifest.json compatibility.platforms matches: ${declared.join(', ')}`);
