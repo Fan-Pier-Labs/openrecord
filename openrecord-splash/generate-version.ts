@@ -5,6 +5,10 @@
  *
  *     bun run version:manifest        # from the repo root
  *
+ * The name says mcpb, the file covers every target — `scrapers`, `cli`, `mcpb`
+ * and `app`. The URL is published and clients are pinned to it, so it stays as
+ * it is; read it as "the manifest", not "the extension's manifest".
+ *
  * `deploy.sh` runs it immediately before upload, so a deploy cannot ship a
  * stale manifest. The versions are read out of each package rather than typed
  * here: a second copy would drift, and the failure is silent either way — every

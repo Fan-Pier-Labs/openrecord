@@ -98,6 +98,15 @@ covers them: **stale** (the committed file is diffed against a fresh generation)
 **malformed** (it is validated with the reader's own `parseVersionManifest`, not a
 restatement of its rules).
 
+The filename says `mcpb`, but the document covers all four targets and the CLI reads it
+too. The URL is published, so it stays; read it as "the manifest".
+
+**There is deliberately no `schema` field.** The parser validates the shape, and a client
+that can't read the document treats it as "couldn't tell", so a *key* change is already
+safe. What isn't is a semantic change that keeps the same keys — so **add a `schema` field
+before changing what an existing key means**, and have the reader refuse a version it
+wasn't written for.
+
 ## The demo (`demo/`)
 
 A complete OpenRecord session in the browser, against a fictional patient. It re-creates

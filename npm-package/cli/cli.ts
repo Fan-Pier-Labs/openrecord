@@ -1074,6 +1074,12 @@ async function main() {
 export async function runCli(): Promise<void> {
   try {
     await main();
+    // Exit rather than return. The update check is fire-and-forget, and an
+    // in-flight fetch keeps the event loop alive on its own — so a hung request
+    // to the manifest would hold the CLI open for the full two-minute scraper
+    // deadline after it had finished printing. Every other terminal path here
+    // already exits; this one just returned.
+    process.exit(process.exitCode ?? 0);
   } catch (err) {
     console.error('Fatal error:', err);
     closeRL();
