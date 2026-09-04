@@ -22,6 +22,7 @@ import {
 import {
   executeCapability,
   getCapability,
+  isPublicCapability,
   readAccountArg,
   type Capability,
   type CapabilityContext,
@@ -380,6 +381,14 @@ export async function executeScraperTool(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
+  // The `public` capabilities — the NPI Registry, Epic's MyChart directory —
+  // belong to no account. Connecting one to run them would be the wrong
+  // question to put to a patient who has not connected a chart yet, and the
+  // model is not offered an `account` argument for them either.
+  const capability = getCapability(toolName);
+  if (capability && isPublicCapability(capability)) {
+    return runScraper(null, toolName, input);
+  }
   // `account` is the registry's name; `instance` is what this app used to call
   // it and what the alerts generator still passes.
   const hostname = readAccountArg(input);
@@ -450,7 +459,7 @@ async function requireSession(hostname?: string): Promise<SessionEntry> {
  * an [image:ID] token the chat UI swaps for the picture.
  */
 async function runScraper(
-  request: MyChartRequest,
+  request: MyChartRequest | null,
   toolName: string,
   input: Record<string, unknown>,
   ctx?: CapabilityContext,
@@ -460,7 +469,8 @@ async function runScraper(
 
   // The flag, not the id: a second media capability must not need this branch
   // edited. `run` hands back raw CLO bytes; this client decodes them on-device.
-  if (capability.rendersMedia) {
+  // Media is always a chart read, so there is always a session here.
+  if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
 

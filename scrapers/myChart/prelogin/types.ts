@@ -121,6 +121,11 @@ export type ProviderDirectory = {
  * guest estimate flow, behind a price-transparency disclaimer whose accept
  * step is protected by reCAPTCHA. The scraper reports the gate; it never
  * tries to get past it.
+ *
+ * The post-login route around it is `get_insurance_payers`
+ * (`chart/insurancePayers`), which reads the organization's payer catalogue
+ * off the Add Coverage form. That needs an account on the instance, so it is
+ * not something this pre-login profile can call.
  */
 export type InsuranceAvailability = {
   status: 'gated';

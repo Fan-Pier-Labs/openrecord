@@ -213,6 +213,16 @@ Behavioral contract, all verified against the same captures and enforced by
   with a literal JSON `null`** (the same shape `GetVisitNotes` and
   `GetLetterDetails` use for unknown ids). A client that checks only the status
   code reads that null as a thread with nothing in it.
+- **`Insurance/Coverages/GetPayors` is organization-level and served from
+  `data/organization.ts`, not the per-patient dataset** — the same catalogue in
+  every record, proxy or not, as captured (no patient identifier in the request,
+  identical list with a real department id). POST-only with the antiforgery
+  token enforced like `/api/*`; a GET gets the *not-found* surface (`code=14`),
+  a token-less POST the 500 one. The legacy controller form-posts `encounterCsn`
+  and `encounterDepartmentId`, both empty on the standalone page; an encounter
+  the instance doesn't recognize is answered with **200 and an empty body, no
+  content type** — never an error — which a scraper must not read as "no
+  payers". `Fields` maps a coverage-form field to 1 (optional) or 2 (required).
 - **`GetVisitNotes` / `GetLetterDetails` answer unknown ids with literal JSON
   `null`.**
 - **Result enums are strings** (`read: "Read"`, `resultType: "LAB" | "IMAGING"`,
@@ -541,7 +551,7 @@ study stays clean so both shapes are covered.
 
 ## The mychart.org Directory
 
-One surface in here is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
+One of the surfaces in here that is not a portal endpoint: `GET /cached-api/help/organizations/`, the list of
 every MyChart instance in the world. It lives on `mychart.org` rather than on an instance, and it is
 where every client's instance list comes from — so the fake serves it too, and the mobile app can
 point its first-boot refresh at localhost instead of Epic.
@@ -578,6 +588,41 @@ point its first-boot refresh at localhost instead of Epic.
   The two images are 240×88 PNGs (a cross and a wordmark bar on teal / grey), at roughly the aspect
   ratio Epic's real logos use so a picker row lays out the same. They are not anyone's real
   branding, and no hospital's trademark belongs in this repo.
+
+## The NPI Registry
+
+The other one: `GET /npiregistry/api/`, standing in for CMS's public provider
+directory at `npiregistry.cms.hhs.gov/api/`. `scrapers/npi/` reads it, and without a fake, testing
+that scraper over a socket means querying CMS about real, named clinicians on every CI run. The
+path mirrors the real host's, so a client pointed here with `apiUrl` sends the request it would
+send CMS:
+
+```ts
+fetchNpiLookupRaw('1234567893', { apiUrl: `${base}/npiregistry/api/` })
+```
+
+The behaviors it copies are the ones the scraper depends on, all observed on the live API
+(version 2.1) and tabulated in `scrapers/npi/README.md`:
+
+- **A refusal is HTTP 200 carrying an `Errors` array**, never a 4xx. This is the one to get right: a
+  client that treats non-2xx as the failure path reads a refused query as a *successful empty
+  search*, and tells a patient their doctor is not in the registry.
+- **`state` and `enumeration_type` are refused on their own**; every other criterion may stand
+  alone, and no criteria at all is refused too.
+- **A trailing `*` needs two leading characters** — `Jo*` searches, `J*` is refused.
+- **`limit` is clamped silently** to 200, and `0` becomes the default 10. **`skip` past 1000 is
+  refused**, which is what caps a query at 1,200 results.
+- **An unheld but well-formed number answers `result_count: 0`**, not a 404 — the processor renders
+  that as `null`.
+- **A person's `basic` and an organization's are disjoint key sets.** Not empty — absent. A single
+  unioned skeleton would have this server answer questions the live API leaves unanswered, so
+  `src/data/npiRegistry.ts` holds one shape for each and the route picks by `enumeration_type`.
+
+Both shapes come from the same live capture as
+`scrapers/npi/__tests__/fixtures/npi-search-response.json`, and are applied with `conformToShape`
+exactly like `realShapes.ts` — they live beside the fake data rather than in that file because it is
+generated from captures of real *MyChart* instances, and regenerating it must not have to know about
+CMS.
 
 ## The Pre-Login Surface
 

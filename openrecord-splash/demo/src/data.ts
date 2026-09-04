@@ -417,6 +417,32 @@ export const insurance = [
   },
 ];
 
+// Organization-level, not part of any patient's record: the payers this
+// hospital's portal offers when adding a coverage — the same list whichever
+// patient is active, exactly as the real endpoint behaves. Field names mirror
+// the real standard object: MyChart's own `Payors` / `Fields` / `CanUpload`,
+// with `requiredFields` / `optionalFields` derived from the 1|2 levels.
+function payer(Name: string, ID: string, required: string[], optional: string[] = []) {
+  const Fields: Record<string, number> = {};
+  for (const f of required) Fields[f] = 2;
+  for (const f of optional) Fields[f] = 1;
+  return { ID, Name, Fields, requiredFields: required, optionalFields: optional, CanUpload: true, IsNonConfiguredPayer: false };
+}
+
+const SUBSCRIBER_REQUIRED = ['MemberId', 'SubscriberFirstName', 'SubscriberLastName'];
+const SUBSCRIBER_OPTIONAL = ['SubscriberId', 'SubscriberDateOfBirth'];
+
+export const insurancePayers = {
+  Payors: [
+    payer('Springfield Mutual Health', 'WP-24Q7mK2vX9cL4nR8tB1wZ5yP3', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Springfield Mutual Health - Medicare Advantage', 'WP-24Z3nW8bK1vT6yC9mQ2xL5pR7', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Shelbyville Blue Cross', 'WP-24L5pR9cX2vB7nK4mT1wQ8yZ3', SUBSCRIBER_REQUIRED, ['GroupNumber', ...SUBSCRIBER_OPTIONAL]),
+    payer('Medicare', 'WP-24B8yT3nQ6vK1cX9mR4wL7pZ2', ['MemberId']),
+    payer('Globex Corporation Employee Health Plan', 'WP-24X2vB6nK9cQ4mT7wR1yL8pZ5', SUBSCRIBER_REQUIRED, SUBSCRIBER_OPTIONAL),
+    payer('Springfield Nuclear Power Plant Employee Health Plan', 'WP-24N6kM3pV8rB2uW5xC1eY9tL4', SUBSCRIBER_REQUIRED, ['GroupNumber', ...SUBSCRIBER_OPTIONAL]),
+  ],
+};
+
 export const immunizations = [
   { vaccine: 'Influenza (Flu)', date: '2025-10-15', site: 'Left arm', provider: 'Springfield General Hospital' },
   { vaccine: 'COVID-19 Booster (Pfizer)', date: '2025-09-20', site: 'Left arm', provider: 'Springfield General Hospital' },
@@ -798,6 +824,84 @@ export const directory = [
   { name: 'Capital City Health Network', hostname: 'mychart.capitalcityhealth.example.org', city: 'Capital City, IL' },
   { name: 'Ogdenville Community Care', hostname: 'mychart.ogdenville.example.org', city: 'Ogdenville, IL' },
   { name: 'North Haverbrook Medical Group', hostname: 'mychart.northhaverbrook.example.org', city: 'North Haverbrook, IL' },
+];
+
+/**
+ * A stand-in for CMS's NPI Registry, holding the demo's own providers.
+ *
+ * The real `lookup_npi` / `search_npi_registry` capabilities call the public
+ * registry at npiregistry.cms.hhs.gov, which would answer with real people —
+ * so the demo answers with its own cast instead. Every number here is a
+ * well-formed NPI (ten digits with a correct check digit), so a visitor who
+ * pastes one into the real registry gets a "not found", not a "malformed".
+ *
+ * The field names are the registry's own — `number`, `enumeration_type`, and
+ * the four derived fields the processor computes (`providerName`,
+ * `primarySpecialty`, `primaryAddress`, `primaryPhone`). See
+ * `scrapers/npi/README.md`. A demo answering in a shape the real capability
+ * never returns would teach a visitor the wrong thing about the product.
+ */
+export const npiProviders = [
+  {
+    number: '1234567893',
+    enumeration_type: 'NPI-1',
+    providerName: 'JULIUS HIBBERT, MD',
+    primarySpecialty: 'Internal Medicine',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345678',
+    taxonomies: ['Internal Medicine', 'Family Medicine'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1053380212',
+    enumeration_type: 'NPI-1',
+    providerName: 'NICK RIVIERA, MD',
+    primarySpecialty: 'Surgery',
+    primaryAddress: '1 Riviera Way, Springfield, IL 62704',
+    primaryPhone: '5553456789',
+    taxonomies: ['Surgery'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1245319599',
+    enumeration_type: 'NPI-1',
+    providerName: 'RUTH POWERS, RN',
+    primarySpecialty: 'Registered Nurse',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345680',
+    taxonomies: ['Registered Nurse'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1073666061',
+    enumeration_type: 'NPI-2',
+    providerName: 'SPRINGFIELD GENERAL HOSPITAL',
+    primarySpecialty: 'General Acute Care Hospital',
+    primaryAddress: '742 Evergreen Medical Plaza, Springfield, IL 62704',
+    primaryPhone: '5552345600',
+    taxonomies: ['General Acute Care Hospital', 'Clinic/Center'],
+    city: 'Springfield',
+    state: 'IL',
+    postalCode: '62704',
+  },
+  {
+    number: '1063517217',
+    enumeration_type: 'NPI-2',
+    providerName: 'SHELBYVILLE REGIONAL MEDICAL',
+    primarySpecialty: 'General Acute Care Hospital',
+    primaryAddress: '400 Shelbyville Rd, Shelbyville, IL 62565',
+    primaryPhone: '5559871200',
+    taxonomies: ['General Acute Care Hospital'],
+    city: 'Shelbyville',
+    state: 'IL',
+    postalCode: '62565',
+  },
 ];
 
 /**

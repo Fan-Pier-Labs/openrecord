@@ -5,9 +5,11 @@
 after changing a processor. Field decisions are in
 [`processor-layer-proposal.md`](processor-layer-proposal.md).
 
-Every read capability, in all four modes. Raw and JSON examples longer than 12,000
-characters are cut, and say so. The fake's per-session CSRF token and the now-based
-`oldestRenderedDate` query value are pinned so the doc only changes when the output does.
+Every read capability this server can answer, in all four modes. Raw and JSON examples longer
+than 12,000 characters are cut, and say so. The fake's per-session CSRF token and the
+now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output
+does. The `public` capabilities are absent: they read CMS's NPI Registry rather than a MyChart,
+so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).
 
 ## Sizes (characters)
 
@@ -36,6 +38,7 @@ characters are cut, and say so. The fake's per-session CSRF token and the now-ba
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 40573 | 3476 | 4111 | 1025 |
 | `get_insurance` | 14195 | 262 | 292 | 193 |
+| `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19281 | 1228 | 878 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
@@ -12504,6 +12507,320 @@ tr:hover td { background: #fafbfc; }
     }
   ],
   "hasCoverages": true
+}
+```
+
+</details>
+
+---
+
+### `get_insurance_payers`
+
+The insurance payers this organization's MyChart offers when adding a coverage — the organization's configured payer catalogue, the same for every patient on the instance. Not the patient's own coverage (that is get_insurance) and not an in-network guarantee.
+
+<details>
+<summary><code>mode: raw</code> (1613 chars)</summary>
+
+```json
+{
+  "Payors": [
+    {
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "SampleCardImages": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "WP-24Q7mK2vX9cL4nR8tB1wZ5yP3-3D-3D-24hG6jD0sF7aM2kN9pV4rT8uW1xC3eY5bL7q-3D",
+      "Name": "Springfield Mutual Health",
+      "NameUTF8": null
+    },
+    {
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "SampleCardImages": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "WP-24Z3nW8bK1vT6yC9mQ2xL5pR7-3D-3D-24sD4fH0jG8aN3kM6pB1rV9uX2wE5cY7tL0q-3D",
+      "Name": "Springfield Mutual Health - Medicare Advantage",
+      "NameUTF8": null
+    },
+    {
+      "Fields": {
+        "GroupNumber": 1,
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "SampleCardImages": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "WP-24L5pR9cX2vB7nK4mT1wQ8yZ3-3D-3D-24aF6hJ0gD9sM4kN7pV2rB5uW8xC1eY3tL6q-3D",
+      "Name": "Shelbyville Blue Cross",
+      "NameUTF8": null
+    },
+    {
+      "Fields": {
+        "MemberId": 2
+      },
+      "SampleCardImages": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "WP-24B8yT3nQ6vK1cX9mR4wL7pZ2-3D-3D-24jH5gF0dS8aM3kN6pV1rB4uW7xC0eY2tL5q-3D",
+      "Name": "Medicare",
+      "NameUTF8": null
+    },
+    {
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "SampleCardImages": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false,
+      "SortKey": null,
+      "ID": "WP-24X2vB6nK9cQ4mT7wR1yL8pZ5-3D-3D-24dS3fH0gJ7aM2kN5pV8rB1uW4xC9eY6tL3q-3D",
+      "Name": "Globex Corporation Employee Health Plan",
+      "NameUTF8": null
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (2213 chars)</summary>
+
+## Payors (5)
+
+### Payors 1
+
+- **ID**: WP-24Q7mK2vX9cL4nR8tB1wZ5yP3-3D-3D-24hG6jD0sF7aM2kN9pV4rT8uW1xC3eY5bL7q-3D
+- **Name**: Springfield Mutual Health
+
+#### Fields
+
+- **MemberId**: 2
+- **SubscriberDateOfBirth**: 1
+- **SubscriberFirstName**: 2
+- **SubscriberId**: 1
+- **SubscriberLastName**: 2
+- **requiredFields**: MemberId, SubscriberFirstName, SubscriberLastName
+- **optionalFields**: SubscriberDateOfBirth, SubscriberId
+- **CanUpload**: true
+- **IsNonConfiguredPayer**: false
+
+### Payors 2
+
+- **ID**: WP-24Z3nW8bK1vT6yC9mQ2xL5pR7-3D-3D-24sD4fH0jG8aN3kM6pB1rV9uX2wE5cY7tL0q-3D
+- **Name**: Springfield Mutual Health - Medicare Advantage
+
+#### Fields
+
+- **MemberId**: 2
+- **SubscriberDateOfBirth**: 1
+- **SubscriberFirstName**: 2
+- **SubscriberId**: 1
+- **SubscriberLastName**: 2
+- **requiredFields**: MemberId, SubscriberFirstName, SubscriberLastName
+- **optionalFields**: SubscriberDateOfBirth, SubscriberId
+- **CanUpload**: true
+- **IsNonConfiguredPayer**: false
+
+### Payors 3
+
+- **ID**: WP-24L5pR9cX2vB7nK4mT1wQ8yZ3-3D-3D-24aF6hJ0gD9sM4kN7pV2rB5uW8xC1eY3tL6q-3D
+- **Name**: Shelbyville Blue Cross
+
+#### Fields
+
+- **GroupNumber**: 1
+- **MemberId**: 2
+- **SubscriberDateOfBirth**: 1
+- **SubscriberFirstName**: 2
+- **SubscriberId**: 1
+- **SubscriberLastName**: 2
+- **requiredFields**: MemberId, SubscriberFirstName, SubscriberLastName
+- **optionalFields**: GroupNumber, SubscriberDateOfBirth, SubscriberId
+- **CanUpload**: true
+- **IsNonConfiguredPayer**: false
+
+### Payors 4
+
+- **ID**: WP-24B8yT3nQ6vK1cX9mR4wL7pZ2-3D-3D-24jH5gF0dS8aM3kN6pV1rB4uW7xC0eY2tL5q-3D
+- **Name**: Medicare
+
+#### Fields
+
+- **MemberId**: 2
+- **requiredFields**: MemberId
+- **optionalFields**: (none)
+- **CanUpload**: true
+- **IsNonConfiguredPayer**: false
+
+### Payors 5
+
+- **ID**: WP-24X2vB6nK9cQ4mT7wR1yL8pZ5-3D-3D-24dS3fH0gJ7aM2kN5pV8rB1uW4xC9eY6tL3q-3D
+- **Name**: Globex Corporation Employee Health Plan
+
+#### Fields
+
+- **MemberId**: 2
+- **SubscriberDateOfBirth**: 1
+- **SubscriberFirstName**: 2
+- **SubscriberId**: 1
+- **SubscriberLastName**: 2
+- **requiredFields**: MemberId, SubscriberFirstName, SubscriberLastName
+- **optionalFields**: SubscriberDateOfBirth, SubscriberId
+- **CanUpload**: true
+- **IsNonConfiguredPayer**: false
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (502 chars)</summary>
+
+## Payors (5)
+
+| Name | requiredFields | IsNonConfiguredPayer |
+| - | - | - |
+| Springfield Mutual Health | MemberId, SubscriberFirstName, SubscriberLastName | false |
+| Springfield Mutual Health - Medicare Advantage | MemberId, SubscriberFirstName, SubscriberLastName | false |
+| Shelbyville Blue Cross | MemberId, SubscriberFirstName, SubscriberLastName | false |
+| Medicare | MemberId | false |
+| Globex Corporation Employee Health Plan | MemberId, SubscriberFirstName, SubscriberLastName | false |
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (1936 chars)</summary>
+
+```json
+{
+  "Payors": [
+    {
+      "ID": "WP-24Q7mK2vX9cL4nR8tB1wZ5yP3-3D-3D-24hG6jD0sF7aM2kN9pV4rT8uW1xC3eY5bL7q-3D",
+      "Name": "Springfield Mutual Health",
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "requiredFields": [
+        "MemberId",
+        "SubscriberFirstName",
+        "SubscriberLastName"
+      ],
+      "optionalFields": [
+        "SubscriberDateOfBirth",
+        "SubscriberId"
+      ],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false
+    },
+    {
+      "ID": "WP-24Z3nW8bK1vT6yC9mQ2xL5pR7-3D-3D-24sD4fH0jG8aN3kM6pB1rV9uX2wE5cY7tL0q-3D",
+      "Name": "Springfield Mutual Health - Medicare Advantage",
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "requiredFields": [
+        "MemberId",
+        "SubscriberFirstName",
+        "SubscriberLastName"
+      ],
+      "optionalFields": [
+        "SubscriberDateOfBirth",
+        "SubscriberId"
+      ],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false
+    },
+    {
+      "ID": "WP-24L5pR9cX2vB7nK4mT1wQ8yZ3-3D-3D-24aF6hJ0gD9sM4kN7pV2rB5uW8xC1eY3tL6q-3D",
+      "Name": "Shelbyville Blue Cross",
+      "Fields": {
+        "GroupNumber": 1,
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "requiredFields": [
+        "MemberId",
+        "SubscriberFirstName",
+        "SubscriberLastName"
+      ],
+      "optionalFields": [
+        "GroupNumber",
+        "SubscriberDateOfBirth",
+        "SubscriberId"
+      ],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false
+    },
+    {
+      "ID": "WP-24B8yT3nQ6vK1cX9mR4wL7pZ2-3D-3D-24jH5gF0dS8aM3kN6pV1rB4uW7xC0eY2tL5q-3D",
+      "Name": "Medicare",
+      "Fields": {
+        "MemberId": 2
+      },
+      "requiredFields": [
+        "MemberId"
+      ],
+      "optionalFields": [],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false
+    },
+    {
+      "ID": "WP-24X2vB6nK9cQ4mT7wR1yL8pZ5-3D-3D-24dS3fH0gJ7aM2kN5pV8rB1uW4xC9eY6tL3q-3D",
+      "Name": "Globex Corporation Employee Health Plan",
+      "Fields": {
+        "MemberId": 2,
+        "SubscriberDateOfBirth": 1,
+        "SubscriberFirstName": 2,
+        "SubscriberId": 1,
+        "SubscriberLastName": 2
+      },
+      "requiredFields": [
+        "MemberId",
+        "SubscriberFirstName",
+        "SubscriberLastName"
+      ],
+      "optionalFields": [
+        "SubscriberDateOfBirth",
+        "SubscriberId"
+      ],
+      "CanUpload": true,
+      "IsNonConfiguredPayer": false
+    }
+  ]
 }
 ```
 

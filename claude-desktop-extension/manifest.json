@@ -35,7 +35,9 @@
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
-    { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." }
+    { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." },
+    { "name": "lookup_npi", "description": "Look up a US healthcare provider by National Provider Identifier. Public data; no MyChart account needed." },
+    { "name": "search_npi_registry", "description": "Find US healthcare providers by name, specialty and/or place in CMS's public NPI Registry. No MyChart account needed." }
   ],
   "tools_generated": true
 }

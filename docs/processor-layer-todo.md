@@ -20,7 +20,7 @@ fixture rebuilt from it.
 | `get_documents` | `POST /api/documents/viewer/LoadOtherDocuments` | The whole response; never captured | |
 | `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call | |
 | `get_care_journeys` | `POST /api/care-journeys/GetCareJourneys` | The whole response; never captured | |
-| `get_insurance` | `GET /Insurance` | The page markup on an account with coverage. The scraper's selectors (`.coverage-card`, `.plan-name`, `.member-id`) match only the fake | Every `/api/insurance-hub/*` endpoint answered 500 on the probed account (`api-surface-gaps.md` §2d) |
+| `get_insurance` | `GET /Insurance` | The page markup on an account with coverage. The scraper's selectors (`.coverage-card`, `.plan-name`, `.member-id`) match only the fake | Every `/api/insurance-hub/*` endpoint answered 500 on the probed account (`api-surface-gaps.md`, tier 4, where insurance-hub is the top re-probe target) |
 | `get_health_summary` | `FetchHealthSummary` | `conditionList[]`, `journeyList[]`, `actionPlans[]` elements (`[]` on every capture) | |
 | `get_medications` | `LoadMedicationsPage` | `prescriptionList.pickups[]`, `.deliveries[]`, `.inProgressWorkRequests[]`, `owningPharmacy.hours[]`, `lastDispense.delivery.shipmentTrackingInfo[]` elements | Mail-order accounts only |
 | `get_health_issues` | `LoadHealthIssuesData` | `externalItems[]`, `externalOrgs[]` elements | Needs a Care Everywhere-linked account |
@@ -76,10 +76,18 @@ return the standard object and `runCapability(id, { mode })` picks any mode; `do
 
 ## 6. Endpoints worth exploring next (from `api-surface-gaps.md`)
 
-Not processor work, but the same capture-first discipline applies.
+Not processor work, but the same capture-first discipline applies. `api-surface-gaps.md` ranks the
+whole surface by conviction; its top of the list:
 
-- Third-party access log (`/api/access-logs/*`): which apps read which categories of the record.
-- Implants, pedigree, trends dashboard, preferred pharmacies, PCP, To Do: single `POST {}` reads that returned data on the probed account.
-- `GetDetailsByCSN` and the record-download visit list: richer encounter data than `LoadPast`.
-- `/api/visits/*`: the React-era visits surface, as a possible replacement for the legacy `VisitsList` scrape.
-- A second sweep over `/areas/**` legacy scripts, where Care Team's endpoint was found.
+- Third-party and portal access logs (`/api/access-logs/*`): which apps read which categories of the
+  record. Nothing we ship answers it.
+- Implants (`/api/implants/GetImplants`) and the To Do list (`/api/todo/GetTasks`): single `POST {}`
+  reads with no overlap against a shipped capability.
+- `/api/personalInformation/GetContextIds`: worth one probe — it may give a server-side answer to
+  "which patient record is active", which `assertProxyReadContext` can only hedge about today.
+- A second sweep over `/areas/**` legacy scripts, where Care Team's endpoint was found. Better hit
+  rate than anything left in the marginal tier.
+
+Pedigree, trends dashboard, preferred pharmacies and PCP were demoted: each largely re-states data
+`get_medical_history`, `get_vitals`/`get_lab_results`, `get_medications` and `get_care_team` already
+return. See the overlap table in `api-surface-gaps.md`.

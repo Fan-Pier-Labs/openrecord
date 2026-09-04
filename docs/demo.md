@@ -68,14 +68,15 @@ itself. There is no eUnity instance to talk to and no patient's radiograph anyon
 static bundle, so the demo draws one and the model always emits the same token for it. The visitor
 sees an X-ray appear inline, which is the part that matters.
 
-### Nine tools have no registry id, on purpose
+### Eight tools have no registry id, on purpose
 
-Seven of them are account setup — `list_accounts`, `search_mycharts`, `setup_account`,
-`connect_instance`, `check_session`, `complete_2fa`, `disconnect_account`. They mirror the Claude
-Desktop extension's meta tools, which manage credentials on one machine and are deliberately
-outside `shared/capabilities/`. The demo implements them (a visitor can watch a login, a 2FA
-prompt, and a disconnect play out) but never lists them in the model's prompt, because the session
-starts connected.
+Six of them are account setup — `list_accounts`, `setup_account`, `connect_instance`,
+`check_session`, `complete_2fa`, `disconnect_account`. They mirror the Claude Desktop extension's
+meta tools, which manage credentials on one machine and are deliberately outside
+`shared/capabilities/`. The demo implements them (a visitor can watch a login, a 2FA prompt, and a
+disconnect play out) but never lists them in the model's prompt, because the session starts
+connected. `search_mycharts` used to be the seventh; it is a `public` capability now, so the demo's
+copy is held to the registry like any other tool.
 
 The other two are `get_available_appointments` and `book_appointment`. Scheduling is not a
 capability the product has yet, and this is the one place the demo shows something the product

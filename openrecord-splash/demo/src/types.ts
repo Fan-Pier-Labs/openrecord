@@ -366,6 +366,12 @@ export type Session = {
 export type ToolGroup =
   | 'Account'
   | 'Patients'
+  /**
+   * Public lookups that need no account at all — CMS's NPI Registry. `public`
+   * in `shared/capabilities.ts`; the demo answers them from its own cast
+   * rather than calling the real registry, which holds real people.
+   */
+  | 'Providers'
   | 'Record'
   | 'Results'
   | 'Visits'

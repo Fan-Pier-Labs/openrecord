@@ -343,8 +343,11 @@ describe('assertProxyReadContext', () => {
  * on `rendersMedia` before dispatching and called `capability.run` directly.
  */
 describe('executeCapability applies the guard to every capability', () => {
+  // Everything the guard has to cover: chart reads and writes. The `Patients`
+  // group is exempt by design, `account` acts on the login rather than a
+  // chart, and `public` has no session to assert against at all.
   const CHART_CAPABILITIES = CAPABILITIES.filter(
-    (c) => c.group !== 'Patients' && c.kind !== 'account',
+    (c) => c.group !== 'Patients' && c.kind !== 'account' && c.kind !== 'public',
   )
 
   it('covers the media capability, not just the JSON ones', () => {

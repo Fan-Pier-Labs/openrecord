@@ -61,9 +61,10 @@ export function resolveCliAction(action: string): Capability | undefined {
  * capability that can run without arguments. Derived from the registry, never
  * hand-listed — a read capability added there is scraped here the same day.
  * Excluded by the predicate itself: writes and account-security operations,
- * reads that require an argument (per-visit notes, single threads), the
- * media capability (bytes belong behind an explicit `--action`), and the
- * `Patients` group (session introspection, not chart data).
+ * the `public` directory lookups (nothing to do with this chart), reads that
+ * require an argument (per-visit notes, single threads), the media capability
+ * (bytes belong behind an explicit `--action`), and the `Patients` group
+ * (session introspection, not chart data).
  */
 export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(
   (capability) =>
@@ -89,8 +90,9 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
     lines.push('', `  -- ${group} --`);
     for (const capability of inGroup) {
       // Anything that isn't a plain read gets a marker, so a glance down the
-      // list separates "shows me something" from "changes something".
-      const marker = capability.kind === 'read' ? ' ' : '!';
+      // list separates "shows me something" from "changes something". The
+      // public lookups read too — they just read something other than a chart.
+      const marker = capability.kind === 'read' || capability.kind === 'public' ? ' ' : '!';
       lines.push(`   ${marker} ${capability.id}`);
       lines.push(`       ${capability.description}`);
       for (const param of capability.params) {
@@ -120,6 +122,8 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
     '='.repeat(60),
     '',
     '  Run one with:  mychart-cli --host <hostname> --action <id> [--arg name=value ...]',
+    '  The Providers and Directory lookups are public — no --host and no credentials:',
+    '                 mychart-cli --action lookup_npi --arg npi=1234567893',
     ...renderCapabilityGroups(COMMON_CAPABILITIES),
   ];
 
@@ -347,6 +351,33 @@ export async function runCapabilityAction(
     }
 
     // The markdown modes are text already; the data modes are printed as JSON.
+    console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
+    return true;
+  } catch (err) {
+    console.log(`  ${(err as Error).message}`);
+    return false;
+  }
+}
+
+/**
+ * `--action lookup_npi` and friends — a `public` capability, run once, with no
+ * account and no session.
+ *
+ * Deliberately separate from {@link runCapabilityAction} rather than a branch
+ * inside it: that function's whole signature is per-session (a hostname, the
+ * password that opened it, the patient to assert), and none of it means
+ * anything here. `cli.ts` calls this before it asks for a single credential.
+ */
+export async function runPublicCapabilityAction(
+  capability: Capability,
+  args: Record<string, string>,
+): Promise<boolean> {
+  console.log(`\n${'='.repeat(60)}\n  ${capability.title}\n${'='.repeat(60)}`);
+  try {
+    const coerced = coerceCapabilityArgs(capability, args);
+    // executeCapability with no session: a public capability's `run` cannot
+    // take one, and this keeps "no client reaches capability.run" absolute.
+    const result = await executeCapability(null, capability.id, coerced);
     console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
   } catch (err) {

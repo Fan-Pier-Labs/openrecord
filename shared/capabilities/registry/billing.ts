@@ -2,6 +2,7 @@
 
 import { fetchBillingRaw, billingProcessor } from '../../../scrapers/myChart/chart/bills/bills';
 import { fetchInsuranceRaw, insuranceProcessor } from '../../../scrapers/myChart/chart/insurance/insurance';
+import { fetchInsurancePayersRaw, insurancePayersProcessor } from '../../../scrapers/myChart/chart/insurancePayers/insurancePayers';
 import type { CapabilityImpl } from '../types';
 
 export const BILLING_CAPABILITIES: readonly CapabilityImpl[] = [
@@ -25,5 +26,18 @@ export const BILLING_CAPABILITIES: readonly CapabilityImpl[] = [
     run: (request) => fetchInsuranceRaw(request),
     processor: insuranceProcessor,
   },
-
+  {
+    id: 'get_insurance_payers',
+    title: 'Insurance payers accepted',
+    description:
+      "The insurance payers this organization's MyChart offers when adding a coverage — the " +
+      "organization's configured payer catalogue, the same for every patient on the instance. " +
+      "Not the patient's own coverage (that is get_insurance) and not an in-network guarantee.",
+    kind: 'read',
+    group: 'Billing',
+    lessFrequentlyUsed: true,
+    params: [],
+    run: (request) => fetchInsurancePayersRaw(request),
+    processor: insurancePayersProcessor,
+  },
 ];

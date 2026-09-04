@@ -20,6 +20,15 @@
  * themselves live one file per group under `registry/`; this file is the
  * assembly, the lookup and the dispatch.
  *
+ * ## Capabilities that need no account
+ *
+ * Not everything OpenRecord can do is a chart read. Looking a provider up in
+ * the NPI Registry, or finding which MyChart a health system runs, is public
+ * data — and each client used to hand-write its own version of that, which is
+ * how the Claude Desktop extension ended up the only client able to search the
+ * MyChart directory. Those live here too, as `kind: 'public'`: no `account`
+ * parameter, no session, no patient assertion, and no client-side list.
+ *
  * ## Adding one
  *
  * Add the entry to its group's file in `registry/` (a new group also goes in
@@ -37,6 +46,7 @@ import { assertProxyReadContext } from '../../scrapers/myChart/proxy/proxyTools'
 
 import { optStr } from './args';
 import { readOutputMode } from './params';
+import { isPublicCapability } from './public';
 import type { Capability, CapabilityArgs, CapabilityContext, CapabilityImpl } from './types';
 
 import { PROFILE_CAPABILITIES } from './registry/profile';
@@ -49,6 +59,8 @@ import { EMERGENCY_CONTACT_CAPABILITIES } from './registry/emergencyContacts';
 import { PRESCRIPTION_CAPABILITIES } from './registry/prescriptions';
 import { PATIENT_CAPABILITIES } from './registry/patients';
 import { ACCOUNT_SECURITY_CAPABILITIES } from './registry/accountSecurity';
+import { PROVIDER_CAPABILITIES } from './registry/providers';
+import { DIRECTORY_CAPABILITIES } from './registry/directory';
 
 export type {
   Capability,
@@ -70,6 +82,7 @@ export {
   readAccountArg,
   readOutputMode,
 } from './params';
+export { acceptsAccountParam, isPublicCapability } from './public';
 
 /**
  * The registry, in listing order. The order of these arrays is the order every
@@ -87,6 +100,8 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
   ...PRESCRIPTION_CAPABILITIES,
   ...PATIENT_CAPABILITIES,
   ...ACCOUNT_SECURITY_CAPABILITIES,
+  ...PROVIDER_CAPABILITIES,
+  ...DIRECTORY_CAPABILITIES,
 ];
 
 // ── Lookup helpers ──────────────────────────────────────────────────────────
@@ -121,6 +136,15 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
+
+/**
+ * The capabilities that need no MyChart account — public directories and
+ * registries. Clients use this to decide what to offer, and what to run,
+ * before anyone has connected anything.
+ */
+export const PUBLIC_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(isPublicCapability);
+
+export const PUBLIC_CAPABILITY_IDS: readonly string[] = PUBLIC_CAPABILITIES.map((c) => c.id);
 
 const BY_NAME = new Map<string, CapabilityImpl>();
 for (const capability of CAPABILITY_IMPLS) {
@@ -164,10 +188,14 @@ export function capabilitiesByGroup(
  * The `Patients` group is exempt because asserting "you must already be on
  * patient X" in front of the very tools that list and change X would make them
  * unusable exactly when they are needed. `account`-kind capabilities are exempt
- * because they act on the MyChart login, not on any one patient's chart.
+ * because they act on the MyChart login, not on any one patient's chart, and
+ * `public`-kind ones because they have no chart and no session to assert
+ * against — see `PublicCapabilityImpl` in `./types`.
  */
 function needsPatientAssertion(capability: Capability): boolean {
-  return capability.group !== 'Patients' && capability.kind !== 'account';
+  return (
+    capability.group !== 'Patients' && capability.kind !== 'account' && !isPublicCapability(capability)
+  );
 }
 
 /**
@@ -189,7 +217,7 @@ function needsPatientAssertion(capability: Capability): boolean {
  * Throws a listing-friendly error for unknown names.
  */
 export async function executeCapability(
-  request: MyChartRequest,
+  request: MyChartRequest | null,
   idOrAlias: string,
   args: CapabilityArgs = {},
   ctx?: CapabilityContext,
@@ -198,10 +226,25 @@ export async function executeCapability(
   if (!capability) {
     throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
   }
-  if (needsPatientAssertion(capability)) {
-    await assertProxyReadContext(request, optStr(args, 'patient'));
+  let result: unknown;
+  if (capability.kind === 'public') {
+    // Public capabilities are the reason `request` is nullable: they read the
+    // NPI Registry or Epic's instance directory, which no account owns. Their
+    // `run` cannot take a session, so there is nothing to assert and nothing
+    // that could read the wrong chart.
+    result = await capability.run(args);
+  } else {
+    // Everything else needs one. A client that lost track of which kind it was
+    // dispatching gets this rather than a `Cannot read properties of null`
+    // fifteen frames into a scraper.
+    if (!request) {
+      throw new Error(`"${capability.id}" needs a connected MyChart account; none was passed.`);
+    }
+    if (needsPatientAssertion(capability)) {
+      await assertProxyReadContext(request, optStr(args, 'patient'));
+    }
+    result = await capability.run(request, args, ctx);
   }
-  const result = await capability.run(request, args, ctx);
   if (!capability.processor) return result;
   return renderOutput(capability.processor, result as RawResponse, readOutputMode(args));
 }
