@@ -82,21 +82,24 @@ export async function fetchProfileRaw(mychartRequest: MyChartRequest): Promise<R
 }
 
 async function fetchContactInformation(collector: RawCollector): Promise<unknown> {
-  const page = await collector.send({ path: '/PersonalInformation' });
+  const page = await collector.send({ path: '/PersonalInformation' }, { tolerateFailure: true });
   const token = getRequestVerificationTokenFromBody(page.text);
   if (!token) {
     logger.debug('could not find request verification token');
     return null;
   }
-  const result = await collector.send({
-    path: '/PersonalInformation/GetContactInformation?noCache=' + Math.random(),
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      __RequestVerificationToken: token,
+  const result = await collector.send(
+    {
+      path: '/PersonalInformation/GetContactInformation?noCache=' + Math.random(),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        __RequestVerificationToken: token,
+      },
+      method: 'POST',
+      body: 'useLoginUserEpt=false',
     },
-    method: 'POST',
-    body: 'useLoginUserEpt=false',
-  });
+    { tolerateFailure: true },
+  );
   return result.body;
 }
 
