@@ -2,7 +2,9 @@
 
 Why the load-bearing pieces are shaped the way they are. `CLAUDE.md` carries the one-line
 rule for each of these; this file carries the reasoning, which is what you need when you are
-about to change one.
+about to change one. For the shapes themselves — Mermaid maps of the request stack, the
+session lifecycle, the capability fan-out and each client — see
+[`docs/architecture/`](architecture/README.md).
 
 ## Authenticated requests & session expiry (`scrapers/myChart/core/makeAuthenticatedRequest.ts`)
 

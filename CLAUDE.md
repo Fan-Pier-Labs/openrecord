@@ -166,6 +166,9 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
 ## Reference docs
 
 - [Architecture](docs/architecture.md) — the invariants above, with the reasoning
+- [Architecture diagrams](docs/architecture/README.md) — Mermaid map of the core, the registry and
+  all four clients. **A stale diagram is worse than none** — that README lists the structural
+  changes that oblige you to update it in the same PR
 - [Testing](docs/testing.md) — suites, CI integration, the coverage gate
 - [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
 - [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
