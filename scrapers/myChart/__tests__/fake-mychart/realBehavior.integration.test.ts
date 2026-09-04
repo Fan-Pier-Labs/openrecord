@@ -42,6 +42,7 @@ import { getUpcomingOrders } from '../../chart/upcomingOrders/upcomingOrders'
 import { getEmergencyContacts } from '../../chart/emergencyContacts/emergencyContacts'
 import { getVisitNotes } from '../../chart/notes/notes'
 import { getCareTeam } from '../../chart/careTeam/careTeam'
+import { COVERAGE_BUCKETS, getInsurance } from '../../chart/insurance/insurance'
 import { getInsurancePayers } from '../../chart/insurancePayers/insurancePayers'
 import { getLetterDetails } from '../../chart/letters/letters'
 import {
@@ -202,6 +203,16 @@ describe('real envelopes reach the scrapers end-to-end', () => {
     const goals = await getGoals(session)
     expect(goals.careTeamGoals.length).toBeGreaterThan(0)
     expect(goals.patientGoals.length).toBeGreaterThan(0)
+  })
+  it('insurance', async () => {
+    // `GET /Insurance` is a shell on every real instance — its body is an
+    // empty `<div id="coverages-list">` — so a page-scraping insurance reader
+    // returns nothing from real MyChart however green it is here. The fake
+    // serves the same shell, and this is the payload the coverages come from.
+    const insurance = await getInsurance(session)
+    expect(insurance.ActiveCoverages.length).toBeGreaterThan(0)
+    expect(insurance.ActiveCoverages[0]!.CoverageName).not.toBe('')
+    expect(insurance.hasNoCoverages).toBe(false)
   })
   it('activity feed', async () => {
     const feed = await getActivityFeed(session)
@@ -591,6 +602,70 @@ describe('the over-limit message body that the send endpoint drops silently', ()
     const filed = list?.conversations?.find((c) => c.hthId === result.conversationId)
     expect(filed?.messages?.[0]?.bodyText).toBe(body)
   }, 30_000)
+})
+
+describe('insurance coverage fidelity', () => {
+  // Insurance/Coverages/GetCoverages, the sibling of GetPayors on the same
+  // legacy controller. The page it belongs to carries no coverage at all.
+  const FORM = { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', '__RequestVerificationToken': 'tok-test' }
+  const BODY = 'isStandAlone=true&encounterCsn=&encounterDepartmentId=&encounterDTE='
+
+  it('serves /Insurance as a shell with an empty coverages-list, as real MyChart does', async () => {
+    const res = await session.makeRequest({ path: '/Insurance' })
+    const page = await res.text()
+    expect(page).toContain('id="coverages-list"')
+    // No coverage in the markup — not the member id, not the group number.
+    expect(page).not.toContain('HSJ-12345')
+    expect(page).not.toContain('SNPP-742')
+  })
+
+  it('answers a GET with the not-found surface, not the data', async () => {
+    const res = await session.makeRequest({ path: '/Insurance/Coverages/GetCoverages', followRedirects: false })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FourOhFour')
+  })
+
+  it('refuses a token-less POST, exactly as the /api/* routes do', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetCoverages',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: BODY,
+      followRedirects: false,
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location') ?? '').toContain('/Home/FiveHundred')
+  })
+
+  it('returns all five PascalCase buckets plus Settings', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetCoverages',
+      method: 'POST',
+      headers: FORM,
+      body: BODY,
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as Record<string, unknown>
+    for (const bucket of COVERAGE_BUCKETS) expect(Array.isArray(body[bucket])).toBe(true)
+    expect(body.IsProxyContext).toBe(false)
+    expect(body.HasExistingCoveragesInRTE).toBe(false)
+    const active = (body.ActiveCoverages as Array<Record<string, unknown>>)[0]!
+    // The full captured field set, including the ones the processor drops.
+    expect(active).toHaveProperty('CoverageFHIRId')
+    expect(active).toHaveProperty('SubscriberDateOfBirth')
+    expect(active.MemberId).toBe('HSJ-12345')
+  })
+
+  it('answers an unrecognized encounter context with a 200 and an empty body', async () => {
+    const res = await session.makeRequest({
+      path: '/Insurance/Coverages/GetCoverages',
+      method: 'POST',
+      headers: FORM,
+      body: 'isStandAlone=false&encounterCsn=NOT-A-CSN&encounterDepartmentId=&encounterDTE=',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('')
+  })
 })
 
 describe('insurance payer catalogue fidelity', () => {

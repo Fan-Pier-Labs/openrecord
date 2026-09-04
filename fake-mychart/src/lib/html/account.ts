@@ -38,16 +38,17 @@ export function billingDetailsPage(encId: string): string {
 }
 
 // ─── Insurance ───────────────────────────────────────────────────────
-export function insurancePage(plans: Array<{ planName: string; subscriberName: string; memberId: string; groupNumber: string }>): string {
-  const cards = plans.map(p => `
-    <div class="card coverage-card">
-      <h3>${p.planName}</h3>
-      <div class="detail subscriber-name">Subscriber: ${p.subscriberName}</div>
-      <div class="meta member-id">Member ID: ${p.memberId}</div>
-      <div class="meta group-number">Group: ${p.groupNumber}</div>
-    </div>
-  `).join('');
-  return portalLayout('Insurance', 'Insurance', `<h1>Insurance</h1>${cards}`);
+/**
+ * A shell, deliberately. On every captured instance the Insurance page's whole
+ * body is an empty `<div id="coverages-list">` that the jQuery controller
+ * fills from `Insurance/Coverages/GetCoverages`; no coverage is ever in the
+ * markup. The page's only job for a scraper is to carry the antiforgery token.
+ */
+export function insurancePage(): string {
+  return portalLayout('Insurance', 'Insurance', `
+    <h1>Insurance Summary</h1>
+    <div class="section"><div class="content"><div id="coverages-list"></div></div></div>
+  `);
 }
 
 // ─── Profile / Personal Information ──────────────────────────────────

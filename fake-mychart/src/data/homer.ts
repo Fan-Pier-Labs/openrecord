@@ -309,15 +309,63 @@ export const careTeamExternal = {
   CustomRequestAppointmentLink: '/MyChart/scheduling/request',
 };
 
-// ─── Insurance (HTML parsed) ────────────────────────────────────────
-export const insurance = [
-  {
-    planName: 'Springfield Nuclear Power Plant Employee Health Plan',
-    subscriberName: 'Homer Jay Simpson',
-    memberId: 'HSJ-12345',
-    groupNumber: 'SNPP-742',
+// ─── Insurance ──────────────────────────────────────────────────────
+// `Insurance/Coverages/GetCoverages`, keyed by MyChart's five workflow
+// buckets. The `/Insurance` page itself carries no coverage on a real
+// instance — its body is an empty `<div id="coverages-list">` — so the fake
+// serves the same empty shell and the same AJAX payload.
+//
+// Homer holds one active coverage as the subscriber, and one pending
+// submission on which Marge is the subscriber: two buckets and both values of
+// `SubscriberIsSelf`, so a caller that flattens the buckets or assumes the
+// patient is the subscriber is caught here.
+export const insurance = {
+  ActiveCoverages: [
+    {
+      CoverageId: 'WP-COVERAGE-SNPP-1',
+      CoverageName: 'Springfield Nuclear Power Plant Employee Health Plan (PPO)',
+      Status: 1,
+      CoverageType: 1,
+      PayorName: 'Springfield Mutual Health',
+      PlanName: 'SNPP Employee PPO',
+      SubscriberId: 'HSJ-12345',
+      SubscriberName: 'Homer J Simpson',
+      SubscriberIsSelf: true,
+      MemberId: 'HSJ-12345',
+      MemberName: 'Homer J Simpson',
+      GroupNumber: 'SNPP-742',
+      FormattedEffectiveDate: '01/01/2026',
+      Future: false,
+      Termed: false,
+    },
+  ],
+  CoveragesPendingSubmission: [
+    {
+      CoverageId: 'WP-COVERAGE-DENTAL-2',
+      CoverageName: 'Springfield Dental Group Plan',
+      Status: 1,
+      CoverageType: 1,
+      PayorName: 'Springfield Dental Group',
+      SubscriberId: 'MBS-99001',
+      SubscriberName: 'Marge B Simpson',
+      SubscriberIsSelf: false,
+      MemberId: 'MBS-99001-02',
+      MemberName: 'Homer J Simpson',
+      GroupNumber: 'SDG-100',
+      FormattedEffectiveDate: '02/01/2026',
+      Future: false,
+      Termed: false,
+    },
+  ],
+  Settings: {
+    IsStandAlone: true,
+    CanUpdate: true,
+    CanViewDetails: true,
+    CanPayPremium: false,
+    CanViewInsHub: true,
+    IsInsHubOn: true,
   },
-];
+};
 
 // ─── Emergency Contacts ─────────────────────────────────────────────
 // Real GetRelationships responses key the list as `contacts` — the flat
@@ -1736,20 +1784,73 @@ export const letterDetails: Record<string, { bodyHTML: string }> = {
 };
 
 // ─── Goals ───────────────────────────────────────────────────────────
-// Real envelopes are `careTeamGoals` / `patientGoals` (observed on all three
-// captured instances), not the `goals` the fake used to invent. The element
-// shape is unverifiable from those accounts (every real list was empty), so
-// the entries keep the fields modelled here.
+// Real envelopes are `careTeamGoals` / `patientGoals`, observed on four
+// captured instances. Every captured list was empty, so no real *element* has
+// been seen; the field names below are the ones `epic.px.client.goals` reads
+// off them (`title`, `goalId`, `goalType`, `complianceType`, `readings[]`,
+// `createdByUser`, `creationDate` on a care-team goal; `text` on a patient
+// goal), which is Epic's own client code rather than a guess. They are not a
+// capture, and `docs/processor-layer-todo.md` still lists both as shapes to
+// capture — the processors pass elements through whole for that reason.
+//
+// `goalType` and `complianceType` are the enums the same bundle declares:
+// 1 Diet, 2 Exercise, 3 Weight, 4 BloodPressure, 5 ResultComponent,
+// 6 PatientStated, 7 Contingency, 8 General; complianceType 1 is numeric.
 export const careTeamGoals = {
   careTeamGoals: [
-    { name: 'Lose 50 lbs', description: 'Reduce body weight from 260 lbs to 210 lbs through diet and exercise', status: 'In Progress', startDate: '01/10/2026', targetDate: '07/10/2026' },
-    { name: 'Lower cholesterol', description: 'Reduce total cholesterol below 200 mg/dL', status: 'In Progress', startDate: '01/10/2026', targetDate: '04/10/2026' },
+    {
+      goalId: 'IGO-1001',
+      title: 'Lose 50 lbs',
+      goalType: 3,
+      complianceType: 1,
+      createdByUser: 'Julius Hibbert, MD',
+      creationDate: '01/10/2026',
+      readings: [
+        { value: '260', numericValue: '260', instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '210' },
+        { value: '252', numericValue: '252', instantTakenIso: '2026-03-14T09:00:00Z', pattern: 'lt', target1: '210' },
+      ],
+    },
+    {
+      goalId: 'IGO-1002',
+      title: 'Lower cholesterol',
+      goalType: 5,
+      complianceType: 1,
+      createdByUser: 'Julius Hibbert, MD',
+      creationDate: '01/10/2026',
+      readings: [
+        { value: '245', numericValue: '245', instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '200' },
+      ],
+    },
   ],
 };
 
+// One real goal, and then the empty editable slot MyChart appends for every
+// patient — three of the four captured accounts returned that slot and nothing
+// else. It is the fake's job to serve it: a scraper that counts it as a goal
+// gives every patient in the product one nameless goal, and that regression
+// has to fail here rather than in production.
 export const patientGoals = {
   patientGoals: [
-    { name: 'Eat one vegetable per week', description: 'Incorporate at least one serving of vegetables into weekly diet', status: 'Not Started', startDate: '01/15/2026', targetDate: '12/31/2026' },
+    {
+      goalId: 'PGO-2001',
+      text: 'Eat one vegetable per week',
+      goalType: 6,
+      complianceType: 0,
+      readings: [],
+      lastUpdatedDate: '01/15/2026',
+      creationDate: '01/15/2026',
+      isSharingNotesEnabled: false,
+    },
+    {
+      goalId: '',
+      text: '',
+      goalType: 0,
+      complianceType: 0,
+      readings: [],
+      lastUpdatedDate: '',
+      creationDate: '',
+      isSharingNotesEnabled: false,
+    },
   ],
 };
 
