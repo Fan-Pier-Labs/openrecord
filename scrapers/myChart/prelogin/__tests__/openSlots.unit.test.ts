@@ -270,6 +270,19 @@ describe('fetchOpenSlots', () => {
     expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[2].ProviderId']).toBe('PROV-3');
   });
 
+  it('uses a questionnaire token as-is, without walking the tree again', async () => {
+    // The mock routes no NextStep endpoint: reaching for one would 404 and the
+    // walk would throw, so passing this proves the token short-circuits it.
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    const result = await fetchOpenSlots(request, {
+      token: { lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] },
+    });
+
+    expect(result.questionnaire).toBeNull();
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].LqfIds[0]']).toBe('TREE-1');
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].PatientAnswerIds[0]']).toBe('HQA-9');
+  });
+
   it('sends the specialty id the live payload carries', async () => {
     const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
     await fetchOpenSlots(request);

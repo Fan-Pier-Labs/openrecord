@@ -9,8 +9,14 @@
  */
 import { describe, expect, it } from 'bun:test';
 
-import { createMockRequest, jsonResponse } from '../../auth/__tests__/mockMyChartRequest';
-import { answerPayload, parseQuestion, walkSchedulingQuestionnaire } from '../schedulingQuestionnaire';
+import { createMockRequest, htmlResponse, jsonResponse, pageWithCsrfToken } from '../../auth/__tests__/mockMyChartRequest';
+import {
+  answerPayload,
+  fetchSchedulingQuestionnaire,
+  parseQuestion,
+  submitSchedulingAnswers,
+  walkSchedulingQuestionnaire,
+} from '../schedulingQuestionnaire';
 
 const QUESTION_ONE = {
   ID: 'Q1',
@@ -153,5 +159,84 @@ describe('walkSchedulingQuestionnaire', () => {
     await expect(
       walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1', [{ questionId: 'Q1', choiceIndex: '2' }]),
     ).rejects.toThrow(/re-served an answered question/);
+  });
+});
+
+// ── The two calls a client makes ─────────────────────────────────────────────
+
+const WORKFLOW = {
+  WorkflowSettings: { NewProvFromDaysOffset: 0, NewProvToDaysOffset: 90 },
+  Specialties: [{ Id: 'SPEC-1', Name: 'Primary Care' }],
+};
+
+/** A specialty whose visit type carries a tree, or one that carries none. */
+const specialtyData = (treeId: string | null) => ({
+  ProviderDepartmentPairs: [{ ProviderId: 'PROV-1', DepartmentId: 'DEPT-1' }],
+  ReasonsForVisit: [{ Id: 'RFV-ok', Title: 'New Patient', CanDirectSchedule: true, DefaultVisitTypeId: 'VT-1' }],
+  VisitTypes: [{ ID: 'VT-1', ...(treeId ? { AnonymousSchedulingDecisionTreeId: treeId } : {}) }],
+});
+
+function mockClient(treeId: string | null, steps: unknown[] = []) {
+  let n = 0;
+  return createMockRequest(
+    {
+      '/OpenScheduling': () => htmlResponse(pageWithCsrfToken('tok')),
+      '/Scheduling/Anonymous/GetSchedulingWorkflowData': () => jsonResponse(WORKFLOW),
+      '/Scheduling/Anonymous/GetSpecialtyData': () => jsonResponse(specialtyData(treeId)),
+      '/DecisionTrees/AnonymousDecisionTree/NextStep': () => jsonResponse(steps[n++] ?? {}),
+    },
+    { firstPathPart: 'MyChart-SGH' },
+  ).req;
+}
+
+describe('fetchSchedulingQuestionnaire', () => {
+  it('reports nothing to ask when the org attaches no tree', async () => {
+    const q = await fetchSchedulingQuestionnaire(mockClient(null));
+    expect(q.required).toBe(false);
+    expect(q.complete).toBe(true);
+    expect(q.nextQuestion).toBeNull();
+    expect(q.token).toBeNull();
+  });
+
+  it('hands back the first question and the window a client should ask within', async () => {
+    const q = await fetchSchedulingQuestionnaire(
+      mockClient('TREE-1', [{ NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() }]),
+    );
+    expect(q.required).toBe(true);
+    expect(q.complete).toBe(false);
+    expect(q.nextQuestion?.prompt).toBe(QUESTION_ONE.Prompt);
+    expect(q.nextQuestion?.choices.map((c) => c.text)).toEqual(['Yes', 'No']);
+    expect(q.specialty.name).toBe('Primary Care');
+    expect(q.reasonForVisit).toBe('New Patient');
+    expect(q.window).toEqual({ earliestDaysOut: 0, latestDaysOut: 90, explicit: true });
+  });
+});
+
+describe('submitSchedulingAnswers', () => {
+  it('returns the next question while the tree still branches', async () => {
+    const q = await submitSchedulingAnswers(
+      mockClient('TREE-1', [
+        { NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() },
+        { NextInputNode: { CSN: 'C2', ID: 'N2', Question: QUESTION_TWO }, TraversalInfo: traversal({ RestartTree: false }) },
+      ]),
+      [{ questionId: 'Q1', choiceIndex: '2' }],
+    );
+    expect(q.complete).toBe(false);
+    expect(q.nextQuestion?.id).toBe('Q2');
+    expect(q.questions.map((x) => x.id)).toEqual(['Q1', 'Q2']);
+    expect(q.token).toBeNull();
+  });
+
+  it('returns the token the slot search needs once the tree is satisfied', async () => {
+    const q = await submitSchedulingAnswers(
+      mockClient('TREE-1', [
+        { NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() },
+        { NextInputNode: null, TraversalInfo: traversal({ IsTraversalComplete: true, TreeAnswerID: 'HQA-9' }) },
+      ]),
+      [{ questionId: 'Q1', choiceIndex: '2' }],
+    );
+    expect(q.complete).toBe(true);
+    expect(q.nextQuestion).toBeNull();
+    expect(q.token).toEqual({ lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] });
   });
 });

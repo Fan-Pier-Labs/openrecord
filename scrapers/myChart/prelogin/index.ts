@@ -11,6 +11,7 @@ export {
   fetchSpecialtyData,
   type ProviderDirectoryOptions,
 } from './providerDirectory';
+export { resolveSchedulingContext, parseSchedulingWindow, windowDates } from './schedulingContext';
 export {
   fetchOpenSlots,
   fetchProviderAvailability,
@@ -20,7 +21,11 @@ export {
   type OpenSlotsOptions,
 } from './openSlots';
 export {
+  fetchSchedulingQuestionnaire,
+  submitSchedulingAnswers,
   walkSchedulingQuestionnaire,
+  type QuestionnaireAnswerToken,
+  type SchedulingQuestionnaire,
   type QuestionAnswer,
   type SchedulingQuestion,
   type QuestionnaireWalk,

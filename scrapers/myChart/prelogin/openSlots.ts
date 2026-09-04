@@ -51,9 +51,14 @@
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
 import { postForm } from './preloginSession';
-import { fetchSchedulingWorkflow, fetchSpecialtyData, OPEN_SCHEDULING_PATH, parseSpecialties } from './providerDirectory';
-import { walkSchedulingQuestionnaire, type QuestionAnswer } from './schedulingQuestionnaire';
-import type { OpenSlot, QuestionnaireState, SlotSearchResult, Specialty } from './types';
+import { OPEN_SCHEDULING_PATH } from './providerDirectory';
+import { resolveSchedulingContext, type SchedulingSelector } from './schedulingContext';
+import {
+  walkSchedulingQuestionnaire,
+  type QuestionAnswer,
+  type QuestionnaireAnswerToken,
+} from './schedulingQuestionnaire';
+import type { OpenSlot, QuestionnaireState, SlotSearchResult } from './types';
 
 const SLOTS_PATH = '/Scheduling/Anonymous/GetSlots';
 
@@ -180,11 +185,7 @@ export function errorCodeOf(data: RawSlotsResponse): number | string | null {
 
 // ── Fetching ─────────────────────────────────────────────────────────────────
 
-export type OpenSlotsOptions = {
-  /** Specialty name or id. Defaults to the first the instance lists. */
-  specialty?: string;
-  /** Reason-for-visit title or id. Defaults to the first directly schedulable one. */
-  reasonForVisit?: string;
+export type OpenSlotsOptions = SchedulingSelector & {
   /** Only search these provider ids. Unset means every provider in the specialty. */
   providerIds?: string[];
   /** First day to search. Defaults to today. */
@@ -197,35 +198,17 @@ export type OpenSlotsOptions = {
    */
   maxPairs?: number;
   /**
-   * Answers to the screening questionnaire, when the org attaches one. Without
-   * them a gated instance answers `LqfAnswersRequired` and the result carries
-   * the questions instead of slots — see `schedulingQuestionnaire.ts`.
+   * The token from a completed `submitSchedulingAnswers`. Preferred over
+   * `answers`: it skips the tree walk entirely, and it survives the session it
+   * was made in, so a client can carry it across a restart.
+   */
+  token?: QuestionnaireAnswerToken;
+  /**
+   * Raw answers, walked here instead. Convenient for a one-shot script; a
+   * client with a person to ask should use `fetchSchedulingQuestionnaire` /
+   * `submitSchedulingAnswers` and pass the resulting `token`.
    */
   answers?: QuestionAnswer[];
-};
-
-type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
-
-type RawReason = {
-  Id: string;
-  Title?: string | null;
-  CategoryValue?: string | null;
-  CanDirectSchedule?: boolean;
-  DefaultVisitTypeId?: string | null;
-  /**
-   * The provider/department pairs bookable under this reason, as
-   * `"<ProviderId>^<DepartmentId>"` composites — not indices into
-   * `ProviderDepartmentPairs`.
-   */
-  DirectProviderDepartmentPairIDs?: string[] | null;
-};
-
-type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
-
-type RawSpecialtyPayload = {
-  ProviderDepartmentPairs?: RawPair[] | null;
-  ReasonsForVisit?: RawReason[] | null;
-  VisitTypes?: RawVisitType[] | null;
 };
 
 /**
@@ -238,52 +221,17 @@ export async function fetchOpenSlots(
   request: MyChartRequest,
   options: OpenSlotsOptions = {},
 ): Promise<SlotSearchResult> {
-  const { token, data: workflowData } = await fetchSchedulingWorkflow(request);
-  const specialties = parseSpecialties(workflowData);
+  const context = await resolveSchedulingContext(request, options);
+  const { token, specialty, reason, visitTypeId, treeId } = context;
 
-  const wanted = options.specialty?.trim().toLowerCase();
-  const specialty: Specialty | undefined = wanted
-    ? specialties.find((s) => s.name.toLowerCase() === wanted || s.id.toLowerCase() === wanted)
-    : specialties[0];
-  if (!specialty) {
-    throw new Error(
-      wanted
-        ? `no specialty named ${JSON.stringify(options.specialty)} on ${request.hostname} — it lists ${specialties.map((s) => s.name).join(', ') || 'none'}`
-        : `${request.hostname} lists no open-scheduling specialties`,
-    );
-  }
-
-  const specialtyData = await fetchSpecialtyData<RawSpecialtyPayload>(request, token, specialty.id);
-  const reasons = specialtyData.ReasonsForVisit ?? [];
-
-  // An unknown reason throws rather than searching on a different one: a
-  // silently substituted reason means a different visit type and different
-  // slots, with nothing in the result saying so. Same rule as `specialty`.
-  const wantedRfv = options.reasonForVisit?.trim().toLowerCase();
-  let reason: RawReason | null = null;
-  if (wantedRfv) {
-    reason = reasons.find((r) => r.Title?.toLowerCase() === wantedRfv || r.Id.toLowerCase() === wantedRfv) ?? null;
-    if (!reason) {
-      throw new Error(
-        `no reason for visit named ${JSON.stringify(options.reasonForVisit)} in ${specialty.name} on ` +
-          `${request.hostname} — it lists ${reasons.map((r) => r.Title).filter(Boolean).join(', ') || 'none'}`,
-      );
-    }
-  } else {
-    // Falling back to a request-only reason is expected to return no slots:
-    // it is the reason the org publishes when nothing is directly bookable.
-    reason = reasons.find((r) => r.CanDirectSchedule) ?? reasons[0] ?? null;
-  }
-  const visitTypeId = reason?.DefaultVisitTypeId ?? specialtyData.VisitTypes?.[0]?.ID ?? null;
-  const visitType = specialtyData.VisitTypes?.find((v) => v.ID === visitTypeId) ?? null;
-
-  // An org can gate the search behind a screening questionnaire. Walk it now
-  // so the ids are ready; with no answers this only reads the first question.
-  const treeId = visitType?.AnonymousSchedulingDecisionTreeId?.trim() || null;
-  let lqfIds: string[] = [];
-  let patientAnswerIds: string[] = [];
+  // A gated org needs the questionnaire cleared first. A token from
+  // `submitSchedulingAnswers` is used as-is; raw answers are walked here; with
+  // neither, the search still runs and the result carries the questions so the
+  // caller learns what is being asked rather than just `LqfAnswersRequired`.
+  let lqfIds: string[] = options.token?.lqfIds ?? [];
+  let patientAnswerIds: string[] = options.token?.patientAnswerIds ?? [];
   let questionnaire: QuestionnaireState | null = null;
-  if (treeId) {
+  if (treeId && lqfIds.length === 0) {
     const walk = await walkSchedulingQuestionnaire(request, token, treeId, visitTypeId, options.answers ?? []);
     if (walk.complete && walk.treeAnswerId) {
       lqfIds = [walk.treeId];
@@ -293,8 +241,7 @@ export async function fetchOpenSlots(
     }
   }
 
-  let pairs = (specialtyData.ProviderDepartmentPairs ?? [])
-    .filter((p) => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string')
+  let pairs = context.pairs
     // Only the three keys the live page sends per pair.
     .map((p) => ({ ProviderId: p.ProviderId, DepartmentId: p.DepartmentId, IsTeamMember: p.IsTeamMember === true }));
 

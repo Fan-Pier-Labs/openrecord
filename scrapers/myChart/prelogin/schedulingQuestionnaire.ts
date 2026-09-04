@@ -36,6 +36,8 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
 import { postForm } from './preloginSession';
 import { OPEN_SCHEDULING_PATH } from './providerDirectory';
+import { resolveSchedulingContext, type SchedulingSelector } from './schedulingContext';
+import type { SchedulingWindow, Specialty } from './types';
 
 const NEXT_STEP_PATH = '/DecisionTrees/AnonymousDecisionTree/NextStep';
 
@@ -252,4 +254,114 @@ export async function walkSchedulingQuestionnaire(
   }
 
   throw new Error(`scheduling questionnaire on ${request.hostname} did not finish within ${MAX_STEPS} steps`);
+}
+
+// ── The two calls a client makes ─────────────────────────────────────────────
+
+/**
+ * The ids a completed questionnaire yields, and what a slot search needs.
+ *
+ * Verified to survive the session it was produced in: a token walked in one
+ * session searched successfully from a second, fresh one. So a client can ask
+ * its questions at leisure — across a restart, or a different process — and
+ * hand the token back whenever the person has answered.
+ */
+export type QuestionnaireAnswerToken = {
+  lqfIds: string[];
+  patientAnswerIds: string[];
+};
+
+/**
+ * What a client needs to put a questionnaire in front of someone.
+ *
+ * The questions arrive one at a time because this is a decision tree, not a
+ * form: what it asks second depends on the first answer. `nextQuestion` is
+ * what to ask now, `questions` is everything seen so far in order, and
+ * `complete` with a `token` means the search can run.
+ */
+export type SchedulingQuestionnaire = {
+  /** False when the org attaches no tree — nothing to ask, search directly. */
+  required: boolean;
+  treeId: string | null;
+  /** Ask this next. Null when the walk is finished or nothing is required. */
+  nextQuestion: SchedulingQuestion | null;
+  /** Every question answered or seen so far, in the order the tree gave them. */
+  questions: SchedulingQuestion[];
+  complete: boolean;
+  /** Present once `complete`; pass it to `fetchOpenSlots`. */
+  token: QuestionnaireAnswerToken | null;
+  /** Which specialty and reason these questions belong to. */
+  specialty: Specialty;
+  reasonForVisit: string | null;
+  /**
+   * How far out this instance will book. A client asking "when would you like
+   * to be seen?" should keep the answer inside this window; pass the chosen
+   * date to `fetchOpenSlots` as `startDate`.
+   */
+  window: SchedulingWindow;
+};
+
+function toQuestionnaire(
+  context: Awaited<ReturnType<typeof resolveSchedulingContext>>,
+  walk: QuestionnaireWalk | null,
+): SchedulingQuestionnaire {
+  const shared = {
+    specialty: context.specialty,
+    reasonForVisit: context.reason?.Title ?? null,
+    window: context.window,
+    treeId: context.treeId,
+  };
+  if (!walk) {
+    return { ...shared, required: false, nextQuestion: null, questions: [], complete: true, token: null };
+  }
+  return {
+    ...shared,
+    required: true,
+    nextQuestion: walk.unanswered,
+    questions: walk.questions,
+    complete: walk.complete,
+    token:
+      walk.complete && walk.treeAnswerId
+        ? { lqfIds: [walk.treeId], patientAnswerIds: [walk.treeAnswerId] }
+        : null,
+  };
+}
+
+/**
+ * Read the screening questionnaire an org puts in front of its availability.
+ *
+ * Call this first. It asks nothing of the caller and answers nothing itself —
+ * it reports whether a questionnaire is required and, if so, hands back the
+ * first question to put to a person, plus the window the org will book in.
+ *
+ * `required: false` means go straight to `fetchOpenSlots`.
+ */
+export async function fetchSchedulingQuestionnaire(
+  request: MyChartRequest,
+  selector: SchedulingSelector = {},
+): Promise<SchedulingQuestionnaire> {
+  const context = await resolveSchedulingContext(request, selector);
+  if (!context.treeId) return toQuestionnaire(context, null);
+  const walk = await walkSchedulingQuestionnaire(request, context.token, context.treeId, context.visitTypeId);
+  return toQuestionnaire(context, walk);
+}
+
+/**
+ * Submit the answers a person gave, and get back either the next question or
+ * the token that unlocks the search.
+ *
+ * A tree branches, so one round is often not enough: keep calling with the
+ * answers gathered so far until `complete`. Answers are replayed from the top
+ * each time, which is what makes this safe to call from a fresh session — the
+ * traversal itself is server state, but the answer list is the client's.
+ */
+export async function submitSchedulingAnswers(
+  request: MyChartRequest,
+  answers: QuestionAnswer[],
+  selector: SchedulingSelector = {},
+): Promise<SchedulingQuestionnaire> {
+  const context = await resolveSchedulingContext(request, selector);
+  if (!context.treeId) return toQuestionnaire(context, null);
+  const walk = await walkSchedulingQuestionnaire(request, context.token, context.treeId, context.visitTypeId, answers);
+  return toQuestionnaire(context, walk);
 }

@@ -205,3 +205,17 @@ export type SlotSearchResult = {
    */
   questionnaire: QuestionnaireState | null;
 };
+
+/**
+ * How far ahead an instance will search, in whole days from today.
+ *
+ * Published by the org in `WorkflowSettings`, so a client can ask someone when
+ * they want to be seen without offering dates the instance will refuse.
+ * `explicit` is false when the instance published neither bound and these are
+ * the defaults.
+ */
+export type SchedulingWindow = {
+  earliestDaysOut: number;
+  latestDaysOut: number;
+  explicit: boolean;
+};
