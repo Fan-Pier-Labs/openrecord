@@ -14,7 +14,8 @@
  * not carried over.
  */
 
-import { base64UrlEncode } from '../../../../shared/base64url';
+import { Base64 } from 'js-base64';
+
 import type { RawResponse } from '../../core/rawResponse';
 import { extractFdiContext, extractFdiContextFromFdiLink, type FdiContext } from '../../eunity/imagingViewer';
 import type { Processor } from '../../processors/processor';
@@ -100,7 +101,7 @@ export function fdiContextForOrder(raw: RawResponse, order: LabOrderStandard): F
  * two must stay byte-for-byte equal so `download_imaging_study` decodes it.
  */
 export function imageIdFor(fdi: FdiContext): string {
-  return base64UrlEncode(JSON.stringify({ fdi: fdi.fdi, ord: fdi.ord }));
+  return Base64.encodeURI(JSON.stringify({ fdi: fdi.fdi, ord: fdi.ord }));
 }
 
 export const imagingResultsProcessor: Processor<ImagingResultsStandard> = {

@@ -10,7 +10,6 @@ import {
 import { extractFdiContextFromFdiLink } from '../../../eunity/imagingViewer'
 import { MyChartRequest } from '../../../core/myChartRequest'
 import { MissingVerificationTokenError } from '../../../core/util'
-import { base64UrlDecode } from '../../../../../shared/base64url'
 import { renderOutput } from '../../../processors/processor'
 
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="t" />'
@@ -157,7 +156,8 @@ describe('getImagingResults', () => {
     const result = imagingResultsProcessor.standard(raw)
     expect(result.orders).toHaveLength(1)
     expect(result.orders[0]).toMatchObject({ hasViewableImages: true, image_id: imageIdFor({ fdi, ord }) })
-    expect(JSON.parse(base64UrlDecode(result.orders[0]!.image_id!))).toEqual({ fdi, ord })
+    // Node's decoder, not ours: the token has to be real base64url.
+    expect(JSON.parse(Buffer.from(result.orders[0]!.image_id!, 'base64url').toString('utf8'))).toEqual({ fdi, ord })
     expect(result.orders[0]!.results[0]!.fdiLink.redirectUrl).toContain('FdiRedirection')
     // The single-use viewer URL is raw only.
     expect(JSON.stringify(result)).not.toContain('sts.example.org')
