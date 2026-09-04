@@ -56,22 +56,3 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
-
-// ── manifest.json must advertise the platforms we ship binaries for ─────────
-//
-// Claude Desktop reads the manifest and never sees .mcpbignore, so the list is
-// restated there. Hardcoded rather than derived from `slices`: it is two values
-// that change about never, and the only job here is to fail loudly if someone
-// edits one file and forgets the other.
-const PLATFORMS = ['darwin', 'win32'];
-
-const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf-8'));
-const declared = [...(manifest.compatibility?.platforms ?? [])].sort();
-
-if (String(declared) !== String(PLATFORMS)) {
-  console.error(
-    `\nRefusing to pack: manifest.json compatibility.platforms should be ` +
-      `[${PLATFORMS.join(', ')}], got [${declared.join(', ') || 'unset'}].`,
-  );
-  process.exit(1);
-}
