@@ -44,11 +44,21 @@ describe("tool catalog", () => {
   });
 
   test("the pre-existing write tools kept their confirmation gating", () => {
-    for (const name of ["send_message", "send_reply", "request_refill"]) {
+    for (const name of ["send_message", "send_reply", "delete_message"]) {
       expect(WRITE_TOOLS.has(name)).toBe(true);
       expect(isExclusiveTool(name)).toBe(true);
       expect(WRITE_TOOL_META[name]!.title.length).toBeGreaterThan(0);
     }
+  });
+
+  test("a write with no scraper is not confirmation-gated", () => {
+    // `request_refill` is declared and deliberately not implemented: running it
+    // reads nothing and changes nothing, so there is nothing to confirm.
+    // Prompting anyway spends the one moment a patient is paying attention on a
+    // no-op.
+    expect(WRITE_TOOLS.has("request_refill")).toBe(false);
+    expect(isExclusiveTool("request_refill")).toBe(false);
+    expect(WRITE_TOOL_META.request_refill).toBeUndefined();
   });
 
   test("respond is exclusive but not a write", () => {

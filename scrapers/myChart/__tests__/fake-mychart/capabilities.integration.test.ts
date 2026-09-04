@@ -312,26 +312,6 @@ describe('capability registry against fake-mychart', () => {
     expect(afterRemove.contacts.length).toBe(before.contacts.length)
   }, 60_000)
 
-  it('requests a refill by medication name, resolving the key itself', async () => {
-    const meds = (await executeCapability(session, 'get_medications')) as {
-      prescriptions: Array<{ name: string | null; id: string | null; refillDetails: { isRefillable: boolean | null } | null }>
-    }
-    const refillable = meds.prescriptions.find((m) => m.refillDetails?.isRefillable && m.id)
-    expect(refillable).toBeDefined()
-
-    const result = (await executeCapability(session, 'request_refill', {
-      medication_name: refillable!.name!,
-    })) as { success: boolean; medication: string }
-    expect(result.success).toBe(true)
-    expect(result.medication).toBe(refillable!.name!)
-  }, 30_000)
-
-  it('refuses to guess which medication was meant', async () => {
-    await expect(
-      executeCapability(session, 'request_refill', { medication_name: 'not-a-medication' }),
-    ).rejects.toThrow(/No medication matching/)
-  }, 30_000)
-
   // ── Patient records (proxy access) ────────────────────────────────────────
 
   it('lists the patients this account can reach and reports the active one', async () => {

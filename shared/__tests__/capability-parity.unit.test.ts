@@ -124,7 +124,10 @@ describe('Claude Desktop extension', () => {
     for (const capability of CAPABILITIES) {
       const tool = server.tools.find((t) => t.name === capability.id)!;
       const annotations = tool.config.annotations as { readOnlyHint?: boolean; destructiveHint?: boolean };
-      if (capability.kind === 'read' || capability.kind === 'public') {
+      // A capability with no scraper changes nothing, whatever its `kind` says
+      // about the write it will be once implemented. Flagging a no-op
+      // destructive is a warning a patient learns to ignore.
+      if (capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented) {
         expect(annotations.readOnlyHint).toBe(true);
       } else {
         expect(annotations.readOnlyHint).toBe(false);
@@ -166,12 +169,18 @@ describe('mobile app', () => {
 
   it('gates every write behind a confirmation prompt', async () => {
     const { WRITE_TOOLS, WRITE_TOOL_META } = await import('../../expo-app/src/lib/ai/tool-catalog');
-    const writes = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id).sort();
+    // Every write that does something. A declared-but-unimplemented one is
+    // deliberately not gated: "Request refill?" in front of a call that does
+    // nothing teaches a patient their confirmations are noise.
+    const writes = CAPABILITIES.filter((c) => c.kind === 'write' && !c.notImplemented).map((c) => c.id).sort();
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
       expect(WRITE_TOOL_META[id]!.title.length).toBeGreaterThan(0);
       expect(WRITE_TOOL_META[id]!.description.length).toBeGreaterThan(0);
+    }
+    for (const capability of CAPABILITIES.filter((c) => c.notImplemented)) {
+      expect(WRITE_TOOLS.has(capability.id)).toBe(false);
     }
   });
 
@@ -547,7 +556,6 @@ describe('npm library', () => {
       add_emergency_contact: 'addEmergencyContact',
       update_emergency_contact: 'updateEmergencyContact',
       remove_emergency_contact: 'removeEmergencyContact',
-      request_refill: 'requestMedicationRefill',
       list_proxy_targets: 'listProxyTargets',
       switch_proxy_target: 'switchToPatient',
       register_passkey: 'setupPasskey',
@@ -567,11 +575,19 @@ describe('npm library', () => {
     };
     expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
 
-    // Every capability in the registry is implemented, so every one of them
-    // maps to a library method — there is no "declared but not implemented"
-    // state to carve out.
+    // Every *implemented* capability maps to a library method. The
+    // deliberately-unimplemented ones (`Capability.notImplemented`) map to
+    // nothing on purpose: there is no scraper for a typed method to wrap, and
+    // adding one would be the library quietly re-acquiring the behaviour the
+    // registry withdrew. `runCapability(id)` still reaches them and returns the
+    // notice, like every other client.
+    const unimplemented = new Set(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id));
     const unmapped = ALL.filter((id) => !methodFor[id] && !staticMethodFor[id]);
-    expect(unmapped).toEqual([]);
+    expect(unmapped).toEqual([...unimplemented]);
+    for (const id of unimplemented) {
+      expect(methodFor[id]).toBeUndefined();
+      expect(staticMethodFor[id]).toBeUndefined();
+    }
 
     const absent = Object.values(methodFor).filter((m) => !methods.includes(m));
     expect(absent).toEqual([]);

@@ -79,7 +79,13 @@ describe('the registry itself', () => {
       expect(capability.group.length).toBeGreaterThan(0);
       // `run` is deliberately absent from the public type, so it is reached
       // here the way only a test may: through the value, not the type.
-      expect(typeof (capability as unknown as { run: unknown }).run).toBe('function');
+      //
+      // Exactly one of `run` and `notImplemented`, never both and never
+      // neither. A capability with both would be a scraper wearing a "not
+      // implemented" label — the failure mode this whole mechanism exists to
+      // prevent — and one with neither would throw somewhere further in.
+      const hasRun = typeof (capability as unknown as { run: unknown }).run === 'function';
+      expect(hasRun).toBe(capability.notImplemented === undefined);
     }
   });
 
@@ -152,6 +158,14 @@ describe('the registry itself', () => {
   it('describes a capability as a callable signature', () => {
     const line = describeCapability(getCapability('get_note_content')!);
     expect(line).toStartWith('get_note_content(csn, lrp_id, hno_id, hno_dat) — ');
+  });
+});
+
+describe('capabilities declared but deliberately not implemented', () => {
+  it('is the exception, not a parking space', () => {
+    // Adding an id here means editing this line, which is the point: shipping a
+    // capability that does nothing should take a decision, not a default.
+    expect(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id)).toEqual(['request_refill']);
   });
 });
 

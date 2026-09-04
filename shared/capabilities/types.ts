@@ -104,6 +104,21 @@ export interface Capability {
    * {@link COMMON_CAPABILITIES}.
    */
   lessFrequentlyUsed?: boolean;
+  /**
+   * Set when this capability deliberately ships **no scraper**: the sentence a
+   * caller gets back instead, and the reason it says so.
+   *
+   * Shipping a scraper we have never watched work and warning about it in the
+   * description was tried and is worse — a caveat does not stop a caller acting
+   * on the payload it was handed. A read like that answers `[]`, which reads as
+   * "your chart has none"; a write like that answers HTTP 200 from an endpoint
+   * that ignored it. So there is no payload: {@link executeCapability} returns
+   * this string, and {@link UnimplementedCapabilityImpl} has no `run` to call.
+   *
+   * The `description` of such a capability says so too — written into it, not
+   * assembled — so every client shows it without any client-side wiring.
+   */
+  notImplemented?: string;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to
@@ -138,6 +153,8 @@ export interface Capability {
  */
 export interface AccountCapabilityImpl extends Capability {
   kind: 'read' | 'write' | 'account';
+  /** Discriminates this from {@link UnimplementedCapabilityImpl}: it has a `run`. */
+  notImplemented?: never;
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
   /**
    * For read capabilities: `run` returns the scraper's {@link RawResponse}
@@ -164,9 +181,28 @@ export interface AccountCapabilityImpl extends Capability {
  */
 export interface PublicCapabilityImpl extends Capability {
   kind: 'public';
+  /** As on {@link AccountCapabilityImpl}. */
+  notImplemented?: never;
   run: (args: CapabilityArgs) => Promise<unknown>;
   /** As on {@link AccountCapabilityImpl}. Absent when `run` returns a finished object. */
   processor?: Processor;
 }
 
-export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl;
+/**
+ * A capability the registry declares and deliberately does not implement.
+ *
+ * `run?: never` is the enforcement: a capability whose behaviour we have never
+ * confirmed cannot acquire a scraper by someone wiring one up in a hurry, since
+ * the entry has nowhere to put it. The entry stays in the registry rather than
+ * being deleted, because a client that silently lacks a tool and one that has a
+ * tool saying "not implemented" are very different for a caller trying to find
+ * out whether OpenRecord can do a thing.
+ */
+export interface UnimplementedCapabilityImpl extends Capability {
+  kind: 'read' | 'write';
+  notImplemented: string;
+  run?: never;
+  processor?: never;
+}
+
+export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl | UnimplementedCapabilityImpl;
