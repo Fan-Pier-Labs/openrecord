@@ -188,6 +188,28 @@ export function specialtySearchTermsFor(p: { Specialties: { Title: string }[] })
   return p.Specialties.map((s, i) => ({ Id: String(1000 + i), Title: s.Title, Description: null, IconCategoryValue: 0, IconPath: null, TermSlug: null }));
 }
 
+/** The decision tree Primary Care is gated behind — all single-select. */
+export const SCHEDULING_TREE_ID = id(50);
+
+/**
+ * A second tree, on Dermatology, whose questions the scraper cannot answer
+ * yet: one multi-response and one free-text. Kept separate so the answerable
+ * path still reaches a token while the unanswerable one stays exercisable.
+ */
+export const SCHEDULING_UNSUPPORTED_TREE_ID = id(60);
+
+/**
+ * `ProviderId^DepartmentId` for every pair but the last.
+ *
+ * Leaving one out is the point: a real instance answers the release's error
+ * surface when a search carries a pair the reason does not cover, and a fake
+ * that accepts every pair would never catch a scraper sending the full set.
+ */
+function directPairIds(people: Person[]): string[] {
+  const all = people.flatMap((p) => p.departments.map((d) => `${id(p.n)}^${id(d)}`));
+  return all.length > 1 ? all.slice(0, -1) : all;
+}
+
 /** One specialty's payload: the providers listed under it, and every department they work at. */
 export function specialtyData(specialtyId: string) {
   const index = SPECIALTIES.findIndex((s) => s.Id === specialtyId);
@@ -218,16 +240,216 @@ export function specialtyData(specialtyId: string) {
       })),
     ),
     ReasonsForVisit: [
-      { Id: id(40), CategoryValue: 'newprov_1', Title: 'New Patient Visit', DisplayName: 'New Patient Visit', CanDirectSchedule: true, CanRequest: true, CanRequestWithoutOverrides: true, DefaultVisitTypeId: id(41), AllowProviderSelect: true, ReasonForVisitFirst: true, ProviderFirst: false },
+      {
+        Id: id(40),
+        CategoryValue: 'newprov_1',
+        Title: 'New Patient Visit',
+        DisplayName: 'New Patient Visit',
+        CanDirectSchedule: true,
+        CanRequest: true,
+        CanRequestWithoutOverrides: true,
+        DefaultVisitTypeId: id(41),
+        AllowProviderSelect: true,
+        ReasonForVisitFirst: true,
+        ProviderFirst: false,
+        // The pairs bookable under this reason, as `ProviderId^DepartmentId`
+        // composites. A real instance refuses a search carrying a pair outside
+        // this set, so the fake publishes a subset of the specialty's pairs:
+        // the last one is deliberately left out.
+        DirectProviderDepartmentPairIDs: directPairIds(people),
+        RequestProviderDepartmentPairIDs: [],
+        QuickScheduleProviderDepartmentPairIDs: [],
+      },
     ],
     ReasonForVisitDepartmentOverrides: [],
-    VisitTypes: [],
+    // Primary Care is gated behind a screening questionnaire; the other
+    // specialties are not, so both paths are exercisable.
+    VisitTypes: [
+      {
+        ID: id(41),
+        Name: null,
+        DisplayName: 'New Patient Visit',
+        AllowProviderSelect: true,
+        DefaultTelehealthMode: 0,
+        AllowedTelehealthModes: [],
+        SchedulingInstructions: [],
+        QuestionnaireId: '',
+        AnonymousSchedulingDecisionTreeId:
+          index === 0 ? SCHEDULING_TREE_ID : index === 2 ? SCHEDULING_UNSUPPORTED_TREE_ID : null,
+      },
+    ],
     ActionPreviews: [],
     VisitTypeDepartmentOverrides: [],
     Specialties: [],
     Tickets: [],
     OrderMap: {},
   };
+}
+
+// ─── The screening questionnaire ────────────────────────────────────────────
+//
+// Orgs attach a decision tree to a visit type, and `GetSlots` refuses with
+// `ErrorCode: "LqfAnswersRequired"` until the tree has been walked and its
+// answer id sent along. Two questions, so a client has to make more than one
+// `NextStep` call and the traversal cursor actually has to advance.
+
+export const SCHEDULING_QUESTIONS = [
+  {
+    ID: id(51),
+    DAT: id(52),
+    Prompt: 'Do you think you are having a life threatening emergency?',
+    HelpText: '',
+    QuestionType: 2,
+    ResponseType: 8,
+    IsRequired: true,
+    IsMultiResponse: false,
+    IsTrigger: false,
+    IsEnabled: true,
+    DisplayStyle: '',
+    DisplayStyleVal: 0,
+    Choices: [
+      { Index: '1', Text: 'Yes', IsSelected: false, ImagePath: null },
+      { Index: '2', Text: 'No', IsSelected: false, ImagePath: null },
+    ],
+    FollowUpQuestions: [],
+    HasFollowUpQuestions: false,
+    AllFollowUpsDisabled: false,
+    IncludeUnknown: false,
+    Name: 'SGH MYCHART APPT ENTRY EMERGENCY',
+  },
+  {
+    ID: id(53),
+    DAT: id(54),
+    Prompt: 'Have you been seen at Springfield General Hospital before?',
+    HelpText: '',
+    QuestionType: 2,
+    ResponseType: 8,
+    IsRequired: true,
+    IsMultiResponse: false,
+    IsTrigger: false,
+    IsEnabled: true,
+    DisplayStyle: '',
+    DisplayStyleVal: 0,
+    Choices: [
+      { Index: '1', Text: 'Yes', IsSelected: false, ImagePath: null },
+      { Index: '2', Text: 'No', IsSelected: false, ImagePath: null },
+    ],
+    FollowUpQuestions: [],
+    HasFollowUpQuestions: false,
+    AllFollowUpsDisabled: false,
+    IncludeUnknown: false,
+    Name: 'SGH MYCHART APPT ENTRY ESTABLISHED',
+  },
+];
+
+/** The questions on the unsupported tree — neither shape can be answered yet. */
+export const SCHEDULING_UNSUPPORTED_QUESTIONS = [
+  {
+    // Multi-response: Epic's serializer collects every selected choice into one
+    // array, so a client answering this sends several `Answer.Choices` entries.
+    ID: id(56),
+    DAT: id(57),
+    Prompt: 'Which of these apply to you? Select all that apply.',
+    HelpText: '',
+    QuestionType: 2,
+    ResponseType: 8,
+    IsRequired: false,
+    IsMultiResponse: true,
+    IsTrigger: false,
+    IsEnabled: true,
+    DisplayStyle: '',
+    DisplayStyleVal: 0,
+    Choices: [
+      { Index: '1', Text: 'High blood pressure', IsSelected: false, ImagePath: null },
+      { Index: '2', Text: 'Diabetes', IsSelected: false, ImagePath: null },
+      { Index: '3', Text: 'Asthma', IsSelected: false, ImagePath: null },
+      { Index: '4', Text: 'None of the above', IsSelected: false, ImagePath: null },
+    ],
+    FollowUpQuestions: [],
+    HasFollowUpQuestions: false,
+    AllFollowUpsDisabled: false,
+    IncludeUnknown: false,
+    Name: 'SGH MYCHART APPT ENTRY CONDITIONS',
+  },
+  {
+    // Free text: no choices, and the answer rides as `Answer.Text`.
+    ID: id(58),
+    DAT: id(59),
+    Prompt: 'Briefly, what would you like to discuss at this visit?',
+    HelpText: '',
+    QuestionType: 1,
+    ResponseType: 2,
+    IsRequired: false,
+    IsMultiResponse: false,
+    IsTrigger: false,
+    IsEnabled: true,
+    DisplayStyle: '',
+    DisplayStyleVal: 0,
+    Choices: [],
+    FollowUpQuestions: [],
+    HasFollowUpQuestions: false,
+    AllFollowUpsDisabled: false,
+    IncludeUnknown: false,
+    Name: 'SGH MYCHART APPT ENTRY REASON TEXT',
+  },
+];
+
+/** The id a completed traversal yields — `PatientAnswerIds` for the search. */
+export const SCHEDULING_TREE_ANSWER_ID = id(55);
+
+/**
+ * Answering "Yes" to the emergency question ends the tree without an answer
+ * id, the way a real instance routes an emergency out of online scheduling
+ * rather than booking it a routine slot.
+ */
+export const EMERGENCY_CHOICE_INDEX = '1';
+
+// ─── Open slots ─────────────────────────────────────────────────────────────
+
+/**
+ * Deterministic availability: three slots a day on the two weekdays after
+ * `startDte`, per provider/department pair.
+ *
+ * Real instances page this with a `ContinueInfo` cursor rather than returning
+ * everything at once, so the handler slices by `NextProviderIndex` and the
+ * scraper's paging loop is exercised rather than short-circuited.
+ */
+export function slotsForPair(pair: { ProviderId: string; DepartmentId: string }, visitTypeId: string, startDte: number) {
+  const times = [
+    { hour: 9, minute: 0, label: '9:00 AM' },
+    { hour: 13, minute: 30, label: '1:30 PM' },
+    { hour: 15, minute: 0, label: '3:00 PM' },
+  ];
+  return [0, 1].flatMap((dayOffset) =>
+    times.map((t) => {
+      const dte = startDte + 3 + dayOffset;
+      const utc = new Date(Date.UTC(1840, 11, 31) + dte * 86_400_000);
+      utc.setUTCHours(t.hour + 4, t.minute, 0, 0); // EDT, as the captures show
+      return {
+        ProviderId: pair.ProviderId,
+        SlotProviderIds: [],
+        DepartmentId: pair.DepartmentId,
+        VisitTypeId: visitTypeId,
+        Dte: dte,
+        DisplayDateTimeUtc: utc.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+        DisplayDte: dte,
+        DteUtc: dte,
+        InternalStartTime: t.hour * 3600 + t.minute * 60,
+        StartTime: t.hour * 3600 + t.minute * 60,
+        DateTime: `/Date(${utc.getTime()})/`,
+        TimeZoneMarker: 'EDT',
+        LengthInMinutes: 30,
+        PrimaryProvLengthInMin: 30,
+        DateString: utc.toUTCString().slice(0, 16),
+        TimeString: t.label,
+        ReservationExpirationTimeString: null,
+        ReservationKey: null,
+        TelehealthMode: 1,
+        IsPreselected: false,
+        IsRequest: false,
+      };
+    }),
+  );
 }
 
 // ─── Guest estimates ────────────────────────────────────────────────────────

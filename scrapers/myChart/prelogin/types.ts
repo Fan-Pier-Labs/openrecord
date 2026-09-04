@@ -148,3 +148,157 @@ export type HospitalNetworkProfile = {
    */
   warnings: string[];
 };
+
+/**
+ * One open appointment slot, as the anonymous scheduling search returns it.
+ *
+ * `providerId` and `clinicId` are the same opaque ids `Provider.id` and
+ * `Clinic.id` carry, so a slot joins straight onto the directory.
+ */
+export type OpenSlot = {
+  providerId: string;
+  clinicId: string;
+  visitTypeId: string | null;
+  /** ISO instant ("2026-09-08T17:00:00Z"). Null if the instance omitted it. */
+  startUtc: string | null;
+  /** The clinic's own rendering — "Tuesday September 8, 2026" / "1:00 PM". */
+  localDate: string | null;
+  localTime: string | null;
+  /** "EDT", "PST" — the marker MyChart displays, not an IANA zone. */
+  timeZoneMarker: string | null;
+  lengthInMinutes: number | null;
+  /** 1 = in person, 2 = video, on every instance captured so far. */
+  telehealthMode: number | null;
+  /** The untouched slot record, so nothing MyChart sent is lost. */
+  raw: unknown;
+};
+
+export type SlotSearchResult = {
+  specialty: Specialty;
+  slots: OpenSlot[];
+  /** How many `GetSlots` round trips it took. */
+  pages: number;
+  /**
+   * The instance's own `ErrorCode` for the last search, or null. Passed
+   * through uninterpreted — it covers both back-pressure and "cannot search",
+   * and the code table is not published.
+   */
+  errorCode: number | string | null;
+  /** The server reported the search finished rather than the page cap hitting. */
+  complete: boolean;
+  /**
+   * Set when the org gates this visit type behind a screening questionnaire
+   * that has not been answered. The search still runs — the `errorCode` the
+   * instance returns is evidence worth keeping — but it will answer
+   * `LqfAnswersRequired` rather than return slots.
+   */
+  questionnaire: SchedulingQuestionnaire | null;
+};
+
+/**
+ * How far ahead an instance will search, in whole days from today.
+ *
+ * Published by the org in `WorkflowSettings`, so a client can ask someone when
+ * they want to be seen without offering dates the instance will refuse.
+ * `explicit` is false when the instance published neither bound and these are
+ * the defaults.
+ */
+export type SchedulingWindow = {
+  earliestDaysOut: number;
+  latestDaysOut: number;
+  explicit: boolean;
+};
+
+// ─── The screening questionnaire ────────────────────────────────────────────
+
+/** One choice a question offers. `index` is what an answer refers to. */
+export type QuestionChoice = { index: string; text: string };
+
+/** A question the tree asked, flattened to what a caller needs to answer it. */
+export type SchedulingQuestion = {
+  /** Opaque question id. Stable across sessions on the instances checked. */
+  id: string;
+  prompt: string;
+  choices: QuestionChoice[];
+  required: boolean;
+  /**
+   * The question accepts more than one choice. Answering one is not supported
+   * yet — `answerPayload` throws `WorkInProgressError` rather than send a
+   * payload no live instance has been watched accept. 3 of 198 sampled
+   * instances open with one.
+   */
+  multiResponse: boolean;
+  /**
+   * The question takes typed text. Also not supported yet, and also a throw
+   * rather than a guess. 6 of 198 sampled instances open with one.
+   */
+  freeText: boolean;
+  helpText: string | null;
+};
+
+/**
+ * How a caller answers one question.
+ *
+ * Only a single `choiceIndex` works today. The array and `text` forms are the
+ * shapes Epic's serializer implies for multi-response and free-text questions,
+ * and both currently throw `WorkInProgressError` — they are declared so the
+ * gap is visible in the type rather than discovered when a tree stalls.
+ */
+export type QuestionAnswer = {
+  questionId: string;
+  choiceIndex?: string | string[];
+  text?: string;
+};
+
+/**
+ * The ids a completed questionnaire yields, and what a slot search needs.
+ *
+ * Verified to survive the session it was produced in: a token walked in one
+ * session searched successfully from a second, fresh one. So a client can ask
+ * its questions at leisure — across a restart, or a different process — and
+ * hand the token back whenever the person has answered.
+ */
+export type QuestionnaireAnswerToken = {
+  lqfIds: string[];
+  patientAnswerIds: string[];
+};
+
+/**
+ * What a client needs to put a questionnaire in front of someone.
+ *
+ * The questions arrive one at a time because this is a decision tree, not a
+ * form: what it asks second depends on the first answer. `nextQuestion` is
+ * what to ask now, `questions` is everything seen so far in order, and
+ * `complete` with an `answerToken` means the search can run.
+ *
+ * Pass the whole object back to `submitSchedulingAnswers` — it carries the
+ * tree and visit type, so the next round skips the multi-megabyte specialty
+ * download it would otherwise repeat per answer.
+ */
+export type SchedulingQuestionnaire = {
+  /** False when the org attaches no tree — nothing to ask, search directly. */
+  required: boolean;
+  treeId: string | null;
+  /** The visit type the tree hangs off, carried so a round trip can skip it. */
+  visitTypeId: string | null;
+  /** Ask this next. Null when the walk is finished or nothing is required. */
+  nextQuestion: SchedulingQuestion | null;
+  /** Every question answered or seen so far, in the order the tree gave them. */
+  questions: SchedulingQuestion[];
+  complete: boolean;
+  /**
+   * Present once `complete`; pass it to `fetchOpenSlots` as `answerToken`.
+   * Null while questions remain — and also when the tree ended without one,
+   * which is how an org routes an emergency out of online scheduling.
+   */
+  answerToken: QuestionnaireAnswerToken | null;
+  /** Which specialty and reason these questions belong to. */
+  specialty: Specialty;
+  reasonForVisit: string | null;
+  /**
+   * How far out this instance will book. A client asking "when would you like
+   * to be seen?" should keep the answer inside this window; pass the chosen
+   * date to `fetchOpenSlots` as `startDate`.
+   */
+  window: SchedulingWindow;
+};
