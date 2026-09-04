@@ -1,6 +1,7 @@
 /**
- * The anonymous slot search: date conversion, parsing, the paging stop
- * conditions, and the full walk against a per-session transport.
+ * The anonymous slot search: parsing, the paging stop conditions, and the full
+ * walk against a per-session transport. (The `Dte` conversions themselves live
+ * in `shared/epicDate.ts`, tested there.)
  *
  * The slot fixture is the shape a live instance returned (ids and names
  * replaced), so the field names here are MyChart's own.
@@ -11,13 +12,10 @@ import { createMockRequest, htmlResponse, jsonResponse, pageWithCsrfToken } from
 import {
   fetchOpenSlots,
   fetchProviderAvailability,
-  fromEpicDte,
-  localTodayDte,
   errorCodeOf,
   isSearchComplete,
   parseSlot,
   parseSlotsResponse,
-  toEpicDte,
   type RawSlotsResponse,
 } from '../openSlots';
 import type { RawWorkflowData } from '../providerDirectory';
@@ -84,25 +82,6 @@ function mockSlots(responses: RawSlotsResponse[]) {
     handle.callsTo('/Scheduling/Anonymous/GetSlots').map((c) => Object.fromEntries(new URLSearchParams(c.body ?? '')));
   return { request: handle.req, slotCalls };
 }
-
-describe('Epic date conversion', () => {
-  it('round-trips the epoch a live response confirmed', () => {
-    // Dte 67821 came back on a live slot dated 2026-09-08.
-    expect(toEpicDte(new Date('2026-09-08T00:00:00Z'))).toBe(67821);
-    expect(fromEpicDte(67821).toISOString().slice(0, 10)).toBe('2026-09-08');
-  });
-
-  it('ignores the time of day within a UTC day', () => {
-    expect(toEpicDte(new Date('2026-09-08T23:59:59Z'))).toBe(toEpicDte(new Date('2026-09-08T00:00:01Z')));
-  });
-
-  it('takes "today" from the wall clock, so an evening call west of UTC keeps today', () => {
-    // 9pm on the 8th locally is already the 9th in UTC; the search must still
-    // start on the 8th, or same-day slots are silently skipped.
-    const evening = new Date(2026, 8, 8, 21, 0, 0);
-    expect(localTodayDte(evening)).toBe(toEpicDte(new Date('2026-09-08T00:00:00Z')));
-  });
-});
 
 describe('parseSlot', () => {
   it('normalizes a slot and keeps the raw record', () => {

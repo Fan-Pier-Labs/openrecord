@@ -2,6 +2,7 @@
 // Shaped to exactly match the JSON structures MyChart scrapers expect
 
 import { epicMessageBody } from '../lib/messageBody';
+import { toEpicDte } from '@shared/epicDate';
 
 // ─── Profile ─────────────────────────────────────────────────────────
 export const profile = {
@@ -940,9 +941,6 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
   'Friday', 'Saturday'] as const;
 
-// Epic stores a date as a "DAT": whole days elapsed since 12/31/1840.
-const EPIC_DAT_EPOCH_MS = Date.UTC(1840, 11, 31);
-
 /**
  * The visit's timing: every field derived from its `PrimaryDate`
  * ('MM/DD/YYYY hh:mm:ss AM'), plus the three flags that govern how MyChart
@@ -969,7 +967,8 @@ function visitTiming(primaryDate: string) {
   return {
     PrimaryDate: primaryDate,
     Instant: `/Date(${utcMs})/`,
-    Dat: String(Math.round((Date.UTC(year, month - 1, dayOfMonth) - EPIC_DAT_EPOCH_MS) / 86_400_000)),
+    // A "DAT" is Epic's day number for the visit's date.
+    Dat: String(toEpicDte(new Date(utcMs))),
     Date: `${DAY_NAMES[new Date(utcMs).getUTCDay()]} ${MONTH_NAMES[month - 1]} ${dayOfMonth}, ${year}`,
     ShortDate: shortDate,
     HighlightDate: shortDate,
