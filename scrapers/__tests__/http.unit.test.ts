@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestRequestTimeout, setTestTransport } from '../http'
+import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../http'
 import { hostLimiterStats, resetHostLimiters } from '../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../shared/env'
 import { silenceLogger, resetLogSink } from '../../shared/logger'
@@ -405,61 +405,52 @@ describe('scrapers have exactly one outbound path', () => {
 })
 
 /**
- * The failure this replaced the `AbortSignal.timeout` polyfill for: a host that
- * accepts the connection and then never answers. Without a deadline the scrape
- * waits forever *and* keeps one of that host's ten permits, so a handful of
- * hung requests starve every other category on the same instance.
+ * Every request carries a two-minute deadline, which is what the
+ * `AbortSignal.timeout` polyfill was replaced by. A host that accepts the
+ * connection and then never answers would otherwise hang the scrape forever
+ * *and* keep one of that host's ten permits, starving every other category on
+ * the same instance. The deadline itself is the platform's to enforce; what a
+ * test can pin is that every request is given one.
  */
-describe('request timeout', () => {
+describe('request deadline', () => {
   beforeEach(() => {
     silenceLogger()
     resetHostLimiters()
-    setTestRequestTimeout(20)
   })
 
   afterEach(() => {
-    setTestRequestTimeout(null)
     resetHostLimiters()
     resetLogSink()
   })
 
-  /** Accepts the request and never answers. */
-  const blackHole = () => new Promise<Response>(() => {})
-
-  it('gives up on a transport that never answers, naming the host and not the path', async () => {
-    await expect(
-      scraperFetch('https://mychart.example.org/Clinical/labs?rid=12345', {}, { transport: blackHole }),
-    ).rejects.toThrow(/mychart\.example\.org timed out/)
-  })
-
-  it('releases the host permit, so one hung request cannot starve the rest', async () => {
-    // Fill the host to its limit with requests that never answer...
-    const hung = Array.from({ length: LIMIT }, (_, i) =>
-      scraperFetch(`https://mychart.example.org/Clinical/${i}`, {}, { transport: blackHole })
-        .catch(() => 'timed out'),
-    )
-
-    await tick()
-    expect(hostLimiterStats()['mychart.example.org']!.inFlight).toBe(LIMIT)
-
-    // ...and a queued request behind them still gets served.
+  it('hands every request a live abort signal', async () => {
     const { transport, calls } = recorder()
-    const queued = scraperFetch('https://mychart.example.org/Home', {}, { transport })
+    await scraperFetch('https://mychart.example.org/Home', {}, { transport })
 
-    expect(await Promise.all(hung)).toEqual(Array(LIMIT).fill('timed out'))
-    expect((await queued).status).toBe(200)
-    expect(calls).toHaveLength(1)
-
-    expect(hostLimiterStats()['mychart.example.org']).toEqual({
-      inFlight: 0,
-      queued: 0,
-      limit: LIMIT,
-    })
+    const signal = calls[0]!.init.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal!.aborted).toBe(false)
   })
 
-  it('leaves a request that answers in time alone', async () => {
-    const { transport } = recorder()
-    const res = await scraperFetch('https://mychart.example.org/Home', {}, { transport })
-    expect(res.status).toBe(200)
+  it('builds the signal from AbortController, which React Native has, not AbortSignal.timeout, which it does not', async () => {
+    const original = AbortSignal.timeout?.bind(AbortSignal)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (AbortSignal as any).timeout
+    try {
+      const { transport, calls } = recorder()
+      await scraperFetch('https://mychart.example.org/Home', {}, { transport })
+      expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(AbortSignal as any).timeout = original
+    }
+  })
+
+  it('gives each request its own deadline, so a redirect chain cannot inherit a spent one', async () => {
+    const { transport, calls } = recorder()
+    await scraperFetch('https://mychart.example.org/Home', {}, { transport })
+    await scraperFetch('https://mychart.example.org/Clinical/labs', {}, { transport })
+
+    expect(calls[0]!.init.signal).not.toBe(calls[1]!.init.signal)
   })
 })

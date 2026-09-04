@@ -22,7 +22,7 @@
 
 import type { CookieJar } from 'tough-cookie';
 import { cookieHeaderFor, storeSetCookies } from './cookies';
-import { hostKeyForUrl, withHostLimit } from '../shared/hostConcurrency';
+import { withHostLimit } from '../shared/hostConcurrency';
 
 /**
  * Pretend to be Google Chrome on macOS. Sent on every request; a call site that
@@ -133,54 +133,6 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
 export const platformFetch: Transport = (url, init) => resolveTransport(undefined, null)(url, init);
 
 /**
- * How long any one request may take before we stop waiting for it.
- *
- * A host that accepts the connection and then never answers would otherwise
- * hang the scrape forever while holding one of that host's ten permits, so a
- * few of them starve every other category on the same instance. Two minutes is
- * past anything MyChart legitimately does and far short of "forever".
- */
-const REQUEST_TIMEOUT_MS = 120_000;
-
-/** Shortened by tests so they don't wait two minutes. Production never sets it. */
-let testTimeoutMs: number | null = null;
-
-/** See {@link testTimeoutMs}. Tests only; pass null to restore the real deadline. */
-export function setTestRequestTimeout(ms: number | null): void {
-  testTimeoutMs = ms;
-}
-
-/**
- * Give up on a request that never answers.
- *
- * A race against a timer rather than an `AbortSignal`: the transports
- * underneath (`globalThis.fetch`, `expo/fetch`, a scripted test function) don't
- * honor a signal alike. The cost is that only *we* abandon the request — the
- * socket stays open until the runtime gives up on it. What matters is what gets
- * freed: the caller stops waiting, and because the race is what `withHostLimit`
- * is holding, the throw runs its `finally` and hands the permit to the next
- * request in the queue. A hung host costs one category, not the whole scrape.
- */
-function withRequestTimeout(pending: Promise<Response>, url: string): Promise<Response> {
-  const ms = testTimeoutMs ?? REQUEST_TIMEOUT_MS;
-
-  // Nobody is left holding `pending` once the deadline wins, so a late
-  // rejection from it would be an unhandled one. Claim it here.
-  pending.catch(() => {});
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    // The host, never the path — request URLs carry record and patient ids.
-    timer = setTimeout(
-      () => reject(new Error(`Request to ${hostKeyForUrl(url)} timed out after ${ms}ms`)),
-      ms,
-    );
-  });
-
-  return Promise.race([pending, deadline]).finally(() => clearTimeout(timer));
-}
-
-/**
  * `RequestInit` with headers narrowed to a plain object.
  *
  * `Omit` rather than an intersection with `RequestInit`, and that is
@@ -241,11 +193,24 @@ export async function scraperFetch(
     if (cookie) headers['Cookie'] = cookie;
   }
 
-  // One deadline per network call, so a redirect chain gets a fresh one per
-  // hop — the same shape as the permit.
-  const response = await withHostLimit(url, () =>
-    withRequestTimeout(transport(url, { ...init, headers }), url),
-  );
+  // Two minutes, then give up. A host that accepts the connection and never
+  // answers would otherwise hang the scrape forever while holding one of that
+  // host's ten permits, so a few of them starve every other category on it.
+  // `AbortSignal.timeout` would be the one-liner, but React Native's polyfill
+  // (`abort-controller`) doesn't have that static — AbortController it does
+  // have. One deadline per network call, so a redirect chain gets a fresh one
+  // per hop, the same shape as the permit.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 120_000);
+
+  let response: Response;
+  try {
+    response = await withHostLimit(url, () =>
+      transport(url, { ...init, headers, signal: abort.signal }),
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (cookieJar) {
     await storeSetCookies(cookieJar, url, response);

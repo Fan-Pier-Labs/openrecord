@@ -210,7 +210,7 @@ else to make one from.** It owns the four things every outbound request needs, n
 survives being reimplemented at a call site: the Chrome header block (MyChart and the eUnity image
 servers answer a browser, not a bare `fetch`), the cookie jar wiring (load-balancer and bot-check
 cookies get set mid-redirect-chain and are expected back on the next hop), the per-host permit, and
-the two-minute deadline.
+the two-minute abort signal.
 
 `MyChartRequest.makeRequest` builds MyChart URLs and follows redirects on top of it; the eUnity
 imaging scraper calls it directly with its own jar; the directory script does too. A second raw-fetch
@@ -248,13 +248,11 @@ anything that wraps it must call `platformFetch`, not the old value — see
 
 ### The deadline
 
-Every request gives up after **two minutes** and throws. It is a race against a timer, not an
-`AbortSignal` — the transports underneath don't honor a signal alike. Only *we* abandon the request;
-the socket is left to the runtime. What matters is what gets freed: the caller stops waiting, and
-because the race is what `withHostLimit` is holding, the throw runs its `finally` and hands the
-permit to the next request in the queue. Without it a host that accepts the connection and never
-answers hangs the scrape forever *and* holds one of that host's ten permits, so a handful of hung
-requests starve every other category on the instance.
+Every request is sent with an abort signal that fires after **two minutes**. Without it a host that
+accepts the connection and never answers hangs the scrape forever *and* holds one of that host's ten
+permits, so a handful of hung requests starve every other category on the instance. It is built from
+`AbortController` rather than `AbortSignal.timeout`, because React Native's `AbortSignal` comes from
+the `abort-controller` package, which has the constructor but not that static.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
