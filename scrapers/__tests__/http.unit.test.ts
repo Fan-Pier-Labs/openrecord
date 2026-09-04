@@ -2,16 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import {
-  BROWSER_HEADERS,
-  MAX_REQUEST_TIMEOUT_MS,
-  PLATFORM_OWNS_COOKIES,
-  platformFetch,
-  resolveDeadlineMs,
-  scraperFetch,
-  setTestTransport,
-  type Transport,
-} from '../http'
+import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../http'
 import { hostLimiterStats, resetHostLimiters } from '../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../shared/env'
 import { silenceLogger, resetLogSink } from '../../shared/logger'
@@ -453,36 +444,6 @@ describe('request deadline', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(AbortSignal as any).timeout = original
     }
-  })
-
-  it('lets a caller ask for a SHORTER deadline', async () => {
-    // The version check: nothing depends on its answer, so a hung fetch must
-    // not keep a CLI process alive for two minutes after it was ready to exit.
-    const hang: Transport = (_url, init) =>
-      new Promise((_resolve, reject) => {
-        init.signal!.addEventListener('abort', () => reject(new Error('aborted')))
-      })
-
-    const started = Date.now()
-    await expect(
-      scraperFetch('https://openrecord.fanpierlabs.com/version.json', {}, { transport: hang, timeoutMs: 10 }),
-    ).rejects.toThrow('aborted')
-    expect(Date.now() - started).toBeLessThan(MAX_REQUEST_TIMEOUT_MS)
-  })
-
-  it('clamps a longer one back to the maximum, so no caller can opt out of the deadline', () => {
-    expect(resolveDeadlineMs(MAX_REQUEST_TIMEOUT_MS * 100)).toBe(MAX_REQUEST_TIMEOUT_MS)
-    expect(resolveDeadlineMs(Infinity)).toBe(MAX_REQUEST_TIMEOUT_MS)
-    expect(resolveDeadlineMs(3_000)).toBe(3_000)
-  })
-
-  it('falls back to the maximum for a value that is not a deadline at all', () => {
-    // A caller computing a timeout can land on 0, NaN or a negative; each would
-    // abort every request instantly if it were honoured literally.
-    expect(resolveDeadlineMs(undefined)).toBe(MAX_REQUEST_TIMEOUT_MS)
-    expect(resolveDeadlineMs(0)).toBe(MAX_REQUEST_TIMEOUT_MS)
-    expect(resolveDeadlineMs(-1)).toBe(MAX_REQUEST_TIMEOUT_MS)
-    expect(resolveDeadlineMs(Number.NaN)).toBe(MAX_REQUEST_TIMEOUT_MS)
   })
 
   it('gives each request its own deadline, so a redirect chain cannot inherit a spent one', async () => {

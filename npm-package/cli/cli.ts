@@ -685,9 +685,9 @@ async function main() {
     host: cliArgs.host || 'unknown',
   }, 'cli');
 
-  // Fire-and-forget update check — never blocks or breaks the CLI. It resolves
-  // to null when the site is unreachable or the answer is unparseable, and
-  // silence is the right output for "we don't know".
+  // Fire-and-forget update check — never blocks or breaks the CLI. Null when
+  // the site is unreachable, the answer is unparseable, or the user opted out
+  // of telemetry; silence is the right output for all three.
   void checkVersion({ currentVersion: CLI_VERSION, target: 'cli' }).then((check) => {
     if (check?.updateAvailable) console.warn(`\n  ${formatUpdateNotice(check)}\n`);
   });

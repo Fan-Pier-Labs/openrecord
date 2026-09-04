@@ -1,28 +1,23 @@
 /**
- * Generates `version.json` — the file this site publishes at
- * https://openrecord.fanpierlabs.com/version.json so a client already in
- * someone's hands can find out whether it is behind.
- *
- * Run it by hand, or let `deploy.sh` run it (it does, immediately before
- * upload, so a deploy cannot ship a stale manifest):
+ * Generates `mcpb_version.json`, which this site publishes at
+ * https://openrecord.fanpierlabs.com/mcpb_version.json for already-installed
+ * clients to check themselves against.
  *
  *     bun run version:manifest        # from the repo root
  *
- * The versions are not typed in here — they are read out of each package's
- * `package.json`, which is the thing that actually ships. A hand-maintained
- * number here would be a second source of truth, and the failure mode is
- * silent: every client is told it is out of date, or none is told it is.
+ * `deploy.sh` runs it immediately before upload, so a deploy cannot ship a
+ * stale manifest. The versions are read out of each package rather than typed
+ * here: a second copy would drift, and the failure is silent either way — every
+ * client told it is out of date, or none told it is.
  *
- * The output is deterministic (no timestamp, sorted keys), so the committed
- * file and a fresh regeneration are byte-identical. `__tests__/version.unit.test.ts`
- * relies on that to fail the build when a package version is bumped and the
- * manifest isn't regenerated.
+ * The output is deterministic, so `__tests__/version.unit.test.ts` can diff the
+ * committed file against a fresh generation and fail the build when a version
+ * bump forgets to regenerate it.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  VERSION_MANIFEST_SCHEMA,
   VERSION_TARGETS,
   type VersionManifest,
   type VersionTarget,
@@ -30,28 +25,28 @@ import {
 
 const REPO_ROOT = join(import.meta.dir, '..');
 
-export const VERSION_MANIFEST_PATH = join(import.meta.dir, 'version.json');
+export const VERSION_MANIFEST_PATH = join(import.meta.dir, 'mcpb_version.json');
 
 /** Which `package.json` states the shipping version of each target. */
 const VERSION_SOURCES: Record<VersionTarget, string> = {
   scrapers: 'scrapers/package.json',
   cli: 'npm-package/package.json',
-  // The extension's manifest.json and package.json are kept in lockstep by its
-  // own pack script; manifest.json is the one Claude Desktop reads.
+  // manifest.json, not package.json: it is the one Claude Desktop reads.
+  // Nothing enforces that the two agree, so the test asserts it.
   mcpb: 'claude-desktop-extension/manifest.json',
   app: 'expo-app/package.json',
 };
 
 /**
  * Where someone on an old version goes. In the manifest rather than compiled
- * into each client on purpose: the App Store URL doesn't exist yet, and when it
- * does, every already-installed client should start pointing at it without
- * needing the update it is telling people about.
+ * into each client: the App Store URL doesn't exist yet, and when it does, every
+ * already-installed client should start pointing at it without needing the
+ * update it is telling people about. The .mcpb is downloaded from this site.
  */
 const UPDATE_URLS: Record<VersionTarget, string> = {
   scrapers: 'https://github.com/Fan-Pier-Labs/openrecord/releases/latest',
   cli: 'https://www.npmjs.com/package/mychart-cli',
-  mcpb: 'https://github.com/Fan-Pier-Labs/openrecord/releases/latest',
+  mcpb: 'https://openrecord.fanpierlabs.com/',
   app: 'https://openrecord.fanpierlabs.com/',
 };
 
@@ -69,10 +64,10 @@ export function buildVersionManifest(): VersionManifest {
   for (const target of VERSION_TARGETS) {
     versions[target] = readVersion(VERSION_SOURCES[target]);
   }
-  return { schema: VERSION_MANIFEST_SCHEMA, versions, updateUrls: { ...UPDATE_URLS } };
+  return { versions, updateUrls: { ...UPDATE_URLS } };
 }
 
-/** The exact bytes of `version.json`, so callers can compare without writing. */
+/** The exact bytes of the file, so callers can compare without writing. */
 export function renderVersionManifest(): string {
   return `${JSON.stringify(buildVersionManifest(), null, 2)}\n`;
 }

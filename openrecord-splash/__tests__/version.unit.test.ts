@@ -1,15 +1,8 @@
 /**
- * `version.json` is the file every shipped client reads to find out it is
- * behind, and both of its failure modes are silent.
- *
- * If it is stale, everyone is told they are up to date forever. If it is
- * malformed, every client's parser rejects it and the check goes quiet — which
- * looks exactly the same as "no update available". Neither shows up on the
- * site, so neither shows up in a browser check before a deploy.
- *
- * So: the committed file is compared against a fresh generation (a version bump
- * that forgets to regenerate fails the build), and it is validated with the
- * *reader's own* parser rather than a restatement of the rules here.
+ * `mcpb_version.json` is what every shipped client reads to find out it is
+ * behind, and both of its failure modes are silent: stale tells everyone they
+ * are current forever, malformed is rejected by every client's parser and looks
+ * exactly like "no update available". Neither is visible on the site.
  */
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -30,7 +23,7 @@ const SPLASH_DIR = join(import.meta.dir, "..");
 const deployScript = readFileSync(join(SPLASH_DIR, "deploy.sh"), "utf8");
 const committed = readFileSync(VERSION_MANIFEST_PATH, "utf8");
 
-describe("version.json", () => {
+describe("mcpb_version.json", () => {
   test("matches a fresh generation — regenerate it in the same PR as a version bump", () => {
     // `bun run version:manifest`
     expect(committed).toBe(renderVersionManifest());
@@ -44,6 +37,18 @@ describe("version.json", () => {
 
   test("is what the client-side parser accepts", () => {
     expect(parseVersionManifest(JSON.parse(committed))).not.toBeNull();
+  });
+
+  test("the extension's manifest.json and package.json agree", () => {
+    // The generator reads manifest.json, the file Claude Desktop reads. Nothing
+    // keeps the two in step, so a package.json-only bump would publish the old
+    // version to everyone.
+    const read = (relative: string) =>
+      (JSON.parse(readFileSync(join(SPLASH_DIR, "..", relative), "utf8")) as { version: string })
+        .version;
+    expect(read("claude-desktop-extension/manifest.json")).toBe(
+      read("claude-desktop-extension/package.json"),
+    );
   });
 
   test("states a real version for every target, none of them 0.0.0", () => {
@@ -70,7 +75,7 @@ describe("version.json", () => {
 
 describe("deploy ships it at the URL the clients poll", () => {
   test("the reader's URL is this site's own origin", () => {
-    expect(VERSION_MANIFEST_URL).toBe("https://openrecord.fanpierlabs.com/version.json");
+    expect(VERSION_MANIFEST_URL).toBe("https://openrecord.fanpierlabs.com/mcpb_version.json");
   });
 
   test("regenerates before uploading, so a deploy cannot ship a stale manifest", () => {
@@ -78,15 +83,15 @@ describe("deploy ships it at the URL the clients poll", () => {
   });
 
   test("uploads it to the bucket root", () => {
-    expect(deployScript).toMatch(/upload_built .*version\.json" "version\.json"/);
+    expect(deployScript).toMatch(/upload_built .*mcpb_version\.json" "mcpb_version\.json"/);
   });
 
   test("invalidates it — a day-long cache would hide a release", () => {
-    expect(deployScript).toContain('"/version.json"');
+    expect(deployScript).toContain('"/mcpb_version.json"');
   });
 
   test("gives it a short TTL, not the checked-in-asset one", () => {
-    const line = deployScript.split("\n").find((l) => l.includes('"version.json"'));
+    const line = deployScript.split("\n").find((l) => l.includes('"mcpb_version.json"'));
     expect(line).toContain("max-age=300");
   });
 });
