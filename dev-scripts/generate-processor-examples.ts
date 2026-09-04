@@ -11,8 +11,12 @@
  *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.
+ *
+ * The clock is pinned, so running this on any day, anywhere, writes the same
+ * bytes.
  */
 
+import { setSystemTime } from 'bun:test';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -22,6 +26,19 @@ import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/pr
 import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
+
+// Everything below is committed, so it must not depend on when or where it runs.
+// The scrapers date-stamp some of their requests from the system clock, in local
+// time — vitals' `endInstantIso`, and past-visits' `oldestRenderedDate`, which is
+// also the cutoff deciding how far back the pagination walks, so the calendar
+// changed which visits the doc contained and not merely how a URL read. Freeze
+// both the instant and the zone, before any scraper runs.
+//
+// The instant sits after the newest past-visit fixture (2026-01-10) and every
+// vitals reading, and before the earliest upcoming visit (2026-04-08), so "past"
+// and "upcoming" in the examples still mean what they say.
+process.env.TZ = 'UTC';
+setSystemTime(new Date('2026-02-01T00:00:00Z'));
 
 /** Above this, a raw or json example is cut and the cut is said out loud. */
 const MAX_EXAMPLE_CHARS = 12_000;
@@ -84,23 +101,15 @@ function renderExample(payload: unknown): string {
 }
 
 /**
- * Three things in the raw records change on their own, none of them the
- * processors' doing: the per-session CSRF token the fake mints, the now-based
- * `oldestRenderedDate` the visits scraper puts in its query, and the
- * end-of-day-tomorrow instant vitals starts its paging from. Pin all three to
- * same-length constants so the doc only changes when the output does (CI
- * regenerates it and fails on a diff). Same length keeps the sizes table
- * honest.
+ * One thing in the raw records still changes on every run, and it is the fake's
+ * doing rather than the processors': the per-session CSRF token it mints. Pin it
+ * to a same-length constant so the doc only changes when the output does (CI
+ * regenerates it and fails on a diff). Same length keeps the sizes table honest.
+ * The clock-derived values in those records need no such patching: the frozen
+ * clock above makes them deterministic at the source.
  */
 function stable(doc: string): string {
-  return doc
-    .replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`)
-    .replace(/oldestRenderedDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, 'oldestRenderedDate=2024-01-01T00:00:00.000Z')
-    // Vitals pages back from end-of-day tomorrow, so its first request body
-    // carried whatever day the doc was generated on and this check went red
-    // for everyone the next day. Only that first one is clock-derived: later
-    // pages walk back from a reading instant, so pin `T23:59:59` alone.
-    .replace(/"endInstantIso": "\d{4}-\d{2}-\d{2}T23:59:59"/g, '"endInstantIso": "2024-01-02T23:59:59"');
+  return doc.replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`);
 }
 
 function sizeOf(payload: unknown): number {
@@ -150,11 +159,10 @@ async function main(): Promise<void> {
     '[`processor-layer-proposal.md`](processor-layer-proposal.md).',
     '',
     `Every read capability this server can answer, in all four modes. Raw and JSON examples longer`,
-    `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token and the`,
-    'now-based `oldestRenderedDate` and vitals `endInstantIso` request values are pinned so the doc',
-    'only changes when the output does. The `public` capabilities are absent: they read CMS\'s NPI',
-    'Registry rather than a MyChart, so this script has nothing to run them against — see',
-    '[`scrapers/npi/README.md`](../scrapers/npi/README.md).',
+    `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token is`,
+    'pinned and the script runs on a frozen clock, so the doc only changes when the output does.',
+    'The `public` capabilities are absent: they read CMS\'s NPI Registry rather than a MyChart,',
+    'so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).',
     '',
     '## Sizes (characters)',
     '',
