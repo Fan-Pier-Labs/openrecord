@@ -1033,9 +1033,7 @@ async function downloadImage(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
     body,
-    // Tighter than the default: a stalled tile blocks every later level of the
-    // same series, and there are hundreds of them in a study.
-  }, { cookieJar, timeoutMs: 30_000 });
+  }, { cookieJar });
 
   if (!res.ok) {
     throw new Error(`CustomImageServlet failed: ${res.status} ${res.statusText}`);

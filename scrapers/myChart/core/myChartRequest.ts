@@ -234,8 +234,6 @@ export class MyChartRequest {
       // caller — see PLATFORM_OWNS_COOKIES.
       cookieJar: PLATFORM_OWNS_COOKIES ? null : this.cookieJar,
       transport: this.transport ?? undefined,
-      // Undefined leaves scraperFetch on the default deadline.
-      timeoutMs: config.timeoutMs,
     })
     // Log each request and its status code.
     logger.debug(response.status, url)
