@@ -34,14 +34,10 @@ empty here exactly as the standalone page sends them.
   ```
 
   `$$WP.Insurance.CoveragesController` (in `bundles/insurance-controllers`) fills it over
-  AJAX. The scraper used to parse `.coverage-card` / `.plan-name` / `.member-id` — selectors
-  that **exist nowhere in Epic's markup**; they had been written against fake-mychart. So
-  the capability returned an empty list from every real instance, whatever the patient's
-  coverage was, and passed its tests doing it
-  ([#409](https://github.com/Fan-Pier-Labs/openrecord/pull/409), split from
-  [#405](https://github.com/Fan-Pier-Labs/openrecord/pull/405)). The page is still fetched,
-  for its token, and is recorded as `purpose: 'token'` so `raw` unwraps to the payload
-  rather than to a page of markup.
+  AJAX. There is nothing on the page to scrape — no `.coverage-card`, `.plan-name` or
+  `.member-id` selector exists anywhere in Epic's markup — so the page is fetched only for
+  its token, and recorded as `purpose: 'token'` so `raw` unwraps to the payload rather than
+  to a page of markup ([#409](https://github.com/Fan-Pier-Labs/openrecord/pull/409)).
 - **The five buckets stay apart.** `ActiveCoverages`, `CoveragesPendingSubmission`,
   `CoveragesPendingDeletion`, `CoveragesInReview`, `CoveragesInVerification` — flattening
   them is how a card that is still being verified reads as billable today. `concise`

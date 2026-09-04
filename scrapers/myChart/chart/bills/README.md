@@ -55,9 +55,8 @@ Every URL carries `noCache=<random>`.
   merged with `IsDetailBill` telling them apart. `bills.ts` also carries statement-PDF
   download helpers (`getEncBillingId`, `saveStatementPdf`, `getBillingStatementPDFs`) which
   are **not** part of the read capability and are called directly.
-- Procedure descriptions arrive with markup in them
-  (`<span class='subtlecolor'>`), which used to reach the UI verbatim
-  ([#88](https://github.com/Fan-Pier-Labs/openrecord/pull/88)).
+- **Procedure descriptions arrive with markup inside them** (`<span class='subtlecolor'>`),
+  so they need the same text conversion any other MyChart prose field does.
 
 ## Modes: what each mode carries
 

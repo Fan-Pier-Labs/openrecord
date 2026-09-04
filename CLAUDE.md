@@ -181,8 +181,9 @@ adding, editing, *and deleting* — a PR that only ever appends is how it got ou
 ## Memory
 
 Persistent memory lives in markdown at `claude-memory/` (this replaces the built-in auto-memory,
-which is disabled here). Read `claude-memory/MEMORY.md` at the start of a conversation; keep it
-concise and put detail in topic files it references.
+which is disabled here). Read `claude-memory/MEMORY.md` at the start of a conversation. It holds
+repo-level entries only — **anything about one scraper belongs in that scraper's README**, not in
+a memory topic file.
 
 - **Save**: stable patterns confirmed across interactions, architectural decisions, user workflow
   preferences, solutions to recurring problems.

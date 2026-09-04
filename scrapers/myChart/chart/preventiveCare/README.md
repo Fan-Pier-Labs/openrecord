@@ -21,29 +21,19 @@ the mode table is marked derived.
 
 ## Notes and research
 
-- **Parse rows, not text.** The original parser flattened the page with `$('body').text()`
-  and paired adjacent lines. Block-level elements contribute no whitespace to `.text()`, so
-  the whole results table collapsed onto one line, the page heading matched
-  `/Overdue since (.+)/`, and the capability emitted a **synthetic first record** whose date
-  fields were three unrelated screenings run together
-  ([#374](https://github.com/Fan-Pier-Labs/openrecord/pull/374)):
-
-  ```json
-  { "name": "Preventive Care", "status": "completed",
-    "overdueSince": "01/01/2024Influenza VaccineDueNot due until 10/01/2026Lipid Panel…" }
-  ```
-
-  One `<tr>` is now one screening, and a row with no status anywhere is skipped — which also
-  keeps unrelated tables on the page out of the results.
-- **The text fallback still exists**, for instances that render advisories as flowing text
-  rather than a table. It inserts newlines at block boundaries before splitting, and rejects
-  column headers, status badges, `Previously done:` lines and bare dates as screening names,
-  so it cannot invent a record out of page chrome either.
+- **Parse rows, not flattened text.** One `<tr>` is one screening. **Block-level elements
+  contribute no whitespace to cheerio's `.text()`**, so flattening the page runs the whole
+  table onto one line and any line-pairing heuristic then reads page chrome as a record. A
+  row with no status anywhere is skipped, which keeps unrelated tables out of the results.
+- **A text fallback handles instances that render advisories as flowing text** rather than
+  a table. It inserts newlines at block boundaries before splitting, and rejects column
+  headers, status badges, `Previously done:` lines and bare dates as screening names, so it
+  cannot invent a record out of page chrome either.
 - `pageText` is the parser's audit trail. The parser is heuristic; when a row comes back
   `unknown`, `pageText` is what lets a caller see what it was looking at.
-- fake-mychart used to carry a hidden newline-separated `healthAdvisories` div "for scraper
-  compat". It was an accommodation for the broken parser, not something real MyChart emits,
-  and it is gone — the visible table is the contract.
+- **The visible table is the contract.** fake-mychart serves no hidden
+  scraper-convenience markup, so a parser that only works against a flattened-text shortcut
+  fails there rather than in production.
 
 ## Modes: what each mode carries
 

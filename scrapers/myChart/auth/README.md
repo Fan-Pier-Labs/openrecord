@@ -84,48 +84,47 @@ The rule is: **the prefix is whatever precedes MyChart's own login route.**
 
 `null` means *no prefix at all*, not even the separating slash.
 
-### What the 750-host sweep found
+### The shapes discovery has to handle
 
-Discovery was run against **every one of the ~750 unique hostnames** in the instance
-directory, and each result checked by fetching `<mount>/Authentication/Login` and confirming
-a real login page came back
-([#215](https://github.com/Fan-Pier-Labs/openrecord/pull/215)). 48 hosts resolved to a
-prefix that served nothing. The causes:
+Measured across **every one of the ~750 unique hostnames** in the instance directory, each
+candidate mount checked by fetching `<mount>/Authentication/Login` and confirming a real
+login page came back ([#215](https://github.com/Fan-Pier-Labs/openrecord/pull/215)). Reading
+one hop of the root redirect places about 48 of them wrong, because these are all real:
 
-1. **The chain was abandoned after one hop** (23 hosts). MyChart's canonical bounce is
-   four hops and only the last names the mount:
+1. **The bounce is four hops, and only the last one names the mount** (23 hosts):
    `/` → `/MyChart/` → `DefaultAsp` (relative, no leading slash) → `/MyChart/Authentication/Login?`.
-   A root-mounted instance's first hop is the bare `DefaultAsp`, so those hosts were pinned
-   to `firstPathPart = "DefaultAsp"` and 404'd everything after login.
-2. **Portals that moved hosts were treated as marketing pages** (~20 hosts). Even a
-   bare-domain → `www` redirect counted as "cross-domain".
-3. **Landing pages were only mined for links after a cross-domain redirect**, so an
-   affiliate chooser served straight from the host was never read even when it links at the
-   mount.
-4. **Scripted redirects were not handled** — `<script>window.location="…/MyDovetale/"</script>`.
+   A root-mounted instance's first hop is the bare `DefaultAsp` — a plausible-looking prefix
+   that 404s everything after login.
+2. **The portal has moved to another host** (~20 hosts): `patients.mycslink.org` →
+   `mycslink.cedars-sinai.org/mycslink`, `login.wellspan.org` → `my.wellspan.org/mywellspan`.
+   A bare-domain → `www` redirect is this shape too.
+3. **The host serves a landing or affiliate-chooser page** that names the mount only in its
+   own HTML links, with no redirect to follow.
+4. **The redirect is scripted**, not a header:
+   `<script>window.location="…/MyDovetale/"</script>`.
 
-Discovery now walks the chain to the end the way a browser does — Location headers, meta
+So discovery walks the chain to the end the way a browser does — Location headers, meta
 refreshes and scripted redirects, on or off the original host. **Nothing is trusted on
 sight**: a prefix proven by the chain landing on it is accepted, but a scraped link or a
 redirected-to host must serve a real login page first. Only the *host* is ever adopted from
 the chain, never the scheme, so a session that starts on HTTPS stays there.
 
-Result: **625 → 682 of 750 hosts** resolving to a working login page, wrong prefixes 48 → 6,
-hangs 23 → 0. The remaining six answer their root with a bot-block or a stub that names no
-mount. Separately, ~20 hosts sit behind a custom or SSO front end (Okta, IBM ISAM, VA,
-Kaiser) which the scraper cannot log into at all, by design.
+**682 of 750 hosts** resolve to a working login page. Six do not, and cannot: they answer
+their root with a bot-block or with a stub that names no mount, so there is nothing in the
+response to read. Separately, ~20 hosts sit behind a custom or SSO front end (Okta, IBM
+ISAM, VA, Kaiser) that the scraper cannot log into at all, by design — those are not
+discovery failures.
 
-Two bugs fell out of the same sweep: `makeRequest` had **no redirect cap** (one host answers
-`/CRH/` with a 301 to `/CRH/`, which recursed until the stack gave out) and silently dropped
-303/307/308. Both fixed; the cap is now 20, matching browsers.
+The same sweep is why [`../core/`](../core/) caps redirects at 20 and follows 303/307/308:
+one host answers `/CRH/` with a 301 to `/CRH/`.
 
-The root-mount case was found separately, on Cleveland Clinic
-([#205](https://github.com/Fan-Pier-Labs/openrecord/pull/205)): its root redirect is
-`Location: ./Authentication/Login?`, whose first path segment is `Authentication`, so the
-prefix got prepended to paths that already began with it
-(`/Authentication/Authentication/Login/DoLogin` → 404 → `/Home/FourOhFour` →
-`/Home/Error?code=14`). fake-mychart models **both** deployment shapes and CI runs one of
-each, because the bug survived only because the fake modelled prefixed instances alone.
+**A root-mounted instance's redirect looks like a prefix and is not.** Cleveland Clinic
+answers its root with `Location: ./Authentication/Login?`, whose first path segment is
+`Authentication` — read as a prefix, that doubles into
+`/Authentication/Authentication/Login/DoLogin`. This is why the rule is "whatever precedes
+the login route" rather than "the first path segment", and why fake-mychart models **both**
+deployment shapes with CI running one of each: a fake that only serves prefixed instances
+cannot catch it.
 
 [`blockedInstances.ts`](blockedInstances.ts) is a small denylist of hosts that are known
 not to work, so a user cannot add one. It currently holds `central.mychart.org` (and its

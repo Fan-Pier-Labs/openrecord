@@ -31,11 +31,9 @@ The patient's allergy list, plus the review status that says whether an empty li
 - `allergiesStatus` is the field that earns its place: an empty list with an
   unreviewed status is not the same claim as an empty list with a reviewed one, and that
   distinction is the whole value of the field.
-- A 500 here used to become "no allergies on file" — `rec(html)` → `{}` → `[]`. Since
-  [#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406) `RawCollector.send` throws a
-  typed `MyChartResponseError` on a failed answer, in every mode, so it cannot.
-  `get_allergies` is one of the three capabilities `serverErrors.integration.test.ts` pins
-  that behaviour on.
+- `get_allergies` is one of the three capabilities `serverErrors.integration.test.ts` uses
+  to pin that a failed answer throws in every output mode rather than rendering as "no
+  allergies on file" — see [`../../core/`](../../core/).
 
 ## Modes: what each mode carries
 

@@ -27,11 +27,10 @@ lower-case `__requestverificationtoken` header.
 - **`oldestRenderedDate` is not a server-side filter.** `LoadPast` paginates: **10 visits
   per organization per page**, newest first, with `HasMoreData` per organization and an
   opaque top-level `SerializedIndex` continuation token that must be echoed back to get the
-  next 10. The scraper issued a single request and silently dropped both, so
-  `get_past_visits` only ever returned the **10 most recent visits** however far back
-  `years_back` asked ([#189](https://github.com/Fan-Pier-Labs/openrecord/issues/189), fixed
-  in [#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190): 50–56 visits across the
-  requested window against a real account, versus 10).
+  next 10. A single request answers with the 10 most recent visits and looks exactly like a
+  complete history, however far back `years_back` asked; walking the cursor returns 50–56
+  visits over the same window on a real account
+  ([#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190)).
 - The paging loop stops when no organization reports `HasMoreData`, when every visit on the
   latest page predates the cutoff (results are newest→oldest), when the continuation token
   is missing or **stops advancing** (a stuck-cursor guard), or at `MAX_PAST_VISIT_PAGES`
@@ -39,10 +38,11 @@ lower-case `__requestverificationtoken` header.
   is the envelope of every page fetched, and the merge is the processor's.
 - **The visit object is ~159 fields, of which about five are load-bearing:** when, what,
   who, where, and the CSN. The rest is portal UI (`IsTransmitDirectEnabled`,
-  `GeolocationArrival`, `ShouldShowECheckInInGuideBanner`). 20 past visits came to ~220 KB,
-  which overflowed a model's context window outright; the condensed projection introduced in
-  [#377](https://github.com/Fan-Pier-Labs/openrecord/pull/377) cut fake-mychart's 22-visit
-  history from 234 KB to 6.5 KB, with `full_detail` as the escape hatch.
+  `GeolocationArrival`, `ShouldShowECheckInInGuideBanner`), and MyChart nests it two levels
+  deep under a `List` keyed by organization id. 20 past visits is ~220 KB — enough to
+  overflow the context window the answer has to live in — so the model-facing clients get a
+  condensed projection (22 visits: 234 KB → 6.5 KB) with `full_detail` as the escape hatch
+  ([#377](https://github.com/Fan-Pier-Labs/openrecord/pull/377)).
 - **`Csn` can be blank on some rows**; `CsnForECheckIn` is the fallback. Losing the CSN
   makes a visit's notes unreachable, so both are carried.
 - **`IsPastVisit` is always wrong** — `false` on rows `LoadPast` itself returned. The

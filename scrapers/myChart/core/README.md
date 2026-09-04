@@ -122,10 +122,9 @@ matters for reading the response, status, content type, the parsed body, and opt
 ### A failed answer is thrown, in every mode
 
 `RawCollector.send` records the answer and then **throws a typed `MyChartResponseError`**
-when it was not the data. It used to record and leave it to the processor to notice, and
-**5 of 29 processors did** — for the other 24 a 500 became `rec(html)` → `{}` → `[]` → "no
-allergies on file". Because the throw happens in the scraper, `raw`, `json`, `standard` and
-`concise` all fail identically.
+when it was not the data. The throw happens in the scraper, so `raw`, `json`, `standard` and
+`concise` all fail identically — leaving it to each processor to notice is how a 500 becomes
+`rec(html)` → `{}` → `[]` → "no allergies on file" in whichever ones forget.
 
 What counts as a failed answer:
 

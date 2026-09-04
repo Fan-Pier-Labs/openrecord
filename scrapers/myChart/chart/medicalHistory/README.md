@@ -24,9 +24,9 @@ One request returns `medicalHistory`, `surgicalHistory`, `familyHistoryAndStatus
 - **This is history, not the problem list.** Active conditions are `get_health_issues`;
   what is here is what was true before. The two overlap by design in MyChart and are kept
   apart here.
-- **The social-history block used to be dropped whole.** Smoking status and alcohol use are
-  among the first questions in any clinical history, and the processor now carries them:
-  status in `concise`, the amounts and quit dates in `standard`.
+- **The social-history block is part of the answer**, not page furniture: smoking status
+  and alcohol use are among the first questions in any clinical history. Status is in
+  `concise`, the amounts and quit dates in `standard`.
 - Family history is per relative: `relationshipToPatientName` plus `conditions[]`, with
   `statusName` (living / deceased) and, in `standard`, the relative's age — age at diagnosis
   or death is what makes a family history clinically usable.

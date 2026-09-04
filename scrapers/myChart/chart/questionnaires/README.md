@@ -31,9 +31,9 @@ this scraper, and it is well evidenced:
   questionnaire and a context list, another with five optional ones — with known element
   keys. That is a fix waiting to be made, not a gap to document; it is filed as the next
   piece of work on this capability.
-- A related trap was closed on the way: the scraper used to read the **404 page's markup**
-  as an empty list. That page carries an antiforgery token, so the exchange looked
-  successful and the body was merely HTML.
+- **A 404 page here still carries an antiforgery token.** So a token fetch succeeding is
+  not evidence the activity exists, and a reader that trusts it parses an error page's
+  markup into an empty list.
 
 Until that fix lands, elements pass through whole — no capture pins the legacy element's
 shape, so narrowing it would mean inventing field names.

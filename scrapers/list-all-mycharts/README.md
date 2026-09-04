@@ -26,11 +26,10 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
 
 ## Notes and research
 
-- **The old scrape is dead, and reads as empty rather than failing.** The list used to be
-  inlined into `/LoginSignup` as `window.PageContext = { Directory: JSON.parse('…') }`.
-  mychart.org was rebuilt as a Next.js app and that page now ships **no organizations at
-  all** — the picker fetches `/cached-api/help/organizations/` client-side. Anything still
-  parsing the HTML is parsing a page that no longer holds the answer.
+- **`/LoginSignup` does not contain the list.** mychart.org is a Next.js app whose picker
+  fetches `/cached-api/help/organizations/` client-side; the page itself ships **no
+  organizations at all**, so the `window.PageContext = { Directory: … }` block it used to
+  inline is gone. Parsing the HTML gets an empty list, not an error.
 - The payload also carries `countryData` and `stateData` — name/alias/ZIP dictionaries that
   are together the large majority of its ~1.8 MB. Neither says anything about an instance,
   so neither is parsed or stored.
@@ -41,18 +40,14 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   generic MyChart logo.
 - **Every logo is on one host**, so `scraperFetch`'s per-host permit is what paces a bulk
   fetch — pulling all ~1,400 is 1,400 gated round trips. **Fetch the logos you are about to
-  show.** Nothing is mirrored: an earlier version copied them into a private S3 bucket no
-  client could read, since clients run on other people's machines with none of our
-  credentials, and every client was already loading them straight from Epic.
+  show.** Nothing is mirrored, and mirroring them would not help: clients run on other
+  people's machines with none of our credentials, so they load logos straight from Epic
+  either way.
 - **Live first, seed second.** A search fetches Epic's directory, caches it, and searches
   that — new health systems come online between releases, and a patient whose provider is
   missing from a months-old snapshot has no way to connect. When the fetch fails (offline,
   corporate proxy, Epic down) the checked-in `mychart-instances.json` answers instead, and
   the result says `source: 'bundled'` rather than pretending the live list was consulted.
-- The searching used to exist **twice** — the desktop extension shipped its own module over
-  the bundled seed, the mobile app had its own picker search — and neither was reachable
-  from the CLI or the library, so "find my health system" was something two clients could do
-  and two could not.
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
@@ -79,12 +74,12 @@ they share: argument parsing, a bounded worker pool, JSONL output and progress.
 bun scrapers/list-all-mycharts/probe-mount-discovery.ts
 ```
 
-Run the mount probe after touching discovery — it is what found the bugs described in
-[`../myChart/auth/README.md`](../myChart/auth/README.md), and it is the only way to know the
-long tail of deployment shapes still works.
+Run the mount probe after touching discovery. Deployment shapes vary far more than any
+fixture set captures — see [`../myChart/auth/`](../myChart/auth/) for what the sweep turned
+up — and this is the only way to know the long tail still works.
 
 The scheduling probe deliberately **does not** crawl a specialty: the question is who offers
 the workflow, not what is in it, and 750 hosts × 20 specialties would be tens of gigabytes.
 The slot probe calls the real `fetchOpenSlots`, so what it reports is what a library caller
-gets — the first implementation was verified on a single host and turned out not to be
-portable, with two of the next three instances refusing the same payload.
+gets — which matters because a payload verified on one host is not evidence of portability:
+two of the next three instances tried refused the same one.

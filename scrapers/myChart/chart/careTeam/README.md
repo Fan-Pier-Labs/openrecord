@@ -32,34 +32,29 @@ rather than as "no outside providers".
 
 ## Notes and research
 
-This capability has been **built, withdrawn and rebuilt**, and the reason is worth keeping.
+**Guessing this shape is not an option here.** A wrong guess does not fail visibly — it
+renders as *"you have no care team"*, and telling a patient they have no providers when they
+have several is the failure mode this codebase treats as unacceptable. So the contract below
+is a capture, verified against **two live instances, one on each Epic release we model**
+([#379](https://github.com/Fan-Pier-Labs/openrecord/pull/379)); envelope keys and all 23
+provider fields were identical on both.
 
-- The first implementation was guesses: three HTML container selectors and four name
-  selectors, six JSON wrapper keys and four spellings per field — and it read the
-  **message-recipients** endpoint as a stand-in for the care team. Nothing came from a
-  capture; fake-mychart had been written to match the guesses, so the tests proved only that
-  the code agreed with itself. [#312](https://github.com/Fan-Pier-Labs/openrecord/pull/312)
-  trimmed the invented field names; [#313](https://github.com/Fan-Pier-Labs/openrecord/pull/313)
-  withdrew the capability entirely and made it `comingSoon`.
-- Why so drastic: **a wrong guess here does not fail visibly. It renders as "you have no
-  care team."** Telling a patient they have no providers when they have several is the
-  failure mode this codebase treats as unacceptable.
-- [#379](https://github.com/Fan-Pier-Labs/openrecord/pull/379) rebuilt it against a real
-  capture and then verified that capture against **two live instances, one on each Epic
-  release we model**. Envelope keys and all 23 provider fields were identical on both.
-- Four things the live probe corrected, each now pinned by a test:
-  - **`AboutMeBlurb` is an array, not a string** (empty on every provider of both
-    instances, so its element shape is still unknown). Reading it as text would have
-    produced an empty string forever.
-  - **`CareTeamStatus` is a number**, not a string.
-  - **The antiforgery token is required on these legacy routes.** fake-mychart had been
-    enforcing it on `/api/*` only, so it was accepting a request real MyChart refuses.
-  - **`Relation` can be `null`** as well as `""`, for a provider with no stated role.
-- `Relation` is also where the **PCP designation** lives, and an entry there can be the
-  insurance payer rather than a clinician — which is why it is in `concise`.
-- **Never "you have no care team":** a non-2xx, a non-JSON body, or JSON with no
-  `ProvidersList` array all throw. Only an actual empty `ProvidersList` returns an empty
-  list.
+Four field facts that are not what they look like, each pinned by a test:
+
+- **`AboutMeBlurb` is an array, not a string.** It is empty on every provider of both
+  instances, so its element shape is unknown — reading it as text yields an empty string
+  forever, so the scraper does not surface it. `Organizations` and `SchedulableVisitTypes`
+  are `null` on both and are unsurfaced for the same reason.
+- **`CareTeamStatus` is a number**, not a string.
+- **`Relation` can be `null`** as well as `""`, for a provider with no stated role. It is
+  also where the **PCP designation** lives, and an entry there can be the insurance payer
+  rather than a clinician — which is why it is in `concise`.
+- **The antiforgery token is required on these legacy routes**, exactly as on `/api/*`. A
+  fake that gates only `/api/*` accepts a request real MyChart refuses.
+
+**Never "you have no care team":** a non-2xx, a non-JSON body, or JSON with no
+`ProvidersList` array all throw. Only an actual empty `ProvidersList` returns an empty
+list.
 
 ## Modes: what each mode carries
 

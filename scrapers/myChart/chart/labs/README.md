@@ -33,8 +33,8 @@ Downloading the pixels is [`../../eunity/`](../../eunity/); decoding them is
   costs nothing; **both** failing is the payload failing and throws
   ([#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406)). A rejected speculative
   probe is expected and is never an error.
-- **`maxResults` was 50**, which capped both `get_lab_results` and `get_imaging_results` at
-  50 records however many existed ([#207](https://github.com/Fan-Pier-Labs/openrecord/pull/207)).
+- **`maxResults` is a hard cap on how many orders come back**, so it is sent at 1000. There
+  is no "all", and a low value returns a short list that looks like a complete one.
 - **MyChart gives no abnormality verdict.** Checked across 175 components in 39 results on
   two real accounts, one per Epic release
   ([#375](https://github.com/Fan-Pier-Labs/openrecord/pull/375)):

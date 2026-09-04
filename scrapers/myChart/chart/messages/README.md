@@ -76,14 +76,14 @@ Ids throughout are Epic's `WP-`-prefixed opaque strings.
   this scraper asks for 100, bounded by `MAX_PAGES = 50`. `messages` come back ascending by
   `deliveryInstantISO`, and `hasMoreMessages` says whether older ones exist before
   `messages[0]`.
-- **The thread fields were invented once, and it showed as three empty messages.**
-  `get_message_thread` used to parse `messageId` / `senderName` / `sentDate` /
-  `messageBody` / `isFromPatient` — names no capture has ever shown, and `isFromPatient` is
-  a derived boolean no Epic API sends. It returned the right *number* of messages with every
-  field blank, which tells a caller they have three empty messages rather than that we could
-  not read them. Epic serializes a WPR message as `wmgId` / `body` / `deliveryInstantISO` /
-  `author.{displayName, empKey, wprKey}` wherever it appears
-  ([#384](https://github.com/Fan-Pier-Labs/openrecord/pull/384)).
+- **Epic serializes a WPR message the same way wherever it appears**: `wmgId` / `body` /
+  `deliveryInstantISO` / `author.{displayName, empKey, wprKey}`, in the thread endpoints and
+  in the conversation list alike, and that shape is held to a captured skeleton
+  ([#384](https://github.com/Fan-Pier-Labs/openrecord/pull/384)). There is no `messageId`,
+  `senderName`, `sentDate` or `messageBody`, and no API sends `isFromPatient` — a reader
+  keyed on those names returns the right *number* of messages with every field blank, which
+  tells a caller they have three empty messages rather than that the thread could not be
+  read.
 - **`isFromPatient` is derived from both sides of the author discriminator** — `wprKey` set
   *and* `empKey` empty — so an author object that cannot be read falls to "not from the
   patient" rather than mislabelling a provider's message as the patient's.
@@ -94,11 +94,11 @@ Ids throughout are Epic's `WP-`-prefixed opaque strings.
 - **Message bodies are Epic markup, not text.** A one-line message arrives as a
   `div.fmtConv` wrapper holding one `<div data-paragraph="N">` per paragraph, each with an
   inline-styled `<span>`, `&nbsp;` for a blank line and `\r\n` between blocks — roughly 200
-  bytes of markup around nine characters. It used to reach the model verbatim.
-  `messageBodyToText` converts once at the scraper boundary, keeping paragraph structure as
-  newlines, so no client ever holds the HTML — this is a health-data app where
-  `dangerouslySetInnerHTML` is banned outright
-  ([#386](https://github.com/Fan-Pier-Labs/openrecord/pull/386)).
+  bytes of markup around nine characters. `messageBodyToText` converts once at the scraper
+  boundary, keeping paragraph structure as newlines, so **no client ever holds the HTML** —
+  this is a health-data app where `dangerouslySetInnerHTML` is banned outright. A render
+  site that ever needs the markup gets its own explicitly-named field, the way visit notes
+  have `contentHtml` ([#386](https://github.com/Fan-Pier-Labs/openrecord/pull/386)).
 - **A send can silently do nothing.** Measured live: `SendMedicalAdviceRequest` answers
   **HTTP 200 with an empty conversation id and files nothing** for message bodies over 500
   characters — no error, no status code. `sendNewMessage` refuses an over-length body

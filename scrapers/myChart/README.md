@@ -68,6 +68,13 @@ data on file". The bundle is still downloadable, so the caller looks perfectly r
 [`../SCRAPING.md`](../SCRAPING.md), and
 [`chart/insurancePayers/`](chart/insurancePayers/) for the canonical case.
 
+## Not on this API
+
+- **`/api/FHIR/R4/metadata` is 404 on every mount.** Epic does expose FHIR, but its base
+  lives on a different host — it is not reachable by adding a path to a MyChart deployment,
+  and probing mounts for it finds nothing.
+- eUnity exposes no DICOMweb; see [`eunity/`](eunity/) for that list.
+
 ## Also here
 
 - [`NOT-SCRAPED.md`](NOT-SCRAPED.md) — MyChart features we have looked at and deliberately

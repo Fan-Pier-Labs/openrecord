@@ -19,36 +19,30 @@ or the patient records over time.
 
 ## Notes and research
 
-This scraper has been wrong in three different ways, each of which returned a plausible
-answer. They are worth reading before changing it.
+Three things about this API return a plausible-looking answer if you get them wrong, so
+they are worth knowing before changing anything here.
 
-- **1. It only called `GetFlowsheets`, whose `readings` array is always empty.**
-  That endpoint returns *definitions* only. The values come from `GetFlowsheetReadings`,
-  which was never called; the scraper also read a `flowsheetId` field that does not exist
-  (the id is `templateId`/`episodeId`), so even the metadata came back empty. Fixed in
-  [#207](https://github.com/Fan-Pier-Labs/openrecord/pull/207), which ported
-  [#201](https://github.com/Fan-Pier-Labs/openrecord/pull/201).
+- **`GetFlowsheets` never carries values.** Its top-level `readings` array is **always
+  empty**: it returns flowsheet *definitions* only, and the values come from the second
+  endpoint. The id field on a definition is `templateId` / `episodeId` — there is no
+  `flowsheetId`.
 
-- **2. Paging must not key off `hasMoreData`.** MyChart reports it **false while older
-  readings still exist**. The loop instead walks back from the oldest instant each page
-  returned and stops only when a request reaches no further back. Consecutive pages overlap
-  on the boundary instant, so readings are de-duplicated. Related:
-  **`numReadings` caps distinct reading *instants* (flowsheet columns), not individual
-  readings** — at 200 that silently truncated history to the most recent 200 instants,
-  about 693 readings across 7 vital types, which looked like plenty and hid the cap for
-  months. Now 1000, with a 100-page safety bound.
+- **`hasMoreData` cannot be used for paging: MyChart reports it `false` while older
+  readings still exist.** The loop instead walks back from the oldest instant each page
+  returned, and stops only when a request reaches no further back. Consecutive pages overlap
+  on the boundary instant, so readings are de-duplicated.
 
-- **3. `??` blanked every numeric reading.** The parser read
-  `r.stringValue ?? (r.numericValue != null ? String(r.numericValue) : '')`. `??` falls
-  through only on `null`/`undefined`, and Pulse and Weight arrive with the number in
-  `numericValue` and an **empty** `stringValue` — so the empty string won. Only Blood
-  Pressure, which fills `stringValue` with `"145/95"`, ever worked. The fix takes the first
-  field that actually holds something ([#370](https://github.com/Fan-Pier-Labs/openrecord/pull/370)).
-  Both tests missed it: the unit test's numeric reading had no `stringValue` key at all —
-  the one arrangement that never triggers the bug — and the integration test asserted only
-  `result.length > 0`, which stayed true the whole time every value was blank.
+- **`numReadings` caps distinct reading *instants* (flowsheet columns), not individual
+  readings.** At 200 that is roughly 693 readings across 7 vital types — enough to look
+  like a full history while silently truncating it. It is 1000 here, with a 100-page bound.
 
-- **`units` is still unverified.** `unitsDisplayName` appears in **no captured skeleton**:
+- **A reading's value is in one of two fields, and the other one is present but empty.**
+  Pulse and Weight carry the number in `numericValue` beside an **empty** `stringValue`;
+  Blood Pressure fills `stringValue` with `"145/95"`. Take the first field that actually
+  holds something — `stringValue ?? numericValue` reads the empty string as a value and
+  blanks every numeric vital ([#370](https://github.com/Fan-Pier-Labs/openrecord/pull/370)).
+
+- **`units` is unverified.** `unitsDisplayName` appears in **no captured skeleton**:
   `realShapes.ts`, generated from three real instances, records flowsheet rows as
   `{ id, name, rowType, valueType, decimalPlaces }`. The fixture's `'mmHg'`/`'lbs'` are
   curated, not observed, so if real rows carry no units field then every vital OpenRecord

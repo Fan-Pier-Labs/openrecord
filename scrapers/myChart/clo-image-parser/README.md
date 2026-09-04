@@ -14,9 +14,9 @@ reverse engineering.
 | **Getting the bytes** | [`../eunity/`](../eunity/) |
 
 **Decoding and encoding are two steps, on purpose.** `clo_to_bitmap.ts` produces a raw
-grayscale bitmap; `exporters/` turns a bitmap into JPEG, PNG, AVIF, TIFF or WebP. A single
-`convertCloToJpg` used to fuse them, which meant every new output format re-implemented the
-decode. `dev-scripts/clo-to-jpg.ts` is the terminal wrapper that wires both together.
+grayscale bitmap; `exporters/` turns a bitmap into JPEG, PNG, AVIF, TIFF or WebP. Fusing
+them into one `clo → jpg` call means every new output format re-implements the decode.
+`dev-scripts/clo-to-jpg.ts` is the terminal wrapper that wires both together.
 
 Pure TypeScript — `fzstd` and `zlib`, no `sharp` — so it runs on device in the Expo app as
 well as on a server.
@@ -56,21 +56,19 @@ annotation overlays — is in [`CLO-FORMAT.md`](CLO-FORMAT.md).
   eUnity viewer's own export.
 - **Windowing needs the modality LUT.** `windowCenter`/`windowWidth` in the wrapper are in
   **output** units (Hounsfield for CT); the reconstructed pixels are **stored** values.
-  Comparing them directly — and ignoring `rescaleSlope`/`rescaleIntercept`, which were
-  parsed but unused — clips everything above ~125 with a typical intercept of −1024: soft
-  tissue saturates to white and only air keeps any gradation. Apply
-  `stored × slope + intercept` per pixel *before* windowing. Wide windows (centre 350, width
-  2000) still looked plausible, which is why this hid for months. `parseWrapper` also
-  dropped negative window centres behind a `> 0` guard — report and scout frames commonly
-  use −512, and lung windows sit near −600.
+  Apply `stored × slope + intercept` — `rescaleSlope` / `rescaleIntercept` from the wrapper
+  — per pixel *before* windowing. Comparing the two directly clips everything above ~125
+  with a typical intercept of −1024: soft tissue saturates to white and only air keeps any
+  gradation. Wide windows (centre 350, width 2000) still look plausible either way, so this
+  is easy to miss. **Window centres are signed**: report and scout frames commonly use −512
+  and lung windows sit near −600, so a `> 0` guard drops real values.
 - **Slice order has to be reconstructed.** eUnity answers one image per (series, instance)
   pair and the downloader fetches them in parallel batches, so the arriving order is not even
   download order, let alone scan order. Each wrapper carries the DICOM patient position, so
   [`sortByPatientPosition.ts`](sortByPatientPosition.ts) picks the axis the series actually
   travels along and sorts by it. Below 0.1 mm of variation across a series the positions are
-  noise or absent, and the original order is kept. This used to live in the CLI's own
-  `get-imaging` handler, which made the CLI the only client whose CT stacks read
-  head-to-foot; it runs in the shared download path now.
+  noise or absent, and the original order is kept. It runs in the shared download path, so
+  every client gets a readable stack rather than whichever one re-implements it.
 - **Text annotations** from the wrapper ("R", "DML") are parsed but not rendered onto the
   image.
 

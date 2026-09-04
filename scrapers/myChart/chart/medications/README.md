@@ -1,7 +1,8 @@
 # `medications`
 
 The medication list — current prescriptions with directions, prescriber, refill state and
-pharmacy — and the (withdrawn-in-review) refill request.
+pharmacy — plus a refill request that ships but has never been verified against a real
+MyChart. See the warning below before using it.
 
 | | |
 | --- | --- |

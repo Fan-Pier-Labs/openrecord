@@ -105,10 +105,9 @@ carries `phone`, `email` and `faq` per organization.
 - **Mnemonic values are HTML** — usually a `tel:` anchor, sometimes a bare span for a vanity
   number ("800-4Sprng") with no `tel:` link at all — and the text ones are wrapped in
   `HTMLUnencode(...)`, so the JS string literal still holds entities. A regex finds the
-  machine-generated `addMnemonic` lines; **cheerio decodes the values**. Decoding entities by
-  hand is what this module used to do, and it got `&amp;lt;`, every named entity outside the
-  big six, and out-of-range numeric references wrong
-  ([#399](https://github.com/Fan-Pier-Labs/openrecord/pull/399)).
+  machine-generated `addMnemonic` lines; **cheerio decodes the values**. Hand-rolled entity
+  decoding gets `&amp;lt;`, every named entity outside the big six, and out-of-range numeric
+  references wrong ([#399](https://github.com/Fan-Pier-Labs/openrecord/pull/399)).
 - **The directory is the bookable list, not the medical staff**, once per specialty a
   provider is bookable under (they de-duplicate on the opaque WP-encoded provider id), and
   it carries **no NPI** — for that, see [`../../npi/`](../../npi/).

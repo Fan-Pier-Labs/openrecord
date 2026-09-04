@@ -86,9 +86,8 @@ surface as an error rather than as a plausible-but-wrong download request.
   that answer every pixel request with a ~226-byte `CLOERROR`, and some pairings from the
   positional parse are invalid and fail the same way. A study where *every* instance fails
   reports an error rather than a silent empty result.
-  An earlier `maxImages` budget sliced the first N entries, which on `SeriesSelector`-led
-  studies spent the whole budget on junk and returned **zero images with zero errors**. The
-  budget is gone.
+  **Do not cap by taking the first N instances:** on a `SeriesSelector`-led study the first
+  N are all junk, which returns zero images and zero errors.
 - **Slices come back in anatomical order.** Instances download in parallel batches, so raw
   completion order is meaningless. Every multi-slice series is re-sorted before returning:
   [`sortByPatientPosition.ts`](../clo-image-parser/sortByPatientPosition.ts) reads each CLO
@@ -97,8 +96,24 @@ surface as an error rather than as a plausible-but-wrong download request.
   every client and in the CLI's numbered filenames.
 - `CLOWRAPPER` returns metadata plus pixel data; `CLOPIXEL` returns progressive refinement
   levels for maximum quality.
-- **MRI works.** The CLI used to skip anything whose name contained "mri"; the pipeline is
-  modality-agnostic — X-ray, CT and MRI are all the same CLO format — and the skip is gone.
+- **The pipeline is modality-agnostic.** X-ray, CT and MRI are all the same CLO format;
+  nothing needs special-casing by modality or by study name.
+
+## Not exposed — dead ends already probed
+
+Don't spend a session rediscovering these:
+
+- **DICOMweb is not available.** `WADO-RS` (`/e/wado-rs/studies/…`) and `WADO-URI`
+  (`/e/wado?requestType=WADO&…`) both **404**. The proprietary AMF + `CustomImageServlet`
+  pair above is the only way in.
+- **`POST /e/audit` is logging.** It serves no images.
+- **There is no server-side JPEG endpoint.** The viewer's export is entirely client-side,
+  rendered by its WASM decoder onto a canvas.
+- **MyChart's own `imageStudies` array is `[]` even when images exist.** The viewer link
+  lives in the report HTML (`data-fdi-context`) or in `fdiLink.redirectUrl`, not in the API
+  JSON — which is why the FDI extraction in [`imagingViewer.ts`](imagingViewer.ts) exists.
+- **`CustomImageServlet` without the AMF init is a 403**, and **`image/CLJPEG` is a
+  `CLOERROR`** — both covered above.
 
 ## Response format
 
