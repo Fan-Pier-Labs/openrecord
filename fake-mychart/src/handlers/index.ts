@@ -37,7 +37,7 @@ import { healthIssuesGet, healthIssuesPost } from './healthIssues';
 import { healthSummaryPost } from './healthSummary';
 import { imagingPostPatterns } from './imaging';
 import { immunizationsGet, immunizationsPost } from './immunizations';
-import { insuranceGet } from './insurance';
+import { insuranceGet, insurancePost } from './insurance';
 import { insurancePayersGet, insurancePayersPost } from './insurancePayers';
 import { labsGet, labsPost } from './labs';
 import { lettersGet, lettersPost } from './letters';
@@ -119,6 +119,7 @@ export const POST_ROUTES: ExactRoutes = mergeExact(
   healthIssuesPost,
   healthSummaryPost,
   immunizationsPost,
+  insurancePost,
   insurancePayersPost,
   labsPost,
   lettersPost,

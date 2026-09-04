@@ -1,105 +1,219 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getInsurance, fetchInsuranceRaw, insuranceProcessor, parseInsuranceHtml } from '../insurance'
+import { COVERAGE_BUCKETS, GET_COVERAGES_PATH, fetchInsuranceRaw, getInsurance, insuranceProcessor } from '../insurance'
 import { MyChartRequest } from '../../../core/myChartRequest'
+import { MissingVerificationTokenError } from '../../../core/util'
 import { renderOutput } from '../../../processors/processor'
 
-function mockRequest(body: string) {
+const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="t" />'
+
+/** The token page, then whatever GetCoverages answers with. */
+function mockRequest(coverages: { body: string; status?: number; contentType?: string }) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
+  let i = 0
   req.transport = mock(async () => {
-    return new Response(body, { status: 200 })
+    if (i++ === 0) return new Response(TOKEN_PAGE, { status: 200 })
+    return new Response(coverages.body, {
+      status: coverages.status ?? 200,
+      headers: { 'content-type': coverages.contentType ?? 'application/json' },
+    })
   })
   return req
 }
 
-const ONE_COVERAGE = `
-  <html><body>
-    <h1>Insurance</h1>
-    <div class="coverage-card">
-      <h3>Blue Cross Blue Shield</h3>
-      <span class="subscriber-name">Alice Smith</span>
-      <span class="member-id">XYZ123456</span>
-      <span class="group-number">GRP001</span>
-      <div class="detail">Effective: 01/01/2024</div>
-      <div class="detail">Co-pay: $20</div>
-    </div>
-  </body></html>
-`
+/** The captured field set. Includes keys the interface does not name. */
+const ACTIVE = {
+  CoverageId: 'WP-1',
+  CoverageName: 'Springfield Mutual (PPO)',
+  Status: 0,
+  CoverageType: 1,
+  PayorId: '',
+  PayorName: 'Springfield Mutual Health',
+  PlanName: '',
+  SubscriberId: 'SUB-1',
+  SubscriberName: 'Alice Smith',
+  SubscriberIsSelf: true,
+  MemberId: 'XYZ123456',
+  MemberName: 'Alice Smith',
+  GroupNumber: 'GRP001',
+  Comments: '',
+  CvgCoveredStatus: 0,
+  CvgReason: 0,
+  FormattedEffectiveDate: '01/01/2026',
+  FormattedEndDate: '',
+  Future: false,
+  Termed: false,
+  SuspendedText: '',
+  // Keys the interface does not name. They must survive into the standard
+  // object: dropping a field for being empty on the captured accounts is what
+  // CLAUDE.md forbids, and `FrontDocument`/`BackDocument` are the card images.
+  Index: '',
+  PbiId: '',
+  CoverageFHIRId: 'cvg-fhir-1',
+  OrganizationId: '',
+  SubscriberDateOfBirth: null,
+  MemberDateOfBirth: null,
+  FrontDocument: null,
+  BackDocument: null,
+  PatientIsSubscriber: null,
+}
+
+const PENDING = { ...ACTIVE, CoverageId: 'WP-2', CoverageName: 'Dental', SubscriberIsSelf: false }
+
+function envelope(overrides: Record<string, unknown> = {}) {
+  return JSON.stringify({
+    ActiveCoverages: [ACTIVE],
+    CoveragesPendingSubmission: [PENDING],
+    CoveragesPendingDeletion: [],
+    CoveragesInReview: [],
+    CoveragesInVerification: [],
+    IsProxyContext: false,
+    Settings: { IsStandAlone: true, CanUpdate: true },
+    HasExistingCoveragesInRTE: false,
+    ...overrides,
+  })
+}
+
+describe('fetchInsuranceRaw', () => {
+  it('takes the token off /Insurance and form-posts GetCoverages', async () => {
+    const req = mockRequest({ body: envelope() })
+    const raw = await fetchInsuranceRaw(req)
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Insurance', GET_COVERAGES_PATH])
+    // The page is the token carrier, not a payload: `raw` mode must unwrap to
+    // the coverage JSON rather than to a page of markup.
+    expect(raw.requests[0]!.purpose).toBe('token')
+    expect(raw.requests[1]!.requestBody).toBe(
+      'isStandAlone=true&encounterCsn=&encounterDepartmentId=&encounterDTE=',
+    )
+    expect(renderOutput(insuranceProcessor, raw, 'raw')).toEqual(JSON.parse(envelope()))
+  })
+
+  it('throws when the page carries no antiforgery token', async () => {
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    req.transport = mock(async () => new Response('<html></html>', { status: 200 }))
+    await expect(fetchInsuranceRaw(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
+  })
+})
 
 describe('getInsurance', () => {
-  it('parses insurance coverages from structured HTML', async () => {
-    const result = await getInsurance(mockRequest(ONE_COVERAGE))
-    expect(result.hasCoverages).toBe(true)
-    expect(result.coverages).toHaveLength(1)
-    expect(result.coverages[0]).toEqual({
-      planName: 'Blue Cross Blue Shield',
-      subscriberName: 'Alice Smith',
-      memberId: 'XYZ123456',
-      groupNumber: 'GRP001',
-      details: ['Effective: 01/01/2024', 'Co-pay: $20'],
+  it('keeps the five workflow buckets apart and tags each coverage with its own', async () => {
+    const result = await getInsurance(mockRequest({ body: envelope() }))
+    expect(result.ActiveCoverages).toHaveLength(1)
+    expect(result.CoveragesPendingSubmission).toHaveLength(1)
+    expect(result.CoveragesPendingDeletion).toEqual([])
+    expect(result.hasNoCoverages).toBe(false)
+    expect(result.ActiveCoverages[0]).toEqual({
+      ...ACTIVE,
+      CoverageId: 'WP-1',
+      CoverageName: 'Springfield Mutual (PPO)',
+      PayorId: '',
+      PayorName: 'Springfield Mutual Health',
+      PlanName: '',
+      SubscriberId: 'SUB-1',
+      SubscriberName: 'Alice Smith',
+      SubscriberIsSelf: true,
+      MemberId: 'XYZ123456',
+      MemberName: 'Alice Smith',
+      GroupNumber: 'GRP001',
+      FormattedEffectiveDate: '01/01/2026',
+      FormattedEndDate: '',
+      Future: false,
+      Termed: false,
+      Comments: '',
+      SuspendedText: '',
+      Status: 0,
+      CoverageType: 1,
+      CvgCoveredStatus: 0,
+      CvgReason: 0,
+      bucket: 'ActiveCoverages',
     })
-    // The page itself is raw-only; nothing in the standard object is markup.
-    expect(JSON.stringify(result)).not.toContain('<')
+    expect(result.CoveragesPendingSubmission[0]!.bucket).toBe('CoveragesPendingSubmission')
+    expect(result.Settings).toEqual({ IsStandAlone: true, CanUpdate: true })
+    expect(result.IsProxyContext).toBe(false)
   })
 
-  it('records the page as the one raw request', async () => {
-    const raw = await fetchInsuranceRaw(mockRequest(ONE_COVERAGE))
-    expect(raw.requests).toHaveLength(1)
-    expect(raw.requests[0]).toMatchObject({ path: '/Insurance', method: 'GET', status: 200, body: ONE_COVERAGE })
-    expect(renderOutput(insuranceProcessor, raw, 'raw')).toBe(ONE_COVERAGE)
+  // CLAUDE.md: never rename a MyChart field or drop one for being empty. The
+  // captured accounts had no card image uploaded, which says nothing about
+  // whether the field is ever populated — and a caller that cannot reach the
+  // card image, the FHIR join key or a date of birth outside `raw` has had them
+  // dropped by us, not by MyChart.
+  it('keeps every key MyChart sent, including the ones the interface does not name', async () => {
+    const result = await getInsurance(mockRequest({ body: envelope() }))
+    const active = result.ActiveCoverages[0]!
+    for (const key of Object.keys(ACTIVE)) expect(active).toHaveProperty(key)
+    expect(active.CoverageFHIRId).toBe('cvg-fhir-1')
+    expect(active.FrontDocument).toBeNull()
+    expect(active.SubscriberDateOfBirth).toBeNull()
   })
 
-  it('parses multiple coverages', async () => {
-    const html = `
-      <div class="insurance-card"><h4>Medical Plan</h4></div>
-      <div class="insurance-card"><h4>Dental Plan</h4></div>
-    `
-    const result = await getInsurance(mockRequest(html))
-    expect(result.coverages).toHaveLength(2)
-    expect(result.coverages[0]!.planName).toBe('Medical Plan')
-    expect(result.coverages[1]!.planName).toBe('Dental Plan')
-    expect(result.coverages[0]).toMatchObject({ subscriberName: '', memberId: '', groupNumber: '', details: [] })
+  it('carries a key no capture has ever shown, rather than silently losing it', async () => {
+    const withNewField = JSON.stringify({
+      ActiveCoverages: [{ ...ACTIVE, SomeFieldEpicAddsLater: 'kept' }],
+      Settings: {},
+    })
+    const result = await getInsurance(mockRequest({ body: withNewField }))
+    expect(result.ActiveCoverages[0]!.SomeFieldEpicAddsLater).toBe('kept')
   })
 
-  it('reports hasCoverages=false when page says no coverages', async () => {
-    const html = '<html><body>You do not have any available coverages on file.</body></html>'
-    const result = await getInsurance(mockRequest(html))
-    expect(result).toEqual({ coverages: [], hasCoverages: false })
-  })
-
-  it('reports hasCoverages=true when page has no warning text', async () => {
-    const html = '<html><body><p>Insurance information</p></body></html>'
-    const result = await getInsurance(mockRequest(html))
-    expect(result.coverages).toEqual([])
-    expect(result.hasCoverages).toBe(true)
-  })
-
-  it('skips cards without a plan name', async () => {
-    const html = `
-      <div class="coverage-card">
-        <h3></h3>
-        <span class="member-id">ABC</span>
-      </div>
-    `
-    expect(parseInsuranceHtml(html).coverages).toEqual([])
+  it('reports hasNoCoverages when every bucket is empty', async () => {
+    const empty = JSON.stringify(
+      Object.fromEntries([...COVERAGE_BUCKETS.map((b) => [b, []]), ['Settings', {}]]),
+    )
+    const result = await getInsurance(mockRequest({ body: empty }))
+    expect(result.hasNoCoverages).toBe(true)
+    expect(result.ActiveCoverages).toEqual([])
   })
 })
 
 describe('insuranceProcessor', () => {
-  it('reads an empty envelope as no coverages on a blank page', () => {
-    expect(insuranceProcessor.standard({ requests: [] })).toEqual({ coverages: [], hasCoverages: true })
+  // Every one of these would otherwise render as "you have no insurance on
+  // file", which is the sentence this capability exists not to get wrong.
+  it('refuses an empty body — how MyChart answers an unknown encounter context', async () => {
+    const raw = await fetchInsuranceRaw(mockRequest({ body: '' }))
+    expect(() => insuranceProcessor.standard(raw)).toThrow(/empty body/)
   })
 
-  it('concise keeps the plan, member and group', async () => {
-    const raw = await fetchInsuranceRaw(mockRequest(ONE_COVERAGE))
+  it('refuses a non-2xx', async () => {
+    const raw = await fetchInsuranceRaw(mockRequest({ body: '{}', status: 500 }))
+    expect(() => insuranceProcessor.standard(raw)).toThrow(/HTTP 500/)
+  })
+
+  it('refuses a body with none of the coverage lists (a login page, say)', async () => {
+    const raw = await fetchInsuranceRaw(mockRequest({ body: '<html>Sign in</html>', contentType: 'text/html' }))
+    expect(() => insuranceProcessor.standard(raw)).toThrow(/none of the coverage lists/)
+  })
+
+  it('refuses an envelope the request never reached', () => {
+    expect(() => insuranceProcessor.standard({ requests: [] })).toThrow(/returned HTTP nothing/)
+  })
+
+  it('concise flattens to one list, keeping the bucket on each coverage', async () => {
+    const raw = await fetchInsuranceRaw(mockRequest({ body: envelope() }))
     expect(insuranceProcessor.concise(insuranceProcessor.standard(raw))).toEqual({
-      coverages: [{ planName: 'Blue Cross Blue Shield', memberId: 'XYZ123456', groupNumber: 'GRP001' }],
-      hasCoverages: true,
+      coverages: [
+        {
+          CoverageName: 'Springfield Mutual (PPO)',
+          PayorName: 'Springfield Mutual Health',
+          MemberId: 'XYZ123456',
+          GroupNumber: 'GRP001',
+          FormattedEffectiveDate: '01/01/2026',
+          bucket: 'ActiveCoverages',
+        },
+        {
+          CoverageName: 'Dental',
+          PayorName: 'Springfield Mutual Health',
+          MemberId: 'XYZ123456',
+          GroupNumber: 'GRP001',
+          FormattedEffectiveDate: '01/01/2026',
+          bucket: 'CoveragesPendingSubmission',
+        },
+      ],
+      hasNoCoverages: false,
     })
     const concise = renderOutput(insuranceProcessor, raw, 'concise') as string
     expect(concise).toContain('XYZ123456')
-    expect(concise).not.toContain('pageText')
-    expect(concise).not.toContain('Alice Smith')
-    expect(renderOutput(insuranceProcessor, raw, 'standard')).toContain('| Blue Cross Blue Shield | Alice Smith | XYZ123456 | GRP001 |')
+    expect(concise).not.toContain('SUB-1')
+    expect(renderOutput(insuranceProcessor, raw, 'standard')).toContain('Springfield Mutual Health')
   })
 })

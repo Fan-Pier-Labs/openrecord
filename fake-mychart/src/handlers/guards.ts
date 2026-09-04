@@ -26,11 +26,13 @@ export function requireTermsRedirect(request: NextRequest): NextResponse | null 
  * both live instances answered a token-less POST there with the same error
  * surface they give a token-less `/api/*` POST. So does the anonymous
  * scheduling workflow, which takes no session but does take the token off the
- * page that hosts it, and the legacy Insurance activity's payer catalogue.
+ * page that hosts it, and the legacy Insurance activity's own controller
+ * (`Insurance/Coverages/*` — the payer catalogue and the coverage list), both
+ * captured refusing a token-less POST.
  */
 export function requiresAntiforgeryToken(lower: string): boolean {
   return lower.startsWith('api/')
     || lower.startsWith('clinical/careteam/')
     || lower.startsWith('scheduling/anonymous/')
-    || lower === 'insurance/coverages/getpayors';
+    || lower.startsWith('insurance/coverages/');
 }
