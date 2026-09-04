@@ -212,6 +212,12 @@ type RawReason = {
   CategoryValue?: string | null;
   CanDirectSchedule?: boolean;
   DefaultVisitTypeId?: string | null;
+  /**
+   * The provider/department pairs bookable under this reason, as
+   * `"<ProviderId>^<DepartmentId>"` composites — not indices into
+   * `ProviderDepartmentPairs`.
+   */
+  DirectProviderDepartmentPairIDs?: string[] | null;
 };
 
 type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
@@ -291,6 +297,18 @@ export async function fetchOpenSlots(
     .filter((p) => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string')
     // Only the three keys the live page sends per pair.
     .map((p) => ({ ProviderId: p.ProviderId, DepartmentId: p.DepartmentId, IsTeamMember: p.IsTeamMember === true }));
+
+  // Keep only the pairs actually bookable under the chosen reason.
+  //
+  // `ProviderDepartmentPairs` is the whole specialty; a reason for visit
+  // covers a subset. Sending a pair the reason does not cover is what the
+  // second refusal surface was: the instance answers 302 to the error page
+  // rather than ignoring it. Some instances tolerate the full list, which is
+  // why this only showed up on 59 of 577 hosts.
+  const bookable = new Set(reason?.DirectProviderDepartmentPairIDs ?? []);
+  if (bookable.size > 0) {
+    pairs = pairs.filter((p) => bookable.has(`${p.ProviderId}^${p.DepartmentId}`));
+  }
   if (options.providerIds?.length) {
     const keep = new Set(options.providerIds);
     pairs = pairs.filter((p) => keep.has(p.ProviderId));

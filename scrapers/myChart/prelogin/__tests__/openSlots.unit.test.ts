@@ -34,10 +34,19 @@ const specialtyData = {
   ProviderDepartmentPairs: [
     { ProviderId: 'PROV-1', DepartmentId: 'DEPT-1' },
     { ProviderId: 'PROV-2', DepartmentId: 'DEPT-2' },
+    // In the specialty but not bookable under either reason below.
+    { ProviderId: 'PROV-3', DepartmentId: 'DEPT-3' },
   ],
   ReasonsForVisit: [
     { Id: 'RFV-req', Title: 'Request Only', CategoryValue: 'cat_1', CanDirectSchedule: false, DefaultVisitTypeId: 'VT-1' },
-    { Id: 'RFV-ok', Title: 'New Patient', CategoryValue: 'cat_2', CanDirectSchedule: true, DefaultVisitTypeId: 'VT-2' },
+    {
+      Id: 'RFV-ok',
+      Title: 'New Patient',
+      CategoryValue: 'cat_2',
+      CanDirectSchedule: true,
+      DefaultVisitTypeId: 'VT-2',
+      DirectProviderDepartmentPairIDs: ['PROV-1^DEPT-1', 'PROV-2^DEPT-2'],
+    },
   ],
   VisitTypes: [{ ID: 'VT-1' }, { ID: 'VT-2' }],
 };
@@ -240,6 +249,25 @@ describe('fetchOpenSlots', () => {
     expect(slotCalls()[0]!['startDte']).toBe('67821');
     expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[0].ProviderId']).toBe('PROV-1');
     expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[1].ProviderId']).toBeUndefined();
+  });
+
+  it('sends only the pairs bookable under the chosen reason', async () => {
+    // PROV-3 is in the specialty but not in DirectProviderDepartmentPairIDs.
+    // Instances that reject an uncovered pair answer the 302 error surface.
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    await fetchOpenSlots(request);
+
+    const sent = slotCalls()[0]!;
+    expect(sent['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[0].ProviderId']).toBe('PROV-1');
+    expect(sent['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[1].ProviderId']).toBe('PROV-2');
+    expect(sent['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[2].ProviderId']).toBeUndefined();
+  });
+
+  it('falls back to every pair when the reason lists none', async () => {
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    await fetchOpenSlots(request, { reasonForVisit: 'Request Only' });
+    // RFV-req has no DirectProviderDepartmentPairIDs, so nothing is filtered.
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[2].ProviderId']).toBe('PROV-3');
   });
 
   it('sends the specialty id the live payload carries', async () => {
