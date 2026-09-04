@@ -124,7 +124,10 @@ describe('Claude Desktop extension', () => {
     for (const capability of CAPABILITIES) {
       const tool = server.tools.find((t) => t.name === capability.id)!;
       const annotations = tool.config.annotations as { readOnlyHint?: boolean; destructiveHint?: boolean };
-      if (capability.kind === 'read' || capability.kind === 'public') {
+      // A capability with no scraper changes nothing, whatever its `kind` says
+      // about the write it will be once implemented. Flagging a no-op
+      // destructive is a warning a patient learns to ignore.
+      if (capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented) {
         expect(annotations.readOnlyHint).toBe(true);
       } else {
         expect(annotations.readOnlyHint).toBe(false);
@@ -166,12 +169,18 @@ describe('mobile app', () => {
 
   it('gates every write behind a confirmation prompt', async () => {
     const { WRITE_TOOLS, WRITE_TOOL_META } = await import('../../expo-app/src/lib/ai/tool-catalog');
-    const writes = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id).sort();
+    // Every write that does something. A declared-but-unimplemented one is
+    // deliberately not gated: "Request refill?" in front of a call that does
+    // nothing teaches a patient their confirmations are noise.
+    const writes = CAPABILITIES.filter((c) => c.kind === 'write' && !c.notImplemented).map((c) => c.id).sort();
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
       expect(WRITE_TOOL_META[id]!.title.length).toBeGreaterThan(0);
       expect(WRITE_TOOL_META[id]!.description.length).toBeGreaterThan(0);
+    }
+    for (const capability of CAPABILITIES.filter((c) => c.notImplemented)) {
+      expect(WRITE_TOOLS.has(capability.id)).toBe(false);
     }
   });
 

@@ -57,6 +57,7 @@ import {
   acceptsPatientParam,
   capabilityDescription,
   describeModeParam,
+  isUnimplemented,
   executeCapability,
   isPublicCapability,
   readAccountArg,
@@ -246,6 +247,11 @@ function contextFor(ref: string): CapabilityContext {
  * `account`-kind capabilities change how the patient signs in. The MCPB's only
  * surface is tools, so they are registered — but flagged destructive, the way
  * disconnect_account already is.
+ *
+ * A capability with no scraper is annotated read-only whatever its `kind` says,
+ * because it changes nothing: `kind` describes the write it will be once
+ * implemented, and warning a patient that a no-op is destructive is a warning
+ * they learn to ignore.
  */
 function registerCapabilityTool(server: McpServer, capability: Capability): void {
   const shape: Record<string, z.ZodType> = {};
@@ -268,7 +274,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const hints =
-    capability.kind === 'read' || capability.kind === 'public'
+    capability.kind === 'read' || capability.kind === 'public' || isUnimplemented(capability)
       ? { readOnlyHint: true, openWorldHint: true }
       : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 

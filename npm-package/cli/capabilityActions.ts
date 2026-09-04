@@ -21,6 +21,7 @@ import {
   CAPABILITIES,
   acceptsPatientParam,
   capabilityDescription,
+  isUnimplemented,
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
@@ -92,8 +93,11 @@ function renderCapabilityGroups(capabilities: readonly Capability[]): string[] {
     for (const capability of inGroup) {
       // Anything that isn't a plain read gets a marker, so a glance down the
       // list separates "shows me something" from "changes something". The
-      // public lookups read too — they just read something other than a chart.
-      const marker = capability.kind === 'read' || capability.kind === 'public' ? ' ' : '!';
+      // public lookups read too — they just read something other than a chart,
+      // and a capability with no scraper changes nothing whatever its `kind`
+      // says about the write it will be once implemented.
+      const marker =
+        capability.kind === 'read' || capability.kind === 'public' || isUnimplemented(capability) ? ' ' : '!';
       lines.push(`   ${marker} ${capability.id}`);
       lines.push(`       ${capabilityDescription(capability)}`);
       for (const param of capability.params) {

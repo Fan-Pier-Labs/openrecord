@@ -28,9 +28,20 @@ export const PRESCRIPTION_CAPABILITIES: readonly CapabilityImpl[] = [
       'the refill request has never been watched reaching a real pharmacy, and the body the ' +
       'withdrawn scraper sent used a field name (`medicationKey`) that only fake-mychart has ' +
       'ever recognised. Ask the patient to request the refill in MyChart directly.',
+    // The schema is kept for the eventual implementation, but each parameter
+    // says it is ignored: otherwise a model resolves a medication name — a
+    // whole `get_medications` round trip — for a call that reads nothing.
     params: [
-      { name: 'medication_name', type: 'string', description: 'Medication name as shown by get_medications.' },
-      { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications.' },
+      {
+        name: 'medication_name',
+        type: 'string',
+        description: 'Ignored until this is implemented. Medication name as shown by get_medications.',
+      },
+      {
+        name: 'medication_key',
+        type: 'string',
+        description: 'Ignored until this is implemented. Exact prescription `id` from get_medications.',
+      },
     ],
   },
 ];

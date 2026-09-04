@@ -168,11 +168,24 @@ for (const capability of CAPABILITY_IMPLS) {
 
 /**
  * Whether this capability ships no scraper — see
- * {@link Capability.notImplemented}. As a type guard, so that narrowing it away
- * is what gives {@link executeCapability} a `run` to call: a capability cannot
- * be both dispatched and unimplemented, and the compiler is what says so.
+ * {@link Capability.notImplemented}.
+ *
+ * Exported because clients have to branch on it in their own surfaces, not just
+ * their descriptions: the mobile app must not raise a "Request refill?"
+ * confirmation for a call that does nothing, and the MCPB must not annotate one
+ * `destructiveHint`. A capability that changes nothing is not a write, whatever
+ * its `kind` says about the write it will be once implemented.
  */
-function isUnimplemented(capability: CapabilityImpl): capability is UnimplementedCapabilityImpl {
+export function isUnimplemented(capability: Capability): boolean {
+  return capability.notImplemented !== undefined;
+}
+
+/**
+ * The same question, narrowing the implementation union. Module-private: it is
+ * what gives {@link executeCapability} a `run` to call, so a capability cannot
+ * be both dispatched and unimplemented and the compiler is what says so.
+ */
+function isUnimplementedImpl(capability: CapabilityImpl): capability is UnimplementedCapabilityImpl {
   return capability.notImplemented !== undefined;
 }
 
@@ -254,7 +267,7 @@ export async function executeCapability(
   // scraper has nothing to assert about and no session to spend on it. The type
   // guard is also what tells the compiler that everything past this line has a
   // `run` — the narrowing and the early return are the same fact.
-  if (isUnimplemented(capability)) return unimplementedMessage(capability);
+  if (isUnimplementedImpl(capability)) return unimplementedMessage(capability);
 
   let result: unknown;
   if (capability.kind === 'public') {
@@ -290,8 +303,8 @@ export function acceptsPatientParam(capability: Capability): boolean {
 }
 
 /**
- * The description every client shows, with the {@link Capability.unverified}
- * caveat appended when there is one.
+ * The description every client shows, with the
+ * {@link Capability.notImplemented} notice appended when there is one.
  *
  * Clients call this instead of reading `.description`, so a capability that
  * has only ever been checked against `fake-mychart` says so in the MCP tool
