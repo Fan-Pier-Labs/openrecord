@@ -22,7 +22,8 @@
 
 import type { CookieJar } from 'tough-cookie';
 import { cookieHeaderFor, storeSetCookies } from './cookies';
-import { withHostLimit } from '../shared/hostConcurrency';
+import { hostKeyForUrl, withHostLimit } from '../shared/hostConcurrency';
+import { REQUEST_TIMEOUT_MS } from '../shared/env';
 
 /**
  * Pretend to be Google Chrome on macOS. Sent on every request; a call site that
@@ -133,21 +134,60 @@ function resolveTransport(override: Transport | undefined, cookieJar: CookieJar 
 export const platformFetch: Transport = (url, init) => resolveTransport(undefined, null)(url, init);
 
 /**
- * `AbortSignal.timeout` polyfill.
+ * Thrown when a request passes {@link ScraperFetchOptions.timeoutMs}.
  *
- * React Native (0.86 at time of writing) polyfills `AbortSignal` with the
- * `abort-controller` package, which implements the constructor and `abort()`
- * but not the static `timeout()`. Calling it there throws, which would take
- * out the 30s cap on eUnity image downloads — the one place we use it, and one
- * that runs on device. Node and Bun both have the real thing and get it.
+ * Carries the host and the deadline as fields so a caller can tell a dead
+ * instance apart from a 500 without matching on the message. The message names
+ * the host only — request paths carry record and patient ids.
  */
-export function abortAfter(ms: number): AbortSignal {
-  if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function') {
-    return (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(ms);
+export class RequestTimeoutError extends Error {
+  readonly host: string;
+
+  readonly timeoutMs: number;
+
+  constructor(url: string, timeoutMs: number) {
+    const host = hostKeyForUrl(url);
+    super(`Request to ${host} timed out after ${timeoutMs}ms`);
+    this.name = 'RequestTimeoutError';
+    this.host = host;
+    this.timeoutMs = timeoutMs;
   }
-  const ctrl = new AbortController();
-  setTimeout(() => ctrl.abort(), ms);
-  return ctrl.signal;
+}
+
+/**
+ * Give up on a request that never answers.
+ *
+ * Deliberately a race against a timer rather than an `AbortSignal`: the three
+ * transports underneath (`globalThis.fetch` on Node and Bun, `expo/fetch` on
+ * device, a scripted test function) don't honor a signal alike, and a per-call
+ * signal would have to be threaded through every call site to be overridable.
+ * A timer is uniform and needs nothing from the transport.
+ *
+ * The cost is that the abandoned request is only abandoned by *us* — the
+ * socket stays open until the runtime gives up on it. What matters is that
+ * everything above it is freed: the caller stops waiting, and because the race
+ * is what `withHostLimit` is holding, the throw runs its `finally` and hands
+ * the host permit to the next request in the queue. A hung host costs one
+ * category, not the whole scrape.
+ */
+function withRequestTimeout(
+  pending: Promise<Response>,
+  timeoutMs: number,
+  url: string,
+): Promise<Response> {
+  // 0 (or anything non-finite) opts out — see REQUEST_TIMEOUT_MS.
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return pending;
+
+  // Nobody is left holding `pending` once the deadline wins, so a late
+  // rejection from it would be an unhandled one. Claim it here.
+  pending.catch(() => {});
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new RequestTimeoutError(url, timeoutMs)), timeoutMs);
+  });
+
+  return Promise.race([pending, deadline]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -177,6 +217,14 @@ export type ScraperFetchOptions = {
 
   /** Override the network call for this session. See {@link resolveTransport}. */
   transport?: Transport | undefined;
+
+  /**
+   * Give up after this many milliseconds and throw {@link RequestTimeoutError}.
+   * Defaults to REQUEST_TIMEOUT_MS; 0 waits forever. Applies to one network
+   * call, so a redirect chain gets a fresh deadline per hop — the same shape as
+   * the per-hop permit.
+   */
+  timeoutMs?: number | undefined;
 };
 
 /**
@@ -211,7 +259,11 @@ export async function scraperFetch(
     if (cookie) headers['Cookie'] = cookie;
   }
 
-  const response = await withHostLimit(url, () => transport(url, { ...init, headers }));
+  const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+
+  const response = await withHostLimit(url, () =>
+    withRequestTimeout(transport(url, { ...init, headers }), timeoutMs, url),
+  );
 
   if (cookieJar) {
     await storeSetCookies(cookieJar, url, response);

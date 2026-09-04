@@ -206,10 +206,11 @@ read capability in all four modes against fake-mychart.
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere
-else to make one from.** It owns the three things every outbound request needs, none of which
+else to make one from.** It owns the four things every outbound request needs, none of which
 survives being reimplemented at a call site: the Chrome header block (MyChart and the eUnity image
 servers answer a browser, not a bare `fetch`), the cookie jar wiring (load-balancer and bot-check
-cookies get set mid-redirect-chain and are expected back on the next hop), and the per-host permit.
+cookies get set mid-redirect-chain and are expected back on the next hop), the per-host permit, and
+the deadline.
 
 `MyChartRequest.makeRequest` builds MyChart URLs and follows redirects on top of it; the eUnity
 imaging scraper calls it directly with its own jar; the directory script does too. A second raw-fetch
@@ -244,6 +245,24 @@ a test still exercises the request production would send. `req.transport` is nul
 anything that wraps it must call `platformFetch`, not the old value — see
 `probeMountDiscovery.unit.test.ts`, which exists because binding the old value broke the whole
 750-host sweep and nothing else caught it.
+
+### The deadline
+
+Every request gives up after **60 seconds** (`MYCHART_REQUEST_TIMEOUT_MS`; 0 means no timeout) and
+throws `RequestTimeoutError`, which carries the host and the deadline as fields. Per call site:
+`scraperFetch`'s `timeoutMs` option, or `timeoutMs` on a `RequestConfig` for `makeRequest` — the
+eUnity tile download sets 30s. It applies to one network call, so a redirect chain gets a fresh
+deadline per hop, the same shape as the permit.
+
+It is a race against a timer, not an `AbortSignal`. The three transports underneath
+(`globalThis.fetch`, `expo/fetch`, a scripted test function) don't honor a signal alike, and a
+signal would have to be threaded through every call site to stay overridable. The cost is that only
+*we* abandon the request — the socket stays open until the runtime gives up on it. What matters is
+what gets freed: the caller stops waiting, and because the race is what `withHostLimit` is holding,
+the throw runs its `finally` and hands the permit to the next request in the queue. Without a
+deadline a host that accepts the connection and never answers hangs the scrape forever *and* holds
+one of that host's ten permits, so a handful of hung requests starve every other category on the
+instance.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 

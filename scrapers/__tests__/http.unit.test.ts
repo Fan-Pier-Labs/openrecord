@@ -2,9 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import { abortAfter, BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../http'
+import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, RequestTimeoutError, scraperFetch, setTestTransport } from '../http'
 import { hostLimiterStats, resetHostLimiters } from '../../shared/hostConcurrency'
-import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../shared/env'
+import {
+  MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT,
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  __parseRequestTimeoutForTest as parseRequestTimeout,
+} from '../../shared/env'
 import { silenceLogger, resetLogSink } from '../../shared/logger'
 
 /**
@@ -405,38 +409,122 @@ describe('scrapers have exactly one outbound path', () => {
 })
 
 /**
- * The 30s cap on eUnity image downloads is the only caller of this, and it
- * runs on device — where React Native polyfills `AbortSignal` with the
- * `abort-controller` package, which has the constructor but not the static
- * `timeout()`. That gap is the whole reason the fallback exists, so it is the
- * branch worth pinning.
- *
- * These moved here when `eunity/fetch.ts` was folded into http.ts; they are
- * still the only coverage the polyfill has.
+ * The failure this replaced the `AbortSignal.timeout` polyfill for: a host that
+ * accepts the connection and then never answers. Without a deadline the scrape
+ * waits forever *and* keeps one of that host's ten permits, so a handful of
+ * hung requests starve every other category on the same instance.
  */
-describe('abortAfter', () => {
-  it('returns a signal that is not yet aborted', () => {
-    expect(abortAfter(1000).aborted).toBe(false)
+describe('request timeout', () => {
+  beforeEach(() => {
+    silenceLogger()
+    resetHostLimiters()
   })
 
-  it('aborts once the deadline passes', async () => {
-    const signal = abortAfter(5)
-    await Bun.sleep(30)
-    expect(signal.aborted).toBe(true)
+  afterEach(() => {
+    resetHostLimiters()
+    resetLogSink()
   })
 
-  it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
-    const original = AbortSignal.timeout?.bind(AbortSignal)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (AbortSignal as any).timeout
-    try {
-      const signal = abortAfter(5)
-      expect(signal.aborted).toBe(false)
-      await Bun.sleep(30)
-      expect(signal.aborted).toBe(true)
-    } finally {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(AbortSignal as any).timeout = original
+  /** Accepts the request and never answers. */
+  const blackHole = () => new Promise<Response>(() => {})
+
+  it('gives up on a transport that never answers', async () => {
+    const started = Date.now()
+
+    await expect(
+      scraperFetch('https://mychart.example.org/Clinical/labs', {}, { transport: blackHole, timeoutMs: 20 }),
+    ).rejects.toThrow(RequestTimeoutError)
+
+    expect(Date.now() - started).toBeLessThan(1000)
+  })
+
+  it('names the host and the deadline, and never the path', async () => {
+    const thrown: unknown = await scraperFetch(
+      'https://mychart.example.org/Clinical/labs?rid=12345',
+      {},
+      { transport: blackHole, timeoutMs: 20 },
+    ).then(() => null, (e: unknown) => e)
+
+    expect(thrown).toBeInstanceOf(RequestTimeoutError)
+    const error = thrown as RequestTimeoutError
+    expect(error.host).toBe('mychart.example.org')
+    expect(error.timeoutMs).toBe(20)
+    expect(error.message).toContain('mychart.example.org')
+    expect(error.message).not.toContain('12345')
+  })
+
+  it('releases the host permit, so one hung request cannot starve the rest', async () => {
+    // Fill the host to its limit with requests that never answer...
+    const hung = Array.from({ length: LIMIT }, (_, i) =>
+      scraperFetch(`https://mychart.example.org/Clinical/${i}`, {}, { transport: blackHole, timeoutMs: 20 })
+        .catch(() => 'timed out'),
+    )
+
+    await tick()
+    expect(hostLimiterStats()['mychart.example.org']!.inFlight).toBe(LIMIT)
+
+    // ...and a queued request behind them still gets served.
+    const { transport, calls } = recorder()
+    const queued = scraperFetch('https://mychart.example.org/Home', {}, { transport })
+
+    expect(await Promise.all(hung)).toEqual(Array(LIMIT).fill('timed out'))
+    expect((await queued).status).toBe(200)
+    expect(calls).toHaveLength(1)
+
+    expect(hostLimiterStats()['mychart.example.org']).toEqual({
+      inFlight: 0,
+      queued: 0,
+      limit: LIMIT,
+    })
+  })
+
+  it('leaves a request that answers in time alone', async () => {
+    const transport = async () => {
+      await Bun.sleep(5)
+      return new Response('ok', { status: 200 })
     }
+
+    const res = await scraperFetch('https://mychart.example.org/Home', {}, { transport, timeoutMs: 500 })
+    expect(await res.text()).toBe('ok')
+  })
+
+  it('does not swallow a real transport failure into a timeout', async () => {
+    const transport = async () => {
+      throw new Error('ECONNRESET')
+    }
+
+    await expect(
+      scraperFetch('https://mychart.example.org/Home', {}, { transport, timeoutMs: 500 }),
+    ).rejects.toThrow('ECONNRESET')
+  })
+
+  it('waits forever when the timeout is 0, for the request that really is slow', async () => {
+    const gate = deferred()
+    const transport = async () => {
+      await gate.promise
+      return new Response('eventually', { status: 200 })
+    }
+
+    const pending = scraperFetch('https://mychart.example.org/EHI', {}, { transport, timeoutMs: 0 })
+    await Bun.sleep(20)
+    gate.resolve()
+
+    expect(await (await pending).text()).toBe('eventually')
+  })
+
+  describe('MYCHART_REQUEST_TIMEOUT_MS', () => {
+    it('takes a positive integer', () => {
+      expect(parseRequestTimeout('5000')).toBe(5000)
+    })
+
+    it('takes 0 as "no timeout"', () => {
+      expect(parseRequestTimeout('0')).toBe(0)
+    })
+
+    it('falls back to the default rather than accepting nonsense', () => {
+      for (const raw of [undefined, '', 'soon', '-1', '1.5', 'NaN']) {
+        expect(parseRequestTimeout(raw)).toBe(DEFAULT_REQUEST_TIMEOUT_MS)
+      }
+    })
   })
 })

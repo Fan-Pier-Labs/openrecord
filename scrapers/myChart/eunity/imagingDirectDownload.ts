@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { MyChartRequest } from '../core/myChartRequest';
 import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagingViewer';
-import { abortAfter, scraperFetch } from '../../http';
+import { scraperFetch } from '../../http';
 import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';
 import { logger } from '../../../shared/logger';
 import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
@@ -1033,8 +1033,9 @@ async function downloadImage(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
     body,
-    signal: abortAfter(30_000),
-  }, { cookieJar });
+    // Tighter than the default: a stalled tile blocks every later level of the
+    // same series, and there are hundreds of them in a study.
+  }, { cookieJar, timeoutMs: 30_000 });
 
   if (!res.ok) {
     throw new Error(`CustomImageServlet failed: ${res.status} ${res.statusText}`);
