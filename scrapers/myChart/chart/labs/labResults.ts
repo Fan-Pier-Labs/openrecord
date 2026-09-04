@@ -38,43 +38,65 @@ export {
 const TEST_RESULTS_PAGE = '/app/test-results';
 
 /**
- * One `/api/test-results/GetList` page, or null when this instance does not
- * serve that group type. Group types 0-3 are probed speculatively, so a
- * failure here is expected — which is why it is the ONLY failure swallowed on
- * this path. A non-OK response is still recorded, with its status; a thrown
- * transport error is not. A `SessionExpiredError` still propagates:
- * reporting a dead session as "unsupported group type" turns it into an
- * empty chart.
+ * The group types `GetList` is asked for. Every captured instance accepts 0
+ * and 1 — each answering the SAME combined list of labs, imaging and
+ * procedures, which is why orders are de-duplicated by key — and rejects 2
+ * and 3 with a 500. The accepted pair is the payload; the rest are
+ * speculative probes kept for an instance that might differ.
  */
-async function fetchResultGroupList(collector: RawCollector, groupType: number, token: string): Promise<unknown> {
+const ACCEPTED_GROUP_TYPES = [0, 1];
+const SPECULATIVE_GROUP_TYPES = [2, 3];
+
+/**
+ * One `/api/test-results/GetList` page, or the failure when this instance
+ * did not answer for that group type. A failure is recorded with its status
+ * (a thrown transport error is not) and handed back, so the caller can tell a
+ * rejected speculative probe — expected — from the accepted pair both
+ * failing, which is the payload failing. A `SessionExpiredError` still
+ * propagates: reporting a dead session as "unsupported group type" turns it
+ * into an empty chart.
+ */
+async function fetchResultGroupList(
+  collector: RawCollector,
+  groupType: number,
+  token: string,
+): Promise<{ page: unknown } | { failure: Error }> {
   try {
-    const { response, body } = await collector.send({
-      path: '/api/test-results/GetList',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
-      body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
-    });
-    return response.ok ? body : null;
+    const { body, failure } = await collector.send(
+      {
+        path: '/api/test-results/GetList',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
+      },
+      { tolerateFailure: true },
+    );
+    return failure ? { failure } : { page: body };
   } catch (err) {
     if (err instanceof SessionExpiredError) throw err;
     logger.debug(`test-results GetList failed for groupType ${groupType}:`, (err as Error).message);
-    return null;
+    return { failure: err as Error };
   }
 }
 
 /** The trend body is best-effort: a failure is recorded (when there was a response) and otherwise tolerated. */
 async function fetchHistoricalResults(collector: RawCollector, orderKey: string, token: string): Promise<void> {
   try {
-    await collector.postJson('/api/past-results/GetMultipleHistoricalResultComponents', token, {
-      orderID: orderKey,
-      selectedComponentIDs: [],
-      isInitialLoad: true,
-      startTime: '',
-      endTime: '',
-      organizationID: '',
-      isCustomFilterEnabled: false,
-      PageNonce: '',
-    });
+    await collector.postJson(
+      '/api/past-results/GetMultipleHistoricalResultComponents',
+      token,
+      {
+        orderID: orderKey,
+        selectedComponentIDs: [],
+        isInitialLoad: true,
+        startTime: '',
+        endTime: '',
+        organizationID: '',
+        isCustomFilterEnabled: false,
+        PageNonce: '',
+      },
+      { tolerateFailure: true },
+    );
   } catch (err) {
     if (err instanceof SessionExpiredError) throw err;
     logger.debug(`historical results failed for ${orderKey}:`, (err as Error).message);
@@ -90,10 +112,20 @@ async function fetchHistoricalResults(collector: RawCollector, orderKey: string,
 async function collectLabResults(collector: RawCollector): Promise<void> {
   const token = await collector.pageToken(TEST_RESULTS_PAGE);
   const seenKeys = new Set<string>();
+  // The accepted group types answer the same list, so one of them answering
+  // is the whole list and the other failing costs nothing. Both failing is
+  // the payload failing: the instance has not said "no results", and the
+  // first failure is the one to report. A rejected speculative probe is
+  // expected and never an error.
+  const acceptedFailures: Error[] = [];
 
-  for (const groupType of [0, 1, 2, 3]) {
-    const page = await fetchResultGroupList(collector, groupType, token);
-    if (page === null) continue;
+  for (const groupType of [...ACCEPTED_GROUP_TYPES, ...SPECULATIVE_GROUP_TYPES]) {
+    const outcome = await fetchResultGroupList(collector, groupType, token);
+    if ('failure' in outcome) {
+      if (ACCEPTED_GROUP_TYPES.includes(groupType)) acceptedFailures.push(outcome.failure);
+      continue;
+    }
+    const page = outcome.page;
 
     // Outside the swallow: these are results the instance says exist, so a
     // failure here would return a short list indistinguishable from a
@@ -123,6 +155,8 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
       await fetchHistoricalResults(collector, key, token);
     }
   }
+
+  if (acceptedFailures.length === ACCEPTED_GROUP_TYPES.length) throw acceptedFailures[0]!;
 }
 
 export async function fetchLabResultsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {

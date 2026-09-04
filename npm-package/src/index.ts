@@ -39,6 +39,7 @@ export {
   SessionExpiredError,
   type AuthenticatedRequestOptions,
 } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
+export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
 export {
   silentLogin,
   wireSilentReauthentication,

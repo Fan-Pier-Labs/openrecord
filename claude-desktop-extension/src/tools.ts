@@ -2,14 +2,17 @@
  * Tool registry for the OpenRecord MCPB stdio MCP server.
  *
  * Two groups of tools:
- *   1. Meta tools — list_accounts, setup_account, complete_2fa,
- *                   disconnect_account. These are MCPB-specific: they manage
- *                   the credentials stored on this machine, which is not
- *                   something the other clients share. `search_mycharts` used
- *                   to be one of them and is now a `public` capability in the
- *                   shared registry, so every client has it; `get_hospital_info`
- *                   is account-free in the same way and is the obvious next one
- *                   to move.
+ *   1. Meta tools — list_accounts, get_setup_widget, get_hospital_info,
+ *                   setup_account, import_browser_passwords,
+ *                   connect_imported_account, complete_2fa,
+ *                   disconnect_account. These are MCPB-specific: all but one
+ *                   manage the credentials stored on this machine, which is
+ *                   not something the other clients share, and get_setup_widget
+ *                   returns a Claude Desktop UI resource no other client can
+ *                   render. `search_mycharts` used to be one of them and is now
+ *                   a `public` capability in the shared registry, so every
+ *                   client has it; `get_hospital_info` is account-free in the
+ *                   same way and is the obvious next one to move.
  *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
@@ -103,6 +106,26 @@ function textResult(text: string): ToolResult {
 
 function errorResult(message: string): ToolResult {
   return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
+}
+
+// ── Tool metadata ───────────────────────────────────────────────────────────
+
+/**
+ * The `title` + `annotations` half of a tool's registration.
+ *
+ * MCP carries a tool's human-readable label in two places: `Tool.title`, and
+ * the older `ToolAnnotations.title`. Which one a client reads is up to the
+ * client, so a tool that fills in only one shows up under its snake_case id in
+ * whichever client reads the other. Every tool here — hand-written or derived
+ * from `shared/capabilities/` — goes through this so both are filled from one
+ * string and neither can be forgotten. `tool-metadata.unit.test.ts` fails the
+ * build if a registration skips it.
+ */
+function toolMeta(
+  title: string,
+  hints: { readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean },
+): { title: string; annotations: { title: string; readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean } } {
+  return { title, annotations: { title, ...hints } };
 }
 
 // ── Recommending a passkey after login ─────────────────────────────────────
@@ -243,18 +266,18 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   }
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
-  const annotations =
+  const hints =
     capability.kind === 'read' || capability.kind === 'public'
-      ? { title: capability.title, readOnlyHint: true, openWorldHint: true }
-      : { title: capability.title, readOnlyHint: false, destructiveHint: true, openWorldHint: true };
+      ? { readOnlyHint: true, openWorldHint: true }
+      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
   server.registerTool(
     capability.id,
     {
+      ...toolMeta(capability.title, hints),
       description: capability.description,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: shape as any,
-      annotations,
     },
     async (args: Record<string, unknown>) => {
       try {
@@ -402,10 +425,9 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'list_accounts',
     {
-      title: 'List configured accounts',
       description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
       inputSchema: {},
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      ...toolMeta('List configured accounts', { readOnlyHint: true, openWorldHint: false }),
     },
     () => {
       const accounts = readAccounts();
@@ -459,10 +481,9 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'get_setup_widget',
     {
-      title: 'Get interactive setup widget',
       description: 'Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup.',
       inputSchema: {} satisfies ZodRawShape,
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      ...toolMeta('Get interactive setup widget', { readOnlyHint: true, openWorldHint: false }),
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
     },
     () => ({
@@ -478,7 +499,6 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'get_hospital_info',
     {
-      title: 'Public profile of a health system',
       description:
         'What a MyChart instance publishes about its health system to anyone, with no account: the ' +
         "organization's support, scheduling and billing phone lines and support email; the \"Find a Doctor\" " +
@@ -495,7 +515,7 @@ export function registerAllTools(server: McpServer): void {
         include_providers: z.boolean().optional().describe('Crawl the provider and clinic directory (default true).'),
         include_billing: z.boolean().optional().describe('Read the billing entities (default true).'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      ...toolMeta('Public profile of a health system', { readOnlyHint: true, openWorldHint: true }),
     },
     async ({ hostname, specialties, max_specialties, include_providers, include_billing }) => {
       try {
@@ -515,14 +535,13 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'setup_account',
     {
-      title: 'Set up a MyChart account (step 1)',
       description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery, target}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`. This tool logs in and nothing else — it never changes the account's sign-in settings. On `logged_in`, do what the `message` field says.",
       inputSchema: {
         hostname: z.string().describe('MyChart hostname, e.g. "mychart.example.org". From search_mycharts or the user.'),
         username: z.string().describe('MyChart username (ask the user).'),
         password: z.string().describe('MyChart password (ask the user). Stored locally on disk, never transmitted to Anthropic.'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+      ...toolMeta('Set up a MyChart account (step 1)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
     ({ hostname, username, password }) => connectWithPassword(hostname, username, password),
   );
@@ -530,7 +549,6 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'import_browser_passwords',
     {
-      title: 'Find MyChart logins saved in the browser',
       description:
         "Scan this machine's browser password stores (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins the user has already saved, so they do not have to type a password. " +
         'Read-only, and it may raise the OS keychain permission prompt. ' +
@@ -542,7 +560,7 @@ export function registerAllTools(server: McpServer): void {
           .optional()
           .describe('Default true. When false, no network requests are made and only hostnames already in the bundled MyChart directory are returned.'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      ...toolMeta('Find MyChart logins saved in the browser', { readOnlyHint: true, openWorldHint: true }),
     },
     async ({ check_unknown_hosts }) => {
       try {
@@ -576,14 +594,13 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'connect_imported_account',
     {
-      title: 'Connect an account found in the browser',
       description:
         'Log into a MyChart account discovered by import_browser_passwords, using the password already saved in the browser, and save it for future calls. ' +
         'Only call this for an entry the user explicitly chose. Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (the saved password is stale — ask the user for the current one and use setup_account).',
       inputSchema: {
         import_id: z.string().describe('The import_id of the chosen entry from import_browser_passwords.'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+      ...toolMeta('Connect an account found in the browser', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
     async ({ import_id }) => {
       const candidate = takeImportedCandidate(import_id);
@@ -605,13 +622,12 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'complete_2fa',
     {
-      title: 'Finish 2FA (step 2)',
       description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, do what the `message` field says.',
       inputSchema: {
         pending_id: z.string().describe('The pending_id returned by setup_account when state was need_2fa.'),
         code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+      ...toolMeta('Finish 2FA (step 2)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
     async ({ pending_id, code }) => {
       const pending = takePending(pending_id);
@@ -663,12 +679,11 @@ export function registerAllTools(server: McpServer): void {
   server.registerTool(
     'disconnect_account',
     {
-      title: 'Forget a MyChart account',
       description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this login only — other usernames saved for the same hostname are untouched.',
       inputSchema: {
         account: z.string().describe('Account id from list_accounts (`username@hostname`).'),
       } satisfies ZodRawShape,
-      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+      ...toolMeta('Forget a MyChart account', { readOnlyHint: false, destructiveHint: true, openWorldHint: false }),
     },
     ({ account }) => {
       const match = lookupAccount(account);

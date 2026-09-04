@@ -82,13 +82,23 @@ function careTeamReplies(internal: unknown[], external: unknown[]): Reply[] {
   ]
 }
 
-function envelope(load: { body: unknown; status?: number }, loadExternal?: { body: unknown; status?: number }): RawResponse {
+type Recorded = { body: unknown; status?: number; failure?: string }
+
+function envelope(load: Recorded, loadExternal?: Recorded): RawResponse {
   return {
     requests: [
       { path: '/Clinical/CareTeam', method: 'GET', status: 200, contentType: 'text/html', body: TOKEN_PAGE },
       { path: '/Clinical/CareTeam/Load', method: 'POST', requestBody: {}, status: load.status ?? 200, contentType: 'application/json', body: load.body },
       ...(loadExternal
-        ? [{ path: '/Clinical/CareTeam/LoadExternal', method: 'POST' as const, requestBody: {}, status: loadExternal.status ?? 200, contentType: 'application/json', body: loadExternal.body }]
+        ? [{
+            path: '/Clinical/CareTeam/LoadExternal',
+            method: 'POST' as const,
+            requestBody: {},
+            status: loadExternal.status ?? 200,
+            contentType: 'application/json',
+            body: loadExternal.body,
+            ...(loadExternal.failure ? { failure: loadExternal.failure } : {}),
+          }]
         : []),
     ],
   }
@@ -201,6 +211,15 @@ describe('careTeamProcessor', () => {
 
   it('throws when Load answered with a login page instead of JSON', () => {
     expect(() => careTeamProcessor.standard(envelope({ body: '<html>Sign in</html>' }))).toThrow(/no ProvidersList/)
+  })
+
+  it('reports the external list unavailable when LoadExternal was a 200 error page', () => {
+    // A November 2025 instance bounces a failed request to a 200 HTML page; the
+    // collector marks the tolerated record, and the status alone would not.
+    const standard = careTeamProcessor.standard(
+      envelope({ body: { ProvidersList: [] } }, { body: '<html>error</html>', status: 200, failure: 'HTTP 200 from its error page' }),
+    )
+    expect(standard.externalProvidersUnavailable).toBe(true)
   })
 
   it('throws when Load answered with an error status', () => {
