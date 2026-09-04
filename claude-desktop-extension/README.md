@@ -202,8 +202,15 @@ example output in every mode is in
   everyone not on the packer's platform.
 
   Linux is not included (Claude Desktop has no Linux build, and the file
-  fallback covers the raw server). Adding it is two lines in `.mcpbignore`, at
-  about +9 MB.
+  fallback covers the raw server). Adding it is two lines in `.mcpbignore` plus
+  `darwin`/`win32`/`linux` in the manifest, at about +9 MB.
+
+  `manifest.json` restates the list as `compatibility.platforms`, because that
+  is what Claude Desktop reads — it never sees `.mcpbignore`. The same verify
+  script asserts the two agree, so neither can drift: a manifest platform with
+  no binary would install and silently fall back to plaintext, and a binary with
+  no manifest platform would be dead weight users on that OS are refused the
+  extension over. `compatibility.runtimes.node` tracks tsup's `target`.
 
 ## File layout
 
