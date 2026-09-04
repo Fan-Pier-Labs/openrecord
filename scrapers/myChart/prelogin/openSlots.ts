@@ -50,13 +50,11 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
-import { openPreloginPage, postForm } from './preloginSession';
-import { OPEN_SCHEDULING_PATH } from './providerDirectory';
-import type { OpenSlot, SlotSearchResult } from './types';
+import { postForm } from './preloginSession';
+import { fetchSchedulingWorkflow, fetchSpecialtyData, OPEN_SCHEDULING_PATH, parseSpecialties } from './providerDirectory';
+import type { OpenSlot, SlotSearchResult, Specialty } from './types';
 
 const SLOTS_PATH = '/Scheduling/Anonymous/GetSlots';
-const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
-const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
 
 /**
  * Epic counts days from 1840-12-31 (the MUMPS `$HOROLOG` epoch), and every
@@ -69,13 +67,25 @@ export function toEpicDte(date: Date): number {
   return Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - EPIC_EPOCH_UTC) / 86_400_000);
 }
 
+/**
+ * Today, by the wall clock rather than UTC.
+ *
+ * Epic's page sends the browser's local date. Deriving it from UTC would skip
+ * the rest of the current day for anyone west of Greenwich in the evening —
+ * at 9pm Pacific, UTC is already tomorrow — which reads as "the scraper never
+ * finds same-day slots".
+ */
+export function localTodayDte(now: Date = new Date()): number {
+  return toEpicDte(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
+}
+
 export function fromEpicDte(dte: number): Date {
   return new Date(EPIC_EPOCH_UTC + dte * 86_400_000);
 }
 
 // ── Raw shapes ───────────────────────────────────────────────────────────────
 
-type RawSlot = {
+export type RawSlot = {
   ProviderId?: string | null;
   DepartmentId?: string | null;
   VisitTypeId?: string | null;
@@ -141,6 +151,10 @@ export function parseSlotsResponse(data: RawSlotsResponse): OpenSlot[] {
  * Epic stops when it says so (`IsStopSearch`), and also when it stops moving:
  * a cursor identical to the one just sent means the server has no more ground
  * to cover, and echoing it again would loop forever.
+ *
+ * The comparison is `JSON.stringify` on purpose: the cursor is the server's own
+ * object echoed back untouched, so its key order is the server's to keep and a
+ * structural compare would only be slower.
  */
 export function isSearchComplete(previous: ContinueInfo | null, next: ContinueInfo | null | undefined): boolean {
   if (!next) return true;
@@ -148,9 +162,19 @@ export function isSearchComplete(previous: ContinueInfo | null, next: ContinueIn
   return previous !== null && JSON.stringify(previous) === JSON.stringify(next);
 }
 
-/** `ErrorCode` is set when the instance is throttling or cannot search. */
-export function hasError(data: RawSlotsResponse): boolean {
-  return data.ErrorCode !== null && data.ErrorCode !== undefined && data.ErrorCode !== 0;
+/**
+ * The instance's own error code for this search, or null.
+ *
+ * Deliberately not interpreted. A non-zero code covers both "you are paging
+ * too hard, back off" and "this search cannot be run", and the code table is
+ * not published — so the number is passed through and the caller decides,
+ * rather than being told `throttled` and retrying a search that will never
+ * succeed.
+ */
+export function errorCodeOf(data: RawSlotsResponse): number | string | null {
+  const code = data.ErrorCode;
+  if (code === null || code === undefined || code === 0) return null;
+  return code;
 }
 
 // ── Fetching ─────────────────────────────────────────────────────────────────
@@ -173,7 +197,21 @@ export type OpenSlotsOptions = {
   maxPairs?: number;
 };
 
-type RawPair = { ProviderId: string; DepartmentId: string };
+type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
+
+type RawReason = {
+  Id: string;
+  Title?: string | null;
+  CategoryValue?: string | null;
+  CanDirectSchedule?: boolean;
+  DefaultVisitTypeId?: string | null;
+};
+
+type RawSpecialtyPayload = {
+  ProviderDepartmentPairs?: RawPair[] | null;
+  ReasonsForVisit?: RawReason[] | null;
+  VisitTypes?: { ID: string }[] | null;
+};
 
 /**
  * Search open appointment availability on an instance, anonymously.
@@ -185,89 +223,95 @@ export async function fetchOpenSlots(
   request: MyChartRequest,
   options: OpenSlotsOptions = {},
 ): Promise<SlotSearchResult> {
-  const page = await openPreloginPage(request, OPEN_SCHEDULING_PATH);
-  const workflow = await postForm<{ Specialties?: { Id: string; Name: string }[] }>(
-    request,
-    WORKFLOW_DATA_PATH,
-    page.token,
-    { schedulingParameters: { workflow: 'NewProvider' }, isFirstLoad: true },
-    OPEN_SCHEDULING_PATH,
-  );
+  const { token, data: workflowData } = await fetchSchedulingWorkflow(request);
+  const specialties = parseSpecialties(workflowData);
 
-  const specialties = workflow.Specialties ?? [];
   const wanted = options.specialty?.trim().toLowerCase();
-  const specialty = wanted
-    ? specialties.find((s) => s.Name.toLowerCase() === wanted || s.Id.toLowerCase() === wanted)
+  const specialty: Specialty | undefined = wanted
+    ? specialties.find((s) => s.name.toLowerCase() === wanted || s.id.toLowerCase() === wanted)
     : specialties[0];
   if (!specialty) {
     throw new Error(
       wanted
-        ? `no specialty named ${JSON.stringify(options.specialty)} on ${request.hostname}`
+        ? `no specialty named ${JSON.stringify(options.specialty)} on ${request.hostname} — it lists ${specialties.map((s) => s.name).join(', ') || 'none'}`
         : `${request.hostname} lists no open-scheduling specialties`,
     );
   }
 
-  const specialtyData = await postForm<{
-    ProviderDepartmentPairs?: RawPair[] | null;
-    ReasonsForVisit?: { Id: string; Title?: string | null; CategoryValue?: string | null; CanDirectSchedule?: boolean; DefaultVisitTypeId?: string | null }[] | null;
-    VisitTypes?: { ID: string }[] | null;
-  }>(request, SPECIALTY_DATA_PATH, page.token, { SpecialtyId: specialty.Id }, OPEN_SCHEDULING_PATH);
-
+  const specialtyData = await fetchSpecialtyData<RawSpecialtyPayload>(request, token, specialty.id);
   const reasons = specialtyData.ReasonsForVisit ?? [];
+
+  // An unknown reason throws rather than searching on a different one: a
+  // silently substituted reason means a different visit type and different
+  // slots, with nothing in the result saying so. Same rule as `specialty`.
   const wantedRfv = options.reasonForVisit?.trim().toLowerCase();
-  const reason =
-    (wantedRfv ? reasons.find((r) => r.Title?.toLowerCase() === wantedRfv || r.Id.toLowerCase() === wantedRfv) : null) ??
-    reasons.find((r) => r.CanDirectSchedule) ??
-    reasons[0] ??
-    null;
+  let reason: RawReason | null = null;
+  if (wantedRfv) {
+    reason = reasons.find((r) => r.Title?.toLowerCase() === wantedRfv || r.Id.toLowerCase() === wantedRfv) ?? null;
+    if (!reason) {
+      throw new Error(
+        `no reason for visit named ${JSON.stringify(options.reasonForVisit)} in ${specialty.name} on ` +
+          `${request.hostname} — it lists ${reasons.map((r) => r.Title).filter(Boolean).join(', ') || 'none'}`,
+      );
+    }
+  } else {
+    // Falling back to a request-only reason is expected to return no slots:
+    // it is the reason the org publishes when nothing is directly bookable.
+    reason = reasons.find((r) => r.CanDirectSchedule) ?? reasons[0] ?? null;
+  }
   const visitTypeId = reason?.DefaultVisitTypeId ?? specialtyData.VisitTypes?.[0]?.ID ?? null;
 
-  let pairs = (specialtyData.ProviderDepartmentPairs ?? []).filter(
-    (p) => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string',
-  );
+  let pairs = (specialtyData.ProviderDepartmentPairs ?? [])
+    .filter((p) => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string')
+    // Only the three keys the live page sends per pair.
+    .map((p) => ({ ProviderId: p.ProviderId, DepartmentId: p.DepartmentId, IsTeamMember: p.IsTeamMember === true }));
   if (options.providerIds?.length) {
     const keep = new Set(options.providerIds);
     pairs = pairs.filter((p) => keep.has(p.ProviderId));
   }
   if (options.maxPairs !== undefined && options.maxPairs >= 0) pairs = pairs.slice(0, options.maxPairs);
   if (pairs.length === 0) {
-    return { specialty: { id: specialty.Id, name: specialty.Name }, slots: [], pages: 0, throttled: false, complete: true };
+    return { specialty, slots: [], pages: 0, errorCode: null, complete: true };
   }
 
-  const startDte = toEpicDte(options.startDate ?? new Date());
+  const startDte = options.startDate ? toEpicDte(options.startDate) : localTodayDte();
   const maxPages = options.maxPages ?? 10;
   const slots: OpenSlot[] = [];
   let cursor: ContinueInfo | null = null;
   let pages = 0;
-  let throttled = false;
+  let errorCode: number | string | null = null;
   let complete = false;
 
   while (pages < maxPages) {
     const body: Record<string, unknown> = {
-      workflow: { Type: 'NewProvider', FinderType: 'Provider', IsGuest: true, IsAnonymous: true, IsFromPrelogin: true },
+      workflow: {
+        Type: 2,
+        IsGuest: false,
+        IsAnonymous: true,
+        IsFromPrelogin: false,
+        SchedulingControllerParams: { isAnonymous: true, workflow: 'NewProvider' },
+        IsAuthenticatedWidget: false,
+      },
       appointmentBuilder: {
-        Appointments: [{ VisitTypeId: visitTypeId, ProviderDepartmentPairs: pairs, Slot: '', SearchStartDte: startDte }],
+        Appointments: [
+          { VisitTypeId: visitTypeId, ProviderDepartmentPairs: pairs, Slot: '', SelectedTelehealthMode: 0, CanSkipLicensureCheck: true },
+        ],
         ReasonForVisitLine: reason?.Id ?? null,
         ReasonForVisitValue: reason?.CategoryValue ?? null,
+        SpecialtyId: specialty.id,
       },
       startDte,
       useSchedulingPreferences: false,
     };
     if (cursor) body.continueInfo = cursor;
 
-    const data: RawSlotsResponse = await postForm<RawSlotsResponse>(
-      request,
-      SLOTS_PATH,
-      page.token,
-      body,
-      OPEN_SCHEDULING_PATH,
-    );
+    const data = await postForm<RawSlotsResponse>(request, SLOTS_PATH, token, body, OPEN_SCHEDULING_PATH);
     pages++;
     slots.push(...parseSlotsResponse(data));
 
-    if (hasError(data)) {
-      throttled = true;
-      logger.debug(`GetSlots on ${request.hostname} returned ErrorCode ${String(data.ErrorCode)} — stopping`);
+    errorCode = errorCodeOf(data);
+    if (errorCode !== null) {
+      logger.debug(`GetSlots on ${request.hostname} returned ErrorCode ${String(errorCode)} — stopping`);
       break;
     }
     if (isSearchComplete(cursor, data.ContinueInfo)) {
@@ -277,7 +321,7 @@ export async function fetchOpenSlots(
     cursor = data.ContinueInfo ?? null;
   }
 
-  return { specialty: { id: specialty.Id, name: specialty.Name }, slots, pages, throttled, complete };
+  return { specialty, slots, pages, errorCode, complete };
 }
 
 /**

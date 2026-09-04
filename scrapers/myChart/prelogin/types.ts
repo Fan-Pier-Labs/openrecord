@@ -173,8 +173,12 @@ export type SlotSearchResult = {
   slots: OpenSlot[];
   /** How many `GetSlots` round trips it took. */
   pages: number;
-  /** The instance applied back-pressure and the walk stopped early. */
-  throttled: boolean;
+  /**
+   * The instance's own `ErrorCode` for the last search, or null. Passed
+   * through uninterpreted — it covers both back-pressure and "cannot search",
+   * and the code table is not published.
+   */
+  errorCode: number | string | null;
   /** The server reported the search finished rather than the page cap hitting. */
   complete: boolean;
 };

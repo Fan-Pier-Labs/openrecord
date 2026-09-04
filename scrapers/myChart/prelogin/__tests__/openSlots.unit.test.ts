@@ -12,7 +12,8 @@ import {
   fetchOpenSlots,
   fetchProviderAvailability,
   fromEpicDte,
-  hasError,
+  localTodayDte,
+  errorCodeOf,
   isSearchComplete,
   parseSlot,
   parseSlotsResponse,
@@ -82,8 +83,15 @@ describe('Epic date conversion', () => {
     expect(fromEpicDte(67821).toISOString().slice(0, 10)).toBe('2026-09-08');
   });
 
-  it('ignores the time of day, so a late-evening call still asks for today', () => {
+  it('ignores the time of day within a UTC day', () => {
     expect(toEpicDte(new Date('2026-09-08T23:59:59Z'))).toBe(toEpicDte(new Date('2026-09-08T00:00:01Z')));
+  });
+
+  it('takes "today" from the wall clock, so an evening call west of UTC keeps today', () => {
+    // 9pm on the 8th locally is already the 9th in UTC; the search must still
+    // start on the 8th, or same-day slots are silently skipped.
+    const evening = new Date(2026, 8, 8, 21, 0, 0);
+    expect(localTodayDte(evening)).toBe(toEpicDte(new Date('2026-09-08T00:00:00Z')));
   });
 });
 
@@ -145,12 +153,12 @@ describe('isSearchComplete', () => {
   });
 });
 
-describe('hasError', () => {
-  it('treats a set ErrorCode as back-pressure and 0/null as fine', () => {
-    expect(hasError({ ErrorCode: 3 })).toBe(true);
-    expect(hasError({ ErrorCode: 0 })).toBe(false);
-    expect(hasError({ ErrorCode: null })).toBe(false);
-    expect(hasError({})).toBe(false);
+describe('errorCodeOf', () => {
+  it('passes a set code through and treats 0/null as no error', () => {
+    expect(errorCodeOf({ ErrorCode: 3 })).toBe(3);
+    expect(errorCodeOf({ ErrorCode: 0 })).toBeNull();
+    expect(errorCodeOf({ ErrorCode: null })).toBeNull();
+    expect(errorCodeOf({})).toBeNull();
   });
 });
 
@@ -161,11 +169,11 @@ describe('fetchOpenSlots', () => {
 
     expect(result.slots).toHaveLength(1);
     expect(result.complete).toBe(true);
-    expect(result.throttled).toBe(false);
+    expect(result.errorCode).toBeNull();
     expect(result.specialty).toEqual({ id: 'SPEC-1', name: 'Primary Care' });
     // RFV-req cannot be direct-scheduled, so the search must use RFV-ok.
-    expect(slotCalls()[0]!['appointmentBuilder[ReasonForVisitLine]']).toBe('RFV-ok');
-    expect(slotCalls()[0]!['appointmentBuilder[Appointments][0][VisitTypeId]']).toBe('VT-2');
+    expect(slotCalls()[0]!['appointmentBuilder.ReasonForVisitLine']).toBe('RFV-ok');
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].VisitTypeId']).toBe('VT-2');
   });
 
   it('pages by echoing the cursor back until the server stops', async () => {
@@ -178,17 +186,17 @@ describe('fetchOpenSlots', () => {
     expect(result.slots).toHaveLength(2);
     expect(result.pages).toBe(2);
     expect(result.complete).toBe(true);
-    expect(slotCalls()[0]!['continueInfo[NextProviderIndex]']).toBeUndefined();
-    expect(slotCalls()[1]!['continueInfo[NextProviderIndex]']).toBe('16^1');
+    expect(slotCalls()[0]!['continueInfo.NextProviderIndex']).toBeUndefined();
+    expect(slotCalls()[1]!['continueInfo.NextProviderIndex']).toBe('16^1');
   });
 
-  it('stops and reports throttling rather than hammering the instance', async () => {
+  it('stops on an error code and hands it back uninterpreted', async () => {
     const { request, slotCalls } = mockSlots([
       { Solutions: [{ Slots: [slot('PROV-1', '2026-09-08T17:00:00Z')] }], ErrorCode: 3, ContinueInfo: { State: 2, NextProviderIndex: '16^1' } },
     ]);
     const result = await fetchOpenSlots(request);
 
-    expect(result.throttled).toBe(true);
+    expect(result.errorCode).toBe(3);
     expect(result.complete).toBe(false);
     expect(slotCalls()).toHaveLength(1);
     // The slots it did return are still handed back.
@@ -214,13 +222,39 @@ describe('fetchOpenSlots', () => {
     await expect(fetchOpenSlots(request, { specialty: 'Podiatry' })).rejects.toThrow(/no specialty named/);
   });
 
+  it('searches a named reason for visit and refuses an unknown one', async () => {
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    await fetchOpenSlots(request, { reasonForVisit: 'Request Only' });
+    // The named reason wins even though it is not directly schedulable.
+    expect(slotCalls()[0]!['appointmentBuilder.ReasonForVisitLine']).toBe('RFV-req');
+
+    await expect(fetchOpenSlots(request, { reasonForVisit: 'Annual Physical' })).rejects.toThrow(
+      /no reason for visit named .*Annual Physical.* — it lists Request Only, New Patient/,
+    );
+  });
+
+  it('sends an explicit startDate and caps the pairs', async () => {
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    await fetchOpenSlots(request, { startDate: new Date('2026-09-08T00:00:00Z'), maxPairs: 1 });
+
+    expect(slotCalls()[0]!['startDte']).toBe('67821');
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[0].ProviderId']).toBe('PROV-1');
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[1].ProviderId']).toBeUndefined();
+  });
+
+  it('sends the specialty id the live payload carries', async () => {
+    const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
+    await fetchOpenSlots(request);
+    expect(slotCalls()[0]!['appointmentBuilder.SpecialtyId']).toBe('SPEC-1');
+  });
+
   it('narrows to one provider without calling the endpoint when none match', async () => {
     const { request, slotCalls } = mockSlots([{ Solutions: [{ Slots: [slot('PROV-2', '2026-09-09T14:00:00Z')] }], ContinueInfo: { IsStopSearch: true } }]);
     const result = await fetchProviderAvailability(request, 'PROV-2');
 
     expect(result.slots.map((s) => s.providerId)).toEqual(['PROV-2']);
-    expect(slotCalls()[0]!['appointmentBuilder[Appointments][0][ProviderDepartmentPairs][0][ProviderId]']).toBe('PROV-2');
-    expect(slotCalls()[0]!['appointmentBuilder[Appointments][0][ProviderDepartmentPairs][1][ProviderId]']).toBeUndefined();
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[0].ProviderId']).toBe('PROV-2');
+    expect(slotCalls()[0]!['appointmentBuilder.Appointments[0].ProviderDepartmentPairs[1].ProviderId']).toBeUndefined();
 
     const none = await fetchProviderAvailability(request, 'PROV-missing');
     expect(none.slots).toEqual([]);

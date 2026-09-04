@@ -5,12 +5,18 @@
 
 export { fetchHospitalNetworkProfile, INSURANCE_GATE_REASON, type NetworkProfileOptions } from './networkProfile';
 export { parseOrgProfile, parseMnemonics, parsePhone, parseEmail, hasOrgProfile } from './orgProfile';
-export { fetchProviderDirectory, fetchSchedulingWorkflow, type ProviderDirectoryOptions } from './providerDirectory';
+export {
+  fetchProviderDirectory,
+  fetchSchedulingWorkflow,
+  fetchSpecialtyData,
+  type ProviderDirectoryOptions,
+} from './providerDirectory';
 export {
   fetchOpenSlots,
   fetchProviderAvailability,
   toEpicDte,
   fromEpicDte,
+  localTodayDte,
   type OpenSlotsOptions,
 } from './openSlots';
 export { fetchBillingEntities } from './guestEstimates';
