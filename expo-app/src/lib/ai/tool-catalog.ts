@@ -106,7 +106,11 @@ const CONFIRM_LABELS: Record<string, string> = {
  * covered four of the eight writes the other clients already had.
  */
 export const WRITE_TOOL_META: Record<string, WriteToolMeta> = Object.fromEntries(
-  CAPABILITIES.filter((c) => c.kind === "write").map((c) => [
+  // A capability with no scraper is not confirmation-gated: it changes nothing,
+  // and "Request refill?" in front of a call that does nothing is a prompt that
+  // teaches a patient their confirmations are noise. `kind` describes the write
+  // it will be once implemented, not what it does today.
+  CAPABILITIES.filter((c) => c.kind === "write" && !c.notImplemented).map((c) => [
     c.id,
     {
       title: c.title,

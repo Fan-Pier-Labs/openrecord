@@ -31,9 +31,37 @@ fixture rebuilt from it.
 | `get_billing` | `GetVisits` | `UndistributedPayments[]` element; `EstimateInfo`, `VisitAutoPay`, `AgencyInformation` populated | |
 | `list_proxy_targets` | `/ProxySwitch`, `/Home` | Which discovery surface each captured instance uses | Three surfaces exist; only the JSON one has a skeleton |
 
+## 1a. Capabilities we declare and deliberately do not implement
+
+`Capability.notImplemented` in `shared/capabilities/types.ts` is one sentence saying why a
+capability ships no scraper. `capabilityDescription()` appends it to the description every
+client shows, and `executeCapability` returns `unimplementedMessage()` instead of calling
+anything. `UnimplementedCapabilityImpl` has `run?: never`, so attaching a scraper to one is a
+compile error rather than a review note.
+
+This replaces the obvious-looking alternative — ship the scraper and warn about it in prose —
+which is worse in both directions. An unverified *read* answers `[]`, which nobody reads as
+"this has never seen a real instance"; they read it as "your chart has none". An unverified
+*write* answers HTTP 200 from an endpoint that ignored it, and the patient believes their
+refill is on the way. A caveat in a tool description does not stop a caller acting on the
+payload it was handed, so the fix is to hand it no payload.
+
+What we know about the endpoint goes in a README beside the capability's other code
+(`scrapers/myChart/chart/medications/REFILL.md`), where whoever implements it will look — not
+in a scraper that runs. Not an unwired `.ts` file: the coverage gate is per-file, so an
+untested module fails the build.
+
+Currently: `request_refill`. Clearing it means capturing the request the shipped client sends,
+rebuilding the fake's handler around it, and watching one real refill land.
+
+This is for capabilities with no trustworthy implementation at all. It is **not** for a
+capability whose envelope is confirmed and whose element shape is merely uncaptured —
+`get_allergies`, `get_documents`, `get_care_journeys`, `get_upcoming_orders` all pass elements
+through whole and answer empty honestly. Those belong in the table above.
+
 ## 2. Requests to verify
 
-- **`request_refill` body.** The scraper posts `{ medicationKey }` to `/api/medications/RequestRefill`. `medicationKey` exists only in the fake's fixture; the captured medications skeleton has `id`. Capture the web UI's refill request (`epic.px.client.medications.js` on any instance) and fix both the scraper and the fixture. Until then the medications processor exposes `id` and the refill capability is documented as unverified.
+- **`request_refill` body.** The scraper posts `{ medicationKey }` to `/api/medications/RequestRefill`. `medicationKey` exists only in the fake's fixture; the captured medications skeleton has `id`. Capture the web UI's refill request (`epic.px.client.medications.js` on any instance) and fix both the scraper and the fixture. The medications processor exposes `id`, and the capability itself is now declared-not-implemented (§1a) rather than shipping a request nobody has watched land.
 - **`get_questionnaires` endpoint.** Legacy `/Questionnaire/GetQuestionnaireList` vs React `/api/questionnaire/GetQuestionnaireList` (see above). Checked on four live instances after the migration: three serve the legacy page and return an empty list; one answers the `/Questionnaire` page itself with HTTP 500, so the capability now fails there with `MissingVerificationTokenError` (it used to read as "no questionnaires"). The React endpoint is the one to move to.
 - **`IsPastVisit`.** Documented false on rows `LoadPast` returned (#377, #380). Confirm on the August 2025 release too, so the drop is release-independent.
 - **`results[].isAbnormal`.** `false` on all 39 captured results including out-of-range ones (#375). One more instance would settle whether any release sets it.
@@ -58,7 +86,8 @@ return the standard object and `runCapability(id, { mode })` picks any mode; `do
 
 - `docs/processor-layer-examples.md` is generated and CI fails when it is stale (the fake-mychart
   job regenerates it and diffs). Regenerate with `bun dev-scripts/generate-processor-examples.ts`
-  against fake-mychart in any PR that changes a processor or a fixture.
+  in any PR that changes a processor or a fixture — against the **compose service**, not a
+  `bun run start` in the worktree; the generator's header says why.
 
 ## 7. Follow-ups from the #388 review
 

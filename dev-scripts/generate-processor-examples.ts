@@ -16,6 +16,13 @@
  * server fails that check with ~150 lines of byte-count churn and regenerating
  * again from `dev` only entrenches it.
  *
+ * A `bun run start` in the worktree is not close enough either, for a second
+ * reason: it answers `application/json` where the container answers
+ * `application/json;charset=utf-8`, and `raw` mode records each response's
+ * header verbatim. That one shows up as a diff in capabilities the PR never
+ * touched — the same false signal the pinned clock below exists to remove,
+ * arriving from a different direction.
+ *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.
  *

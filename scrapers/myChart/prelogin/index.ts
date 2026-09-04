@@ -12,14 +12,7 @@ export {
   type ProviderDirectoryOptions,
 } from './providerDirectory';
 export { resolveSchedulingContext, parseSchedulingWindow, windowDates } from './schedulingContext';
-export {
-  fetchOpenSlots,
-  fetchProviderAvailability,
-  toEpicDte,
-  fromEpicDte,
-  localTodayDte,
-  type OpenSlotsOptions,
-} from './openSlots';
+export { fetchOpenSlots, fetchProviderAvailability, type OpenSlotsOptions } from './openSlots';
 // `walkSchedulingQuestionnaire` is deliberately not re-exported: the two calls
 // above are the surface, and the raw walk is how they are implemented.
 export { fetchSchedulingQuestionnaire, submitSchedulingAnswers } from './schedulingQuestionnaire';

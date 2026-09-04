@@ -26,6 +26,16 @@ short and put detail in `docs/` or the relevant `README.md`. See [Keeping this f
 | `read-local-passwords/` | Browser password store extraction (Chromium + Firefox) — used by the CLI and the MCPB's import flow. Read-only, macOS/Windows |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
+## Simplicity First
+
+- **Prefer the smallest change that solves the stated problem.**
+- **Don't add configurability** — options objects, env vars, config fields — unless explicitly
+  asked. Hardcode sensible constants instead.
+- **Don't add a dependency or an AST/parser-based solution** when a regex or a few lines of plain
+  code will do.
+- If a more general solution is genuinely warranted, **propose it in one sentence and wait for
+  approval** before implementing.
+
 ## Invariants
 
 Break one of these and it fails silently, in production, on someone's medical record. Rationale and
@@ -63,6 +73,13 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   Response shapes are held to skeletons generated from live captures (`realShapes.ts` +
   `conformToShape`), every `/api/*` POST requires a CSRF token, and a `/mode` knob switches the
   instance between the two captured Epic releases (November 2025 / August 2025). See `fake-mychart/README.md`.
+
+## Verify Against Reality Before Claiming
+
+For any MyChart/API behavior, **never infer a contract from fixtures, stale doc captures, or a small
+sample of failing instances.** Probe real instances first and state the sample size in the PR body.
+If N instances all fail, say "unverified on N instances" — never model unobserved behavior in the
+fake server. **Never take an action that could trigger a 2FA SMS to the user without asking first.**
 
 ## Key commands
 
@@ -132,6 +149,15 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
 - **NEVER take over the user's mouse** to drive the simulator — see
   [`docs/ios-simulator.md`](docs/ios-simulator.md).
 
+## Comments & PR Bodies
+
+- **Only write comments that explain non-obvious *why*.** No docblocks restating the signature, no
+  narration of obvious steps.
+- **PR bodies state what changed and why in a few lines** — don't overstate the value of code you
+  are about to be asked to delete.
+- **Never cite a commit SHA or file provenance you haven't verified** with `git log` / `git show` in
+  this session.
+
 ## Workflow
 
 - **When the user asks for a code change, open a PR by default once the change is made** — commit,
@@ -149,6 +175,12 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   gh api repos/Fan-Pier-Labs/openrecord/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
   ```
   `gh pr create` works normally.
+
+### Scope of PRs
+
+**One PR = one concern.** Don't bundle probe scripts, exploratory docs, or unrelated fixture
+rewrites into a bug-fix PR. To correct a pushed branch, add a normal follow-up commit — force-push
+is blocked.
 
 ### Keeping this file small
 
