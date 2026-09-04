@@ -9,10 +9,10 @@ import { silenceLogger, resetLogSink } from '../../shared/logger'
 
 /**
  * scraperFetch is the only outbound path the scrapers have, so these tests pin
- * down the three things every caller inherits by using it: the browser header
- * block, the cookie jar, and the per-host permit. A regression in any of them
- * is invisible at the call sites — the request still works, it just stops
- * looking like a browser or stops being rate limited.
+ * down the four things every caller inherits by using it: the browser header
+ * block, the cookie jar, the per-host permit, and the deadline. A regression in
+ * any of them is invisible at the call sites — the request still works, it just
+ * stops looking like a browser, stops being rate limited, or waits forever.
  */
 
 const tick = () =>

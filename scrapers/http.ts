@@ -2,7 +2,7 @@
  * The single outbound HTTP path for the scrapers.
  *
  * Every request this repo aims at a health system goes through `scraperFetch`,
- * because three things have to be true of all of them and none of the three
+ * because four things have to be true of all of them and none of the four
  * survives being reimplemented at a call site:
  *
  *  - **The browser header block.** MyChart and the eUnity image servers behind
@@ -14,6 +14,8 @@
  *  - **The per-host permit.** A full 30-category scrape otherwise arrives at
  *    one hospital as ~60 simultaneous requests, which is how an instance ends
  *    up in `blockedInstances.ts`.
+ *  - **The deadline.** A host that accepts the connection and never answers
+ *    hangs the scrape forever, holding a permit the whole time.
  *
  * A second raw-fetch path is exactly how the cap silently stops applying — it
  * keeps working, so nobody notices it isn't limited. So there isn't one. If you

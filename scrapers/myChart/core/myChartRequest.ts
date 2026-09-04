@@ -34,8 +34,8 @@ export class MyChartRequest {
 
   // Test seam. Null in production — scraperFetch picks the transport from the
   // platform. Assigning a function here intercepts this session's requests
-  // without losing the headers, the jar or the per-host permit, all of which
-  // live above the transport.
+  // without losing the headers, the jar, the per-host permit or the deadline,
+  // all of which live above the transport.
   transport: Transport | null = null;
 
   // The hostname of the MyChart site, eg. mychart.example.org
@@ -213,8 +213,9 @@ export class MyChartRequest {
       throw new Error("Either url or path must be defined in the config object.");
     }
 
-    // The Chrome header block, the cookie jar and the per-host permit are all
-    // scraperFetch's job; this only says what MyChart is being asked for.
+    // The Chrome header block, the cookie jar, the per-host permit and the
+    // deadline are all scraperFetch's job; this only says what MyChart is
+    // being asked for.
     // A bodyless request omits the key rather than sending `body: undefined`.
     const finalConfig = {
       method: config.method ?? 'GET',
