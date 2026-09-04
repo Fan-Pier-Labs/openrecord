@@ -4,8 +4,8 @@
  *
  *   bun dev-scripts/dte-dates.ts
  */
-import { dte2date, date2dte } from '../scrapers/myChart/chart/bills/utils';
+import { fromEpicDteLocal, toEpicDteLocal } from '../shared/epicDate';
 import { logger } from '../shared/logger';
 
-logger.debug('dte 18600 =', dte2date(18600));
-logger.debug('today     =', date2dte(new Date()));
+logger.debug('dte 18600 =', fromEpicDteLocal(18600));
+logger.debug('today     =', toEpicDteLocal(new Date()));
