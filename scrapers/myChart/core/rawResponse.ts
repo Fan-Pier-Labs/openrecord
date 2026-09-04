@@ -10,6 +10,16 @@
  *
  * `raw` output mode returns {@link unwrapRaw} of this: the single body when
  * there was one request, the whole envelope otherwise.
+ *
+ * A request MyChart did not answer properly — a 5xx, a WAF block page, the
+ * ASP.NET error page a November 2025 instance bounces a failed request to —
+ * is recorded and then THROWN as a {@link MyChartResponseError}, in every
+ * output mode. It used to be recorded and left for the processor to notice,
+ * and five of twenty-nine did; for the rest, a 500 read as `{}`, projected to
+ * `[]`, and rendered as "no allergies on file". The same care that keeps an
+ * expired session from reading as an empty chart applies to a server error.
+ * A scraper whose request is genuinely best-effort opts out per call with
+ * `tolerateFailure`, and its processor is then the one reporting the gap.
  */
 
 import type { MyChartRequest } from './myChartRequest';
@@ -42,6 +52,99 @@ export interface RawResponse {
   requests: RawRequestRecord[];
 }
 
+/**
+ * MyChart answered a request with something other than the data: a non-2xx
+ * status, its own error page, or a WAF's block page. Thrown by
+ * {@link RawCollector.send} after the answer is recorded, so the envelope a
+ * tolerant caller keeps still shows what came back. Clients surface the
+ * message as-is; nothing about it is an empty chart.
+ */
+export class MyChartResponseError extends Error {
+  readonly method: string;
+  readonly path: string;
+  readonly status: number;
+
+  constructor(record: RawRequestRecord, reason: string, excerpt: string) {
+    super(
+      `MyChart answered ${record.method} ${record.path} with ${reason}` +
+        (excerpt ? `: "${excerpt}"` : '') +
+        '. The request failed; nothing was read, so this is not an empty result. Retry later, ' +
+        'and if it keeps failing the instance may be down or blocking this request shape.',
+    );
+    this.name = 'MyChartResponseError';
+    this.method = record.method;
+    this.path = record.path;
+    this.status = record.status;
+  }
+}
+
+/**
+ * ASP.NET's error pages. A November 2025 instance answers a failed request
+ * with a 302 to `/Home/FiveHundred` (or `/Home/FourOhFour`), which 302s on to
+ * `/Home/Error?code=14`, a 200 HTML page — so after the redirects are
+ * followed, the only trace of the failure is the URL the response came from.
+ * An August 2025 instance answers a bare 500 instead, which the status catches.
+ */
+const ASPNET_ERROR_PAGE_RE = /\/home\/(error|fivehundred|fourohfour)(?:[/?#]|$)/i;
+
+/** F5's block page: HTTP 200, `text/html`, and this text where the data should be. */
+const WAF_BLOCK_RE = /Request Rejected|The requested URL was rejected/i;
+
+function isAspNetErrorPage(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let pathname = url;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    // A relative Location header: test it as-is.
+  }
+  return ASPNET_ERROR_PAGE_RE.test(pathname);
+}
+
+/**
+ * Why a response is not the data it was asked for, or null when it might be.
+ * Cheapest signal first. A redirect a caller asked to see for itself
+ * (`followRedirects: false`) is only a failure when it points at the error
+ * page; where it points otherwise is the caller's to read.
+ */
+export function describeResponseFailure(
+  response: Response,
+  text: string,
+  config: Pick<RequestConfig, 'followRedirects'>,
+): string | null {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (response.status >= 300 && response.status < 400 && config.followRedirects === false) {
+    const location = response.headers.get('Location') ?? '';
+    return isAspNetErrorPage(location)
+      ? `HTTP ${response.status} to its error page ${location}`
+      : null;
+  }
+  if (response.status < 200 || response.status >= 300) {
+    return `HTTP ${response.status}${contentType ? ` (${contentType})` : ''}`;
+  }
+  if (isAspNetErrorPage(response.url)) {
+    return `HTTP ${response.status} from its error page ${response.url}`;
+  }
+  if (contentType.includes('text/html') && WAF_BLOCK_RE.test(text.slice(0, 2000))) {
+    return (
+      `HTTP ${response.status} and a WAF block page in place of the data — the request was rejected ` +
+      'by the web application firewall in front of MyChart, not answered by MyChart'
+    );
+  }
+  return null;
+}
+
+/** The first line or so of a body, tags stripped, for an error message. */
+function excerptOf(text: string): string {
+  const plain = text
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain.length > 160 ? `${plain.slice(0, 157)}...` : plain;
+}
+
 /** Strip the cache-busting `noCache=<random>` query param scrapers append. */
 export function displayPath(path: string): string {
   return path
@@ -62,6 +165,17 @@ function parseRequestBody(config: RequestConfig): unknown {
   return config.body;
 }
 
+export interface SendOptions {
+  /** Marks the activity-page fetch made only for its antiforgery token. */
+  purpose?: 'token';
+  /**
+   * Record a failed answer and return it instead of throwing. Only for a
+   * request whose failure the scraper's processor reports as a gap
+   * (`externalProvidersUnavailable`), never for the payload.
+   */
+  tolerateFailure?: boolean;
+}
+
 /**
  * Records every request a scraper makes so the envelope is the untouched
  * record of the exchange. Wraps `makeAuthenticatedRequest`, so the session
@@ -79,14 +193,21 @@ export class RawCollector {
    * Issue a request (named `send`, not `fetch`: http.unit.test.ts greps the
    * scrapers for bare `fetch(` calls, and this is not a second network path —
    * it wraps makeAuthenticatedRequest), record it, and return the response
-   * plus its body: parsed
-   * JSON when the body parses as JSON, otherwise the text. The Response has
-   * already been read; use the returned body.
+   * plus its body: parsed JSON when the body parses as JSON, otherwise the
+   * text. The Response has already been read; use the returned body.
+   *
+   * An answer that is not the data ({@link describeResponseFailure}) is
+   * recorded and then thrown as a {@link MyChartResponseError}. With
+   * `tolerateFailure` it is recorded and returned with `failure` set instead —
+   * for a request that is best-effort by design (an optional endpoint, a
+   * speculative probe), whose processor then reports the gap honestly. Never
+   * for the payload: a tolerated 500 on the payload is the empty chart this
+   * exists to prevent.
    */
   async send(
     config: RequestConfig,
-    options: { purpose?: 'token' } = {},
-  ): Promise<{ response: Response; body: unknown; text: string }> {
+    options: SendOptions = {},
+  ): Promise<{ response: Response; body: unknown; text: string; failure: MyChartResponseError | null }> {
     const response = await makeAuthenticatedRequest(this.request, config, this.options);
     const text = await response.text();
     const contentType = response.headers.get('content-type') ?? '';
@@ -98,7 +219,7 @@ export class RawCollector {
         body = text;
       }
     }
-    this.requests.push({
+    const record: RawRequestRecord = {
       path: displayPath(config.path ?? config.url ?? ''),
       method: config.method ?? 'GET',
       ...(config.body !== undefined ? { requestBody: parseRequestBody(config) } : {}),
@@ -106,8 +227,13 @@ export class RawCollector {
       contentType,
       body,
       ...(options.purpose ? { purpose: options.purpose } : {}),
-    });
-    return { response, body, text };
+    };
+    this.requests.push(record);
+
+    const reason = describeResponseFailure(response, text, config);
+    const failure = reason ? new MyChartResponseError(record, reason, excerptOf(text)) : null;
+    if (failure && !options.tolerateFailure) throw failure;
+    return { response, body, text, failure };
   }
 
   /**
@@ -120,13 +246,16 @@ export class RawCollector {
   }
 
   /** POST a JSON body with the antiforgery token, the way the React `/api/*` routes expect. */
-  async postJson(path: string, token: string, body: unknown = {}): Promise<unknown> {
-    const result = await this.send({
-      path,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
-      body: JSON.stringify(body),
-    });
+  async postJson(path: string, token: string, body: unknown = {}, options: SendOptions = {}): Promise<unknown> {
+    const result = await this.send(
+      {
+        path,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+        body: JSON.stringify(body),
+      },
+      options,
+    );
     return result.body;
   }
 

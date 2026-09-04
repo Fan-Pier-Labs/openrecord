@@ -13,6 +13,7 @@ import { resetMountMode } from './mount';
 import { resetProxyDiscoveryMode } from './proxy';
 import { resetRequireTerms } from './terms';
 import { resetEpicVersion } from './epicVersion';
+import { resetFailingEndpoints } from './outage';
 
 /**
  * Homer's own patient record id. Real instances give the account holder a real
@@ -254,6 +255,7 @@ export function resetState(): void {
   resetProxyDiscoveryMode();
   resetRequireTerms();
   resetEpicVersion();
+  resetFailingEndpoints();
   resetDatasetCache();
 }
 

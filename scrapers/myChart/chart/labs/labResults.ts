@@ -38,43 +38,57 @@ export {
 const TEST_RESULTS_PAGE = '/app/test-results';
 
 /**
- * One `/api/test-results/GetList` page, or null when this instance does not
- * serve that group type. Group types 0-3 are probed speculatively, so a
- * failure here is expected — which is why it is the ONLY failure swallowed on
- * this path. A non-OK response is still recorded, with its status; a thrown
- * transport error is not. A `SessionExpiredError` still propagates:
+ * One `/api/test-results/GetList` page, or the failure when this instance
+ * does not serve that group type. Group types 0-3 are probed speculatively —
+ * real instances accept only 0 and 1 and answer the rest with a 500 — so a
+ * failure here is expected on some probes, which is why it is the ONLY
+ * failure tolerated on this path. It is recorded with its status, and the
+ * caller decides whether the probes as a whole came up empty. A thrown
+ * transport error is not recorded. A `SessionExpiredError` still propagates:
  * reporting a dead session as "unsupported group type" turns it into an
  * empty chart.
  */
-async function fetchResultGroupList(collector: RawCollector, groupType: number, token: string): Promise<unknown> {
+async function fetchResultGroupList(
+  collector: RawCollector,
+  groupType: number,
+  token: string,
+): Promise<{ page: unknown } | { failure: Error }> {
   try {
-    const { response, body } = await collector.send({
-      path: '/api/test-results/GetList',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
-      body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
-    });
-    return response.ok ? body : null;
+    const { body, failure } = await collector.send(
+      {
+        path: '/api/test-results/GetList',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+        body: JSON.stringify({ groupType, searchString: '', maxResults: 1000, isCurAdmFilterEnabled: false }),
+      },
+      { tolerateFailure: true },
+    );
+    return failure ? { failure } : { page: body };
   } catch (err) {
     if (err instanceof SessionExpiredError) throw err;
     logger.debug(`test-results GetList failed for groupType ${groupType}:`, (err as Error).message);
-    return null;
+    return { failure: err as Error };
   }
 }
 
 /** The trend body is best-effort: a failure is recorded (when there was a response) and otherwise tolerated. */
 async function fetchHistoricalResults(collector: RawCollector, orderKey: string, token: string): Promise<void> {
   try {
-    await collector.postJson('/api/past-results/GetMultipleHistoricalResultComponents', token, {
-      orderID: orderKey,
-      selectedComponentIDs: [],
-      isInitialLoad: true,
-      startTime: '',
-      endTime: '',
-      organizationID: '',
-      isCustomFilterEnabled: false,
-      PageNonce: '',
-    });
+    await collector.postJson(
+      '/api/past-results/GetMultipleHistoricalResultComponents',
+      token,
+      {
+        orderID: orderKey,
+        selectedComponentIDs: [],
+        isInitialLoad: true,
+        startTime: '',
+        endTime: '',
+        organizationID: '',
+        isCustomFilterEnabled: false,
+        PageNonce: '',
+      },
+      { tolerateFailure: true },
+    );
   } catch (err) {
     if (err instanceof SessionExpiredError) throw err;
     logger.debug(`historical results failed for ${orderKey}:`, (err as Error).message);
@@ -90,10 +104,20 @@ async function fetchHistoricalResults(collector: RawCollector, orderKey: string,
 async function collectLabResults(collector: RawCollector): Promise<void> {
   const token = await collector.pageToken(TEST_RESULTS_PAGE);
   const seenKeys = new Set<string>();
+  // A probe the instance rejects is expected; every probe rejected is not. An
+  // instance that answered nothing has not said "no results", and the first
+  // failure is the one to report.
+  let firstFailure: Error | null = null;
+  let pagesRead = 0;
 
   for (const groupType of [0, 1, 2, 3]) {
-    const page = await fetchResultGroupList(collector, groupType, token);
-    if (page === null) continue;
+    const outcome = await fetchResultGroupList(collector, groupType, token);
+    if ('failure' in outcome) {
+      firstFailure ??= outcome.failure;
+      continue;
+    }
+    pagesRead++;
+    const page = outcome.page;
 
     // Outside the swallow: these are results the instance says exist, so a
     // failure here would return a short list indistinguishable from a
@@ -123,6 +147,8 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
       await fetchHistoricalResults(collector, key, token);
     }
   }
+
+  if (pagesRead === 0 && firstFailure) throw firstFailure;
 }
 
 export async function fetchLabResultsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {

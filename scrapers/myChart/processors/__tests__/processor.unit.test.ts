@@ -1,19 +1,28 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { MyChartRequest } from '../../core/myChartRequest';
-import { RawCollector, unwrapRaw, findRequest, findRequests, bodyOf, displayPath } from '../../core/rawResponse';
+import { RawCollector, MyChartResponseError, unwrapRaw, findRequest, findRequests, bodyOf, displayPath } from '../../core/rawResponse';
 import { renderOutput, passthroughProcessor, isOutputMode, OUTPUT_MODES, type Processor } from '../processor';
 import { rec, list, text, textOrNull, bool, num, strings, epicInstantMs, isoFromMs } from '../read';
 
-function mockRequest(responses: Array<{ body: string; status?: number; contentType?: string }>) {
+type MockReply = { body: string; status?: number; contentType?: string; url?: string; location?: string };
+
+function mockRequest(responses: MockReply[]) {
   const req = new MyChartRequest('mychart.example.com');
   req.firstPathPart = 'MyChart';
   let i = 0;
   req.transport = mock(async () => {
     const r = responses[i++]!;
-    return new Response(r.body, {
+    const response = new Response(r.body, {
       status: r.status ?? 200,
-      headers: { 'content-type': r.contentType ?? 'application/json' },
+      headers: {
+        'content-type': r.contentType ?? 'application/json',
+        ...(r.location ? { location: r.location } : {}),
+      },
     });
+    // A constructed Response has no url; a fetched one reports where it came
+    // from, which is the only trace of a followed redirect.
+    if (r.url) Object.defineProperty(response, 'url', { value: r.url });
+    return response;
   });
   return req;
 }
@@ -48,7 +57,7 @@ describe('RawCollector', () => {
   });
 
   it('keeps a non-JSON body as text and a form body as the string it was', async () => {
-    const req = mockRequest([{ body: 'Request Rejected', contentType: 'text/html' }]);
+    const req = mockRequest([{ body: 'Not JSON at all', contentType: 'text/html' }]);
     const collector = new RawCollector(req);
     await collector.send({
       path: '/x',
@@ -56,7 +65,7 @@ describe('RawCollector', () => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'a=1',
     });
-    expect(collector.requests[0]!.body).toBe('Request Rejected');
+    expect(collector.requests[0]!.body).toBe('Not JSON at all');
     expect(collector.requests[0]!.requestBody).toBe('a=1');
   });
 
@@ -65,6 +74,108 @@ describe('RawCollector', () => {
     const collector = new RawCollector(req);
     await collector.send({ path: '/x', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json' });
     expect(collector.requests[0]!.requestBody).toBe('{not json');
+  });
+});
+
+/**
+ * A failed answer must never reach a processor as data. Before this, a 500
+ * was recorded, `rec(html)` read it as `{}`, and concise mode rendered "no
+ * allergies on file".
+ */
+describe('RawCollector failed answers', () => {
+  const ERROR_PAGE = '<!DOCTYPE html><html><head><title>Error</title></head><body><h1>An error has occurred.</h1><p>Please try again later.</p></body></html>';
+
+  it('throws on a 5xx, after recording it, with the status and what the page said', async () => {
+    const req = mockRequest([{ body: ERROR_PAGE, status: 500, contentType: 'text/html; charset=utf-8' }]);
+    const collector = new RawCollector(req);
+    const error = await collector
+      .send({ path: '/api/allergies/LoadAllergies', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error).toBeInstanceOf(MyChartResponseError);
+    expect(error!.status).toBe(500);
+    expect(error!.path).toBe('/api/allergies/LoadAllergies');
+    expect(error!.message).toContain('POST /api/allergies/LoadAllergies with HTTP 500 (text/html; charset=utf-8)');
+    expect(error!.message).toContain('An error has occurred. Please try again later.');
+    expect(error!.message).not.toContain('<h1>');
+    // The answer is still in the envelope for whoever catches this.
+    expect(collector.requests).toHaveLength(1);
+    expect(collector.requests[0]).toMatchObject({ status: 500, body: ERROR_PAGE });
+  });
+
+  it('throws on a 4xx too — a Cloudflare challenge is a 403 with a page, not an empty chart', async () => {
+    const req = mockRequest([{ body: '<html><title>Just a moment...</title></html>', status: 403, contentType: 'text/html' }]);
+    await expect(new RawCollector(req).send({ path: '/api/x' })).rejects.toThrow(/HTTP 403/);
+  });
+
+  it('throws on a token page that failed, with the status rather than "no token"', async () => {
+    const req = mockRequest([{ body: ERROR_PAGE, status: 500, contentType: 'text/html' }]);
+    await expect(new RawCollector(req).pageToken('/Clinical/Allergies')).rejects.toThrow(/GET \/Clinical\/Allergies with HTTP 500/);
+  });
+
+  it('throws on a 200 that came from the ASP.NET error page — the November 2025 redirect dance', async () => {
+    // 302 /Home/FiveHundred → 302 /Home/Error?code=14 → 200: after the
+    // redirects are followed, the status is fine and only the URL tells.
+    const req = mockRequest([
+      { body: ERROR_PAGE, status: 200, contentType: 'text/html; charset=utf-8', url: 'https://mychart.example.com/MyChart/Home/Error?code=14' },
+    ]);
+    const collector = new RawCollector(req);
+    await expect(collector.send({ path: '/api/allergies/LoadAllergies', method: 'POST' })).rejects.toThrow(
+      /HTTP 200 from its error page https:\/\/mychart\.example\.com\/MyChart\/Home\/Error\?code=14/,
+    );
+    expect(collector.requests[0]).toMatchObject({ status: 200 });
+  });
+
+  it('does not mistake an ordinary page for the error page', async () => {
+    const req = mockRequest([
+      { body: '<html>home</html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Home/ErrorFree' },
+      { body: '<html>ok</html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Clinical/Allergies' },
+    ]);
+    const collector = new RawCollector(req);
+    await collector.send({ path: '/Home/ErrorFree' });
+    await collector.send({ path: '/Clinical/Allergies' });
+    expect(collector.requests).toHaveLength(2);
+  });
+
+  it('throws on an F5 block page, which is a 200 with "Request Rejected" where the data belongs', async () => {
+    const req = mockRequest([
+      { body: '<html><head><title>Request Rejected</title></head><body>The requested URL was rejected. Your support ID is: 123</body></html>', contentType: 'text/html' },
+    ]);
+    await expect(new RawCollector(req).send({ path: '/api/x', method: 'POST' })).rejects.toThrow(/WAF block page.*rejected/);
+  });
+
+  it('reads a redirect a caller asked to see for itself, unless it points at the error page', async () => {
+    const req = mockRequest([
+      { body: '', status: 302, contentType: 'text/html', location: '/MyChart/Home/Landing' },
+      { body: '', status: 302, contentType: 'text/html', location: '/MyChart/Home/FiveHundred?aspxerrorpath=/MyChart/api/x' },
+    ]);
+    const collector = new RawCollector(req);
+    const seen = await collector.send({ path: '/Home', followRedirects: false });
+    expect(seen.response.status).toBe(302);
+    expect(seen.failure).toBeNull();
+    await expect(collector.send({ path: '/api/x', followRedirects: false })).rejects.toThrow(/HTTP 302 to its error page/);
+  });
+
+  it('tolerateFailure records the answer and hands back the failure instead of throwing', async () => {
+    const req = mockRequest([{ body: 'server error', status: 500, contentType: 'text/plain' }]);
+    const collector = new RawCollector(req);
+    const result = await collector.send({ path: '/Clinical/CareTeam/LoadExternal', method: 'POST' }, { tolerateFailure: true });
+    expect(result.failure).toBeInstanceOf(MyChartResponseError);
+    expect(result.body).toBe('server error');
+    expect(collector.requests[0]).toMatchObject({ status: 500, body: 'server error' });
+
+    const ok = await new RawCollector(mockRequest([{ body: '{}' }])).send({ path: '/x' });
+    expect(ok.failure).toBeNull();
+  });
+
+  it('postJson forwards the option', async () => {
+    const req = mockRequest([
+      { body: '{"Message":"An error has occurred."}', status: 500 },
+      { body: '{"Message":"An error has occurred."}', status: 500 },
+    ]);
+    const collector = new RawCollector(req);
+    await expect(collector.postJson('/api/x', 't', {})).rejects.toThrow(/HTTP 500/);
+    expect(await collector.postJson('/api/x', 't', {}, { tolerateFailure: true })).toEqual({ Message: 'An error has occurred.' });
+    expect(collector.requests).toHaveLength(2);
   });
 });
 

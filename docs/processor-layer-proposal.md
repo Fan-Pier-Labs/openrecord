@@ -100,10 +100,13 @@ is.
    drop-if-empty, so those numbers move. `concise` is a static pick of fields
    per capability, which is also what lets a test check every listed field
    against the captured skeleton.
-7. **Errors pass through.** A scrape-error shape (`{ error }`), a WAF
-   interstitial, a literal `null` from an unknown id: the processor returns it
-   unchanged in every mode. Summarizing an error into nothing hides why the
-   scrape failed.
+7. **Errors pass through.** A scrape-error shape (`{ error }`), a literal
+   `null` from an unknown id: the processor returns it unchanged in every
+   mode. Summarizing an error into nothing hides why the scrape failed. A
+   failed HTTP answer — a 5xx, a WAF interstitial, Epic's error page — never
+   reaches the processor at all: `RawCollector.send` records it and throws
+   (`MyChartResponseError`), so it is the same error in every mode, and it
+   cannot become an empty list in one of them.
 8. **No clock, no locale.** Dates come from MyChart's own rendering or from a
    field that carries an explicit instant. The processor never formats an
    instant in the process's local zone (PR #380's reasoning: that moves an
