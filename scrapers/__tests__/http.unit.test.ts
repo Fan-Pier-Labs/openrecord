@@ -2,17 +2,17 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CookieJar } from 'tough-cookie'
-import { abortAfter, BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../http'
+import { BROWSER_HEADERS, PLATFORM_OWNS_COOKIES, platformFetch, scraperFetch, setTestTransport } from '../http'
 import { hostLimiterStats, resetHostLimiters } from '../../shared/hostConcurrency'
 import { MAX_CONCURRENT_REQUESTS_PER_HOST as LIMIT } from '../../shared/env'
 import { silenceLogger, resetLogSink } from '../../shared/logger'
 
 /**
  * scraperFetch is the only outbound path the scrapers have, so these tests pin
- * down the three things every caller inherits by using it: the browser header
- * block, the cookie jar, and the per-host permit. A regression in any of them
- * is invisible at the call sites — the request still works, it just stops
- * looking like a browser or stops being rate limited.
+ * down the four things every caller inherits by using it: the browser header
+ * block, the cookie jar, the per-host permit, and the deadline. A regression in
+ * any of them is invisible at the call sites — the request still works, it just
+ * stops looking like a browser, stops being rate limited, or waits forever.
  */
 
 const tick = () =>
@@ -405,38 +405,52 @@ describe('scrapers have exactly one outbound path', () => {
 })
 
 /**
- * The 30s cap on eUnity image downloads is the only caller of this, and it
- * runs on device — where React Native polyfills `AbortSignal` with the
- * `abort-controller` package, which has the constructor but not the static
- * `timeout()`. That gap is the whole reason the fallback exists, so it is the
- * branch worth pinning.
- *
- * These moved here when `eunity/fetch.ts` was folded into http.ts; they are
- * still the only coverage the polyfill has.
+ * Every request carries a two-minute deadline, which is what the
+ * `AbortSignal.timeout` polyfill was replaced by. A host that accepts the
+ * connection and then never answers would otherwise hang the scrape forever
+ * *and* keep one of that host's ten permits, starving every other category on
+ * the same instance. The deadline itself is the platform's to enforce; what a
+ * test can pin is that every request is given one.
  */
-describe('abortAfter', () => {
-  it('returns a signal that is not yet aborted', () => {
-    expect(abortAfter(1000).aborted).toBe(false)
+describe('request deadline', () => {
+  beforeEach(() => {
+    silenceLogger()
+    resetHostLimiters()
   })
 
-  it('aborts once the deadline passes', async () => {
-    const signal = abortAfter(5)
-    await Bun.sleep(30)
-    expect(signal.aborted).toBe(true)
+  afterEach(() => {
+    resetHostLimiters()
+    resetLogSink()
   })
 
-  it('falls back to AbortController when AbortSignal.timeout is unavailable', async () => {
+  it('hands every request a live abort signal', async () => {
+    const { transport, calls } = recorder()
+    await scraperFetch('https://mychart.example.org/Home', {}, { transport })
+
+    const signal = calls[0]!.init.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal!.aborted).toBe(false)
+  })
+
+  it('builds the signal from AbortController, which React Native has, not AbortSignal.timeout, which it does not', async () => {
     const original = AbortSignal.timeout?.bind(AbortSignal)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (AbortSignal as any).timeout
     try {
-      const signal = abortAfter(5)
-      expect(signal.aborted).toBe(false)
-      await Bun.sleep(30)
-      expect(signal.aborted).toBe(true)
+      const { transport, calls } = recorder()
+      await scraperFetch('https://mychart.example.org/Home', {}, { transport })
+      expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(AbortSignal as any).timeout = original
     }
+  })
+
+  it('gives each request its own deadline, so a redirect chain cannot inherit a spent one', async () => {
+    const { transport, calls } = recorder()
+    await scraperFetch('https://mychart.example.org/Home', {}, { transport })
+    await scraperFetch('https://mychart.example.org/Clinical/labs', {}, { transport })
+
+    expect(calls[0]!.init.signal).not.toBe(calls[1]!.init.signal)
   })
 })

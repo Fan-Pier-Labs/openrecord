@@ -452,10 +452,6 @@ export {
 // tool layer against exactly the same set.
 export { resolveUnique, type ResolveUniqueOptions } from '../../shared/resolveUnique';
 export {
-  base64UrlEncode,
-  base64UrlDecode,
-} from '../../shared/base64url';
-export {
   ACCOUNT_PARAM,
   ACCOUNT_PARAM_NAMES,
   PATIENT_PARAM,

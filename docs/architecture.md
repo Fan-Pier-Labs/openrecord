@@ -201,15 +201,20 @@ the ones that bite when you add a capability:
   cannot be on the page and missing from the JSON.
 
 `dev-scripts/generate-processor-examples.ts` regenerates `docs/processor-layer-examples.md`, every
-read capability in all four modes against fake-mychart.
+read capability in all four modes against fake-mychart. It freezes the clock and the zone
+(`setSystemTime`, `TZ=UTC`) first, because the scrapers date-stamp some of their requests —
+vitals' `endInstantIso`, past-visits' `oldestRenderedDate`, which also decides how far back the
+pagination walks. Unpinned, the doc changes on days nothing else did and CI's regenerate-and-diff
+step fails every PR that stays open across midnight.
 
 ## The one outbound path (`scrapers/http.ts`)
 
 **Every request the scrapers send leaves through `scraperFetch`, and there is deliberately nowhere
-else to make one from.** It owns the three things every outbound request needs, none of which
+else to make one from.** It owns the four things every outbound request needs, none of which
 survives being reimplemented at a call site: the Chrome header block (MyChart and the eUnity image
 servers answer a browser, not a bare `fetch`), the cookie jar wiring (load-balancer and bot-check
-cookies get set mid-redirect-chain and are expected back on the next hop), and the per-host permit.
+cookies get set mid-redirect-chain and are expected back on the next hop), the per-host permit, and
+the two-minute abort signal.
 
 `MyChartRequest.makeRequest` builds MyChart URLs and follows redirects on top of it; the eUnity
 imaging scraper calls it directly with its own jar; the directory script does too. A second raw-fetch
@@ -244,6 +249,14 @@ a test still exercises the request production would send. `req.transport` is nul
 anything that wraps it must call `platformFetch`, not the old value — see
 `probeMountDiscovery.unit.test.ts`, which exists because binding the old value broke the whole
 750-host sweep and nothing else caught it.
+
+### The deadline
+
+Every request is sent with an abort signal that fires after **two minutes**. Without it a host that
+accepts the connection and never answers hangs the scrape forever *and* holds one of that host's ten
+permits, so a handful of hung requests starve every other category on the instance. It is built from
+`AbortController` rather than `AbortSignal.timeout`, because React Native's `AbortSignal` comes from
+the `abort-controller` package, which has the constructor but not that static.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
