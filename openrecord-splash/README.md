@@ -15,6 +15,8 @@ real React + TypeScript app because it is a real application.
 index.html      marketing splash — hand-written, no build step
 privacy.html    privacy policy — linked from the splash and the app stores
 terms.html      terms of service — same, and the app stores' custom EULA
+version.json    the update manifest every shipped client polls — generated
+generate-version.ts   generates it from the packages' package.json versions
 demo/           React + TypeScript demo (Vite)
   demo.html       entry HTML
   src/            application source
@@ -65,6 +67,45 @@ Two things are easy to get wrong and are covered by `__tests__/metadata.test.ts`
   path, so the preview silently falls back to a bare link.
 - **Every referenced asset must be in `deploy.sh`.** A file that exists locally but was never
   uploaded looks fine in a local browser and 403s in production.
+
+## The update manifest (`version.json`)
+
+Every shipped client — the CLI, the Claude Desktop extension, the app — asks
+`https://openrecord.fanpierlabs.com/version.json` whether it is behind. The reader is
+[`scrapers/metadata/version.ts`](../scrapers/metadata/version.ts); this site is where the
+answer lives.
+
+```json
+{
+  "schema": 1,
+  "versions":   { "scrapers": "…", "cli": "…", "mcpb": "…", "app": "…" },
+  "updateUrls": { "scrapers": "…", "cli": "…", "mcpb": "…", "app": "…" }
+}
+```
+
+**Nothing here is hand-maintained.** `generate-version.ts` reads the version out of each
+package's own `package.json` (and the extension's `manifest.json`, which is the file
+Claude Desktop actually reads), so the manifest cannot disagree with what shipped:
+
+```bash
+bun run version:manifest     # from the repo root
+```
+
+`deploy.sh` runs it immediately before uploading, so a deploy can't publish a stale
+manifest, and the file gets the same 5-minute TTL as the HTML — a day-long cache would
+hide a release from everyone who already has the old version.
+
+The two ways this breaks are both invisible in a browser, so
+`__tests__/version.unit.test.ts` covers them: a **stale** manifest tells everyone they are
+current forever (the committed file is diffed against a fresh generation, so a version
+bump that forgets to regenerate fails the build), and a **malformed** one is rejected by
+every client's parser, which looks exactly like "no update available" (the committed file
+is validated with the reader's own `parseVersionManifest`, not a restatement of its
+rules).
+
+The update URLs live in the document rather than in each client on purpose: the App Store
+link doesn't exist yet, and when it does, every already-installed client should start
+pointing at it without needing the update it is telling people about.
 
 ## The demo (`demo/`)
 

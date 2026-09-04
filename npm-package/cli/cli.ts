@@ -19,7 +19,7 @@ import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passke
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 import { sendTelemetryEvent } from '../../shared/telemetry';
-import { checkForUpdate } from '../../shared/updateCheck';
+import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
 import { isBlockedInstance } from '../../scrapers/myChart/auth/blockedInstances';
 import {
   COMMON_CAPABILITIES,
@@ -685,8 +685,12 @@ async function main() {
     host: cliArgs.host || 'unknown',
   }, 'cli');
 
-  // Fire-and-forget update check — never blocks or breaks the CLI
-  void checkForUpdate({ currentVersion: CLI_VERSION, packageName: 'cli' });
+  // Fire-and-forget update check — never blocks or breaks the CLI. It resolves
+  // to null when the site is unreachable or the answer is unparseable, and
+  // silence is the right output for "we don't know".
+  void checkVersion({ currentVersion: CLI_VERSION, target: 'cli' }).then((check) => {
+    if (check?.updateAvailable) console.warn(`\n  ${formatUpdateNotice(check)}\n`);
+  });
 
   // Saying what the CLI can do needs no account and no network. Both listings
   // lead with the commonly-used capabilities and name `--show-all` for the rest.

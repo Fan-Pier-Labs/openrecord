@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "versions": {
+    "scrapers": "1.0.0",
+    "cli": "1.0.0",
+    "mcpb": "2.0.0",
+    "app": "1.0.0"
+  },
+  "updateUrls": {
+    "scrapers": "https://github.com/Fan-Pier-Labs/openrecord/releases/latest",
+    "cli": "https://www.npmjs.com/package/mychart-cli",
+    "mcpb": "https://github.com/Fan-Pier-Labs/openrecord/releases/latest",
+    "app": "https://openrecord.fanpierlabs.com/"
+  }
+}

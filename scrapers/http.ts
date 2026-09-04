@@ -161,7 +161,37 @@ export type ScraperFetchOptions = {
 
   /** Override the network call for this session. See {@link resolveTransport}. */
   transport?: Transport | undefined;
+
+  /**
+   * A *shorter* deadline than {@link MAX_REQUEST_TIMEOUT_MS}, for a request
+   * whose answer is worth less than the wait — the version check, which nothing
+   * depends on and which would otherwise keep a CLI process alive for two
+   * minutes after it was ready to exit.
+   *
+   * Clamped, not honoured: a caller cannot use this to ask for longer than the
+   * scraper maximum, so the deadline invariant still holds for every request.
+   */
+  timeoutMs?: number;
 };
+
+/**
+ * Two minutes, then give up. A host that accepts the connection and never
+ * answers would otherwise hang the scrape forever while holding one of that
+ * host's ten permits, so a few of them starve every other category on it.
+ */
+export const MAX_REQUEST_TIMEOUT_MS = 120_000;
+
+/**
+ * The deadline one request gets. A caller may ask for less, never more — the
+ * clamp is what keeps {@link ScraperFetchOptions.timeoutMs} from becoming a way
+ * to opt out of the invariant.
+ */
+export function resolveDeadlineMs(requested: number | undefined): number {
+  if (requested === undefined || !Number.isFinite(requested) || requested <= 0) {
+    return MAX_REQUEST_TIMEOUT_MS;
+  }
+  return Math.min(requested, MAX_REQUEST_TIMEOUT_MS);
+}
 
 /**
  * Make one outbound scraper request.
@@ -195,15 +225,13 @@ export async function scraperFetch(
     if (cookie) headers['Cookie'] = cookie;
   }
 
-  // Two minutes, then give up. A host that accepts the connection and never
-  // answers would otherwise hang the scrape forever while holding one of that
-  // host's ten permits, so a few of them starve every other category on it.
-  // `AbortSignal.timeout` would be the one-liner, but React Native's polyfill
-  // (`abort-controller`) doesn't have that static — AbortController it does
-  // have. One deadline per network call, so a redirect chain gets a fresh one
-  // per hop, the same shape as the permit.
+  // The deadline (see MAX_REQUEST_TIMEOUT_MS). `AbortSignal.timeout` would be
+  // the one-liner, but React Native's polyfill (`abort-controller`) doesn't
+  // have that static — AbortController it does have. One deadline per network
+  // call, so a redirect chain gets a fresh one per hop, the same shape as the
+  // permit. A caller may ask for less, never more.
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), 120_000);
+  const timer = setTimeout(() => abort.abort(), resolveDeadlineMs(options.timeoutMs));
 
   let response: Response;
   try {

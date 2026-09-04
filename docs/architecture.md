@@ -258,6 +258,33 @@ permits, so a handful of hung requests starve every other category on the instan
 `AbortController` rather than `AbortSignal.timeout`, because React Native's `AbortSignal` comes from
 the `abort-controller` package, which has the constructor but not that static.
 
+A caller may ask for **less** via `scraperFetch`'s `timeoutMs`, never more: `resolveDeadlineMs`
+clamps it to the two-minute maximum, and falls back to the maximum for 0, a negative, `NaN` or
+`Infinity`. The only caller today is the version check below, whose answer nothing depends on and
+which would otherwise keep a CLI process alive for two minutes after it was ready to exit.
+
+## The version check (`scrapers/metadata/version.ts`)
+
+A client asks whether it is behind by reading a manifest **we publish**, at
+`https://openrecord.fanpierlabs.com/version.json`, rather than by querying GitHub's releases API.
+
+The manifest names a version and an update URL for each of four targets — `scrapers` (the core every
+client embeds), `cli`, `mcpb` and `app` — because they are versioned separately, so a single "the
+version" would be wrong for someone. Putting the *URL* in the document too means an already-installed
+client starts pointing at the App Store the day that link exists, without needing the update it is
+telling people about.
+
+`openrecord-splash/version.json` is generated from each package's own `package.json` by
+`openrecord-splash/generate-version.ts` (`bun run version:manifest`), which `deploy.sh` runs
+immediately before uploading — so a deploy cannot ship a stale manifest. The output is deterministic,
+and `openrecord-splash/__tests__/version.unit.test.ts` fails the build when a version is bumped
+without regenerating it.
+
+Everything on the reading side is best-effort. Offline, rate-limited, 404, a 200 that isn't JSON, a
+document with a schema this client wasn't written for — all of them are `null`, meaning "couldn't
+tell". A client shows nothing for `null`: "we could not reach the site" and "you are up to date" are
+different facts, and only one of them is safe to imply.
+
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
 `scraperFetch` holds a per-hostname permit for the duration of each fetch. At most **10 requests are
