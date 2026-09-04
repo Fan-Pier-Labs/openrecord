@@ -1,0 +1,43 @@
+# Copy me to .git/pii-denylist.txt and replace every value with a real one.
+#
+#   cp tools/pii-guard/denylist.example.txt "$(git rev-parse --git-common-dir)/pii-denylist.txt"
+#
+# THIS FILE IS THE EXAMPLE AND IS COMMITTED. The copy is not: .git/ cannot be
+# committed, which is the entire reason the real list lives there. Never move it
+# into the working tree, and never paste real values into a chat, a commit
+# message or an issue while setting it up.
+#
+# Format:  kind: value [| minRun=N] [| minRevealed=N]
+#
+#   kind      one of email, phone, name, dob, mrn, address, ssn, card, secret,
+#             medical, text
+#   minRun    how many consecutive characters of the value, appearing verbatim,
+#             count as a leak on their own. Lower catches more and cries wolf
+#             more. Dates are matched whole regardless, being low-entropy.
+#   minRevealed  how many real characters a MASKED rendering has to expose
+#             before it is reported: `r***@example.com` reveals thirteen.
+#
+# Every entry is matched three ways: whole, as a fragment of at least `minRun`
+# characters, and as a partially masked rendering (`***`, `•••`, `xxx`, `###`).
+# Formatting is ignored — a phone number matches with or without punctuation or
+# a country code, and a date matches in any of nine renderings.
+
+# ── Your own identifiers ─────────────────────────────────────────────────────
+email: you@your-real-domain.com
+phone: +1 617 555 0134
+name: Your Full Name
+
+# ── Anyone whose record you have ever pulled while testing ───────────────────
+# This is the list that matters. A family member's chart, a test account tied to
+# a real person, a colleague who let you scrape theirs: names, dates of birth,
+# record numbers, addresses.
+# name: Family Member
+# dob: 1980-01-02
+# mrn: 1234567
+# address: 12 Example Street, Boston MA 02110
+
+# ── Medical detail from a real record ────────────────────────────────────────
+# Free text, matched as prose. Use it for the specifics that identify a real
+# episode of care — a procedure name plus a date, a series description, a
+# diagnosis you have been pasting into test fixtures.
+# medical: some distinctive procedure description

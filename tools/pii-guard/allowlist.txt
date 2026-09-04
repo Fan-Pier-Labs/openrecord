@@ -1,0 +1,20 @@
+# Values the PII guard will never report, whichever rule matched them.
+#
+# This file is COMMITTED: it is the shared list of things that look like real
+# identifiers and are not. The private list of things that ARE real lives in
+# .git/pii-denylist.txt and is never committed — see README.md.
+#
+# One value per line, matched case-insensitively against the exact text a rule
+# matched. Adding a line here is a claim that the value is fiction; if it isn't,
+# this is the wrong file.
+
+# ── fake-mychart's cast ──────────────────────────────────────────────────────
+# The stand-in server's accounts. Documented in fake-mychart/README.md and in
+# the repo's own key-commands table, so they are already public.
+donuts123
+
+# ── Documentation placeholders ───────────────────────────────────────────────
+# Reserved by RFC 2606 / RFC 5737 for exactly this purpose.
+user@example.com
+patient@example.com
+someone@example.com

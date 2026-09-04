@@ -8,6 +8,10 @@
           {
             "type": "command",
             "command": "cmd=$(jq -r '.tool_input.command'); if printf '%s' \"$cmd\" | grep -qE '^[[:space:]]*git[[:space:]]+stash([^[:alnum:]_]|$)'; then printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git stash is forbidden per project CLAUDE.md. Ask the user before using it.\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; [ -x \"$root/tools/pii-guard/claude-hook.sh\" ] || exit 0; exec \"$root/tools/pii-guard/claude-hook.sh\""
           }
         ]
       }
