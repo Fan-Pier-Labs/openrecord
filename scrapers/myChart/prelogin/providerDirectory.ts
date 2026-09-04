@@ -38,8 +38,8 @@ import { openPreloginPage, postForm } from './preloginSession';
 import type { Clinic, PortalFeatures, Provider, ProviderDirectory, Specialty } from './types';
 
 export const OPEN_SCHEDULING_PATH = '/OpenScheduling';
-const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
-const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
+export const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
+export const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
 
 // ── Raw shapes, as the instance sends them ───────────────────────────────────
 // Only the keys the scraper reads. Everything else passes through untyped.
@@ -47,6 +47,11 @@ const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
 type RawSpecialty = { Id: string; Name: string };
 
 type RawWorkflowSettings = {
+  /** How far out the instance will search, in days. The `NewProv` pair wins. */
+  FromDaysOffset?: number | null;
+  ToDaysOffset?: number | null;
+  NewProvFromDaysOffset?: number | null;
+  NewProvToDaysOffset?: number | null;
   AllowSelfSignup?: boolean;
   IsLoginEnabled?: boolean;
   IsWorkflowTurnedOn?: boolean;
@@ -96,7 +101,26 @@ export type RawSpecialtyData = {
   Providers: RawProvider[];
   Departments: RawDepartment[];
   ProviderDepartmentPairs: RawPair[];
+  /** Read by the slot search; the directory crawl ignores them. */
+  ReasonsForVisit?: RawReason[] | null;
+  VisitTypes?: RawVisitType[] | null;
 };
+
+export type RawReason = {
+  Id: string;
+  Title?: string | null;
+  CategoryValue?: string | null;
+  CanDirectSchedule?: boolean;
+  DefaultVisitTypeId?: string | null;
+  /**
+   * The pairs bookable under this reason, as `"<ProviderId>^<DepartmentId>"`
+   * composites — not indices into `ProviderDepartmentPairs`. Some instances
+   * refuse a search carrying a pair outside this set.
+   */
+  DirectProviderDepartmentPairIDs?: string[] | null;
+};
+
+export type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
@@ -231,6 +255,20 @@ export async function fetchSchedulingWorkflow(
   return { token: page.token, data };
 }
 
+/**
+ * One specialty's payload: its providers, departments and the pairs joining
+ * them, plus the visit types and reasons for visit the slot search needs.
+ *
+ * Shared with `openSlots.ts` so the two-POST walk exists in one place.
+ */
+export async function fetchSpecialtyData(
+  request: MyChartRequest,
+  token: string | null,
+  specialtyId: string,
+): Promise<RawSpecialtyData> {
+  return postForm<RawSpecialtyData>(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialtyId }, OPEN_SCHEDULING_PATH);
+}
+
 export function selectSpecialties(all: Specialty[], options: ProviderDirectoryOptions): Specialty[] {
   let chosen = all;
   if (options.specialties && options.specialties.length > 0) {
@@ -260,9 +298,7 @@ export async function fetchProviderDirectory(
   const providers = new Map<string, Provider>();
   const clinics = new Map<string, Clinic>();
   const payloads = await Promise.all(
-    chosen.map((specialty) =>
-      postForm<RawSpecialtyData>(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialty.id }, OPEN_SCHEDULING_PATH),
-    ),
+    chosen.map((specialty) => fetchSpecialtyData(request, token, specialty.id)),
   );
   chosen.forEach((specialty, i) => mergeSpecialtyData(payloads[i]!, specialty, providers, clinics));
 
