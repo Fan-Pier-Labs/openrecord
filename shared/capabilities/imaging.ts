@@ -6,8 +6,9 @@
  * registry rather than inside the imaging scraper.
  */
 
+import { Base64 } from 'js-base64';
+
 import type { FdiContext } from '../../scrapers/myChart/eunity/imagingViewer';
-import { base64UrlEncode, base64UrlDecode } from '../base64url';
 
 /**
  * Pack an {@link FdiContext} into one opaque `image_id` token.
@@ -16,16 +17,24 @@ import { base64UrlEncode, base64UrlDecode } from '../base64url';
  * get_imaging_results into download_imaging_study than two separate fields,
  * and base64url avoids delimiter collisions — `fdi`/`ord` are arbitrary
  * URL-encoded tokens that can contain a colon or comma.
+ *
+ * `js-base64` because Hermes has neither `Buffer` nor `btoa`; `encodeURI` is
+ * its unpadded base64url, byte-for-byte Node's `toString('base64url')`.
  */
 export function encodeImageId(fdiContext: FdiContext): string {
-  return base64UrlEncode(JSON.stringify({ fdi: fdiContext.fdi, ord: fdiContext.ord }));
+  return Base64.encodeURI(JSON.stringify({ fdi: fdiContext.fdi, ord: fdiContext.ord }));
 }
 
-/** Inverse of {@link encodeImageId}. Throws if the token is malformed. */
+/**
+ * Inverse of {@link encodeImageId}. Throws if the token is malformed.
+ *
+ * `Base64.decode` checks no alphabet, and the shape check below is what
+ * catches a bad token — corruption inside the alphabet decodes to garbage.
+ */
 export function decodeImageId(imageId: string): FdiContext {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(base64UrlDecode(imageId));
+    parsed = JSON.parse(Base64.decode(imageId));
   } catch {
     throw new Error('Invalid image_id — expected the image_id value from a get_imaging_results entry.');
   }
