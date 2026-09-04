@@ -94,7 +94,12 @@ function renderExample(payload: unknown): string {
 function stable(doc: string): string {
   return doc
     .replace(/fake-csrf-token-[0-9a-f]{32}/g, `fake-csrf-token-${'0'.repeat(32)}`)
-    .replace(/oldestRenderedDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, 'oldestRenderedDate=2024-01-01T00:00:00.000Z');
+    .replace(/oldestRenderedDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, 'oldestRenderedDate=2024-01-01T00:00:00.000Z')
+    // Vitals pages back from end-of-day tomorrow, so its first request body
+    // carried whatever day the doc was generated on and this check went red
+    // for everyone the next day. Only that first one is clock-derived: later
+    // pages walk back from a reading instant, so pin `T23:59:59` alone.
+    .replace(/"endInstantIso": "\d{4}-\d{2}-\d{2}T23:59:59"/g, '"endInstantIso": "2024-01-02T23:59:59"');
 }
 
 function sizeOf(payload: unknown): number {
@@ -145,9 +150,10 @@ async function main(): Promise<void> {
     '',
     `Every read capability this server can answer, in all four modes. Raw and JSON examples longer`,
     `than ${MAX_EXAMPLE_CHARS.toLocaleString()} characters are cut, and say so. The fake's per-session CSRF token and the`,
-    'now-based `oldestRenderedDate` query value are pinned so the doc only changes when the output',
-    'does. The `public` capabilities are absent: they read CMS\'s NPI Registry rather than a MyChart,',
-    'so this script has nothing to run them against — see [`scrapers/npi/README.md`](../scrapers/npi/README.md).',
+    'now-based `oldestRenderedDate` and vitals `endInstantIso` request values are pinned so the doc',
+    'only changes when the output does. The `public` capabilities are absent: they read CMS\'s NPI',
+    'Registry rather than a MyChart, so this script has nothing to run them against — see',
+    '[`scrapers/npi/README.md`](../scrapers/npi/README.md).',
     '',
     '## Sizes (characters)',
     '',
