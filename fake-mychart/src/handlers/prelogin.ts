@@ -72,10 +72,27 @@ export const preloginGetPublic: ExactRoutes = {
 // page's `$$WPUtil.postify` sends them; a payload the controller doesn't
 // recognize gets the release's error surface, never a JSON error.
 
+/**
+ * Read a nested field from a postify-encoded body, in either convention.
+ *
+ * `$$WPUtil.postify` writes nested properties with dots (`outer.inner`), and
+ * that is what the real page sends. These two endpoints' model binder also
+ * accepts jQuery's `outer[inner]` — verified against live instances, where a
+ * bracket-encoded body is answered 200 by both of them.
+ *
+ * `GetSlots` is the strict one: it binds dots only and answers 500 (November
+ * 2025) or 302 (August 2025) to brackets. So the leniency here is real
+ * behavior worth mirroring, not a convenience — an instance really will let a
+ * caller get this far on the wrong encoding and only fail at the slot search.
+ */
+function postifyField(form: URLSearchParams, ...path: string[]): string | null {
+  return form.get(path.join('.')) ?? form.get(`${path[0]}${path.slice(1).map(p => `[${p}]`).join('')}`);
+}
+
 export const preloginPostPublic: ExactRoutes = {
   'scheduling/anonymous/getschedulingworkflowdata': async ({ request, path }) => {
     const form = new URLSearchParams(await request.text());
-    if (form.get('schedulingParameters[workflow]') !== 'NewProvider') {
+    if (postifyField(form, 'schedulingParameters', 'workflow') !== 'NewProvider') {
       return aspNetFailure(request, 'fivehundred', path);
     }
     return json(withNewerSchedulingFields(conformToShape(shapes.anonymousSchedulingWorkflowData, prelogin.WORKFLOW_DATA)));
