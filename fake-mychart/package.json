@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p ${PORT:-$((4000 + RANDOM % 1001))}",
+    "dev": "next dev -p $(bun scripts/port.ts)",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

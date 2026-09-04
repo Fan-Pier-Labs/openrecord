@@ -124,14 +124,12 @@ bun run lint
 bun run test
 ```
 
-If CI integration tests are available (Docker running), also run:
+Also run the integration suite. It starts its own fake-mychart on a free port, so it needs no Docker and nothing started beforehand:
 ```bash
-docker compose -f docker-compose.ci.yaml up -d --build --wait
-bun run test:ci-integration
-docker compose -f docker-compose.ci.yaml down -v
+bun run test:integration
 ```
 
-Don't skip the CI integration tests just because they're slow — they're the only thing that catches runtime regressions in the CLI passkey flow against a real fake-mychart server. If Docker isn't running, ask the user whether to start it or skip CI integration (note the skip in the PR description).
+Don't skip it just because it's slow — it's the only thing that catches runtime regressions in the CLI passkey flow against a real fake-mychart server.
 
 For `expo-app/`, also run any unit tests it has and at minimum confirm `bunx expo doctor` is clean.
 
@@ -161,7 +159,7 @@ Start the dev server and hit at least one route to confirm the app actually runs
 cd fake-mychart && PORT=4000 bun run dev &
 ```
 
-Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
+`PORT` is pinned here only so the `curl` below knows where to look; without it the server picks a free port and prints it. Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
 
 For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `expo-app/`. Don't try to launch the simulator unless the user asks.
 

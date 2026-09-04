@@ -265,14 +265,18 @@ Reset clears all sessions, restores the seeded conversations and emergency conta
 ```bash
 cd fake-mychart
 bun install
-bun run dev    # Development mode → a random port in 4000-5000, printed at startup
+bun run dev    # Development mode → a random free port in 4000-5000, printed at startup
 ```
 
-The dev port is random so several agents/worktrees can each run their own
-fake-mychart instead of sharing one instance's RAM. `PORT=4000 bun run dev` pins
-it — which is what the examples below, and any suite defaulting to
-`localhost:4000`, expect. `bun run fake-mychart` from the repo root is the same
-script.
+The dev port is drawn at random from 4000-5000 and probed for a listener first,
+so several agents/worktrees can each run their own fake-mychart instead of
+sharing one instance's RAM. `scripts/port.ts` makes that choice and is the only
+place it is made. `PORT=4000 bun run dev` pins it — which is what the examples
+below, and any suite defaulting to `localhost:4000`, expect. `bun run
+fake-mychart` from the repo root is the same script.
+
+`bun run test:integration` needs no server of its own started: it builds this
+app, starts it on a port picked the same way, and stops it again afterwards.
 
 For production builds:
 ```bash

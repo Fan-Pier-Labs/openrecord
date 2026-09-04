@@ -39,7 +39,7 @@ that suffix and nothing else — no script names a test directory, let alone an 
 | Suffix | Needs | Runs in CI |
 | --- | --- | --- |
 | `*.unit.test.ts` | nothing — no network, no server, no credentials | yes, `bun run test` |
-| `*.integration.test.ts` | the fake-mychart server from `docker-compose.ci.yaml` | yes, `bun run test:integration` |
+| `*.integration.test.ts` | nothing — `test:integration` starts its own fake-mychart | yes, `bun run test:integration` |
 | `*.real-mychart.test.ts` | credentials for a **real** MyChart account | **never** — `bun run test:real-mychart`, by hand |
 
 This replaced a root `test` script that was a hand-maintained list of thirteen per-directory globs
@@ -77,8 +77,9 @@ still leaves the first suite of a run trusting the previous `bun test` invocatio
 
 ## CI integration tests
 
-Integration tests in `tests/integration/ci/` run against the dockerized fake-mychart from
-`docker-compose.ci.yaml` (served on `localhost:4000`):
+Integration tests in `tests/integration/ci/` run against the same fake-mychart every other
+integration suite uses — in CI the dockerized one from `docker-compose.ci.yaml` on `localhost:4000`,
+locally one that `bun run test:integration` starts on a free port of its own:
 
 - `cli-passkey.integration.test.ts` — spawns the built CLI (`npm-package/dist/cli.cjs`) to exercise
   passkey setup, passkey auto-login, and passkey removal end to end. Build the CLI first
@@ -156,9 +157,9 @@ a *mode* over the two CI kinds, not a fourth suite. It cannot be folded into eit
 measuring the unit suite alone counts every scraper that is only covered end-to-end as untested, and
 measuring the integration suite alone does the reverse. Coverage has to see both at once.
 
-**It needs everything the integration suite needs** — the compose service, npm-package's `dist/`
-built, and every package's deps installed — so the CI step lives in the `integration` job, the only
-one with all of that. Locally: `docker compose -f docker-compose.ci.yaml up -d --build --wait`, then
+**It needs everything the integration suite needs** — a fake-mychart, npm-package's `dist/` built,
+and every package's deps installed — so the CI step lives in the `integration` job, the only one
+with all of that. Locally the server is handled for you; the rest is
 `cd npm-package && bun install && bun run build`.
 
 Three things to know before touching it:

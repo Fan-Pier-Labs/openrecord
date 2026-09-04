@@ -41,6 +41,7 @@
     "shared/**/*.ts",
     "read-local-passwords/**/*.ts",
     "dev-scripts/**/*.ts",
+    "fake-mychart/scripts/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
     "tests/**/*.ts"
