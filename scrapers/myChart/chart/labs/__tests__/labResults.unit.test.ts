@@ -147,9 +147,20 @@ describe('partial-failure handling', () => {
     await expect(getImagingResults(req)).rejects.toThrow('connection reset')
   })
 
+  it('throws when both accepted group types failed — the instance has not said "no results"', async () => {
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    req.transport = mock(async (url: string) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('/app/test-results')) return new Response(TOKEN_PAGE, { status: 200 })
+      return new Response('<html>An error has occurred.</html>', { status: 500, headers: { 'content-type': 'text/html' } })
+    })
+    await expect(fetchLabResultsRaw(req)).rejects.toThrow(/POST \/api\/test-results\/GetList with HTTP 500/)
+  })
+
   it('still tolerates a group type this instance does not serve, and records the refusal', async () => {
-    // The one failure that IS expected: group types 0-3 are probed
-    // speculatively, so a 404 on one of them is not an error.
+    // The one failure that IS expected: group types 0 and 1 answer the same
+    // list, so one of them failing costs nothing, and 2 and 3 are speculative.
     const req = new MyChartRequest('mychart.example.com')
     req.firstPathPart = 'MyChart'
     let listCalls = 0

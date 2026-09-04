@@ -39,7 +39,7 @@ export async function fetchCareTeamRaw(mychartRequest: MyChartRequest): Promise<
 
   await Promise.all([
     collector.postJson('/Clinical/CareTeam/Load', token, {}),
-    collector.postJson('/Clinical/CareTeam/LoadExternal', token, {}).catch((err: unknown) => {
+    collector.postJson('/Clinical/CareTeam/LoadExternal', token, {}, { tolerateFailure: true }).catch((err: unknown) => {
       if (err instanceof SessionExpiredError) throw err;
       logger.debug(`Could not read external care team providers: ${String(err)}`);
     }),

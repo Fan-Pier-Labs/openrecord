@@ -196,6 +196,21 @@ the ones that bite when you add a capability:
   uncaptured elements pass through whole. `docs/processor-layer-todo.md` lists which.
 - **A missing verification token throws** (`MissingVerificationTokenError`). It used to return an
   empty result, which read as "this patient has no allergies".
+- **A failed answer to a request the collector sent throws** (`MyChartResponseError`), in every
+  mode. `RawCollector.send` records the response and then refuses a non-2xx status, Epic's own
+  error page (a November 2025 instance bounces a failed request through `/Home/FiveHundred` to a
+  **200** `/Home/Error` page, so the status alone is not enough) and an F5 block page. Before
+  this, only five processors looked at the status; for the rest a 500 was `{}`, projected to
+  `[]`, rendered as "no allergies on file". A best-effort request — an optional endpoint, a
+  speculative probe — opts out per call with `tolerateFailure`; the record then carries
+  `failure`, and its processor reads it through `okBodyOf` / `answered` and reports the gap under
+  a name (`externalProvidersUnavailable`, `contactInformationUnavailable`, `unavailable`). Never
+  the payload. fake-mychart's `failingEndpoints` knob is how a test proves a capability fails
+  loudly. Every read capability goes through the collector; the reads that still call
+  `makeAuthenticatedRequest` directly sit outside this guarantee on purpose or by omission:
+  `getMyChartProfile` (the proxy-verification primitive, which returns `null` by contract),
+  `proxyContext`'s `/Home` load, the token fetch behind the emergency-contact writes, and the
+  billing statement helpers in `bills.ts` that no capability uses.
 - **The model-facing clients default to `concise`** (`MODEL_FACING_OUTPUT_MODE`); the library and
   the CLI default to `json`. One generic markdown renderer serves both markdown modes so a field
   cannot be on the page and missing from the JSON.
@@ -281,9 +296,15 @@ and `openrecord-splash/__tests__/version.unit.test.ts` fails the build when a ve
 without regenerating it.
 
 Everything on the reading side is best-effort. Offline, rate-limited, 404, a 200 that isn't JSON, a
-document with a schema this client wasn't written for — all of them are `null`, meaning "couldn't
-tell". A client shows nothing for `null`: "we could not reach the site" and "you are up to date" are
-different facts, and only one of them is safe to imply.
+document with a schema this client wasn't written for, a version on either side that isn't semver —
+all of them are `null`, meaning "couldn't tell". A client shows nothing for `null`: "we could not
+reach the site" and "you are up to date" are different facts, and only one of them is safe to imply.
+
+The comparison itself is `compare-versions`, not a hand-rolled one — so `compare-versions` is now a
+dependency of the scraper core, and is declared by every package that ships it. It **throws** on a
+non-semver string, which both sides can be (a local build stamped `dev`, a manifest field that is a
+string but not a version), and the call site is `void checkVersion(...)`; the throw is caught and
+becomes a `null` rather than an unhandled rejection.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 

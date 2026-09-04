@@ -15,7 +15,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 
 | Capability | raw | json | standard | concise |
 | --- | ---: | ---: | ---: | ---: |
-| `get_profile` | 35805 | 702 | 1016 | 166 |
+| `get_profile` | 35805 | 740 | 1059 | 209 |
 | `get_health_summary` | 2312 | 369 | 452 | 342 |
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
@@ -30,13 +30,13 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 41884 | 17184 | 21357 | 5340 |
-| `get_imaging_results` | 42608 | 5204 | 6084 | 2783 |
+| `get_lab_results` | 41992 | 17184 | 21357 | 5340 |
+| `get_imaging_results` | 42716 | 5204 | 6084 | 2783 |
 | `get_messages` | 8224 | 4413 | 5523 | 3373 |
 | `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40573 | 3476 | 4111 | 1025 |
+| `get_billing` | 40573 | 3493 | 4138 | 1051 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19281 | 1228 | 878 | 532 |
@@ -77,7 +77,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1016 chars)</summary>
+<summary><code>mode: standard</code> (1059 chars)</summary>
 
 - **name**: Homer Jay Simpson
 - **dob**: 05/12/1956
@@ -135,22 +135,24 @@ Patient profile (name, date of birth, medical record number, primary care provid
 - **EndDateDisplay**: (none)
 - **StartDateISO**: (empty)
 - **EndDateISO**: (empty)
+- **contactInformationUnavailable**: false
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (166 chars)</summary>
+<summary><code>mode: concise</code> (209 chars)</summary>
 
 - **name**: Homer Jay Simpson
 - **dob**: 05/12/1956
 - **mrn**: 742
 - **pcp**: Dr. Julius Hibbert, MD
 - **EmailAddress**: homer.simpson@springfieldnuclear.example.com
+- **contactInformationUnavailable**: false
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (702 chars)</summary>
+<summary><code>mode: json</code> (740 chars)</summary>
 
 ```json
 {
@@ -202,7 +204,8 @@ Patient profile (name, date of birth, medical record number, primary care provid
     "EndDateDisplay": null,
     "StartDateISO": "",
     "EndDateISO": ""
-  }
+  },
+  "contactInformationUnavailable": false
 }
 ```
 
@@ -7846,7 +7849,7 @@ Follow up in 3 months. Schedule lipid panel before next visit.
 Lab results with reference ranges and prior values for trending.
 
 <details>
-<summary><code>mode: raw</code> (41884 chars)</summary>
+<summary><code>mode: raw</code> (41992 chars)</summary>
 
 ```json
 {
@@ -8208,7 +8211,7 @@ Lab results with reference ranges and prior values for trending.
                 "componentInfo": {
                   "componentID": "COMP-NA",
                   "name": "
-… (truncated; 59318 more characters)
+… (truncated; 59442 more characters)
 ```
 
 </details>
@@ -9779,7 +9782,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries that have viewable pictures carry an `image_id` — pass that to download_imaging_study to get the actual images.
 
 <details>
-<summary><code>mode: raw</code> (42608 chars)</summary>
+<summary><code>mode: raw</code> (42716 chars)</summary>
 
 ```json
 {
@@ -10141,7 +10144,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
                 "componentInfo": {
                   "componentID": "COMP-NA",
                   "name": "
-… (truncated; 60232 more characters)
+… (truncated; 60356 more characters)
 ```
 
 </details>
@@ -12200,7 +12203,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (4111 chars)</summary>
+<summary><code>mode: standard</code> (4138 chars)</summary>
 
 - **totalDue**: 350
 
@@ -12339,10 +12342,12 @@ Billing history and account balances.
 - **DisplayNumber**: (empty)
 - **SerialNumber**: (empty)
 
+- **unavailable**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1025 chars)</summary>
+<summary><code>mode: concise</code> (1051 chars)</summary>
 
 - **totalDue**: 350
 
@@ -12372,11 +12377,12 @@ Billing history and account balances.
 | - | - | - |
 | Jan 20, 2026 | MyChart Payment | $350.00 |
 | Dec 5, 2025 | MyChart Payment | $150.00 |
+- **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (3476 chars)</summary>
+<summary><code>mode: json</code> (3493 chars)</summary>
 
 ```json
 {
@@ -12532,7 +12538,8 @@ Billing history and account balances.
             "SerialNumber": ""
           }
         }
-      ]
+      ],
+      "unavailable": []
     }
   ]
 }

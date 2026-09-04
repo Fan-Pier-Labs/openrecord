@@ -142,7 +142,8 @@ curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"proxyDiscovery":"script"}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"requireTerms":true}'
 curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"epicVersion":"August 2025"}'
-curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025"}
+curl -X POST http://localhost:4000/mode -H 'Content-Type: application/json' -d '{"failingEndpoints":["api/allergies/LoadAllergies"]}'
+curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","movedHost":null,"proxyDiscovery":"json","requireTerms":false,"epicVersion":"November 2025","failingEndpoints":[]}
 ```
 
 - `mode` — **where MyChart is mounted.** `prefixed` (default, under `/MyChart`) or `root` (served from the domain root, the Cleveland Clinic shape). Requires re-login: the session discovered its path prefix at login time.
@@ -157,6 +158,7 @@ curl http://localhost:4000/mode   # {"mode":"prefixed","discovery":"redirect","m
 - `proxyDiscovery` — **which surface lists the patient records an account can access.** `json` (default), `html`, or `script`. No re-login needed.
 - `requireTerms` — **whether login lands on the chart or on Terms & Conditions.** `false` (default) or `true`, which bounces every un-accepted session to `/Authentication/TermsConditions`. Wants a fresh login, since it gates sessions that haven't accepted yet. This was the `FAKE_MYCHART_REQUIRE_TERMS` environment variable, which needed a second server on another port to exercise.
 - `epicVersion` — **which Epic release the instance behaves like.** `"November 2025"` (default) or `"August 2025"` — real Epic release names, read from the captured organizations' public FHIR `metadata` endpoints (`software.version`; Epic names releases by month). On November 2025, an unknown `/api/*` path or an API POST missing its `__RequestVerificationToken` gets ASP.NET's redirect dance (302 to `/Home/FourOhFour` or `/Home/FiveHundred`, then `/Home/Error?code=14`, a 200 error page), `keepalive.asp` answers `"0"` even for a live session (only `/Home/KeepAlive` tells the truth — the scrapers' `sessionStore` already knows this), and every test result carries the newer `canGenerateLLMSummary` / `feedbackSubmitted` / `isBedsideTablet` fields. On August 2025, the same failures return a bare 500 HTML page, `keepalive.asp` answers honestly, and the newer fields are absent. The same split covers the legacy `/Clinical/CareTeam/*` endpoints, which enforce the antiforgery token exactly as the `/api/*` routes do; their payload does not vary by release (all four captured instances returned the identical envelope and field types). (Of the three captured instances, the August 2025 one reports that release directly; one November 2025 instance reports it directly and the third's release number wasn't readable, but its behavior is byte-compatible with November 2025.) No re-login needed.
+- `failingEndpoints` — **which endpoints are down.** An array of paths below the mount (`api/allergies/LoadAllergies`; case and query string ignored, whole path only). Each one answers with the active release's server-error surface instead of its data — the FiveHundred → `/Home/Error?code=14` redirect dance ending in a **200** HTML page on November 2025, a bare 500 on August 2025 — exactly what an unhandled exception in that action produces on a real instance. Applied after the antiforgery and session gates, where a real action runs. `[]` restores everything. This is how `scrapers/myChart/__tests__/fake-mychart/serverErrors.integration.test.ts` proves a capability reports an outage instead of an empty chart in every output mode. No re-login needed.
 
 `mode` and `discovery` are orthogonal — every combination works, and whichever
 mount is active serves MyChart from exactly one prefix while the other 404s. A
@@ -256,7 +258,7 @@ Because all state lives in RAM, mutations during a session (sent messages, delet
 - **Browser**: visit [`/reset`](http://localhost:4000/reset) and click the **Reset Fake MyChart RAM** button.
 - **HTTP**: `curl -X POST http://localhost:4000/reset` — returns `{"ok":true}`.
 
-Reset clears all sessions, restores the seeded conversations and emergency contacts, returns each user's TOTP to its seed state (off with no secret for homer, on with the seeded secret for marge — any secret minted during a setup is discarded), removes all passkeys, forgets booked appointments, and restores the default mount and proxy-discovery modes.
+Reset clears all sessions, restores the seeded conversations and emergency contacts, returns each user's TOTP to its seed state (off with no secret for homer, on with the seeded secret for marge — any secret minted during a setup is discarded), removes all passkeys, forgets booked appointments, restores the default mount and proxy-discovery modes, and stops failing any endpoints.
 
 ## Running
 

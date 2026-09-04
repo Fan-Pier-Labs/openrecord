@@ -276,7 +276,8 @@ describe('fetchProfileRaw + profileProcessor', () => {
     expect(standard.TemporaryAddress.Street).toBeNull()
     expect(standard.TemporaryAddress.StartDateDisplay).toBe('')
 
-    expect(profileProcessor.concise(standard)).toEqual({ name: 'Jane Doe', dob: '3/4/1988', mrn: '998877', pcp: 'Dr. Who', EmailAddress: 'patient@example.org' })
+    expect(standard.contactInformationUnavailable).toBe(false)
+    expect(profileProcessor.concise(standard)).toEqual({ name: 'Jane Doe', dob: '3/4/1988', mrn: '998877', pcp: 'Dr. Who', EmailAddress: 'patient@example.org', contactInformationUnavailable: false })
     expect(renderOutput(profileProcessor, raw, 'standard')).toContain('- **HomePhone**: 555-0102')
     expect(renderOutput(profileProcessor, raw, 'raw')).toBe(raw)
   })
@@ -287,6 +288,28 @@ describe('fetchProfileRaw + profileProcessor', () => {
     expect(standard.name).toBe('Jane Doe')
     expect(standard.SecureCommunicationInfo.EmailAddress).toBeNull()
     expect(standard.PermanentAddress.FormattedValues).toEqual([])
+    expect(standard.contactInformationUnavailable).toBe(true)
+  })
+
+  it('reports a failed contact call as unavailable, never as a patient with no phone', async () => {
+    // The scraper tolerates this call; the processor must not read the
+    // recorded error page as empty contact fields.
+    const req = new MyChartRequest('mychart.example.com')
+    req.firstPathPart = 'MyChart'
+    const replies = [
+      new Response(HOME, { status: 200, headers: { 'content-type': 'text/html' } }),
+      new Response('<input name="__RequestVerificationToken" value="tok" />', { status: 200, headers: { 'content-type': 'text/html' } }),
+      new Response('<html>An error has occurred.</html>', { status: 500, headers: { 'content-type': 'text/html' } }),
+    ]
+    req.transport = mock(async () => replies.shift()!)
+    const raw = await fetchProfileRaw(req)
+    expect(raw.requests[2]).toMatchObject({ path: '/PersonalInformation/GetContactInformation', status: 500, failure: 'HTTP 500 (text/html)' })
+
+    const standard = profileProcessor.standard(raw)
+    expect(standard.name).toBe('Jane Doe')
+    expect(standard.contactInformationUnavailable).toBe(true)
+    expect(standard.HomePhone).toBeNull()
+    expect(renderOutput(profileProcessor, raw, 'concise')).toContain('contactInformationUnavailable**: true')
   })
 
   it('yields blank identity fields when the header is unparseable', async () => {

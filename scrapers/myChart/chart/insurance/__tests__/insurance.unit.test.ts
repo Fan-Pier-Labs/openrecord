@@ -175,8 +175,8 @@ describe('insuranceProcessor', () => {
   })
 
   it('refuses a non-2xx', async () => {
-    const raw = await fetchInsuranceRaw(mockRequest({ body: '{}', status: 500 }))
-    expect(() => insuranceProcessor.standard(raw)).toThrow(/HTTP 500/)
+    // The collector refuses it before the processor ever sees it, in every mode.
+    await expect(fetchInsuranceRaw(mockRequest({ body: '{}', status: 500 }))).rejects.toThrow(/HTTP 500/)
   })
 
   it('refuses a body with none of the coverage lists (a login page, say)', async () => {

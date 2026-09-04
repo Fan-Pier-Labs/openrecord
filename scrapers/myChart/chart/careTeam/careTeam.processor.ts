@@ -87,7 +87,9 @@ export const careTeamProcessor: Processor<CareTeamStandard> = {
 
     const loadExternal = findRequest(raw, 'Clinical/CareTeam/LoadExternal');
     const external =
-      loadExternal && loadExternal.status >= 200 && loadExternal.status < 300 ? providersListOf(loadExternal.body) : null;
+      loadExternal && !loadExternal.failure && loadExternal.status >= 200 && loadExternal.status < 300
+        ? providersListOf(loadExternal.body)
+        : null;
 
     return {
       DescriptiveTitle: textOrNull(rec(load.body).DescriptiveTitle),

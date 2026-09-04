@@ -11,7 +11,6 @@ import {
   VERSION_MANIFEST_URL,
   VERSION_TARGETS,
   checkVersion,
-  compareSemver,
   fetchVersionManifest,
   formatUpdateNotice,
   parseVersionManifest,
@@ -47,40 +46,6 @@ beforeEach(() => {
 afterEach(() => {
   setTestTransport(null);
   resetHostLimiters();
-});
-
-describe('compareSemver', () => {
-  it('orders by major, then minor, then patch', () => {
-    expect(compareSemver('1.0.0', '2.0.0')).toBe(-1);
-    expect(compareSemver('2.0.0', '1.0.0')).toBe(1);
-    expect(compareSemver('1.0.0', '1.1.0')).toBe(-1);
-    expect(compareSemver('1.0.1', '1.0.0')).toBe(1);
-    expect(compareSemver('1.0.0', '1.0.0')).toBe(0);
-  });
-
-  it('treats a missing segment as zero, so 1.2 and 1.2.0 are the same version', () => {
-    expect(compareSemver('1.2', '1.2.0')).toBe(0);
-    expect(compareSemver('1.2', '1.2.1')).toBe(-1);
-  });
-
-  it('does not compare 10 as less than 9', () => {
-    // The bug a string comparison would have.
-    expect(compareSemver('1.10.0', '1.9.0')).toBe(1);
-  });
-
-  it('drops a prerelease suffix instead of reading it as a fourth segment', () => {
-    // Naively splitting on '.' makes 1.2.0-beta.1 four segments long and so
-    // NEWER than 1.2.0, which is backwards.
-    expect(compareSemver('1.2.0-beta.1', '1.2.0')).toBe(0);
-    expect(compareSemver('1.2.0-beta.1', '1.3.0')).toBe(-1);
-    expect(compareSemver('1.2.0', '1.2.0-beta.1')).toBe(0);
-  });
-
-  it('reads an unparseable version as 0.0.0 rather than NaN', () => {
-    // NaN comparisons are all false, so an unguarded parse would report
-    // "equal" and the check would go silent instead of wrong-but-visible.
-    expect(compareSemver('dev', '1.0.0')).toBe(-1);
-  });
 });
 
 describe('parseVersionManifest', () => {
@@ -181,6 +146,42 @@ describe('checkVersion', () => {
   it('returns null when it could not find out, rather than claiming up to date', async () => {
     setTestTransport(() => Promise.reject(new Error('offline')));
     expect(await checkVersion({ currentVersion: '0.0.1', target: 'cli' })).toBeNull();
+  });
+
+  it('orders versions by number, not by text', async () => {
+    // '1.9.0' > '1.10.0' as text, which would tell everyone on 1.9 they were
+    // ahead of the release. Delegated to `compare-versions`, pinned here
+    // because it is the one property the notice depends on being right.
+    const manifest = { ...MANIFEST, versions: { ...MANIFEST.versions, cli: '1.10.0' } };
+    const check = await checkVersion({ currentVersion: '1.9.0', target: 'cli', manifest });
+    expect(check?.updateAvailable).toBe(true);
+  });
+
+  it('treats a missing segment as zero, so 1.4 and 1.4.0 are the same version', async () => {
+    const check = await checkVersion({ currentVersion: '1.4', target: 'cli', manifest: MANIFEST });
+    expect(check?.updateAvailable).toBe(false);
+  });
+
+  it('offers the release to someone on a prerelease of it', async () => {
+    const check = await checkVersion({
+      currentVersion: '1.4.0-beta.1',
+      target: 'cli',
+      manifest: MANIFEST,
+    });
+    expect(check?.updateAvailable).toBe(true);
+  });
+
+  it('returns null rather than throwing when a version is not semver at all', async () => {
+    // `compareVersions` throws on these, and this is called as
+    // `void checkVersion(...)` — a throw here is an unhandled rejection.
+    expect(await checkVersion({ currentVersion: 'dev', target: 'cli', manifest: MANIFEST })).toBeNull();
+    expect(
+      await checkVersion({
+        currentVersion: '1.0.0',
+        target: 'cli',
+        manifest: { ...MANIFEST, versions: { ...MANIFEST.versions, cli: 'latest' } },
+      }),
+    ).toBeNull();
   });
 });
 

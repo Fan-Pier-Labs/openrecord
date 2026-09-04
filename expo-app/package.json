@@ -16,6 +16,7 @@
     "assert": "^2.1.0",
     "browserify-zlib": "^0.2.0",
     "cheerio": "^1.2.0",
+    "compare-versions": "^6.1.1",
     "crypto-browserify": "^3.12.1",
     "date-fns": "^4.4.0",
     "events": "^3.3.0",

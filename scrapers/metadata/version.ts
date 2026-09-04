@@ -25,6 +25,8 @@
  * idea", never a thrown error and never a blocked caller.
  */
 
+import { compareVersions } from 'compare-versions';
+
 import { scraperFetch } from '../http';
 
 /** Where the manifest is published. */
@@ -71,32 +73,6 @@ export interface VersionCheck {
   updateAvailable: boolean;
   /** Straight from the manifest, so where to update can change without a release. */
   updateUrl: string;
-}
-
-/**
- * Compare two dotted numeric versions. -1 if `a < b`, 0 if equal, 1 if `a > b`.
- *
- * Missing segments count as 0, so `1.2` and `1.2.0` are the same version.
- * Anything after the numeric part is dropped rather than compared: `1.2.0-rc.1`
- * is read as `1.2.0`. Splitting on `.` without that would make `1.2.0-rc.1` a
- * four-segment version and therefore *newer* than `1.2.0`, and full semver
- * prerelease ordering is more machinery than a "you might want to update"
- * suggestion is worth.
- */
-export function compareSemver(a: string, b: string): number {
-  const parse = (v: string): number[] => {
-    const numeric = /^\d+(?:\.\d+)*/.exec(v.trim())?.[0] ?? '0';
-    return numeric.split('.').map((part) => Number.parseInt(part, 10));
-  };
-  const pa = parse(a);
-  const pb = parse(b);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const na = pa[i] ?? 0;
-    const nb = pb[i] ?? 0;
-    if (na < nb) return -1;
-    if (na > nb) return 1;
-  }
-  return 0;
 }
 
 function isVersionRecord(value: unknown): value is Record<VersionTarget, string> {
@@ -175,11 +151,23 @@ export async function checkVersion(options: VersionCheckOptions): Promise<Versio
 
   const target = options.target ?? 'scrapers';
   const latestVersion = manifest.versions[target];
+
+  // `compareVersions` throws on anything that isn't semver, and both sides can
+  // be: a local build stamped `dev`, or a manifest field that is a string but
+  // not a version. That is a "couldn't tell", the same as an unreachable site —
+  // never an unhandled rejection out of a fire-and-forget call.
+  let updateAvailable: boolean;
+  try {
+    updateAvailable = compareVersions(options.currentVersion, latestVersion) < 0;
+  } catch {
+    return null;
+  }
+
   return {
     target,
     currentVersion: options.currentVersion,
     latestVersion,
-    updateAvailable: compareSemver(options.currentVersion, latestVersion) < 0,
+    updateAvailable,
     updateUrl: manifest.updateUrls[target],
   };
 }

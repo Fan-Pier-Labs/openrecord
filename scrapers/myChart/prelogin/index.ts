@@ -5,7 +5,24 @@
 
 export { fetchHospitalNetworkProfile, INSURANCE_GATE_REASON, type NetworkProfileOptions } from './networkProfile';
 export { parseOrgProfile, parseMnemonics, parsePhone, parseEmail, hasOrgProfile } from './orgProfile';
-export { fetchProviderDirectory, fetchSchedulingWorkflow, type ProviderDirectoryOptions } from './providerDirectory';
+export {
+  fetchProviderDirectory,
+  fetchSchedulingWorkflow,
+  fetchSpecialtyData,
+  type ProviderDirectoryOptions,
+} from './providerDirectory';
+export { resolveSchedulingContext, parseSchedulingWindow, windowDates } from './schedulingContext';
+export {
+  fetchOpenSlots,
+  fetchProviderAvailability,
+  toEpicDte,
+  fromEpicDte,
+  localTodayDte,
+  type OpenSlotsOptions,
+} from './openSlots';
+// `walkSchedulingQuestionnaire` is deliberately not re-exported: the two calls
+// above are the surface, and the raw walk is how they are implemented.
+export { fetchSchedulingQuestionnaire, submitSchedulingAnswers } from './schedulingQuestionnaire';
 export { fetchBillingEntities } from './guestEstimates';
 export { PreloginEndpointError } from './preloginSession';
 export type * from './types';

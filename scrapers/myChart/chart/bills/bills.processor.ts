@@ -15,7 +15,7 @@
  * `SelfAmountDueRaw`), with `category` naming the list a row came from.
  */
 
-import { findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
+import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
 import { parseBillingAccountsHtml, parsePaymentPath } from './summaryHtml';
@@ -197,6 +197,13 @@ export interface BillingAccountStandard {
   /** `DataStatement` and `DataDetailBill` statements merged; `IsDetailBill` tells them apart. */
   statements: BillingStatementStandard[];
   payments: BillingPaymentStandard[];
+  /**
+   * Derived: the best-effort endpoints (`GetStatementList`, `LoadPaymentList`)
+   * that did not answer for this account. A name here means the matching list
+   * is unknown, not empty — the scraper tolerates their failure so a
+   * statement-list outage does not cost the visit history.
+   */
+  unavailable: string[];
 }
 
 export interface BillingStandard {
@@ -372,8 +379,17 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
-  const statementsBody = rec(accountRequest(raw, source, 'GetStatementList')?.body);
-  const paymentsBody = rec(accountRequest(raw, source, 'LoadPaymentList')?.body);
+  const unavailable: string[] = [];
+  function tolerated(fragment: string): Record<string, unknown> {
+    const record = accountRequest(raw, source, fragment);
+    if (!answered(record)) {
+      unavailable.push(fragment);
+      return {};
+    }
+    return rec(record.body);
+  }
+  const statementsBody = tolerated('GetStatementList');
+  const paymentsBody = tolerated('LoadPaymentList');
   return {
     guarantorNumber: source.guarantorNumber,
     patientName: source.patientName,
@@ -407,6 +423,7 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
       ...list(rec(statementsBody.DataDetailBill).StatementList),
     ].map(statement),
     payments: list(rec(paymentsBody.Data).PaymentList).map(payment),
+    unavailable,
   };
 }
 
@@ -458,6 +475,7 @@ export const billingProcessor: Processor<BillingStandard> = {
           Description: p.Description,
           PaymentAmountDisplay: p.PaymentAmountDisplay,
         })),
+        unavailable: a.unavailable,
       })),
     };
   },
