@@ -100,10 +100,34 @@ is.
    drop-if-empty, so those numbers move. `concise` is a static pick of fields
    per capability, which is also what lets a test check every listed field
    against the captured skeleton.
+
+   **One sanctioned exception, and the bar for another.** `get_goals` drops a
+   patient goal whose `text` is empty, which is membership by value. It is
+   allowed because MyChart appends exactly one such element to *every*
+   response — the empty editable slot the activity renders — and Epic's own
+   client does the same thing with it (`epic.px.client.goals` gates on
+   `!isNullOrEmpty(patientGoals[0].text)`, and its reducer deletes an element
+   whose `text` is `''`). Without the drop every patient has one nameless goal,
+   which is a wrong answer rather than a verbose one. The bar for a second
+   exception is that one: a sentinel MyChart always sends, and Epic's shipped
+   client discarding it by the same test. "This field is usually empty" is not
+   that, and neither is "the output is smaller without it".
 7. **Errors pass through.** A scrape-error shape (`{ error }`), a WAF
    interstitial, a literal `null` from an unknown id: the processor returns it
    unchanged in every mode. Summarizing an error into nothing hides why the
    scrape failed.
+
+   **An endpoint that did not answer is never reported as an empty list**, and
+   how to say so depends on how many endpoints there are. A capability whose
+   answer comes from one endpoint **throws** — there is nothing partial to
+   return, and `get_insurance` reporting "no insurance on file" from a 500 is
+   the failure mode the whole layer exists to prevent (`get_insurance_payers`
+   and `get_questionnaires` do the same). A capability that reads several
+   independent endpoints returns what loaded and **names the ones that did
+   not** in a derived `unavailable` list, because throwing away a good half is
+   its own wrong answer: one captured instance answers `LoadPatientGoals` with
+   HTTP 500 on every request while care-team goals load fine, so `get_goals`
+   returns the care-team goals and says which endpoint is missing.
 8. **No clock, no locale.** Dates come from MyChart's own rendering or from a
    field that carries an explicit instant. The processor never formats an
    instant in the process's local zone (PR #380's reasoning: that moves an
