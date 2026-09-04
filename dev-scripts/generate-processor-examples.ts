@@ -4,10 +4,17 @@
  * against fake-mychart in all four output modes, so the examples in the docs
  * are real output rather than hand-typed guesses.
  *
- * Needs a fake-mychart on localhost:4000 (or FAKE_MYCHART_HOST):
+ * Needs a fake-mychart on localhost:4000 (or FAKE_MYCHART_HOST) — and it must
+ * be the **container**, not the dev server:
  *
- *   cd fake-mychart && PORT=4000 bun run dev
+ *   docker compose -f docker-compose.ci.yaml up -d --build --wait
  *   bun dev-scripts/generate-processor-examples.ts
+ *
+ * `bun run dev` renders a handful of pages slightly differently from the
+ * production build, which shifts the character counts this doc prints. CI
+ * regenerates against the container and diffs, so a doc generated from the dev
+ * server fails that check with ~150 lines of byte-count churn and regenerating
+ * again from `dev` only entrenches it.
  *
  * Signs in as Homer Simpson — fake data only. Nothing here ever touches a real
  * instance.

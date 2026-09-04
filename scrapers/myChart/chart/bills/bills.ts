@@ -57,7 +57,8 @@ function detailsPagePath(account: BillingAccount): string {
  * parsed here only to learn which accounts to fetch; the processor re-parses
  * the recorded page to build the account rows. The three supplementary
  * calls are best-effort — a statement-list outage should not cost the
- * caller the visit history — and a non-OK response is still recorded.
+ * caller the visit history — and a non-OK response is still recorded. The
+ * summary and the visit list are the payload: a failure there throws.
  */
 export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
@@ -67,7 +68,7 @@ export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<R
     await collector.send({ path: visitsPath(account) });
     for (const path of [statementListPath(account), paymentListPath(account), detailsPagePath(account)]) {
       try {
-        await collector.send({ path });
+        await collector.send({ path }, { tolerateFailure: true });
       } catch (err) {
         if (err instanceof SessionExpiredError) throw err;
         logger.debug('Failed to fetch billing details:', (err as Error).message);

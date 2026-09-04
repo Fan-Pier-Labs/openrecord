@@ -140,6 +140,29 @@ missing something. The field decisions per capability are in
 example output in every mode is in
 [`docs/processor-layer-examples.md`](../docs/processor-layer-examples.md).
 
+## Privacy Policy
+
+**[openrecord.fanpierlabs.com/privacy.html](https://openrecord.fanpierlabs.com/privacy.html)** —
+the policy covering this extension, and the URL the manifest's `privacy_policies` points at.
+
+The short version, for what this extension does:
+
+- **Your records stay on your machine.** The extension signs in to your portal
+  from your computer and keeps everything it reads there — credentials and
+  passkeys in the OS keystore, sessions and downloads under
+  `~/.openrecord-mcpb/` (see [Architecture](#architecture)). Fan Pier Labs runs
+  no server that holds your medical record, and there is no OpenRecord account
+  containing a copy of it.
+- **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
+  through these tools goes to Anthropic under your own Claude account, governed
+  by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
+- **Anonymous usage events.** Startup and login events carry a random
+  per-install id, the MyChart hostname being signed in to, and OS/runtime
+  versions — never your username, password, or anything from your record.
+  `MYCHART_CLI_TELEMETRY_DISABLED=1` in the server's environment turns them off.
+- **Disconnecting deletes.** `disconnect_account` removes that account's stored
+  credentials, passkey, and session from this machine.
+
 ## Architecture
 
 - **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation

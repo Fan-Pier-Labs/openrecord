@@ -3,10 +3,12 @@
  *
  * Two sources: the `/Home` page's print header (name, DOB, MRN, PCP — parsed,
  * so derived) and `GetContactInformation` (the rest). The contact call is
- * optional on some instances, so every field from it is nullable.
+ * optional on some instances, so every field from it is nullable — and the
+ * scraper tolerates its failure, so a failed answer is reported as
+ * `contactInformationUnavailable` rather than as a patient with no phone.
  */
 
-import { bodyOf, findRequest, type RawResponse } from '../../core/rawResponse';
+import { findRequest, okBodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { rec, strings, text, textOrNull } from '../../processors/read';
 import { parseProfileHtml } from './profileHtml';
@@ -44,6 +46,11 @@ export interface ProfileStandard {
   PreferredDevice: string | null;
   PermanentAddress: AddressStandard;
   TemporaryAddress: TemporaryAddressStandard;
+  /**
+   * Derived: `GetContactInformation` did not answer (the instance lacks it,
+   * or it failed), so every field above from it is unknown, not empty.
+   */
+  contactInformationUnavailable: boolean;
 }
 
 function address(value: unknown): AddressStandard {
@@ -67,7 +74,8 @@ export const profileProcessor: Processor<ProfileStandard> = {
   standard(raw: RawResponse): ProfileStandard {
     const home = text(findRequest(raw, '/Home')?.body);
     const header = parseProfileHtml(home) ?? { name: '', dob: '', mrn: '', pcp: '' };
-    const contact = rec(bodyOf(raw, 'GetContactInformation'));
+    const contactBody = okBodyOf(raw, 'GetContactInformation');
+    const contact = rec(contactBody);
     const secure = rec(contact.SecureCommunicationInfo);
     const temporary = rec(contact.TemporaryAddress);
     return {
@@ -87,6 +95,7 @@ export const profileProcessor: Processor<ProfileStandard> = {
         StartDateISO: textOrNull(temporary.StartDateISO),
         EndDateISO: textOrNull(temporary.EndDateISO),
       },
+      contactInformationUnavailable: contactBody === undefined,
     };
   },
   concise(standard) {
@@ -96,6 +105,7 @@ export const profileProcessor: Processor<ProfileStandard> = {
       mrn: standard.mrn,
       pcp: standard.pcp,
       EmailAddress: standard.SecureCommunicationInfo.EmailAddress,
+      contactInformationUnavailable: standard.contactInformationUnavailable,
     };
   },
 };

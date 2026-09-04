@@ -109,7 +109,9 @@ export async function getImageViewerSamlUrl(
   let ok: boolean;
   let data: unknown;
   if (collector) {
-    const recorded = await collector.send(config);
+    // Best-effort: an order without a working viewer is still an order, so a
+    // failed FdiData exchange is recorded and reported as "no viewer".
+    const recorded = await collector.send(config, { tolerateFailure: true });
     ({ status, ok } = recorded.response);
     data = recorded.body;
   } else {
