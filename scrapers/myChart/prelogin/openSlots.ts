@@ -53,12 +53,9 @@ import { logger } from '../../../shared/logger';
 import { postForm } from './preloginSession';
 import { OPEN_SCHEDULING_PATH } from './providerDirectory';
 import { resolveSchedulingContext, type SchedulingSelector } from './schedulingContext';
-import {
-  walkSchedulingQuestionnaire,
-  type QuestionAnswer,
-  type QuestionnaireAnswerToken,
-} from './schedulingQuestionnaire';
-import type { OpenSlot, QuestionnaireState, SlotSearchResult } from './types';
+import { walkSchedulingQuestionnaire } from './schedulingQuestionnaire';
+import type { QuestionAnswer, QuestionnaireAnswerToken } from './types';
+import type { OpenSlot, SchedulingQuestionnaire, SlotSearchResult } from './types';
 
 const SLOTS_PATH = '/Scheduling/Anonymous/GetSlots';
 
@@ -198,11 +195,11 @@ export type OpenSlotsOptions = SchedulingSelector & {
    */
   maxPairs?: number;
   /**
-   * The token from a completed `submitSchedulingAnswers`. Preferred over
-   * `answers`: it skips the tree walk entirely, and it survives the session it
-   * was made in, so a client can carry it across a restart.
+   * The `answerToken` from a completed `submitSchedulingAnswers`. Preferred
+   * over `answers`: it skips the tree walk entirely, and it survives the
+   * session it was made in, so a client can carry it across a restart.
    */
-  token?: QuestionnaireAnswerToken;
+  answerToken?: QuestionnaireAnswerToken;
   /**
    * Raw answers, walked here instead. Convenient for a one-shot script; a
    * client with a person to ask should use `fetchSchedulingQuestionnaire` /
@@ -228,16 +225,30 @@ export async function fetchOpenSlots(
   // `submitSchedulingAnswers` is used as-is; raw answers are walked here; with
   // neither, the search still runs and the result carries the questions so the
   // caller learns what is being asked rather than just `LqfAnswersRequired`.
-  let lqfIds: string[] = options.token?.lqfIds ?? [];
-  let patientAnswerIds: string[] = options.token?.patientAnswerIds ?? [];
-  let questionnaire: QuestionnaireState | null = null;
+  let lqfIds: string[] = options.answerToken?.lqfIds ?? [];
+  let patientAnswerIds: string[] = options.answerToken?.patientAnswerIds ?? [];
+  let questionnaire: SchedulingQuestionnaire | null = null;
   if (treeId && lqfIds.length === 0) {
-    const walk = await walkSchedulingQuestionnaire(request, token, treeId, visitTypeId, options.answers ?? []);
-    if (walk.complete && walk.treeAnswerId) {
+    const walk = await walkSchedulingQuestionnaire(request, { token, treeId, visitTypeId, answers: options.answers ?? [] });
+    if (walk.treeAnswerId) {
       lqfIds = [walk.treeId];
       patientAnswerIds = [walk.treeAnswerId];
     } else {
-      questionnaire = { required: true, questions: walk.questions, unanswered: walk.unanswered };
+      // The search still runs from here. It will come back
+      // `LqfAnswersRequired`, and that is the point: the instance's own code
+      // is better evidence than an assumption, and it costs one request.
+      questionnaire = {
+        required: true,
+        treeId: walk.treeId,
+        visitTypeId,
+        nextQuestion: walk.unanswered,
+        questions: walk.questions,
+        complete: walk.traversalComplete,
+        answerToken: null,
+        specialty,
+        reasonForVisit: reason?.Title ?? null,
+        window: context.window,
+      };
     }
   }
 

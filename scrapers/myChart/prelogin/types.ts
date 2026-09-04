@@ -173,18 +173,6 @@ export type OpenSlot = {
   raw: unknown;
 };
 
-/**
- * The screening questionnaire standing between a caller and the slot search.
- *
- * Present only when the org gates the visit type behind one and it has not
- * been answered. `unanswered` is the question the walk stopped on.
- */
-export type QuestionnaireState = {
-  required: true;
-  questions: import('./schedulingQuestionnaire').SchedulingQuestion[];
-  unanswered: import('./schedulingQuestionnaire').SchedulingQuestion | null;
-};
-
 export type SlotSearchResult = {
   specialty: Specialty;
   slots: OpenSlot[];
@@ -199,11 +187,12 @@ export type SlotSearchResult = {
   /** The server reported the search finished rather than the page cap hitting. */
   complete: boolean;
   /**
-   * Set when the org requires a screening questionnaire that has not been
-   * answered. The search still runs, but the instance will answer
+   * Set when the org gates this visit type behind a screening questionnaire
+   * that has not been answered. The search still runs — the `errorCode` the
+   * instance returns is evidence worth keeping — but it will answer
    * `LqfAnswersRequired` rather than return slots.
    */
-  questionnaire: QuestionnaireState | null;
+  questionnaire: SchedulingQuestionnaire | null;
 };
 
 /**
@@ -218,4 +207,83 @@ export type SchedulingWindow = {
   earliestDaysOut: number;
   latestDaysOut: number;
   explicit: boolean;
+};
+
+// ─── The screening questionnaire ────────────────────────────────────────────
+
+/** One choice a question offers. `index` is what an answer refers to. */
+export type QuestionChoice = { index: string; text: string };
+
+/** A question the tree asked, flattened to what a caller needs to answer it. */
+export type SchedulingQuestion = {
+  /** Opaque question id. Stable across sessions on the instances checked. */
+  id: string;
+  prompt: string;
+  choices: QuestionChoice[];
+  required: boolean;
+  /**
+   * The question accepts more than one choice. `QuestionAnswer` carries a
+   * single `choiceIndex` and cannot answer one of these — nor a free-text
+   * question — so a walk will stall on it. Worth checking: across 204 gated
+   * instances only 61% of opening questions were plain yes/no, and choice
+   * counts ran as high as 35.
+   */
+  multiResponse: boolean;
+  helpText: string | null;
+};
+
+/** How a caller answers: the choice `index` for a given question. */
+export type QuestionAnswer = { questionId: string; choiceIndex: string };
+
+/**
+ * The ids a completed questionnaire yields, and what a slot search needs.
+ *
+ * Verified to survive the session it was produced in: a token walked in one
+ * session searched successfully from a second, fresh one. So a client can ask
+ * its questions at leisure — across a restart, or a different process — and
+ * hand the token back whenever the person has answered.
+ */
+export type QuestionnaireAnswerToken = {
+  lqfIds: string[];
+  patientAnswerIds: string[];
+};
+
+/**
+ * What a client needs to put a questionnaire in front of someone.
+ *
+ * The questions arrive one at a time because this is a decision tree, not a
+ * form: what it asks second depends on the first answer. `nextQuestion` is
+ * what to ask now, `questions` is everything seen so far in order, and
+ * `complete` with an `answerToken` means the search can run.
+ *
+ * Pass the whole object back to `submitSchedulingAnswers` — it carries the
+ * tree and visit type, so the next round skips the multi-megabyte specialty
+ * download it would otherwise repeat per answer.
+ */
+export type SchedulingQuestionnaire = {
+  /** False when the org attaches no tree — nothing to ask, search directly. */
+  required: boolean;
+  treeId: string | null;
+  /** The visit type the tree hangs off, carried so a round trip can skip it. */
+  visitTypeId: string | null;
+  /** Ask this next. Null when the walk is finished or nothing is required. */
+  nextQuestion: SchedulingQuestion | null;
+  /** Every question answered or seen so far, in the order the tree gave them. */
+  questions: SchedulingQuestion[];
+  complete: boolean;
+  /**
+   * Present once `complete`; pass it to `fetchOpenSlots` as `answerToken`.
+   * Null while questions remain — and also when the tree ended without one,
+   * which is how an org routes an emergency out of online scheduling.
+   */
+  answerToken: QuestionnaireAnswerToken | null;
+  /** Which specialty and reason these questions belong to. */
+  specialty: Specialty;
+  reasonForVisit: string | null;
+  /**
+   * How far out this instance will book. A client asking "when would you like
+   * to be seen?" should keep the answer inside this window; pass the chosen
+   * date to `fetchOpenSlots` as `startDate`.
+   */
+  window: SchedulingWindow;
 };

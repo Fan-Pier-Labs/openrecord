@@ -47,6 +47,11 @@ export const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
 type RawSpecialty = { Id: string; Name: string };
 
 type RawWorkflowSettings = {
+  /** How far out the instance will search, in days. The `NewProv` pair wins. */
+  FromDaysOffset?: number | null;
+  ToDaysOffset?: number | null;
+  NewProvFromDaysOffset?: number | null;
+  NewProvToDaysOffset?: number | null;
   AllowSelfSignup?: boolean;
   IsLoginEnabled?: boolean;
   IsWorkflowTurnedOn?: boolean;
@@ -96,7 +101,26 @@ export type RawSpecialtyData = {
   Providers: RawProvider[];
   Departments: RawDepartment[];
   ProviderDepartmentPairs: RawPair[];
+  /** Read by the slot search; the directory crawl ignores them. */
+  ReasonsForVisit?: RawReason[] | null;
+  VisitTypes?: RawVisitType[] | null;
 };
+
+export type RawReason = {
+  Id: string;
+  Title?: string | null;
+  CategoryValue?: string | null;
+  CanDirectSchedule?: boolean;
+  DefaultVisitTypeId?: string | null;
+  /**
+   * The pairs bookable under this reason, as `"<ProviderId>^<DepartmentId>"`
+   * composites — not indices into `ProviderDepartmentPairs`. Some instances
+   * refuse a search carrying a pair outside this set.
+   */
+  DirectProviderDepartmentPairIDs?: string[] | null;
+};
+
+export type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
@@ -237,12 +261,12 @@ export async function fetchSchedulingWorkflow(
  *
  * Shared with `openSlots.ts` so the two-POST walk exists in one place.
  */
-export async function fetchSpecialtyData<T = RawSpecialtyData>(
+export async function fetchSpecialtyData(
   request: MyChartRequest,
   token: string | null,
   specialtyId: string,
-): Promise<T> {
-  return postForm<T>(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialtyId }, OPEN_SCHEDULING_PATH);
+): Promise<RawSpecialtyData> {
+  return postForm<RawSpecialtyData>(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialtyId }, OPEN_SCHEDULING_PATH);
 }
 
 export function selectSpecialties(all: Specialty[], options: ProviderDirectoryOptions): Specialty[] {

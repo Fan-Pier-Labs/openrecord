@@ -14,8 +14,32 @@
  */
 
 import type { MyChartRequest } from '../core/myChartRequest';
-import { fetchSchedulingWorkflow, fetchSpecialtyData, parseSpecialties } from './providerDirectory';
+import {
+  fetchSchedulingWorkflow,
+  fetchSpecialtyData,
+  parseSpecialties,
+  type RawReason,
+  type RawVisitType,
+  type RawWorkflowData,
+} from './providerDirectory';
 import type { SchedulingWindow, Specialty } from './types';
+
+/**
+ * The instance does not offer what the selector asked for.
+ *
+ * A distinct type so callers — the probe especially — can tell "this host has
+ * no such specialty" from a transport failure without matching on the message,
+ * which is prose and gets reworded.
+ */
+export class NoSchedulingSelectionError extends Error {
+  constructor(
+    message: string,
+    readonly kind: 'specialty' | 'reasonForVisit',
+  ) {
+    super(message);
+    this.name = 'NoSchedulingSelectionError';
+  }
+}
 
 export type SchedulingSelector = {
   /** Specialty name or id. Defaults to the first the instance lists. */
@@ -25,36 +49,6 @@ export type SchedulingSelector = {
 };
 
 export type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
-
-export type RawReason = {
-  Id: string;
-  Title?: string | null;
-  CategoryValue?: string | null;
-  CanDirectSchedule?: boolean;
-  DefaultVisitTypeId?: string | null;
-  /**
-   * The provider/department pairs bookable under this reason, as
-   * `"<ProviderId>^<DepartmentId>"` composites — not indices into
-   * `ProviderDepartmentPairs`. Sending a pair outside this set is refused by
-   * some instances, so the slot search filters on it.
-   */
-  DirectProviderDepartmentPairIDs?: string[] | null;
-};
-
-export type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
-
-type RawSpecialtyPayload = {
-  ProviderDepartmentPairs?: RawPair[] | null;
-  ReasonsForVisit?: RawReason[] | null;
-  VisitTypes?: RawVisitType[] | null;
-};
-
-type RawWorkflowSettings = {
-  FromDaysOffset?: number | null;
-  ToDaysOffset?: number | null;
-  NewProvFromDaysOffset?: number | null;
-  NewProvToDaysOffset?: number | null;
-};
 
 export type SchedulingContext = {
   token: string | null;
@@ -79,7 +73,7 @@ export type SchedulingContext = {
  * fallback. Both are absent on some instances; 0 and 365 are then the sane
  * reading, and `explicit` says which case a caller is looking at.
  */
-export function parseSchedulingWindow(settings: RawWorkflowSettings | null | undefined): SchedulingWindow {
+export function parseSchedulingWindow(settings: RawWorkflowData['WorkflowSettings']): SchedulingWindow {
   const s = settings ?? {};
   const from = s.NewProvFromDaysOffset ?? s.FromDaysOffset;
   const to = s.NewProvToDaysOffset ?? s.ToDaysOffset;
@@ -90,10 +84,17 @@ export function parseSchedulingWindow(settings: RawWorkflowSettings | null | und
   };
 }
 
-/** Turn the window into concrete dates, for a client rendering a date picker. */
+/**
+ * Turn the window into concrete dates, for a client rendering a date picker.
+ *
+ * Days are added through the date constructor, not as milliseconds: a day is
+ * not always 86,400,000 ms locally. Adding that across a daylight-saving
+ * change lands on 23:00 the day before or 01:00 the day after, so the date
+ * comes out one off — and any window wider than a few weeks crosses one twice
+ * a year.
+ */
 export function windowDates(window: SchedulingWindow, today: Date = new Date()): { earliest: Date; latest: Date } {
-  const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const shift = (days: number) => new Date(midnight.getTime() + days * 86_400_000);
+  const shift = (days: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
   return { earliest: shift(window.earliestDaysOut), latest: shift(window.latestDaysOut) };
 }
 
@@ -125,7 +126,7 @@ export async function resolveSchedulingContext(
     );
   }
 
-  const specialtyData = await fetchSpecialtyData<RawSpecialtyPayload>(request, token, specialty.id);
+  const specialtyData = await fetchSpecialtyData(request, token, specialty.id);
   const reasons = (specialtyData.ReasonsForVisit ?? []).filter((r): r is RawReason => typeof r?.Id === 'string');
 
   const wantedRfv = selector.reasonForVisit?.trim().toLowerCase();
@@ -133,9 +134,10 @@ export async function resolveSchedulingContext(
   if (wantedRfv) {
     reason = reasons.find((r) => r.Title?.toLowerCase() === wantedRfv || r.Id.toLowerCase() === wantedRfv) ?? null;
     if (!reason) {
-      throw new Error(
+      throw new NoSchedulingSelectionError(
         `no reason for visit named ${JSON.stringify(selector.reasonForVisit)} in ${specialty.name} on ` +
           `${request.hostname} — it lists ${reasons.map((r) => r.Title).filter(Boolean).join(', ') || 'none'}`,
+        'reasonForVisit',
       );
     }
   } else {
@@ -159,6 +161,6 @@ export async function resolveSchedulingContext(
     pairs: (specialtyData.ProviderDepartmentPairs ?? []).filter(
       (p): p is RawPair => typeof p?.ProviderId === 'string' && typeof p?.DepartmentId === 'string',
     ),
-    window: parseSchedulingWindow((workflowData as { WorkflowSettings?: RawWorkflowSettings | null }).WorkflowSettings),
+    window: parseSchedulingWindow(workflowData.WorkflowSettings),
   };
 }

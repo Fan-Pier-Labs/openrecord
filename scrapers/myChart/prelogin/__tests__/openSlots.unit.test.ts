@@ -275,7 +275,7 @@ describe('fetchOpenSlots', () => {
     // walk would throw, so passing this proves the token short-circuits it.
     const { request, slotCalls } = mockSlots([{ Solutions: [], ContinueInfo: { IsStopSearch: true } }]);
     const result = await fetchOpenSlots(request, {
-      token: { lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] },
+      answerToken: { lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] },
     });
 
     expect(result.questionnaire).toBeNull();

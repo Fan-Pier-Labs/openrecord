@@ -20,16 +20,9 @@ export {
   localTodayDte,
   type OpenSlotsOptions,
 } from './openSlots';
-export {
-  fetchSchedulingQuestionnaire,
-  submitSchedulingAnswers,
-  walkSchedulingQuestionnaire,
-  type QuestionnaireAnswerToken,
-  type SchedulingQuestionnaire,
-  type QuestionAnswer,
-  type SchedulingQuestion,
-  type QuestionnaireWalk,
-} from './schedulingQuestionnaire';
+// `walkSchedulingQuestionnaire` is deliberately not re-exported: the two calls
+// above are the surface, and the raw walk is how they are implemented.
+export { fetchSchedulingQuestionnaire, submitSchedulingAnswers } from './schedulingQuestionnaire';
 export { fetchBillingEntities } from './guestEstimates';
 export { PreloginEndpointError } from './preloginSession';
 export type * from './types';

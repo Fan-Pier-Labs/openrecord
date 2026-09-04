@@ -62,6 +62,24 @@ describe('windowDates', () => {
     expect(earliest.getDate()).toBe(10);
     expect(latest.getDate()).toBe(13);
   });
+
+  it('lands on the right day across a daylight-saving change', () => {
+    // Any window wider than a few weeks crosses one twice a year; adding
+    // 86_400_000 ms per day lands an hour off and drops a date.
+    const { latest } = windowDates({ earliestDaysOut: 0, latestDaysOut: 90, explicit: true }, new Date(2026, 9, 1));
+    const expected = new Date(2026, 9, 1 + 90);
+    expect(latest.getFullYear()).toBe(expected.getFullYear());
+    expect(latest.getMonth()).toBe(expected.getMonth());
+    expect(latest.getDate()).toBe(expected.getDate());
+    // Midnight local, not 23:00 the previous evening.
+    expect(latest.getHours()).toBe(0);
+  });
+
+  it('is stable across a spring-forward too', () => {
+    const { latest } = windowDates({ earliestDaysOut: 0, latestDaysOut: 60, explicit: true }, new Date(2027, 1, 15));
+    expect(latest.getHours()).toBe(0);
+    expect(latest.getDate()).toBe(new Date(2027, 1, 15 + 60).getDate());
+  });
 });
 
 describe('resolveSchedulingContext', () => {

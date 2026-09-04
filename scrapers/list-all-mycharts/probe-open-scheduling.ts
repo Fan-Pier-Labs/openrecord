@@ -20,15 +20,13 @@
  *   bun scrapers/list-all-mycharts/probe-open-scheduling.ts --hosts mychart.foo.org --verbose
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { determineFirstPathPart } from '../myChart/auth/login';
 import { fetchSchedulingWorkflow, parseFeatures, parseSpecialties } from '../myChart/prelogin/providerDirectory';
 import { PreloginEndpointError } from '../myChart/prelogin/preloginSession';
-import { groupByHost, timeBoundedRequest, type HostEntry } from './probe-mount-discovery';
-import { logger, setLogSink, silenceLogger } from '../../shared/logger';
+import { timeBoundedRequest, type HostEntry } from './probe-mount-discovery';
+import { parseProbeArgs, runProbe } from './probeRunner';
+import { logger } from '../../shared/logger';
 
-const INSTANCES_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
 const HOST_TIMEOUT_MS = 90_000;
 
 /**
@@ -143,49 +141,10 @@ function summarize(results: SchedulingProbeResult[]): string[] {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
-  const flag = (name: string) => {
-    const i = args.indexOf(name);
-    return i >= 0 ? args[i + 1] : undefined;
-  };
-
-  const outFile = flag('--out');
-  const concurrency = Number(flag('--concurrency') ?? 24);
-  const limit = Number(flag('--limit') ?? 0);
-  const onlyHosts = flag('--hosts')?.split(',').map((h) => h.trim()).filter(Boolean);
-
-  if (args.includes('--verbose')) setLogSink((level, a) => console.error(`[${level}]`, ...a));
-  else silenceLogger();
-
-  const instances: { name: string; url: string }[] = JSON.parse(fs.readFileSync(INSTANCES_FILE, 'utf-8'));
-  let entries = groupByHost(instances);
-  if (onlyHosts) entries = entries.filter((e) => onlyHosts.includes(e.host));
-  if (limit) entries = entries.slice(0, limit);
-
-  console.error(`Probing ${entries.length} hosts for anonymous scheduling (concurrency ${concurrency})…`);
-
-  const out = outFile ? fs.createWriteStream(outFile, { flags: 'a' }) : null;
-  const results: SchedulingProbeResult[] = [];
-  const queue = [...entries];
-  let done = 0;
-
-  await Promise.all(
-    Array.from({ length: concurrency }, async () => {
-      while (queue.length) {
-        const entry = queue.shift();
-        if (!entry) break;
-        const result = await probeHost(entry);
-        results.push(result);
-        out?.write(JSON.stringify(result) + '\n');
-        if (++done % 25 === 0) console.error(`  ${done}/${entries.length}`);
-      }
-    }),
-  );
-  out?.end();
-
+  const args = parseProbeArgs(process.argv.slice(2));
+  const results = await runProbe(args, probeHost, 'hosts for anonymous scheduling');
   console.error(summarize(results).join('\n'));
   logger.debug('scheduling probe complete');
-  if (outFile) console.error(`\nFull results: ${outFile}`);
 }
 
 if (import.meta.main) {

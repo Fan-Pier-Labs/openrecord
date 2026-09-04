@@ -99,9 +99,9 @@ describe('answerPayload', () => {
 describe('walkSchedulingQuestionnaire', () => {
   it('reads the first question and stops when nothing answers it', async () => {
     const { request, posts } = mockTree([{ NextInputNode: { CSN: 'C1', ID: 'N1', Type: 1, IsFirst: true, Question: QUESTION_ONE }, TraversalInfo: traversal() }]);
-    const walk = await walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1');
+    const walk = await walkSchedulingQuestionnaire(request, { token: 'tok', treeId: 'TREE-1', visitTypeId: 'VT-1' });
 
-    expect(walk.complete).toBe(false);
+    expect(walk.traversalComplete).toBe(false);
     expect(walk.treeAnswerId).toBeNull();
     expect(walk.unanswered?.id).toBe('Q1');
     expect(posts()).toHaveLength(1);
@@ -109,7 +109,7 @@ describe('walkSchedulingQuestionnaire', () => {
 
   it('sends the AdditionalContext block the endpoint refuses to work without', async () => {
     const { request, posts } = mockTree([{ NextInputNode: { Question: QUESTION_ONE }, TraversalInfo: traversal() }]);
-    await walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1');
+    await walkSchedulingQuestionnaire(request, { token: 'tok', treeId: 'TREE-1', visitTypeId: 'VT-1' });
 
     expect(posts()[0]).toMatchObject({
       'traversalInfo.TreeID': 'TREE-1',
@@ -126,7 +126,7 @@ describe('walkSchedulingQuestionnaire', () => {
       { NextInputNode: { CSN: 'C1', ID: 'N1', Type: 1, IsFirst: true, Question: QUESTION_ONE }, TraversalInfo: traversal() },
       { NextInputNode: { CSN: 'C2', ID: 'N2', Type: 1, Question: QUESTION_TWO }, TraversalInfo: traversal({ RestartTree: false }) },
     ]);
-    const walk = await walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1', [{ questionId: 'Q1', choiceIndex: '2' }]);
+    const walk = await walkSchedulingQuestionnaire(request, { token: 'tok', treeId: 'TREE-1', visitTypeId: 'VT-1', answers: [{ questionId: 'Q1', choiceIndex: '2' }] });
 
     expect(walk.unanswered?.id).toBe('Q2');
     expect(walk.questions.map((q) => q.id)).toEqual(['Q1', 'Q2']);
@@ -144,9 +144,9 @@ describe('walkSchedulingQuestionnaire', () => {
       { NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() },
       { NextInputNode: null, TraversalInfo: traversal({ IsTraversalComplete: true, TreeAnswerID: 'HQA-9' }) },
     ]);
-    const walk = await walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1', [{ questionId: 'Q1', choiceIndex: '2' }]);
+    const walk = await walkSchedulingQuestionnaire(request, { token: 'tok', treeId: 'TREE-1', visitTypeId: 'VT-1', answers: [{ questionId: 'Q1', choiceIndex: '2' }] });
 
-    expect(walk.complete).toBe(true);
+    expect(walk.traversalComplete).toBe(true);
     expect(walk.treeAnswerId).toBe('HQA-9');
     expect(walk.unanswered).toBeNull();
   });
@@ -157,7 +157,7 @@ describe('walkSchedulingQuestionnaire', () => {
     const { request } = mockTree([step, step, step]);
 
     await expect(
-      walkSchedulingQuestionnaire(request, 'tok', 'TREE-1', 'VT-1', [{ questionId: 'Q1', choiceIndex: '2' }]),
+      walkSchedulingQuestionnaire(request, { token: 'tok', treeId: 'TREE-1', visitTypeId: 'VT-1', answers: [{ questionId: 'Q1', choiceIndex: '2' }] }),
     ).rejects.toThrow(/re-served an answered question/);
   });
 });
@@ -195,7 +195,7 @@ describe('fetchSchedulingQuestionnaire', () => {
     expect(q.required).toBe(false);
     expect(q.complete).toBe(true);
     expect(q.nextQuestion).toBeNull();
-    expect(q.token).toBeNull();
+    expect(q.answerToken).toBeNull();
   });
 
   it('hands back the first question and the window a client should ask within', async () => {
@@ -213,6 +213,57 @@ describe('fetchSchedulingQuestionnaire', () => {
 });
 
 describe('submitSchedulingAnswers', () => {
+  it('reuses the previous questionnaire instead of re-downloading the specialty', async () => {
+    // A specialty payload is 0.6-2 MB; a three-question tree used to pull one
+    // per answer. Handed the previous round, this needs only a page GET.
+    let specialtyCalls = 0;
+    let n = 0;
+    const steps = [
+      { NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() },
+      { NextInputNode: null, TraversalInfo: traversal({ IsTraversalComplete: true, TreeAnswerID: 'HQA-9' }) },
+    ];
+    const handle = createMockRequest(
+      {
+        '/OpenScheduling': () => htmlResponse(pageWithCsrfToken('tok')),
+        '/Scheduling/Anonymous/GetSchedulingWorkflowData': () => jsonResponse(WORKFLOW),
+        '/Scheduling/Anonymous/GetSpecialtyData': () => {
+          specialtyCalls++;
+          return jsonResponse(specialtyData('TREE-1'));
+        },
+        '/DecisionTrees/AnonymousDecisionTree/NextStep': () => jsonResponse(steps[n++] ?? {}),
+      },
+      { firstPathPart: 'MyChart-SGH' },
+    );
+
+    const first = await fetchSchedulingQuestionnaire(handle.req);
+    expect(specialtyCalls).toBe(1);
+
+    const done = await submitSchedulingAnswers(handle.req, [{ questionId: 'Q1', choiceIndex: '2' }], first);
+    expect(done.complete).toBe(true);
+    expect(done.answerToken).toEqual({ lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] });
+    // The round trip added no second download.
+    expect(specialtyCalls).toBe(1);
+    // And it carried the context forward rather than losing it.
+    expect(done.specialty).toEqual(first.specialty);
+    expect(done.window).toEqual(first.window);
+  });
+
+  it('reports a tree that ended deliberately without an answer id', async () => {
+    // How an org routes an emergency out of online scheduling: the traversal
+    // finishes, but no id is issued, so the search stays gated.
+    const q = await submitSchedulingAnswers(
+      mockClient('TREE-1', [
+        { NextInputNode: { CSN: 'C1', ID: 'N1', Question: QUESTION_ONE }, TraversalInfo: traversal() },
+        { NextInputNode: null, TraversalInfo: traversal({ IsTraversalComplete: true, TreeAnswerID: null }) },
+      ]),
+      [{ questionId: 'Q1', choiceIndex: '1' }],
+    );
+
+    expect(q.complete).toBe(true);
+    expect(q.nextQuestion).toBeNull();
+    expect(q.answerToken).toBeNull();
+  });
+
   it('returns the next question while the tree still branches', async () => {
     const q = await submitSchedulingAnswers(
       mockClient('TREE-1', [
@@ -224,7 +275,7 @@ describe('submitSchedulingAnswers', () => {
     expect(q.complete).toBe(false);
     expect(q.nextQuestion?.id).toBe('Q2');
     expect(q.questions.map((x) => x.id)).toEqual(['Q1', 'Q2']);
-    expect(q.token).toBeNull();
+    expect(q.answerToken).toBeNull();
   });
 
   it('returns the token the slot search needs once the tree is satisfied', async () => {
@@ -237,6 +288,6 @@ describe('submitSchedulingAnswers', () => {
     );
     expect(q.complete).toBe(true);
     expect(q.nextQuestion).toBeNull();
-    expect(q.token).toEqual({ lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] });
+    expect(q.answerToken).toEqual({ lqfIds: ['TREE-1'], patientAnswerIds: ['HQA-9'] });
   });
 });

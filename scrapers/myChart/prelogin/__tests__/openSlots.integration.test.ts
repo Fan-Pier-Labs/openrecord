@@ -22,7 +22,7 @@ import { fetchOpenSlots, fetchProviderAvailability } from '../openSlots';
 import { postForm, PreloginEndpointError } from '../preloginSession';
 import { fetchSchedulingQuestionnaire, submitSchedulingAnswers } from '../schedulingQuestionnaire';
 import { resolveSchedulingContext } from '../schedulingContext';
-import type { QuestionAnswer } from '../schedulingQuestionnaire';
+import type { QuestionAnswer } from '../types';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -73,8 +73,8 @@ describe('anonymous slot search over HTTP', () => {
 
   it('follows the ContinueInfo cursor rather than stopping at the first page', async () => {
     // The fake returns one pair per call, so more than one pair means paging.
-    const oneCall = await fetchOpenSlots(request(), { specialty: 'Primary Care', maxPages: 1, token: await tokenFor('Primary Care') });
-    const allCalls = await fetchOpenSlots(request(), { specialty: 'Primary Care', maxPages: 5, token: await tokenFor('Primary Care') });
+    const oneCall = await fetchOpenSlots(request(), { specialty: 'Primary Care', maxPages: 1, answerToken: await tokenFor('Primary Care') });
+    const allCalls = await fetchOpenSlots(request(), { specialty: 'Primary Care', maxPages: 5, answerToken: await tokenFor('Primary Care') });
 
     expect(allCalls.pages).toBeGreaterThan(1);
     expect(allCalls.slots.length).toBeGreaterThan(oneCall.slots.length);
@@ -153,7 +153,7 @@ describe('the screening questionnaire over HTTP', () => {
 
     expect(result.errorCode).toBe('LqfAnswersRequired');
     expect(result.slots).toEqual([]);
-    expect(result.questionnaire?.unanswered?.prompt).toMatch(/life threatening emergency/i);
+    expect(result.questionnaire?.nextQuestion?.prompt).toMatch(/life threatening emergency/i);
   });
 
   it('reports no questionnaire on a specialty the org does not gate', async () => {
@@ -173,8 +173,8 @@ describe('the screening questionnaire over HTTP', () => {
 
     expect(answers.length).toBeGreaterThan(1);
     expect(questionnaire.complete).toBe(true);
-    expect(questionnaire.token?.lqfIds).toHaveLength(1);
-    expect(questionnaire.token?.patientAnswerIds).toHaveLength(1);
+    expect(questionnaire.answerToken?.lqfIds).toHaveLength(1);
+    expect(questionnaire.answerToken?.patientAnswerIds).toHaveLength(1);
     expect(questionnaire.questions.map((q) => q.prompt)).toEqual([
       expect.stringMatching(/life threatening emergency/i),
       expect.stringMatching(/seen at Springfield General/i),
@@ -187,7 +187,7 @@ describe('the screening questionnaire over HTTP', () => {
     // lets a client ask its questions across a restart.
     const result = await fetchOpenSlots(request(), {
       specialty: 'Primary Care',
-      token: questionnaire.token!,
+      answerToken: questionnaire.answerToken!,
       maxPages: 5,
     });
 
@@ -205,14 +205,17 @@ describe('the screening questionnaire over HTTP', () => {
       { specialty: 'Primary Care' },
     );
 
-    // An emergency is not booked a routine slot: the tree finishes with no id.
-    expect(result.complete).toBe(false);
-    expect(result.token).toBeNull();
+    // An emergency is not booked a routine slot. The traversal finished, so
+    // there is nothing left to ask — but no id was issued, so the search stays
+    // gated. `complete` with a null `answerToken` is how a caller sees that.
+    expect(result.complete).toBe(true);
+    expect(result.nextQuestion).toBeNull();
+    expect(result.answerToken).toBeNull();
   });
 });
 
 /** The answer token for a gated specialty, for tests that only need the search. */
 async function tokenFor(specialty: string) {
   const { questionnaire } = await answerEverything(specialty);
-  return questionnaire.token!;
+  return questionnaire.answerToken!;
 }

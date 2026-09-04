@@ -34,10 +34,10 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
-import { postForm } from './preloginSession';
+import { openPreloginPage, postForm } from './preloginSession';
 import { OPEN_SCHEDULING_PATH } from './providerDirectory';
-import { resolveSchedulingContext, type SchedulingSelector } from './schedulingContext';
-import type { SchedulingWindow, Specialty } from './types';
+import { resolveSchedulingContext, type SchedulingContext, type SchedulingSelector } from './schedulingContext';
+import type { QuestionAnswer, SchedulingQuestion, SchedulingQuestionnaire } from './types';
 
 const NEXT_STEP_PATH = '/DecisionTrees/AnonymousDecisionTree/NextStep';
 
@@ -47,33 +47,21 @@ const SOURCE_WORKFLOW_OPEN_SCHEDULING = 5;
 /** The `NewProvider` workflow, the same `2` the slot search sends as `Type`. */
 const SCHEDULING_WORKFLOW_TYPE_NEW_PROVIDER = 2;
 
-/** One choice a question offers. `index` is what an answer refers to. */
-export type QuestionChoice = { index: string; text: string };
-
-/** A question the tree asked, flattened to what a caller needs to answer it. */
-export type SchedulingQuestion = {
-  /** Opaque question id. Stable across sessions on the instances checked. */
-  id: string;
-  prompt: string;
-  choices: QuestionChoice[];
-  required: boolean;
-  multiResponse: boolean;
-  helpText: string | null;
-};
-
-/** How a caller answers: the choice `index` for a given question. */
-export type QuestionAnswer = { questionId: string; choiceIndex: string };
-
-export type QuestionnaireWalk = {
+type QuestionnaireWalk = {
   /** The tree id — `LqfIds` for the slot search. */
   treeId: string;
-  /** `PatientAnswerIds` for the slot search. Null if the walk did not finish. */
+  /** `PatientAnswerIds` for the slot search. Null if none was issued. */
   treeAnswerId: string | null;
   /** Every question the walk saw, in order. */
   questions: SchedulingQuestion[];
   /** The question that stopped the walk because no answer was supplied. */
   unanswered: SchedulingQuestion | null;
-  complete: boolean;
+  /**
+   * The tree reached its end. Not the same as having an answer id: a tree can
+   * finish deliberately without one, which is how an org routes an emergency
+   * out of online scheduling rather than booking it a routine slot.
+   */
+  traversalComplete: boolean;
 };
 
 // ── Raw shapes ───────────────────────────────────────────────────────────────
@@ -164,11 +152,9 @@ const MAX_STEPS = 25;
  */
 export async function walkSchedulingQuestionnaire(
   request: MyChartRequest,
-  token: string | null,
-  treeId: string,
-  visitTypeId: string | null,
-  answers: QuestionAnswer[] = [],
+  options: { token: string | null; treeId: string; visitTypeId: string | null; answers?: QuestionAnswer[] },
 ): Promise<QuestionnaireWalk> {
+  const { token, treeId, visitTypeId, answers = [] } = options;
   const byQuestion = new Map(answers.map((a) => [a.questionId, a.choiceIndex]));
   const questions: SchedulingQuestion[] = [];
   /**
@@ -216,19 +202,19 @@ export async function walkSchedulingQuestionnaire(
 
     if (data.TraversalInfo?.IsTraversalComplete === true || !rawQuestion) {
       const treeAnswerId = (data.TraversalInfo?.TreeAnswerID as string | undefined) ?? null;
-      return { treeId, treeAnswerId, questions, unanswered: null, complete: treeAnswerId !== null };
+      return { treeId, treeAnswerId, questions, unanswered: null, traversalComplete: true };
     }
 
     const question = parseQuestion(rawQuestion);
     if (!question) {
-      return { treeId, treeAnswerId: null, questions, unanswered: null, complete: false };
+      return { treeId, treeAnswerId: null, questions, unanswered: null, traversalComplete: true };
     }
     questions.push(question);
 
     const choiceIndex = byQuestion.get(question.id);
     if (choiceIndex === undefined) {
       logger.debug(`questionnaire on ${request.hostname} needs an answer for ${JSON.stringify(question.prompt)}`);
-      return { treeId, treeAnswerId: null, questions, unanswered: question, complete: false };
+      return { treeId, treeAnswerId: null, questions, unanswered: question, traversalComplete: false };
     }
     if (answered.has(question.id)) {
       throw new Error(
@@ -258,51 +244,8 @@ export async function walkSchedulingQuestionnaire(
 
 // ── The two calls a client makes ─────────────────────────────────────────────
 
-/**
- * The ids a completed questionnaire yields, and what a slot search needs.
- *
- * Verified to survive the session it was produced in: a token walked in one
- * session searched successfully from a second, fresh one. So a client can ask
- * its questions at leisure — across a restart, or a different process — and
- * hand the token back whenever the person has answered.
- */
-export type QuestionnaireAnswerToken = {
-  lqfIds: string[];
-  patientAnswerIds: string[];
-};
-
-/**
- * What a client needs to put a questionnaire in front of someone.
- *
- * The questions arrive one at a time because this is a decision tree, not a
- * form: what it asks second depends on the first answer. `nextQuestion` is
- * what to ask now, `questions` is everything seen so far in order, and
- * `complete` with a `token` means the search can run.
- */
-export type SchedulingQuestionnaire = {
-  /** False when the org attaches no tree — nothing to ask, search directly. */
-  required: boolean;
-  treeId: string | null;
-  /** Ask this next. Null when the walk is finished or nothing is required. */
-  nextQuestion: SchedulingQuestion | null;
-  /** Every question answered or seen so far, in the order the tree gave them. */
-  questions: SchedulingQuestion[];
-  complete: boolean;
-  /** Present once `complete`; pass it to `fetchOpenSlots`. */
-  token: QuestionnaireAnswerToken | null;
-  /** Which specialty and reason these questions belong to. */
-  specialty: Specialty;
-  reasonForVisit: string | null;
-  /**
-   * How far out this instance will book. A client asking "when would you like
-   * to be seen?" should keep the answer inside this window; pass the chosen
-   * date to `fetchOpenSlots` as `startDate`.
-   */
-  window: SchedulingWindow;
-};
-
 function toQuestionnaire(
-  context: Awaited<ReturnType<typeof resolveSchedulingContext>>,
+  context: Pick<SchedulingContext, 'specialty' | 'reason' | 'window' | 'treeId' | 'visitTypeId'>,
   walk: QuestionnaireWalk | null,
 ): SchedulingQuestionnaire {
   const shared = {
@@ -310,20 +253,18 @@ function toQuestionnaire(
     reasonForVisit: context.reason?.Title ?? null,
     window: context.window,
     treeId: context.treeId,
+    visitTypeId: context.visitTypeId,
   };
   if (!walk) {
-    return { ...shared, required: false, nextQuestion: null, questions: [], complete: true, token: null };
+    return { ...shared, required: false, nextQuestion: null, questions: [], complete: true, answerToken: null };
   }
   return {
     ...shared,
     required: true,
     nextQuestion: walk.unanswered,
     questions: walk.questions,
-    complete: walk.complete,
-    token:
-      walk.complete && walk.treeAnswerId
-        ? { lqfIds: [walk.treeId], patientAnswerIds: [walk.treeAnswerId] }
-        : null,
+    complete: walk.traversalComplete,
+    answerToken: walk.treeAnswerId ? { lqfIds: [walk.treeId], patientAnswerIds: [walk.treeAnswerId] } : null,
   };
 }
 
@@ -342,7 +283,7 @@ export async function fetchSchedulingQuestionnaire(
 ): Promise<SchedulingQuestionnaire> {
   const context = await resolveSchedulingContext(request, selector);
   if (!context.treeId) return toQuestionnaire(context, null);
-  const walk = await walkSchedulingQuestionnaire(request, context.token, context.treeId, context.visitTypeId);
+  const walk = await walkSchedulingQuestionnaire(request, { token: context.token, treeId: context.treeId, visitTypeId: context.visitTypeId });
   return toQuestionnaire(context, walk);
 }
 
@@ -358,10 +299,36 @@ export async function fetchSchedulingQuestionnaire(
 export async function submitSchedulingAnswers(
   request: MyChartRequest,
   answers: QuestionAnswer[],
-  selector: SchedulingSelector = {},
+  from: SchedulingQuestionnaire | SchedulingSelector = {},
 ): Promise<SchedulingQuestionnaire> {
-  const context = await resolveSchedulingContext(request, selector);
+  // Handed the previous round's questionnaire, this needs nothing from the
+  // specialty payload — it already carries the tree and visit type — so it
+  // opens the page for an antiforgery token and walks. That matters: a
+  // specialty payload is 0.6–2 MB, and a three-question tree would otherwise
+  // download one per answer.
+  if (isQuestionnaire(from)) {
+    if (!from.treeId) return { ...from, nextQuestion: null, complete: true };
+    const page = await openPreloginPage(request, OPEN_SCHEDULING_PATH);
+    const walk = await walkSchedulingQuestionnaire(request, { token: page.token, treeId: from.treeId, visitTypeId: from.visitTypeId, answers });
+    return toQuestionnaire(
+      {
+        specialty: from.specialty,
+        reason: from.reasonForVisit === null ? null : { Id: '', Title: from.reasonForVisit },
+        window: from.window,
+        treeId: from.treeId,
+        visitTypeId: from.visitTypeId,
+      },
+      walk,
+    );
+  }
+
+  const context = await resolveSchedulingContext(request, from);
   if (!context.treeId) return toQuestionnaire(context, null);
-  const walk = await walkSchedulingQuestionnaire(request, context.token, context.treeId, context.visitTypeId, answers);
+  const walk = await walkSchedulingQuestionnaire(request, { token: context.token, treeId: context.treeId, visitTypeId: context.visitTypeId, answers });
   return toQuestionnaire(context, walk);
+}
+
+/** A questionnaire carries `required`; a selector never does. */
+function isQuestionnaire(from: SchedulingQuestionnaire | SchedulingSelector): from is SchedulingQuestionnaire {
+  return typeof (from as SchedulingQuestionnaire).required === 'boolean';
 }
