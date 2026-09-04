@@ -107,11 +107,6 @@ export {
   type RefillDetailsStandard,
   type OwningPharmacyStandard,
 } from '../../scrapers/myChart/chart/medications/medications';
-export {
-  requestMedicationRefill,
-  type RefillRequestResult,
-} from '../../scrapers/myChart/chart/medications/medicationRefill';
-
 // ─── Allergies / health issues / history / immunizations ──────────────────
 export {
   getAllergies,

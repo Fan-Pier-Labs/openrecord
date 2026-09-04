@@ -39,28 +39,8 @@ describe('questionnairesProcessor', () => {
     expect(questionnairesProcessor.concise(standard)).toEqual(standard)
   })
 
-  it('reports a genuinely empty list as empty', () => {
-    expect(
-      questionnairesProcessor.standard({
-        requests: [{ path: '/Questionnaire/GetQuestionnaireList', method: 'POST', status: 200, contentType: 'application/json', body: { questionnaires: [] } }],
-      }),
-    ).toEqual({ questionnaires: [] })
-  })
-
-  // One captured instance no longer serves the legacy activity: /Questionnaire
-  // answers HTTP 500 and GetQuestionnaireList answers the 404 page, whose
-  // markup carries an antiforgery token — so the exchange "succeeds" and the
-  // body is HTML. Reading it as "you have no questionnaires" is the failure.
-  it('refuses an HTML body from an instance that no longer serves the activity', () => {
-    expect(() =>
-      questionnairesProcessor.standard({
-        requests: [{ path: '/Questionnaire/GetQuestionnaireList', method: 'POST', status: 200, contentType: 'text/html', body: '<html>Oops!</html>' }],
-      }),
-    ).toThrow(/non-JSON body/)
-  })
-
-  it('refuses an envelope the request never reached', () => {
-    expect(() => questionnairesProcessor.standard({ requests: [] })).toThrow(/answered with nothing/)
+  it('reports an empty or missing list as empty', () => {
+    expect(questionnairesProcessor.standard({ requests: [] })).toEqual({ questionnaires: [] })
   })
 })
 

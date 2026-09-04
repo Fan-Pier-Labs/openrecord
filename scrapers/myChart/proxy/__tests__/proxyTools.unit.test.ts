@@ -347,7 +347,13 @@ describe('executeCapability applies the guard to every capability', () => {
   // group is exempt by design, `account` acts on the login rather than a
   // chart, and `public` has no session to assert against at all.
   const CHART_CAPABILITIES = CAPABILITIES.filter(
-    (c) => c.group !== 'Patients' && c.kind !== 'account' && c.kind !== 'public',
+    (c) =>
+      c.group !== 'Patients' &&
+      c.kind !== 'account' &&
+      c.kind !== 'public' &&
+      // A capability with no scraper never reaches the guard, because it never
+      // reaches a chart — see the test below, which asserts exactly that.
+      !c.notImplemented,
   )
 
   it('covers the media capability, not just the JSON ones', () => {
@@ -371,6 +377,21 @@ describe('executeCapability applies the guard to every capability', () => {
       await expect(executeCapability(req, capability.id, {})).rejects.toThrow(
         /Refusing to read: MyChart is currently on 'Bart Simpson'/,
       )
+    }
+  })
+
+  it('answers an unimplemented capability without ever consulting the chart', async () => {
+    // The guard's job is to refuse a read of the wrong patient's record. A
+    // capability that ships no scraper reads nobody's record, so it returns its
+    // notice rather than the refusal — and, more to the point, it must do so
+    // without spending a request finding out which patient is active.
+    for (const capability of CAPABILITIES.filter((c) => c.notImplemented)) {
+      const { req } = familyRequest(CHILD_ID)
+      const result = await executeCapability(req, capability.id, {})
+      expect(result).toContain(`${capability.id} is not implemented`)
+      // Not one request: no /ProxySwitch to discover the active patient, and
+      // certainly nothing to the capability's own endpoint.
+      expect((req.makeRequest as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(0)
     }
   })
 

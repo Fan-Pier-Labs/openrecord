@@ -1,58 +1,36 @@
-/** The `Prescriptions` group — refill requests, and resolving what to refill. */
+/**
+ * The `Prescriptions` group.
+ *
+ * `request_refill` is declared and deliberately not implemented — see
+ * `scrapers/myChart/chart/medications/REFILL.md` for the endpoint, what the
+ * withdrawn scraper sent, and what a real implementation has to confirm first.
+ */
 
-import { getMedications } from '../../../scrapers/myChart/chart/medications/medications';
-import { requestMedicationRefill } from '../../../scrapers/myChart/chart/medications/medicationRefill';
-import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
-import { resolveUnique } from '../../resolveUnique';
-import { optStr, str } from '../args';
-import type { CapabilityArgs, CapabilityImpl } from '../types';
-
-/** Resolve `medication_key` directly, or `medication_name` by fuzzy match. */
-async function resolveMedicationKey(request: MyChartRequest, args: CapabilityArgs): Promise<{ key: string; name: string }> {
-  const explicitKey = optStr(args, 'medication_key');
-  if (explicitKey) return { key: explicitKey, name: optStr(args, 'medication_name') ?? explicitKey };
-
-  const query = str(args, 'medication_name').trim();
-  if (!query) throw new Error('Pass either medication_key (from get_medications) or medication_name.');
-
-  const meds = (await getMedications(request)).prescriptions;
-  // Match on the label the patient is most likely to use — "Lisinopril" as
-  // well as "Lisinopril 10mg" — but exact-first, so naming a medication
-  // precisely is never rejected for resembling another one.
-  const med = resolveUnique(meds, query, {
-    getName: (m) => m.name ?? '',
-    // Patients say "Lipitor" as often as "Atorvastatin 20mg".
-    getAlternateNames: (m) => (m.patientFriendlyName.text ? [m.patientFriendlyName.text] : []),
-    label: 'medication',
-    stripTitles: false,
-  });
-
-  if (!med.refillDetails?.isRefillable) throw new Error(`"${med.name}" is not refillable through MyChart.`);
-  // `id` is the prescription's MyChart id. Whether the refill endpoint wants
-  // it under `medicationKey` is unverified — see docs/processor-layer-todo.md.
-  if (!med.id) throw new Error(`"${med.name}" has no prescription id, so it cannot be refilled here.`);
-  return { key: med.id, name: med.name ?? '' };
-}
+import type { CapabilityImpl } from '../types';
 
 export const PRESCRIPTION_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'request_refill',
     title: 'Request a refill',
-    description: 'Request a refill for a current medication. Give the medication name; an ambiguous name is an error rather than a guess.',
+    description: 'Request a refill for a current medication.',
     kind: 'write',
     group: 'Prescriptions',
-    unverified:
-      'the request body has never been checked against a real instance: it posts `medicationKey`, ' +
-      'a field that exists only in fake-mychart, while the captured medications response names the ' +
-      'prescription `id`. A refill request may simply not reach the pharmacy.',
+    // A write nobody has ever watched land. The withdrawn scraper posted
+    // `{ medicationKey }` to `/api/medications/RequestRefill`; `medicationKey`
+    // is a field only fake-mychart has ever used, and the captured medications
+    // response names the prescription `id`. The fake answers `{success: true}`
+    // to anything, so the scraper passed its tests while quite possibly sending
+    // a body real MyChart ignores — and a refill that silently does not reach
+    // the pharmacy is a patient who stops taking a medication believing it is
+    // on the way. Verifying it means watching a real refill land, which is not
+    // something to do speculatively on someone's prescription.
+    notImplemented:
+      'the refill request has never been watched reaching a real pharmacy, and the body the ' +
+      'withdrawn scraper sent used a field name (`medicationKey`) that only fake-mychart has ' +
+      'ever recognised. Ask the patient to request the refill in MyChart directly.',
     params: [
       { name: 'medication_name', type: 'string', description: 'Medication name as shown by get_medications.' },
-      { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications. Use instead of medication_name when you have it.' },
+      { name: 'medication_key', type: 'string', description: 'Exact prescription `id` from get_medications.' },
     ],
-    run: async (request, args) => {
-      const { key, name } = await resolveMedicationKey(request, args);
-      const result = await requestMedicationRefill(request, key);
-      return { ...result, medication: name };
-    },
   },
 ];

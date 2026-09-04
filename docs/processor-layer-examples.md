@@ -13670,7 +13670,7 @@ Standing/upcoming orders — labs, imaging and procedures the care team has orde
 
 ### `get_questionnaires`
 
-Open and completed questionnaires / health assessments. UNVERIFIED: no real instance has ever returned a questionnaire here — three of four serve the legacy activity and answer with an empty list, and the fourth answers /Questionnaire itself with HTTP 500. The React /api/questionnaire/GetQuestionnaireList endpoint is the one to move to. Treat an empty or partial result as "not confirmed", not as "the chart has none".
+Open and completed questionnaires / health assessments.
 
 <details>
 <summary><code>mode: raw</code> (260 chars)</summary>

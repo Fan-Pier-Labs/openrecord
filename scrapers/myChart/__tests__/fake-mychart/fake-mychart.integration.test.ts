@@ -51,7 +51,6 @@ import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
 import { listConversations } from '../../chart/messages/conversations'
 import { getConversationMessages } from '../../chart/messages/messageThreads'
-import { requestMedicationRefill } from '../../chart/medications/medicationRefill'
 import { getImagingResults } from '../../chart/labs/labResults'
 import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer'
 import { downloadImagingStudyDirect } from '../../eunity/imagingDirectDownload'
@@ -617,11 +616,6 @@ for (const mode of MOUNT_MODES) {
       expect(result.accounts.length).toBeGreaterThan(0)
       expect(result.accounts[0]!.visits.length).toBeGreaterThan(0)
     }, 30_000)
-
-    it('requestMedicationRefill succeeds', async () => {
-      const result = await requestMedicationRefill(session, 'FAKE-MED-KEY-001')
-      expect(result.success).toBe(true)
-    }, 10_000)
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {
       const result = await getImagingResults(session)

@@ -28,8 +28,10 @@ import {
   getCapability,
   capabilitiesByGroup,
   executeCapability,
-  UNVERIFIED_CAPABILITIES,
+  acceptsModeParam,
+  UNIMPLEMENTED_CAPABILITIES,
   capabilityDescription,
+  unimplementedMessage,
   describeCapability,
   encodeImageId,
   decodeImageId,
@@ -81,7 +83,13 @@ describe('the registry itself', () => {
       expect(capability.group.length).toBeGreaterThan(0);
       // `run` is deliberately absent from the public type, so it is reached
       // here the way only a test may: through the value, not the type.
-      expect(typeof (capability as unknown as { run: unknown }).run).toBe('function');
+      //
+      // Exactly one of `run` and `notImplemented`, never both and never
+      // neither. A capability with both would be a scraper wearing a "not
+      // implemented" label — the failure mode this whole mechanism exists to
+      // prevent — and one with neither would throw somewhere further in.
+      const hasRun = typeof (capability as unknown as { run: unknown }).run === 'function';
+      expect(hasRun).toBe(capability.notImplemented === undefined);
     }
   });
 
@@ -157,42 +165,52 @@ describe('the registry itself', () => {
   });
 });
 
-// ── The unverified caveat ───────────────────────────────────────────────────
+// ── Declared, deliberately not implemented ──────────────────────────────────
 
-describe('unverified capabilities', () => {
-  it('carries the caveat into the description every client shows', () => {
-    const questionnaires = getCapability('get_questionnaires')!;
-    expect(questionnaires.unverified).toBeTruthy();
-    const described = capabilityDescription(questionnaires);
-    expect(described).toStartWith(questionnaires.description);
-    expect(described).toContain('UNVERIFIED:');
-    // The point of the caveat: an empty answer from an unverified capability
-    // is not evidence the chart is empty.
-    expect(described).toContain('not confirmed');
+describe('unimplemented capabilities', () => {
+  it('says so in the description every client shows', () => {
+    const refill = getCapability('request_refill')!;
+    expect(refill.notImplemented).toBeTruthy();
+    const described = capabilityDescription(refill);
+    expect(described).toStartWith(refill.description);
+    expect(described).toContain('NOT IMPLEMENTED:');
+    expect(described).toContain('reads no chart and changes nothing');
   });
 
-  it('gives a write the advice that fits how a write fails', () => {
-    // An unverified read fails by returning a confident empty list; an
-    // unverified write fails by appearing to have succeeded.
-    const refill = capabilityDescription(getCapability('request_refill')!);
-    expect(refill).toContain('Do not report it as done');
-    expect(refill).not.toContain('the chart has none');
-  });
-
-  it('leaves a verified capability\'s description exactly as written', () => {
+  it("leaves an implemented capability's description exactly as written", () => {
     const labs = getCapability('get_lab_results')!;
-    expect(labs.unverified).toBeUndefined();
+    expect(labs.notImplemented).toBeUndefined();
     expect(capabilityDescription(labs)).toBe(labs.description);
   });
 
-  it('changes nothing about what is listed or dispatched', () => {
-    for (const capability of UNVERIFIED_CAPABILITIES) {
+  it('returns a notice that cannot be relayed as "none" or as "done"', () => {
+    // The two ways a caller could do harm with this: reporting an empty result
+    // to a patient, or telling them the write happened.
+    const message = unimplementedMessage(getCapability('request_refill')!);
+    expect(message).toStartWith('request_refill is not implemented');
+    expect(message).toContain('did nothing, read nothing and changed nothing');
+    expect(message).toContain('Do not report this as an empty result or as a completed action');
+  });
+
+  it('stays listed and reachable like any other capability', () => {
+    // A client that silently lacks a tool and one that has a tool saying "not
+    // implemented" are very different for a caller trying to find out whether
+    // OpenRecord can do a thing.
+    for (const capability of UNIMPLEMENTED_CAPABILITIES) {
       expect(CAPABILITY_IDS).toContain(capability.id);
-      expect(capability.unverified!.length).toBeGreaterThan(20);
+      expect(getCapability(capability.id)).toBeDefined();
+      expect(capability.notImplemented!.length).toBeGreaterThan(20);
     }
-    // Not a dumping ground: a capability whose shape is confirmed must not be
-    // marked, and a marked one has to be in the registry like any other.
-    expect(UNVERIFIED_CAPABILITIES.map((c) => c.id)).toEqual(['get_questionnaires', 'request_refill']);
+  });
+
+  it('offers no output mode, because there is no response to shape', () => {
+    for (const capability of UNIMPLEMENTED_CAPABILITIES) {
+      expect(acceptsModeParam(capability)).toBe(false);
+    }
+  });
+
+  it('is the exception, not a parking space', () => {
+    expect(UNIMPLEMENTED_CAPABILITIES.map((c) => c.id)).toEqual(['request_refill']);
   });
 });
 

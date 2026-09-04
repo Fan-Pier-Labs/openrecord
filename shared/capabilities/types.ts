@@ -105,26 +105,26 @@ export interface Capability {
    */
   lessFrequentlyUsed?: boolean;
   /**
-   * Why this capability's output has never been confirmed against a real
-   * MyChart, in one sentence. Absent means it has been.
+   * Set when this capability deliberately ships **no scraper**: one sentence
+   * saying why, which is both appended to the description and returned to any
+   * caller that runs it.
    *
-   * A scraper written against `fake-mychart` alone can be wrong in the way
-   * that is hardest to notice: it returns a well-formed empty answer. Nobody
-   * reads "coverages: []" as "this tool has never seen a real insurance page"
-   * — they read it as "you have no insurance on file", which is a different
-   * and much worse sentence to put in front of a patient.
+   * The alternative — shipping a scraper written against `fake-mychart` and
+   * warning about it in prose — was tried and is worse. A read like that
+   * answers `[]`, which nobody reads as "this has never seen a real instance";
+   * they read it as "your chart has none". A write like that answers HTTP 200
+   * from an endpoint that ignored it, and the patient believes their refill was
+   * requested. Both are confident wrong answers, and a caveat in the tool
+   * description does not stop a model acting on the payload it was handed.
    *
-   * So the caveat travels with the capability instead of living in a doc. It
-   * is one string in the registry, {@link capabilityDescription} appends it to
-   * the description, and every client — MCP tool descriptions, `--help`, the
-   * mobile agent's prompt — inherits it without being asked. Clearing it is
-   * the last step of a capture: verify the shape against a real instance, then
-   * delete the line.
-   *
-   * This changes nothing about what runs. An unverified capability is still
-   * dispatched, still returns its data, and is still listed everywhere.
+   * So there is no payload. {@link UnimplementedCapabilityImpl} has no `run`
+   * at all — attaching one is a compile error, not a review note — and
+   * {@link executeCapability} returns this sentence instead of calling
+   * anything. What we know about the endpoint lives in a README beside the
+   * capability's other code, where the person implementing it will look, rather
+   * than in a scraper that runs.
    */
-  unverified?: string;
+  notImplemented?: string;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to
@@ -190,4 +190,26 @@ export interface PublicCapabilityImpl extends Capability {
   processor?: Processor;
 }
 
-export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl;
+/**
+ * A capability the registry declares and deliberately does not implement.
+ *
+ * `run?: never` is the enforcement. A capability whose shape we have never
+ * confirmed against a real MyChart cannot acquire a scraper by someone wiring
+ * one up in a hurry — the entry has nowhere to put it, so the mistake is a type
+ * error at the point of the mistake rather than an empty list in production.
+ * `processor?: never` follows: there is no response to process, so `mode` is
+ * meaningless here and clients do not offer it.
+ *
+ * The entry stays in the registry rather than being deleted, because a client
+ * that silently lacks a tool and a client that has one saying "not implemented"
+ * are very different for a caller trying to find out whether OpenRecord can do
+ * a thing. `capability-parity.unit.test.ts` holds the second one.
+ */
+export interface UnimplementedCapabilityImpl extends Capability {
+  kind: 'read' | 'write';
+  notImplemented: string;
+  run?: never;
+  processor?: never;
+}
+
+export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl | UnimplementedCapabilityImpl;

@@ -47,7 +47,13 @@ import { assertProxyReadContext } from '../../scrapers/myChart/proxy/proxyTools'
 import { optStr } from './args';
 import { readOutputMode } from './params';
 import { isPublicCapability } from './public';
-import type { Capability, CapabilityArgs, CapabilityContext, CapabilityImpl } from './types';
+import type {
+  Capability,
+  CapabilityArgs,
+  CapabilityContext,
+  CapabilityImpl,
+  UnimplementedCapabilityImpl,
+} from './types';
 
 import { PROFILE_CAPABILITIES } from './registry/profile';
 import { VISIT_CAPABILITIES } from './registry/visits';
@@ -135,12 +141,12 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 );
 
 /**
- * The capabilities whose response shape has never been confirmed against a
- * real MyChart — see {@link Capability.unverified}. Exported so a client can
- * mark them in its own way; the caveat itself reaches every client through
- * {@link capabilityDescription}.
+ * The capabilities the registry declares and deliberately does not implement —
+ * see {@link Capability.notImplemented}. They are listed by every client like
+ * any other, and running one returns {@link unimplementedMessage} instead of
+ * calling a scraper.
  */
-export const UNVERIFIED_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.unverified);
+export const UNIMPLEMENTED_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.notImplemented);
 
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
@@ -158,6 +164,16 @@ const BY_NAME = new Map<string, CapabilityImpl>();
 for (const capability of CAPABILITY_IMPLS) {
   BY_NAME.set(capability.id, capability);
   for (const alias of capability.aliases ?? []) BY_NAME.set(alias, capability);
+}
+
+/**
+ * Whether this capability ships no scraper — see
+ * {@link Capability.notImplemented}. As a type guard, so that narrowing it away
+ * is what gives {@link executeCapability} a `run` to call: a capability cannot
+ * be both dispatched and unimplemented, and the compiler is what says so.
+ */
+function isUnimplemented(capability: CapabilityImpl): capability is UnimplementedCapabilityImpl {
+  return capability.notImplemented !== undefined;
 }
 
 /** Look a capability up by id or alias. Returns undefined for unknown names. */
@@ -234,6 +250,12 @@ export async function executeCapability(
   if (!capability) {
     throw new Error(`Unknown capability "${idOrAlias}". Known capabilities: ${CAPABILITY_IDS.join(', ')}`);
   }
+  // Before anything else, including the patient assertion: a capability with no
+  // scraper has nothing to assert about and no session to spend on it. The type
+  // guard is also what tells the compiler that everything past this line has a
+  // `run` — the narrowing and the early return are the same fact.
+  if (isUnimplemented(capability)) return unimplementedMessage(capability);
+
   let result: unknown;
   if (capability.kind === 'public') {
     // Public capabilities are the reason `request` is nullable: they read the
@@ -278,15 +300,25 @@ export function acceptsPatientParam(capability: Capability): boolean {
  * three.
  */
 export function capabilityDescription(capability: Capability): string {
-  if (!capability.unverified) return capability.description;
-  // The advice differs by kind, because the failure does. An unverified read
-  // fails by returning a confident empty list; an unverified write fails by
-  // appearing to succeed.
-  const advice =
-    capability.kind === 'write' || capability.kind === 'account'
-      ? 'Do not report it as done on the strength of a success response.'
-      : 'Treat an empty or partial result as "not confirmed", not as "the chart has none".';
-  return `${capability.description} UNVERIFIED: ${capability.unverified} ${advice}`;
+  if (!capability.notImplemented) return capability.description;
+  return `${capability.description} NOT IMPLEMENTED: ${capability.notImplemented} Calling it does nothing and returns this notice — it reads no chart and changes nothing.`;
+}
+
+/**
+ * What running a {@link Capability.notImplemented} capability returns.
+ *
+ * A sentence, not a thrown error and not an empty payload: an error reads as a
+ * transient failure worth retrying, and an empty payload is the exact wrong
+ * answer this whole mechanism exists to avoid. It leads with the capability's
+ * own name so a model relaying it cannot turn it into "you have none" or
+ * "done".
+ */
+export function unimplementedMessage(capability: Capability): string {
+  return (
+    `${capability.id} is not implemented: it did nothing, read nothing and changed nothing. ` +
+    `${capability.notImplemented} ` +
+    'Do not report this as an empty result or as a completed action.'
+  );
 }
 
 /** One `name(param, param) — description` line per capability, for prompts and help. */

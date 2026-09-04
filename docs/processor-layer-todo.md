@@ -18,7 +18,7 @@ fixture rebuilt from it.
 | `get_upcoming_orders` | `POST /api/upcoming-orders/GetUpcomingOrders` | Element shape of `orderList{}` values, and of `orderGroupList{}` / `providerList{}` (all `{}` on every capture) | |
 | `get_allergies` | `POST /api/allergies/LoadAllergies` | `dataList[]` element (`[]` on the captured account). The scraper hedges between `allergyItem.*` and flat fields | |
 | `get_documents` | `POST /api/documents/viewer/LoadOtherDocuments` | The whole response; never captured | |
-| `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call. Marked `unverified` in the registry until then | |
+| `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call | |
 | `get_care_journeys` | `POST /api/care-journeys/GetCareJourneys` | The whole response; never captured | |
 | `get_insurance` | `GET /Insurance` | The page markup on an account with coverage. The scraper's selectors (`.coverage-card`, `.plan-name`, `.member-id`) match only the fake | Every `/api/insurance-hub/*` endpoint answered 500 on the probed account (`api-surface-gaps.md`, tier 4, where insurance-hub is the top re-probe target) |
 | `get_health_summary` | `FetchHealthSummary` | `conditionList[]`, `journeyList[]`, `actionPlans[]` elements (`[]` on every capture) | |
@@ -32,31 +32,37 @@ fixture rebuilt from it.
 | `get_billing` | `GetVisits` | `UndistributedPayments[]` element; `EstimateInfo`, `VisitAutoPay`, `AgencyInformation` populated | |
 | `list_proxy_targets` | `/ProxySwitch`, `/Home` | Which discovery surface each captured instance uses | Three surfaces exist; only the JSON one has a skeleton |
 
-## 1a. Marking what is not yet verified
+## 1a. Capabilities we declare and deliberately do not implement
 
-`Capability.unverified` in `shared/capabilities/types.ts` is a one-line reason a capability's
-shape has never been confirmed against a real MyChart. `capabilityDescription()` appends it to
-the description, and every client inherits it: the MCP tool description, the CLI's `--help`,
-the mobile agent's prompt, and the generated examples doc.
+`Capability.notImplemented` in `shared/capabilities/types.ts` is one sentence saying why a
+capability ships no scraper. `capabilityDescription()` appends it to the description every
+client shows, and `executeCapability` returns `unimplementedMessage()` instead of calling
+anything. `UnimplementedCapabilityImpl` has `run?: never`, so attaching a scraper to one is a
+compile error rather than a review note.
 
-It changes nothing about what runs. The point is that a scraper written against `fake-mychart`
-alone fails by returning a well-formed *empty* answer, and nobody reads `coverages: []` as
-"this tool has never seen a real insurance page" — they read it as "you have no insurance on
-file". Clearing the flag is the last step of a capture.
+This replaces the obvious-looking alternative — ship the scraper and warn about it in prose —
+which is worse in both directions. An unverified *read* answers `[]`, which nobody reads as
+"this has never seen a real instance"; they read it as "your chart has none". An unverified
+*write* answers HTTP 200 from an endpoint that ignored it, and the patient believes their
+refill is on the way. A caveat in a tool description does not stop a caller acting on the
+payload it was handed, so the fix is to hand it no payload.
 
-Currently marked: `get_questionnaires`, `request_refill`. A capability whose envelope is
-confirmed and whose empty answer is genuinely "the chart has none" — `get_allergies`,
-`get_documents`, `get_care_journeys`, `get_upcoming_orders`, all of which pass their elements
-through whole — is **not** marked; only their element shapes are unknown, which is what the
-table above is for.
+What we know about the endpoint goes in a README beside the capability's other code
+(`scrapers/myChart/chart/medications/REFILL.md`), where whoever implements it will look — not
+in a scraper that runs. Not an unwired `.ts` file: the coverage gate is per-file, so an
+untested module fails the build.
 
-The browser demo does not inherit it: `openrecord-splash/demo/src/tools.ts` hand-writes its
-own `TOOL_SPECS` against a fictional record, so there is no real-MyChart shape for the caveat
-to be about. Parity there is enforced on tool *names* only.
+Currently: `request_refill`. Clearing it means capturing the request the shipped client sends,
+rebuilding the fake's handler around it, and watching one real refill land.
+
+This is for capabilities with no trustworthy implementation at all. It is **not** for a
+capability whose envelope is confirmed and whose element shape is merely uncaptured —
+`get_allergies`, `get_documents`, `get_care_journeys`, `get_upcoming_orders` all pass elements
+through whole and answer empty honestly. Those belong in the table above.
 
 ## 2. Requests to verify
 
-- **`request_refill` body.** The scraper posts `{ medicationKey }` to `/api/medications/RequestRefill`. `medicationKey` exists only in the fake's fixture; the captured medications skeleton has `id`. Capture the web UI's refill request (`epic.px.client.medications.js` on any instance) and fix both the scraper and the fixture. Until then the medications processor exposes `id` and the capability carries `unverified` in the registry, so every client says so.
+- **`request_refill` body.** The scraper posts `{ medicationKey }` to `/api/medications/RequestRefill`. `medicationKey` exists only in the fake's fixture; the captured medications skeleton has `id`. Capture the web UI's refill request (`epic.px.client.medications.js` on any instance) and fix both the scraper and the fixture. The medications processor exposes `id`, and the capability itself is now declared-not-implemented (§1a) rather than shipping a request nobody has watched land.
 - **`get_questionnaires` endpoint.** Legacy `/Questionnaire/GetQuestionnaireList` vs React `/api/questionnaire/GetQuestionnaireList` (see above). Checked on four live instances after the migration: three serve the legacy page and return an empty list; one answers the `/Questionnaire` page itself with HTTP 500, so the capability now fails there with `MissingVerificationTokenError` (it used to read as "no questionnaires"). The React endpoint is the one to move to.
 - **`IsPastVisit`.** Documented false on rows `LoadPast` returned (#377, #380). Confirm on the August 2025 release too, so the drop is release-independent.
 - **`results[].isAbnormal`.** `false` on all 39 captured results including out-of-range ones (#375). One more instance would settle whether any release sets it.

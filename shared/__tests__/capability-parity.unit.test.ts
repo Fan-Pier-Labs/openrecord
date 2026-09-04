@@ -547,7 +547,6 @@ describe('npm library', () => {
       add_emergency_contact: 'addEmergencyContact',
       update_emergency_contact: 'updateEmergencyContact',
       remove_emergency_contact: 'removeEmergencyContact',
-      request_refill: 'requestMedicationRefill',
       list_proxy_targets: 'listProxyTargets',
       switch_proxy_target: 'switchToPatient',
       register_passkey: 'setupPasskey',
@@ -567,11 +566,19 @@ describe('npm library', () => {
     };
     expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
 
-    // Every capability in the registry is implemented, so every one of them
-    // maps to a library method — there is no "declared but not implemented"
-    // state to carve out.
+    // Every *implemented* capability maps to a library method. The
+    // deliberately-unimplemented ones (`Capability.notImplemented`) map to
+    // nothing on purpose: there is no scraper for a typed method to wrap, and
+    // adding one would be the library quietly re-acquiring the behaviour the
+    // registry withdrew. `runCapability(id)` still reaches them and returns the
+    // notice, like every other client.
+    const unimplemented = new Set(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id));
     const unmapped = ALL.filter((id) => !methodFor[id] && !staticMethodFor[id]);
-    expect(unmapped).toEqual([]);
+    expect(unmapped).toEqual([...unimplemented]);
+    for (const id of unimplemented) {
+      expect(methodFor[id]).toBeUndefined();
+      expect(staticMethodFor[id]).toBeUndefined();
+    }
 
     const absent = Object.values(methodFor).filter((m) => !methods.includes(m));
     expect(absent).toEqual([]);
