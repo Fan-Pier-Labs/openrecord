@@ -3694,7 +3694,7 @@ Upcoming appointments.
       "ClientTimeZoneMarker": "",
       "EncounterType": 0,
       "VisitTypeName": "Annual Physical",
-      "Instant": "/Date(1776243600000)/",
+      "Instant": "/Date(1776258000000)/",
       "ArrivalTime": null,
       "CanShowArrivalTime": false,
       "EarlyArrivalReason": null,
@@ -3914,8 +3914,8 @@ Upcoming appointments.
 - **CsnForECheckIn**: CSN-HOMER-001
 - **Id**: VISIT-HOMER-001
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1776243600000)/
-- **instantISO**: 2026-04-15T09:00:00.000Z
+- **Instant**: /Date(1776258000000)/
+- **instantISO**: 2026-04-15T13:00:00.000Z
 - **PrimaryDate**: 04/15/2026 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4054,8 +4054,8 @@ Upcoming appointments.
       "CsnForECheckIn": "CSN-HOMER-001",
       "Id": "VISIT-HOMER-001",
       "ReferenceID": "",
-      "Instant": "/Date(1776243600000)/",
-      "instantISO": "2026-04-15T09:00:00.000Z",
+      "Instant": "/Date(1776258000000)/",
+      "instantISO": "2026-04-15T13:00:00.000Z",
       "PrimaryDate": "04/15/2026 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -4347,7 +4347,7 @@ Past visits within the last `years_back` years (default 2).
                 "ClientTimeZoneMarker": "",
                 "EncounterType": 0,
                 "VisitTypeName": "Annual Physical",
-                "Instant": "/Date(1768035600000)/",
+                "Instant": "/Date(1768053600000)/",
                 "ArrivalTime": null,
                 "CanShowArrivalTime": false,
                 "EarlyArrivalReason": null,
@@ -4463,8 +4463,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-002
 - **Id**: VISIT-HOMER-002
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1768035600000)/
-- **instantISO**: 2026-01-10T09:00:00.000Z
+- **Instant**: /Date(1768053600000)/
+- **instantISO**: 2026-01-10T14:00:00.000Z
 - **PrimaryDate**: 01/10/2026 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4562,8 +4562,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-003
 - **Id**: VISIT-HOMER-003
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1763649000000)/
-- **instantISO**: 2025-11-20T14:30:00.000Z
+- **Instant**: /Date(1763667000000)/
+- **instantISO**: 2025-11-20T19:30:00.000Z
 - **PrimaryDate**: 11/20/2025 02:30:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4661,8 +4661,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-004
 - **Id**: VISIT-HOMER-004
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1754388000000)/
-- **instantISO**: 2025-08-05T10:00:00.000Z
+- **Instant**: /Date(1754402400000)/
+- **instantISO**: 2025-08-05T14:00:00.000Z
 - **PrimaryDate**: 08/05/2025 10:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4760,8 +4760,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-005
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1749978000000)/
-- **instantISO**: 2025-06-15T09:00:00.000Z
+- **Instant**: /Date(1749992400000)/
+- **instantISO**: 2025-06-15T13:00:00.000Z
 - **PrimaryDate**: 06/15/2025 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4859,8 +4859,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-006
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1743593400000)/
-- **instantISO**: 2025-04-02T11:30:00.000Z
+- **Instant**: /Date(1743607800000)/
+- **instantISO**: 2025-04-02T15:30:00.000Z
 - **PrimaryDate**: 04/02/2025 11:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4958,8 +4958,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-007
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1739887200000)/
-- **instantISO**: 2025-02-18T14:00:00.000Z
+- **Instant**: /Date(1739905200000)/
+- **instantISO**: 2025-02-18T19:00:00.000Z
 - **PrimaryDate**: 02/18/2025 02:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5057,8 +5057,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-008
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1733393700000)/
-- **instantISO**: 2024-12-05T10:15:00.000Z
+- **Instant**: /Date(1733411700000)/
+- **instantISO**: 2024-12-05T15:15:00.000Z
 - **PrimaryDate**: 12/05/2024 10:15:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5156,8 +5156,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-009
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1731426300000)/
-- **instantISO**: 2024-11-12T15:45:00.000Z
+- **Instant**: /Date(1731444300000)/
+- **instantISO**: 2024-11-12T20:45:00.000Z
 - **PrimaryDate**: 11/12/2024 03:45:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5255,8 +5255,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-010
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1727771400000)/
-- **instantISO**: 2024-10-01T08:30:00.000Z
+- **Instant**: /Date(1727785800000)/
+- **instantISO**: 2024-10-01T12:30:00.000Z
 - **PrimaryDate**: 10/01/2024 08:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5354,8 +5354,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-011
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1726405200000)/
-- **instantISO**: 2024-09-15T13:00:00.000Z
+- **Instant**: /Date(1726419600000)/
+- **instantISO**: 2024-09-15T17:00:00.000Z
 - **PrimaryDate**: 09/15/2024 01:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5453,8 +5453,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-012
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1724147100000)/
-- **instantISO**: 2024-08-20T09:45:00.000Z
+- **Instant**: /Date(1724161500000)/
+- **instantISO**: 2024-08-20T13:45:00.000Z
 - **PrimaryDate**: 08/20/2024 09:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5552,8 +5552,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-013
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1720612800000)/
-- **instantISO**: 2024-07-10T12:00:00.000Z
+- **Instant**: /Date(1720627200000)/
+- **instantISO**: 2024-07-10T16:00:00.000Z
 - **PrimaryDate**: 07/10/2024 12:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5651,8 +5651,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-014
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1716373800000)/
-- **instantISO**: 2024-05-22T10:30:00.000Z
+- **Instant**: /Date(1716388200000)/
+- **instantISO**: 2024-05-22T14:30:00.000Z
 - **PrimaryDate**: 05/22/2024 10:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5750,8 +5750,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-015
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1710407700000)/
-- **instantISO**: 2024-03-14T09:15:00.000Z
+- **Instant**: /Date(1710422100000)/
+- **instantISO**: 2024-03-14T13:15:00.000Z
 - **PrimaryDate**: 03/14/2024 09:15:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5849,8 +5849,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-016
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1706625900000)/
-- **instantISO**: 2024-01-30T14:45:00.000Z
+- **Instant**: /Date(1706643900000)/
+- **instantISO**: 2024-01-30T19:45:00.000Z
 - **PrimaryDate**: 01/30/2024 02:45:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5948,8 +5948,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-017
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1699441200000)/
-- **instantISO**: 2023-11-08T11:00:00.000Z
+- **Instant**: /Date(1699459200000)/
+- **instantISO**: 2023-11-08T16:00:00.000Z
 - **PrimaryDate**: 11/08/2023 11:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6047,8 +6047,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-018
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1695113100000)/
-- **instantISO**: 2023-09-19T08:45:00.000Z
+- **Instant**: /Date(1695127500000)/
+- **instantISO**: 2023-09-19T12:45:00.000Z
 - **PrimaryDate**: 09/19/2023 08:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6146,8 +6146,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-019
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1688650200000)/
-- **instantISO**: 2023-07-06T13:30:00.000Z
+- **Instant**: /Date(1688664600000)/
+- **instantISO**: 2023-07-06T17:30:00.000Z
 - **PrimaryDate**: 07/06/2023 01:30:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6245,8 +6245,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-020
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1682416800000)/
-- **instantISO**: 2023-04-25T10:00:00.000Z
+- **Instant**: /Date(1682431200000)/
+- **instantISO**: 2023-04-25T14:00:00.000Z
 - **PrimaryDate**: 04/25/2023 10:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6344,8 +6344,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-021
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1676128500000)/
-- **instantISO**: 2023-02-11T15:15:00.000Z
+- **Instant**: /Date(1676146500000)/
+- **instantISO**: 2023-02-11T20:15:00.000Z
 - **PrimaryDate**: 02/11/2023 03:15:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6443,8 +6443,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-022
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1669973400000)/
-- **instantISO**: 2022-12-02T09:30:00.000Z
+- **Instant**: /Date(1669991400000)/
+- **instantISO**: 2022-12-02T14:30:00.000Z
 - **PrimaryDate**: 12/02/2022 09:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6542,8 +6542,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-023
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1660563900000)/
-- **instantISO**: 2022-08-15T11:45:00.000Z
+- **Instant**: /Date(1660578300000)/
+- **instantISO**: 2022-08-15T15:45:00.000Z
 - **PrimaryDate**: 08/15/2022 11:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -7144,8 +7144,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-002",
       "Id": "VISIT-HOMER-002",
       "ReferenceID": "",
-      "Instant": "/Date(1768035600000)/",
-      "instantISO": "2026-01-10T09:00:00.000Z",
+      "Instant": "/Date(1768053600000)/",
+      "instantISO": "2026-01-10T14:00:00.000Z",
       "PrimaryDate": "01/10/2026 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7238,8 +7238,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-003",
       "Id": "VISIT-HOMER-003",
       "ReferenceID": "",
-      "Instant": "/Date(1763649000000)/",
-      "instantISO": "2025-11-20T14:30:00.000Z",
+      "Instant": "/Date(1763667000000)/",
+      "instantISO": "2025-11-20T19:30:00.000Z",
       "PrimaryDate": "11/20/2025 02:30:00 PM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7332,8 +7332,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-004",
       "Id": "VISIT-HOMER-004",
       "ReferenceID": "",
-      "Instant": "/Date(1754388000000)/",
-      "instantISO": "2025-08-05T10:00:00.000Z",
+      "Instant": "/Date(1754402400000)/",
+      "instantISO": "2025-08-05T14:00:00.000Z",
       "PrimaryDate": "08/05/2025 10:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7426,8 +7426,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "",
       "Id": "VISIT-CSN-HOMER-005",
       "ReferenceID": "",
-      "Instant": "/Date(1749978000000)/",
-      "instantISO": "2025-06-15T09:00:00.000Z",
+      "Instant": "/Date(1749992400000)/",
+      "instantISO": "2025-06-15T13:00:00.000Z",
       "PrimaryDate": "06/15/2025 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7520,8 +7520,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "",
       "Id": "VISIT-CSN-HOMER-006",
       "ReferenceID": "",
-      "Instant": "/Date(1743593400000)/",
-      "instantISO": "2025-04-02T11:30:00.000Z",
+      "Instant": "/Date(1743607800000)/",
+      "instantISO": "2025-04-02T15:30:00.000Z",
       "PrimaryDate": "04/02/2025 11:30:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
