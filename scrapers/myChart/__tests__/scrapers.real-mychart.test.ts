@@ -215,9 +215,7 @@ describe('integration', () => {
   }, 30_000)
 
   it('pastVisits returns visit data', async () => {
-    const twoYearsAgo = new Date()
-    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
-    const result = await pastVisits(session, twoYearsAgo)
+    const result = await pastVisits(session)
     // May return undefined if the page structure differs
     if (result) {
       expect(result).toBeDefined()

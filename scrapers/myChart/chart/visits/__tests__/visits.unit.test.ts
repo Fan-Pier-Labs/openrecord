@@ -384,11 +384,9 @@ describe('upcomingVisits', () => {
 })
 
 describe('pastVisits', () => {
-  const OLDEST = new Date('2023-01-01T00:00:00.000Z')
-
   it('throws when no token found', async () => {
     const req = mockRequest([{ body: '<html></html>', contentType: 'text/html' }])
-    await expect(pastVisits(req, OLDEST)).rejects.toBeInstanceOf(MissingVerificationTokenError)
+    await expect(pastVisits(req)).rejects.toBeInstanceOf(MissingVerificationTokenError)
   })
 
   it('returns the standard container, newest first, every row completed', async () => {
@@ -401,7 +399,7 @@ describe('pastVisits', () => {
     ])
     const req = mockRequest([TOKEN, { body: JSON.stringify(page) }])
 
-    const result = await pastVisits(req, OLDEST)
+    const result = await pastVisits(req)
     expect(result).toMatchObject({ count: 2, hasOlderVisits: false })
     expect(result!.visits.map((v) => v.Csn)).toEqual(['A', 'B'])
     expect(result!.visits[0]!.status).toBe('completed')
@@ -413,11 +411,11 @@ describe('pastVisits', () => {
 
   it('sends LoadPast with no body and no Content-Type (F5 WAF regression)', async () => {
     const { req, calls } = mockRecordingRequest([TOKEN, { body: JSON.stringify(pastPage([])) }])
-    const oldestDate = new Date('2023-06-15T00:00:00.000Z')
-    await pastVisits(req, oldestDate)
+    await pastVisits(req)
 
-    expect(calls[1]!.url).toContain('oldestRenderedDate=')
-    expect(calls[1]!.url).toContain('2023-06-15')
+    // Still on the query string because LoadPast requires it, pinned to the
+    // epoch because MyChart does nothing with it.
+    expect(calls[1]!.url).toContain('oldestRenderedDate=1970-01-01T00:00:00.000Z')
     expect(calls[1]!.init?.method).toBe('POST')
     expect(calls[1]!.init?.body).toBeUndefined()
     const loadPastHeaders = calls[1]!.init?.headers as Record<string, string> | undefined
@@ -441,7 +439,7 @@ describe('pastVisits', () => {
       },
     }
     const req = mockRequest([TOKEN, { body: JSON.stringify(page) }])
-    const result = await pastVisits(req, OLDEST)
+    const result = await pastVisits(req)
     expect(result!.visits.map((v) => [v.Csn, v.organizationName])).toEqual([['A1', 'Org A'], ['B1', 'Org B'], ['B2', 'Org B']])
   })
 
@@ -451,12 +449,12 @@ describe('pastVisits', () => {
     const page3 = pastPage([{ Csn: 'V3', Instant: instant('2024-01-01T00:00:00Z') }], { hasMore: false, cursor: 'cursor-3' })
     const { req, calls } = mockRecordingRequest([TOKEN, { body: JSON.stringify(page1) }, { body: JSON.stringify(page2) }, { body: JSON.stringify(page3) }])
 
-    const raw = await fetchPastVisitsRaw(req, OLDEST)
+    const raw = await fetchPastVisitsRaw(req)
     expect(raw.requests).toHaveLength(4)
     expect(raw.requests.slice(1).map((r) => r.path)).toEqual([
-      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2023-01-01T00:00:00.000Z&ComponentNumber=7',
-      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2023-01-01T00:00:00.000Z&ComponentNumber=7&serializedIndex=cursor-1',
-      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2023-01-01T00:00:00.000Z&ComponentNumber=7&serializedIndex=cursor-2',
+      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=1970-01-01T00:00:00.000Z&ComponentNumber=7',
+      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=1970-01-01T00:00:00.000Z&ComponentNumber=7&serializedIndex=cursor-1',
+      '/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=1970-01-01T00:00:00.000Z&ComponentNumber=7&serializedIndex=cursor-2',
     ])
     expect(calls[2]!.url).toContain('serializedIndex=cursor-1')
     expect(calls[3]!.url).toContain('serializedIndex=cursor-2')
@@ -470,21 +468,24 @@ describe('pastVisits', () => {
     expect(standard.visits.map((v) => v.Csn)).toEqual(['V1', 'V2', 'V3'])
   })
 
-  it('stops paging once every visit on the latest page predates the cutoff, and reports older visits remain', async () => {
+  it('keeps walking the cursor past visits older than any window a caller might want', async () => {
     const page1 = pastPage([{ Csn: 'NEW', Instant: instant('2024-12-01T00:00:00Z') }], { hasMore: true, cursor: 'c1' })
-    const page2 = pastPage([{ Csn: 'OLD', Instant: instant('2020-01-01T00:00:00Z') }], { hasMore: true, cursor: 'c2' })
+    const page2 = pastPage([{ Csn: 'OLD', Instant: instant('2010-01-01T00:00:00Z') }], { hasMore: false, cursor: 'c2' })
     const req = mockRequest([TOKEN, { body: JSON.stringify(page1) }, { body: JSON.stringify(page2) }])
 
-    const result = await pastVisits(req, OLDEST)
+    // There is no date cutoff any more: the walk runs until MyChart stops
+    // offering more, so a 14-year-old visit comes back like any other.
+    const result = await pastVisits(req)
+    expect(result!.visits.map((v) => v.Csn)).toEqual(['NEW', 'OLD'])
     expect(result!.count).toBe(2)
-    expect(result!.hasOlderVisits).toBe(true)
+    expect(result!.hasOlderVisits).toBe(false)
   })
 
   it('stops when the cursor stops advancing and does not count the repeated page twice', async () => {
     const page1 = pastPage([{ Csn: 'V1', Id: 'I1', Instant: instant('2024-12-01T00:00:00Z') }], { hasMore: true, cursor: 'stuck' })
     const req = mockRequest([TOKEN, { body: JSON.stringify(page1) }, { body: JSON.stringify(page1) }])
 
-    const raw = await fetchPastVisitsRaw(req, OLDEST)
+    const raw = await fetchPastVisitsRaw(req)
     expect(raw.requests).toHaveLength(3)
     const result = pastVisitsProcessor.standard(raw)!
     expect(result.count).toBe(1)
@@ -494,7 +495,7 @@ describe('pastVisits', () => {
   it('stops when a page carries no continuation token', async () => {
     const page1 = pastPage([{ Csn: 'V1', Instant: instant('2024-12-01T00:00:00Z') }], { hasMore: true, cursor: '' })
     const req = mockRequest([TOKEN, { body: JSON.stringify(page1) }])
-    const raw = await fetchPastVisitsRaw(req, OLDEST)
+    const raw = await fetchPastVisitsRaw(req)
     expect(raw.requests).toHaveLength(2)
   })
 
@@ -518,7 +519,7 @@ describe('pastVisits', () => {
   it('renders concise with only the concise field list', async () => {
     const page = pastPage([{ Csn: 'A', VisitTypeName: 'Office Visit', ChiefComplaint: 'Cough', SurgicalProcedures: [{ Name: 'X', Instructions: 'secret' }], IsClinicalNoteAvailable: true }])
     const req = mockRequest([TOKEN, { body: JSON.stringify(page) }])
-    const raw = await fetchPastVisitsRaw(req, OLDEST)
+    const raw = await fetchPastVisitsRaw(req)
     const concise = pastVisitsProcessor.concise(pastVisitsProcessor.standard(raw)) as { count: number; hasOlderVisits: boolean; visits: Record<string, unknown>[] }
     expect(concise.count).toBe(1)
     expect(concise.visits[0]).toEqual({
@@ -544,6 +545,6 @@ describe('pastVisits', () => {
 
   it('throws a descriptive error when the session has expired and HTML comes back', async () => {
     const req = mockRequest([TOKEN, { body: '<html>login</html>', contentType: 'text/html' }])
-    await expect(pastVisits(req, OLDEST)).rejects.toThrow(/Expected JSON/)
+    await expect(pastVisits(req)).rejects.toThrow(/Expected JSON/)
   })
 })

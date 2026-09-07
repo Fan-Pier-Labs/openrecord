@@ -462,7 +462,7 @@ export class MyChartClient {
 
   // ── Visits ──────────────────────────────────────────────────────────────
   upcomingVisits()                          { return upcomingVisits(this.req()); }
-  pastVisits(oldestRenderedDate: Date)      { return pastVisits(this.req(), oldestRenderedDate); }
+  pastVisits()                              { return pastVisits(this.req()); }
 
   // ── Visit notes ─────────────────────────────────────────────────────────
   getVisitNotes(csn: string)                { return getVisitNotes(this.req(), csn); }

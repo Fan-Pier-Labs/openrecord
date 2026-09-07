@@ -449,8 +449,8 @@ describe('CLI', () => {
 
   it('coerces --arg values to the types the capability declared', async () => {
     const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
-    const pastVisits = CAPABILITIES.find((c) => c.id === 'get_past_visits')!;
-    expect(coerceCapabilityArgs(pastVisits, { years_back: '5' })).toEqual({ years_back: 5 });
+    const npi = CAPABILITIES.find((c) => c.id === 'search_npi_registry')!;
+    expect(coerceCapabilityArgs(npi, { limit: '5' })).toEqual({ limit: 5 });
   });
 
   it('rejects a typo instead of silently ignoring it', async () => {
@@ -467,9 +467,9 @@ describe('CLI', () => {
 
   it('enforces the declared numeric bounds', async () => {
     const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
-    const pastVisits = CAPABILITIES.find((c) => c.id === 'get_past_visits')!;
-    expect(() => coerceCapabilityArgs(pastVisits, { years_back: '99' })).toThrow(/at most 20/);
-    expect(() => coerceCapabilityArgs(pastVisits, { years_back: 'soon' })).toThrow(/expects a number/);
+    const npi = CAPABILITIES.find((c) => c.id === 'search_npi_registry')!;
+    expect(() => coerceCapabilityArgs(npi, { limit: '9999' })).toThrow(/at most 200/);
+    expect(() => coerceCapabilityArgs(npi, { limit: 'lots' })).toThrow(/expects a number/);
   });
 
   it('summarizes image bytes rather than dumping them into the terminal', async () => {

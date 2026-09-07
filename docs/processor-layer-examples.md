@@ -4154,7 +4154,7 @@ Upcoming appointments.
 
 ### `get_past_visits`
 
-Past visits within the last `years_back` years (default 2).
+Every past visit MyChart holds, newest first. `hasOlderVisits` says whether the page cap stopped the walk before the end.
 
 <details>
 <summary><code>mode: raw</code> (145519 chars)</summary>
@@ -4171,7 +4171,7 @@ Past visits within the last `years_back` years (default 2).
       "purpose": "token"
     },
     {
-      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2024-02-01T00:00:00.000Z&ComponentNumber=7",
+      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=1970-01-01T00:00:00.000Z&ComponentNumber=7",
       "method": "POST",
       "status": 200,
       "contentType": "application/json;charset=utf-8",

@@ -13,7 +13,7 @@ import {
   visitNotesProcessor,
   noteContentProcessor,
 } from '../../../scrapers/myChart/chart/notes/notes';
-import { num, requireStr } from '../args';
+import { requireStr } from '../args';
 import type { CapabilityImpl } from '../types';
 
 export const VISIT_CAPABILITIES: readonly CapabilityImpl[] = [
@@ -30,15 +30,12 @@ export const VISIT_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_past_visits',
     title: 'Past visits',
-    description: 'Past visits within the last `years_back` years (default 2).',
+    description:
+      'Every past visit MyChart holds, newest first. `hasOlderVisits` says whether the page cap stopped the walk before the end.',
     kind: 'read',
     group: 'Visits',
-    params: [{ name: 'years_back', type: 'number', description: 'How many years back to fetch (default 2).', min: 1, max: 20 }],
-    run: (request, args) => {
-      const oldest = new Date();
-      oldest.setFullYear(oldest.getFullYear() - num(args, 'years_back', 2));
-      return fetchPastVisitsRaw(request, oldest);
-    },
+    params: [],
+    run: (request) => fetchPastVisitsRaw(request),
     processor: pastVisitsProcessor,
   },
   {

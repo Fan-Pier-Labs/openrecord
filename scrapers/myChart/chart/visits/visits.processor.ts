@@ -489,6 +489,8 @@ export const pastVisitsProcessor: Processor<PastVisitsStandard | null> = {
     const sorted = sortByInstant(visits, -1);
     return {
       count: sorted.length,
+      // True only when MyChart said an organization had more and the walk
+      // stopped anyway — i.e. the page cap was hit.
       hasOlderVisits: [...hasMoreByOrg.values()].some(Boolean),
       visits: sorted,
     };
