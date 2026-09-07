@@ -85,4 +85,17 @@ describe('tool metadata', () => {
       expect(typeof config.annotations?.readOnlyHint).toBe('boolean');
     }
   });
+
+  test('no description hands a response field standing to direct the model', () => {
+    // A `message` field is text to relay to the patient, and several of them
+    // interpolate strings that came off the portal. A description that tells
+    // the model to do what one says turns any of those into an instruction
+    // channel, and makes a tool documented as changing nothing carry a payload
+    // whose whole purpose is a state change one turn later. Say what the tool
+    // wants done, and gate it on a structured field.
+    const delegating = [...tools]
+      .filter(([, c]) => /\b(do|follow) what the `?\w+`? field says\b/i.test(c.description ?? ''))
+      .map(([name]) => name);
+    expect(delegating).toEqual([]);
+  });
 });
