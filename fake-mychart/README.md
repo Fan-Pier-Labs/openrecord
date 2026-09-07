@@ -195,6 +195,16 @@ scheduled. When you add or edit a fixture, set the fields a consumer actually
 reads, and assert they survive the round trip — a `toBeDefined()` on the
 envelope will not catch this. See `src/data/__tests__/visits.unit.test.ts`.
 
+**The second trap: a wrong value conforms exactly as well as a right one.** A
+flag that says a visit has no clinical note, for a CSN `get_visit_notes` will
+happily answer for, is a complete, real-looking, well-shaped lie — and a
+consumer that gates on the flag reports "no notes on file" for a patient who
+has them. The same goes for a provider whose id changes between endpoints, a
+balance that ignores its own payment, and a numeric field that is a string in
+one place and a number in another. Where two endpoints describe the same fact,
+tie them together in `src/data/__tests__/consistency.unit.test.ts` rather than
+leaving them to agree by hand.
+
 Behavioral contract, all verified against the same captures and enforced by
 `scrapers/myChart/__tests__/fake-mychart/realBehavior.integration.test.ts`:
 

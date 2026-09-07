@@ -203,13 +203,18 @@ for (const mode of MOUNT_MODES) {
         for (const r of fs.readings) expect(r.value).not.toBe('')
         for (const row of fs.rows) if (row.id && row.name) rowsByName.set(row.name, row.id)
       }
-      const firstValue = (name: string) => {
+      // Pinned by date rather than by position: the fixture holds several
+      // readings per row, and which one comes first is not the contract.
+      const valueOn = (name: string, day: string) => {
         const rowId = rowsByName.get(name)
-        return result.flowsheets.flatMap((fs) => fs.readings).find((r) => r.rowId === rowId)!.value
+        return result.flowsheets
+          .flatMap((fs) => fs.readings)
+          .find((r) => r.rowId === rowId && r.instantTakenIso?.startsWith(day))!.value
       }
-      expect(firstValue('Weight')).toBe('260')
-      expect(firstValue('Pulse')).toBe('88')
-      expect(firstValue('Blood Pressure')).toBe('145/95')
+      expect(valueOn('Weight', '2026-01-10')).toBe('260')
+      expect(valueOn('Weight', '2026-03-14')).toBe('252')
+      expect(valueOn('Pulse', '2026-01-10')).toBe('88')
+      expect(valueOn('Blood Pressure', '2026-01-10')).toBe('145/95')
     }, 10_000)
 
     it('getInsurance reads the coverages off GetCoverages, not the page', async () => {
