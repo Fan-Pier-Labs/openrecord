@@ -25,6 +25,25 @@ const NON_EPIC_FIELDS = [
 
 type ConformedVisit = Record<string, unknown>;
 
+/** `instantMs` as 'MM/DD/YYYY HH:MM' in `zone` — the clinic's own wall clock. */
+function renderInZone(instantMs: number, zone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(instantMs));
+  const at = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${at('month')}/${at('day')}/${at('year')} ${String(Number(at('hour')) % 24).padStart(2, '0')}:${at('minute')}`;
+}
+
+/** What Instant would read if the wall clock had simply been stamped as UTC. */
+function naiveWallClockIso(primaryDate: string): string {
+  const [date, time, meridiem] = primaryDate.split(' ');
+  const [mm, dd, yyyy] = date!.split('/') as [string, string, string];
+  const [hh, min] = time!.split(':') as [string, string];
+  const hour24 = meridiem === 'PM' ? (Number(hh) % 12) + 12 : Number(hh) % 12;
+  return `${yyyy}-${mm}-${dd}T${String(hour24).padStart(2, '0')}:${min}`;
+}
+
 function conformedUpcoming(): ConformedVisit[] {
   const container = conformToShape(shapes.visitsLoadUpcoming, upcomingVisits) as {
     LaterVisitsList: ConformedVisit[]; NextNDaysVisits: ConformedVisit[]; InProgressVisits: ConformedVisit[];
@@ -87,17 +106,35 @@ describe('homer visit fixtures', () => {
         expect(visit.Time).toBe(`${hh % 12 === 0 ? 12 : hh % 12}:${String(min).padStart(2, '0')} ${meridiem}`);
         expect(visit.Date).toContain(`${dd}, ${yyyy}`);
 
-        // Instant is the machine-readable twin the scraper sorts on. It must
-        // point at the same wall clock, and be host-timezone independent.
+        // Instant is the machine-readable twin a client builds a reminder
+        // from. PrimaryDate is the clinic's wall clock and Instant is the
+        // absolute time, so the two differ by the department's UTC offset --
+        // stamping the wall clock with a `Z` instead puts every reminder off
+        // by that offset. Rendering Instant back into the row's own TimeZone
+        // has to give the wall clock back, on any host.
         const instantMs = Number(/^\/Date\((\d+)\)\/$/.exec(visit.Instant as string)?.[1]);
         expect(Number.isFinite(instantMs)).toBe(true);
-        expect(new Date(instantMs).toISOString()).toBe(
-          `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}` +
-          `T${String(meridiem === 'PM' ? (hh % 12) + 12 : hh % 12).padStart(2, '0')}:${String(min).padStart(2, '0')}:00.000Z`,
+        expect(renderInZone(instantMs, visit.TimeZone as string)).toBe(
+          `${String(mm).padStart(2, '0')}/${String(dd).padStart(2, '0')}/${yyyy} ` +
+          `${String(meridiem === 'PM' ? (hh % 12) + 12 : hh % 12).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
         );
       }
     });
   }
+
+  it('offsets Instant from the wall clock, rather than stamping it with a Z', () => {
+    // A regression guard with a value in it: the two fixture zones are both
+    // behind UTC, so an Instant equal to the naive wall clock means the
+    // conversion was skipped. Without this the suite above still passes when
+    // TimeZone is dropped to UTC.
+    for (const visit of [...conformedUpcoming(), ...conformedPast()]) {
+      const instantMs = Number(/^\/Date\((\d+)\)\/$/.exec(visit.Instant as string)?.[1]);
+      expect({ csn: visit.Csn, naive: false }).toEqual({
+        csn: visit.Csn,
+        naive: new Date(instantMs).toISOString().slice(0, 16) === naiveWallClockIso(visit.PrimaryDate as string),
+      });
+    }
+  });
 
   it('highlights a day for every upcoming visit', () => {
     const container = conformToShape(shapes.visitsLoadUpcoming, upcomingVisits) as { HighlightDays: string[] };
