@@ -175,6 +175,13 @@ export const healthSummaryHeader = {
     date: '01/10/2026',
     visitType: 'Annual Physical',
   },
+  // The same appointment get_upcoming_visits serves. Leaving it to the shape
+  // template made the summary — the endpoint a reader reaches for first —
+  // report a patient with nothing scheduled.
+  nextVisit: {
+    date: '04/15/2026',
+    visitType: 'Annual Physical',
+  },
 };
 
 // ─── Vitals / Flowsheets (Track My Health) ──────────────────────────
@@ -197,7 +204,7 @@ export const vitals = {
       entryType: '1',
       entryMode: '1',
       status: '1',
-      startDateIso: '2114-10-15',
+      startDateIso: '2025-01-20',
       endDateIso: '',
       instructions: '',
       hasMoreData: false,
@@ -216,18 +223,22 @@ export const vitalsReadings = {
     episodeId: 'EP-VITALS',
     templateId: 'EP-VITALS',
     name: 'Vitals Trending',
-    startDateIso: '2114-10-15',
+    startDateIso: '2025-01-20',
     endDateIso: '',
     hasMoreData: false,
     hasEpisodeData: false,
     rowGroups: [{ id: '-1', name: '', rowIds: VITALS_ROWS.map((r) => r.id) }],
     rows: VITALS_ROWS,
     readings: [
-      { id: 'rd-bp-1', fsdId: 'fsd-1', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: true, documentationSource: '34000', stringValue: '145/95', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
-      { id: 'rd-hr-1', fsdId: 'fsd-1', rowId: 'row-hr', valueType: '1', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 88, dataType: '32005', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
-      { id: 'rd-wt-1', fsdId: 'fsd-1', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 260, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
-      { id: 'rd-bp-2', fsdId: 'fsd-2', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-07-15T10:30:00', isAbnormal: true, documentationSource: '34002', stringValue: '150/98', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
-      { id: 'rd-bp-3', fsdId: 'fsd-3', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-01-20T08:15:00', isAbnormal: false, documentationSource: '34002', stringValue: '142/92', dataType: '32105', decimalPlaces: 0, timeZone: 'America/Los_Angeles', sourceRowId: '' },
+      // The weight the Lose 50 lbs goal records on the same date. A goal
+      // reading with no flowsheet reading behind it is the fixture holding a
+      // number in one endpoint and denying it in another.
+      { id: 'rd-wt-2', fsdId: 'fsd-4', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-03-14T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 252, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-bp-1', fsdId: 'fsd-1', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: true, documentationSource: '34000', stringValue: '145/95', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-hr-1', fsdId: 'fsd-1', rowId: 'row-hr', valueType: '1', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 88, dataType: '32005', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-wt-1', fsdId: 'fsd-1', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 260, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-bp-2', fsdId: 'fsd-2', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-07-15T10:30:00', isAbnormal: true, documentationSource: '34002', stringValue: '150/98', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-bp-3', fsdId: 'fsd-3', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-01-20T08:15:00', isAbnormal: false, documentationSource: '34002', stringValue: '142/92', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
     ],
   },
   userSettings: {},
@@ -256,7 +267,10 @@ export const careTeam = {
       WebPageUrl: '/MyChart/Clinical/Provider/PROV-HIBBERT',
     },
     {
-      ID: 'PROV-RIVIERA',
+      // PROV-NICK, not PROV-RIVIERA: the same id messaging, letters, visits
+      // and referrals use, so joining the care team to a message recipient on
+      // provider id works here the way it does on a real instance.
+      ID: 'PROV-NICK',
       Name: 'Nick Riviera, MD',
       NationalProviderID: '1000000002',
       Specialty: 'General Surgery',
@@ -368,6 +382,9 @@ export const insurance = {
   },
 };
 
+/** The patient's own street address, as the instance holds it. */
+export const HOMER_ADDRESS = ['742 Evergreen Terrace', 'Springfield', '49007'] as const;
+
 // ─── Emergency Contacts ─────────────────────────────────────────────
 // Real GetRelationships responses key the list as `contacts` — the flat
 // `relationships` array the fake used to return exists on no captured
@@ -375,26 +392,35 @@ export const insurance = {
 // relationship under `relationToPatient` and its phone numbers under
 // `contactInformation.phoneNumbers`. (`isEmergencyContact` itself appears on
 // only one captured instance and rides along as an extra field.)
-export function makeEmergencyContact(id: string, name: string, relationship: string, phone: string, isEmergencyContact = true) {
+export function makeEmergencyContact(
+  id: string,
+  name: string,
+  relationship: string,
+  phone: string,
+  address: readonly [street: string, city: string, zip: string],
+  isPrimaryContact = false,
+  isEmergencyContact = true,
+) {
+  const [street, city, zip] = address;
   return {
     id,
     formattedName: name,
     relationToPatient: { name: relationship, labelText: relationship, isInactive: false },
-    isPrimaryContact: false,
+    isPrimaryContact,
     isLinkedToOtherPatient: false,
     isHCA: false,
     isAddressLinkedToPatient: false,
     contactInformation: {
       address: {
-        street: '742 Evergreen Terrace',
-        city: 'Springfield',
+        street,
+        city,
         county: { number: '', title: '', isInactive: false },
         state: { number: '', title: 'NT', abbreviation: 'NT', isInactive: false },
-        zip: '49007',
+        zip,
         country: { number: '1', title: 'United States of America', isInactive: false },
         houseNumber: '',
         district: { number: '', abbreviation: '', isInactive: false },
-        formattedValues: ['742 Evergreen Terrace', 'Springfield, NT 49007'],
+        formattedValues: [street, `${city}, NT ${zip}`],
         allowArbitraryInput: true,
         allowDefaults: false,
       },
@@ -411,8 +437,11 @@ export const emergencyContacts = {
   isViewOnly: false,
   hideEmergencyContacts: false,
   contacts: [
-    makeEmergencyContact('EC-1', 'Marge Simpson', 'Spouse', '(555) 636-2701'),
-    makeEmergencyContact('EC-2', 'Barney Gumble', 'Friend', '(555) 636-2800'),
+    // Someone has to be the primary contact: with the flag false on every row,
+    // "who is the primary contact?" answers "nobody". A friend does not live at
+    // the patient's address either — that is a separate person's record.
+    makeEmergencyContact('EC-1', 'Marge Simpson', 'Spouse', '(555) 636-2701', HOMER_ADDRESS, true),
+    makeEmergencyContact('EC-2', 'Barney Gumble', 'Friend', '(555) 636-2800', ['12 Bowlarama Lane', 'Springfield', '49007']),
   ],
   relationToPatientChoices: [
     { name: 'Spouse', labelText: 'Spouse', isInactive: false },
@@ -443,8 +472,8 @@ export const medicalHistory = {
   },
   familyHistoryAndStatus: {
     familyMembers: [
-      { relationshipToPatientName: 'Father', statusName: 'Abraham Simpson - Living', conditions: ['Heart disease', 'Dementia'] },
-      { relationshipToPatientName: 'Mother', statusName: 'Mona Simpson - Deceased', conditions: [] },
+      { relationshipToPatientName: 'Father', nameOrAlias: 'Abraham Simpson', statusName: 'Living', conditions: ['Heart disease', 'Dementia'] },
+      { relationshipToPatientName: 'Mother', nameOrAlias: 'Mona Simpson', statusName: 'Deceased', conditions: [] },
     ],
   },
 };
@@ -1047,6 +1076,7 @@ const UPCOMING_LATER_VISITS = [
       CanRedirectToApptDetails: false,
       PastVisitBucket: null,
       IsClinicalInformationAvailable: false,
+      IsClinicalNoteAvailable: false,
       OwnedBy: 0,
       AdmissionDateRange: null,
       IsApptDetailsEnabled: true,
@@ -1118,6 +1148,9 @@ function fakePastVisit(
     VisitTypeName: visitType,
     IsUsingFallbackVisitTypeName: false,
     IsPastVisit: true,
+    // Filler history: no note in the notes fixture, so the flag is false on
+    // purpose rather than by omission.
+    IsClinicalNoteAvailable: false,
     Organization: {
       OrganizationId: 'ORG-SPRINGFIELD',
       OrganizationIdentifier: null,
@@ -1175,6 +1208,9 @@ export const pastVisits = {
       CanRedirectToApptDetails: true,
       PastVisitBucket: null,
       IsClinicalInformationAvailable: true,
+      // The notes fixture holds notes for this CSN, so the flag a reader gates
+      // get_visit_notes on has to say so.
+      IsClinicalNoteAvailable: true,
       OwnedBy: 0,
       AdmissionDateRange: null,
       IsApptDetailsEnabled: true,
@@ -1225,6 +1261,9 @@ export const pastVisits = {
       CanRedirectToApptDetails: true,
       PastVisitBucket: null,
       IsClinicalInformationAvailable: true,
+      // The notes fixture holds notes for this CSN, so the flag a reader gates
+      // get_visit_notes on has to say so.
+      IsClinicalNoteAvailable: true,
       OwnedBy: 0,
       AdmissionDateRange: null,
       IsApptDetailsEnabled: true,
@@ -1276,6 +1315,9 @@ export const pastVisits = {
       CanRedirectToApptDetails: true,
       PastVisitBucket: null,
       IsClinicalInformationAvailable: true,
+      // The notes fixture holds notes for this CSN, so the flag a reader gates
+      // get_visit_notes on has to say so.
+      IsClinicalNoteAvailable: true,
       OwnedBy: 0,
       AdmissionDateRange: null,
       IsApptDetailsEnabled: true,
@@ -1499,8 +1541,11 @@ export const billingSummary = [
   {
     guarantorId: '742',
     guarantorName: 'Homer Simpson',
-    amountDue: '$350.00',
-    lastPaid: 'Last paid: $75.00 on 12/15/2025',
+    // $500 charged, $150 to insurance, $350 to the patient, of which $75 has
+    // been paid (see billingPayments). The balance has to move when a payment
+    // is recorded against it, or the fixture teaches that it doesn't.
+    amountDue: '$275.00',
+    lastPaid: 'Last paid: $75.00 on 01/20/2026',
     detailsId: 'WP-BILLING-001',
     detailsContext: 'WP-BILLING-CTX-001',
   },
@@ -1545,18 +1590,18 @@ export const billingVisits = {
         HospitalAccountId: 'HS-742-001',
         SupressDayFromDate: false,
         CanAddToPaymentPlan: false,
-        PrimaryPayer: 'Primary Payer: Springfield Nuclear Employee Health Plan',
+        PrimaryPayer: 'Primary Payer: Springfield Nuclear Power Plant Employee Health Plan',
         IsLTCSeries: false,
         ChargeAmount: '$500.00',
         InsuranceAmountDue: '$150.00',
         InsuranceAmountDueRaw: 150,
-        SelfAmountDue: '$350.00',
-        SelfAmountDueRaw: 350,
+        SelfAmountDue: '$275.00',
+        SelfAmountDueRaw: 275,
         IsPatientNotResponsible: false,
         PatientNotResponsibleYet: false,
         InsurancePaymentAmount: '$0.00',
         InsuranceEstimatedPaymentAmount: null,
-        SelfPaymentAmount: null,
+        SelfPaymentAmount: '$75.00',
         SelfAdjustmentAmount: null,
         SelfDiscountAmount: null,
         ContestedChargeAmount: null,
@@ -1573,7 +1618,7 @@ export const billingVisits = {
             Amount: '$350.00',
             PaymentList: null,
             InsuranceAmountDue: null,
-            SelfAmountDue: '$350.00',
+            SelfAmountDue: '$275.00',
             HasAmountDue: true,
             SelfBadDebtAmount: null,
             HasBadDebtAmount: false,
@@ -1615,7 +1660,7 @@ export const billingVisits = {
         PatFriendlyAccountStatusAccessibleText: 'Account status: Outstanding',
         VisitStatusesEqualToClosed: [8, 9],
         IsOnPaymentPlan: false,
-        IsNotOnPaymentPlan: false,
+        IsNotOnPaymentPlan: true,
       },
     ],
     UnifiedVisitList: [],
@@ -1706,7 +1751,7 @@ export const billingPayments = {
         Description: 'MyChart Payment',
         SubText: null,
         HtmlSubText: '<img alt="Visa" class="brandImage" src="/MyChartPRD/en-US/images/3rdparty/Visa.png"></img> x4242',
-        PaymentAmountDisplay: '$350.00',
+        PaymentAmountDisplay: '$75.00',
         UndistributedAmountDisplay: null,
         CoverageInfo: null,
         Receipt: null,
@@ -1805,8 +1850,8 @@ export const careTeamGoals = {
       createdByUser: 'Julius Hibbert, MD',
       creationDate: '01/10/2026',
       readings: [
-        { value: '260', numericValue: '260', instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '210' },
-        { value: '252', numericValue: '252', instantTakenIso: '2026-03-14T09:00:00Z', pattern: 'lt', target1: '210' },
+        { value: '260', numericValue: 260, instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '210' },
+        { value: '252', numericValue: 252, instantTakenIso: '2026-03-14T09:00:00Z', pattern: 'lt', target1: '210' },
       ],
     },
     {
@@ -1817,7 +1862,7 @@ export const careTeamGoals = {
       createdByUser: 'Julius Hibbert, MD',
       creationDate: '01/10/2026',
       readings: [
-        { value: '245', numericValue: '245', instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '200' },
+        { value: '280', numericValue: 280, instantTakenIso: '2026-01-10T09:00:00Z', pattern: 'lt', target1: '200' },
       ],
     },
   ],
@@ -1981,13 +2026,38 @@ export const linkedAccounts = {
     'ORG-SHELBYVILLE': {
       OrganizationName: 'Shelbyville Medical Center',
       LogoUrl: '',
-      LastEncounterDetail: 'Sep 15, 2025',
+      // An object on a real instance, not a string: a string here does not
+      // conform, so the whole encounter was served as the template's empty
+      // Patient/Physician/Department/Date/Time.
+      LastEncounterDetail: {
+        Patient: 'Homer Jay Simpson',
+        Physician: 'Nick Riviera, MD',
+        Department: 'Springfield General Hospital Radiology',
+        Date: 'Sep 15, 2025',
+        Time: '3:00 PM',
+      },
     },
   },
 };
 
 // ─── Contact Information ────────────────────────────────────────────
+// Only `SecureCommunicationInfo` used to be set here, so `get_profile` served
+// an empty address and empty phone numbers with `Success: false` — for an
+// address the instance holds and hands out on the pharmacy and emergency-contact
+// records. `Success` is what says the call answered for this field, so a
+// populated address with `Success: false` is the same lie in a different place.
 export const contactInfo = {
+  PermanentAddress: {
+    Success: true,
+    Street: HOMER_ADDRESS[0],
+    City: HOMER_ADDRESS[1],
+    State: { Title: 'North Takoma', Abbreviation: 'NT' },
+    Zip: HOMER_ADDRESS[2],
+    Country: { Title: 'United States of America' },
+    FormattedValues: [HOMER_ADDRESS[0], `${HOMER_ADDRESS[1]}, NT ${HOMER_ADDRESS[2]}`],
+  },
+  HomePhone: '(555) 636-2700',
+  WorkPhone: '(555) 511-7000',
   SecureCommunicationInfo: {
     EmailAddress: 'homer.simpson@springfieldnuclear.example.com',
   },
@@ -2150,7 +2220,10 @@ export const imagingLabResultsList = {
       tooManyVariants: false,
       hasComment: false,
       hasAllDetails: false,
-      isAbnormal: false,
+      // Both imaging impressions describe foreign bodies in the cranial vault
+      // and recommend follow-up. A present-and-false flag is worse than an
+      // absent one: a triage layer filtering on isAbnormal drops the study.
+      isAbnormal: true,
     },
     'RES-CT^': {
       name: 'CT Head without Contrast',
@@ -2175,7 +2248,7 @@ export const imagingLabResultsList = {
       tooManyVariants: false,
       hasComment: false,
       hasAllDetails: false,
-      isAbnormal: false,
+      isAbnormal: true,
     },
   },
   newProviderPhotoInfo: {},
@@ -2441,8 +2514,8 @@ export const ctLabResultDetails = {
         narrative: {
           isRTF: false,
           hasContent: true,
-          contentAsString: 'FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.',
-          contentAsHtml: '<p>FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.</p>',
+          contentAsString: 'FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.',
+          contentAsHtml: '<p>FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.</p>',
           signingInstantTimestamp: '2025-09-15T15:00:00Z',
         },
         impression: {
@@ -2506,7 +2579,7 @@ export const ctLabResultDetails = {
 // No data-fdi-context here on purpose: the CT result advertises its viewer
 // via the structured fdiLink above (the Mass General Brigham shape).
 export const ctReportContent = {
-  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>`,
+  reportContent: `<div class="report-content"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).</p></div>`,
   reportCss: '',
 };
 
