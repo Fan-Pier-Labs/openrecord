@@ -3,8 +3,9 @@
  *
  * This extension is a local stdio server, so the filesystem is the only
  * "download" surface it has: inline image blocks let Claude see an X-ray, but
- * they live and die with the conversation. Saving is unconditional rather than
- * a flag — a user who asked for their scan wants the file.
+ * they live and die with the conversation. Which is why saving exists — and
+ * why the caller asks for it explicitly, rather than every viewed scan leaving
+ * files behind.
  *
  * Every study gets its own folder because a CT is hundreds of slices, and
  * dumping those loose into Downloads is hostile.

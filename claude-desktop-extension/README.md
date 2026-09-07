@@ -110,13 +110,16 @@ machine and have no counterpart in the other clients.
 
 ### Imaging
 
-`download_imaging_study` returns each picture twice over: as an image content
-block, so Claude can look at the scan and talk about it, and as a JPEG written
-to your **Downloads** folder, in a folder named for the study. Inline blocks go
-away with the conversation — the files are the copy you keep. Nothing is
-overwritten, so downloading the same study twice leaves `XR_CHEST` and
-`XR_CHEST-2`. The decode runs here, on your machine: MyChart serves imaging as
-proprietary CLO, which [`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
+`download_imaging_study` returns each picture as an image content block, so
+Claude can look at the scan and talk about it. Ask to **save, download or
+export** it and the same call runs with `save_to_downloads`, writing the JPEGs
+to your Downloads folder in a folder named for the study — inline blocks go away
+with the conversation, and this is the copy you keep. Nothing is overwritten, so
+saving the same study twice leaves `XR_CHEST` and `XR_CHEST-2`.
+
+Viewing never writes to disk; only asking for a copy does. The decode runs here,
+on your machine either way: MyChart serves imaging as proprietary CLO, which
+[`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
 turns into pixels.
 
 ### Family records (proxy access)
@@ -161,8 +164,8 @@ The short version, for what this extension does:
 - **Your records stay on your machine.** The extension signs in to your portal
   from your computer and keeps everything it reads there — credentials and
   passkeys in the OS keystore, sessions under `~/.openrecord-mcpb/` (see
-  [Architecture](#architecture)), and imaging studies saved as JPEGs in your
-  Downloads folder. Fan Pier Labs runs no server that holds your medical
+  [Architecture](#architecture)), and any imaging study you ask to save as
+  JPEGs in your Downloads folder. Fan Pier Labs runs no server that holds your medical
   record, and there is no OpenRecord account containing a copy of it.
 - **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
   through these tools goes to Anthropic under your own Claude account, governed
@@ -257,7 +260,7 @@ claude-desktop-extension/
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
     ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
-    └── imaging/            # CLO → JPEG glue, and saving a study to ~/Downloads
+    └── imaging/            # CLO → JPEG glue, and saving a study to ~/Downloads on request
 ```
 
 ## Development

@@ -196,6 +196,23 @@ const ACCOUNT_SCHEMA = z
     'Which connected MyChart account to use, as `username@hostname`. Get the exact value from the `account` field of list_accounts.',
   );
 
+/**
+ * Saving a media capability's output to disk, offered by this client only.
+ *
+ * Off by default so that looking at a scan stays read-only. The description
+ * carries the whole contract, because it is all the model has to decide with:
+ * show on request, save on a second, explicit one.
+ */
+const SAVE_PARAM = 'save_to_downloads';
+const SAVE_SCHEMA = z
+  .boolean()
+  .describe(
+    "Also save the pictures to the user's Downloads folder, as JPEGs in a folder named for the study. " +
+      'Defaults to false — the images are shown in the conversation either way, and saving leaves files behind. ' +
+      'Pass true only when the user asks to save, download, export, or keep a copy.',
+  )
+  .optional();
+
 /** Translate one registry parameter into its zod equivalent. */
 function zodForParam(param: CapabilityParam): z.ZodType {
   let schema: z.ZodType;
@@ -270,6 +287,11 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   if (acceptsModeParam(capability)) {
     shape[MODE_PARAM.name] = z.string().describe(describeModeParam(MODEL_FACING_OUTPUT_MODE)).optional();
   }
+  // Saving to disk is this client's own affair, not the shared capability's:
+  // the CLI already has `--output` and the mobile app has no filesystem the
+  // user browses. Keyed off the flag, so a second media capability gets it
+  // without being named here.
+  if (capability.rendersMedia) shape[SAVE_PARAM] = SAVE_SCHEMA;
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const hints =
@@ -308,7 +330,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
-          return imagingResult(payload as StudyImagePayload);
+          return imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
@@ -326,15 +348,17 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
  *
- * The JPEGs are also written to the user's Downloads folder. Inline blocks are
- * for Claude to look at; they leave the user with nothing once the conversation
- * is gone, and a saved file is the only copy they can open, print or forward.
+ * With `save_to_downloads`, the JPEGs are also written to the user's Downloads
+ * folder. Off by default: looking at a scan should not litter someone's disk,
+ * and the inline blocks are what "show me my X-ray" asks for. Keeping a copy is
+ * a second, explicit request.
  *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion.
  */
-function imagingResult(
+export function imagingResult(
   payload: StudyImagePayload,
+  saveToDownloads: boolean,
 ): ToolResult {
   const result = encodeStudyJpegs(payload);
 
@@ -342,7 +366,7 @@ function imagingResult(
   // Downloads folder or a full disk becomes a reported error beside images
   // that still render.
   let saved: SavedStudy | undefined;
-  if (result.images.length > 0) {
+  if (saveToDownloads && result.images.length > 0) {
     try {
       saved = saveStudyJpegs(result);
     } catch (err) {
