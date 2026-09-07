@@ -108,6 +108,17 @@ machine and have no counterpart in the other clients.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
+### Imaging
+
+`download_imaging_study` returns each picture twice over: as an image content
+block, so Claude can look at the scan and talk about it, and as a JPEG written
+to your **Downloads** folder, in a folder named for the study. Inline blocks go
+away with the conversation — the files are the copy you keep. Nothing is
+overwritten, so downloading the same study twice leaves `XR_CHEST` and
+`XR_CHEST-2`. The decode runs here, on your machine: MyChart serves imaging as
+proprietary CLO, which [`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
+turns into pixels.
+
 ### Family records (proxy access)
 
 Accounts with MyChart proxy access (a parent reading a child's chart) can list
@@ -149,10 +160,10 @@ The short version, for what this extension does:
 
 - **Your records stay on your machine.** The extension signs in to your portal
   from your computer and keeps everything it reads there — credentials and
-  passkeys in the OS keystore, sessions and downloads under
-  `~/.openrecord-mcpb/` (see [Architecture](#architecture)). Fan Pier Labs runs
-  no server that holds your medical record, and there is no OpenRecord account
-  containing a copy of it.
+  passkeys in the OS keystore, sessions under `~/.openrecord-mcpb/` (see
+  [Architecture](#architecture)), and imaging studies saved as JPEGs in your
+  Downloads folder. Fan Pier Labs runs no server that holds your medical
+  record, and there is no OpenRecord account containing a copy of it.
 - **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
   through these tools goes to Anthropic under your own Claude account, governed
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
@@ -246,7 +257,7 @@ claude-desktop-extension/
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
     ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
-    └── imaging/            # MCPB glue around the shared pure-JS CLO → JPEG exporter
+    └── imaging/            # CLO → JPEG glue, and saving a study to ~/Downloads
 ```
 
 ## Development

@@ -88,6 +88,7 @@ import {
 import { addPending, takePending } from './pending-logins';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { encodeStudyJpegs } from './imaging/download-study';
+import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -325,6 +326,10 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
  *
+ * The JPEGs are also written to the user's Downloads folder. Inline blocks are
+ * for Claude to look at; they leave the user with nothing once the conversation
+ * is gone, and a saved file is the only copy they can open, print or forward.
+ *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion.
  */
@@ -332,6 +337,18 @@ function imagingResult(
   payload: StudyImagePayload,
 ): ToolResult {
   const result = encodeStudyJpegs(payload);
+
+  // Saving must never cost the user the pictures themselves: a read-only
+  // Downloads folder or a full disk becomes a reported error beside images
+  // that still render.
+  let saved: SavedStudy | undefined;
+  if (result.images.length > 0) {
+    try {
+      saved = saveStudyJpegs(result);
+    } catch (err) {
+      result.errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
+    }
+  }
 
   const content: ToolContent[] = [
     {
@@ -341,6 +358,7 @@ function imagingResult(
           study_name: result.studyName,
           total_images: result.totalImages,
           returned: result.returned,
+          ...(saved ? { saved_to: saved.directory, saved_files: saved.files } : {}),
           ...(result.errors.length ? { errors: result.errors } : {}),
         },
         null,
