@@ -936,10 +936,48 @@ export const immunizations = {
 // `toLocaleString` so the fake's output doesn't shift with the host's ICU
 // build or locale.
 
+/**
+ * The zone every fixture department sits in. One constant because the row's
+ * `TimeZone` (from `visitWhere`) and the zone `Instant` is converted out of
+ * (in `visitTiming`) are the same fact, and a fixture where they drift apart
+ * is exactly the bug this file is meant to make impossible.
+ */
+const CLINIC_TIME_ZONE = 'America/New_York';
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'] as const;
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
   'Friday', 'Saturday'] as const;
+
+/**
+ * The UTC offset `zone` was on at `utcMs`, in milliseconds.
+ *
+ * Read out of `Intl` with an explicit IANA zone and numeric `en-US` fields, so
+ * it does not move with the host's locale or `TZ` the way `toLocaleString`
+ * would.
+ */
+function zoneOffsetMs(zone: string, utcMs: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(utcMs));
+  const at = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  // `hour12: false` renders midnight as hour 24 in some ICU builds.
+  return Date.UTC(at('year'), at('month') - 1, at('day'), at('hour') % 24, at('minute'), at('second')) - utcMs;
+}
+
+/**
+ * The instant a wall clock in `zone` names.
+ *
+ * Guessed once from the zone's offset at the same wall clock read as UTC, then
+ * re-read at the corrected instant so a time near a DST transition lands on the
+ * offset actually in force.
+ */
+function utcMsForZonedWallClock(zone: string, naiveUtcMs: number): number {
+  const firstGuess = naiveUtcMs - zoneOffsetMs(zone, naiveUtcMs);
+  return naiveUtcMs - zoneOffsetMs(zone, firstGuess);
+}
 
 /**
  * The visit's timing: every field derived from its `PrimaryDate`
@@ -948,12 +986,18 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
  * the rest always agree. (The row's `TimeZone` is the department's, and comes
  * from `visitWhere` with the rest of the department.)
  *
- * The wall clock is parsed by hand and held in UTC rather than fed to
- * `new Date(str)`, which reads it in whatever zone the process happens to run
- * in: the fake would then serve a different `Instant` on a developer's laptop
- * than in CI, and a 9:00 AM appointment could render as 4:00 AM.
+ * `PrimaryDate` is the clinic's wall clock with no offset and `Instant` is the
+ * absolute time — which is the whole reason `TimeZone` rides beside them. So
+ * `Instant` is the wall clock **converted out of the department's zone**, not
+ * the wall clock stamped with a `Z`: stamping it makes the two fields disagree
+ * by the clinic's UTC offset, and a client that builds a reminder from
+ * `Instant` — the field it is supposed to build one from — lands four hours
+ * early with nothing in the fake to catch it.
+ *
+ * Every other field here stays on the wall clock read as UTC, because they are
+ * renderings of the clinic's calendar date rather than of an instant.
  */
-function visitTiming(primaryDate: string) {
+function visitTiming(primaryDate: string, timeZone: string = CLINIC_TIME_ZONE) {
   const parts = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (AM|PM)$/.exec(primaryDate);
   if (!parts) throw new Error(`fixture PrimaryDate is not 'MM/DD/YYYY hh:mm:ss AM': ${primaryDate}`);
   const [, mm, dd, yyyy, hh, min, , meridiem] = parts as unknown as string[];
@@ -961,15 +1005,16 @@ function visitTiming(primaryDate: string) {
   const month = Number(mm), dayOfMonth = Number(dd), year = Number(yyyy);
   const hour12 = Number(hh) % 12;
   const hour24 = meridiem === 'PM' ? hour12 + 12 : hour12;
-  const utcMs = Date.UTC(year, month - 1, dayOfMonth, hour24, Number(min));
+  const wallClockMs = Date.UTC(year, month - 1, dayOfMonth, hour24, Number(min));
   const shortDate = `${month}/${dayOfMonth}/${year}`;
 
   return {
     PrimaryDate: primaryDate,
-    Instant: `/Date(${utcMs})/`,
-    // A "DAT" is Epic's day number for the visit's date.
-    Dat: String(toEpicDte(new Date(utcMs))),
-    Date: `${DAY_NAMES[new Date(utcMs).getUTCDay()]} ${MONTH_NAMES[month - 1]} ${dayOfMonth}, ${year}`,
+    Instant: `/Date(${utcMsForZonedWallClock(timeZone, wallClockMs)})/`,
+    // A "DAT" is Epic's day number for the visit's date — the clinic's
+    // calendar date, so it comes off the wall clock and not off `Instant`.
+    Dat: String(toEpicDte(new Date(wallClockMs))),
+    Date: `${DAY_NAMES[new Date(wallClockMs).getUTCDay()]} ${MONTH_NAMES[month - 1]} ${dayOfMonth}, ${year}`,
     ShortDate: shortDate,
     HighlightDate: shortDate,
     Time: `${hour12 === 0 ? 12 : hour12}:${min} ${meridiem}`,
@@ -1003,7 +1048,7 @@ function visitWho(name: string, encryptedId: string) {
  * from one value here.
  */
 function visitWhere(id: string, name: string, address: string[]) {
-  const timeZone = 'America/New_York';
+  const timeZone = CLINIC_TIME_ZONE;
   return {
     TimeZone: timeZone,
     PrimaryDepartment: {
