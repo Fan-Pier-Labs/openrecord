@@ -749,7 +749,9 @@ const SETUP_UI_TEMPLATE = `
       // The login tool recommends a passkey rather than registering one, and
       // this widget is the recommended setup path — so carry the recommendation
       // into the conversation instead of letting the GUI route swallow it.
-      if (result && result.passkey_recommended) {
+      // Compared against false rather than negated: a result missing the field
+      // is not a result saying there is no passkey.
+      if (result && result.passkey_saved === false) {
         hostMsg += ' First, though: tell me whether you recommend setting up a passkey for this account,' +
           ' what it changes about how I sign in, and where the key is stored — then wait for my answer' +
           ' before registering anything.';

@@ -11,7 +11,7 @@
  * so her setup also exercises the complete_2fa path.
  *
  * It also pins the consent rule: neither login route registers a passkey on
- * its own. Both report `passkey_recommended` and wait for an explicit
+ * its own. Both report `passkey_saved: false` and wait for an explicit
  * register_passkey call.
  *
  * `./memfs` intercepts every path under ~/.openrecord-mcpb and pins secrets to
@@ -88,7 +88,6 @@ describe('two logins on one hostname', () => {
     expect(homer.state).toBe('logged_in')
     expect(homer.account).toBe(`homer@${HOST}`)
     expect(homer.passkey_saved).toBe(false)
-    expect(homer.passkey_recommended).toBe(true)
     expect(store.readAccountPasskey(HOST, 'homer')).toBeUndefined()
 
     // …and the user says yes.
@@ -110,7 +109,6 @@ describe('two logins on one hostname', () => {
     expect(marge.account).toBe(`marge@${HOST}`)
     // Homer's passkey on this hostname must not be mistaken for marge's.
     expect(marge.passkey_saved).toBe(false)
-    expect(marge.passkey_recommended).toBe(true)
     expect(parse(await call('register_passkey', { account: `marge@${HOST}` })).registered).toBe(true)
 
     // Homer's row, passkey and session all survived; marge's passkey is her own.
