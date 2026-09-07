@@ -14,7 +14,7 @@
  * false on rows `LoadPast` itself returned (#377).
  */
 
-import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
+import { findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { bool, boolOrNull, epicInstantMs, isoFromMs, list, num, rec, strings, text, textOrNull } from '../../processors/read';
 
@@ -456,6 +456,27 @@ function visitKey(orgId: string, visit: Record<string, unknown>): string | null 
   return [orgId, ...parts].join(' ');
 }
 
+/**
+ * The window the caller asked for, in ms, recovered from the `LoadPast` page
+ * the scraper sent.
+ *
+ * `oldestRenderedDate` is a paging hint, not a server-side filter: `LoadPast`
+ * answers with the 10 most recent visits per organization however far back it
+ * is set, and the scraper walks the cursor until a whole page predates the
+ * cutoff. The page that ends the walk therefore straddles it. So the trim is
+ * here — otherwise `years_back: 1` and `years_back: 2` hand back the same
+ * decade of history and the parameter means nothing.
+ */
+function requestedCutoffMs(pages: readonly RawRequestRecord[]): number | null {
+  for (const page of pages) {
+    const value = /[?&]oldestRenderedDate=([^&]*)/.exec(page.path)?.[1];
+    if (value === undefined) continue;
+    const ms = Date.parse(decodeURIComponent(value));
+    if (Number.isFinite(ms)) return ms;
+  }
+  return null;
+}
+
 export const pastVisitsProcessor: Processor<PastVisitsStandard | null> = {
   standard(raw: RawResponse): PastVisitsStandard | null {
     const pages = findRequests(raw, 'LoadPast');
@@ -487,10 +508,19 @@ export const pastVisitsProcessor: Processor<PastVisitsStandard | null> = {
     }
 
     const sorted = sortByInstant(visits, -1);
+    const cutoffMs = requestedCutoffMs(pages);
+    // A row whose date could not be read is kept: "we could not tell when this
+    // was" is not a reason to drop a visit from someone's record.
+    const inWindow = cutoffMs === null
+      ? sorted
+      : sorted.filter((visit) => (standardInstantMs(visit) ?? cutoffMs) >= cutoffMs);
+
     return {
-      count: sorted.length,
-      hasOlderVisits: [...hasMoreByOrg.values()].some(Boolean),
-      visits: sorted,
+      count: inWindow.length,
+      // Trimming to the window is itself proof MyChart holds older visits, so
+      // a caller narrowing the window still learns there is more behind it.
+      hasOlderVisits: inWindow.length < sorted.length || [...hasMoreByOrg.values()].some(Boolean),
+      visits: inWindow,
     };
   },
   concise(standard) {

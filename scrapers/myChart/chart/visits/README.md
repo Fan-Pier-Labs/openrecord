@@ -31,6 +31,14 @@ lower-case `__requestverificationtoken` header.
   complete history, however far back `years_back` asked; walking the cursor returns 50–56
   visits over the same window on a real account
   ([#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190)).
+- **So `years_back` is honoured in the processor, not by MyChart.** The paging loop stops on
+  the first page entirely older than the cutoff, which means that page straddles it, so
+  `standard` trims to the window — recovering the cutoff from the `oldestRenderedDate` on
+  the recorded request. Without the trim, `years_back: 1` and `years_back: 2` return
+  byte-identical payloads reaching back a decade, and a caller scoping to a recent window
+  gets stale encounters presented as current. A row whose date cannot be read is kept, and
+  trimming sets `hasOlderVisits`. `raw` is untouched: it stays the envelope of every page
+  fetched.
 - The paging loop stops when no organization reports `HasMoreData`, when every visit on the
   latest page predates the cutoff (results are newest→oldest), when the continuation token
   is missing or **stops advancing** (a stuck-cursor guard), or at `MAX_PAST_VISIT_PAGES`
@@ -167,8 +175,8 @@ Past-visits container:
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
 | `List[<orgId>].List[]` | The visits, per organization | ✓ | flattened to one list | same | Derived flattening; the organization is on each row as `organizationName`, so the nesting carries nothing. |
-| `hasOlderVisits` | Any organization's `HasMoreData` | ✓ | ✓ | ✓ | Derived. Says whether MyChart holds visits older than the pages fetched, so "that's all of it" is never inferred from a list that stopped. |
-| `count` | Number of visits | ✓ | ✓ | ✓ | Derived. Cheap and useful. |
+| `hasOlderVisits` | Any organization's `HasMoreData`, or any row trimmed to the `years_back` window | ✓ | ✓ | ✓ | Derived. Says whether MyChart holds visits older than the ones returned, so "that's all of it" is never inferred from a list that stopped or was trimmed. |
+| `count` | Number of visits, after the `years_back` trim | ✓ | ✓ | ✓ | Derived. Cheap and useful. |
 | `List[<orgId>].ListSize`, `.CanSearch`, `.SkippedSomeResults`, `.SerializedIndex`, `.ViewbagProperties`, `.Organization` | Paging and rendering | — | — | — | Internal / org blob. |
 | `ViewBagProperties.LoadingOrgNames`, `.ErrorOrgNames`, `.ManualOrgNames` | Care Everywhere load state | — | — | — | DXR plumbing. |
 | `SerializedIndex`, `CanSearch`, `CanAllSearch`, `CanSort`, `AutoRenderThisSet`, `SkippedSomeResults`, `Organizations{}` | Paging and rendering | — | — | — | Internal / org blob. |

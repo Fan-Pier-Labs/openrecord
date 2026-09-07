@@ -470,14 +470,48 @@ describe('pastVisits', () => {
     expect(standard.visits.map((v) => v.Csn)).toEqual(['V1', 'V2', 'V3'])
   })
 
-  it('stops paging once every visit on the latest page predates the cutoff, and reports older visits remain', async () => {
+  it('stops paging once every visit on the latest page predates the cutoff, and drops what it overshot', async () => {
     const page1 = pastPage([{ Csn: 'NEW', Instant: instant('2024-12-01T00:00:00Z') }], { hasMore: true, cursor: 'c1' })
     const page2 = pastPage([{ Csn: 'OLD', Instant: instant('2020-01-01T00:00:00Z') }], { hasMore: true, cursor: 'c2' })
     const req = mockRequest([TOKEN, { body: JSON.stringify(page1) }, { body: JSON.stringify(page2) }])
 
+    // The page that ends the walk is the first one entirely older than the
+    // cutoff, so it always straddles it. Its rows are in `raw` but not in the
+    // answer to "visits in the last N years".
     const result = await pastVisits(req, OLDEST)
-    expect(result!.count).toBe(2)
+    expect(result!.visits.map((v) => v.Csn)).toEqual(['NEW'])
+    expect(result!.count).toBe(1)
     expect(result!.hasOlderVisits).toBe(true)
+  })
+
+  it('keeps a visit whose date cannot be read rather than trimming it', () => {
+    const raw: RawResponse = {
+      requests: [{
+        path: '/Visits/VisitsList/LoadPast?oldestRenderedDate=2023-01-01T00:00:00.000Z',
+        method: 'POST', status: 200, contentType: 'application/json',
+        body: pastPage([
+          { Csn: 'IN', Instant: instant('2024-12-01T00:00:00Z') },
+          { Csn: 'OUT', Instant: instant('2020-01-01T00:00:00Z') },
+          { Csn: 'UNDATED' },
+        ], { hasMore: false }),
+      }],
+    }
+    // "We could not tell when this was" is not a reason to drop a visit from
+    // someone's record.
+    const result = pastVisitsProcessor.standard(raw)!
+    expect([...result.visits.map((v) => v.Csn)].sort((a, b) => (a ?? '').localeCompare(b ?? ''))).toEqual(['IN', 'UNDATED'])
+    expect(result.hasOlderVisits).toBe(true)
+  })
+
+  it('leaves the list alone when no page named a cutoff', () => {
+    const raw: RawResponse = {
+      requests: [{
+        path: '/Visits/VisitsList/LoadPast?loadpast=1', method: 'POST', status: 200,
+        contentType: 'application/json',
+        body: pastPage([{ Csn: 'OLD', Instant: instant('1990-01-01T00:00:00Z') }], { hasMore: false }),
+      }],
+    }
+    expect(pastVisitsProcessor.standard(raw)!.visits.map((v) => v.Csn)).toEqual(['OLD'])
   })
 
   it('stops when the cursor stops advancing and does not count the repeated page twice', async () => {

@@ -30,7 +30,8 @@ export const VISIT_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_past_visits',
     title: 'Past visits',
-    description: 'Past visits within the last `years_back` years (default 2).',
+    description:
+      'Past visits within the last `years_back` years (default 2). `hasOlderVisits` says whether MyChart holds visits before that window.',
     kind: 'read',
     group: 'Visits',
     params: [{ name: 'years_back', type: 'number', description: 'How many years back to fetch (default 2).', min: 1, max: 20 }],
