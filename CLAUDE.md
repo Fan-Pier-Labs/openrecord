@@ -76,7 +76,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
 ## Verify Against Reality Before Claiming
 
 For any MyChart/API behavior, **never infer a contract from fixtures, stale doc captures, or a small
-sample of failing instances.** Probe real instances first and state the sample size in the PR body.
+sample of failing instances.** Probe real instances first and state the sample size in the PR.
 If N instances all fail, say "unverified on N instances" — never model unobserved behavior in the
 fake server. **Never take an action that could trigger a 2FA SMS to the user without asking first.**
 
@@ -89,7 +89,7 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | `bun run test` | Every `*.unit.test.ts`. **Needs `cd claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
-| `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. Never in CI, by hand only |
+| `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — see [`docs/cli.md`](docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
@@ -133,6 +133,8 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
 - **NEVER modify or delete anything in the macOS Keychain or a browser keychain that we did not
   create.** Read-only is OK. The sole exception is the MCPB's own items under service
   `openrecord-mcpb`, which `claude-desktop-extension/src/secret-store.ts` owns outright.
+- **Repair a passkey's `signCount` by +1, never a round number** — it must equal what the server
+  last accepted ([`docs/cli.md`](docs/cli.md#sign-count)).
 - **NEVER make changes in AWS without explicit user direction.** No `create-*`/`delete-*`/`update-*`/
   `put-*`, ECS/ALB/IAM/Secrets/RDS/S3/CloudFront writes. Read-only calls (`describe-*`, `list-*`,
   `get-*`) are fine, as is running an official deploy script when asked to deploy. If a deploy fails
@@ -184,18 +186,17 @@ is blocked.
 ### Keeping this file small
 
 Every session pays for this file in context, so length is a real cost. **Maintaining it means
-adding, editing, *and deleting* — a PR that only ever appends is how it got out of hand.**
+adding, editing, *and deleting*** — it reached 65KB by only ever being appended to.
 
 - **Leave it the same size or smaller.** If a change genuinely belongs here, look for something to
-  shorten or delete in the same PR. It got to 65KB by only ever being appended to.
+  shorten or delete in the same PR.
 - **Write a line here only if getting it wrong breaks something and the code wouldn't tell you.**
   Everything else is discoverable by reading the repo.
-- **Detail belongs in `docs/`, the package's README, or the scraper's own README**; this file
-  gets the one-line rule and the pointer. Rationale, history, endpoint lists, per-file
-  inventories and exhaustive flag lists all go there.
+- **Detail belongs in `docs/`, the package's README, or the scraper's own README**; this file gets
+  the one-line rule and the pointer. Rationale, history, endpoint lists, signatures, per-file
+  inventories, test names and exhaustive flag lists all go there — don't restate the code here.
 - **Prune on sight.** Stale, duplicated, or now-documented-elsewhere lines get deleted in whatever
   PR you're already writing — no permission needed.
-- **Don't restate the code.** No signatures, no file-by-file listings, no enumerating tests by name.
 
 ## Reference docs
 
@@ -220,5 +221,4 @@ a memory topic file.
   preferences, solutions to recurring problems.
 - **Never save**: PII of any kind, session-specific state, unverified conclusions, or anything that
   duplicates this file.
-- Check existing files before writing, fix memories that turn out wrong, organize by topic rather
-  than chronologically.
+- Check existing files first, fix memories that turn out wrong, organize by topic not date.
