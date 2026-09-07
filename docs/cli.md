@@ -289,7 +289,9 @@ Passkey credentials are stored in `.passkey-credentials/<hostname>.json` (gitign
 
 The WebAuthn sign count is critical for passkey authentication. The server tracks how many times a passkey has been used and rejects assertions with a sign count lower than or equal to its stored value. If a passkey is used from multiple sessions without the credential file being updated (e.g., copied to a different machine), the server-side counter will be higher than the local file's `signCount`, causing login to fail.
 
-**If passkey login fails unexpectedly**, check the `signCount` in the credential file. If it's lower than the actual number of times the passkey has been used, manually increment it to a value higher than the server's counter (e.g., set it to 100). The CLI automatically increments and saves the updated sign count after each successful login.
+**If passkey login fails unexpectedly**, the local `signCount` is behind the server's. Raise it by **one** and retry — the file is meant to hold the count the server last accepted, and the authenticator increments it again before it signs. Don't jump it to a round number like 100 or 500: that authenticates once and leaves the file no closer to the truth, so the same failure returns later looking brand new. If several single steps in a row are all rejected, the drift is not the problem — check that the passkey still exists on the account with `--list-passkeys`.
+
+The CLI increments and saves the count after each successful login. **Anything that calls `myChartPasskeyLogin` directly does not** — a probe or a one-off script desyncs the file on its first use, and the next CLI login then fails. Either write the new count back, or bump the file by one afterwards.
 
 ## TOTP Management
 
