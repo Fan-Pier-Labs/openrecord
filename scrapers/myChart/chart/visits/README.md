@@ -24,26 +24,30 @@ lower-case `__requestverificationtoken` header.
 
 ## Notes and research
 
-- **`oldestRenderedDate` is not a server-side filter.** `LoadPast` paginates: **10 visits
-  per organization per page**, newest first, with `HasMoreData` per organization and an
-  opaque top-level `SerializedIndex` continuation token that must be echoed back to get the
-  next 10. A single request answers with the 10 most recent visits and looks exactly like a
-  complete history, however far back `years_back` asked; walking the cursor returns 50–56
-  visits over the same window on a real account
-  ([#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190)).
-- **So `years_back` is honoured in the processor, not by MyChart.** The paging loop stops on
-  the first page entirely older than the cutoff, which means that page straddles it, so
-  `standard` trims to the window — recovering the cutoff from the `oldestRenderedDate` on
-  the recorded request. Without the trim, `years_back: 1` and `years_back: 2` return
-  byte-identical payloads reaching back a decade, and a caller scoping to a recent window
-  gets stale encounters presented as current. A row whose date cannot be read is kept, and
-  trimming sets `hasOlderVisits`. `raw` is untouched: it stays the envelope of every page
-  fetched.
-- The paging loop stops when no organization reports `HasMoreData`, when every visit on the
-  latest page predates the cutoff (results are newest→oldest), when the continuation token
-  is missing or **stops advancing** (a stuck-cursor guard), or at `MAX_PAST_VISIT_PAGES`
-  (50 pages ≈ 500 visits per organization). Pages are **not** merged in the scraper — `raw`
-  is the envelope of every page fetched, and the merge is the processor's.
+- **`oldestRenderedDate` is required on the query string and MyChart does nothing with it.**
+  In Epic's own page it is the browser reporting how far down it has already rendered — not
+  a filter, and not a bound on how far back the server will go. The request carrying `1970`
+  and the request carrying `two years ago` come back with the same 10 visits
+  ([#190](https://github.com/Fan-Pier-Labs/openrecord/pull/190), re-confirmed against one
+  real instance in [#424](https://github.com/Fan-Pier-Labs/openrecord/pull/424)). We pin it
+  to the epoch so nobody has to wonder.
+
+  This scraper used to expose it as a `years_back` capability parameter, documented as
+  "past visits within the last N years". It never filtered: all it did was end the cursor
+  walk early, so the answer was the requested window plus however far the last page happened
+  to reach — a superset whose size depended on where page boundaries fell. Nothing asked for
+  a window, so the parameter is gone and the walk runs to exhaustion.
+- **`LoadPast` paginates: 10 visits per organization per page**, newest first, with
+  `HasMoreData` per organization and an opaque top-level `SerializedIndex` continuation
+  token that must be echoed back to get the next 10. A single request answers with the 10
+  most recent visits and looks exactly like a complete history; walking the cursor returns
+  50–56 visits on a real account.
+- The paging loop stops when no organization reports `HasMoreData`, when the continuation
+  token is missing or **stops advancing** (a stuck-cursor guard), or at
+  `MAX_PAST_VISIT_PAGES` (50 pages ≈ 500 visits per organization) — the only case that
+  leaves visits behind, and the one `hasOlderVisits` reports. Pages are **not** merged in
+  the scraper — `raw` is the envelope of every page fetched, and the merge is the
+  processor's.
 - **The visit object is ~159 fields, of which about five are load-bearing:** when, what,
   who, where, and the CSN. The rest is portal UI (`IsTransmitDirectEnabled`,
   `GeolocationArrival`, `ShouldShowECheckInInGuideBanner`), and MyChart nests it two levels
@@ -85,9 +89,10 @@ members are all listed so nothing is implied.
 
 `POST /Visits/VisitsList/LoadUpcoming` (three buckets: `InProgressVisits`,
 `NextNDaysVisits`, `LaterVisitsList`) and `POST /Visits/VisitsList/LoadPast`,
-paged with `SerializedIndex` (10 visits per organization per page). `raw` for
-past visits is the envelope of every page fetched; the per-organization merge
-becomes processor work.
+paged with `SerializedIndex` (10 visits per organization per page) to
+exhaustion — neither capability takes a parameter. `raw` for past visits is the
+envelope of every page fetched; the per-organization merge becomes processor
+work.
 
 One table for the visit object, shared by both capabilities, then one for each
 container.
@@ -175,8 +180,8 @@ Past-visits container:
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
 | `List[<orgId>].List[]` | The visits, per organization | ✓ | flattened to one list | same | Derived flattening; the organization is on each row as `organizationName`, so the nesting carries nothing. |
-| `hasOlderVisits` | Any organization's `HasMoreData`, or any row trimmed to the `years_back` window | ✓ | ✓ | ✓ | Derived. Says whether MyChart holds visits older than the ones returned, so "that's all of it" is never inferred from a list that stopped or was trimmed. |
-| `count` | Number of visits, after the `years_back` trim | ✓ | ✓ | ✓ | Derived. Cheap and useful. |
+| `hasOlderVisits` | Any organization's `HasMoreData` on its last fetched page | ✓ | ✓ | ✓ | Derived. Only the page cap leaves visits behind, and this is how a caller learns it was hit — so "that's all of it" is never inferred from a list that stopped. |
+| `count` | Number of visits | ✓ | ✓ | ✓ | Derived. Cheap and useful. |
 | `List[<orgId>].ListSize`, `.CanSearch`, `.SkippedSomeResults`, `.SerializedIndex`, `.ViewbagProperties`, `.Organization` | Paging and rendering | — | — | — | Internal / org blob. |
 | `ViewBagProperties.LoadingOrgNames`, `.ErrorOrgNames`, `.ManualOrgNames` | Care Everywhere load state | — | — | — | DXR plumbing. |
 | `SerializedIndex`, `CanSearch`, `CanAllSearch`, `CanSort`, `AutoRenderThisSet`, `SkippedSomeResults`, `Organizations{}` | Paging and rendering | — | — | — | Internal / org blob. |

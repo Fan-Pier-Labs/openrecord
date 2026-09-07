@@ -26,7 +26,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_medical_history` | 1596 | 1178 | 1266 | 501 |
 | `get_goals` | 2849 | 942 | 1100 | 1100 |
 | `get_upcoming_visits` | 6373 | 1983 | 2492 | 619 |
-| `get_past_visits` | 145519 | 27155 | 34153 | 8015 |
+| `get_past_visits` | 145519 | 42623 | 53629 | 12551 |
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
@@ -4154,7 +4154,7 @@ Upcoming appointments.
 
 ### `get_past_visits`
 
-Past visits within the last `years_back` years (default 2). `hasOlderVisits` says whether MyChart holds visits before that window.
+Every past visit MyChart holds, newest first. `hasOlderVisits` says whether the page cap stopped the walk before the end.
 
 <details>
 <summary><code>mode: raw</code> (145519 chars)</summary>
@@ -4171,7 +4171,7 @@ Past visits within the last `years_back` years (default 2). `hasOlderVisits` say
       "purpose": "token"
     },
     {
-      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=2024-02-01T00:00:00.000Z&ComponentNumber=7",
+      "path": "/Visits/VisitsList/LoadPast?loadpast=1&searchString=&oldestRenderedDate=1970-01-01T00:00:00.000Z&ComponentNumber=7",
       "method": "POST",
       "status": 200,
       "contentType": "application/json;charset=utf-8",
@@ -4450,12 +4450,12 @@ Past visits within the last `years_back` years (default 2). `hasOlderVisits` say
 </details>
 
 <details>
-<summary><code>mode: standard</code> (34153 chars)</summary>
+<summary><code>mode: standard</code> (53629 chars)</summary>
 
-- **count**: 14
-- **hasOlderVisits**: true
+- **count**: 22
+- **hasOlderVisits**: false
 
-## visits (14)
+## visits (22)
 
 ### visits 1
 
@@ -5843,15 +5843,807 @@ Past visits within the last `years_back` years (default 2). `hasOlderVisits` say
 - **IsNotViewed**: false
 - **IsVisitAmbulatory**: false
 
+### visits 15
+
+- **Csn**: CSN-HOMER-016
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-016
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1706643900000)/
+- **instantISO**: 2024-01-30T19:45:00.000Z
+- **PrimaryDate**: 01/30/2024 02:45:00 PM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Telephone
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 16
+
+- **Csn**: CSN-HOMER-017
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-017
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1699459200000)/
+- **instantISO**: 2023-11-08T16:00:00.000Z
+- **PrimaryDate**: 11/08/2023 11:00:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Office Visit
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 17
+
+- **Csn**: CSN-HOMER-018
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-018
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1695127500000)/
+- **instantISO**: 2023-09-19T12:45:00.000Z
+- **PrimaryDate**: 09/19/2023 08:45:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Lab Work
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 18
+
+- **Csn**: CSN-HOMER-019
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-019
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1688664600000)/
+- **instantISO**: 2023-07-06T17:30:00.000Z
+- **PrimaryDate**: 07/06/2023 01:30:00 PM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Office Visit
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Nick Riviera, MD
+
+#### PrimaryProvider
+
+- **Name**: Nick Riviera, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Nick Riviera, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 19
+
+- **Csn**: CSN-HOMER-020
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-020
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1682431200000)/
+- **instantISO**: 2023-04-25T14:00:00.000Z
+- **PrimaryDate**: 04/25/2023 10:00:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Office Visit
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 20
+
+- **Csn**: CSN-HOMER-021
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-021
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1676146500000)/
+- **instantISO**: 2023-02-11T20:15:00.000Z
+- **PrimaryDate**: 02/11/2023 03:15:00 PM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Telephone
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 21
+
+- **Csn**: CSN-HOMER-022
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-022
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1669991400000)/
+- **instantISO**: 2022-12-02T14:30:00.000Z
+- **PrimaryDate**: 12/02/2022 09:30:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Office Visit
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
+### visits 22
+
+- **Csn**: CSN-HOMER-023
+- **CsnForECheckIn**: (empty)
+- **Id**: VISIT-CSN-HOMER-023
+- **ReferenceID**: (empty)
+- **Instant**: /Date(1660578300000)/
+- **instantISO**: 2022-08-15T15:45:00.000Z
+- **PrimaryDate**: 08/15/2022 11:45:00 AM
+- **TimeZone**: America/New_York
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **DurationInMinutes**: (none)
+- **HasDuration**: false
+- **ArrivalTime**: (none)
+- **EarlyArrivalReason**: (none)
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **RescheduledDatString**: (none)
+- **VisitTypeName**: Annual Physical
+- **IsUsingFallbackVisitTypeName**: false
+- **EncounterType**: 0
+- **EncounterIsSurgery**: false
+- **EncounterIsEDVisit**: false
+- **IsPreadmission**: false
+- **IsHovPreadmission**: false
+- **IsResidentialMed**: false
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **Cases**: (none)
+- **ComponentVisits**: (none)
+- **HasComponentVisits**: false
+- **PatientNextStepInstructions**: (empty)
+
+#### EpisodeDetails
+
+- **GestationalAge**: (empty)
+- **SurgeryTimeOfDay**: 0
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryProvider
+
+- **Name**: Julius Hibbert, MD
+
+#### Providers (1)
+
+##### Providers 1
+
+- **Name**: Julius Hibbert, MD
+
+###### Department
+
+- **Name**: (empty)
+- **Address**: (none)
+- **PhoneNumber**: (empty)
+
+- **OtherProviders**: (none)
+- **GuestPatientFirstName**: (none)
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **Address**: 123 Main Street, Springfield, NT 49007
+- **PhoneNumber**: 555-0100
+
+##### Specialty
+
+- **Title**: (empty)
+- **Instructions**: (none)
+- **ArrivalLocation**: (empty)
+- **TimeZone**: America/New_York
+- **PreadmissionLocation**: (none)
+- **organizationName**: (empty)
+- **IsCanceled**: false
+- **IsNoShow**: false
+- **LeftWithoutSeen**: false
+- **InProgress**: false
+- **IsArrived**: false
+- **IsConfirmed**: false
+- **IsCancelRequestSent**: false
+- **status**: completed
+- **ConfirmationStatus**: 0
+- **ArrivalStatus**: (none)
+- **Telemedicine**: (none)
+- **TelehealthMode**: 0
+- **EVisit**: (none)
+- **IsInHomeVisit**: false
+- **Copay**: (none)
+- **HasPaymentInfo**: false
+- **IsFullyPaid**: false
+- **IsClinicalNoteAvailable**: false
+- **IsNotesOnly**: false
+- **IsClinicalInformationAvailable**: false
+- **IsVisitSummaryEnabled**: false
+- **HasDownloadSummaryLink**: false
+- **IsNotViewed**: false
+- **IsVisitAmbulatory**: false
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (8015 chars)</summary>
+<summary><code>mode: concise</code> (12551 chars)</summary>
 
-- **count**: 14
-- **hasOlderVisits**: true
+- **count**: 22
+- **hasOlderVisits**: false
 
-## visits (14)
+## visits (22)
 
 ### visits 1
 
@@ -6161,15 +6953,191 @@ Past visits within the last `years_back` years (default 2). `hasOlderVisits` say
 - **IsClinicalNoteAvailable**: false
 - **IsVisitSummaryEnabled**: false
 
+### visits 15
+
+- **Csn**: CSN-HOMER-016
+- **PrimaryDate**: 01/30/2024 02:45:00 PM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Telephone
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 16
+
+- **Csn**: CSN-HOMER-017
+- **PrimaryDate**: 11/08/2023 11:00:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Office Visit
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 17
+
+- **Csn**: CSN-HOMER-018
+- **PrimaryDate**: 09/19/2023 08:45:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Lab Work
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 18
+
+- **Csn**: CSN-HOMER-019
+- **PrimaryDate**: 07/06/2023 01:30:00 PM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Office Visit
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Nick Riviera, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 19
+
+- **Csn**: CSN-HOMER-020
+- **PrimaryDate**: 04/25/2023 10:00:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Office Visit
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 20
+
+- **Csn**: CSN-HOMER-021
+- **PrimaryDate**: 02/11/2023 03:15:00 PM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Telephone
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 21
+
+- **Csn**: CSN-HOMER-022
+- **PrimaryDate**: 12/02/2022 09:30:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Office Visit
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
+### visits 22
+
+- **Csn**: CSN-HOMER-023
+- **PrimaryDate**: 08/15/2022 11:45:00 AM
+- **IsTimeToBeDetermined**: false
+- **IsHideVisitTime**: false
+- **AdmissionDateRange**: (none)
+- **DischargeDate**: (none)
+- **VisitTypeName**: Annual Physical
+- **ChiefComplaint**: (empty)
+- **Diagnoses**: (none)
+- **SurgicalProcedures**: (none)
+- **PrimaryProviderName**: Julius Hibbert, MD
+
+#### PrimaryDepartment
+
+- **Name**: Springfield General Hospital
+- **organizationName**: (empty)
+- **status**: completed
+- **IsClinicalNoteAvailable**: false
+- **IsVisitSummaryEnabled**: false
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (27155 chars)</summary>
+<summary><code>mode: json</code> (42623 chars)</summary>
 
 ```json
 {
-  "count": 14,
-  "hasOlderVisits": true,
+  "count": 22,
+  "hasOlderVisits": false,
   "visits": [
     {
       "Csn": "CSN-HOMER-002",
@@ -6575,8 +7543,8 @@ Past visits within the last `years_back` years (default 2). `hasOlderVisits` say
       "IsResidentialMed": false,
       "ChiefComplaint": "",
       "Diagnoses": [],
-      "SurgicalProcedu
-… (truncated; 26413 more characters)
+      "SurgicalProced
+… (truncated; 48305 more characters)
 ```
 
 </details>

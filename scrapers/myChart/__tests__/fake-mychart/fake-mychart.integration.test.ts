@@ -417,9 +417,7 @@ for (const mode of MOUNT_MODES) {
     }, 10_000)
 
     it('pastVisits returns visits whose display fields carry the encounter', async () => {
-      const twoYearsAgo = new Date()
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
-      const result = await pastVisits(session, twoYearsAgo)
+      const result = await pastVisits(session)
       expect(result).not.toBeNull()
       expect(result!.visits.length).toBeGreaterThan(0)
       for (const visit of result!.visits) expectVisitIsReadable(visit)
@@ -462,12 +460,9 @@ for (const mode of MOUNT_MODES) {
     // LoadPast pagination (HasMoreData + SerializedIndex) rather than stopping
     // after the first page. The fake serves 22 visits at the real MyChart page
     // size of 10, so a correct implementation walks 3 pages and returns all of
-    // them. We pass a far-past cutoff so the date window never short-circuits the
-    // loop — this isolates the pagination behaviour and keeps the count stable
-    // regardless of when the test runs.
+    // them.
     it('pastVisits paginates past the first page and returns the full history', async () => {
-      const longAgo = new Date('2000-01-01T00:00:00Z')
-      const result = await pastVisits(session, longAgo)
+      const result = await pastVisits(session)
       expect(result).not.toBeNull()
 
       // 22 fixture visits — far more than a single 10-visit page would yield.
