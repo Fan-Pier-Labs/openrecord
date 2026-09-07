@@ -15,31 +15,31 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 
 | Capability | raw | json | standard | concise |
 | --- | ---: | ---: | ---: | ---: |
-| `get_profile` | 35805 | 740 | 1059 | 209 |
-| `get_health_summary` | 2312 | 369 | 452 | 342 |
+| `get_profile` | 35954 | 888 | 1149 | 209 |
+| `get_health_summary` | 2337 | 394 | 463 | 353 |
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
 | `get_health_issues` | 1927 | 969 | 1241 | 297 |
-| `get_vitals` | 6406 | 1632 | 1216 | 861 |
+| `get_vitals` | 6388 | 1617 | 1201 | 861 |
 | `get_immunizations` | 891 | 601 | 432 | 236 |
 | `get_preventive_care` | 14380 | 397 | 311 | 284 |
-| `get_medical_history` | 1602 | 1184 | 1286 | 534 |
-| `get_goals` | 2855 | 948 | 1100 | 1100 |
-| `get_upcoming_visits` | 6341 | 1982 | 2493 | 620 |
-| `get_past_visits` | 145522 | 42626 | 53632 | 12554 |
+| `get_medical_history` | 1596 | 1178 | 1266 | 501 |
+| `get_goals` | 2849 | 942 | 1100 | 1100 |
+| `get_upcoming_visits` | 6373 | 1983 | 2492 | 619 |
+| `get_past_visits` | 145519 | 42623 | 53629 | 12551 |
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 41992 | 17184 | 21357 | 5340 |
-| `get_imaging_results` | 42716 | 5204 | 6084 | 2783 |
+| `get_lab_results` | 41985 | 17182 | 21355 | 5338 |
+| `get_imaging_results` | 42709 | 5202 | 6082 | 2781 |
 | `get_messages` | 8224 | 4413 | 5523 | 3373 |
 | `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40573 | 3493 | 4138 | 1051 |
+| `get_billing` | 40587 | 3507 | 4148 | 1060 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19281 | 1228 | 878 | 532 |
+| `get_care_team` | 19278 | 1225 | 875 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
@@ -50,8 +50,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_activity_feed` | 3220 | 1119 | 1429 | 549 |
 | `get_education_materials` | 862 | 463 | 391 | 151 |
 | `get_ehi_export` | 524 | 165 | 195 | 122 |
-| `get_linked_accounts` | 1738 | 481 | 666 | 223 |
-| `get_emergency_contacts` | 2186 | 684 | 838 | 456 |
+| `get_linked_accounts` | 1828 | 571 | 721 | 278 |
+| `get_emergency_contacts` | 2177 | 679 | 833 | 456 |
 
 ## Examples
 
@@ -60,7 +60,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 Patient profile (name, date of birth, medical record number, primary care provider) plus the account email address.
 
 <details>
-<summary><code>mode: raw</code> (35805 chars)</summary>
+<summary><code>mode: raw</code> (35954 chars)</summary>
 
 ```json
 {
@@ -71,13 +71,13 @@ Patient profile (name, date of birth, medical record number, primary care provid
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Home</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"active\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a href=\"
-… (truncated; 26163 more characters)
+… (truncated; 26349 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1059 chars)</summary>
+<summary><code>mode: standard</code> (1149 chars)</summary>
 
 - **name**: Homer Jay Simpson
 - **dob**: 05/12/1956
@@ -88,24 +88,24 @@ Patient profile (name, date of birth, medical record number, primary care provid
 
 - **EmailAddress**: homer.simpson@springfieldnuclear.example.com
 - **MobilePhone**: (empty)
-- **HomePhone**: (empty)
-- **WorkPhone**: (empty)
+- **HomePhone**: (555) 636-2700
+- **WorkPhone**: (555) 511-7000
 - **PreferredDevice**: (empty)
 
 ## PermanentAddress
 
-- **FormattedValues**: (none)
-- **Street**: (empty)
-- **City**: (empty)
+- **FormattedValues**: 742 Evergreen Terrace, Springfield, NT 49007
+- **Street**: 742 Evergreen Terrace
+- **City**: Springfield
 
 ### State
 
-- **Title**: (empty)
-- **Zip**: (empty)
+- **Title**: North Takoma
+- **Zip**: 49007
 
 ### Country
 
-- **Title**: (empty)
+- **Title**: United States of America
 - **HouseNumber**: (empty)
 - **Building**: (empty)
 - **Floor**: (empty)
@@ -152,7 +152,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
 </details>
 
 <details>
-<summary><code>mode: json</code> (740 chars)</summary>
+<summary><code>mode: json</code> (888 chars)</summary>
 
 ```json
 {
@@ -164,19 +164,22 @@ Patient profile (name, date of birth, medical record number, primary care provid
     "EmailAddress": "homer.simpson@springfieldnuclear.example.com",
     "MobilePhone": ""
   },
-  "HomePhone": "",
-  "WorkPhone": "",
+  "HomePhone": "(555) 636-2700",
+  "WorkPhone": "(555) 511-7000",
   "PreferredDevice": "",
   "PermanentAddress": {
-    "FormattedValues": [],
-    "Street": "",
-    "City": "",
+    "FormattedValues": [
+      "742 Evergreen Terrace",
+      "Springfield, NT 49007"
+    ],
+    "Street": "742 Evergreen Terrace",
+    "City": "Springfield",
     "State": {
-      "Title": ""
+      "Title": "North Takoma"
     },
-    "Zip": "",
+    "Zip": "49007",
     "Country": {
-      "Title": ""
+      "Title": "United States of America"
     },
     "HouseNumber": "",
     "Building": "",
@@ -218,7 +221,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
 Health summary — vitals snapshot, blood type, smoking status and similar top-level facts.
 
 <details>
-<summary><code>mode: raw</code> (2312 chars)</summary>
+<summary><code>mode: raw</code> (2337 chars)</summary>
 
 ```json
 {
@@ -239,8 +242,8 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
           "mode": ""
         },
         "nextVisit": {
-          "date": "",
-          "visitType": "",
+          "date": "04/15/2026",
+          "visitType": "Annual Physical",
           "visitDetailsURL": "",
           "visitCategory": "",
           "openRemotely": false,
@@ -309,7 +312,7 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
 </details>
 
 <details>
-<summary><code>mode: standard</code> (452 chars)</summary>
+<summary><code>mode: standard</code> (463 chars)</summary>
 
 ## header
 
@@ -338,13 +341,13 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
 
 ## nextVisit
 
-- **date**: (empty)
-- **visitType**: (empty)
+- **date**: 04/15/2026
+- **visitType**: Annual Physical
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (342 chars)</summary>
+<summary><code>mode: concise</code> (353 chars)</summary>
 
 ## header
 
@@ -369,13 +372,13 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
 
 ## nextVisit
 
-- **date**: (empty)
-- **visitType**: (empty)
+- **date**: 04/15/2026
+- **visitType**: Annual Physical
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (369 chars)</summary>
+<summary><code>mode: json</code> (394 chars)</summary>
 
 ```json
 {
@@ -401,8 +404,8 @@ Health summary — vitals snapshot, blood type, smoking status and similar top-l
     "visitType": "Annual Physical"
   },
   "nextVisit": {
-    "date": "",
-    "visitType": ""
+    "date": "04/15/2026",
+    "visitType": "Annual Physical"
   }
 }
 ```
@@ -1940,7 +1943,7 @@ Active health issues / problem list.
 Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, glucose, etc.).
 
 <details>
-<summary><code>mode: raw</code> (6406 chars)</summary>
+<summary><code>mode: raw</code> (6388 chars)</summary>
 
 ```json
 {
@@ -1963,7 +1966,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "entryType": "",
           "entryMode": "",
           "status": "",
-          "startDateIso": "2114-10-15",
+          "startDateIso": "2025-01-20",
           "endDateIso": "",
           "instructions": "",
           "hasMoreData": false,
@@ -2019,7 +2022,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32105",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": ""
             },
             {
@@ -2035,7 +2038,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32005",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": "",
               "numericValue": 88
             },
@@ -2052,7 +2055,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32001",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": "",
               "numericValue": 260,
               "units": "6"
@@ -2070,7 +2073,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32105",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": ""
             },
             {
@@ -2086,7 +2089,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32105",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": ""
             }
           ]
@@ -2125,7 +2128,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "entryType": "",
           "entryMode": "",
           "status": "",
-          "startDateIso": "2114-10-15",
+          "startDateIso": "2025-01-20",
           "endDateIso": "",
           "instructions": "",
           "hasMoreData": false,
@@ -2181,7 +2184,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "dataType": "32105",
               "line": 0,
               "decimalPlaces": 0,
-              "timeZone": "America/Los_Angeles",
+              "timeZone": "America/New_York",
               "sourceRowId": ""
             }
           ]
@@ -2219,7 +2222,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
             "entryType": "1",
             "entryMode": "1",
             "status": "1",
-            "startDateIso": "2114-10-15",
+            "startDateIso": "2025-01-20",
             "endDateIso": "",
             "instructions": "",
             "hasMoreData": false,
@@ -2295,7 +2298,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1216 chars)</summary>
+<summary><code>mode: standard</code> (1201 chars)</summary>
 
 ## flowsheets (1)
 
@@ -2303,7 +2306,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 
 - **name**: Vitals Trending
 - **status**: 1
-- **startDateIso**: 2114-10-15
+- **startDateIso**: 2025-01-20
 - **endDateIso**: (empty)
 - **instructions**: (empty)
 
@@ -2325,11 +2328,11 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 
 | rowId | instantTakenIso | timeZone | stringValue | numericValue | value | isAbnormal | entryType | documentationSource |
 | - | - | - | - | - | - | - | - | - |
-| row-bp | 2026-01-10T09:00:00 | America/Los_Angeles | 145/95 | (none) | 145/95 | true | clinical | 34000 |
-| row-hr | 2026-01-10T09:00:00 | America/Los_Angeles | (empty) | 88 | 88 | false | clinical | 34000 |
-| row-wt | 2026-01-10T09:00:00 | America/Los_Angeles | (empty) | 260 | 260 | false | clinical | 34000 |
-| row-bp | 2025-07-15T10:30:00 | America/Los_Angeles | 150/98 | (none) | 150/98 | true | clinical | 34002 |
-| row-bp | 2025-01-20T08:15:00 | America/Los_Angeles | 142/92 | (none) | 142/92 | false | clinical | 34002 |
+| row-bp | 2026-01-10T09:00:00 | America/New_York | 145/95 | (none) | 145/95 | true | clinical | 34000 |
+| row-hr | 2026-01-10T09:00:00 | America/New_York | (empty) | 88 | 88 | false | clinical | 34000 |
+| row-wt | 2026-01-10T09:00:00 | America/New_York | (empty) | 260 | 260 | false | clinical | 34000 |
+| row-bp | 2025-07-15T10:30:00 | America/New_York | 150/98 | (none) | 150/98 | true | clinical | 34002 |
+| row-bp | 2025-01-20T08:15:00 | America/New_York | 142/92 | (none) | 142/92 | false | clinical | 34002 |
 
 </details>
 
@@ -2392,7 +2395,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 </details>
 
 <details>
-<summary><code>mode: json</code> (1632 chars)</summary>
+<summary><code>mode: json</code> (1617 chars)</summary>
 
 ```json
 {
@@ -2400,7 +2403,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
     {
       "name": "Vitals Trending",
       "status": "1",
-      "startDateIso": "2114-10-15",
+      "startDateIso": "2025-01-20",
       "endDateIso": "",
       "instructions": "",
       "rows": [
@@ -2444,7 +2447,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         {
           "rowId": "row-bp",
           "instantTakenIso": "2026-01-10T09:00:00",
-          "timeZone": "America/Los_Angeles",
+          "timeZone": "America/New_York",
           "stringValue": "145/95",
           "numericValue": null,
           "value": "145/95",
@@ -2455,7 +2458,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         {
           "rowId": "row-hr",
           "instantTakenIso": "2026-01-10T09:00:00",
-          "timeZone": "America/Los_Angeles",
+          "timeZone": "America/New_York",
           "stringValue": "",
           "numericValue": 88,
           "value": "88",
@@ -2466,7 +2469,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         {
           "rowId": "row-wt",
           "instantTakenIso": "2026-01-10T09:00:00",
-          "timeZone": "America/Los_Angeles",
+          "timeZone": "America/New_York",
           "stringValue": "",
           "numericValue": 260,
           "value": "260",
@@ -2477,7 +2480,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         {
           "rowId": "row-bp",
           "instantTakenIso": "2025-07-15T10:30:00",
-          "timeZone": "America/Los_Angeles",
+          "timeZone": "America/New_York",
           "stringValue": "150/98",
           "numericValue": null,
           "value": "150/98",
@@ -2488,7 +2491,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
         {
           "rowId": "row-bp",
           "instantTakenIso": "2025-01-20T08:15:00",
-          "timeZone": "America/Los_Angeles",
+          "timeZone": "America/New_York",
           "stringValue": "142/92",
           "numericValue": null,
           "value": "142/92",
@@ -3018,7 +3021,7 @@ tr:hover td { background: #fafbfc; }
 Past medical, surgical, family and social history.
 
 <details>
-<summary><code>mode: raw</code> (1602 chars)</summary>
+<summary><code>mode: raw</code> (1596 chars)</summary>
 
 ```json
 {
@@ -3051,14 +3054,14 @@ Past medical, surgical, family and social history.
   "familyHistoryAndStatus": {
     "familyMembers": [
       {
-        "nameOrAlias": "",
+        "nameOrAlias": "Abraham Simpson",
         "sexId": "",
         "sexName": "",
         "genderId": "",
         "relationshipToPatientId": "",
         "relationshipToPatientName": "Father",
         "statusId": "",
-        "statusName": "Abraham Simpson - Living",
+        "statusName": "Living",
         "relativeAge": "",
         "relativeAgeEnd": "",
         "familyMemberId": "",
@@ -3071,14 +3074,14 @@ Past medical, surgical, family and social history.
         "changes": []
       },
       {
-        "nameOrAlias": "",
+        "nameOrAlias": "Mona Simpson",
         "sexId": "",
         "sexName": "",
         "genderId": "",
         "relationshipToPatientId": "",
         "relationshipToPatientName": "Mother",
         "statusId": "",
-        "statusName": "Mona Simpson - Deceased",
+        "statusName": "Deceased",
         "relativeAge": "",
         "relativeAgeEnd": "",
         "familyMemberId": "",
@@ -3120,7 +3123,7 @@ Past medical, surgical, family and social history.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1286 chars)</summary>
+<summary><code>mode: standard</code> (1266 chars)</summary>
 
 ## medicalHistory
 
@@ -3148,8 +3151,8 @@ Past medical, surgical, family and social history.
 
 | relationshipToPatientName | conditions | statusName | nameOrAlias | sexName | relativeAge | relativeAgeEnd |
 | - | - | - | - | - | - | - |
-| Father | Heart disease, Dementia | Abraham Simpson - Living | (empty) | (empty) | (empty) | (empty) |
-| Mother | | Mona Simpson - Deceased | (empty) | (empty) | (empty) | (empty) |
+| Father | Heart disease, Dementia | Living | Abraham Simpson | (empty) | (empty) | (empty) |
+| Mother | | Deceased | Mona Simpson | (empty) | (empty) | (empty) |
 - **familyHistoryNotes**: (empty)
 - **familyStatusNotes**: (empty)
 
@@ -3178,7 +3181,7 @@ Past medical, surgical, family and social history.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (534 chars)</summary>
+<summary><code>mode: concise</code> (501 chars)</summary>
 
 ## diagnoses (2)
 
@@ -3198,8 +3201,8 @@ Past medical, surgical, family and social history.
 
 | relationshipToPatientName | statusName | conditions |
 | - | - | - |
-| Father | Abraham Simpson - Living | Heart disease, Dementia |
-| Mother | Mona Simpson - Deceased | |
+| Father | Living | Heart disease, Dementia |
+| Mother | Deceased | |
 - **smokingTobaccoStatus**: (empty)
 - **tobaccoUse**: (empty)
 - **alcoholUse**: (empty)
@@ -3207,7 +3210,7 @@ Past medical, surgical, family and social history.
 </details>
 
 <details>
-<summary><code>mode: json</code> (1184 chars)</summary>
+<summary><code>mode: json</code> (1178 chars)</summary>
 
 ```json
 {
@@ -3245,8 +3248,8 @@ Past medical, surgical, family and social history.
           "Heart disease",
           "Dementia"
         ],
-        "statusName": "Abraham Simpson - Living",
-        "nameOrAlias": "",
+        "statusName": "Living",
+        "nameOrAlias": "Abraham Simpson",
         "sexName": "",
         "relativeAge": "",
         "relativeAgeEnd": ""
@@ -3254,8 +3257,8 @@ Past medical, surgical, family and social history.
       {
         "relationshipToPatientName": "Mother",
         "conditions": [],
-        "statusName": "Mona Simpson - Deceased",
-        "nameOrAlias": "",
+        "statusName": "Deceased",
+        "nameOrAlias": "Mona Simpson",
         "sexName": "",
         "relativeAge": "",
         "relativeAgeEnd": ""
@@ -3295,7 +3298,7 @@ Past medical, surgical, family and social history.
 Care team goals and patient-set goals.
 
 <details>
-<summary><code>mode: raw</code> (2855 chars)</summary>
+<summary><code>mode: raw</code> (2849 chars)</summary>
 
 ```json
 {
@@ -3320,14 +3323,14 @@ Care team goals and patient-set goals.
             "readings": [
               {
                 "value": "260",
-                "numericValue": "260",
+                "numericValue": 260,
                 "instantTakenIso": "2026-01-10T09:00:00Z",
                 "pattern": "lt",
                 "target1": "210"
               },
               {
                 "value": "252",
-                "numericValue": "252",
+                "numericValue": 252,
                 "instantTakenIso": "2026-03-14T09:00:00Z",
                 "pattern": "lt",
                 "target1": "210"
@@ -3343,8 +3346,8 @@ Care team goals and patient-set goals.
             "creationDate": "01/10/2026",
             "readings": [
               {
-                "value": "245",
-                "numericValue": "245",
+                "value": "280",
+                "numericValue": 280,
                 "instantTakenIso": "2026-01-10T09:00:00Z",
                 "pattern": "lt",
                 "target1": "200"
@@ -3456,7 +3459,7 @@ Care team goals and patient-set goals.
 
 | value | numericValue | instantTakenIso | pattern | target1 |
 | - | - | - | - | - |
-| 245 | 245 | 2026-01-10T09:00:00Z | lt | 200 |
+| 280 | 280 | 2026-01-10T09:00:00Z | lt | 200 |
 - **source**: care_team
 
 ## patientGoals (1)
@@ -3503,7 +3506,7 @@ Care team goals and patient-set goals.
 
 | value | numericValue | instantTakenIso | pattern | target1 |
 | - | - | - | - | - |
-| 245 | 245 | 2026-01-10T09:00:00Z | lt | 200 |
+| 280 | 280 | 2026-01-10T09:00:00Z | lt | 200 |
 - **source**: care_team
 
 ## patientGoals (1)
@@ -3516,7 +3519,7 @@ Care team goals and patient-set goals.
 </details>
 
 <details>
-<summary><code>mode: json</code> (948 chars)</summary>
+<summary><code>mode: json</code> (942 chars)</summary>
 
 ```json
 {
@@ -3531,14 +3534,14 @@ Care team goals and patient-set goals.
       "readings": [
         {
           "value": "260",
-          "numericValue": "260",
+          "numericValue": 260,
           "instantTakenIso": "2026-01-10T09:00:00Z",
           "pattern": "lt",
           "target1": "210"
         },
         {
           "value": "252",
-          "numericValue": "252",
+          "numericValue": 252,
           "instantTakenIso": "2026-03-14T09:00:00Z",
           "pattern": "lt",
           "target1": "210"
@@ -3555,8 +3558,8 @@ Care team goals and patient-set goals.
       "creationDate": "01/10/2026",
       "readings": [
         {
-          "value": "245",
-          "numericValue": "245",
+          "value": "280",
+          "numericValue": 280,
           "instantTakenIso": "2026-01-10T09:00:00Z",
           "pattern": "lt",
           "target1": "200"
@@ -3591,7 +3594,7 @@ Care team goals and patient-set goals.
 Upcoming appointments.
 
 <details>
-<summary><code>mode: raw</code> (6341 chars)</summary>
+<summary><code>mode: raw</code> (6373 chars)</summary>
 
 ```json
 {
@@ -3691,7 +3694,7 @@ Upcoming appointments.
       "ClientTimeZoneMarker": "",
       "EncounterType": 0,
       "VisitTypeName": "Annual Physical",
-      "Instant": "/Date(1776243600000)/",
+      "Instant": "/Date(1776258000000)/",
       "ArrivalTime": null,
       "CanShowArrivalTime": false,
       "EarlyArrivalReason": null,
@@ -3883,7 +3886,8 @@ Upcoming appointments.
       "HasPaymentInfo": false,
       "IsFullyPaid": false,
       "CompleteECheckInCount": 0,
-      "TotalECheckInCount": 0
+      "TotalECheckInCount": 0,
+      "IsClinicalNoteAvailable": false
     }
   ],
   "NextNDaysVisits": [],
@@ -3898,7 +3902,7 @@ Upcoming appointments.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (2493 chars)</summary>
+<summary><code>mode: standard</code> (2492 chars)</summary>
 
 - **count**: 1
 
@@ -3910,8 +3914,8 @@ Upcoming appointments.
 - **CsnForECheckIn**: CSN-HOMER-001
 - **Id**: VISIT-HOMER-001
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1776243600000)/
-- **instantISO**: 2026-04-15T09:00:00.000Z
+- **Instant**: /Date(1776258000000)/
+- **instantISO**: 2026-04-15T13:00:00.000Z
 - **PrimaryDate**: 04/15/2026 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -3995,7 +3999,7 @@ Upcoming appointments.
 - **Copay**: (none)
 - **HasPaymentInfo**: false
 - **IsFullyPaid**: false
-- **IsClinicalNoteAvailable**: (none)
+- **IsClinicalNoteAvailable**: false
 - **IsNotesOnly**: (none)
 - **IsClinicalInformationAvailable**: false
 - **IsVisitSummaryEnabled**: true
@@ -4007,7 +4011,7 @@ Upcoming appointments.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (620 chars)</summary>
+<summary><code>mode: concise</code> (619 chars)</summary>
 
 - **count**: 1
 
@@ -4032,14 +4036,14 @@ Upcoming appointments.
 - **Name**: Springfield General Hospital
 - **organizationName**: (empty)
 - **status**: scheduled
-- **IsClinicalNoteAvailable**: (none)
+- **IsClinicalNoteAvailable**: false
 - **IsVisitSummaryEnabled**: true
 - **bucket**: later
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (1982 chars)</summary>
+<summary><code>mode: json</code> (1983 chars)</summary>
 
 ```json
 {
@@ -4050,8 +4054,8 @@ Upcoming appointments.
       "CsnForECheckIn": "CSN-HOMER-001",
       "Id": "VISIT-HOMER-001",
       "ReferenceID": "",
-      "Instant": "/Date(1776243600000)/",
-      "instantISO": "2026-04-15T09:00:00.000Z",
+      "Instant": "/Date(1776258000000)/",
+      "instantISO": "2026-04-15T13:00:00.000Z",
       "PrimaryDate": "04/15/2026 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -4131,7 +4135,7 @@ Upcoming appointments.
       "Copay": null,
       "HasPaymentInfo": false,
       "IsFullyPaid": false,
-      "IsClinicalNoteAvailable": null,
+      "IsClinicalNoteAvailable": false,
       "IsNotesOnly": null,
       "IsClinicalInformationAvailable": false,
       "IsVisitSummaryEnabled": true,
@@ -4153,7 +4157,7 @@ Upcoming appointments.
 Past visits within the last `years_back` years (default 2).
 
 <details>
-<summary><code>mode: raw</code> (145522 chars)</summary>
+<summary><code>mode: raw</code> (145519 chars)</summary>
 
 ```json
 {
@@ -4235,7 +4239,7 @@ Past visits within the last `years_back` years (default 2).
                 "HasNewPvdFeature": false,
                 "IsNotViewed": false,
                 "IsViewStatusVisible": false,
-                "IsClinicalNoteAvailable": false,
+                "IsClinicalNoteAvailable": true,
                 "IsNotesOnly": false,
                 "IsVisitAmbulatory": false,
                 "FeedbackQnrIDs": [],
@@ -4343,7 +4347,7 @@ Past visits within the last `years_back` years (default 2).
                 "ClientTimeZoneMarker": "",
                 "EncounterType": 0,
                 "VisitTypeName": "Annual Physical",
-                "Instant": "/Date(1768035600000)/",
+                "Instant": "/Date(1768053600000)/",
                 "ArrivalTime": null,
                 "CanShowArrivalTime": false,
                 "EarlyArrivalReason": null,
@@ -4439,13 +4443,14 @@ Past visits within the last `years_back` years (default 2).
                   "Specialty": {
                     "Value": "",
                     "Title": "",
-… (truncated; 261838 more characters)
+
+… (truncated; 261835 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (53632 chars)</summary>
+<summary><code>mode: standard</code> (53629 chars)</summary>
 
 - **count**: 22
 - **hasOlderVisits**: false
@@ -4458,8 +4463,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-002
 - **Id**: VISIT-HOMER-002
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1768035600000)/
-- **instantISO**: 2026-01-10T09:00:00.000Z
+- **Instant**: /Date(1768053600000)/
+- **instantISO**: 2026-01-10T14:00:00.000Z
 - **PrimaryDate**: 01/10/2026 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4543,7 +4548,7 @@ Past visits within the last `years_back` years (default 2).
 - **Copay**: (none)
 - **HasPaymentInfo**: false
 - **IsFullyPaid**: false
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsNotesOnly**: false
 - **IsClinicalInformationAvailable**: true
 - **IsVisitSummaryEnabled**: true
@@ -4557,8 +4562,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-003
 - **Id**: VISIT-HOMER-003
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1763649000000)/
-- **instantISO**: 2025-11-20T14:30:00.000Z
+- **Instant**: /Date(1763667000000)/
+- **instantISO**: 2025-11-20T19:30:00.000Z
 - **PrimaryDate**: 11/20/2025 02:30:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4642,7 +4647,7 @@ Past visits within the last `years_back` years (default 2).
 - **Copay**: (none)
 - **HasPaymentInfo**: false
 - **IsFullyPaid**: false
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsNotesOnly**: false
 - **IsClinicalInformationAvailable**: true
 - **IsVisitSummaryEnabled**: true
@@ -4656,8 +4661,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: CSN-HOMER-004
 - **Id**: VISIT-HOMER-004
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1754388000000)/
-- **instantISO**: 2025-08-05T10:00:00.000Z
+- **Instant**: /Date(1754402400000)/
+- **instantISO**: 2025-08-05T14:00:00.000Z
 - **PrimaryDate**: 08/05/2025 10:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4741,7 +4746,7 @@ Past visits within the last `years_back` years (default 2).
 - **Copay**: (none)
 - **HasPaymentInfo**: false
 - **IsFullyPaid**: false
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsNotesOnly**: false
 - **IsClinicalInformationAvailable**: true
 - **IsVisitSummaryEnabled**: true
@@ -4755,8 +4760,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-005
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1749978000000)/
-- **instantISO**: 2025-06-15T09:00:00.000Z
+- **Instant**: /Date(1749992400000)/
+- **instantISO**: 2025-06-15T13:00:00.000Z
 - **PrimaryDate**: 06/15/2025 09:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4854,8 +4859,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-006
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1743593400000)/
-- **instantISO**: 2025-04-02T11:30:00.000Z
+- **Instant**: /Date(1743607800000)/
+- **instantISO**: 2025-04-02T15:30:00.000Z
 - **PrimaryDate**: 04/02/2025 11:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -4953,8 +4958,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-007
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1739887200000)/
-- **instantISO**: 2025-02-18T14:00:00.000Z
+- **Instant**: /Date(1739905200000)/
+- **instantISO**: 2025-02-18T19:00:00.000Z
 - **PrimaryDate**: 02/18/2025 02:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5052,8 +5057,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-008
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1733393700000)/
-- **instantISO**: 2024-12-05T10:15:00.000Z
+- **Instant**: /Date(1733411700000)/
+- **instantISO**: 2024-12-05T15:15:00.000Z
 - **PrimaryDate**: 12/05/2024 10:15:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5151,8 +5156,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-009
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1731426300000)/
-- **instantISO**: 2024-11-12T15:45:00.000Z
+- **Instant**: /Date(1731444300000)/
+- **instantISO**: 2024-11-12T20:45:00.000Z
 - **PrimaryDate**: 11/12/2024 03:45:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5250,8 +5255,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-010
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1727771400000)/
-- **instantISO**: 2024-10-01T08:30:00.000Z
+- **Instant**: /Date(1727785800000)/
+- **instantISO**: 2024-10-01T12:30:00.000Z
 - **PrimaryDate**: 10/01/2024 08:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5349,8 +5354,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-011
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1726405200000)/
-- **instantISO**: 2024-09-15T13:00:00.000Z
+- **Instant**: /Date(1726419600000)/
+- **instantISO**: 2024-09-15T17:00:00.000Z
 - **PrimaryDate**: 09/15/2024 01:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5448,8 +5453,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-012
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1724147100000)/
-- **instantISO**: 2024-08-20T09:45:00.000Z
+- **Instant**: /Date(1724161500000)/
+- **instantISO**: 2024-08-20T13:45:00.000Z
 - **PrimaryDate**: 08/20/2024 09:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5547,8 +5552,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-013
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1720612800000)/
-- **instantISO**: 2024-07-10T12:00:00.000Z
+- **Instant**: /Date(1720627200000)/
+- **instantISO**: 2024-07-10T16:00:00.000Z
 - **PrimaryDate**: 07/10/2024 12:00:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5646,8 +5651,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-014
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1716373800000)/
-- **instantISO**: 2024-05-22T10:30:00.000Z
+- **Instant**: /Date(1716388200000)/
+- **instantISO**: 2024-05-22T14:30:00.000Z
 - **PrimaryDate**: 05/22/2024 10:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5745,8 +5750,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-015
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1710407700000)/
-- **instantISO**: 2024-03-14T09:15:00.000Z
+- **Instant**: /Date(1710422100000)/
+- **instantISO**: 2024-03-14T13:15:00.000Z
 - **PrimaryDate**: 03/14/2024 09:15:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5844,8 +5849,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-016
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1706625900000)/
-- **instantISO**: 2024-01-30T14:45:00.000Z
+- **Instant**: /Date(1706643900000)/
+- **instantISO**: 2024-01-30T19:45:00.000Z
 - **PrimaryDate**: 01/30/2024 02:45:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -5943,8 +5948,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-017
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1699441200000)/
-- **instantISO**: 2023-11-08T11:00:00.000Z
+- **Instant**: /Date(1699459200000)/
+- **instantISO**: 2023-11-08T16:00:00.000Z
 - **PrimaryDate**: 11/08/2023 11:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6042,8 +6047,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-018
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1695113100000)/
-- **instantISO**: 2023-09-19T08:45:00.000Z
+- **Instant**: /Date(1695127500000)/
+- **instantISO**: 2023-09-19T12:45:00.000Z
 - **PrimaryDate**: 09/19/2023 08:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6141,8 +6146,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-019
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1688650200000)/
-- **instantISO**: 2023-07-06T13:30:00.000Z
+- **Instant**: /Date(1688664600000)/
+- **instantISO**: 2023-07-06T17:30:00.000Z
 - **PrimaryDate**: 07/06/2023 01:30:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6240,8 +6245,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-020
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1682416800000)/
-- **instantISO**: 2023-04-25T10:00:00.000Z
+- **Instant**: /Date(1682431200000)/
+- **instantISO**: 2023-04-25T14:00:00.000Z
 - **PrimaryDate**: 04/25/2023 10:00:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6339,8 +6344,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-021
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1676128500000)/
-- **instantISO**: 2023-02-11T15:15:00.000Z
+- **Instant**: /Date(1676146500000)/
+- **instantISO**: 2023-02-11T20:15:00.000Z
 - **PrimaryDate**: 02/11/2023 03:15:00 PM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6438,8 +6443,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-022
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1669973400000)/
-- **instantISO**: 2022-12-02T09:30:00.000Z
+- **Instant**: /Date(1669991400000)/
+- **instantISO**: 2022-12-02T14:30:00.000Z
 - **PrimaryDate**: 12/02/2022 09:30:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6537,8 +6542,8 @@ Past visits within the last `years_back` years (default 2).
 - **CsnForECheckIn**: (empty)
 - **Id**: VISIT-CSN-HOMER-023
 - **ReferenceID**: (empty)
-- **Instant**: /Date(1660563900000)/
-- **instantISO**: 2022-08-15T11:45:00.000Z
+- **Instant**: /Date(1660578300000)/
+- **instantISO**: 2022-08-15T15:45:00.000Z
 - **PrimaryDate**: 08/15/2022 11:45:00 AM
 - **TimeZone**: America/New_York
 - **IsTimeToBeDetermined**: false
@@ -6633,7 +6638,7 @@ Past visits within the last `years_back` years (default 2).
 </details>
 
 <details>
-<summary><code>mode: concise</code> (12554 chars)</summary>
+<summary><code>mode: concise</code> (12551 chars)</summary>
 
 - **count**: 22
 - **hasOlderVisits**: false
@@ -6659,7 +6664,7 @@ Past visits within the last `years_back` years (default 2).
 - **Name**: Springfield General Hospital
 - **organizationName**: (empty)
 - **status**: completed
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsVisitSummaryEnabled**: true
 
 ### visits 2
@@ -6681,7 +6686,7 @@ Past visits within the last `years_back` years (default 2).
 - **Name**: Springfield General Hospital ER
 - **organizationName**: (empty)
 - **status**: completed
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsVisitSummaryEnabled**: true
 
 ### visits 3
@@ -6703,7 +6708,7 @@ Past visits within the last `years_back` years (default 2).
 - **Name**: Springfield Nuclear Power Plant Health Center
 - **organizationName**: (empty)
 - **status**: completed
-- **IsClinicalNoteAvailable**: false
+- **IsClinicalNoteAvailable**: true
 - **IsVisitSummaryEnabled**: true
 
 ### visits 4
@@ -7127,7 +7132,7 @@ Past visits within the last `years_back` years (default 2).
 </details>
 
 <details>
-<summary><code>mode: json</code> (42626 chars)</summary>
+<summary><code>mode: json</code> (42623 chars)</summary>
 
 ```json
 {
@@ -7139,8 +7144,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-002",
       "Id": "VISIT-HOMER-002",
       "ReferenceID": "",
-      "Instant": "/Date(1768035600000)/",
-      "instantISO": "2026-01-10T09:00:00.000Z",
+      "Instant": "/Date(1768053600000)/",
+      "instantISO": "2026-01-10T14:00:00.000Z",
       "PrimaryDate": "01/10/2026 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7220,7 +7225,7 @@ Past visits within the last `years_back` years (default 2).
       "Copay": null,
       "HasPaymentInfo": false,
       "IsFullyPaid": false,
-      "IsClinicalNoteAvailable": false,
+      "IsClinicalNoteAvailable": true,
       "IsNotesOnly": false,
       "IsClinicalInformationAvailable": true,
       "IsVisitSummaryEnabled": true,
@@ -7233,8 +7238,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-003",
       "Id": "VISIT-HOMER-003",
       "ReferenceID": "",
-      "Instant": "/Date(1763649000000)/",
-      "instantISO": "2025-11-20T14:30:00.000Z",
+      "Instant": "/Date(1763667000000)/",
+      "instantISO": "2025-11-20T19:30:00.000Z",
       "PrimaryDate": "11/20/2025 02:30:00 PM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7314,7 +7319,7 @@ Past visits within the last `years_back` years (default 2).
       "Copay": null,
       "HasPaymentInfo": false,
       "IsFullyPaid": false,
-      "IsClinicalNoteAvailable": false,
+      "IsClinicalNoteAvailable": true,
       "IsNotesOnly": false,
       "IsClinicalInformationAvailable": true,
       "IsVisitSummaryEnabled": true,
@@ -7327,8 +7332,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "CSN-HOMER-004",
       "Id": "VISIT-HOMER-004",
       "ReferenceID": "",
-      "Instant": "/Date(1754388000000)/",
-      "instantISO": "2025-08-05T10:00:00.000Z",
+      "Instant": "/Date(1754402400000)/",
+      "instantISO": "2025-08-05T14:00:00.000Z",
       "PrimaryDate": "08/05/2025 10:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7408,7 +7413,7 @@ Past visits within the last `years_back` years (default 2).
       "Copay": null,
       "HasPaymentInfo": false,
       "IsFullyPaid": false,
-      "IsClinicalNoteAvailable": false,
+      "IsClinicalNoteAvailable": true,
       "IsNotesOnly": false,
       "IsClinicalInformationAvailable": true,
       "IsVisitSummaryEnabled": true,
@@ -7421,8 +7426,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "",
       "Id": "VISIT-CSN-HOMER-005",
       "ReferenceID": "",
-      "Instant": "/Date(1749978000000)/",
-      "instantISO": "2025-06-15T09:00:00.000Z",
+      "Instant": "/Date(1749992400000)/",
+      "instantISO": "2025-06-15T13:00:00.000Z",
       "PrimaryDate": "06/15/2025 09:00:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7515,8 +7520,8 @@ Past visits within the last `years_back` years (default 2).
       "CsnForECheckIn": "",
       "Id": "VISIT-CSN-HOMER-006",
       "ReferenceID": "",
-      "Instant": "/Date(1743593400000)/",
-      "instantISO": "2025-04-02T11:30:00.000Z",
+      "Instant": "/Date(1743607800000)/",
+      "instantISO": "2025-04-02T15:30:00.000Z",
       "PrimaryDate": "04/02/2025 11:30:00 AM",
       "TimeZone": "America/New_York",
       "IsTimeToBeDetermined": false,
@@ -7538,8 +7543,8 @@ Past visits within the last `years_back` years (default 2).
       "IsResidentialMed": false,
       "ChiefComplaint": "",
       "Diagnoses": [],
-      "SurgicalPro
-… (truncated; 48308 more characters)
+      "SurgicalProced
+… (truncated; 48305 more characters)
 ```
 
 </details>
@@ -7849,7 +7854,7 @@ Follow up in 3 months. Schedule lipid panel before next visit.
 Lab results with reference ranges and prior values for trending.
 
 <details>
-<summary><code>mode: raw</code> (41992 chars)</summary>
+<summary><code>mode: raw</code> (41985 chars)</summary>
 
 ```json
 {
@@ -8124,7 +8129,7 @@ Lab results with reference ranges and prior values for trending.
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>",
+        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).</p></div>",
         "reportCss": "",
         "baseFontSize": 0,
         "stylesheets": []
@@ -8210,14 +8215,14 @@ Lab results with reference ranges and prior values for trending.
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "
-… (truncated; 59442 more characters)
+                  "name": "S
+… (truncated; 59435 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (21357 chars)</summary>
+<summary><code>mode: standard</code> (21355 chars)</summary>
 
 ## orders (5)
 
@@ -9168,7 +9173,7 @@ View Images
 
 ###### narrative
 
-- **contentAsString**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
+- **contentAsString**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
 - **signingInstantTimestamp**: 2025-09-15T15:00:00Z
 
 ###### impression
@@ -9201,7 +9206,7 @@ View Images
 
 CT Head without Contrast  
   
-FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).
+FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).
 
 ###### imageStudies (1)
 
@@ -9221,7 +9226,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: concise</code> (5340 chars)</summary>
+<summary><code>mode: concise</code> (5338 chars)</summary>
 
 ## orders (5)
 
@@ -9388,7 +9393,7 @@ View Images
 - **resultStatus**: Final
 - **orderProviderName**: Julius Hibbert, MD
 - **resultComponents**: (none)
-- **narrative**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
+- **narrative**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
 - **impression**: IMPRESSION: 1. Multiple crayon-shaped foreign bodies within the cranial vault, unchanged from prior X-ray. 2. No acute intracranial abnormality. 3. Recommend continued monitoring. Patient declines surgical removal stating "the crayons keep me creative."
 - **addenda**: (none)
 - **resultNote**: (empty)
@@ -9397,7 +9402,7 @@ View Images
 
 CT Head without Contrast  
   
-FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).
+FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).
 
 #### historicalResults
 
@@ -9406,7 +9411,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (17184 chars)</summary>
+<summary><code>mode: json</code> (17182 chars)</summary>
 
 ```json
 {
@@ -9770,7 +9775,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
             },
             "addenda": [],
 
-… (truncated; 18273 more characters)
+… (truncated; 18271 more characters)
 ```
 
 </details>
@@ -9782,7 +9787,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries that have viewable pictures carry an `image_id` — pass that to download_imaging_study to get the actual images.
 
 <details>
-<summary><code>mode: raw</code> (42716 chars)</summary>
+<summary><code>mode: raw</code> (42709 chars)</summary>
 
 ```json
 {
@@ -10057,7 +10062,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).</p></div>",
+        "reportContent": "<div class=\"report-content\"><h3>CT Head without Contrast</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).</p></div>",
         "reportCss": "",
         "baseFontSize": 0,
         "stylesheets": []
@@ -10143,14 +10148,14 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "
-… (truncated; 60356 more characters)
+                  "name": "S
+… (truncated; 60349 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (6084 chars)</summary>
+<summary><code>mode: standard</code> (6082 chars)</summary>
 
 ## orders (2)
 
@@ -10314,7 +10319,7 @@ View Images
 
 ###### narrative
 
-- **contentAsString**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
+- **contentAsString**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
 - **signingInstantTimestamp**: 2025-09-15T15:00:00Z
 
 ###### impression
@@ -10347,7 +10352,7 @@ View Images
 
 CT Head without Contrast  
   
-FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).
+FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).
 
 ###### imageStudies (1)
 
@@ -10367,7 +10372,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: concise</code> (2783 chars)</summary>
+<summary><code>mode: concise</code> (2781 chars)</summary>
 
 ## orders (2)
 
@@ -10426,7 +10431,7 @@ View Images
 - **resultStatus**: Final
 - **orderProviderName**: Julius Hibbert, MD
 - **resultComponents**: (none)
-- **narrative**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
+- **narrative**: FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.
 - **impression**: IMPRESSION: 1. Multiple crayon-shaped foreign bodies within the cranial vault, unchanged from prior X-ray. 2. No acute intracranial abnormality. 3. Recommend continued monitoring. Patient declines surgical removal stating "the crayons keep me creative."
 - **addenda**: (none)
 - **resultNote**: (empty)
@@ -10435,7 +10440,7 @@ View Images
 
 CT Head without Contrast  
   
-FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).
+FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).
 
 ###### imageStudies (1)
 
@@ -10450,7 +10455,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (5204 chars)</summary>
+<summary><code>mode: json</code> (5202 chars)</summary>
 
 ```json
 {
@@ -10595,7 +10600,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
           "resultComponents": [],
           "studyResult": {
             "narrative": {
-              "contentAsString": "FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 16 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.",
+              "contentAsString": "FINDINGS: CT of the head without contrast. Multiple radiopaque foreign bodies identified within the cranial vault, consistent with crayon-shaped objects (at least 5 individual crayons). No acute intracranial hemorrhage. No midline shift. Ventricles are normal in size and configuration. Gray-white matter differentiation is preserved. No acute fracture identified.",
               "signingInstantTimestamp": "2025-09-15T15:00:00Z"
             },
             "impression": {
@@ -10622,7 +10627,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
             "reportID": "RPT-CT-001",
             "isDownloadablePDFReport": false
           },
-          "reportContentText": "CT Head without Contrast\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 16).",
+          "reportContentText": "CT Head without Contrast\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).",
           "imageStudies": [
             {
               "studyDescription": "CT Head without Contrast",
@@ -12186,7 +12191,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (40573 chars)</summary>
+<summary><code>mode: raw</code> (40587 chars)</summary>
 
 ```json
 {
@@ -12197,15 +12202,15 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺<
-… (truncated; 34874 more characters)
+… (truncated; 34888 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (4138 chars)</summary>
+<summary><code>mode: standard</code> (4148 chars)</summary>
 
-- **totalDue**: 350
+- **totalDue**: 275
 
 ## accounts (1)
 
@@ -12213,7 +12218,7 @@ Billing history and account balances.
 
 - **guarantorNumber**: 742
 - **patientName**: Homer Simpson
-- **amountDueNumber**: 350
+- **amountDueNumber**: 275
 - **paymentUrl**: (none)
 
 #### visits (1)
@@ -12228,15 +12233,15 @@ Billing history and account balances.
 - **Provider**: Provider: Julius Hibbert, MD
 - **HospitalAccountDisplay**: Account #HS-742-001
 - **HospitalAccountId**: HS-742-001
-- **PrimaryPayer**: Primary Payer: Springfield Nuclear Employee Health Plan
+- **PrimaryPayer**: Primary Payer: Springfield Nuclear Power Plant Employee Health Plan
 - **ChargeAmount**: $500.00
 - **InsurancePaymentAmount**: $0.00
 - **InsuranceAmountDue**: $150.00
 - **InsuranceEstimatedPaymentAmount**: (none)
 - **InsuranceAmountDueRaw**: 150
-- **SelfPaymentAmount**: (none)
-- **SelfAmountDue**: $350.00
-- **SelfAmountDueRaw**: 350
+- **SelfPaymentAmount**: $75.00
+- **SelfAmountDue**: $275.00
+- **SelfAmountDueRaw**: 275
 - **SelfAdjustmentAmount**: (none)
 - **SelfDiscountAmount**: (none)
 - **SelfBadDebtAmount**: (none)
@@ -12252,7 +12257,7 @@ Billing history and account balances.
 - **IsPatientNotResponsible**: false
 - **PatientNotResponsibleYet**: false
 - **IsOnPaymentPlan**: false
-- **IsNotOnPaymentPlan**: false
+- **IsNotOnPaymentPlan**: true
 - **IsBadDebtHAR**: false
 - **IsBadDebtVisit**: (none)
 - **IsContestedHAR**: (none)
@@ -12271,7 +12276,7 @@ Billing history and account balances.
 
 | Description | Amount | SelfAmountDue | InsuranceAmountDue | IsContested | HasAmountDue | PaymentList | SelfBadDebtAmount | HasBadDebtAmount | AdjustmentsOnly | BillingSystem |
 | - | - | - | - | - | - | - | - | - | - | - |
-| Office Visit, Established Patient - Annual Physical | $350.00 | $350.00 | (none) | false | true | | (none) | false | false | 1 |
+| Office Visit, Established Patient - Annual Physical | $350.00 | $275.00 | (none) | false | true | | (none) | false | false | 1 |
 | Lab Work - Lipid Panel | $150.00 | $0.00 | (none) | false | false | | (none) | false | false | 1 |
 - **ProcedureGroupList**: (none)
 - **CoverageInfoList**: (none)
@@ -12321,7 +12326,7 @@ Billing history and account balances.
 - **FormattedDateDisplay**: Jan 20, 2026
 - **Description**: MyChart Payment
 - **SubText**: (none)
-- **PaymentAmountDisplay**: $350.00
+- **PaymentAmountDisplay**: $75.00
 - **UndistributedAmountDisplay**: (none)
 
 ###### Receipt
@@ -12347,9 +12352,9 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1051 chars)</summary>
+<summary><code>mode: concise</code> (1060 chars)</summary>
 
-- **totalDue**: 350
+- **totalDue**: 275
 
 ## accounts (1)
 
@@ -12357,13 +12362,24 @@ Billing history and account balances.
 
 - **guarantorNumber**: 742
 - **patientName**: Homer Simpson
-- **amountDueNumber**: 350
+- **amountDueNumber**: 275
 
 #### visits (1)
 
-| StartDateDisplay | DateRangeDisplay | Description | Patient | Provider | PrimaryPayer | ChargeAmount | InsurancePaymentAmount | InsuranceAmountDue | SelfPaymentAmount | SelfAmountDue | category |
-| - | - | - | - | - | - | - | - | - | - | - | - |
-| Jan 10, 2026 | (none) | Annual Physical at Springfield General Hospital | Patient: Homer Simpson | Provider: Julius Hibbert, MD | Primary Payer: Springfield Nuclear Employee Health Plan | $500.00 | $0.00 | $150.00 | (none) | $350.00 | InformationalVisitList |
+##### visits 1
+
+- **StartDateDisplay**: Jan 10, 2026
+- **DateRangeDisplay**: (none)
+- **Description**: Annual Physical at Springfield General Hospital
+- **Patient**: Patient: Homer Simpson
+- **Provider**: Provider: Julius Hibbert, MD
+- **PrimaryPayer**: Primary Payer: Springfield Nuclear Power Plant Employee Health Plan
+- **ChargeAmount**: $500.00
+- **InsurancePaymentAmount**: $0.00
+- **InsuranceAmountDue**: $150.00
+- **SelfPaymentAmount**: $75.00
+- **SelfAmountDue**: $275.00
+- **category**: InformationalVisitList
 
 #### statements (1)
 
@@ -12375,23 +12391,23 @@ Billing history and account balances.
 
 | FormattedDateDisplay | Description | PaymentAmountDisplay |
 | - | - | - |
-| Jan 20, 2026 | MyChart Payment | $350.00 |
+| Jan 20, 2026 | MyChart Payment | $75.00 |
 | Dec 5, 2025 | MyChart Payment | $150.00 |
 - **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (3493 chars)</summary>
+<summary><code>mode: json</code> (3507 chars)</summary>
 
 ```json
 {
-  "totalDue": 350,
+  "totalDue": 275,
   "accounts": [
     {
       "guarantorNumber": "742",
       "patientName": "Homer Simpson",
-      "amountDueNumber": 350,
+      "amountDueNumber": 275,
       "paymentUrl": null,
       "visits": [
         {
@@ -12403,15 +12419,15 @@ Billing history and account balances.
           "Provider": "Provider: Julius Hibbert, MD",
           "HospitalAccountDisplay": "Account #HS-742-001",
           "HospitalAccountId": "HS-742-001",
-          "PrimaryPayer": "Primary Payer: Springfield Nuclear Employee Health Plan",
+          "PrimaryPayer": "Primary Payer: Springfield Nuclear Power Plant Employee Health Plan",
           "ChargeAmount": "$500.00",
           "InsurancePaymentAmount": "$0.00",
           "InsuranceAmountDue": "$150.00",
           "InsuranceEstimatedPaymentAmount": null,
           "InsuranceAmountDueRaw": 150,
-          "SelfPaymentAmount": null,
-          "SelfAmountDue": "$350.00",
-          "SelfAmountDueRaw": 350,
+          "SelfPaymentAmount": "$75.00",
+          "SelfAmountDue": "$275.00",
+          "SelfAmountDueRaw": 275,
           "SelfAdjustmentAmount": null,
           "SelfDiscountAmount": null,
           "SelfBadDebtAmount": null,
@@ -12427,7 +12443,7 @@ Billing history and account balances.
           "IsPatientNotResponsible": false,
           "PatientNotResponsibleYet": false,
           "IsOnPaymentPlan": false,
-          "IsNotOnPaymentPlan": false,
+          "IsNotOnPaymentPlan": true,
           "IsBadDebtHAR": false,
           "IsBadDebtVisit": null,
           "IsContestedHAR": null,
@@ -12444,7 +12460,7 @@ Billing history and account balances.
             {
               "Description": "Office Visit, Established Patient - Annual Physical",
               "Amount": "$350.00",
-              "SelfAmountDue": "$350.00",
+              "SelfAmountDue": "$275.00",
               "InsuranceAmountDue": null,
               "IsContested": false,
               "HasAmountDue": true,
@@ -12520,7 +12536,7 @@ Billing history and account balances.
           "FormattedDateDisplay": "Jan 20, 2026",
           "Description": "MyChart Payment",
           "SubText": null,
-          "PaymentAmountDisplay": "$350.00",
+          "PaymentAmountDisplay": "$75.00",
           "UndistributedAmountDisplay": null,
           "Receipt": {
             "DisplayNumber": "",
@@ -13122,7 +13138,7 @@ The insurance payers this organization's MyChart offers when adding a coverage �
 Providers on the care team, including outside providers, each with their role and specialty.
 
 <details>
-<summary><code>mode: raw</code> (19281 chars)</summary>
+<summary><code>mode: raw</code> (19278 chars)</summary>
 
 ```json
 {
@@ -13133,13 +13149,13 @@ Providers on the care team, including outside providers, each with their role an
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n      
-… (truncated; 9315 more characters)
+… (truncated; 9312 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (878 chars)</summary>
+<summary><code>mode: standard</code> (875 chars)</summary>
 
 - **DescriptiveTitle**: Your Care Team
 - **externalProvidersUnavailable**: false
@@ -13149,7 +13165,7 @@ Providers on the care team, including outside providers, each with their role an
 | Name | Relation | Specialty | IsExternal | fromExternalList | ID | NationalProviderID | DepartmentID | CanMessage |
 | - | - | - | - | - | - | - | - | - |
 | Julius Hibbert, MD | Primary Care Provider | Internal Medicine | false | false | PROV-HIBBERT | 1000000001 | DEP-IM-1 | true |
-| Nick Riviera, MD | Surgeon | General Surgery | false | false | PROV-RIVIERA | 1000000002 | DEP-SURG-1 | false |
+| Nick Riviera, MD | Surgeon | General Surgery | false | false | PROV-NICK | 1000000002 | DEP-SURG-1 | false |
 | Springfield Nuclear Power Plant Employee Health Plan | Payer | (empty) | false | false | PAYER-SNPP | (empty) | (empty) | false |
 | Dr. Velimirovic, MD | (none) | Cardiothoracic Surgery | false | false | PROV-VELIMIROVIC | 1000000004 | DEP-SURG-2 | true |
 | Marvin Monroe, MD | Outside Provider | Psychiatry | true | true | PROV-EXT-MONROE | 1000000003 | (empty) | false |
@@ -13174,7 +13190,7 @@ Providers on the care team, including outside providers, each with their role an
 </details>
 
 <details>
-<summary><code>mode: json</code> (1228 chars)</summary>
+<summary><code>mode: json</code> (1225 chars)</summary>
 
 ```json
 {
@@ -13198,7 +13214,7 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "General Surgery",
       "IsExternal": false,
       "fromExternalList": false,
-      "ID": "PROV-RIVIERA",
+      "ID": "PROV-NICK",
       "NationalProviderID": "1000000002",
       "DepartmentID": "DEP-SURG-1",
       "CanMessage": false
@@ -14452,7 +14468,7 @@ Electronic Health Information export templates this instance offers.
 MyChart accounts at other organizations that are linked to this one.
 
 <details>
-<summary><code>mode: raw</code> (1738 chars)</summary>
+<summary><code>mode: raw</code> (1828 chars)</summary>
 
 ```json
 {
@@ -14480,11 +14496,11 @@ MyChart accounts at other organizations that are linked to this one.
       "IsSSO": false,
       "IncompleteH2GSetup": false,
       "LastEncounterDetail": {
-        "Patient": "",
-        "Physician": "",
-        "Department": "",
-        "Date": "",
-        "Time": ""
+        "Patient": "Homer Jay Simpson",
+        "Physician": "Nick Riviera, MD",
+        "Department": "Springfield General Hospital Radiology",
+        "Date": "Sep 15, 2025",
+        "Time": "3:00 PM"
       },
       "LastAccessTokenDateTime": null,
       "DisplayAutoRefresh": false,
@@ -14543,7 +14559,7 @@ MyChart accounts at other organizations that are linked to this one.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (666 chars)</summary>
+<summary><code>mode: standard</code> (721 chars)</summary>
 
 - **HomeOrgName**: (empty)
 - **CEOptOut**: false
@@ -14557,11 +14573,11 @@ MyChart accounts at other organizations that are linked to this one.
 
 #### LastEncounterDetail
 
-- **Patient**: (empty)
-- **Physician**: (empty)
-- **Department**: (empty)
-- **Date**: (empty)
-- **Time**: (empty)
+- **Patient**: Homer Jay Simpson
+- **Physician**: Nick Riviera, MD
+- **Department**: Springfield General Hospital Radiology
+- **Date**: Sep 15, 2025
+- **Time**: 3:00 PM
 - **OrganizationId**: (empty)
 - **LinkType**: 0
 - **UserActionStatus**: 0
@@ -14579,7 +14595,7 @@ MyChart accounts at other organizations that are linked to this one.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (223 chars)</summary>
+<summary><code>mode: concise</code> (278 chars)</summary>
 
 ## OrgList (1)
 
@@ -14589,16 +14605,16 @@ MyChart accounts at other organizations that are linked to this one.
 
 #### LastEncounterDetail
 
-- **Patient**: (empty)
-- **Physician**: (empty)
-- **Department**: (empty)
-- **Date**: (empty)
-- **Time**: (empty)
+- **Patient**: Homer Jay Simpson
+- **Physician**: Nick Riviera, MD
+- **Department**: Springfield General Hospital Radiology
+- **Date**: Sep 15, 2025
+- **Time**: 3:00 PM
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (481 chars)</summary>
+<summary><code>mode: json</code> (571 chars)</summary>
 
 ```json
 {
@@ -14609,11 +14625,11 @@ MyChart accounts at other organizations that are linked to this one.
     {
       "OrganizationName": "Shelbyville Medical Center",
       "LastEncounterDetail": {
-        "Patient": "",
-        "Physician": "",
-        "Department": "",
-        "Date": "",
-        "Time": ""
+        "Patient": "Homer Jay Simpson",
+        "Physician": "Nick Riviera, MD",
+        "Department": "Springfield General Hospital Radiology",
+        "Date": "Sep 15, 2025",
+        "Time": "3:00 PM"
       },
       "OrganizationId": "",
       "LinkType": 0,
@@ -14642,7 +14658,7 @@ MyChart accounts at other organizations that are linked to this one.
 Emergency contacts on file.
 
 <details>
-<summary><code>mode: raw</code> (2186 chars)</summary>
+<summary><code>mode: raw</code> (2177 chars)</summary>
 
 ```json
 {
@@ -14657,7 +14673,7 @@ Emergency contacts on file.
         "labelText": "Spouse",
         "isInactive": false
       },
-      "isPrimaryContact": false,
+      "isPrimaryContact": true,
       "isLinkedToOtherPatient": false,
       "isHCA": false,
       "isAddressLinkedToPatient": false,
@@ -14722,7 +14738,7 @@ Emergency contacts on file.
       "isAddressLinkedToPatient": false,
       "contactInformation": {
         "address": {
-          "street": "742 Evergreen Terrace",
+          "street": "12 Bowlarama Lane",
           "city": "Springfield",
           "county": {
             "number": "",
@@ -14748,7 +14764,7 @@ Emergency contacts on file.
             "isInactive": false
           },
           "formattedValues": [
-            "742 Evergreen Terrace",
+            "12 Bowlarama Lane",
             "Springfield, NT 49007"
           ],
           "allowArbitraryInput": true,
@@ -14799,7 +14815,7 @@ Emergency contacts on file.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (838 chars)</summary>
+<summary><code>mode: standard</code> (833 chars)</summary>
 
 - **hideEmergencyContacts**: false
 
@@ -14826,7 +14842,7 @@ Emergency contacts on file.
 ##### address
 
 - **formattedValues**: 742 Evergreen Terrace, Springfield, NT 49007
-- **isPrimaryContact**: false
+- **isPrimaryContact**: true
 - **isEmergencyContact**: true
 
 ### contacts 2
@@ -14849,7 +14865,7 @@ Emergency contacts on file.
 
 ##### address
 
-- **formattedValues**: 742 Evergreen Terrace, Springfield, NT 49007
+- **formattedValues**: 12 Bowlarama Lane, Springfield, NT 49007
 - **isPrimaryContact**: false
 - **isEmergencyContact**: true
 
@@ -14897,7 +14913,7 @@ Emergency contacts on file.
 </details>
 
 <details>
-<summary><code>mode: json</code> (684 chars)</summary>
+<summary><code>mode: json</code> (679 chars)</summary>
 
 ```json
 {
@@ -14924,7 +14940,7 @@ Emergency contacts on file.
           ]
         }
       },
-      "isPrimaryContact": false,
+      "isPrimaryContact": true,
       "isEmergencyContact": true
     },
     {
@@ -14943,7 +14959,7 @@ Emergency contacts on file.
         "emailAddress": "",
         "address": {
           "formattedValues": [
-            "742 Evergreen Terrace",
+            "12 Bowlarama Lane",
             "Springfield, NT 49007"
           ]
         }

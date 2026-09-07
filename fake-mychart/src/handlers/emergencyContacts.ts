@@ -27,6 +27,10 @@ export const emergencyContactsPost: ExactRoutes = {
         body.name || '',
         body.relationshipType || '',
         body.phoneNumber || '',
+        // A contact added through the API has no address on file until one is
+        // entered, and this body does not carry one.
+        ['', '', ''],
+        false,
         body.isEmergencyContact ?? true,
       );
       activeEmergencyContacts(request).contacts.push(newContact);

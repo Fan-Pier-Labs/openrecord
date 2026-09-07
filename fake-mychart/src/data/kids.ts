@@ -157,6 +157,7 @@ const bart: KidRecord = {
     },
     healthSummaryHeader: {
       lastVisit: { date: '02/03/2026', visitType: 'Asthma Follow-up' },
+      nextVisit: { date: '', visitType: '' },
     },
     immunizations: immunizations([
       { name: 'Influenza (Flu)', id: 'IMM-BART-001', formattedAdministeredDates: ['10/08/2025', '10/11/2024'] },
@@ -240,6 +241,7 @@ const lisa: KidRecord = {
     },
     healthSummaryHeader: {
       lastVisit: { date: '01/28/2026', visitType: 'Well Child Visit' },
+      nextVisit: { date: '', visitType: '' },
     },
     immunizations: immunizations([
       { name: 'Influenza (Flu)', id: 'IMM-LISA-001', formattedAdministeredDates: ['10/08/2025', '10/11/2024'] },
@@ -316,6 +318,7 @@ const maggie: KidRecord = {
     },
     healthSummaryHeader: {
       lastVisit: { date: '01/15/2026', visitType: '2 Year Well Child Visit' },
+      nextVisit: { date: '', visitType: '' },
     },
     immunizations: immunizations([
       { name: 'Hepatitis B', id: 'IMM-MAGGIE-001', formattedAdministeredDates: ['01/12/2024', '02/16/2024', '07/19/2024'] },
