@@ -127,6 +127,14 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+  /**
+   * True when the payload is one finished file — a `MessageAttachmentFile`:
+   * bytes plus a name and MIME type — rather than JSON. Unlike
+   * {@link rendersMedia} there is nothing to decode; each client only decides
+   * where the file goes (the MCPB saves it to Downloads and inlines an image,
+   * the CLI writes it under `--output`, the mobile app shows an image inline).
+   */
+  deliversFile?: boolean;
 }
 
 /**

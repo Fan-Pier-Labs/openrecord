@@ -304,8 +304,8 @@ describe('conversationThreadProcessor', () => {
       numUnread: 1,
       truncated: false,
       messages: [
-        { deliveryInstantISO: '2026-01-10T14:30:00Z', senderName: 'Julius Hibbert, MD', isFromPatient: false, bodyText: 'How are you feeling?' },
-        { deliveryInstantISO: '2026-01-10T15:45:00Z', senderName: 'Homer Simpson', isFromPatient: true, bodyText: 'Much better, thanks.' },
+        { deliveryInstantISO: '2026-01-10T14:30:00Z', senderName: 'Julius Hibbert, MD', isFromPatient: false, bodyText: 'How are you feeling?', attachments: [] },
+        { deliveryInstantISO: '2026-01-10T15:45:00Z', senderName: 'Homer Simpson', isFromPatient: true, bodyText: 'Much better, thanks.', attachments: [] },
       ],
     })
   })

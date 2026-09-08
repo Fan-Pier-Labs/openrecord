@@ -27,7 +27,9 @@ import {
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
+  type MessageAttachmentFile,
 } from "../../../../shared/capabilities";
+import { Image } from "react-native";
 import { TOTP } from "totp-generator";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
@@ -473,6 +475,9 @@ async function runScraper(
   if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
+  if (capability.deliversFile && request) {
+    return downloadMessageAttachmentForChat(capability, request, input);
+  }
 
   try {
     return await executeCapability(request, toolName, input, ctx);
@@ -482,6 +487,51 @@ async function runScraper(
     // structured error than as a crashed turn.
     return { error: (err as Error).message };
   }
+}
+
+/** Image types the chat bubble can render from a data URI. */
+const CHAT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+/**
+ * Download one message attachment. An image goes into the attachment store
+ * like an X-ray does, so the reply can carry an [image:ID] token; anything
+ * else (a PDF, say) has no place to go on this client yet — there is no file
+ * viewer or share sheet — so the model is told so rather than handed bytes.
+ */
+async function downloadMessageAttachmentForChat(
+  capability: Capability,
+  request: MyChartRequest,
+  input: Record<string, unknown>,
+): Promise<unknown> {
+  let file: MessageAttachmentFile;
+  try {
+    file = (await executeCapability(request, capability.id, input)) as MessageAttachmentFile;
+  } catch (err) {
+    return { error: `Could not download the attachment: ${(err as Error).message}` };
+  }
+  if (!CHAT_IMAGE_TYPES.has(file.mimeType)) {
+    return {
+      error:
+        `${file.name} is a ${file.mimeType} file, which the app cannot display yet. ` +
+        "It can be downloaded with the OpenRecord Claude Desktop extension or the mychart-cli.",
+    };
+  }
+  const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;
+  const { width, height } = await imageSize(dataUri);
+  const imageId = `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  putImageAttachment(imageId, dataUri, file.name, width, height);
+  return { image_id: imageId, caption: file.name, width, height };
+}
+
+/** The chat bubble sizes a picture by its aspect ratio; unknown reads as square. */
+function imageSize(uri: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve({ width: 0, height: 0 }),
+    );
+  });
 }
 
 /**

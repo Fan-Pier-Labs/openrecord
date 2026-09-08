@@ -237,6 +237,7 @@ export {
   conversationThreadProcessor,
   type ConversationThreadStandard,
 } from '../../scrapers/myChart/chart/messages/messageThreads';
+export { downloadMessageAttachment } from '../../scrapers/myChart/chart/messages/messageAttachment';
 export {
   sendNewMessage,
   getMessageRecipients,
@@ -490,6 +491,7 @@ export {
   type CapabilityKind,
   type CapabilityParam,
   type StudyImagePayload,
+  type MessageAttachmentFile,
 } from '../../shared/capabilities';
 
 // ─── Public directories — no MyChart account required ────────────────────

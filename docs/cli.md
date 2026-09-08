@@ -201,6 +201,17 @@ mychart-cli --host mychart.example.org --action download_imaging_study \
   --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
 ```
 
+`get_message_attachment` (`deliversFile` in the registry) is the other capability
+whose payload is a file rather than JSON. The CLI writes the attachment under
+`./message-attachments` (or `--output <dir>`) with the name MyChart lists for
+it — a re-download gets a numeric suffix rather than overwriting — and prints a
+JSON summary with the path:
+
+```bash
+mychart-cli --host mychart.example.org --action get_message_attachment \
+  --arg conversation_id=<hthId from get_messages> --arg attachment_id=<dcsId from get_message_thread>
+```
+
 Every chart-touching capability also accepts `--arg patient="<name>"`, the same
 assertion `--patient` applies to the rest of the CLI: the call refuses if
 MyChart is on a different record rather than reading the wrong chart. The

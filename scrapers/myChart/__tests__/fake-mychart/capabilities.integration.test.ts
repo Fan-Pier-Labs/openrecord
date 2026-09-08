@@ -27,6 +27,7 @@ import {
   executeCapability,
   getCapability,
   type StudyImagePayload,
+  type MessageAttachmentFile,
 } from '../../../../shared/capabilities'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
@@ -101,6 +102,13 @@ describe('capability registry against fake-mychart', () => {
     {
       id: 'get_message_thread',
       args: async (s) => ({ conversation_id: await firstConversationId(s) }),
+    },
+    {
+      id: 'get_message_attachment',
+      args: async (s) => {
+        const { conversationId, dcsId } = await firstAttachment(s)
+        return { conversation_id: conversationId, attachment_id: dcsId }
+      },
     },
     {
       id: 'get_letter_details',
@@ -189,6 +197,37 @@ describe('capability registry against fake-mychart', () => {
     expect(bodies.some((b) => b.includes('per day.\n\nYour cholesterol'))).toBe(true)
     expect(bodies.some((b) => b.includes('liposuction & lap-band'))).toBe(true)
   }, 30_000)
+
+  // The thread lists an attachment; the download is the portal's own two-step
+  // (`GetDocumentDetailsLegacy`, then the link it returns). The fixture holds
+  // real files, so the magic bytes prove the bytes came through untouched.
+  it('downloads every attachment on a thread as the file it is', async () => {
+    const inbox = (await executeCapability(session, 'get_messages')) as {
+      conversations: Array<{ hthId: string; messages: Array<{ attachments: Array<{ name: string; dcsId: string; fileExtension: string }> }> }>
+    }
+    const conversation = inbox.conversations.find((c) => c.messages.some((m) => m.attachments.length > 0))
+    expect(conversation).toBeDefined()
+    const attachments = conversation!.messages.flatMap((m) => m.attachments)
+    expect(attachments.length).toBeGreaterThan(1)
+
+    const magic: Record<string, number[]> = { PDF: [0x25, 0x50, 0x44, 0x46], PNG: [0x89, 0x50, 0x4e, 0x47] }
+    const mime: Record<string, string> = { PDF: 'application/pdf', PNG: 'image/png' }
+    for (const attachment of attachments) {
+      const file = (await executeCapability(session, 'get_message_attachment', {
+        conversation_id: conversation!.hthId,
+        attachment_id: attachment.dcsId,
+      })) as MessageAttachmentFile
+      expect(file.name).toBe(attachment.name)
+      expect(file.dcsId).toBe(attachment.dcsId)
+      expect(file.mimeType).toBe(mime[attachment.fileExtension]!)
+      expect(Array.from(file.bytes.subarray(0, 4))).toEqual(magic[attachment.fileExtension]!)
+    }
+
+    // An id off this conversation is refused, naming what it does have.
+    await expect(
+      executeCapability(session, 'get_message_attachment', { conversation_id: conversation!.hthId, attachment_id: 'WP-DCS-NOPE' }),
+    ).rejects.toThrow(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/)
+  }, 60_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────
 
@@ -494,6 +533,19 @@ async function firstVisitCsn(session: MyChartRequest): Promise<string> {
 }
 
 /** The id of the first conversation in the inbox. */
+async function firstAttachment(session: MyChartRequest): Promise<{ conversationId: string; dcsId: string }> {
+  const inbox = (await executeCapability(session, 'get_messages')) as {
+    conversations?: Array<{ hthId: string; messages: Array<{ attachments: Array<{ dcsId: string }> }> }>
+  }
+  for (const c of inbox.conversations ?? []) {
+    for (const m of c.messages) {
+      const dcsId = m.attachments[0]?.dcsId
+      if (dcsId) return { conversationId: c.hthId, dcsId }
+    }
+  }
+  throw new Error('the fixture inbox has no attachment to download')
+}
+
 async function firstConversationId(session: MyChartRequest): Promise<string> {
   const inbox = (await executeCapability(session, 'get_messages')) as {
     conversations?: Array<{ hthId: string }>

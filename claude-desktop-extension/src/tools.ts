@@ -63,6 +63,7 @@ import {
   type CapabilityContext,
   type CapabilityParam,
   type StudyImagePayload,
+  type MessageAttachmentFile,
 } from '../../shared/capabilities';
 
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
@@ -90,6 +91,8 @@ import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate }
 import { decodeStudy, encodeFullResolutionJpegs } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
+import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
+import { saveToDownloads as saveFileToDownloads } from './save-file';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -342,6 +345,9 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.rendersMedia) {
           return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
+        if (capability.deliversFile) {
+          return attachmentResult(payload as MessageAttachmentFile);
+        }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
@@ -350,6 +356,54 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       }
     },
   );
+}
+
+/** Image types Claude Desktop renders from an `image` content block. */
+const INLINE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+/**
+ * A `deliversFile` capability's result: the file is written to the user's
+ * Downloads folder — the only place a PDF can go from a stdio server — and an
+ * image small enough for the host's 1MB result cap is shown inline as well.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion. `baseDir` is the test seam.
+ */
+export function attachmentResult(file: MessageAttachmentFile, baseDir?: string): ToolResult {
+  const savedTo =
+    baseDir === undefined
+      ? saveFileToDownloads(file.name, file.fileExtension, file.bytes)
+      : saveFileToDownloads(file.name, file.fileExtension, file.bytes, baseDir);
+
+  const isImage = INLINE_IMAGE_TYPES.has(file.mimeType);
+  const base64 = isImage ? Buffer.from(file.bytes).toString('base64') : '';
+  const inline = isImage && base64.length <= INLINE_BUDGET_BYTES;
+
+  const note =
+    isImage && !inline
+      ? 'The image is too large to show in the conversation; open the saved file to view it.'
+      : file.mimeType === 'application/pdf'
+        ? 'Open the saved PDF to read it; its text is not in this result.'
+        : undefined;
+
+  const content: ToolContent[] = [
+    {
+      type: 'text',
+      text: JSON.stringify(
+        {
+          name: file.name,
+          mime_type: file.mimeType,
+          size_bytes: file.bytes.length,
+          saved_to: savedTo,
+          ...(note ? { note } : {}),
+        },
+        null,
+        2,
+      ),
+    },
+  ];
+  if (inline) content.push({ type: 'image', data: base64, mimeType: file.mimeType });
+  return { content };
 }
 
 /**

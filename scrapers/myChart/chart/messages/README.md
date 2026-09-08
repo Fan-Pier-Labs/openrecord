@@ -5,8 +5,8 @@ and the write side — new messages, replies, drafts and deletes.
 
 | | |
 | --- | --- |
-| **Capabilities** | `get_messages` · `get_message_thread` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
-| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
+| **Capabilities** | `get_messages` · `get_message_thread` · `get_message_attachment` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
+| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
 | **Activity** | React `/app/communication-center` |
 
 ## Endpoints
@@ -21,6 +21,8 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: {…}, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox |
 | `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps |
 | `POST /api/conversations/GetConversationMessages` | `{ id, startInstantISO?, maxReadMessages, PageNonce }` | older pages of that thread |
+| `POST /api/documents/viewer/GetDocumentDetailsLegacy` | `{ dcsId, fileExtension, organizationId, useOldMobileLink: false }` | where an attachment's file is — `downloadUrl`, `mimeType`, `allowPreview` |
+| `GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…` | — | the attachment's bytes (the `downloadUrl` above, mount-relative) |
 | `POST /api/medicaladvicerequests/GetMedicalAdviceRequestRecipients` | `{ organizationId }` | who can be written to |
 | `POST /api/medicaladvicerequests/GetSubtopics` | `{ organizationId }` | what about (`topicList[]`) |
 | `POST /api/medicaladvicerequests/GetViewers` | `{ organizationId }` | the patient's own `wprId` |
@@ -84,6 +86,31 @@ Ids throughout are Epic's `WP-`-prefixed opaque strings.
   keyed on those names returns the right *number* of messages with every field blank, which
   tells a caller they have three empty messages rather than that the thread could not be
   read.
+- **Attachments are described by the thread and downloaded through the document viewer.**
+  A message's `attachments[]` carry `name`, `fileExtension`, `dcsId`, `etxId`, `type`,
+  `organizationId` and `legacyUrlForCommunityJump`, never the bytes. The portal's own
+  `useDcsDocument` hook (`epic.px.client.document-viewer.js`) fetches a `type: 2`
+  (`MessageDocType.DCS`) attachment with `GetDocumentDetailsLegacy` and then GETs the
+  mount-relative `downloadUrl` it answers, which streams the file with its real
+  `Content-Type`, a `Content-Length` and `Content-Disposition: attachment; filename="…"`.
+  Verified on two instances across 18 attachments (PDF, PNG, JPG). `fileDescription` in
+  the details is the attachment's `name`; `displayName` is a system name that also rides in
+  the link. The `fileExtension` posted is ignored — a wrong one still gets the document's real
+  `mimeType`. `previewUrl` and `allowPreview: true` come back for images only. The non-legacy
+  `GetDocumentDetails` answers the same fields with a `DownloadOrStream` link; the scraper
+  uses the legacy variant because that is what the communication center passes
+  (`legacyEncryption: true`).
+- **Two payload traps on that path, both measured on the same two instances.** An id the
+  record does not hold gets **200 with a literal JSON `null`** from `GetDocumentDetailsLegacy`
+  (the `GetConversationDetails` pattern), and a bogus `dcsid` on the download GET gets **200,
+  no `Content-Type`, empty body** — not a 404. `downloadMessageAttachment` checks the payload
+  on both, or an unknown id becomes a zero-byte file.
+- **Only `type: 2` attachments have been observed.** `MessageDocType` is `ETX = 1`, `DCS = 2`,
+  `DCS_HNO = 3`; the portal renders an ETX attachment as a popup via
+  `POST /api/conversations/GetClinicalReferenceDetails { organizationId, type, etxId, dcsId }`
+  and opens a `legacyUrlForCommunityJump` attachment in another organization's portal. Neither
+  has appeared on any instance there are credentials for, so the scraper refuses them with the
+  reason rather than modelling unobserved behaviour.
 - **`isFromPatient` is derived from both sides of the author discriminator** — `wprKey` set
   *and* `empKey` empty — so an author object that cannot be read falls to "not from the
   patient" rather than mislabelling a provider's message as the patient's.
@@ -162,8 +189,9 @@ untouched today.
 | `isFromPatient` | `wprKey` set and `empKey` absent | ✓ | ✓ | ✓ | Derived. Which side of the conversation each message is on. |
 | `conversations[].messages[].author.empKey`, `.wprKey` | Author keys | — | ✓ | — | The inputs to `senderName`; kept so the resolution is checkable. |
 | `conversations[].messages[].author.displayName` | Author display name | — | — | — | Always empty: `""` on every message of every captured instance; names live in `users` / `viewers`. |
-| `conversations[].messages[].attachments[].name`, `.fileExtension` | Attachments | — | ✓ | — | What was attached; detail. |
-| `conversations[].messages[].attachments[].type`, `.dcsId`, `.etxId`, `.legacyUrlForCommunityJump`, `.organizationId` | Attachment plumbing | — | — | — | Internal / portal link. |
+| `conversations[].messages[].attachments[].name`, `.fileExtension` | Attachments | — | ✓ | ✓ | What was attached — a reader deciding whether to download it needs the name. |
+| `conversations[].messages[].attachments[].dcsId` | Attachment id | — | ✓ | ✓ | Handle: `get_message_attachment` takes it as `attachment_id`. |
+| `conversations[].messages[].attachments[].type`, `.etxId`, `.legacyUrlForCommunityJump`, `.organizationId` | Attachment plumbing | — | — | — | Internal / portal link; the scraper reads them from `raw` when downloading. |
 | `conversations[].messages[].tasks[]`, `.suggestedActions[]` | Tasks and actions | — | ✓ | — | Uncaptured; passed through. |
 | `conversations[].userOverrideNames{}` | Per-thread display-name overrides | — | — | — | Resolved into `senderName`. |
 | `conversations[].contexts[]`, `.tags.Messages`, `.legacyMessageDetailsUrl`, `.hasLoadAllUsers`, `.allowBulkActions`, `.userKeys[]`, `.viewerKeys[]`, `.maskedUserNames[]`, `.showOtherViewersOption` | Thread rendering | — | — | — | UI flag / portal link / internal. |
@@ -198,6 +226,22 @@ Message fields are as in `get_messages`; the table lists what details adds.
 
 Today's `ThreadMessage` renames `wmgId` → `messageId`, `deliveryInstantISO` →
 `sentDate`, `body` → `messageBody`; rule 2 keeps MyChart's names.
+
+---
+
+## `get_message_attachment`
+
+`GetConversationDetails` (paged as above, to find the attachment and take its
+`fileExtension` and `organizationId` as MyChart lists them), then
+`POST /api/documents/viewer/GetDocumentDetailsLegacy`, then `GET` the
+`downloadUrl` it answers. The payload is one file, not JSON, so this
+capability has **no output modes**: `run` returns a `MessageAttachmentFile`
+(`conversationId`, `dcsId`, `name`, `fileExtension`, `mimeType`, `bytes`) and
+each client delivers it its own way, keyed off the registry's `deliversFile`
+flag — the Claude Desktop extension writes it to the Downloads folder and shows
+an image inline, the CLI writes it under `--output` (default
+`./message-attachments`), the mobile app shows an image in the chat and says so
+for anything else.
 
 ---
 
