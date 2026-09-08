@@ -71,7 +71,7 @@ describe('learnBuildHashes', () => {
     host: `${buildHash}-${namedRelease ?? 'none'}-${Math.random()}`,
     names: [],
     buildHash,
-    namedRelease,
+    ...(namedRelease ? { namedRelease } : {}),
   })
 
   it('takes the majority release for a hash, not the first one seen', () => {
