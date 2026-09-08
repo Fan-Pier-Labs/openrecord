@@ -47,7 +47,7 @@ token, then `POST` the endpoint(s) below it.
 | [`otherMyCharts/`](chart/otherMyCharts/) | `get_linked_accounts` | legacy `/Community/Manage` |
 | [`preventiveCare/`](chart/preventiveCare/) | `get_preventive_care` | legacy `/HealthAdvisories` (HTML only) |
 | [`profile/`](chart/profile/) | `get_profile` | `/Home` + legacy `/PersonalInformation` |
-| [`questionnaires/`](chart/questionnaires/) | `get_questionnaires` | legacy `/Questionnaire` |
+| [`questionnaires/`](chart/questionnaires/) | `get_questionnaires` | React `/app/questionnaires` |
 | [`referrals/`](chart/referrals/) | `get_referrals` | React `/app/referrals` |
 | [`upcomingOrders/`](chart/upcomingOrders/) | `get_upcoming_orders` | React `/app/upcoming-orders` |
 | [`visits/`](chart/visits/) | `get_past_visits`, `get_upcoming_visits` | legacy `/Visits/VisitsList` |

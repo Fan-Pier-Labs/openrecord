@@ -351,7 +351,7 @@ so that should wait for a capture to replace them with.
 | `get_upcoming_orders` | `orderList`, `orderGroupList`, `providerList` all `{}` on every capture (scraper comment) | `orderName`, `orderType`, `status`, `orderedDate`, `orderedByProvider`, `facilityName` | Unverified. The envelope is captured; the element is not. |
 | `get_allergies` | `dataList: []` on the captured account | `name`, `id`, `formattedDateNoted`, `type`, `reaction`, `severity`, with two nesting guesses | Unverified. |
 | `get_documents` | No skeleton; endpoint never captured | `id`, `title`, `documentType`, `date`, `providerName`, `organizationName` | Unverified, envelope included. |
-| `get_questionnaires` | No skeleton. `api-surface-gaps.md` saw the React-era `/api/questionnaire/GetQuestionnaireList` return data; the scraper calls the legacy `/Questionnaire/GetQuestionnaireList` | `id`, `name`, `status`, `dueDate`, `completedDate` | Unverified, and the endpoint may be the wrong one. |
+| `get_questionnaires` (completed) | `completedQuestionnaires: []` on all four captures of `/api/questionnaire/GetQuestionnaireList` | Nothing — passed through whole | Unverified. The envelope and the assigned / optional elements are captured. |
 | `get_care_journeys` | No skeleton | `id`, `name`, `description`, `status`, `providerName` | Unverified, envelope included. |
 | `get_insurance` | HTML page; the captured account had no coverage on file and every `/api/insurance-hub/*` endpoint answered 500 | `.coverage-card` / `.plan-name` / `.member-id` selectors matching the fake's page | Unverified. `pageText` in the standard object is the audit trail. |
 | `get_health_summary` (`conditionList`, `journeyList`, `actionPlans`) | `[]` on every capture | Not projected today | Passed through whole. |
