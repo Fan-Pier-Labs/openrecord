@@ -31,9 +31,10 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 # ── Not product code ─────────────────────────────────────────────────────────
 #
 #   mock_data/         — test fixtures
-#   list-all-mycharts/*.ts (the two scripts only) — run-it-yourself diagnostics
-#                        and the seed refresher. `directory.ts` beside them is
-#                        NOT ignored: it ships in the app and the extension.
+#   list-all-mycharts/probe*.ts + fetch-mychart-instances.ts — run-it-yourself
+#                        sweeps of every real host, and the seed refresher.
+#                        `directory.ts` beside them is NOT ignored: it ships in
+#                        the app and the extension.
 #   fake-mychart/      — the stand-in MyChart server. Its fidelity is proven by
 #                        the suites that run against it, not by covering its own
 #                        source.
@@ -85,6 +86,10 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
   "scrapers/list-all-mycharts/probe-mount-discovery.ts",
+  "scrapers/list-all-mycharts/probe-open-scheduling.ts",
+  "scrapers/list-all-mycharts/probe-open-slots.ts",
+  "scrapers/list-all-mycharts/probe-epic-version.ts",
+  "scrapers/list-all-mycharts/probeRunner.ts",
   "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
   "fake-mychart/**",
   "**/__tests__/**",

@@ -23,6 +23,14 @@
  *   no redirect, `keepalive.asp` answers honestly, and the newer fields are
  *   absent.
  *
+ * The names are the captured instances' FHIR releases; the behavior follows
+ * the MyChart *web build*, which lags or leads it. A September 2026 sweep of
+ * the whole directory found the redirect dance on every 2025+ web build,
+ * including three organizations reporting August 2025 over FHIR, and the
+ * bare 500 only on older builds — February 2025 and earlier, and the one
+ * captured August 2025 instance, which still runs its older build
+ * (`scrapers/list-all-mycharts/README.md`).
+ *
  * `November 2025` is the default because it is the majority shape and the
  * richer behavior. Switch with `POST /mode {"epicVersion":"August 2025"}`.
  * Global to the process and restored by `/reset`.
