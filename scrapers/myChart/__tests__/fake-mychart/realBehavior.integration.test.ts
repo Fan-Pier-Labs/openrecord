@@ -774,29 +774,3 @@ describe('insurance payer catalogue fidelity', () => {
   })
 })
 
-/**
- * A message attachment is a DCS document, served by
- * `/Documents/ViewDocument/Download?dcsId=…&method=view` with its own
- * Content-Type and a generic `Document.<EXT>` disposition. An unknown or
- * another patient's `dcsId` answers 200 with an empty body and no
- * Content-Type — not a 404 — on all four live instances, which is the case a
- * status-only check saves as an empty file.
- */
-describe('the message attachment download', () => {
-  it('serves a listed dcsId with the file\'s type, length and a generic disposition', async () => {
-    const res = await session.makeRequest({ path: '/Documents/ViewDocument/Download?dcsId=WP-ATT-001&method=view' })
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('application/pdf')
-    expect(res.headers.get('content-disposition')).toBe('inline; filename="Document.PDF"')
-    const bytes = new Uint8Array(await res.arrayBuffer())
-    expect(res.headers.get('content-length')).toBe(String(bytes.length))
-    expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe('%PDF-')
-  })
-
-  it('answers an unknown dcsId with 200, an empty body and no Content-Type', async () => {
-    const res = await session.makeRequest({ path: '/Documents/ViewDocument/Download?dcsId=WP-ATT-NOPE&method=view' })
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBeNull()
-    expect((await res.arrayBuffer()).byteLength).toBe(0)
-  })
-})

@@ -140,11 +140,6 @@ not compile for any client — the enforcement for "every dispatch goes through 
   modules to keep it that way. The extension and the CLI each used to branch on `rendersMedia`
   *before* dispatching and run the media capability directly, which made `download_imaging_study`
   the one tool that skipped the assertion.
-- **`returnsFile`** marks the one capability (`get_message_attachment`) whose payload is one
-  downloaded file — a `DownloadedFile` of name, MIME type and bytes. Same rule as `rendersMedia`:
-  clients branch on the flag after the dispatch, and each keeps the bytes where its platform keeps
-  files (the extension under the OS temp directory, showing a small image inline and never a PDF;
-  the CLI in `--output`; the mobile app in its image attachment store).
 - **`rendersMedia`** marks the one capability (`download_imaging_study`) whose payload isn't JSON:
   it returns raw CLO bytes because the encode step is the client's, not the capability's — the CLI
   uses the sharp-backed exporter, while the MCPB and the mobile app share the pure-JS one
@@ -160,6 +155,14 @@ not compile for any client — the enforcement for "every dispatch goes through 
   real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
   and an earlier budget spent on those first N junk entries returned zero images with zero
   errors. fake-mychart's CT study reproduces that shape.
+- **`returnsFile`** marks a capability (`get_message_attachment` today) whose payload is one
+  finished file — a `FilePayload` of safe file name, MIME type and bytes — rather than JSON. There
+  is nothing to decode, so a client only decides where the file goes: the extension writes it to
+  the Downloads folder (never overwriting, and showing a small image inline), the CLI writes it
+  under `--output` (default: the current directory), and the mobile app keeps an image for the chat
+  and says so for anything else. Same rule as `rendersMedia`: clients branch on the flag after the
+  dispatch, never on the id, and `capability-parity.unit.test.ts` greps for it. The scraper makes
+  the name safe (`safeFileName`, `scrapers/myChart/core/`) so no client has to.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still

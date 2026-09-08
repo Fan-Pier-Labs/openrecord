@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
-import { attachmentFiles } from '@/data/homer';
 import { messagesPage } from '@/lib/html';
 import { epicMessageBody } from '@/lib/messageBody';
 import { state, type ConversationStore } from '@/lib/state';
+import * as homer from '@/data/homer';
 import { html, json } from './respond';
 import { activeConversations } from './records';
-import type { ExactRoutes } from './types';
+import type { ExactRoutes, HandlerContext } from './types';
 
 /**
  * Longest message body `SendMedicalAdviceRequest` will actually accept; anything longer is
@@ -151,33 +151,87 @@ function conversationDetailsFailure(): NextResponse {
   return json(null);
 }
 
+/**
+ * The attachment `dcsId` names, if the record this session is in holds it.
+ * Server-side enforcement: another record's document id is unknown here,
+ * exactly as a real instance answers for a `dcsId` off the active chart.
+ */
+function findAttachment(request: NextRequest, dcsId: string) {
+  if (!dcsId) return undefined;
+  for (const conv of activeConversations(request).conversations) {
+    for (const message of conv.messages) {
+      const found = (message.attachments ?? []).find(a => a.dcsId === dcsId);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * `GetDocumentDetailsLegacy` / `GetDocumentDetails` as measured on two live
+ * instances: an unknown `dcsId` (or an empty one) answers **200 with a
+ * literal JSON `null`** — the GetConversationDetails pattern — and the
+ * `fileExtension` posted is ignored (a wrong one still gets the document's
+ * real `mimeType`). `displayName` is a system name, not the attachment's;
+ * `fileDescription` is the attachment's name. The legacy variant links to
+ * `Download`, the other to `DownloadOrStream`; both are mount-relative.
+ */
+function documentDetails(legacy: boolean) {
+  return async ({ request }: HandlerContext) => {
+    const body = await readJsonBody(request);
+    const attachment = findAttachment(request, asString(body.dcsId));
+    if (!attachment) return json(null);
+    const file = homer.messageAttachmentFiles[attachment.dcsId];
+    if (!file) return json(null);
+    const query = `dcsid=${encodeURIComponent(attachment.dcsId)}&displayName=${encodeURIComponent(file.displayName)}&dcsExt=${encodeURIComponent(attachment.fileExtension)}`;
+    const isImage = file.mimeType.startsWith('image/');
+    return json(conformToShape(shapes.getDocumentDetailsLegacy, {
+      dcsId: attachment.dcsId,
+      token: `TOKEN-${attachment.dcsId}`,
+      orgId: attachment.organizationId,
+      displayName: file.displayName,
+      userFriendlyDisplayName: '',
+      legacyEncryption: legacy,
+      isMobile: false,
+      fileDescription: attachment.name,
+      // Real instances preview images (allowPreview true, a previewUrl) and
+      // not PDFs (false, empty).
+      allowPreview: isImage,
+      downloadUrl: `/Documents/ViewDocument/${legacy ? 'Download' : 'DownloadOrStream'}?${query}`,
+      previewUrl: isImage ? `/Documents/ViewDocument/Download?dcsid=${encodeURIComponent(attachment.dcsId)}&dcsExt=${encodeURIComponent(attachment.fileExtension)}&method=preview` : '',
+      mimeType: file.mimeType,
+    }));
+  };
+}
+
+/**
+ * The download link itself. A real instance streams the file with its MIME
+ * type, a `Content-Length` and `Content-Disposition: attachment;
+ * filename="…"`; for an id the record does not hold it answers **200 with an
+ * empty body and no Content-Type** — not a 404 — so a client that trusts the
+ * status code saves a zero-byte file.
+ */
+function downloadDocument({ request }: HandlerContext): NextResponse {
+  const dcsId = request.nextUrl.searchParams.get('dcsid') ?? '';
+  const attachment = findAttachment(request, dcsId);
+  const file = attachment ? homer.messageAttachmentFiles[attachment.dcsId] : undefined;
+  if (!attachment || !file) return new NextResponse(null, { status: 200 });
+  const bytes = Buffer.from(file.base64, 'base64');
+  return new NextResponse(bytes, {
+    status: 200,
+    headers: {
+      'Content-Type': file.mimeType,
+      'Content-Length': String(bytes.length),
+      'Content-Disposition': `attachment; filename="${attachment.name}"`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+  });
+}
+
 export const messagesGet: ExactRoutes = {
   'messaging': () => html(messagesPage()),
-
-  /**
-   * The DCS document behind a message attachment. Answers with the file's own
-   * Content-Type and Content-Length and a generic Content-Disposition, as the
-   * live instances do. A `dcsId` the active record does not have — another
-   * patient's, or made up — answers **200 with an empty body and no
-   * Content-Type** on all four instances checked, not a 404, so a client that
-   * only checks the status code saves an empty file and calls it the attachment.
-   */
-  'documents/viewdocument/download': ({ request }) => {
-    const dcsId = request.nextUrl.searchParams.get('dcsId') ?? '';
-    const listed = activeConversations(request).conversations.some(conv =>
-      conv.messages.some(m => (m.attachments ?? []).some(a => a.dcsId === dcsId)));
-    const file = listed ? attachmentFiles[dcsId] : undefined;
-    if (!file) return new NextResponse(null, { status: 200 });
-    const bytes = Buffer.from(file.base64, 'base64');
-    const extension = file.contentType.split('/')[1]!.toUpperCase();
-    return new NextResponse(bytes, {
-      headers: {
-        'Content-Type': file.contentType,
-        'Content-Length': String(bytes.length),
-        'Content-Disposition': `inline; filename="Document.${extension}"`,
-      },
-    });
-  },
+  'documents/viewdocument/download': downloadDocument,
+  'documents/viewdocument/downloadorstream': downloadDocument,
 };
 
 export const messagesPost: ExactRoutes = {
@@ -239,6 +293,11 @@ export const messagesPost: ExactRoutes = {
       ...conversationPage(conv, '', pageSize(body.maxReadMessages)),
     }));
   },
+
+  // Attachments are conversation data, so their document endpoints live here
+  // rather than beside LoadOtherDocuments — see `messageAttachment.ts`.
+  'api/documents/viewer/getdocumentdetailslegacy': documentDetails(true),
+  'api/documents/viewer/getdocumentdetails': documentDetails(false),
 
   'api/conversations/getcomposeid': () => {
     state.composeIdCounter++;

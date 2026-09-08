@@ -1408,6 +1408,22 @@ export const pastVisits = {
  * / `wprKey` (patient side) and leaves `displayName` empty — the name is looked
  * up in the `users` / `viewers` maps on the conversation payload.
  */
+/**
+ * An attachment as the thread endpoints describe it — never its bytes, which
+ * `GetDocumentDetailsLegacy` + the download link serve from
+ * `messageAttachmentFiles`. `type: 2` is `MessageDocType.DCS`, the only kind
+ * observed on a live instance (18 attachments across two instances).
+ */
+export type FakeConversationAttachment = {
+  type: number;
+  dcsId: string;
+  etxId: string;
+  name: string;
+  fileExtension: string;
+  legacyUrlForCommunityJump: string;
+  organizationId: string;
+};
+
 export type FakeConversationMessage = {
   wmgId: string;
   author: { displayName: string; empKey?: string; wprKey?: string };
@@ -1418,59 +1434,8 @@ export type FakeConversationMessage = {
    * has no bare-string body. Newlines become separate Epic paragraphs.
    */
   body: string;
-  /**
-   * As real MyChart lists them: a DCS document is `type: 2` with a `dcsId`,
-   * an upper-cased `fileExtension`, and every other field empty (every
-   * attachment captured on two instances). The bytes behind a `dcsId` are in
-   * `attachmentFiles`.
-   */
-  attachments?: FakeMessageAttachment[];
+  attachments?: FakeConversationAttachment[];
 };
-
-export type FakeMessageAttachment = {
-  type: number;
-  dcsId: string;
-  etxId: string;
-  name: string;
-  fileExtension: string;
-  legacyUrlForCommunityJump: string;
-  organizationId: string;
-};
-
-/**
- * What `/Documents/ViewDocument/Download?dcsId=…` serves, keyed by `dcsId`.
- * Real MyChart answers with the file's own Content-Type and a generic
- * `Content-Disposition: inline; filename="Document.<EXT>"` — the attachment's
- * name only ever appears in the message that lists it.
- */
-export const attachmentFiles: Record<string, { contentType: string; base64: string }> = {
-  'WP-ATT-001': {
-    contentType: 'application/pdf',
-    base64: Buffer.from(
-      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
-        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Contents 4 0 R>>endobj\n' +
-        '4 0 obj<</Length 44>>stream\nBT /F1 12 Tf 10 50 Td (Nutrition plan) Tj ET\nendstream\nendobj\n' +
-        'trailer<</Root 1 0 R>>\n%%EOF\n',
-    ).toString('base64'),
-  },
-  // A 1x1 PNG.
-  'WP-ATT-002': {
-    contentType: 'image/png',
-    base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-  },
-};
-
-function dcsAttachment(dcsId: string, name: string): FakeMessageAttachment {
-  return {
-    type: 2,
-    dcsId,
-    etxId: '',
-    name,
-    fileExtension: name.split('.').pop()!.toUpperCase(),
-    legacyUrlForCommunityJump: '',
-    organizationId: '',
-  };
-}
 
 /**
  * Enough threads to push the inbox past one page. Real MyChart answers
@@ -1556,7 +1521,6 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-11T09:00:00Z',
           body: "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
-          attachments: [dcsAttachment('WP-ATT-001', 'Nutrition plan.pdf')],
         },
       ],
     },
@@ -1580,6 +1544,18 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           author: { wprKey: 'WPR-HOMER', displayName: '' },
           deliveryInstantISO: '2025-12-15T11:30:00Z',
           body: "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
+        },
+        {
+          wmgId: 'MSG-006',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-12-16T08:05:00Z',
+          body: 'Attached my insurance card and the coverage letter, as requested.',
+          // As a live instance lists them: the extension upper-case, no
+          // organization, no community link, and `type: 2` (a DCS document).
+          attachments: [
+            { type: 2, dcsId: 'WP-DCS-COVERAGE', etxId: '', name: 'proof of coverage.pdf', fileExtension: 'PDF', legacyUrlForCommunityJump: '', organizationId: '' },
+            { type: 2, dcsId: 'WP-DCS-CARD', etxId: '', name: 'insurance card.png', fileExtension: 'PNG', legacyUrlForCommunityJump: '', organizationId: '' },
+          ],
         },
       ],
     },
@@ -1642,7 +1618,6 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2025-11-07T11:00:00Z',
           body: 'Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.',
-          attachments: [dcsAttachment('WP-ATT-002', 'Imaging summary.png')],
         },
       ],
     },
@@ -1664,6 +1639,27 @@ for (const thread of SEEDED_CONVERSATIONS.conversations) {
 }
 
 export const conversations: FakeConversations = SEEDED_CONVERSATIONS;
+
+/**
+ * The bytes behind each attachment above, keyed by `dcsId`, plus what
+ * `GetDocumentDetailsLegacy` reports about the file. Kept apart from the
+ * conversation fixture so `conformToShape` never serves them as fields of an
+ * attachment. A one-page PDF and a 1×1 PNG: real files, so a client that
+ * checks the magic bytes gets the real answer.
+ */
+export const messageAttachmentFiles: Record<string, { mimeType: string; displayName: string; base64: string }> = {
+  'WP-DCS-COVERAGE': {
+    mimeType: 'application/pdf',
+    displayName: 'MyChart_Document_1',
+    base64:
+      'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NyA+PgpzdHJlYW0KQlQgL0YxIDE0IFRmIDIwIDUwIFRkIChQcm9vZiBvZiBjb3ZlcmFnZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0MDgKJSVFT0YK',
+  },
+  'WP-DCS-CARD': {
+    mimeType: 'image/png',
+    displayName: 'MyChart_Document_2',
+    base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC',
+  },
+};
 
 // ─── Billing ────────────────────────────────────────────────────────
 export const billingSummary = [

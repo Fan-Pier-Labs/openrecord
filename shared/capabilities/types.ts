@@ -9,11 +9,8 @@
  * on that interface.
  */
 
-import type { DownloadedFile } from '../../scrapers/myChart/core/downloadedFile';
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import type { Processor } from '../../scrapers/myChart/processors/processor';
-
-export type { DownloadedFile };
 
 export type CapabilityKind =
   /** Reads chart data. Safe to batch and to run without confirmation. */
@@ -131,13 +128,30 @@ export interface Capability {
    */
   rendersMedia?: boolean;
   /**
-   * True when `run` returns one downloaded file (a {@link DownloadedFile}:
-   * name, MIME type, bytes) rather than JSON. Clients must still expose the
-   * capability — they save the bytes where their platform keeps files and
-   * decide what, if anything, to show inline. Like `rendersMedia`, clients
-   * branch on the flag, never on the id.
+   * True when `run` returns one finished {@link FilePayload} — bytes plus a
+   * safe file name and MIME type — rather than JSON. Unlike
+   * {@link rendersMedia} there is nothing to decode; each client only decides
+   * where the file goes (the MCPB saves it to Downloads and inlines an image,
+   * the CLI writes it under `--output`, the mobile app shows an image inline).
+   * Clients branch on this flag, never on the id, exactly like `rendersMedia`.
    */
   returnsFile?: boolean;
+}
+
+/**
+ * What a {@link Capability.returnsFile} capability's `run` returns. A
+ * capability extends it with what it knows about the file (a message
+ * attachment carries its conversation and `dcsId`); clients pass those extra
+ * fields through in the summary they show beside the saved path.
+ */
+export interface FilePayload {
+  /**
+   * A basename safe to create under any directory, with its extension —
+   * `safeFileName` in `scrapers/myChart/core/safeFileName.ts` makes one.
+   */
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
 }
 
 /**

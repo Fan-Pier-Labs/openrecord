@@ -66,7 +66,7 @@ import { upcomingVisits, pastVisits } from '../../scrapers/myChart/chart/visits/
 
 import { listConversations } from '../../scrapers/myChart/chart/messages/conversations';
 import { getConversationMessages } from '../../scrapers/myChart/chart/messages/messageThreads';
-import { fetchMessageAttachment } from '../../scrapers/myChart/chart/messages/messageAttachment';
+import { downloadMessageAttachment } from '../../scrapers/myChart/chart/messages/messageAttachment';
 import {
   sendNewMessage,
   getMessageRecipients,
@@ -475,8 +475,9 @@ export class MyChartClient {
   // ── Messages ────────────────────────────────────────────────────────────
   listConversations()                                       { return listConversations(this.req()); }
   getConversationMessages(conversationId: string)           { return getConversationMessages(this.req(), conversationId); }
-  /** One attachment's bytes, by the `dcsId` a thread's message lists. `fileName` names the returned file. */
-  getMessageAttachment(dcsId: string, fileName?: string)    { return fetchMessageAttachment(this.req(), dcsId, fileName); }
+  getMessageAttachment(conversationId: string, attachmentId: string) {
+    return downloadMessageAttachment(this.req(), conversationId, attachmentId);
+  }
   sendMessage(params: SendNewMessageParams): Promise<SendNewMessageResult> {
     return sendNewMessage(this.req(), params);
   }

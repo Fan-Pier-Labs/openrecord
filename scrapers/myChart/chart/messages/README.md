@@ -19,7 +19,8 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | --- | --- | --- |
 | `GET /app/communication-center` | — | the `__RequestVerificationToken` every call below needs |
 | `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: { loadStartInstantISO, loadEndInstantISO: '', pagingInfo }, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox, 50 threads per page |
-| `GET /Documents/ViewDocument/Download?dcsId=…&method=view` | — | one attachment's bytes |
+| `POST /api/documents/viewer/GetDocumentDetailsLegacy` | `{ dcsId, fileExtension, organizationId, useOldMobileLink: false }` | where an attachment's file is — `downloadUrl`, `mimeType`, `allowPreview` |
+| `GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…` | — | the attachment's bytes (the `downloadUrl` above, mount-relative) |
 | `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps |
 | `POST /api/conversations/GetConversationMessages` | `{ id, startInstantISO?, maxReadMessages, PageNonce }` | older pages of that thread |
 | `POST /api/medicaladvicerequests/GetMedicalAdviceRequestRecipients` | `{ organizationId }` | who can be written to |
@@ -58,7 +59,7 @@ Ids throughout are Epic's `WP-`-prefixed opaque strings.
 The three reads are meant to be called in sequence: `get_messages` is the list of threads
 (id, subject, who, when, flags — never the messages), `get_message_thread` is every message
 of one thread with each attachment's `dcsId`, and `get_message_attachment` is one
-attachment's bytes.
+attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
 
 ## Notes and research
 
@@ -71,28 +72,34 @@ attachment's bytes.
   threads (a page of 50, then the remainder, no overlap); the other three fit in one page.
   `fetchConversationsRaw` walks every page, bounded by `MAX_PAGES = 40`, and the processor
   merges them.
-- **An attachment is a DCS document.** Every attachment captured (18, on two instances) is
-  `type: 2` with a `dcsId`, an upper-cased `fileExtension` (`PDF`, `PNG`) and every other
-  field — `etxId`, `organizationId`, `legacyUrlForCommunityJump` — empty. The bytes come
-  from `GET /Documents/ViewDocument/Download?dcsId=<id>&method=view`, the URL the portal's
-  shared `useDcsDocument` hook builds for `legacyEncryption: true`
-  (`getBlobImagePath` in `epic.px.client.mychart-web-server.js`; `DownloadOrStream` is the
-  non-legacy sibling and answers identically). The answer carries the file's real
-  `Content-Type` and `Content-Length` and a generic
-  `Content-Disposition: inline; filename="Document.PDF"` — the attachment's own name is
-  only ever in the message that listed it, which is why `get_message_attachment` takes an
-  optional `file_name`. Attachments run to several MB (a 1.5 MB PDF was among the first
-  two downloaded on one instance).
-- **There is no way to learn an attachment's size without downloading it.** The listing
-  has no size field, and a `HEAD` on the download URL answers 500 on one instance and a
-  100 KB HTML page on another.
-- **An unknown `dcsId` answers 200 with an empty body and no `Content-Type`** — not a 404 —
-  on all four instances. `fetchMessageAttachment` refuses that answer rather than
-  returning an empty file that looks like the attachment.
-- **The bundle has two other attachment kinds this scraper does not handle**: a clinical
-  reference (an `etxId`, loaded through `POST /api/conversations/GetClinicalReferenceDetails`
-  and shown as HTML) and a community (H2G) jump through `legacyUrlForCommunityJump`.
-  Neither has been seen on a captured message; both are unverified.
+- **Attachments are described by the thread and downloaded through the document viewer.**
+  A message's `attachments[]` carry `name`, `fileExtension`, `dcsId`, `etxId`, `type`,
+  `organizationId` and `legacyUrlForCommunityJump`, never the bytes. The portal's own
+  `useDcsDocument` hook (`epic.px.client.document-viewer.js`) fetches a `type: 2`
+  (`MessageDocType.DCS`) attachment with `GetDocumentDetailsLegacy` and then GETs the
+  mount-relative `downloadUrl` it answers, which streams the file with its real
+  `Content-Type`, a `Content-Length` and `Content-Disposition: attachment; filename="…"`.
+  Verified on two instances across 18 attachments (PDF, PNG, JPG). `fileDescription` in
+  the details is the attachment's `name`; `displayName` is a system name that also rides in
+  the link. The `fileExtension` posted is ignored — a wrong one still gets the document's real
+  `mimeType`. `previewUrl` and `allowPreview: true` come back for images only. The non-legacy
+  `GetDocumentDetails` answers the same fields with a `DownloadOrStream` link; the scraper
+  uses the legacy variant because that is what the communication center passes
+  (`legacyEncryption: true`). Attachments run to several MB (a 1.5 MB PDF was among the
+  first downloaded on one instance) and the listing has no size field: a `HEAD` on the
+  download URL answers 500 on one instance and an HTML page on another, so there is no way
+  to learn the size without downloading.
+- **Two payload traps on that path, both measured on the same two instances.** An id the
+  record does not hold gets **200 with a literal JSON `null`** from `GetDocumentDetailsLegacy`
+  (the `GetConversationDetails` pattern), and a bogus `dcsid` on the download GET gets **200,
+  no `Content-Type`, empty body** — not a 404 (four of four instances). `downloadMessageAttachment`
+  checks the payload on both, or an unknown id becomes a zero-byte file.
+- **Only `type: 2` attachments have been observed.** `MessageDocType` is `ETX = 1`, `DCS = 2`,
+  `DCS_HNO = 3`; the portal renders an ETX attachment as a popup via
+  `POST /api/conversations/GetClinicalReferenceDetails { organizationId, type, etxId, dcsId }`
+  and opens a `legacyUrlForCommunityJump` attachment in another organization's portal. Neither
+  has appeared on any instance there are credentials for, so the scraper refuses them with the
+  reason rather than modelling unobserved behaviour.
 
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500
@@ -232,8 +239,8 @@ The first table is the message element, shared with the inlined messages of
 | `isFromPatient` | `wprKey` set and `empKey` absent | ✓ | ✓ | ✓ | Derived. Which side of the conversation each message is on. |
 | `messages[].author.empKey`, `.wprKey` | Author keys | — | ✓ | — | The inputs to `senderName`; kept so the resolution is checkable. |
 | `messages[].author.displayName` | Author display name | — | — | — | Always empty: `""` on every message of every captured instance; names live in `users` / `viewers`. |
-| `messages[].attachments[].name` | The attachment's file name | — | ✓ | ✓ | What was attached, and the `file_name` to hand `get_message_attachment`. |
-| `messages[].attachments[].dcsId` | The attachment's document id | — | ✓ | ✓ | Handle: `get_message_attachment` takes it (rule 5). |
+| `messages[].attachments[].name` | The attachment's file name | — | ✓ | ✓ | What was attached — a reader deciding whether to download it needs the name. |
+| `messages[].attachments[].dcsId` | The attachment's document id | — | ✓ | ✓ | Handle: `get_message_attachment` takes it as `attachment_id` (rule 5). |
 | `messages[].attachments[].fileExtension` | `PDF`, `PNG`, … | — | ✓ | — | Detail; the name carries it. |
 | `messages[].attachments[].type` | Attachment kind; `2` is a DCS document | — | ✓ | — | The discriminator the bundle switches on; detail. |
 | `messages[].attachments[].etxId`, `.organizationId`, `.legacyUrlForCommunityJump` | Other attachment kinds' plumbing | — | — | — | Always empty on every captured attachment. |
@@ -256,16 +263,17 @@ The first table is the message element, shared with the inlined messages of
 
 ## `get_message_attachment`
 
-`GET /Documents/ViewDocument/Download?dcsId=<attachment_id>&method=view`. Not a
-JSON read: the capability is flagged `returnsFile` and returns the bytes as a
-`DownloadedFile` — `fileName` (the `file_name` given, or `attachment-<dcsId>`,
-with the extension MyChart's answer implies), `mimeType`, `size`, `bytes` — so
-there is no `mode`. What each client does with it: the Claude Desktop
-extension writes it under the OS temp directory and shows a small image or
-text file inline (a PDF is never inline, and nothing over the 1MB tool-result
-cap is); the CLI writes it to `--output` (default `./attachments-output`); the
-mobile app shows an image and describes anything else; the library returns
-the object.
+`GetConversationDetails` (paged as above, to find the attachment and take its
+`fileExtension` and `organizationId` as MyChart lists them), then
+`POST /api/documents/viewer/GetDocumentDetailsLegacy`, then `GET` the
+`downloadUrl` it answers. The payload is one file, not JSON, so this
+capability has **no output modes**: `run` returns a `MessageAttachmentFile`
+(a `FilePayload` — `fileName`, `mimeType`, `bytes` — plus `conversationId`,
+`dcsId` and `fileExtension`) and each client delivers it its own way, keyed off
+the registry's `returnsFile` flag — the Claude Desktop extension writes it to
+the Downloads folder and shows an image inline, the CLI writes it under
+`--output` (default: the current directory), the mobile app shows an image in
+the chat and says so for anything else.
 
 ---
 

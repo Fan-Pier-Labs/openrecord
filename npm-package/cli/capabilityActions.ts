@@ -29,8 +29,8 @@ import {
   getCapability,
   type Capability,
   type CapabilityContext,
-  type DownloadedFile,
   type StudyImagePayload,
+  type FilePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
@@ -148,8 +148,7 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
   lines.push(
     '',
     "  ! marks a command that changes something — a write to the chart, or the account's own sign-in settings.",
-    '  Commands that produce images write JPEGs to ./imaging-output, and commands that download a file',
-    '  write it to ./attachments-output (override either with --output <dir>).',
+    '  Commands that produce images write JPEGs to ./imaging-output (override with --output <dir>).',
   );
   if (!options.showAll) {
     lines.push(
@@ -301,7 +300,27 @@ export async function writeStudyImages(
   return written;
 }
 
-/** Run one capability against one session and print its JSON result. */
+/**
+ * The CLI's rendering of a `returnsFile` payload: the bytes written under
+ * `outputDir` as `fileName` (the scraper already made it a safe basename), a
+ * numeric suffix keeping a re-download from overwriting the first. Returns
+ * the path written.
+ */
+export async function writeFilePayload(payload: FilePayload, outputDir: string): Promise<string> {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  const { name, ext } = path.parse(path.basename(payload.fileName));
+  for (let attempt = 1; attempt <= 100; attempt++) {
+    const filePath = path.join(outputDir, attempt === 1 ? `${name}${ext}` : `${name}-${attempt}${ext}`);
+    try {
+      await fs.promises.writeFile(filePath, payload.bytes, { flag: 'wx' });
+      return filePath;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+  }
+  throw new Error(`Could not write ${payload.fileName} under ${outputDir} — 100 copies already exist.`);
+}
+
 /**
  * Run one capability against one session and print its JSON result.
  *
@@ -339,6 +358,14 @@ export async function runCapabilityAction(
     // lives there, and it has to run for media capabilities too.
     const result = await executeCapability(session.request, capability.id, coerced, ctx);
 
+    if (capability.returnsFile) {
+      // A file payload becomes exactly that: the file, under --output (default: the current directory).
+      const { bytes, ...rest } = result as FilePayload;
+      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
+      console.log(JSON.stringify({ filePath, sizeBytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
+      return true;
+    }
+
     if (capability.rendersMedia) {
       // Media payloads become files on disk, never bytes in the terminal.
       const payload = result as StudyImagePayload;
@@ -356,17 +383,6 @@ export async function runCapabilityAction(
       return files.length > 0 || payload.errors.length === 0;
     }
 
-    if (capability.returnsFile) {
-      // A downloaded file becomes a file on disk, never bytes in the terminal.
-      const filePath = await writeDownloadedFile(
-        result as DownloadedFile,
-        path.resolve(outputDir ?? path.join(process.cwd(), 'attachments-output')),
-      );
-      const { fileName, mimeType, size } = result as DownloadedFile;
-      console.log(JSON.stringify({ filePath, fileName, mimeType, size }, null, 2));
-      return true;
-    }
-
     // The markdown modes are text already; the data modes are printed as JSON.
     console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
@@ -374,14 +390,6 @@ export async function runCapabilityAction(
     console.log(`  ${(err as Error).message}`);
     return false;
   }
-}
-
-/** Write a `returnsFile` payload under `outputDir` and return the file's path. */
-export async function writeDownloadedFile(file: DownloadedFile, outputDir: string): Promise<string> {
-  await fs.promises.mkdir(outputDir, { recursive: true });
-  const filePath = path.join(outputDir, file.fileName);
-  await fs.promises.writeFile(filePath, file.bytes);
-  return filePath;
 }
 
 /**

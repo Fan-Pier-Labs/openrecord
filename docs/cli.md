@@ -188,10 +188,7 @@ the capability ignoring the request. Missing required arguments and
 out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
-A capability that downloads one file (`returnsFile` in the registry — today
-`get_message_attachment`) writes it to `./attachments-output` (override with
-`--output <dir>`) under the `file_name` given, and prints the path, type and
-size. Capabilities that produce images (`rendersMedia` in the registry — today
+Capabilities that produce images (`rendersMedia` in the registry — today
 `download_imaging_study`) never print image bytes to the terminal.
 `download_imaging_study` downloads **every** image in the study; the CLI
 decodes each raw CLO image and writes it as a quality-100 JPEG into
@@ -202,6 +199,17 @@ opened straight from Finder:
 ```bash
 mychart-cli --host mychart.example.org --action download_imaging_study \
   --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
+```
+
+A capability that returns one file (`returnsFile` in the registry — today
+`get_message_attachment`) has a payload that is a file rather than JSON. The
+CLI writes it into the current directory (or `--output <dir>`) with the name
+MyChart lists for it — a re-download gets a numeric suffix rather than
+overwriting — and prints a JSON summary with the path:
+
+```bash
+mychart-cli --host mychart.example.org --action get_message_attachment \
+  --arg conversation_id=<hthId from get_messages> --arg attachment_id=<dcsId from get_message_thread>
 ```
 
 Every chart-touching capability also accepts `--arg patient="<name>"`, the same

@@ -26,9 +26,10 @@ import {
   readAccountArg,
   type Capability,
   type CapabilityContext,
-  type DownloadedFile,
   type StudyImagePayload,
+  type FilePayload,
 } from "../../../../shared/capabilities";
+import { Image } from "react-native";
 import { TOTP } from "totp-generator";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
@@ -474,10 +475,8 @@ async function runScraper(
   if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
-  // Same rule for a downloaded file: an image goes to the attachment store,
-  // anything else is described, since the app has nowhere to open a PDF.
   if (capability.returnsFile && request) {
-    return downloadFileAsAttachment(capability, request, input);
+    return downloadFileForChat(capability, request, input);
   }
 
   try {
@@ -490,34 +489,50 @@ async function runScraper(
   }
 }
 
+/** Image types the chat bubble can render from a data URI. */
+const CHAT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
 /**
- * Download one file (a message attachment). An image is stashed in the
- * attachment store like an X-ray and answered with the token the model puts
- * in its reply; any other type is answered with its name, type and size only.
+ * Run a `returnsFile` capability (a message attachment, say). An image goes
+ * into the attachment store like an X-ray does, so the reply can carry an
+ * [image:ID] token; anything else (a PDF, say) has no place to go on this
+ * client yet — there is no file viewer or share sheet — so the model is told
+ * so rather than handed bytes.
  */
-async function downloadFileAsAttachment(
+async function downloadFileForChat(
   capability: Capability,
   request: MyChartRequest,
   input: Record<string, unknown>,
 ): Promise<unknown> {
-  let file: DownloadedFile;
+  let file: FilePayload;
   try {
-    file = (await executeCapability(request, capability.id, input)) as DownloadedFile;
+    file = (await executeCapability(request, capability.id, input)) as FilePayload;
   } catch (err) {
-    return { error: `Could not download the attachment: ${(err as Error).message}` };
+    return { error: `Could not download the file: ${(err as Error).message}` };
   }
-  const summary = { file_name: file.fileName, mime_type: file.mimeType, size_bytes: file.size };
-  if (!file.mimeType.startsWith("image/")) {
+  if (!CHAT_IMAGE_TYPES.has(file.mimeType)) {
     return {
-      ...summary,
-      note: "Only images can be shown in the app. Tell the user what the attachment is; its contents cannot be read here.",
+      error:
+        `${file.fileName} is a ${file.mimeType} file, which the app cannot display yet. ` +
+        "It can be downloaded with the OpenRecord Claude Desktop extension or the mychart-cli, which save it to disk.",
     };
   }
-  const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;
-  // Dimensions are not known without decoding; the chat bubble falls back to a square.
-  putImageAttachment(imageId, dataUri, file.fileName, 0, 0);
-  return { ...summary, image_id: imageId, caption: file.fileName };
+  const { width, height } = await imageSize(dataUri);
+  const imageId = `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  putImageAttachment(imageId, dataUri, file.fileName, width, height);
+  return { image_id: imageId, caption: file.fileName, width, height };
+}
+
+/** The chat bubble sizes a picture by its aspect ratio; unknown reads as square. */
+function imageSize(uri: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve({ width: 0, height: 0 }),
+    );
+  });
 }
 
 /**
