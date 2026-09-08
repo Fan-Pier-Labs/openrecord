@@ -36,7 +36,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40587 | 3507 | 4148 | 1060 |
+| `get_billing` | 40587 | 3530 | 4175 | 1087 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19278 | 1225 | 875 | 532 |
@@ -12208,7 +12208,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (4148 chars)</summary>
+<summary><code>mode: standard</code> (4175 chars)</summary>
 
 - **totalDue**: 275
 
@@ -12315,9 +12315,9 @@ Billing history and account balances.
 
 #### statements (1)
 
-| FormattedDateDisplay | DateDisplay | Description | SubText | StatementAmountDisplay | IsRead | IsDetailBill | IsPaperless | ServiceDateStart | ServiceDateEnd | RecordID |
-| - | - | - | - | - | - | - | - | - | - | - |
-| Jan 15, 2026 | 20260115 | Sent via postal mail | (empty) | $350.00 | false | false | false | (none) | (none) | HOMER-REC-001 |
+| dateISO | FormattedDateDisplay | DateDisplay | Description | SubText | StatementAmountDisplay | IsRead | IsDetailBill | IsPaperless | ServiceDateStart | ServiceDateEnd | RecordID |
+| - | - | - | - | - | - | - | - | - | - | - | - |
+| 2026-01-15 | Jan 15, 2026 | 20260115 | Sent via postal mail | (empty) | $350.00 | false | false | false | (none) | (none) | HOMER-REC-001 |
 
 #### payments (2)
 
@@ -12352,7 +12352,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1060 chars)</summary>
+<summary><code>mode: concise</code> (1087 chars)</summary>
 
 - **totalDue**: 275
 
@@ -12383,9 +12383,9 @@ Billing history and account balances.
 
 #### statements (1)
 
-| FormattedDateDisplay | Description | StatementAmountDisplay | IsRead |
-| - | - | - | - |
-| Jan 15, 2026 | Sent via postal mail | $350.00 | false |
+| dateISO | FormattedDateDisplay | Description | StatementAmountDisplay | IsRead |
+| - | - | - | - | - |
+| 2026-01-15 | Jan 15, 2026 | Sent via postal mail | $350.00 | false |
 
 #### payments (2)
 
@@ -12398,7 +12398,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: json</code> (3507 chars)</summary>
+<summary><code>mode: json</code> (3530 chars)</summary>
 
 ```json
 {
@@ -12518,6 +12518,7 @@ Billing history and account balances.
       },
       "statements": [
         {
+          "dateISO": "2026-01-15",
           "FormattedDateDisplay": "Jan 15, 2026",
           "DateDisplay": "20260115",
           "Description": "Sent via postal mail",
