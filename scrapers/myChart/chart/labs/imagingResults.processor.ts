@@ -22,7 +22,9 @@ import type { Processor } from '../../processors/processor';
 import {
   conciseLabOrder,
   labResultsProcessor,
-  reportHtmlByReportId,
+  rawResultsForOrder,
+  reportHtmlByReport,
+  reportHtmlForResult,
   type ImageStudyStandard,
   type LabOrderConcise,
   type LabOrderStandard,
@@ -84,9 +86,10 @@ export function isImagingOrder(order: LabOrderStandard): boolean {
  * (Mass General Brigham) serve instead. The first result that yields one wins.
  */
 export function fdiContextForOrder(raw: RawResponse, order: LabOrderStandard): FdiContext | null {
-  const reports = reportHtmlByReportId(raw);
-  for (const r of order.results) {
-    const html = r.reportDetails.reportID ? reports.get(r.reportDetails.reportID) : undefined;
+  const reports = reportHtmlByReport(raw);
+  const rawResults = rawResultsForOrder(raw, order.key);
+  for (const [i, r] of order.results.entries()) {
+    const html = reportHtmlForResult(reports, rawResults[i]);
     const fdi =
       (html ? extractFdiContext(html) : null) ??
       (r.fdiLink.redirectUrl ? extractFdiContextFromFdiLink(r.fdiLink.redirectUrl) : null);

@@ -188,6 +188,32 @@ describe('getImagingResults', () => {
     expect(JSON.stringify(result)).not.toContain('data-fdi-context')
   })
 
+  it('mints each order its own image_id when the orders share a reportID', async () => {
+    // reportID names a report template shared by every result of a kind;
+    // the report for each order is the one posted with that order's variables.
+    const report = (fdi: string, ord: string) => ({
+      body: JSON.stringify({ reportContent: `<div data-fdi-context='${JSON.stringify({ fdi, ord })}'><a href="#">View Images</a></div>` }),
+    })
+    const { req } = routedRequest({
+      '/app/test-results': [{ body: TOKEN_PAGE }],
+      'GetList': [{ body: JSON.stringify({ newResultGroups: [{ key: 'K1' }, { key: 'K2' }] }) }, { body: EMPTY_LIST }],
+      'GetDetails': [
+        { body: JSON.stringify({ orderName: 'CT Head', key: 'K1', results: [{ reportDetails: { reportID: 'rpt-shared', reportVars: { ordId: 'ord-1', ordDat: 'dat-1' } } }] }) },
+        { body: JSON.stringify({ orderName: 'MRI Brain', key: 'K2', results: [{ reportDetails: { reportID: 'rpt-shared', reportVars: { ordId: 'ord-2', ordDat: 'dat-2' } } }] }) },
+      ],
+      'LoadReportContent': [report('FDI-CT', 'ORD-CT'), report('FDI-MRI', 'ORD-MRI')],
+      'GetMultipleHistoricalResultComponents': [NULL_HISTORY],
+      'CSRFToken': [{ body: JSON.stringify({ Token: 'csrf-token-1234567890' }) }],
+      'FdiData': [{ body: JSON.stringify({ url: 'https://sts.example.org/x' }) }],
+    })
+
+    const result = await getImagingResults(req)
+    expect(result.orders.map((o) => [o.orderName, o.image_id])).toEqual([
+      ['CT Head', imageIdFor({ fdi: 'FDI-CT', ord: 'ORD-CT' })],
+      ['MRI Brain', imageIdFor({ fdi: 'FDI-MRI', ord: 'ORD-MRI' })],
+    ])
+  })
+
   it('tolerates a refused FdiData call — the order is reported without viewable images', async () => {
     const { req } = portalWith(
       {
