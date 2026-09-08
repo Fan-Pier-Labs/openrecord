@@ -29,6 +29,7 @@ import {
   getCapability,
   type Capability,
   type CapabilityContext,
+  type FilePayload,
   type StudyImagePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
@@ -70,6 +71,7 @@ export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filt
   (capability) =>
     capability.kind === 'read' &&
     !capability.rendersMedia &&
+    !capability.returnsFile &&
     acceptsPatientParam(capability) &&
     capability.params.every((param) => !param.required),
 );
@@ -298,7 +300,19 @@ export async function writeStudyImages(
   return written;
 }
 
-/** Run one capability against one session and print its JSON result. */
+/**
+ * The CLI's rendering of a `returnsFile` capability: the bytes go to
+ * `<outputDir>/<fileName>`, never to the terminal. A name already there is
+ * overwritten — the CLI is scripted, and a script re-running `--action`
+ * wants the current statement under the same name.
+ */
+export async function writeFilePayload(payload: FilePayload, outputDir: string): Promise<string> {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  const filePath = path.join(outputDir, path.basename(payload.fileName));
+  await fs.promises.writeFile(filePath, payload.bytes);
+  return filePath;
+}
+
 /**
  * Run one capability against one session and print its JSON result.
  *
@@ -351,6 +365,13 @@ export async function runCapabilityAction(
       // Partial success still wrote files worth exploring; only a run that
       // produced nothing but errors is a failure.
       return files.length > 0 || payload.errors.length === 0;
+    }
+
+    if (capability.returnsFile) {
+      const { bytes, ...rest } = result as FilePayload;
+      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
+      console.log(JSON.stringify({ filePath, bytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
+      return true;
     }
 
     // The markdown modes are text already; the data modes are printed as JSON.

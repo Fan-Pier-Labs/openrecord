@@ -1,14 +1,13 @@
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
-import fs from 'fs';
 import { subYears, addYears } from 'date-fns';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
-import { mkdirp } from 'mkdirp';
 import { logger } from '../../../../shared/logger';
 import { toEpicDteLocal } from '../../../../shared/epicDate';
+import type { FilePayload } from '../../../../shared/capabilities/types';
 import { parseBillingAccountsHtml } from './summaryHtml';
-import { billingProcessor, type BillingStandard } from './bills.processor';
+import { billingProcessor, statementDateISO, type BillingStandard } from './bills.processor';
 
 export { parsePaymentUrl, parseBillingAccountsHtml, parseAmount } from './summaryHtml';
 export type {
@@ -25,8 +24,8 @@ export type {
 export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from './bills.processor';
 
 // Two jobs live here: the `get_billing` read (fetchBillingRaw + the
-// processor) and the statement-PDF download helpers, which other code calls
-// directly and which are not part of the read capability.
+// processor) and the `download_billing_statement` file download, which
+// re-walks the summary and statement lists to find the one statement asked for.
 
 function accountQuery(account: BillingAccount): string {
   return `id=${account.id}&context=${account.context}`;
@@ -114,21 +113,82 @@ export async function saveStatementPdf(mychartRequest: MyChartRequest, encId: st
   return Buffer.from(pdfArrayBuffer);
 }
 
-// Given a billing account, fetches all the statement PDFs associated with it.
-// Will be needed later for downloading itemized bills.
-export async function getBillingStatementPDFs(mychartRequest: MyChartRequest, billingAccount: BillingAccount) {
-  const encId = await getEncBillingId(mychartRequest, billingAccount);
-  const statementList = await getStatementList(mychartRequest, billingAccount);
+/** What `download_billing_statement` returns: the PDF plus the statement it is. */
+export interface BillingStatementPdf extends FilePayload {
+  statement: {
+    RecordID: string;
+    dateISO: string | null;
+    FormattedDateDisplay: string | null;
+    Description: string | null;
+    StatementAmountDisplay: string | null;
+    IsDetailBill: boolean | null;
+  };
+}
 
-  // TODO: this could be improved, the statement list has two different types of statements, the latter isn't really a statement.
-  for (const statement of statementList.DataStatement.StatementList.concat(statementList.DataDetailBill.StatementList)) {
-    const buffer = await saveStatementPdf(mychartRequest, encId!, statement);
-
-    const name = 'Invoice on ' + statement.FormattedDateDisplay + ' for ' + statement.StatementAmountDisplay + '.pdf';
-
-    // Write the buffer to a file
-    await mkdirp('pdfs');
-    await fs.promises.writeFile('./pdfs/' + name, new Uint8Array(buffer));
-    logger.debug('Saved', name);
+/**
+ * Find the statement whose `RecordID` a caller copied out of `get_billing`,
+ * and which guarantor account it belongs to. Both lists are searched, because
+ * the itemized bills (`DataDetailBill`) download the same way as statements.
+ */
+async function findStatement(
+  mychartRequest: MyChartRequest,
+  recordId: string,
+): Promise<{ account: BillingAccount; statement: StatementItem }> {
+  const summary = await makeAuthenticatedRequest(mychartRequest, { path: '/Billing/Summary' });
+  const accounts = parseBillingAccountsHtml(await summary.text(), mychartRequest.hostname);
+  const seen: string[] = [];
+  for (const account of accounts) {
+    const list = await getStatementList(mychartRequest, account);
+    const statements = [
+      ...(list.DataStatement?.StatementList ?? []),
+      ...(list.DataDetailBill?.StatementList ?? []),
+    ];
+    const statement = statements.find((s) => s.RecordID === recordId);
+    if (statement) return { account, statement };
+    seen.push(...statements.map((s) => s.RecordID).filter(Boolean));
   }
+  throw new Error(
+    `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; ` +
+      (seen.length ? `this account has: ${seen.join(', ')}.` : 'this account has no statements.'),
+  );
+}
+
+/**
+ * One statement or itemized bill as the PDF MyChart serves for it.
+ *
+ * The bytes are checked for the `%PDF` signature rather than trusted: a
+ * stale token or a bad `EncID` comes back from `DownloadFromBlob` as an HTML
+ * error page with status 200, and handing that to a caller as a `.pdf` is the
+ * silent failure this exists to prevent.
+ */
+export async function downloadBillingStatement(
+  mychartRequest: MyChartRequest,
+  recordId: string,
+): Promise<BillingStatementPdf> {
+  const { account, statement } = await findStatement(mychartRequest, recordId);
+  const encId = await getEncBillingId(mychartRequest, account);
+  if (!encId) {
+    throw new Error(
+      `MyChart's billing details page for account ${account.guarantorNumber} carried no EncID, which the statement download needs.`,
+    );
+  }
+  const bytes = await saveStatementPdf(mychartRequest, encId, statement);
+  if (bytes.subarray(0, 4).toString() !== '%PDF') {
+    throw new Error(
+      `MyChart did not return a PDF for statement ${recordId} (${bytes.length} bytes, starting "${bytes.subarray(0, 40).toString().replace(/\s+/g, ' ')}").`,
+    );
+  }
+  return {
+    fileName: `Statement_${statement.DateDisplay || recordId}.pdf`.replace(/[^A-Za-z0-9._-]+/g, '_'),
+    mimeType: 'application/pdf',
+    bytes,
+    statement: {
+      RecordID: statement.RecordID,
+      dateISO: statementDateISO(statement.DateDisplay),
+      FormattedDateDisplay: statement.FormattedDateDisplay ?? null,
+      Description: statement.Description ?? null,
+      StatementAmountDisplay: statement.StatementAmountDisplay ?? null,
+      IsDetailBill: statement.IsDetailBill ?? null,
+    },
+  };
 }

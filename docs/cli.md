@@ -201,6 +201,18 @@ mychart-cli --host mychart.example.org --action download_imaging_study \
   --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
 ```
 
+`download_billing_statement` (`returnsFile` in the registry) is the same idea
+for a document: the statement PDF is written to the working directory, or
+`--output <dir>`, under the name MyChart gives it (`Statement_<YYYYMMDD>.pdf`,
+overwriting a previous run's copy), and the printed JSON carries the path plus
+the statement's date, description and amount. The `record_id` is a statement's
+`RecordID` from `get_billing`:
+
+```bash
+mychart-cli --host mychart.example.org --action download_billing_statement \
+  --arg record_id=<RecordID from get_billing> --output ~/Desktop/bills
+```
+
 Every chart-touching capability also accepts `--arg patient="<name>"`, the same
 assertion `--patient` applies to the rest of the CLI: the call refuses if
 MyChart is on a different record rather than reading the wrong chart. The

@@ -26,6 +26,7 @@ import {
   PUBLIC_CAPABILITY_IDS,
   executeCapability,
   getCapability,
+  type FilePayload,
   type StudyImagePayload,
 } from '../../../../shared/capabilities'
 
@@ -220,6 +221,24 @@ describe('capability registry against fake-mychart', () => {
     expect(payload.images.length).toBeGreaterThan(0)
   }, 60_000)
 
+  it('downloads a billing statement PDF by the RecordID get_billing minted', async () => {
+    const billing = (await executeCapability(session, 'get_billing', { mode: 'concise' })) as string
+    // The handle has to be in the model-facing projection, or a model can never ask for the file.
+    expect(billing).toContain('HOMER-REC-001')
+
+    const payload = (await executeCapability(session, 'download_billing_statement', {
+      record_id: 'HOMER-REC-001',
+    })) as FilePayload & { statement: { dateISO: string | null } }
+    expect(payload.mimeType).toBe('application/pdf')
+    expect(payload.fileName).toBe('Statement_20260115.pdf')
+    expect(Buffer.from(payload.bytes).subarray(0, 4).toString()).toBe('%PDF')
+    expect(payload.statement.dateISO).toBe('2026-01-15')
+
+    await expect(
+      executeCapability(session, 'download_billing_statement', { record_id: 'nope' }),
+    ).rejects.toThrow(/No billing statement has RecordID "nope".*HOMER-REC-001/)
+  }, 30_000)
+
   it('is reachable under its old mobile name, so saved chats keep working', () => {
     expect(getCapability('get_xray_image')?.id).toBe('download_imaging_study')
   })
@@ -411,6 +430,7 @@ describe('capability registry against fake-mychart', () => {
       ...parameterlessReads.map((c) => c.id),
       ...dependentReads.map((d) => d.id),
       'download_imaging_study',
+      'download_billing_statement',
       'send_message',
       'send_reply',
       'delete_message',

@@ -4,7 +4,7 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 
 | | |
 | --- | --- |
-| **Capabilities** | `get_billing` (read) |
+| **Capabilities** | `get_billing` (read) · `download_billing_statement` (read, file) |
 | **Source** | [`bills.ts`](bills.ts) · [`bills.processor.ts`](bills.processor.ts) · [`summaryHtml.ts`](summaryHtml.ts) · [`types.ts`](types.ts) · [`shared/epicDate.ts`](../../../../shared/epicDate.ts) |
 | **Activity** | Legacy `/Billing/*` |
 
@@ -17,6 +17,7 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 | `GET /Billing/Details/GetStatementList?…` | statements (best effort) |
 | `GET /Billing/Details/LoadPaymentList?…` | payment history (best effort) |
 | `GET /Billing/Details?ID=…&Context=…` | HTML — carries `EncID`, the statement-PDF token (best effort) |
+| `GET /Billing/Details/DownloadFromBlob/?type=1&id=<RecordID>&earId=<EncID>&billSys=<EncBillingSystem>&fileKey=<ImagePath>&token=<Token>&fileName=Statement_<DateDisplay>&DocExt=PDF&PesId=&cid=` | the statement PDF (`download_billing_statement` only) |
 
 Everything after the summary runs **per account**. The summary and the visit list are the
 payload and a failure there throws; the other three are best effort — a statement-list
@@ -54,9 +55,14 @@ Every URL carries `noCache=<random>`.
   (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`), keeping which list
   a row came from as `category` — "bad debt" and "payment plan" change what a charge means.
 - Statements arrive in **two lists** (`DataStatement` and `DataDetailBill`); they are
-  merged with `IsDetailBill` telling them apart. `bills.ts` also carries statement-PDF
-  download helpers (`getEncBillingId`, `saveStatementPdf`, `getBillingStatementPDFs`) which
-  are **not** part of the read capability and are called directly.
+  merged with `IsDetailBill` telling them apart. Both download the same way.
+- **The statement PDF needs five keys from two places.** Four ride on the statement row
+  (`RecordID`, `EncBillingSystem`, `ImagePath`, `Token`); the fifth, `EncID`, is only in the
+  details *page's* inline `accountDetailsController.Initialize({...})` config, per guarantor
+  account. `download_billing_statement` therefore re-walks the summary and each account's
+  statement list to find the row whose `RecordID` it was given, then reads that account's
+  page for `EncID`. A bad key does not 4xx: `DownloadFromBlob` answers 200 with an HTML page,
+  so the bytes are checked for the `%PDF` signature before they are called a PDF.
 - **Procedure descriptions arrive with markup inside them** (`<span class='subtlecolor'>`),
   so they need the same text conversion any other MyChart prose field does.
 
@@ -154,7 +160,7 @@ merged with `IsDetailBill` telling them apart):
 | `StatementAmountDisplay` | Amount | — | ✓ | ✓ | How much. |
 | `IsRead` | Read state | — | ✓ | ✓ | Unread statements first. |
 | `IsDetailBill`, `IsPaperless`, `ServiceDateStart`, `ServiceDateEnd` | Statement detail | — | ✓ | — | Detail. |
-| `RecordID` | Statement id; the PDF download key | — | ✓ | — | Handle for a future statement-PDF capability. |
+| `RecordID` | Statement id; the PDF download key | — | ✓ | ✓ | The handle `download_billing_statement` takes — in concise for the same reason `image_id` is: a model can only ask for a file it has been shown the key to. |
 | `ImagePath`, `Token`, `EncBillingSystem`, `PrintID`, `BillingSystem`, `Format`, `IsEB`, `URLStatement` | PDF-download plumbing | — | — | — | Internal; the other keys the download needs, available in `raw`. |
 | `Show`, `Date`, `DayOfMonth`, `Month`, `Year`, `LinkText`, `LinkDescription` | Rendering and split dates | — | — | — | UI flag / duplicate. |
 | list-level `HasUnread`, `HasRead`, `ShowAll`, `PaperlessStatus`, `ShowPaperlessSignup`, `ShowPaperlessCancel`, `URLPaperlessBilling`, `IsPaperlessAllowedForSA`, `IsDetailBillModel`, `noStatementsString`, `allReadString`, `loadMoreString` | Page config | — | — | — | UI flag / portal link. |
@@ -172,3 +178,16 @@ Payments (`LoadPaymentList` `Data.PaymentList[]`):
 | `Receipt.FileName`, `.BlobToken`, `.IsValidReceipt`, `.PrintStatus`, `.ReceiptStatus`, `.ViewReceiptOptions.*`, `.MobileDocViewerSupported`, `.Url` | Receipt download plumbing | — | — | — | Internal / UI flag. |
 | `CoverageInfo` | Coverage | — | — | — | Always empty: null on capture. |
 | `ID`, `ElementID`, `Index`, `DayOfMonth`, `Month`, `Year`, `HtmlSubText`, `IsBadDebtAdj`, `IsWriteOffAdj`, `IsSurchargeAdj`, `CanEdit`, `EditPaymentOptions`, `CanCancel`, `CancelCommandOptions`, `ConsentDocument`, `ViewConsentOptions`, `IsCardExpiringSoon`, `HasCardExpired` | Ids, split dates, edit/cancel UI | — | — | — | Internal / duplicate / UI flag. |
+
+## `download_billing_statement`
+
+`record_id` (required) is a statement's `RecordID` from `get_billing`. Not a processor
+capability — there is no `mode` — and it is `returnsFile`: `run` returns a `FilePayload`
+(`fileName`, `mimeType: application/pdf`, `bytes`) plus a `statement` block (`RecordID`,
+`dateISO`, `FormattedDateDisplay`, `Description`, `StatementAmountDisplay`, `IsDetailBill`)
+so a caller can label what it saved. Each client puts the bytes somewhere the user can open
+them: the Claude Desktop extension writes to the Downloads folder (never overwriting — a
+second copy is `Statement_20260115-2.pdf`) and answers with the path; the CLI writes to
+`--output <dir>` (default: the working directory) and prints the path; the mobile app has
+no file surface and refuses up front, naming the two clients that do.
+`fileName` is `Statement_<DateDisplay>.pdf`, the name MyChart's own download button uses.

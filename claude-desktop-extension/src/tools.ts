@@ -62,6 +62,7 @@ import {
   type Capability,
   type CapabilityContext,
   type CapabilityParam,
+  type FilePayload,
   type StudyImagePayload,
 } from '../../shared/capabilities';
 
@@ -90,6 +91,7 @@ import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate }
 import { decodeStudy, encodeFullResolutionJpegs } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
+import { saveFilePayload } from './save-file';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -342,6 +344,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.rendersMedia) {
           return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
+        if (capability.returnsFile) return fileResult(payload as FilePayload);
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
@@ -436,6 +439,20 @@ export async function imagingResult(
   }
 
   return { content };
+}
+
+/**
+ * A `returnsFile` capability's payload — a PDF — has nothing a tool result
+ * can show inline, so it goes to the Downloads folder every time and the
+ * result is the path, beside whatever the capability said about the file
+ * (for a statement: its date, description and amount). The bytes never
+ * reach the conversation. Takes the payload rather than running the
+ * capability, for the same reason `imagingResult` does.
+ */
+export function fileResult(payload: FilePayload): ToolResult {
+  const { bytes, fileName, mimeType, ...rest } = payload;
+  const savedTo = saveFilePayload(payload);
+  return jsonResult({ saved_to: savedTo, file_name: fileName, mime_type: mimeType, bytes: bytes.length, ...rest });
 }
 
 // ── Shared login path ───────────────────────────────────────────────────────

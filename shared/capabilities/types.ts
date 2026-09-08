@@ -127,6 +127,22 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+  /**
+   * True when `run` returns one {@link FilePayload} — a document MyChart serves
+   * as a file (a statement PDF) rather than data. Nothing inline can show it,
+   * so each client puts the bytes somewhere the user can open: the MCPB and
+   * the CLI write it to disk and answer with the path. Clients branch on this
+   * flag, never on the id, exactly like {@link rendersMedia}.
+   */
+  returnsFile?: boolean;
+}
+
+/** What a {@link Capability.returnsFile} capability's `run` returns. */
+export interface FilePayload {
+  /** A safe basename with extension, e.g. `Statement_20260115.pdf`. */
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
 }
 
 /**

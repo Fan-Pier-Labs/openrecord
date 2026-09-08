@@ -473,6 +473,14 @@ async function runScraper(
   if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
+  // A file (a statement PDF) has nowhere to go on this client: the chat renders
+  // images only, and there is no file browser. Refusing before the dispatch
+  // beats downloading bytes the model would then see as a JSON-encoded array.
+  if (capability.returnsFile) {
+    return {
+      error: `${capability.id} saves a PDF to disk, which the mobile app cannot do yet. Use the Claude Desktop extension or mychart-cli, which write it to the Downloads folder.`,
+    };
+  }
 
   try {
     return await executeCapability(request, toolName, input, ctx);

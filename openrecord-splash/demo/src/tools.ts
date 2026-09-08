@@ -262,6 +262,12 @@ export const TOOL_SPECS: ToolSpec[] = [
     description: 'Billing history — charges, insurance paid, patient responsibility. Paginated — pass limit: 50 to get everything',
     args: { instance: 'optional', limit: 'number (default 10)', offset: 'number' },
   },
+  {
+    name: 'download_billing_statement',
+    group: 'Billing',
+    description: 'Download one billing statement or itemized bill as a PDF, by the RecordID of a statement from get_billing',
+    args: { record_id: 'RecordID from get_billing', instance: 'optional' },
+  },
   { name: 'get_insurance', group: 'Billing', description: 'Insurance plan, member id, copays, deductible', args: { instance: 'optional' } },
   {
     name: 'get_insurance_payers',
@@ -946,6 +952,10 @@ const HANDLERS: Record<string, Handler> = {
     const { total, offset, count, page } = paginate(record(s).billing, args);
     return { totalVisits: total, offset, count, visits: clone(page) };
   },
+  // The real product writes the PDF to disk; the demo's ledger has no
+  // statements behind it, so there is no RecordID this could ever be handed.
+  download_billing_statement: () =>
+    fail('The demo record has no statement PDFs. On a real MyChart account this saves the statement to the Downloads folder.'),
   get_insurance: (s) => clone(record(s).insurance),
   // Organization-level: deliberately not read through record(s), so switching
   // patients never changes it.

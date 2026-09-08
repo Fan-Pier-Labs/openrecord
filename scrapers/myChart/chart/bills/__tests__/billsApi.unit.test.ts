@@ -7,6 +7,7 @@ import {
   getPaymentList,
   getStatementList,
   saveStatementPdf,
+  downloadBillingStatement,
 } from '../bills'
 import { toEpicDteLocal } from '../../../../../shared/epicDate'
 import { MyChartRequest } from '../../../core/myChartRequest'
@@ -145,6 +146,87 @@ describe('saveStatementPdf', () => {
     expect(url).toContain(`token=${encodeURIComponent('tok en+slash/')}`)
     expect(url).toContain('earId=ENC-1')
     expect(url).toContain('id=REC-1')
+  })
+})
+
+describe('downloadBillingStatement', () => {
+  const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]) // %PDF-1.4
+  const card = (id: string, guarantor: string) => `
+    <div class="ba_card">
+      <p class="ba_card_header_account_idAndType">Guarantor #${guarantor} (Homer Simpson)</p>
+      <p class="ba_card_status_due_amount">$1.00</p>
+      <p class="ba_card_status_recentPaymentLabel">
+        <a href="https://mychart.example.com/Billing/Detail?ID=${id}&Context=CTX">View</a>
+      </p>
+    </div>`
+  const statement = (RecordID: string, extra: Record<string, unknown> = {}) => ({
+    RecordID, DateDisplay: '20260115', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail',
+    StatementAmountDisplay: '$350.00', IsDetailBill: false, EncBillingSystem: 'BS', ImagePath: 'IMG', Token: 'tok/en', ...extra,
+  })
+  // Two accounts: the statement lives on the second, as an itemized bill.
+  const lists: Record<string, unknown> = {
+    'id=ACC-1': { DataStatement: { StatementList: [statement('REC-1')] }, DataDetailBill: { StatementList: [] } },
+    'id=ACC-2': { DataStatement: { StatementList: [] }, DataDetailBill: { StatementList: [statement('REC-2', { IsDetailBill: true, DateDisplay: '20251201', Description: 'Itemized bill' })] } },
+  }
+  function twoAccounts(overrides: Array<[string, string | (() => Response)]> = []) {
+    return mockRouted([
+      ...overrides,
+      ['/Billing/Summary', card('ACC-1', '1') + card('ACC-2', '2')],
+      ['GetStatementList?noCache=', () => new Response('unreachable')],
+      ['GetStatementList', () => new Response('unreachable')],
+      ['DownloadFromBlob', () => new Response(PDF, { status: 200 })],
+      ['/Billing/Details?ID=ACC-2', '{"EncID":"ENC-2"}'],
+      ['/Billing/Details?ID=ACC-1', '{"EncID":"ENC-1"}'],
+    ])
+  }
+  // The statement list is routed per account, which the fragment router
+  // cannot express, so it is answered from the account id in the url.
+  function withStatementLists(mocked: ReturnType<typeof mockRouted>) {
+    const inner = mocked.req.transport
+    mocked.req.transport = mock(async (url: string, init: RequestInit = {}) => {
+      if (url.includes('GetStatementList')) {
+        mocked.calls.push({ url, init })
+        const key = Object.keys(lists).find((k) => url.includes(k))!
+        return new Response(JSON.stringify(lists[key]), { status: 200 })
+      }
+      return inner(url, init)
+    })
+    return mocked
+  }
+
+  it('finds the statement on whichever account and list holds it, and returns the PDF', async () => {
+    const { req, calls } = withStatementLists(twoAccounts())
+    const result = await downloadBillingStatement(req, 'REC-2')
+
+    expect(result.mimeType).toBe('application/pdf')
+    expect(result.fileName).toBe('Statement_20251201.pdf')
+    expect(Buffer.from(result.bytes).subarray(0, 4).toString()).toBe('%PDF')
+    expect(result.statement).toEqual({
+      RecordID: 'REC-2', dateISO: '2025-12-01', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Itemized bill',
+      StatementAmountDisplay: '$350.00', IsDetailBill: true,
+    })
+    // The download is keyed by the owning account's EncID, not the first account's.
+    const download = urlFor(calls, 'DownloadFromBlob')
+    expect(download).toContain('earId=ENC-2')
+    expect(download).toContain('id=REC-2')
+    expect(download).toContain(`token=${encodeURIComponent('tok/en')}`)
+    expect(calls.some((c) => c.url.includes('/Billing/Details?ID=ACC-1'))).toBe(false)
+  })
+
+  it('names the RecordIDs it did find when the one asked for is not there', async () => {
+    const { req } = withStatementLists(twoAccounts())
+    await expect(downloadBillingStatement(req, 'REC-9')).rejects.toThrow(/No billing statement has RecordID "REC-9".*REC-1, REC-2/)
+  })
+
+  it('refuses when the details page has no EncID rather than requesting a broken download', async () => {
+    const { req, calls } = withStatementLists(twoAccounts([['/Billing/Details?ID=ACC-2', '<html>no id</html>']]))
+    await expect(downloadBillingStatement(req, 'REC-2')).rejects.toThrow(/carried no EncID/)
+    expect(calls.some((c) => c.url.includes('DownloadFromBlob'))).toBe(false)
+  })
+
+  it('refuses a 200 that is not a PDF instead of saving an error page as one', async () => {
+    const { req } = withStatementLists(twoAccounts([['DownloadFromBlob', () => new Response('<html>Session expired</html>', { status: 200 })]]))
+    await expect(downloadBillingStatement(req, 'REC-1')).rejects.toThrow(/did not return a PDF.*Session expired/)
   })
 })
 

@@ -322,6 +322,23 @@ describe('rendersMedia', () => {
     expect(mobile).toContain('capability.rendersMedia');
     expect(mobile).not.toContain('capability.id === "download_imaging_study"');
   });
+
+  it('has a sibling, returnsFile, that the clients branch on the same way', async () => {
+    const files = CAPABILITIES.filter((c) => c.returnsFile);
+    expect(files.map((c) => c.id)).toEqual(['download_billing_statement']);
+    // No capability is both: a study is decoded per client, a file is saved as-is.
+    expect(files.some((c) => c.rendersMedia)).toBe(false);
+
+    for (const relativePath of [
+      'claude-desktop-extension/src/tools.ts',
+      'expo-app/src/lib/scrapers/session-manager.ts',
+      'npm-package/cli/capabilityActions.ts',
+    ]) {
+      const source = await Bun.file(new URL(`../../${relativePath}`, import.meta.url).pathname).text();
+      expect(source).toContain('capability.returnsFile');
+      expect(source).not.toContain('download_billing_statement');
+    }
+  });
 });
 
 // ── No client dispatches around executeCapability ──────────────────────────
@@ -538,6 +555,7 @@ describe('npm library', () => {
       send_reply: 'sendReply',
       delete_message: 'deleteMessage',
       get_billing: 'getBillingHistory',
+      download_billing_statement: 'downloadBillingStatement',
       get_insurance: 'getInsurance',
       get_insurance_payers: 'getInsurancePayers',
       get_care_team: 'getCareTeam',
