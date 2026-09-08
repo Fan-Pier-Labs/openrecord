@@ -10,7 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { Bitmap } from '../../../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { decodeStudy, type DecodedStudy } from '../download-study';
-import { downscale, inlinePreviews, INLINE_BUDGET_BYTES, MAX_INLINE_IMAGES, spreadIndices } from '../inline-preview';
+import { inlinePreviews, INLINE_BUDGET_BYTES, MAX_INLINE_IMAGES, spreadIndices } from '../inline-preview';
 
 const CLO_DIR = join(__dirname, '../../../../fake-mychart/src/data/clo-images');
 
@@ -38,27 +38,6 @@ function base64Bytes(images: { jpegBase64: string }[]): number {
   return images.reduce((sum, img) => sum + img.jpegBase64.length, 0);
 }
 
-describe('downscale', () => {
-  test('leaves an image that already fits untouched', () => {
-    const src = noisyBitmap(512, 400);
-    expect(downscale(src, 1024)).toBe(src);
-  });
-
-  test('shrinks the longest edge to the limit and keeps the aspect ratio', () => {
-    const out = downscale(noisyBitmap(2000, 1000), 1024);
-    expect(out.width).toBe(1024);
-    expect(out.height).toBe(512);
-    expect(out.pixels.length).toBe(1024 * 512);
-  });
-
-  test('averages each source block rather than dropping pixels', () => {
-    const out = downscale({ width: 2, height: 2, pixels: new Uint8Array([0, 0, 255, 255]) }, 1);
-    expect(out.width).toBe(1);
-    expect(out.height).toBe(1);
-    expect(out.pixels[0]).toBe(128);
-  });
-});
-
 describe('spreadIndices', () => {
   test('returns every index when the study is small enough', () => {
     expect(spreadIndices(3, 12)).toEqual([0, 1, 2]);
@@ -76,8 +55,8 @@ describe('spreadIndices', () => {
 });
 
 describe('inlinePreviews', () => {
-  test('a three-view study of full-size radiographs fits the budget', () => {
-    const result = inlinePreviews(study([noisyBitmap(2500, 2048), noisyBitmap(2048, 2500), noisyBitmap(2500, 2048)]));
+  test('a three-view study of full-size radiographs fits the budget', async () => {
+    const result = await inlinePreviews(study([noisyBitmap(2500, 2048), noisyBitmap(2048, 2500), noisyBitmap(2500, 2048)]));
     expect(result.images).toHaveLength(3);
     expect(result.downscaled).toBe(true);
     expect(result.errors).toEqual([]);
@@ -90,7 +69,7 @@ describe('inlinePreviews', () => {
     }
   });
 
-  test('a small fixture is shown at its own size', () => {
+  test('a small fixture is shown at its own size', async () => {
     const decoded = decodeStudy({
       studyName: 'XR CHEST',
       totalImages: 1,
@@ -103,16 +82,16 @@ describe('inlinePreviews', () => {
       }],
       errors: [],
     });
-    const result = inlinePreviews(decoded);
+    const result = await inlinePreviews(decoded);
     expect(result.images).toHaveLength(1);
     expect(result.images[0]!.width).toBe(512);
     expect(result.images[0]!.height).toBe(512);
     expect(result.downscaled).toBe(false);
   });
 
-  test('a CT is sampled down to MAX_INLINE_IMAGES slices, still within budget', () => {
+  test('a CT is sampled down to MAX_INLINE_IMAGES slices, still within budget', async () => {
     const slices = Array.from({ length: 40 }, () => noisyBitmap(512, 512));
-    const result = inlinePreviews(study(slices));
+    const result = await inlinePreviews(study(slices));
     expect(result.images).toHaveLength(MAX_INLINE_IMAGES);
     expect(result.images[0]!.index).toBe(0);
     expect(result.images[MAX_INLINE_IMAGES - 1]!.index).toBe(39);

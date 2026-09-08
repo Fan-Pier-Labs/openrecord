@@ -64,8 +64,8 @@ describe('save_to_downloads registration', () => {
 });
 
 describe('imagingResult', () => {
-  test('renders the pictures without touching the disk when saving is not asked for', () => {
-    const result = imagingResult(xrayPayload(), false);
+  test('renders the pictures without touching the disk when saving is not asked for', async () => {
+    const result = await imagingResult(xrayPayload(), false);
 
     // The images still come back — this is the "show me my X-ray" path.
     expect(result.content.filter((c) => c.type === 'image')).toHaveLength(1);
@@ -80,7 +80,7 @@ describe('imagingResult', () => {
     expect(summary.shown_inline).toBe(1);
   });
 
-  test('a full-size study comes back under the 1MB tool-result cap', () => {
+  test('a full-size study comes back under the 1MB tool-result cap', async () => {
     // Three ~2500px views, the shape of a real shoulder series: each is ~4MB
     // at full resolution, and the host rejects the whole result over 1MB.
     const width = 2500;
@@ -99,7 +99,7 @@ describe('imagingResult', () => {
       errors: [],
     };
 
-    const result = imagingResult(study, false);
+    const result = await imagingResult(study, false);
 
     expect(JSON.stringify(result).length).toBeLessThan(1024 * 1024);
     expect(result.content.filter((c) => c.type === 'image')).toHaveLength(3);

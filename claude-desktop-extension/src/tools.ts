@@ -337,7 +337,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // The flag, not the id — and it decides how to RENDER the payload,
         // never whether the guard ran.
         if (capability.rendersMedia) {
-          return imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
+          return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
@@ -365,10 +365,10 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion.
  */
-export function imagingResult(
+export async function imagingResult(
   payload: StudyImagePayload,
   saveToDownloads: boolean,
-): ToolResult {
+): Promise<ToolResult> {
   const study = decodeStudy(payload);
   const errors = [...study.errors];
 
@@ -384,7 +384,7 @@ export function imagingResult(
     }
   }
 
-  const preview = inlinePreviews(study);
+  const preview = await inlinePreviews(study);
   errors.push(...preview.errors);
 
   const notes: string[] = [];
