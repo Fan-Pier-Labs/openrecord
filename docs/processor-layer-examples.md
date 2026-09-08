@@ -30,8 +30,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 41985 | 17182 | 21355 | 5338 |
-| `get_imaging_results` | 42709 | 5202 | 6082 | 2781 |
+| `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
+| `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
 | `get_messages` | 8224 | 4413 | 5523 | 3373 |
 | `get_message_thread` | 3424 | 1489 | 1807 | 997 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
@@ -7854,7 +7854,7 @@ Follow up in 3 months. Schedule lipid panel before next visit.
 Lab results with reference ranges and prior values for trending.
 
 <details>
-<summary><code>mode: raw</code> (41985 chars)</summary>
+<summary><code>mode: raw</code> (42001 chars)</summary>
 
 ```json
 {
@@ -8095,7 +8095,7 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-XRAY-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-XRAY-001",
           "ordDat": "ORD-XRAY-001-DAT"
@@ -8117,7 +8117,7 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-CT-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-CT-001",
           "ordDat": "ORD-CT-001-DAT"
@@ -8215,14 +8215,14 @@ Lab results with reference ranges and prior values for trending.
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "S
-… (truncated; 59435 more characters)
+                  "n
+… (truncated; 59451 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (21355 chars)</summary>
+<summary><code>mode: standard</code> (21363 chars)</summary>
 
 ## orders (5)
 
@@ -9099,7 +9099,7 @@ Lab results with reference ranges and prior values for trending.
 
 ###### reportDetails
 
-- **reportID**: RPT-XRAY-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -9200,7 +9200,7 @@ View Images
 
 ###### reportDetails
 
-- **reportID**: RPT-CT-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -9411,7 +9411,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (17182 chars)</summary>
+<summary><code>mode: json</code> (17190 chars)</summary>
 
 ```json
 {
@@ -9775,7 +9775,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
             },
             "addenda": [],
 
-… (truncated; 18271 more characters)
+… (truncated; 18279 more characters)
 ```
 
 </details>
@@ -9787,7 +9787,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries that have viewable pictures carry an `image_id` — pass that to download_imaging_study to get the actual images.
 
 <details>
-<summary><code>mode: raw</code> (42709 chars)</summary>
+<summary><code>mode: raw</code> (42725 chars)</summary>
 
 ```json
 {
@@ -10028,7 +10028,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-XRAY-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-XRAY-001",
           "ordDat": "ORD-XRAY-001-DAT"
@@ -10050,7 +10050,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-CT-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-CT-001",
           "ordDat": "ORD-CT-001-DAT"
@@ -10148,14 +10148,14 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "S
-… (truncated; 60349 more characters)
+                  "n
+… (truncated; 60365 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (6082 chars)</summary>
+<summary><code>mode: standard</code> (6090 chars)</summary>
 
 ## orders (2)
 
@@ -10240,7 +10240,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
 
 ###### reportDetails
 
-- **reportID**: RPT-XRAY-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -10346,7 +10346,7 @@ View Images
 
 ###### reportDetails
 
-- **reportID**: RPT-CT-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -10455,7 +10455,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (5202 chars)</summary>
+<summary><code>mode: json</code> (5210 chars)</summary>
 
 ```json
 {
@@ -10532,7 +10532,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
           },
           "providerComments": [],
           "reportDetails": {
-            "reportID": "RPT-XRAY-001",
+            "reportID": "RPT-IMAGING-001",
             "isDownloadablePDFReport": false
           },
           "reportContentText": "XR Skull 2 Views\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.\n\nView Images",
@@ -10624,7 +10624,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
           },
           "providerComments": [],
           "reportDetails": {
-            "reportID": "RPT-CT-001",
+            "reportID": "RPT-IMAGING-001",
             "isDownloadablePDFReport": false
           },
           "reportContentText": "CT Head without Contrast\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).",

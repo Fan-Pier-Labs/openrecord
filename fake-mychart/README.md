@@ -515,8 +515,8 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/MyChart/api/test-results/GetWidgetList?groupType=2` | POST | Lists imaging studies (X-ray skull, CT head) |
-| `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportID` |
-| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
+| `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportDetails` — both studies carry the same `reportID` (a report *template* id, as on a real instance) and are told apart by `reportVars.ordId` |
+| `/MyChart/api/report-content/LoadReportContent` | POST | Dispatched on `assumedVariables.ordId`, never on `reportID` alone; an unknown order gets the empty report. Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
 | `/MyChart/Extensibility/Redirection/FdiData` | POST | Bridge: returns `{url, launchmode, IsFdiPost}` pointing at `/e/saml-sts` |
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
