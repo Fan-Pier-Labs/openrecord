@@ -62,6 +62,7 @@ import {
   type Capability,
   type CapabilityContext,
   type CapabilityParam,
+  type DownloadedFile,
   type StudyImagePayload,
 } from '../../shared/capabilities';
 
@@ -90,6 +91,7 @@ import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate }
 import { decodeStudy, encodeFullResolutionJpegs } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
+import { fileResult } from './attachments/file-result';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -341,6 +343,10 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // never whether the guard ran.
         if (capability.rendersMedia) {
           return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
+        }
+        // A downloaded file goes to disk and, when it is a small image, inline.
+        if (capability.returnsFile) {
+          return fileResult(payload as DownloadedFile);
         }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.

@@ -140,6 +140,11 @@ not compile for any client — the enforcement for "every dispatch goes through 
   modules to keep it that way. The extension and the CLI each used to branch on `rendersMedia`
   *before* dispatching and run the media capability directly, which made `download_imaging_study`
   the one tool that skipped the assertion.
+- **`returnsFile`** marks the one capability (`get_message_attachment`) whose payload is one
+  downloaded file — a `DownloadedFile` of name, MIME type and bytes. Same rule as `rendersMedia`:
+  clients branch on the flag after the dispatch, and each keeps the bytes where its platform keeps
+  files (the extension under the OS temp directory, showing a small image inline and never a PDF;
+  the CLI in `--output`; the mobile app in its image attachment store).
 - **`rendersMedia`** marks the one capability (`download_imaging_study`) whose payload isn't JSON:
   it returns raw CLO bytes because the encode step is the client's, not the capability's — the CLI
   uses the sharp-backed exporter, while the MCPB and the mobile app share the pure-JS one

@@ -26,6 +26,7 @@ import {
   readAccountArg,
   type Capability,
   type CapabilityContext,
+  type DownloadedFile,
   type StudyImagePayload,
 } from "../../../../shared/capabilities";
 import { TOTP } from "totp-generator";
@@ -473,6 +474,11 @@ async function runScraper(
   if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
+  // Same rule for a downloaded file: an image goes to the attachment store,
+  // anything else is described, since the app has nowhere to open a PDF.
+  if (capability.returnsFile && request) {
+    return downloadFileAsAttachment(capability, request, input);
+  }
 
   try {
     return await executeCapability(request, toolName, input, ctx);
@@ -482,6 +488,36 @@ async function runScraper(
     // structured error than as a crashed turn.
     return { error: (err as Error).message };
   }
+}
+
+/**
+ * Download one file (a message attachment). An image is stashed in the
+ * attachment store like an X-ray and answered with the token the model puts
+ * in its reply; any other type is answered with its name, type and size only.
+ */
+async function downloadFileAsAttachment(
+  capability: Capability,
+  request: MyChartRequest,
+  input: Record<string, unknown>,
+): Promise<unknown> {
+  let file: DownloadedFile;
+  try {
+    file = (await executeCapability(request, capability.id, input)) as DownloadedFile;
+  } catch (err) {
+    return { error: `Could not download the attachment: ${(err as Error).message}` };
+  }
+  const summary = { file_name: file.fileName, mime_type: file.mimeType, size_bytes: file.size };
+  if (!file.mimeType.startsWith("image/")) {
+    return {
+      ...summary,
+      note: "Only images can be shown in the app. Tell the user what the attachment is; its contents cannot be read here.",
+    };
+  }
+  const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;
+  // Dimensions are not known without decoding; the chat bubble falls back to a square.
+  putImageAttachment(imageId, dataUri, file.fileName, 0, 0);
+  return { ...summary, image_id: imageId, caption: file.fileName };
 }
 
 /**

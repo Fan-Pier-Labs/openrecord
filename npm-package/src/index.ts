@@ -237,6 +237,8 @@ export {
   conversationThreadProcessor,
   type ConversationThreadStandard,
 } from '../../scrapers/myChart/chart/messages/messageThreads';
+export { fetchMessageAttachment } from '../../scrapers/myChart/chart/messages/messageAttachment';
+export { type DownloadedFile } from '../../scrapers/myChart/core/downloadedFile';
 export {
   sendNewMessage,
   getMessageRecipients,

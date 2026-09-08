@@ -324,6 +324,30 @@ describe('rendersMedia', () => {
   });
 });
 
+describe('returnsFile', () => {
+  it('is what the clients branch on, so a second file capability needs no edits', async () => {
+    const files = CAPABILITIES.filter((c) => c.returnsFile);
+    expect(files.map((c) => c.id)).toEqual(['get_message_attachment']);
+    // A file capability has no processor: the payload is bytes, not a MyChart object.
+    for (const capability of files) expect(acceptsModeParam(capability)).toBe(false);
+
+    const source = await Bun.file(
+      new URL('../../claude-desktop-extension/src/tools.ts', import.meta.url).pathname,
+    ).text();
+    expect(source).toContain('capability.returnsFile');
+    expect(source).not.toContain("capability.id === 'get_message_attachment'");
+
+    const cli = await Bun.file(new URL('../../npm-package/cli/capabilityActions.ts', import.meta.url).pathname).text();
+    expect(cli).toContain('capability.returnsFile');
+
+    const mobile = await Bun.file(
+      new URL('../../expo-app/src/lib/scrapers/session-manager.ts', import.meta.url).pathname,
+    ).text();
+    expect(mobile).toContain('capability.returnsFile');
+    expect(mobile).not.toContain('capability.id === "get_message_attachment"');
+  });
+});
+
 // ── No client dispatches around executeCapability ──────────────────────────
 
 /**
@@ -532,6 +556,7 @@ describe('npm library', () => {
       download_imaging_study: 'downloadImagingStudy',
       get_messages: 'listConversations',
       get_message_thread: 'getConversationMessages',
+      get_message_attachment: 'getMessageAttachment',
       get_message_recipients: 'getMessageRecipients',
       get_message_topics: 'getMessageTopics',
       send_message: 'sendMessage',

@@ -394,7 +394,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |
 | **Lab Results** | `labResults.ts` | CMP, Lipid Panel, CBC — cholesterol and triglycerides high |
 | **Visits** | `visits.ts` | Upcoming: annual physical. Past: ER donut incident, radiation screening |
-| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt), Dr. Nick (discount surgery), and an 8-message back-pain thread that spans pages |
+| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt, with a PDF attachment), Dr. Nick (discount surgery), an 8-message back-pain thread that spans pages (with a PNG attachment), and 60 appointment reminders so the inbox itself spans pages |
 | **Billing** | `bills.ts` | Multiple billing accounts with charges |
 | **Letters** | `letters.ts` | After-visit summaries from Dr. Hibbert |
 | **Goals** | `goals.ts` | Lose 50 lbs (care team), eat one vegetable/week (patient) |
@@ -413,8 +413,9 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 
 Messages are fully interactive. You can:
 
-- **List conversations** — returns seed data plus any new messages sent this session, inlining only the newest five messages of each thread
+- **List conversations** — returns seed data plus any new messages sent this session, 50 threads per page newest-first (`localLoadParams.loadStartInstantISO` from the previous page's `oldestLoadedInstantISO` asks for the next), inlining only the newest five messages of each thread
 - **Read conversation threads** — `getconversationdetails` for the subject, the name maps and the newest page, then `getconversationmessages` to page backwards through anything older
+- **Download an attachment** — `GET /Documents/ViewDocument/Download?dcsId=…` serves the bytes behind a message's attachment with the file's own `Content-Type` and a generic `Document.<EXT>` disposition; a `dcsId` the active record does not list answers 200 with an empty body and no `Content-Type`, as the four live instances checked do
 - **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
 - **Reply to a message** — appends to an existing conversation thread
 - **Delete a conversation** — removes it from the in-memory list

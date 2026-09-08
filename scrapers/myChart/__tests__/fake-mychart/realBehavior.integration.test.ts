@@ -487,6 +487,28 @@ describe('the conversation-read endpoints that only accept `id`', () => {
     expect(olderBody.hasMoreMessages).toBe(false)
   })
 
+  it('pages GetConversationList 50 threads at a time, newest first, from an exclusive loadStartInstantISO', async () => {
+    const first = await api('/api/conversations/GetConversationList', {
+      tag: 1, localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 }, externalLoadParams: {}, searchQuery: '', PageNonce: '',
+    })
+    type Listing = { conversations: Array<{ hthId: string }>; localSummary: { hasMoreConversations: boolean; numberLoaded: number; oldestLoadedInstantISO: string; pagingInfo: number } }
+    const page1 = await first.json() as Listing
+    expect(page1.conversations).toHaveLength(50)
+    expect(page1.localSummary).toMatchObject({ hasMoreConversations: true, numberLoaded: 50, pagingInfo: 0 })
+    expect(page1.conversations[0]!.hthId).toBe('CONV-001')
+
+    const second = await api('/api/conversations/GetConversationList', {
+      tag: 1,
+      localLoadParams: { loadStartInstantISO: page1.localSummary.oldestLoadedInstantISO, loadEndInstantISO: '', pagingInfo: page1.localSummary.pagingInfo },
+      externalLoadParams: {}, searchQuery: '', PageNonce: '',
+    })
+    const page2 = await second.json() as Listing
+    expect(page2.localSummary.hasMoreConversations).toBe(false)
+    expect(page2.conversations.length).toBeGreaterThan(0)
+    const ids1 = new Set(page1.conversations.map(c => c.hthId))
+    expect(page2.conversations.some(c => ids1.has(c.hthId))).toBe(false)
+  })
+
   it('leaves author.displayName empty, so names only resolve through the users/viewers maps', async () => {
     const res = await api('/api/conversations/GetConversationDetails', { id: 'CONV-003', PageNonce: '' })
     const body = await res.json() as {
@@ -749,5 +771,32 @@ describe('insurance payer catalogue fidelity', () => {
     const memberOnly = result.Payors.find((p) => Object.keys(p.Fields).length === 1)
     expect(memberOnly?.requiredFields).toEqual(['MemberId'])
     expect(memberOnly?.optionalFields).toEqual([])
+  })
+})
+
+/**
+ * A message attachment is a DCS document, served by
+ * `/Documents/ViewDocument/Download?dcsId=…&method=view` with its own
+ * Content-Type and a generic `Document.<EXT>` disposition. An unknown or
+ * another patient's `dcsId` answers 200 with an empty body and no
+ * Content-Type — not a 404 — on all four live instances, which is the case a
+ * status-only check saves as an empty file.
+ */
+describe('the message attachment download', () => {
+  it('serves a listed dcsId with the file\'s type, length and a generic disposition', async () => {
+    const res = await session.makeRequest({ path: '/Documents/ViewDocument/Download?dcsId=WP-ATT-001&method=view' })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(res.headers.get('content-disposition')).toBe('inline; filename="Document.PDF"')
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    expect(res.headers.get('content-length')).toBe(String(bytes.length))
+    expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe('%PDF-')
+  })
+
+  it('answers an unknown dcsId with 200, an empty body and no Content-Type', async () => {
+    const res = await session.makeRequest({ path: '/Documents/ViewDocument/Download?dcsId=WP-ATT-NOPE&method=view' })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBeNull()
+    expect((await res.arrayBuffer()).byteLength).toBe(0)
   })
 })

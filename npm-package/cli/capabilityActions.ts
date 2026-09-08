@@ -29,6 +29,7 @@ import {
   getCapability,
   type Capability,
   type CapabilityContext,
+  type DownloadedFile,
   type StudyImagePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
@@ -70,6 +71,7 @@ export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filt
   (capability) =>
     capability.kind === 'read' &&
     !capability.rendersMedia &&
+    !capability.returnsFile &&
     acceptsPatientParam(capability) &&
     capability.params.every((param) => !param.required),
 );
@@ -146,7 +148,8 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
   lines.push(
     '',
     "  ! marks a command that changes something — a write to the chart, or the account's own sign-in settings.",
-    '  Commands that produce images write JPEGs to ./imaging-output (override with --output <dir>).',
+    '  Commands that produce images write JPEGs to ./imaging-output, and commands that download a file',
+    '  write it to ./attachments-output (override either with --output <dir>).',
   );
   if (!options.showAll) {
     lines.push(
@@ -353,6 +356,17 @@ export async function runCapabilityAction(
       return files.length > 0 || payload.errors.length === 0;
     }
 
+    if (capability.returnsFile) {
+      // A downloaded file becomes a file on disk, never bytes in the terminal.
+      const filePath = await writeDownloadedFile(
+        result as DownloadedFile,
+        path.resolve(outputDir ?? path.join(process.cwd(), 'attachments-output')),
+      );
+      const { fileName, mimeType, size } = result as DownloadedFile;
+      console.log(JSON.stringify({ filePath, fileName, mimeType, size }, null, 2));
+      return true;
+    }
+
     // The markdown modes are text already; the data modes are printed as JSON.
     console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
@@ -360,6 +374,14 @@ export async function runCapabilityAction(
     console.log(`  ${(err as Error).message}`);
     return false;
   }
+}
+
+/** Write a `returnsFile` payload under `outputDir` and return the file's path. */
+export async function writeDownloadedFile(file: DownloadedFile, outputDir: string): Promise<string> {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  const filePath = path.join(outputDir, file.fileName);
+  await fs.promises.writeFile(filePath, file.bytes);
+  return filePath;
 }
 
 /**

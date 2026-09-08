@@ -5,8 +5,8 @@ and the write side — new messages, replies, drafts and deletes.
 
 | | |
 | --- | --- |
-| **Capabilities** | `get_messages` · `get_message_thread` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
-| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
+| **Capabilities** | `get_messages` · `get_message_thread` · `get_message_attachment` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
+| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
 | **Activity** | React `/app/communication-center` |
 
 ## Endpoints
@@ -18,7 +18,8 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | Request | Body | Purpose |
 | --- | --- | --- |
 | `GET /app/communication-center` | — | the `__RequestVerificationToken` every call below needs |
-| `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: {…}, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox |
+| `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: { loadStartInstantISO, loadEndInstantISO: '', pagingInfo }, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox, 50 threads per page |
+| `GET /Documents/ViewDocument/Download?dcsId=…&method=view` | — | one attachment's bytes |
 | `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps |
 | `POST /api/conversations/GetConversationMessages` | `{ id, startInstantISO?, maxReadMessages, PageNonce }` | older pages of that thread |
 | `POST /api/medicaladvicerequests/GetMedicalAdviceRequestRecipients` | `{ organizationId }` | who can be written to |
@@ -54,7 +55,44 @@ resolves by name first. `sendReply` is the same five without a recipient or topi
 
 Ids throughout are Epic's `WP-`-prefixed opaque strings.
 
+The three reads are meant to be called in sequence: `get_messages` is the list of threads
+(id, subject, who, when, flags — never the messages), `get_message_thread` is every message
+of one thread with each attachment's `dcsId`, and `get_message_attachment` is one
+attachment's bytes.
+
 ## Notes and research
+
+- **The inbox is paged, 50 threads at a time.** The first request sends
+  `localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 }`;
+  `localSummary.hasMoreConversations` says whether older threads exist, and the portal's
+  own load-more re-posts with `loadStartInstantISO` set to the page's
+  `oldestLoadedInstantISO` and `pagingInfo` to the page's `pagingInfo` (`0` after the first
+  page). Threads come newest-first. Measured on the one live instance with more than 50
+  threads (a page of 50, then the remainder, no overlap); the other three fit in one page.
+  `fetchConversationsRaw` walks every page, bounded by `MAX_PAGES = 40`, and the processor
+  merges them.
+- **An attachment is a DCS document.** Every attachment captured (18, on two instances) is
+  `type: 2` with a `dcsId`, an upper-cased `fileExtension` (`PDF`, `PNG`) and every other
+  field — `etxId`, `organizationId`, `legacyUrlForCommunityJump` — empty. The bytes come
+  from `GET /Documents/ViewDocument/Download?dcsId=<id>&method=view`, the URL the portal's
+  shared `useDcsDocument` hook builds for `legacyEncryption: true`
+  (`getBlobImagePath` in `epic.px.client.mychart-web-server.js`; `DownloadOrStream` is the
+  non-legacy sibling and answers identically). The answer carries the file's real
+  `Content-Type` and `Content-Length` and a generic
+  `Content-Disposition: inline; filename="Document.PDF"` — the attachment's own name is
+  only ever in the message that listed it, which is why `get_message_attachment` takes an
+  optional `file_name`. Attachments run to several MB (a 1.5 MB PDF was among the first
+  two downloaded on one instance).
+- **There is no way to learn an attachment's size without downloading it.** The listing
+  has no size field, and a `HEAD` on the download URL answers 500 on one instance and a
+  100 KB HTML page on another.
+- **An unknown `dcsId` answers 200 with an empty body and no `Content-Type`** — not a 404 —
+  on all four instances. `fetchMessageAttachment` refuses that answer rather than
+  returning an empty file that looks like the attachment.
+- **The bundle has two other attachment kinds this scraper does not handle**: a clinical
+  reference (an `etxId`, loaded through `POST /api/conversations/GetClinicalReferenceDetails`
+  and shown as HTML) and a community (H2G) jump through `legacyUrlForCommunityJump`.
+  Neither has been seen on a captured message; both are unverified.
 
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500
@@ -139,38 +177,37 @@ members are all listed so nothing is implied.
 
 ## `get_messages`
 
-`POST /api/conversations/GetConversationList`. The scraper returns the body
-untouched today.
+`POST /api/conversations/GetConversationList`, once per page while
+`localSummary.hasMoreConversations`. `raw` is the envelope. Merging the pages
+and flattening the who / when of each thread become processor work.
+
+Concise is the list of threads and nothing more: one flat row per thread with
+the `hthId` that `get_message_thread` takes. The newest five messages the
+listing inlines stay in `standard` / `json`.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
 | `legacyXUnreadCount` | Inbox unread count | — | ✓ | ✓ | The first thing a reader wants from an inbox. |
+| `truncated` | Paging stopped at the cap with `hasMoreConversations` still true | ✓ | ✓ | ✓ | Derived. A partial inbox must never be presented as the whole one. |
 | `conversations[].hthId` | Conversation id | — | ✓ | ✓ | Handle: `get_message_thread`, `send_reply` and `delete_message` take it. |
 | `conversations[].subject` | Subject | — | ✓ | ✓ | What. |
-| `conversations[].audience[].name` | Who the thread is with | — | ✓ | ✓ | Who. |
-| `conversations[].tags.Unread` | Unread | — | ✓ | ✓ | Unread threads come first. |
+| `conversations[].audience[].name` | Who the thread is with | — | ✓ | — | Who; the flat form below is what concise carries. |
+| `audienceNames` | `audience[].name`, flattened | ✓ | ✓ | ✓ | Derived. A list of names keeps a thread on one table row. |
+| `latestMessageInstantISO` | `deliveryInstantISO` of the newest inlined message | ✓ | ✓ | ✓ | Derived. When the thread last moved; the listing has no thread-level date. |
+| `conversations[].tags.Unread` | Unread | — | ✓ | — | Unread threads come first; the flat form below is what concise carries. |
+| `hasUnreadMessages` | `tags.Unread`, flat | ✓ | ✓ | ✓ | Derived. Same reason as `audienceNames`. |
 | `conversations[].hasUrgentMsgs` | Urgent | — | ✓ | ✓ | Urgency changes what a reader does next. |
-| `conversations[].hasMoreMessages` | More messages than were inlined | — | ✓ | ✓ | Says whether `get_message_thread` is worth calling. |
-| `conversations[].previewText` | Truncated latest body | — | ✓ | ✓ | The one-line gist; emitted even when full bodies are inlined (rule 6). |
-| `conversations[].hasAttachments`, `.hasTasks`, `.messageType` | Thread flags | — | ✓ | — | Detail. |
-| `conversations[].messages[].wmgId` | Message id | — | ✓ | — | Identifier; no capability takes it. |
-| `conversations[].messages[].deliveryInstantISO` | Sent time | — | ✓ | ✓ | When. |
-| `conversations[].messages[].isUnread` | Unread | — | ✓ | — | Per-message read state; the thread-level tag is enough for concise. |
-| `conversations[].messages[].body` | Body | — | — | — | Markup stays in `raw` (rule 9); real bodies are plain text, and the derived field is what the other modes read either way. |
-| `bodyText` | `body` with any markup stripped | ✓ | ✓ | ✓ | Derived from `body`. The message, readable. |
-| `senderName` | `wprKey` → `viewers[].name`; `empKey` → `userOverrideNames[empKey]` else `users[empKey].name`; `displayName` last | ✓ | ✓ | ✓ | Derived, in the order the portal's own `getAuthorInfo` uses. Without it every message is anonymous. |
-| `isFromPatient` | `wprKey` set and `empKey` absent | ✓ | ✓ | ✓ | Derived. Which side of the conversation each message is on. |
-| `conversations[].messages[].author.empKey`, `.wprKey` | Author keys | — | ✓ | — | The inputs to `senderName`; kept so the resolution is checkable. |
-| `conversations[].messages[].author.displayName` | Author display name | — | — | — | Always empty: `""` on every message of every captured instance; names live in `users` / `viewers`. |
-| `conversations[].messages[].attachments[].name`, `.fileExtension` | Attachments | — | ✓ | — | What was attached; detail. |
-| `conversations[].messages[].attachments[].type`, `.dcsId`, `.etxId`, `.legacyUrlForCommunityJump`, `.organizationId` | Attachment plumbing | — | — | — | Internal / portal link. |
-| `conversations[].messages[].tasks[]`, `.suggestedActions[]` | Tasks and actions | — | ✓ | — | Uncaptured; passed through. |
+| `conversations[].hasAttachments` | The thread has an attachment | — | ✓ | ✓ | Says whether `get_message_thread` will list a `dcsId` worth fetching. |
+| `conversations[].hasMoreMessages` | More messages than were inlined | — | ✓ | — | Detail; concise never carries the inlined messages, so the thread call is the answer either way. |
+| `conversations[].previewText` | Truncated latest body | — | ✓ | — | The one-line gist; detail. |
+| `conversations[].hasTasks`, `.messageType` | Thread flags | — | ✓ | — | Detail. |
+| `conversations[].messages[]` | The newest five messages, as in `get_message_thread` | — | ✓ | — | The listing inlines them; a reader who wants the messages takes the thread. Fields as in `get_message_thread`. |
 | `conversations[].userOverrideNames{}` | Per-thread display-name overrides | — | — | — | Resolved into `senderName`. |
 | `conversations[].contexts[]`, `.tags.Messages`, `.legacyMessageDetailsUrl`, `.hasLoadAllUsers`, `.allowBulkActions`, `.userKeys[]`, `.viewerKeys[]`, `.maskedUserNames[]`, `.showOtherViewersOption` | Thread rendering | — | — | — | UI flag / portal link / internal. |
 | `conversations[].organizationId` | Organization | — | — | — | Always empty: `""` on all four captured instances. |
 | `users{}` (`empId`, `name`, `outOfContactEndDate`, `outOfContactContext`, `outOfContactContextString`, `photoUrl`, `providerId`, `organizationId`) | Staff directory | — | — | — | Resolved into `senderName`; the rest is asset / internal. |
 | `viewers{}` (`wprId`, `name`, `isSelf`, `isShown`, `isSelected`, `organizationId`) | Patient-side directory | — | — | — | Resolved into `senderName` / `isFromPatient`. |
-| `localSummary.hasMoreConversations`, `.oldestLoadedInstantISO` | Older threads exist beyond this page | — | ✓ | — | Says whether the inbox is complete; detail. |
+| `localSummary.hasMoreConversations`, `.oldestLoadedInstantISO` | Older threads exist beyond the last page | — | ✓ | — | Says whether the inbox is complete; detail. From the last page. |
 | `localSummary.newestLoadedInstantISO`, `.numberLoaded`, `.oldestSearchedInstantISO`, `.pagingInfo`, `externalSummaries{}` | Paging | — | — | — | Internal. |
 
 ---
@@ -181,13 +218,32 @@ untouched today.
 `hasMoreMessages`, `POST /api/conversations/GetConversationMessages`
 `{ id, startInstantISO }` paging backwards. `raw` is the envelope. Merging the
 pages into one ascending list and resolving names become processor work.
-Message fields are as in `get_messages`; the table lists what details adds.
+The first table is the message element, shared with the inlined messages of
+`get_messages`; the second lists what details adds around it.
+
+| Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
+| --- | --- | :-: | :-: | :-: | --- |
+| `messages[].wmgId` | Message id | — | ✓ | — | Identifier; no capability takes it. |
+| `messages[].deliveryInstantISO` | Sent time | — | ✓ | ✓ | When. |
+| `messages[].isUnread` | Unread | — | ✓ | — | Per-message read state; the thread-level count is enough for concise. |
+| `messages[].body` | Body | — | — | — | Markup stays in `raw` (rule 9); the derived field is what the other modes read. |
+| `bodyText` | `body` with any markup stripped | ✓ | ✓ | ✓ | Derived from `body`. The message, readable. |
+| `senderName` | `wprKey` → `viewers[].name`; `empKey` → `userOverrideNames[empKey]` else `users[empKey].name`; `displayName` last | ✓ | ✓ | ✓ | Derived, in the order the portal's own `getAuthorInfo` uses. Without it every message is anonymous. |
+| `isFromPatient` | `wprKey` set and `empKey` absent | ✓ | ✓ | ✓ | Derived. Which side of the conversation each message is on. |
+| `messages[].author.empKey`, `.wprKey` | Author keys | — | ✓ | — | The inputs to `senderName`; kept so the resolution is checkable. |
+| `messages[].author.displayName` | Author display name | — | — | — | Always empty: `""` on every message of every captured instance; names live in `users` / `viewers`. |
+| `messages[].attachments[].name` | The attachment's file name | — | ✓ | ✓ | What was attached, and the `file_name` to hand `get_message_attachment`. |
+| `messages[].attachments[].dcsId` | The attachment's document id | — | ✓ | ✓ | Handle: `get_message_attachment` takes it (rule 5). |
+| `messages[].attachments[].fileExtension` | `PDF`, `PNG`, … | — | ✓ | — | Detail; the name carries it. |
+| `messages[].attachments[].type` | Attachment kind; `2` is a DCS document | — | ✓ | — | The discriminator the bundle switches on; detail. |
+| `messages[].attachments[].etxId`, `.organizationId`, `.legacyUrlForCommunityJump` | Other attachment kinds' plumbing | — | — | — | Always empty on every captured attachment. |
+| `messages[].tasks[]`, `.suggestedActions[]` | Tasks and actions | — | ✓ | — | Uncaptured; passed through. |
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
 | `hthId`, `subject`, `audience[].name` | Thread identity | — | ✓ | ✓ | Handle and the who / what. |
 | `totalMessages`, `numUnread` | Counts | — | ✓ | ✓ | Cheap and useful. |
-| `messages[]` (merged, ascending) with `senderName`, `isFromPatient`, `bodyText` | The thread | — | ✓ | ✓ | A thread has no shorter faithful form; concise is every message. |
+| `messages[]` (merged, ascending), as above | The thread | — | ✓ | ✓ | A thread has no shorter faithful form; concise is every message. |
 | `truncated` | Paging stopped at the cap with `hasMoreMessages` still true | ✓ | ✓ | ✓ | Derived. A partial thread must never be presented as the whole exchange. |
 | `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work | — | ✓ | — | Tells a consumer whether a follow-up write is possible; detail. |
 | `hasPreviouslyViewed`, `hasAttachments`, `hasUrgentMsgs`, `hasTasks`, `messageType`, `previewText` | Thread flags | — | ✓ | — | Detail. |
@@ -196,8 +252,20 @@ Message fields are as in `get_messages`; the table lists what details adds.
 | `users{}`, `viewers{}`, `userOverrideNames{}` | Name directories | — | — | — | Resolved into `senderName`. |
 | `contexts[]`, `tags`, `legacyMessageDetailsUrl`, `hasLoadAllUsers`, `allowBulkActions`, `userKeys[]`, `viewerKeys[]`, `maskedUserNames[]`, `showOtherViewersOption`, `organizationId` | As in `get_messages` | — | — | — | UI flag / internal / always empty. |
 
-Today's `ThreadMessage` renames `wmgId` → `messageId`, `deliveryInstantISO` →
-`sentDate`, `body` → `messageBody`; rule 2 keeps MyChart's names.
+---
+
+## `get_message_attachment`
+
+`GET /Documents/ViewDocument/Download?dcsId=<attachment_id>&method=view`. Not a
+JSON read: the capability is flagged `returnsFile` and returns the bytes as a
+`DownloadedFile` — `fileName` (the `file_name` given, or `attachment-<dcsId>`,
+with the extension MyChart's answer implies), `mimeType`, `size`, `bytes` — so
+there is no `mode`. What each client does with it: the Claude Desktop
+extension writes it under the OS temp directory and shows a small image or
+text file inline (a PDF is never inline, and nothing over the 1MB tool-result
+cap is); the CLI writes it to `--output` (default `./attachments-output`); the
+mobile app shows an image and describes anything else; the library returns
+the object.
 
 ---
 

@@ -283,6 +283,12 @@ export const TOOL_SPECS: ToolSpec[] = [
     description: 'Every message in one conversation',
     args: { conversation_id: 'thread id from get_messages', instance: 'optional' },
   },
+  {
+    name: 'get_message_attachment',
+    group: 'Messaging',
+    description: 'Download one attachment from a message, by the dcsId get_message_thread lists for it',
+    args: { attachment_id: 'dcsId from get_message_thread', file_name: 'optional', instance: 'optional' },
+  },
   { name: 'get_message_recipients', group: 'Messaging', description: 'Providers and departments that can receive a new message', args: { instance: 'optional' } },
   { name: 'get_message_topics', group: 'Messaging', description: 'Topics a new message can be filed under. send_message resolves the topic itself, so this is rarely needed', args: { instance: 'optional' } },
   {
@@ -979,6 +985,13 @@ const HANDLERS: Record<string, Handler> = {
         isFromPatient: matchesName(patientName, message.from),
       })),
     };
+  },
+
+  /** The demo's messages carry no attachments, so every id is unknown here. */
+  get_message_attachment: (_s, args) => {
+    const attachmentId = str(args, 'attachment_id');
+    if (!attachmentId) return fail('attachment_id is required. Call get_message_thread for the dcsId of an attachment.');
+    return fail(`No attachment with id "${attachmentId}". None of the messages in this demo has one.`);
   },
 
   get_message_recipients: (s) => ({ recipients: clone(record(s).messageRecipients) }),

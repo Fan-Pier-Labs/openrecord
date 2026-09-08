@@ -115,7 +115,7 @@ mychart-cli --host mychart.example.org --action get_medications --mode concise
 ```
 
 `--arg mode=<mode>` means the same thing and wins when both are given. Writes,
-`search_mycharts` and `download_imaging_study` ignore it.
+`search_mycharts`, `download_imaging_study` and `get_message_attachment` ignore it.
 
 ### Public lookups — no `--host`, no credentials
 
@@ -188,7 +188,10 @@ the capability ignoring the request. Missing required arguments and
 out-of-range numbers are rejected the same way. The process exits non-zero if
 the capability fails on any account.
 
-Capabilities that produce images (`rendersMedia` in the registry — today
+A capability that downloads one file (`returnsFile` in the registry — today
+`get_message_attachment`) writes it to `./attachments-output` (override with
+`--output <dir>`) under the `file_name` given, and prints the path, type and
+size. Capabilities that produce images (`rendersMedia` in the registry — today
 `download_imaging_study`) never print image bytes to the terminal.
 `download_imaging_study` downloads **every** image in the study; the CLI
 decodes each raw CLO image and writes it as a quality-100 JPEG into

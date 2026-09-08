@@ -103,6 +103,10 @@ describe('capability registry against fake-mychart', () => {
       args: async (s) => ({ conversation_id: await firstConversationId(s) }),
     },
     {
+      id: 'get_message_attachment',
+      args: async (s) => ({ attachment_id: (await firstAttachment(s)).dcsId }),
+    },
+    {
       id: 'get_letter_details',
       args: async (s) => {
         const { letters } = (await executeCapability(s, 'get_letters')) as {
@@ -163,6 +167,47 @@ describe('capability registry against fake-mychart', () => {
     // The fixture thread is a back-and-forth, so both sides must be attributed.
     expect(thread.messages.some((m) => m.isFromPatient)).toBe(true)
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
+  }, 30_000)
+
+  // Real MyChart answers the inbox 50 threads at a time. The fixture has more
+  // than that on purpose: a client that read only the first page would pass
+  // against a small fixture and drop a patient's older threads in production.
+  it('walks every page of the inbox and merges them without duplicates', async () => {
+    const inbox = (await executeCapability(session, 'get_messages')) as {
+      truncated: boolean
+      conversations: Array<{ hthId: string; latestMessageInstantISO: string | null }>
+      localSummary: { hasMoreConversations: boolean }
+    }
+    const ids = inbox.conversations.map((c) => c.hthId)
+    expect(ids.length).toBeGreaterThan(50)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(inbox.truncated).toBe(false)
+    expect(inbox.localSummary.hasMoreConversations).toBe(false)
+    // Newest thread first, as the portal lists them.
+    const instants = inbox.conversations.map((c) => c.latestMessageInstantISO ?? '')
+    expect([...instants].sort().reverse()).toEqual(instants)
+
+    const raw = (await executeCapability(session, 'get_messages', { mode: 'raw' })) as { requests: Array<{ path: string }> }
+    expect(raw.requests.filter((r) => r.path.endsWith('GetConversationList'))).toHaveLength(2)
+  }, 30_000)
+
+  it('lists an attachment by dcsId on the thread, and downloads it with the type MyChart sent', async () => {
+    const attachment = await firstAttachment(session)
+    expect(attachment.name).toBe('Nutrition plan.pdf')
+
+    const file = (await executeCapability(session, 'get_message_attachment', {
+      attachment_id: attachment.dcsId,
+      file_name: attachment.name,
+    })) as { fileName: string; mimeType: string; size: number; bytes: Uint8Array }
+    expect(file.fileName).toBe('Nutrition plan.pdf')
+    expect(file.mimeType).toBe('application/pdf')
+    expect(file.size).toBe(file.bytes.length)
+    expect(Buffer.from(file.bytes.slice(0, 5)).toString()).toBe('%PDF-')
+
+    // An unknown id is a 200 with nothing in it on every real instance — never an empty file.
+    await expect(executeCapability(session, 'get_message_attachment', { attachment_id: 'WP-ATT-NOPE' })).rejects.toThrow(
+      /No attachment WP-ATT-NOPE/,
+    )
   }, 30_000)
 
   // Real MyChart wraps every body in Epic's formatter markup and the fake does
@@ -491,6 +536,21 @@ async function firstVisitCsn(session: MyChartRequest): Promise<string> {
   const csn = past.visits.find((visit) => visit.Csn)?.Csn
   expect(csn).toBeTruthy()
   return csn!
+}
+
+/** The first attachment listed on the thread the inbox flags as having one. */
+async function firstAttachment(session: MyChartRequest): Promise<{ dcsId: string; name: string }> {
+  const inbox = (await executeCapability(session, 'get_messages')) as {
+    conversations: Array<{ hthId: string; hasAttachments: boolean }>
+  }
+  const flagged = inbox.conversations.find((c) => c.hasAttachments)
+  expect(flagged).toBeDefined()
+  const thread = (await executeCapability(session, 'get_message_thread', { conversation_id: flagged!.hthId })) as {
+    messages: Array<{ attachments: Array<{ dcsId: string | null; name: string | null }> }>
+  }
+  const attachment = thread.messages.flatMap((m) => m.attachments).find((a) => a.dcsId)
+  expect(attachment).toBeDefined()
+  return { dcsId: attachment!.dcsId!, name: attachment!.name! }
 }
 
 /** The id of the first conversation in the inbox. */

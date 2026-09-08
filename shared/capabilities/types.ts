@@ -9,8 +9,11 @@
  * on that interface.
  */
 
+import type { DownloadedFile } from '../../scrapers/myChart/core/downloadedFile';
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import type { Processor } from '../../scrapers/myChart/processors/processor';
+
+export type { DownloadedFile };
 
 export type CapabilityKind =
   /** Reads chart data. Safe to batch and to run without confirmation. */
@@ -127,6 +130,14 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+  /**
+   * True when `run` returns one downloaded file (a {@link DownloadedFile}:
+   * name, MIME type, bytes) rather than JSON. Clients must still expose the
+   * capability — they save the bytes where their platform keeps files and
+   * decide what, if anything, to show inline. Like `rendersMedia`, clients
+   * branch on the flag, never on the id.
+   */
+  returnsFile?: boolean;
 }
 
 /**

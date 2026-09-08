@@ -2,6 +2,7 @@
 
 import { fetchConversationsRaw, conversationsProcessor } from '../../../scrapers/myChart/chart/messages/conversations';
 import { fetchConversationThreadRaw, conversationThreadProcessor } from '../../../scrapers/myChart/chart/messages/messageThreads';
+import { fetchMessageAttachment } from '../../../scrapers/myChart/chart/messages/messageAttachment';
 import {
   fetchMessageRecipientsRaw,
   fetchMessageTopicsRaw,
@@ -31,7 +32,9 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_messages',
     title: 'Messages',
-    description: 'Inbox conversations with the care team.',
+    description:
+      'Every conversation in the inbox: its id, subject, who it is with, when the latest message arrived, and ' +
+      'whether it is unread, urgent or has attachments. The messages themselves come from get_message_thread.',
     kind: 'read',
     group: 'Messages',
     params: [],
@@ -41,7 +44,9 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_message_thread',
     title: 'Message thread',
-    description: 'Every message in one conversation.',
+    description:
+      'Every message in one conversation: text, date, sender, and for each attachment its name and dcsId. ' +
+      'An attachment\'s content is a separate call — get_message_attachment with that dcsId.',
     kind: 'read',
     group: 'Messages',
     params: [{ name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true }],
@@ -58,6 +63,25 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
       return raw;
     },
     processor: conversationThreadProcessor,
+  },
+  {
+    id: 'get_message_attachment',
+    title: 'Message attachment',
+    description:
+      'Download one attachment from a message — the file that a get_message_thread attachment names by dcsId, ' +
+      'usually a PDF or an image. Attachments can be several MB, and their size is not known until downloaded.',
+    kind: 'read',
+    group: 'Messages',
+    params: [
+      { name: 'attachment_id', type: 'string', description: 'The attachment\'s dcsId from get_message_thread.', required: true },
+      {
+        name: 'file_name',
+        type: 'string',
+        description: 'The attachment\'s name from get_message_thread, used to name the saved file. Optional.',
+      },
+    ],
+    returnsFile: true,
+    run: (request, args) => fetchMessageAttachment(request, requireStr(args, 'attachment_id'), optStr(args, 'file_name')),
   },
   {
     id: 'get_message_recipients',

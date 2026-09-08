@@ -1418,7 +1418,87 @@ export type FakeConversationMessage = {
    * has no bare-string body. Newlines become separate Epic paragraphs.
    */
   body: string;
+  /**
+   * As real MyChart lists them: a DCS document is `type: 2` with a `dcsId`,
+   * an upper-cased `fileExtension`, and every other field empty (every
+   * attachment captured on two instances). The bytes behind a `dcsId` are in
+   * `attachmentFiles`.
+   */
+  attachments?: FakeMessageAttachment[];
 };
+
+export type FakeMessageAttachment = {
+  type: number;
+  dcsId: string;
+  etxId: string;
+  name: string;
+  fileExtension: string;
+  legacyUrlForCommunityJump: string;
+  organizationId: string;
+};
+
+/**
+ * What `/Documents/ViewDocument/Download?dcsId=…` serves, keyed by `dcsId`.
+ * Real MyChart answers with the file's own Content-Type and a generic
+ * `Content-Disposition: inline; filename="Document.<EXT>"` — the attachment's
+ * name only ever appears in the message that lists it.
+ */
+export const attachmentFiles: Record<string, { contentType: string; base64: string }> = {
+  'WP-ATT-001': {
+    contentType: 'application/pdf',
+    base64: Buffer.from(
+      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Contents 4 0 R>>endobj\n' +
+        '4 0 obj<</Length 44>>stream\nBT /F1 12 Tf 10 50 Td (Nutrition plan) Tj ET\nendstream\nendobj\n' +
+        'trailer<</Root 1 0 R>>\n%%EOF\n',
+    ).toString('base64'),
+  },
+  // A 1x1 PNG.
+  'WP-ATT-002': {
+    contentType: 'image/png',
+    base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  },
+};
+
+function dcsAttachment(dcsId: string, name: string): FakeMessageAttachment {
+  return {
+    type: 2,
+    dcsId,
+    etxId: '',
+    name,
+    fileExtension: name.split('.').pop()!.toUpperCase(),
+    legacyUrlForCommunityJump: '',
+    organizationId: '',
+  };
+}
+
+/**
+ * Enough threads to push the inbox past one page. Real MyChart answers
+ * `GetConversationList` 50 conversations at a time (measured on the one live
+ * instance with more than 50), so a fixture with fewer never exercises the
+ * paging a large inbox needs, and a client that read only the first page
+ * would pass against the fake and drop a patient's older threads in
+ * production. One reminder a week, older than every seeded thread.
+ */
+const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 60 }, (_, i) => {
+  const n = i + 1;
+  const sent = new Date(Date.UTC(2025, 9, 27, 9, 0, 0) - i * 7 * 24 * 60 * 60 * 1000).toISOString().replace('.000Z', 'Z');
+  return {
+    hthId: `CONV-${String(100 + i)}`,
+    subject: `Appointment reminder ${n}`,
+    previewText: 'This is a reminder of your upcoming appointment...',
+    audience: [{ name: 'Springfield General Front Desk' }],
+    userOverrideNames: {},
+    messages: [
+      {
+        wmgId: `MSG-${String(1000 + i)}`,
+        author: { empKey: 'PROV-FRONTDESK', displayName: '' },
+        deliveryInstantISO: sent,
+        body: `This is a reminder of your upcoming appointment. Reminder ${n} of 60. Please arrive fifteen minutes early.`,
+      },
+    ],
+  };
+});
 
 export type FakeConversationThread = {
   hthId: string;
@@ -1476,6 +1556,7 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2026-01-11T09:00:00Z',
           body: "No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.",
+          attachments: [dcsAttachment('WP-ATT-001', 'Nutrition plan.pdf')],
         },
       ],
     },
@@ -1561,14 +1642,17 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           author: { empKey: 'PROV-HIBBERT', displayName: '' },
           deliveryInstantISO: '2025-11-07T11:00:00Z',
           body: 'Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.',
+          attachments: [dcsAttachment('WP-ATT-002', 'Imaging summary.png')],
         },
       ],
     },
+    ...FILLER_THREADS,
   ],
   users: {
     'PROV-HIBBERT': { name: 'Julius Hibbert, MD' },
     'PROV-NICK': { name: 'Nick Riviera, MD' },
     'PROV-MONROE': { name: 'Marvin Monroe, MD' },
+    'PROV-FRONTDESK': { name: 'Springfield General Front Desk' },
   },
   viewers: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },
