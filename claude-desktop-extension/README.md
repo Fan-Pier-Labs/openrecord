@@ -119,11 +119,16 @@ machine and have no counterpart in the other clients.
 ### Imaging
 
 `download_imaging_study` returns each picture as an image content block, so
-Claude can look at the scan and talk about it. Ask to **save, download or
-export** it and the same call runs with `save_to_downloads`, writing the JPEGs
-to your Downloads folder in a folder named for the study — inline blocks go away
-with the conversation, and this is the copy you keep. Nothing is overwritten, so
-saving the same study twice leaves `XR_CHEST` and `XR_CHEST-2`.
+Claude can look at the scan and talk about it. What goes in the chat is a
+**reduced-size preview**: Claude Desktop rejects any tool result over 1MB, and
+one full-size radiograph is ~4MB as a JPEG, so the pictures are downscaled
+until the whole set fits, and a study with more than a dozen images (a CT) is
+sampled evenly rather than shown slice by slice. Ask to **save, download or
+export** it and the same call runs with `save_to_downloads`, writing the
+**full-resolution** JPEGs to your Downloads folder in a folder named for the
+study — inline previews go away with the conversation, and this is the copy
+you keep. Nothing is overwritten, so saving the same study twice leaves
+`XR_CHEST` and `XR_CHEST-2`.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which
