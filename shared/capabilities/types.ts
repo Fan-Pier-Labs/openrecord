@@ -128,18 +128,27 @@ export interface Capability {
    */
   rendersMedia?: boolean;
   /**
-   * True when `run` returns one {@link FilePayload} — a document MyChart serves
-   * as a file (a statement PDF) rather than data. Nothing inline can show it,
-   * so each client puts the bytes somewhere the user can open: the MCPB and
-   * the CLI write it to disk and answer with the path. Clients branch on this
-   * flag, never on the id, exactly like {@link rendersMedia}.
+   * True when `run` returns one finished {@link FilePayload} — bytes plus a
+   * safe file name and MIME type — rather than JSON. Unlike
+   * {@link rendersMedia} there is nothing to decode; each client only decides
+   * where the file goes (the MCPB saves it to Downloads and inlines an image,
+   * the CLI writes it under `--output`, the mobile app shows an image inline).
+   * Clients branch on this flag, never on the id, exactly like `rendersMedia`.
    */
   returnsFile?: boolean;
 }
 
-/** What a {@link Capability.returnsFile} capability's `run` returns. */
+/**
+ * What a {@link Capability.returnsFile} capability's `run` returns. A
+ * capability extends it with what it knows about the file (a message
+ * attachment carries its conversation and `dcsId`); clients pass those extra
+ * fields through in the summary they show beside the saved path.
+ */
 export interface FilePayload {
-  /** A safe basename with extension, e.g. `Statement_20260115.pdf`. */
+  /**
+   * A basename safe to create under any directory, with its extension —
+   * `safeFileName` in `scrapers/myChart/core/safeFileName.ts` makes one.
+   */
   fileName: string;
   mimeType: string;
   bytes: Uint8Array;

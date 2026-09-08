@@ -322,20 +322,26 @@ describe('rendersMedia', () => {
     expect(mobile).toContain('capability.rendersMedia');
     expect(mobile).not.toContain('capability.id === "download_imaging_study"');
   });
+});
 
-  it('has a sibling, returnsFile, that the clients branch on the same way', async () => {
+describe('returnsFile', () => {
+  it('is what the clients branch on, so a second file capability needs no edits', async () => {
     const files = CAPABILITIES.filter((c) => c.returnsFile);
-    expect(files.map((c) => c.id)).toEqual(['download_billing_statement']);
+    expect(files.map((c) => c.id).sort()).toEqual(['download_billing_statement', 'get_message_attachment']);
+    // A file payload is not JSON, so it has no output modes to offer.
+    for (const c of files) expect(acceptsModeParam(c)).toBe(false);
     // No capability is both: a study is decoded per client, a file is saved as-is.
     expect(files.some((c) => c.rendersMedia)).toBe(false);
 
-    for (const relativePath of [
-      'claude-desktop-extension/src/tools.ts',
-      'expo-app/src/lib/scrapers/session-manager.ts',
-      'npm-package/cli/capabilityActions.ts',
+    for (const client of [
+      '../../claude-desktop-extension/src/tools.ts',
+      '../../npm-package/cli/capabilityActions.ts',
+      '../../expo-app/src/lib/scrapers/session-manager.ts',
     ]) {
-      const source = await Bun.file(new URL(`../../${relativePath}`, import.meta.url).pathname).text();
+      const source = await Bun.file(new URL(client, import.meta.url).pathname).text();
       expect(source).toContain('capability.returnsFile');
+      expect(source).not.toContain("'get_message_attachment'");
+      expect(source).not.toContain('"get_message_attachment"');
       expect(source).not.toContain('download_billing_statement');
     }
   });
@@ -549,6 +555,7 @@ describe('npm library', () => {
       download_imaging_study: 'downloadImagingStudy',
       get_messages: 'listConversations',
       get_message_thread: 'getConversationMessages',
+      get_message_attachment: 'getMessageAttachment',
       get_message_recipients: 'getMessageRecipients',
       get_message_topics: 'getMessageTopics',
       send_message: 'sendMessage',

@@ -155,14 +155,14 @@ not compile for any client — the enforcement for "every dispatch goes through 
   real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
   and an earlier budget spent on those first N junk entries returned zero images with zero
   errors. fake-mychart's CT study reproduces that shape.
-- **`returnsFile`** is the sibling flag for the one capability (`download_billing_statement`)
-  whose payload is a document MyChart serves as a file — a statement PDF. `run` returns a
-  `FilePayload` (`fileName`, `mimeType`, `bytes`); there is nothing to decode and nothing a
-  tool result can show inline, so the MCPB writes it to the Downloads folder on every call and
-  answers with the path, the CLI writes it under `--output` (default: the working directory),
-  and the mobile app refuses before dispatching — the alternative was a Uint8Array serialized
-  into the model's context. Same rule as `rendersMedia`: clients branch on the flag, never
-  the id, after the dispatch, and the parity test holds both.
+- **`returnsFile`** marks a capability (`get_message_attachment`, `download_billing_statement`)
+  whose payload is one finished file — a `FilePayload` of safe file name, MIME type and bytes — rather than JSON. There
+  is nothing to decode, so a client only decides where the file goes: the extension writes it to
+  the Downloads folder (never overwriting, and showing a small image inline), the CLI writes it
+  under `--output` (default: the current directory), and the mobile app keeps an image for the chat
+  and says so for anything else. Same rule as `rendersMedia`: clients branch on the flag after the
+  dispatch, never on the id, and `capability-parity.unit.test.ts` greps for it. The scraper makes
+  the name safe (`safeFileName`, `scrapers/myChart/core/`) so no client has to.
 - **The account selector is declared here too** (`ACCOUNT_PARAM`). It is the one parameter every
   capability takes in every client, and was the last one still hand-written per client: `account` in
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still

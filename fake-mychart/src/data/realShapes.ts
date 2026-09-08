@@ -21,6 +21,22 @@ export const loadAllergies = {
   "allergiesStatus": 0
 } as const;
 
+// /api/documents/viewer/getdocumentdetailslegacy (and getdocumentdetails: same field set)
+export const getDocumentDetailsLegacy = {
+  "dcsId": "",
+  "token": "",
+  "orgId": "",
+  "displayName": "",
+  "userFriendlyDisplayName": "",
+  "legacyEncryption": false,
+  "isMobile": false,
+  "fileDescription": "",
+  "allowPreview": false,
+  "downloadUrl": "",
+  "previewUrl": "",
+  "mimeType": ""
+} as const;
+
 // /api/conversations/getconversationlist
 export const getConversationList = {
   "legacyXUnreadCount": 0,

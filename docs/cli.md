@@ -201,12 +201,22 @@ mychart-cli --host mychart.example.org --action download_imaging_study \
   --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
 ```
 
-`download_billing_statement` (`returnsFile` in the registry) is the same idea
-for a document: the statement PDF is written to the working directory, or
-`--output <dir>`, under the name MyChart gives it (`Statement_<YYYYMMDD>.pdf`,
-overwriting a previous run's copy), and the printed JSON carries the path plus
-the statement's date, description and amount. The `record_id` is a statement's
-`RecordID` from `get_billing`:
+A capability that returns one file (`returnsFile` in the registry —
+`get_message_attachment` and `download_billing_statement`) has a payload that
+is a file rather than JSON. The CLI writes it into the current directory (or
+`--output <dir>`) under the name the capability gives it — a re-download gets a
+numeric suffix rather than overwriting — and prints a JSON summary with the
+path:
+
+```bash
+mychart-cli --host mychart.example.org --action get_message_attachment \
+  --arg conversation_id=<hthId from get_messages> --arg attachment_id=<dcsId from get_message_thread>
+```
+
+`download_billing_statement` is the same for a statement PDF, named
+`Statement_<YYYYMMDD>.pdf`; the printed JSON also carries the statement's date,
+description and amount. The `record_id` is a statement's `RecordID` from
+`get_billing`:
 
 ```bash
 mychart-cli --host mychart.example.org --action download_billing_statement \

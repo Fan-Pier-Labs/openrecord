@@ -29,8 +29,8 @@ import {
   getCapability,
   type Capability,
   type CapabilityContext,
-  type FilePayload,
   type StudyImagePayload,
+  type FilePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
@@ -301,16 +301,24 @@ export async function writeStudyImages(
 }
 
 /**
- * The CLI's rendering of a `returnsFile` capability: the bytes go to
- * `<outputDir>/<fileName>`, never to the terminal. A name already there is
- * overwritten — the CLI is scripted, and a script re-running `--action`
- * wants the current statement under the same name.
+ * The CLI's rendering of a `returnsFile` payload: the bytes written under
+ * `outputDir` as `fileName` (the scraper already made it a safe basename), a
+ * numeric suffix keeping a re-download from overwriting the first. Returns
+ * the path written.
  */
 export async function writeFilePayload(payload: FilePayload, outputDir: string): Promise<string> {
   await fs.promises.mkdir(outputDir, { recursive: true });
-  const filePath = path.join(outputDir, path.basename(payload.fileName));
-  await fs.promises.writeFile(filePath, payload.bytes);
-  return filePath;
+  const { name, ext } = path.parse(path.basename(payload.fileName));
+  for (let attempt = 1; attempt <= 100; attempt++) {
+    const filePath = path.join(outputDir, attempt === 1 ? `${name}${ext}` : `${name}-${attempt}${ext}`);
+    try {
+      await fs.promises.writeFile(filePath, payload.bytes, { flag: 'wx' });
+      return filePath;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+  }
+  throw new Error(`Could not write ${payload.fileName} under ${outputDir} — 100 copies already exist.`);
 }
 
 /**
@@ -350,6 +358,14 @@ export async function runCapabilityAction(
     // lives there, and it has to run for media capabilities too.
     const result = await executeCapability(session.request, capability.id, coerced, ctx);
 
+    if (capability.returnsFile) {
+      // A file payload becomes exactly that: the file, under --output (default: the current directory).
+      const { bytes, ...rest } = result as FilePayload;
+      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
+      console.log(JSON.stringify({ filePath, sizeBytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
+      return true;
+    }
+
     if (capability.rendersMedia) {
       // Media payloads become files on disk, never bytes in the terminal.
       const payload = result as StudyImagePayload;
@@ -365,13 +381,6 @@ export async function runCapabilityAction(
       // Partial success still wrote files worth exploring; only a run that
       // produced nothing but errors is a failure.
       return files.length > 0 || payload.errors.length === 0;
-    }
-
-    if (capability.returnsFile) {
-      const { bytes, ...rest } = result as FilePayload;
-      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
-      console.log(JSON.stringify({ filePath, bytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
-      return true;
     }
 
     // The markdown modes are text already; the data modes are printed as JSON.

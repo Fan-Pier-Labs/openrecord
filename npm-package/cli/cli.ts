@@ -156,7 +156,7 @@ function parseArgs(): CliArgs {
     else if (args[i] === '--delete-passkey') parsed.deletePasskey = true;
     else if (args[i] === '--local') parsed.local = true;
     else if (args[i] === '--save-clo') parsed.saveClo = true;
-    // Output directory for capabilities that produce images (rendersMedia) or a file (returnsFile).
+    // Output directory for capabilities that produce files: images (rendersMedia) or one downloaded file (returnsFile).
     else if (args[i] === '--output' && args[i + 1]) parsed.output = args[++i]!; // guarded by args[i + 1] check
     // How read capabilities render their payload. Validated by the registry.
     else if (args[i] === '--mode' && args[i + 1]) parsed.mode = args[++i]!;

@@ -182,7 +182,7 @@ describe('downloadBillingStatement', () => {
   // The statement list is routed per account, which the fragment router
   // cannot express, so it is answered from the account id in the url.
   function withStatementLists(mocked: ReturnType<typeof mockRouted>) {
-    const inner = mocked.req.transport
+    const inner = mocked.req.transport!
     mocked.req.transport = mock(async (url: string, init: RequestInit = {}) => {
       if (url.includes('GetStatementList')) {
         mocked.calls.push({ url, init })

@@ -1,10 +1,11 @@
 /**
  * Write a `returnsFile` capability's payload into the user's Downloads folder.
  *
- * A PDF has no inline rendering in a tool result, so the file on disk *is*
- * the deliverable, and it is written on every call rather than behind an
- * opt-in like the imaging previews. A name already taken gets a numeric
- * suffix: re-downloading a statement must never overwrite the copy on disk.
+ * A file the user asked for always lands on disk — unlike an imaging study
+ * (previewed inline, saved only on request), a PDF has no inline form in the
+ * conversation at all. A name already taken gets a numeric suffix: a second
+ * download must never overwrite the first. `wx` makes testing the name and
+ * claiming it one step.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,11 +13,16 @@ import * as path from 'path';
 import type { FilePayload } from '../../shared/capabilities';
 import { downloadsDir } from './imaging/save-study';
 
-/** Claim a file name, `wx` so testing and creating are one step. */
+/**
+ * Save the payload under `baseDir` (Downloads) and return the absolute path
+ * written. `baseDir` exists so the tests can point this at a temp directory —
+ * the product always saves to Downloads.
+ */
 export function saveFilePayload(payload: FilePayload, baseDir: string = downloadsDir()): string {
-  const { name, ext } = path.parse(payload.fileName);
+  // The scraper already made the name safe; basename is the belt to its braces.
+  const { name, ext } = path.parse(path.basename(payload.fileName));
   for (let attempt = 1; attempt <= 100; attempt++) {
-    const file = path.join(baseDir, attempt === 1 ? payload.fileName : `${name}-${attempt}${ext}`);
+    const file = path.join(baseDir, attempt === 1 ? `${name}${ext}` : `${name}-${attempt}${ext}`);
     try {
       fs.writeFileSync(file, payload.bytes, { flag: 'wx' });
       return file;
