@@ -38,6 +38,14 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
    Validation/login errors show inline beneath the button.
 3. **Two-step verification** — shown only if `setup_account` reports the portal
    requires a code; entering it calls `complete_2fa`.
+4. **Set up a passkey?** — shown after login only when the account has no
+   passkey saved. It explains what a passkey changes (no password or code when
+   the session expires), where the private key is stored (the server's live
+   answer — keystore or the file fallback — not a promise), that it adds a
+   credential to the MyChart account until removed, and that some portals
+   refuse registration. **Set up passkey** calls `register_passkey`; **Skip for
+   now** finishes without one, and the message handed back to the chat says
+   which happened so Claude doesn't offer again.
 
 > **Logos.** MyChart's only per-instance brand asset is the wide banner logo
 > (`ichart2.epic.com`, ~640×230), so the widget uses it everywhere — a

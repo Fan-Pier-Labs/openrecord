@@ -185,6 +185,9 @@ function loggedInResult(hostname: string, username: string): ToolResult {
     account: id,
     passkey_saved: hasPasskey,
     passkey_storage: secretBackend(),
+    // The setup widget shows this to the patient verbatim when it offers a
+    // passkey, so it is the same live answer the model gets in `message`.
+    passkey_storage_description: BACKEND_DESCRIPTION[secretBackend()],
     message: hasPasskey ? PASSKEY_ALREADY_SAVED_MESSAGE : recommendPasskeyMessage(id),
   });
 }
