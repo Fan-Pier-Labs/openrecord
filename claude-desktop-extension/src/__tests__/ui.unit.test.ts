@@ -21,6 +21,23 @@ describe('buildSetupUiHtml', () => {
     expect(html).toContain('id="verify"');
   });
 
+  test('offers a passkey on its own step and registers only on click', () => {
+    const html = buildSetupUiHtml();
+    // Step 4: reached from either login route when passkey_saved is false.
+    expect(html).toContain('id="step-passkey"');
+    expect(html).toContain('result.passkey_saved === false) showPasskeyOffer(');
+    // Where the key lands comes from the server, not a promise the widget makes.
+    expect(html).toContain('result.passkey_storage_description');
+    // A button and a way out; the tool call is inside the click handler only.
+    expect(html).toContain('id="register-passkey"');
+    expect(html).toContain('id="skip-passkey"');
+    expect(html).toContain('id="passkey-error"');
+    expect(html.split("callTool('register_passkey'")).toHaveLength(2);
+    // The conversation is told the outcome, never asked to re-offer.
+    expect(html).not.toContain('tell me whether you recommend setting up a passkey');
+    expect(html).toContain('so do not offer one again');
+  });
+
   test('keeps the hidden attribute authoritative over flex layout', () => {
     // .field { display:flex } would otherwise beat the UA [hidden] rule, so a
     // global [hidden]{display:none!important} must be present.
