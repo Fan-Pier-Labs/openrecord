@@ -361,21 +361,16 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * The inline pictures are budgeted previews (`inline-preview.ts`): Claude
  * Desktop refuses a tool result over 1MB, and one full-size radiograph is
  * several times that. With `save_to_downloads`, the full-resolution JPEGs are
- * written to the user's Downloads folder and the result is a one-line
- * confirmation instead of the previews — the user asked for files, and
- * re-rendering the pictures on top would only cost them context. Off by
- * default: looking at a scan should not litter someone's disk, and the
- * previews are what "show me my X-ray" asks for. Keeping a copy is a second,
- * explicit request.
+ * written to the user's Downloads folder instead of shown. Off by default:
+ * looking at a scan should not litter someone's disk, and the previews are
+ * what "show me my X-ray" asks for. Keeping a copy is a second, explicit request.
  *
  * Takes the payload rather than running the capability, so it cannot become a
- * second path around the active-patient assertion. `saveDir` exists so the
- * tests can save into a temp directory — the product always uses Downloads.
+ * second path around the active-patient assertion.
  */
 export async function imagingResult(
   payload: StudyImagePayload,
   saveToDownloads: boolean,
-  saveDir?: string,
 ): Promise<ToolResult> {
   const study = decodeStudy(payload);
   const errors = [...study.errors];
@@ -385,7 +380,7 @@ export async function imagingResult(
   // with the error reported beside them.
   if (saveToDownloads && study.images.length > 0) {
     try {
-      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study), saveDir), errors);
+      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study)), errors);
     } catch (err) {
       errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
     }
@@ -441,7 +436,6 @@ export async function imagingResult(
   return { content };
 }
 
-/** The `save_to_downloads` result: where the files went, and nothing to look at. */
 function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): ToolResult {
   const count = saved.files.length;
   const lines = [

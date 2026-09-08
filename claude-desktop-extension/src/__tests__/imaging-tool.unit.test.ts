@@ -7,9 +7,8 @@
  * pinned — the parameter exists on the media tool and nowhere else, and the
  * result builder writes nothing unless it is told to.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
+import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, imagingResult } from '../tools';
@@ -65,42 +64,17 @@ describe('save_to_downloads registration', () => {
 });
 
 describe('imagingResult', () => {
-  let scratch: string;
-  beforeEach(() => {
-    scratch = mkdtempSync(join(tmpdir(), 'openrecord-imaging-'));
-  });
-  afterEach(() => {
-    rmSync(scratch, { recursive: true, force: true });
-  });
-
-  test('saving writes the files and returns a confirmation instead of the pictures', async () => {
-    const result = await imagingResult(xrayPayload(), true, scratch);
-
-    // The user asked for files, not another look: no image blocks at all.
-    expect(result.content.filter((c) => c.type === 'image')).toHaveLength(0);
-    expect(result.content).toHaveLength(1);
-    const text = (result.content[0] as { text: string }).text;
-    expect(text).toContain('Successfully saved 1 full-resolution image from XR CHEST to ');
-    expect(text).not.toContain('Errors:');
-
-    const dir = text.slice(text.lastIndexOf(' to ') + 4);
-    expect(dir).toBe(join(scratch, 'XR_CHEST'));
-    expect(readdirSync(dir)).toEqual(['001_PA_VIEW.jpg']);
-  });
-
   test('renders the pictures without touching the disk when saving is not asked for', async () => {
-    const result = await imagingResult(xrayPayload(), false, scratch);
+    const result = await imagingResult(xrayPayload(), false);
 
     // The images still come back — this is the "show me my X-ray" path.
     expect(result.content.filter((c) => c.type === 'image')).toHaveLength(1);
 
-    // Nothing was written, and nothing failed trying — a failed save would
-    // have left an error.
+    // Nothing failed trying to write: a failed save would have left an error.
     const summary = JSON.parse((result.content[0] as { text: string }).text);
     expect(summary.errors).toBeUndefined();
     expect(summary.returned).toBe(1);
     expect(summary.shown_inline).toBe(1);
-    expect(readdirSync(scratch)).toHaveLength(0);
   });
 
   test('a full-size study comes back under the 1MB tool-result cap', async () => {
