@@ -8,7 +8,7 @@ against all ~750 hosts at once.
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
 | **Source** | [`directory.ts`](directory.ts) (fetch + logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the seed) |
-| **Probes** | [`probe-mount-discovery.ts`](probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probe-open-scheduling.ts) · [`probe-open-slots.ts`](probe-open-slots.ts) · [`probeRunner.ts`](probeRunner.ts) |
+| **Probes** | [`probe-mount-discovery.ts`](probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probe-open-scheduling.ts) · [`probe-open-slots.ts`](probe-open-slots.ts) · [`probe-epic-version.ts`](probe-epic-version.ts) · [`probeRunner.ts`](probeRunner.ts) |
 | **Seed** | `mychart-instances.json` — the checked-in offline snapshot |
 
 ## Endpoints
@@ -17,6 +17,7 @@ against all ~750 hosts at once.
 | --- | --- |
 | `GET https://www.mychart.org/cached-api/help/organizations/?locale=en-us&includeOrganizations=1` | the whole directory — ~1,400 organizations |
 | `GET https://media.epic.com/mychartdotorg/directus/<subAreaName>/<imageId>/<fileName>` | one organization's logo |
+| `GET https://open.epic.com/Endpoints/R4` | Epic's published FHIR endpoints — ~480, one per organization that exposes one (version probe only) |
 
 **`includeOrganizations=1` is required.** Without it the endpoint answers 200 with the
 country and state dictionaries and **no `organizations` key at all**.
@@ -69,6 +70,7 @@ they share: argument parsing, a bounded worker pool, JSONL output and progress.
 | `probe-mount-discovery.ts` | Does the discovered mount actually serve a MyChart login page, and does it agree with the directory's own URL? |
 | `probe-open-scheduling.ts` | Which organizations expose the anonymous "Find a Doctor" workflow, and how big a directory do they publish? |
 | `probe-open-slots.ts` | Does the real `fetchOpenSlots` get slots back, or does the instance refuse the search? |
+| `probe-epic-version.ts` | Which Epic release is each instance running? |
 
 ```bash
 bun scrapers/list-all-mycharts/probe-mount-discovery.ts
