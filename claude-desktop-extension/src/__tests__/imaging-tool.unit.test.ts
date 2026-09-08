@@ -13,6 +13,7 @@ import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, imagingResult } from '../tools';
 import type { StudyImagePayload } from '../../../shared/capabilities';
+import { encodePixelFile } from '../../../scrapers/myChart/clo-image-parser/generate_clo';
 
 type RegisteredTool = { config: { inputSchema?: Record<string, unknown> } };
 
@@ -76,5 +77,36 @@ describe('imagingResult', () => {
     expect(summary.saved_files).toBeUndefined();
     expect(summary.errors).toBeUndefined();
     expect(summary.returned).toBe(1);
+    expect(summary.shown_inline).toBe(1);
+  });
+
+  test('a full-size study comes back under the 1MB tool-result cap', () => {
+    // Three ~2500px views, the shape of a real shoulder series: each is ~4MB
+    // at full resolution, and the host rejects the whole result over 1MB.
+    const width = 2500;
+    const height = 2048;
+    const pixels = new Uint16Array(width * height);
+    let seed = 3;
+    for (let i = 0; i < pixels.length; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      pixels[i] = Math.round(((i % width) / width) * 50000 + (seed % 10000));
+    }
+    const pixelData = encodePixelFile(pixels, width, height);
+    const study: StudyImagePayload = {
+      studyName: 'XR SHOULDER',
+      totalImages: 3,
+      images: [0, 1, 2].map((index) => ({ index, seriesUID: `S${index}`, seriesDescription: `VIEW ${index}`, pixelData })),
+      errors: [],
+    };
+
+    const result = imagingResult(study, false);
+
+    expect(JSON.stringify(result).length).toBeLessThan(1024 * 1024);
+    expect(result.content.filter((c) => c.type === 'image')).toHaveLength(3);
+    const summary = JSON.parse((result.content[0] as { text: string }).text);
+    expect(summary.returned).toBe(3);
+    expect(summary.shown_inline).toBe(3);
+    expect(summary.note).toContain('reduced-size previews');
+    expect(summary.note).toContain('save_to_downloads');
   });
 });

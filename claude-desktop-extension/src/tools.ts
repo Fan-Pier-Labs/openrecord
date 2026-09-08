@@ -87,7 +87,8 @@ import {
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
-import { encodeStudyJpegs } from './imaging/download-study';
+import { decodeStudy, encodeFullResolutionJpegs } from './imaging/download-study';
+import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
@@ -213,9 +214,9 @@ const SAVE_PARAM = 'save_to_downloads';
 const SAVE_SCHEMA = z
   .boolean()
   .describe(
-    "Also save the pictures to the user's Downloads folder, as JPEGs in a folder named for the study. " +
-      'Defaults to false — the images are shown in the conversation either way, and saving leaves files behind. ' +
-      'Pass true only when the user asks to save, download, export, or keep a copy.',
+    "Also save the pictures to the user's Downloads folder, as full-resolution JPEGs in a folder named for the study. " +
+      'Defaults to false — reduced-size previews are shown in the conversation either way, and saving leaves files behind. ' +
+      'Pass true only when the user asks to save, download, export, keep a copy, or see the full-resolution images.',
   )
   .optional();
 
@@ -350,14 +351,16 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
 
 /**
  * `download_imaging_study` is the one capability whose payload isn't JSON: it
- * returns raw CLO bytes that this client encodes itself. One image content
+ * returns raw CLO bytes that this client decodes itself. One image content
  * block per picture, so Claude Desktop renders the actual X-ray instead of a
  * base64 blob buried in JSON text.
  *
- * With `save_to_downloads`, the JPEGs are also written to the user's Downloads
- * folder. Off by default: looking at a scan should not litter someone's disk,
- * and the inline blocks are what "show me my X-ray" asks for. Keeping a copy is
- * a second, explicit request.
+ * The inline pictures are budgeted previews (`inline-preview.ts`): Claude
+ * Desktop refuses a tool result over 1MB, and one full-size radiograph is
+ * several times that. With `save_to_downloads`, the full-resolution JPEGs are
+ * written to the user's Downloads folder. Off by default: looking at a scan
+ * should not litter someone's disk, and the previews are what "show me my
+ * X-ray" asks for. Keeping a copy is a second, explicit request.
  *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion.
@@ -366,18 +369,33 @@ export function imagingResult(
   payload: StudyImagePayload,
   saveToDownloads: boolean,
 ): ToolResult {
-  const result = encodeStudyJpegs(payload);
+  const study = decodeStudy(payload);
+  const errors = [...study.errors];
 
   // Saving must never cost the user the pictures themselves: a read-only
   // Downloads folder or a full disk becomes a reported error beside images
   // that still render.
   let saved: SavedStudy | undefined;
-  if (saveToDownloads && result.images.length > 0) {
+  if (saveToDownloads && study.images.length > 0) {
     try {
-      saved = saveStudyJpegs(result);
+      saved = saveStudyJpegs(encodeFullResolutionJpegs(study));
     } catch (err) {
-      result.errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
+      errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
     }
+  }
+
+  const preview = inlinePreviews(study);
+  errors.push(...preview.errors);
+
+  const notes: string[] = [];
+  if (preview.downscaled) {
+    notes.push('The inline images are reduced-size previews so the result fits in the conversation.');
+  }
+  if (preview.images.length < study.images.length) {
+    notes.push(`Showing ${preview.images.length} of ${study.images.length} images, spread evenly across the study.`);
+  }
+  if (notes.length && !saved) {
+    notes.push('Pass save_to_downloads: true to write every image at full resolution to the Downloads folder.');
   }
 
   const content: ToolContent[] = [
@@ -385,11 +403,13 @@ export function imagingResult(
       type: 'text',
       text: JSON.stringify(
         {
-          study_name: result.studyName,
-          total_images: result.totalImages,
-          returned: result.returned,
+          study_name: study.studyName,
+          total_images: study.totalImages,
+          returned: study.images.length,
+          shown_inline: preview.images.length,
+          ...(notes.length ? { note: notes.join(' ') } : {}),
           ...(saved ? { saved_to: saved.directory, saved_files: saved.files } : {}),
-          ...(result.errors.length ? { errors: result.errors } : {}),
+          ...(errors.length ? { errors } : {}),
         },
         null,
         2,
@@ -397,16 +417,16 @@ export function imagingResult(
     },
   ];
 
-  for (const img of result.images) {
+  for (const img of preview.images) {
     content.push({ type: 'image', data: img.jpegBase64, mimeType: 'image/jpeg' });
   }
 
-  if (result.returned === 0) {
+  if (study.images.length === 0) {
     content.push({
       type: 'text',
       text:
         'No images could be downloaded for this study. ' +
-        (result.errors.length
+        (errors.length
           ? 'See the errors above.'
           : 'The study may not expose viewable image data, or the viewer session expired — try get_imaging_results again for a fresh image_id.'),
     });
