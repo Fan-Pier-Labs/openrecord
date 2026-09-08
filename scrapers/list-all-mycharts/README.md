@@ -8,7 +8,7 @@ against all ~750 hosts at once.
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
 | **Source** | [`directory.ts`](directory.ts) (fetch + logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the seed) |
-| **Probes** | [`probe-mount-discovery.ts`](probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probe-open-scheduling.ts) · [`probe-open-slots.ts`](probe-open-slots.ts) · [`probeRunner.ts`](probeRunner.ts) |
+| **Probes** | [`probe-mount-discovery.ts`](probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probe-open-scheduling.ts) · [`probe-open-slots.ts`](probe-open-slots.ts) · [`probe-epic-version.ts`](probe-epic-version.ts) · [`probeRunner.ts`](probeRunner.ts) |
 | **Seed** | `mychart-instances.json` — the checked-in offline snapshot |
 
 ## Endpoints
@@ -17,6 +17,7 @@ against all ~750 hosts at once.
 | --- | --- |
 | `GET https://www.mychart.org/cached-api/help/organizations/?locale=en-us&includeOrganizations=1` | the whole directory — ~1,400 organizations |
 | `GET https://media.epic.com/mychartdotorg/directus/<subAreaName>/<imageId>/<fileName>` | one organization's logo |
+| `GET https://open.epic.com/Endpoints/R4` | Epic's published FHIR endpoints — ~480, one per organization that exposes one (version probe only) |
 
 **`includeOrganizations=1` is required.** Without it the endpoint answers 200 with the
 country and state dictionaries and **no `organizations` key at all**.
@@ -69,6 +70,7 @@ they share: argument parsing, a bounded worker pool, JSONL output and progress.
 | `probe-mount-discovery.ts` | Does the discovered mount actually serve a MyChart login page, and does it agree with the directory's own URL? |
 | `probe-open-scheduling.ts` | Which organizations expose the anonymous "Find a Doctor" workflow, and how big a directory do they publish? |
 | `probe-open-slots.ts` | Does the real `fetchOpenSlots` get slots back, or does the instance refuse the search? |
+| `probe-epic-version.ts` | Which Epic release is each instance running? |
 
 ```bash
 bun scrapers/list-all-mycharts/probe-mount-discovery.ts
@@ -77,6 +79,23 @@ bun scrapers/list-all-mycharts/probe-mount-discovery.ts
 Run the mount probe after touching discovery. Deployment shapes vary far more than any
 fixture set captures — see [`../myChart/auth/`](../myChart/auth/) for what the sweep turned
 up — and this is the only way to know the long tail still works.
+
+### What the version probe found (September 2026)
+
+Ten Epic releases are live. Of 715 classified hosts: November 2025 43%, February 2026 36%,
+May 2026 10%, August 2025 8.5%, February 2025 2%, and a tail back to May 2022. The
+**web build does not track the FHIR release**: the three sampled organizations reporting
+"August 2025" over FHIR all serve the same MyChart web bundles as the November 2025 hosts.
+What differs is the web build, and across five distinct builds (May 2025 → May 2026, 16 hosts,
+bundles read anonymously) every `/api/*` endpoint the scrapers call is still named, with the
+same request keys; changes are additive (`GetSuggestedActionUpdate`, `GetBedsideProviderInfoFull`).
+The failure shape is per web build too — a POST with no antiforgery token gets the
+`/Home/FiveHundred` redirect dance on every 2025+ build sampled (11 hosts) and a bare 500 on
+the older ones (4 hosts, February 2025 and earlier, plus one August 2025 instance still on its
+older build). The login form is identical on all 20 hosts from February 2024 to May 2026.
+Post-login, the same 30 read capabilities answer with byte-compatible shapes on real accounts
+on the November 2025 (3) and August 2025 (1) builds; nothing has been run against a
+February 2026 or May 2026 account.
 
 The scheduling probe deliberately **does not** crawl a specialty: the question is who offers
 the workflow, not what is in it, and 750 hosts × 20 specialties would be tens of gigabytes.
