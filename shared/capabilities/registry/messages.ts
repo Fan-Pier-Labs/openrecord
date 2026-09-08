@@ -67,7 +67,7 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
       'Download one file attached to a message — a PDF, photo or other document a provider or the patient attached. Identify it by the conversation_id from get_messages and the attachment_id (the attachment’s dcsId) from get_messages or get_message_thread. The file is saved on the user’s own device; images are also shown inline.',
     kind: 'read',
     group: 'Messages',
-    deliversFile: true,
+    returnsFile: true,
     params: [
       { name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true },
       { name: 'attachment_id', type: 'string', description: 'The attachment’s dcsId from get_messages or get_message_thread. Copy it verbatim.', required: true },

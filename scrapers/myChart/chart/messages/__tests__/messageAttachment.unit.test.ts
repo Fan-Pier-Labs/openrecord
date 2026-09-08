@@ -98,7 +98,7 @@ describe('downloadMessageAttachment', () => {
     expect(file).toEqual({
       conversationId: 'CONV-1',
       dcsId: 'WP-DCS-1',
-      name: 'insurance card.jpg',
+      fileName: 'insurance card.jpg',
       fileExtension: 'JPG',
       mimeType: 'image/jpeg',
       bytes: JPEG,
@@ -115,6 +115,22 @@ describe('downloadMessageAttachment', () => {
     // own extension and organization rather than anything guessed.
     expect(calls[3]!.body).toEqual({ dcsId: 'WP-DCS-1', fileExtension: 'JPG', organizationId: '', useOldMobileLink: false })
     expect(calls[3]!.headers['__RequestVerificationToken']).toBe('csrf_tok')
+  })
+
+  it('makes the listed name safe to write, falling back to the extension when nothing is left', async () => {
+    const { req } = mockRequest([
+      page(), json(thread([{ ...ATTACHMENT, name: '../../x:y.jpg' }])),
+      page(), json(DETAILS),
+      { body: JPEG, contentType: 'image/jpeg' },
+    ])
+    expect((await downloadMessageAttachment(req, 'CONV-1', 'WP-DCS-1')).fileName).toBe('_.._x_y.jpg')
+
+    const unnamed = mockRequest([
+      page(), json(thread([{ ...ATTACHMENT, name: '' }])),
+      page(), json(DETAILS),
+      { body: JPEG, contentType: 'image/jpeg' },
+    ])
+    expect((await downloadMessageAttachment(unnamed.req, 'CONV-1', 'WP-DCS-1')).fileName).toBe('attachment.jpg')
   })
 
   it('falls back to the download’s Content-Type when the details carry no mimeType', async () => {

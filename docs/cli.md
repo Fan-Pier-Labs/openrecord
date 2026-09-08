@@ -201,11 +201,11 @@ mychart-cli --host mychart.example.org --action download_imaging_study \
   --arg image_id=<id from get_imaging_results> --output ~/Desktop/my-scan
 ```
 
-`get_message_attachment` (`deliversFile` in the registry) is the other capability
-whose payload is a file rather than JSON. The CLI writes the attachment under
-`./message-attachments` (or `--output <dir>`) with the name MyChart lists for
-it — a re-download gets a numeric suffix rather than overwriting — and prints a
-JSON summary with the path:
+A capability that returns one file (`returnsFile` in the registry — today
+`get_message_attachment`) has a payload that is a file rather than JSON. The
+CLI writes it into the current directory (or `--output <dir>`) with the name
+MyChart lists for it — a re-download gets a numeric suffix rather than
+overwriting — and prints a JSON summary with the path:
 
 ```bash
 mychart-cli --host mychart.example.org --action get_message_attachment \

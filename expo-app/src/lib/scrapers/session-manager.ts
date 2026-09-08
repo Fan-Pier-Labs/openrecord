@@ -27,7 +27,7 @@ import {
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
-  type MessageAttachmentFile,
+  type FilePayload,
 } from "../../../../shared/capabilities";
 import { Image } from "react-native";
 import { TOTP } from "totp-generator";
@@ -475,8 +475,8 @@ async function runScraper(
   if (capability.rendersMedia && request) {
     return downloadImagingStudyAsAttachment(capability, request, input);
   }
-  if (capability.deliversFile && request) {
-    return downloadMessageAttachmentForChat(capability, request, input);
+  if (capability.returnsFile && request) {
+    return downloadFileForChat(capability, request, input);
   }
 
   try {
@@ -493,34 +493,35 @@ async function runScraper(
 const CHAT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 /**
- * Download one message attachment. An image goes into the attachment store
- * like an X-ray does, so the reply can carry an [image:ID] token; anything
- * else (a PDF, say) has no place to go on this client yet — there is no file
- * viewer or share sheet — so the model is told so rather than handed bytes.
+ * Run a `returnsFile` capability (a message attachment, say). An image goes
+ * into the attachment store like an X-ray does, so the reply can carry an
+ * [image:ID] token; anything else (a PDF, say) has no place to go on this
+ * client yet — there is no file viewer or share sheet — so the model is told
+ * so rather than handed bytes.
  */
-async function downloadMessageAttachmentForChat(
+async function downloadFileForChat(
   capability: Capability,
   request: MyChartRequest,
   input: Record<string, unknown>,
 ): Promise<unknown> {
-  let file: MessageAttachmentFile;
+  let file: FilePayload;
   try {
-    file = (await executeCapability(request, capability.id, input)) as MessageAttachmentFile;
+    file = (await executeCapability(request, capability.id, input)) as FilePayload;
   } catch (err) {
-    return { error: `Could not download the attachment: ${(err as Error).message}` };
+    return { error: `Could not download the file: ${(err as Error).message}` };
   }
   if (!CHAT_IMAGE_TYPES.has(file.mimeType)) {
     return {
       error:
-        `${file.name} is a ${file.mimeType} file, which the app cannot display yet. ` +
-        "It can be downloaded with the OpenRecord Claude Desktop extension or the mychart-cli.",
+        `${file.fileName} is a ${file.mimeType} file, which the app cannot display yet. ` +
+        "It can be downloaded with the OpenRecord Claude Desktop extension or the mychart-cli, which save it to disk.",
     };
   }
   const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;
   const { width, height } = await imageSize(dataUri);
   const imageId = `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  putImageAttachment(imageId, dataUri, file.name, width, height);
-  return { image_id: imageId, caption: file.name, width, height };
+  putImageAttachment(imageId, dataUri, file.fileName, width, height);
+  return { image_id: imageId, caption: file.fileName, width, height };
 }
 
 /** The chat bubble sizes a picture by its aspect ratio; unknown reads as square. */

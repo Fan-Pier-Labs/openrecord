@@ -30,7 +30,7 @@ import {
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
-  type MessageAttachmentFile,
+  type FilePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
@@ -71,6 +71,7 @@ export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filt
   (capability) =>
     capability.kind === 'read' &&
     !capability.rendersMedia &&
+    !capability.returnsFile &&
     acceptsPatientParam(capability) &&
     capability.params.every((param) => !param.required),
 );
@@ -300,27 +301,24 @@ export async function writeStudyImages(
 }
 
 /**
- * The CLI's rendering of a `deliversFile` payload: the attachment's bytes
- * written under `outputDir` with the name MyChart gave it (path characters
- * replaced), a numeric suffix keeping a re-download from overwriting the
- * first. Returns the path written.
+ * The CLI's rendering of a `returnsFile` payload: the bytes written under
+ * `outputDir` as `fileName` (the scraper already made it a safe basename), a
+ * numeric suffix keeping a re-download from overwriting the first. Returns
+ * the path written.
  */
-export async function writeAttachmentFile(file: MessageAttachmentFile, outputDir: string): Promise<string> {
+export async function writeFilePayload(payload: FilePayload, outputDir: string): Promise<string> {
   await fs.promises.mkdir(outputDir, { recursive: true });
-  const fallback = file.fileExtension ? `attachment.${file.fileExtension.toLowerCase()}` : 'attachment';
-  const safe = file.name.replace(/[/\\:*?"<>|]+/g, '_').replace(/^[. ]+/, '').trim().substring(0, 120) || fallback;
-  const ext = path.extname(safe);
-  const stem = safe.slice(0, safe.length - ext.length);
+  const { name, ext } = path.parse(path.basename(payload.fileName));
   for (let attempt = 1; attempt <= 100; attempt++) {
-    const filePath = path.join(outputDir, attempt === 1 ? safe : `${stem}-${attempt}${ext}`);
+    const filePath = path.join(outputDir, attempt === 1 ? `${name}${ext}` : `${name}-${attempt}${ext}`);
     try {
-      await fs.promises.writeFile(filePath, file.bytes, { flag: 'wx' });
+      await fs.promises.writeFile(filePath, payload.bytes, { flag: 'wx' });
       return filePath;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
     }
   }
-  throw new Error(`Could not write ${safe} under ${outputDir} — 100 copies already exist.`);
+  throw new Error(`Could not write ${payload.fileName} under ${outputDir} — 100 copies already exist.`);
 }
 
 /**
@@ -360,12 +358,11 @@ export async function runCapabilityAction(
     // lives there, and it has to run for media capabilities too.
     const result = await executeCapability(session.request, capability.id, coerced, ctx);
 
-    if (capability.deliversFile) {
-      // A file payload becomes exactly that: the file, under --output.
-      const file = result as MessageAttachmentFile;
-      const dir = path.resolve(outputDir ?? path.join(process.cwd(), 'message-attachments'));
-      const filePath = await writeAttachmentFile(file, dir);
-      console.log(JSON.stringify({ name: file.name, mimeType: file.mimeType, sizeBytes: file.bytes.length, filePath }, null, 2));
+    if (capability.returnsFile) {
+      // A file payload becomes exactly that: the file, under --output (default: the current directory).
+      const { bytes, ...rest } = result as FilePayload;
+      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
+      console.log(JSON.stringify({ filePath, sizeBytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
       return true;
     }
 

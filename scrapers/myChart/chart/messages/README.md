@@ -236,12 +236,12 @@ Today's `ThreadMessage` renames `wmgId` → `messageId`, `deliveryInstantISO` �
 `POST /api/documents/viewer/GetDocumentDetailsLegacy`, then `GET` the
 `downloadUrl` it answers. The payload is one file, not JSON, so this
 capability has **no output modes**: `run` returns a `MessageAttachmentFile`
-(`conversationId`, `dcsId`, `name`, `fileExtension`, `mimeType`, `bytes`) and
-each client delivers it its own way, keyed off the registry's `deliversFile`
-flag — the Claude Desktop extension writes it to the Downloads folder and shows
-an image inline, the CLI writes it under `--output` (default
-`./message-attachments`), the mobile app shows an image in the chat and says so
-for anything else.
+(a `FilePayload` — `fileName`, `mimeType`, `bytes` — plus `conversationId`,
+`dcsId` and `fileExtension`) and each client delivers it its own way, keyed off
+the registry's `returnsFile` flag — the Claude Desktop extension writes it to
+the Downloads folder and shows an image inline, the CLI writes it under
+`--output` (default: the current directory), the mobile app shows an image in
+the chat and says so for anything else.
 
 ---
 

@@ -217,7 +217,7 @@ describe('capability registry against fake-mychart', () => {
         conversation_id: conversation!.hthId,
         attachment_id: attachment.dcsId,
       })) as MessageAttachmentFile
-      expect(file.name).toBe(attachment.name)
+      expect(file.fileName).toBe(attachment.name)
       expect(file.dcsId).toBe(attachment.dcsId)
       expect(file.mimeType).toBe(mime[attachment.fileExtension]!)
       expect(Array.from(file.bytes.subarray(0, 4))).toEqual(magic[attachment.fileExtension]!)

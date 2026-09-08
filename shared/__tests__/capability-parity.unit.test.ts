@@ -324,12 +324,14 @@ describe('rendersMedia', () => {
   });
 });
 
-describe('deliversFile', () => {
+describe('returnsFile', () => {
   it('is what the clients branch on, so a second file capability needs no edits', async () => {
-    const files = CAPABILITIES.filter((c) => c.deliversFile);
+    const files = CAPABILITIES.filter((c) => c.returnsFile);
     expect(files.map((c) => c.id)).toEqual(['get_message_attachment']);
     // A file payload is not JSON, so it has no output modes to offer.
     for (const c of files) expect(acceptsModeParam(c)).toBe(false);
+    // No capability is both: a study is decoded per client, a file is saved as-is.
+    expect(files.some((c) => c.rendersMedia)).toBe(false);
 
     for (const client of [
       '../../claude-desktop-extension/src/tools.ts',
@@ -337,7 +339,7 @@ describe('deliversFile', () => {
       '../../expo-app/src/lib/scrapers/session-manager.ts',
     ]) {
       const source = await Bun.file(new URL(client, import.meta.url).pathname).text();
-      expect(source).toContain('capability.deliversFile');
+      expect(source).toContain('capability.returnsFile');
       expect(source).not.toContain("'get_message_attachment'");
       expect(source).not.toContain('"get_message_attachment"');
     }

@@ -491,6 +491,7 @@ export {
   type CapabilityKind,
   type CapabilityParam,
   type StudyImagePayload,
+  type FilePayload,
   type MessageAttachmentFile,
 } from '../../shared/capabilities';
 

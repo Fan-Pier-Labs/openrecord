@@ -32,21 +32,23 @@ import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import type { RequestConfig } from '../../core/types';
 import { RawCollector, describeResponseFailure } from '../../core/rawResponse';
+import { safeFileName } from '../../core/safeFileName';
+import type { FilePayload } from '../../../../shared/capabilities/types';
 import { list, rec, text } from '../../processors/read';
 import { fetchConversationThreadRaw } from './messageThreads';
 
-/** A downloaded attachment: the file, and what the thread said about it. */
-export interface MessageAttachmentFile {
+/**
+ * A downloaded attachment: the file, and what the thread said about it.
+ * `fileName` is the name the thread lists (e.g. `results.pdf`) made safe;
+ * `mimeType` is from the details call, falling back to the download's
+ * Content-Type.
+ */
+export interface MessageAttachmentFile extends FilePayload {
   conversationId: string;
   /** The attachment's `dcsId`, the handle `get_message_thread` shows. */
   dcsId: string;
-  /** The file name as the thread lists it, e.g. `results.pdf`. */
-  name: string;
   /** MyChart's extension for it, upper-case (`PDF`, `PNG`, `JPG`). */
   fileExtension: string;
-  /** From the details call, falling back to the download's Content-Type. */
-  mimeType: string;
-  bytes: Uint8Array;
 }
 
 /** What the thread says about one attachment, as MyChart sent it. */
@@ -166,10 +168,11 @@ export async function downloadMessageAttachment(
   }
 
   const mimeType = text(rec(documentDetails).mimeType) || contentType.split(';')[0]!.trim();
+  const extension = attachment.fileExtension.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   return {
     conversationId,
     dcsId: attachment.dcsId,
-    name: attachment.name,
+    fileName: safeFileName(attachment.name, extension ? `attachment.${extension}` : 'attachment'),
     fileExtension: attachment.fileExtension,
     mimeType,
     bytes,
