@@ -32,8 +32,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
 | `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
 | `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
-| `get_messages` | 9028 | 4871 | 6050 | 4005 |
-| `get_message_thread` | 3424 | 1489 | 1807 | 1076 |
+| `get_messages` | 65444 | 44320 | 54112 | 6266 |
+| `get_message_thread` | 3624 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 40587 | 3530 | 4175 | 1118 |
@@ -10654,338 +10654,291 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 
 ### `get_messages`
 
-Inbox conversations with the care team.
+Every conversation in the inbox: its id, subject, who it is with, when the latest message arrived, and whether it is unread, urgent or has attachments. The messages themselves come from get_message_thread.
 
 <details>
-<summary><code>mode: raw</code> (9028 chars)</summary>
+<summary><code>mode: raw</code> (65444 chars)</summary>
 
 ```json
 {
-  "legacyXUnreadCount": 0,
-  "conversations": [
+  "requests": [
     {
-      "contexts": [],
-      "subject": "Weight Management Follow-up",
-      "tags": {
-        "Messages": false,
-        "Unread": false
+      "path": "/api/conversations/GetConversationList",
+      "method": "POST",
+      "requestBody": {
+        "tag": 1,
+        "localLoadParams": {
+          "loadStartInstantISO": "",
+          "loadEndInstantISO": "",
+          "pagingInfo": 1
+        },
+        "externalLoadParams": {},
+        "searchQuery": "",
+        "PageNonce": ""
       },
-      "previewText": "Homer, we discussed your weight loss goals...",
-      "hasAttachments": false,
-      "hasTasks": false,
-      "hasUrgentMsgs": false,
-      "legacyMessageDetailsUrl": "",
-      "audience": [
-        {
-          "name": "Julius Hibbert, MD"
-        }
-      ],
-      "hasLoadAllUsers": false,
-      "allowBulkActions": false,
-      "hthId": "CONV-001",
-      "messages": [
-        {
-          "wmgId": "MSG-001",
-          "isUnread": false,
-          "deliveryInstantISO": "2026-01-10T14:30:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.</span></div>\r\n<div data-paragraph=\"2\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">&nbsp;</span></div>\r\n<div data-paragraph=\"3\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Your cholesterol levels are concerning.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-HIBBERT"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-002",
-          "isUnread": false,
-          "deliveryInstantISO": "2026-01-10T15:45:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">But doc, donuts are a food group! Can't I just take more pills instead?</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "",
-            "wprKey": "WPR-HOMER"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-003",
-          "isUnread": false,
-          "deliveryInstantISO": "2026-01-11T09:00:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-HIBBERT"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        }
-      ],
-      "hasMoreMessages": false,
-      "messageType": "",
-      "userKeys": [
-        "PROV-HIBBERT"
-      ],
-      "userOverrideNames": {},
-      "maskedUserNames": [],
-      "showOtherViewersOption": false,
-      "viewerKeys": [
-        "WPR-HOMER"
-      ],
-      "organizationId": ""
-    },
-    {
-      "contexts": [],
-      "subject": "Discount Surgery Consultation",
-      "tags": {
-        "Messages": false,
-        "Unread": false
-      },
-      "previewText": "Hi-Everybody! I have great news about...",
-      "hasAttachments": false,
-      "hasTasks": false,
-      "hasUrgentMsgs": false,
-      "legacyMessageDetailsUrl": "",
-      "audience": [
-        {
-          "name": "Nick Riviera, MD"
-        }
-      ],
-      "hasLoadAllUsers": false,
-      "allowBulkActions": false,
-      "hthId": "CONV-002",
-      "messages": [
-        {
-          "wmgId": "MSG-004",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-12-15T10:00:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Hi-Everybody! I have great news about a new discount liposuction &amp; lap-band procedure. Only $29.95! Results may vary.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-NICK"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-005",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-12-15T11:30:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "",
-            "wprKey": "WPR-HOMER"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-006",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-12-16T08:05:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Attached my insurance card and the coverage letter, as requested.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "",
-            "wprKey": "WPR-HOMER"
-          },
-          "attachments": [
-            {
-              "type": 2,
-              "dcsId": "WP-DCS-COVERAGE",
-              "etxId": "",
-              "name": "proof of coverage.pdf",
-              "fileExtension": "PDF",
-              "legacyUrlForCommunityJump": "",
-              "organizationId": ""
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "legacyXUnreadCount": 0,
+        "conversations": [
+          {
+            "contexts": [],
+            "subject": "Weight Management Follow-up",
+            "tags": {
+              "Messages": false,
+              "Unread": false
             },
-            {
-              "type": 2,
-              "dcsId": "WP-DCS-CARD",
-              "etxId": "",
-              "name": "insurance card.png",
-              "fileExtension": "PNG",
-              "legacyUrlForCommunityJump": "",
-              "organizationId": ""
-            }
-          ],
-          "tasks": [],
-          "suggestedActions": []
-        }
-      ],
-      "hasMoreMessages": false,
-      "messageType": "",
-      "userKeys": [
-        "PROV-NICK"
-      ],
-      "userOverrideNames": {},
-      "maskedUserNames": [],
-      "showOtherViewersOption": false,
-      "viewerKeys": [
-        "WPR-HOMER"
-      ],
-      "organizationId": ""
-    },
-    {
-      "contexts": [],
-      "subject": "Back pain after the bowling tournament",
-      "tags": {
-        "Messages": false,
-        "Unread": false
-      },
-      "previewText": "Following up on the imaging we ordered...",
-      "hasAttachments": false,
-      "hasTasks": false,
-      "hasUrgentMsgs": false,
-      "legacyMessageDetailsUrl": "",
-      "audience": [
-        {
-          "name": "Julius Hibbert, MD"
-        }
-      ],
-      "hasLoadAllUsers": false,
-      "allowBulkActions": false,
-      "hthId": "CONV-003",
-      "messages": [
-        {
-          "wmgId": "MSG-013",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-11-02T16:20:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Let's get imaging. I have placed the order; the department will reach out to schedule.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-HIBBERT"
+            "previewText": "Homer, we discussed your weight loss goals...",
+            "hasAttachments": false,
+            "hasTasks": false,
+            "hasUrgentMsgs": false,
+            "legacyMessageDetailsUrl": "",
+            "audience": [
+              {
+                "name": "Julius Hibbert, MD"
+              }
+            ],
+            "hasLoadAllUsers": false,
+            "allowBulkActions": false,
+            "hthId": "CONV-001",
+            "messages": [
+              {
+                "wmgId": "MSG-001",
+                "isUnread": false,
+                "deliveryInstantISO": "2026-01-10T14:30:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.</span></div>\r\n<div data-paragraph=\"2\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">&nbsp;</span></div>\r\n<div data-paragraph=\"3\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Your cholesterol levels are concerning.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-HIBBERT"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-002",
+                "isUnread": false,
+                "deliveryInstantISO": "2026-01-10T15:45:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">But doc, donuts are a food group! Can't I just take more pills instead?</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "",
+                  "wprKey": "WPR-HOMER"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-003",
+                "isUnread": false,
+                "deliveryInstantISO": "2026-01-11T09:00:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-HIBBERT"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              }
+            ],
+            "hasMoreMessages": false,
+            "messageType": "",
+            "userKeys": [
+              "PROV-HIBBERT"
+            ],
+            "userOverrideNames": {},
+            "maskedUserNames": [],
+            "showOtherViewersOption": false,
+            "viewerKeys": [
+              "WPR-HOMER"
+            ],
+            "organizationId": ""
           },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-014",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-11-03T09:05:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">We have openings Thursday morning and Friday afternoon. Which works better?</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-MONROE"
+          {
+            "contexts": [],
+            "subject": "Discount Surgery Consultation",
+            "tags": {
+              "Messages": false,
+              "Unread": false
+            },
+            "previewText": "Hi-Everybody! I have great news about...",
+            "hasAttachments": true,
+            "hasTasks": false,
+            "hasUrgentMsgs": false,
+            "legacyMessageDetailsUrl": "",
+            "audience": [
+              {
+                "name": "Nick Riviera, MD"
+              }
+            ],
+            "hasLoadAllUsers": false,
+            "allowBulkActions": false,
+            "hthId": "CONV-002",
+            "messages": [
+              {
+                "wmgId": "MSG-004",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-12-15T10:00:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Hi-Everybody! I have great news about a new discount liposuction &amp; lap-band procedure. Only $29.95! Results may vary.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-NICK"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-005",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-12-15T11:30:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "",
+                  "wprKey": "WPR-HOMER"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-006",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-12-16T08:05:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Attached my insurance card and the coverage letter, as requested.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "",
+                  "wprKey": "WPR-HOMER"
+                },
+                "attachments": [
+                  {
+                    "type": 2,
+                    "dcsId": "WP-DCS-COVERAGE",
+                    "etxId": "",
+                    "name": "proof of coverage.pdf",
+                    "fileExtension": "PDF",
+                    "legacyUrlForCommunityJump": "",
+                    "organizationId": ""
+                  },
+                  {
+                    "type": 2,
+                    "dcsId": "WP-DCS-CARD",
+                    "etxId": "",
+                    "name": "insurance card.png",
+                    "fileExtension": "PNG",
+                    "legacyUrlForCommunityJump": "",
+                    "organizationId": ""
+                  }
+                ],
+                "tasks": [],
+                "suggestedActions": []
+              }
+            ],
+            "hasMoreMessages": false,
+            "messageType": "",
+            "userKeys": [
+              "PROV-NICK"
+            ],
+            "userOverrideNames": {},
+            "maskedUserNames": [],
+            "showOtherViewersOption": false,
+            "viewerKeys": [
+              "WPR-HOMER"
+            ],
+            "organizationId": ""
           },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-015",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-11-03T09:40:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Friday afternoon. Thursday is donut day at the plant.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "",
-            "wprKey": "WPR-HOMER"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-016",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-11-03T10:12:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-MONROE"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        },
-        {
-          "wmgId": "MSG-017",
-          "isUnread": false,
-          "deliveryInstantISO": "2025-11-07T11:00:00Z",
-          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.</span></div></div>",
-          "author": {
-            "displayName": "",
-            "empKey": "PROV-HIBBERT"
-          },
-          "attachments": [],
-          "tasks": [],
-          "suggestedActions": []
-        }
-      ],
-      "hasMoreMessages": true,
-      "messageType": "",
-      "userKeys": [
-        "PROV-HIBBERT",
-        "PROV-MONROE"
-      ],
-      "userOverrideNames": {
-        "PROV-MONROE": "Springfield Spine Clinic"
-      },
-      "maskedUserNames": [],
-      "showOtherViewersOption": false,
-      "viewerKeys": [
-        "WPR-HOMER"
-      ],
-      "organizationId": ""
-    }
-  ],
-  "localSummary": {
-    "hasMoreConversations": false,
-    "newestLoadedInstantISO": "",
-    "numberLoaded": 0,
-    "oldestLoadedInstantISO": "",
-    "oldestSearchedInstantISO": "",
-    "pagingInfo": 0
-  },
-  "users": {
-    "PROV-HIBBERT": {
-      "empId": "",
-      "name": "Julius Hibbert, MD",
-      "outOfContactEndDate": "",
-      "outOfContactContext": 0,
-      "outOfContactContextString": "",
-      "photoUrl": "",
-      "providerId": "",
-      "organizationId": ""
-    },
-    "PROV-NICK": {
-      "empId": "",
-      "name": "Nick Riviera, MD",
-      "outOfContactEndDate": "",
-      "outOfContactContext": 0,
-      "outOfContactContextString": "",
-      "photoUrl": "",
-      "providerId": "",
-      "organizationId": ""
-    },
-    "PROV-MONROE": {
-      "empId": "",
-      "name": "Marvin Monroe, MD",
-      "outOfContactEndDate": "",
-      "outOfContactContext": 0,
-      "outOfContactContextString": "",
-      "photoUrl": "",
-    
-… (truncated; 280 more characters)
+          {
+            "contexts": [],
+            "subject": "Back pain after the bowling tournament",
+            "tags": {
+              "Messages": false,
+              "Unread": false
+            },
+            "previewText": "Following up on the imaging we ordered...",
+            "hasAttachments": false,
+            "hasTasks": false,
+            "hasUrgentMsgs": false,
+            "legacyMessageDetailsUrl": "",
+            "audience": [
+              {
+                "name": "Julius Hibbert, MD"
+              }
+            ],
+            "hasLoadAllUsers": false,
+            "allowBulkActions": false,
+            "hthId": "CONV-003",
+            "messages": [
+              {
+                "wmgId": "MSG-013",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-11-02T16:20:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Let's get imaging. I have placed the order; the department will reach out to schedule.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-HIBBERT"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-014",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-11-03T09:05:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">We have openings Thursday morning and Friday afternoon. Which works better?</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-MONROE"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-015",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-11-03T09:40:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Friday afternoon. Thursday is donut day at the plant.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "",
+                  "wprKey": "WPR-HOMER"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-016",
+                "isUnread": false,
+                "deliveryInstantISO": "2025-11-03T10:12:00Z",
+                "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.</span></div></div>",
+                "author": {
+                  "displayName": "",
+                  "empKey": "PROV-MONROE"
+                },
+                "attachments": [],
+                "tasks": [],
+                "suggestedActions": []
+              },
+              {
+                "wmgId": "MSG-017"
+… (truncated; 93325 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (6050 chars)</summary>
+<summary><code>mode: standard</code> (54112 chars)</summary>
 
 - **legacyXUnreadCount**: 0
+- **truncated**: false
 
-## conversations (3)
+## conversations (51)
 
 ### conversations 1
 
@@ -10997,10 +10950,13 @@ Inbox conversations with the care team.
 | name |
 | - |
 | Julius Hibbert, MD |
+- **audienceNames**: Julius Hibbert, MD
+- **latestMessageInstantISO**: 2026-01-11T09:00:00Z
 
 #### tags
 
 - **Unread**: false
+- **hasUnreadMessages**: false
 - **hasUrgentMsgs**: false
 - **hasMoreMessages**: false
 - **previewText**: Homer, we discussed your weight loss goals...
@@ -11075,14 +11031,17 @@ Your cholesterol levels are concerning.
 | name |
 | - |
 | Nick Riviera, MD |
+- **audienceNames**: Nick Riviera, MD
+- **latestMessageInstantISO**: 2025-12-16T08:05:00Z
 
 #### tags
 
 - **Unread**: false
+- **hasUnreadMessages**: false
 - **hasUrgentMsgs**: false
 - **hasMoreMessages**: false
 - **previewText**: Hi-Everybody! I have great news about...
-- **hasAttachments**: false
+- **hasAttachments**: true
 - **hasTasks**: false
 - **messageType**: (empty)
 
@@ -11138,10 +11097,10 @@ Your cholesterol levels are concerning.
 
 ###### attachments (2)
 
-| name | fileExtension | dcsId |
-| - | - | - |
-| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
-| insurance card.png | PNG | WP-DCS-CARD |
+| name | fileExtension | dcsId | type |
+| - | - | - | - |
+| proof of coverage.pdf | PDF | WP-DCS-COVERAGE | 2 |
+| insurance card.png | PNG | WP-DCS-CARD | 2 |
 - **tasks**: (none)
 - **suggestedActions**: (none)
 
@@ -11155,10 +11114,13 @@ Your cholesterol levels are concerning.
 | name |
 | - |
 | Julius Hibbert, MD |
+- **audienceNames**: Julius Hibbert, MD
+- **latestMessageInstantISO**: 2025-11-07T11:00:00Z
 
 #### tags
 
 - **Unread**: false
+- **hasUnreadMessages**: false
 - **hasUrgentMsgs**: false
 - **hasMoreMessages**: true
 - **previewText**: Following up on the imaging we ordered...
@@ -11253,187 +11215,2148 @@ Your cholesterol levels are concerning.
 - **tasks**: (none)
 - **suggestedActions**: (none)
 
+### conversations 4
+
+- **hthId**: CONV-100
+- **subject**: Appointment reminder 1
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-10-27T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1000
+- **deliveryInstantISO**: 2025-10-27T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 1 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 5
+
+- **hthId**: CONV-101
+- **subject**: Appointment reminder 2
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-10-20T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1001
+- **deliveryInstantISO**: 2025-10-20T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 2 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 6
+
+- **hthId**: CONV-102
+- **subject**: Appointment reminder 3
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-10-13T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1002
+- **deliveryInstantISO**: 2025-10-13T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 3 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 7
+
+- **hthId**: CONV-103
+- **subject**: Appointment reminder 4
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-10-06T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1003
+- **deliveryInstantISO**: 2025-10-06T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 4 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 8
+
+- **hthId**: CONV-104
+- **subject**: Appointment reminder 5
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-09-29T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1004
+- **deliveryInstantISO**: 2025-09-29T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 5 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 9
+
+- **hthId**: CONV-105
+- **subject**: Appointment reminder 6
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-09-22T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1005
+- **deliveryInstantISO**: 2025-09-22T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 6 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 10
+
+- **hthId**: CONV-106
+- **subject**: Appointment reminder 7
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-09-15T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1006
+- **deliveryInstantISO**: 2025-09-15T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 7 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 11
+
+- **hthId**: CONV-107
+- **subject**: Appointment reminder 8
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-09-08T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1007
+- **deliveryInstantISO**: 2025-09-08T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 8 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 12
+
+- **hthId**: CONV-108
+- **subject**: Appointment reminder 9
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-09-01T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1008
+- **deliveryInstantISO**: 2025-09-01T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 9 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 13
+
+- **hthId**: CONV-109
+- **subject**: Appointment reminder 10
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-08-25T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1009
+- **deliveryInstantISO**: 2025-08-25T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 10 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 14
+
+- **hthId**: CONV-110
+- **subject**: Appointment reminder 11
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-08-18T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1010
+- **deliveryInstantISO**: 2025-08-18T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 11 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 15
+
+- **hthId**: CONV-111
+- **subject**: Appointment reminder 12
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-08-11T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1011
+- **deliveryInstantISO**: 2025-08-11T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 12 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 16
+
+- **hthId**: CONV-112
+- **subject**: Appointment reminder 13
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-08-04T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1012
+- **deliveryInstantISO**: 2025-08-04T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 13 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 17
+
+- **hthId**: CONV-113
+- **subject**: Appointment reminder 14
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-07-28T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1013
+- **deliveryInstantISO**: 2025-07-28T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 14 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 18
+
+- **hthId**: CONV-114
+- **subject**: Appointment reminder 15
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-07-21T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1014
+- **deliveryInstantISO**: 2025-07-21T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 15 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 19
+
+- **hthId**: CONV-115
+- **subject**: Appointment reminder 16
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-07-14T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1015
+- **deliveryInstantISO**: 2025-07-14T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 16 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 20
+
+- **hthId**: CONV-116
+- **subject**: Appointment reminder 17
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-07-07T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1016
+- **deliveryInstantISO**: 2025-07-07T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 17 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 21
+
+- **hthId**: CONV-117
+- **subject**: Appointment reminder 18
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-06-30T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1017
+- **deliveryInstantISO**: 2025-06-30T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 18 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 22
+
+- **hthId**: CONV-118
+- **subject**: Appointment reminder 19
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-06-23T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1018
+- **deliveryInstantISO**: 2025-06-23T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 19 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 23
+
+- **hthId**: CONV-119
+- **subject**: Appointment reminder 20
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-06-16T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1019
+- **deliveryInstantISO**: 2025-06-16T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 20 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 24
+
+- **hthId**: CONV-120
+- **subject**: Appointment reminder 21
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-06-09T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1020
+- **deliveryInstantISO**: 2025-06-09T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 21 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 25
+
+- **hthId**: CONV-121
+- **subject**: Appointment reminder 22
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-06-02T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1021
+- **deliveryInstantISO**: 2025-06-02T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 22 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 26
+
+- **hthId**: CONV-122
+- **subject**: Appointment reminder 23
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-05-26T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1022
+- **deliveryInstantISO**: 2025-05-26T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 23 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 27
+
+- **hthId**: CONV-123
+- **subject**: Appointment reminder 24
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-05-19T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1023
+- **deliveryInstantISO**: 2025-05-19T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 24 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 28
+
+- **hthId**: CONV-124
+- **subject**: Appointment reminder 25
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-05-12T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1024
+- **deliveryInstantISO**: 2025-05-12T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 25 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 29
+
+- **hthId**: CONV-125
+- **subject**: Appointment reminder 26
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-05-05T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1025
+- **deliveryInstantISO**: 2025-05-05T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 26 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 30
+
+- **hthId**: CONV-126
+- **subject**: Appointment reminder 27
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-04-28T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1026
+- **deliveryInstantISO**: 2025-04-28T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 27 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 31
+
+- **hthId**: CONV-127
+- **subject**: Appointment reminder 28
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-04-21T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1027
+- **deliveryInstantISO**: 2025-04-21T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 28 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 32
+
+- **hthId**: CONV-128
+- **subject**: Appointment reminder 29
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-04-14T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1028
+- **deliveryInstantISO**: 2025-04-14T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 29 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 33
+
+- **hthId**: CONV-129
+- **subject**: Appointment reminder 30
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-04-07T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1029
+- **deliveryInstantISO**: 2025-04-07T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 30 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 34
+
+- **hthId**: CONV-130
+- **subject**: Appointment reminder 31
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-03-31T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1030
+- **deliveryInstantISO**: 2025-03-31T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 31 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 35
+
+- **hthId**: CONV-131
+- **subject**: Appointment reminder 32
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-03-24T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1031
+- **deliveryInstantISO**: 2025-03-24T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 32 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 36
+
+- **hthId**: CONV-132
+- **subject**: Appointment reminder 33
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-03-17T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1032
+- **deliveryInstantISO**: 2025-03-17T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 33 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 37
+
+- **hthId**: CONV-133
+- **subject**: Appointment reminder 34
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-03-10T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1033
+- **deliveryInstantISO**: 2025-03-10T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 34 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 38
+
+- **hthId**: CONV-134
+- **subject**: Appointment reminder 35
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-03-03T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1034
+- **deliveryInstantISO**: 2025-03-03T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 35 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 39
+
+- **hthId**: CONV-135
+- **subject**: Appointment reminder 36
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-02-24T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1035
+- **deliveryInstantISO**: 2025-02-24T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 36 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 40
+
+- **hthId**: CONV-136
+- **subject**: Appointment reminder 37
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-02-17T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1036
+- **deliveryInstantISO**: 2025-02-17T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 37 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 41
+
+- **hthId**: CONV-137
+- **subject**: Appointment reminder 38
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-02-10T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1037
+- **deliveryInstantISO**: 2025-02-10T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 38 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 42
+
+- **hthId**: CONV-138
+- **subject**: Appointment reminder 39
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-02-03T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1038
+- **deliveryInstantISO**: 2025-02-03T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 39 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 43
+
+- **hthId**: CONV-139
+- **subject**: Appointment reminder 40
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-01-27T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1039
+- **deliveryInstantISO**: 2025-01-27T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 40 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 44
+
+- **hthId**: CONV-140
+- **subject**: Appointment reminder 41
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-01-20T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1040
+- **deliveryInstantISO**: 2025-01-20T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 41 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 45
+
+- **hthId**: CONV-141
+- **subject**: Appointment reminder 42
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-01-13T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1041
+- **deliveryInstantISO**: 2025-01-13T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 42 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 46
+
+- **hthId**: CONV-142
+- **subject**: Appointment reminder 43
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2025-01-06T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1042
+- **deliveryInstantISO**: 2025-01-06T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 43 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 47
+
+- **hthId**: CONV-143
+- **subject**: Appointment reminder 44
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2024-12-30T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1043
+- **deliveryInstantISO**: 2024-12-30T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 44 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 48
+
+- **hthId**: CONV-144
+- **subject**: Appointment reminder 45
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2024-12-23T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1044
+- **deliveryInstantISO**: 2024-12-23T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 45 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 49
+
+- **hthId**: CONV-145
+- **subject**: Appointment reminder 46
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2024-12-16T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1045
+- **deliveryInstantISO**: 2024-12-16T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 46 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 50
+
+- **hthId**: CONV-146
+- **subject**: Appointment reminder 47
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2024-12-09T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1046
+- **deliveryInstantISO**: 2024-12-09T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 47 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+### conversations 51
+
+- **hthId**: CONV-147
+- **subject**: Appointment reminder 48
+
+#### audience (1)
+
+| name |
+| - |
+| Springfield General Front Desk |
+- **audienceNames**: Springfield General Front Desk
+- **latestMessageInstantISO**: 2024-12-02T09:00:00Z
+
+#### tags
+
+- **Unread**: false
+- **hasUnreadMessages**: false
+- **hasUrgentMsgs**: false
+- **hasMoreMessages**: false
+- **previewText**: This is a reminder of your upcoming appointment...
+- **hasAttachments**: false
+- **hasTasks**: false
+- **messageType**: (empty)
+
+#### messages (1)
+
+##### messages 1
+
+- **wmgId**: MSG-1047
+- **deliveryInstantISO**: 2024-12-02T09:00:00Z
+- **senderName**: Springfield General Front Desk
+- **isFromPatient**: false
+- **isUnread**: false
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 48 of 48. Please arrive fifteen minutes early.
+
+###### author
+
+- **empKey**: PROV-FRONTDESK
+- **wprKey**: (none)
+- **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
 ## localSummary
 
 - **hasMoreConversations**: false
-- **oldestLoadedInstantISO**: (empty)
+- **oldestLoadedInstantISO**: 2024-12-02T09:00:00Z
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (4005 chars)</summary>
+<summary><code>mode: concise</code> (6266 chars)</summary>
 
 - **legacyXUnreadCount**: 0
+- **truncated**: false
 
-## conversations (3)
+## conversations (51)
 
-### conversations 1
-
-- **hthId**: CONV-001
-- **subject**: Weight Management Follow-up
-
-#### audience (1)
-
-| name |
-| - |
-| Julius Hibbert, MD |
-
-#### tags
-
-- **Unread**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: Homer, we discussed your weight loss goals...
-
-#### messages (3)
-
-##### messages 1
-
-- **deliveryInstantISO**: 2026-01-10T14:30:00Z
-- **senderName**: Julius Hibbert, MD
-- **isFromPatient**: false
-- **bodyText**:
-
-Homer, as we discussed during your visit, I strongly recommend reducing your donut intake to no more than 3 per day.  
-  
-Your cholesterol levels are concerning.
-
-- **attachments**: (none)
-
-##### messages 2
-
-- **deliveryInstantISO**: 2026-01-10T15:45:00Z
-- **senderName**: Homer Simpson
-- **isFromPatient**: true
-- **bodyText**: But doc, donuts are a food group! Can't I just take more pills instead?
-- **attachments**: (none)
-
-##### messages 3
-
-- **deliveryInstantISO**: 2026-01-11T09:00:00Z
-- **senderName**: Julius Hibbert, MD
-- **isFromPatient**: false
-- **bodyText**: No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.
-- **attachments**: (none)
-
-### conversations 2
-
-- **hthId**: CONV-002
-- **subject**: Discount Surgery Consultation
-
-#### audience (1)
-
-| name |
-| - |
-| Nick Riviera, MD |
-
-#### tags
-
-- **Unread**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: Hi-Everybody! I have great news about...
-
-#### messages (3)
-
-##### messages 1
-
-- **deliveryInstantISO**: 2025-12-15T10:00:00Z
-- **senderName**: Nick Riviera, MD
-- **isFromPatient**: false
-- **bodyText**: Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.
-- **attachments**: (none)
-
-##### messages 2
-
-- **deliveryInstantISO**: 2025-12-15T11:30:00Z
-- **senderName**: Homer Simpson
-- **isFromPatient**: true
-- **bodyText**: Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!
-- **attachments**: (none)
-
-##### messages 3
-
-- **deliveryInstantISO**: 2025-12-16T08:05:00Z
-- **senderName**: Homer Simpson
-- **isFromPatient**: true
-- **bodyText**: Attached my insurance card and the coverage letter, as requested.
-
-###### attachments (2)
-
-| name | fileExtension | dcsId |
-| - | - | - |
-| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
-| insurance card.png | PNG | WP-DCS-CARD |
-
-### conversations 3
-
-- **hthId**: CONV-003
-- **subject**: Back pain after the bowling tournament
-
-#### audience (1)
-
-| name |
-| - |
-| Julius Hibbert, MD |
-
-#### tags
-
-- **Unread**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: true
-- **previewText**: Following up on the imaging we ordered...
-
-#### messages (5)
-
-##### messages 1
-
-- **deliveryInstantISO**: 2025-11-02T16:20:00Z
-- **senderName**: Julius Hibbert, MD
-- **isFromPatient**: false
-- **bodyText**: Let's get imaging. I have placed the order; the department will reach out to schedule.
-- **attachments**: (none)
-
-##### messages 2
-
-- **deliveryInstantISO**: 2025-11-03T09:05:00Z
-- **senderName**: Springfield Spine Clinic
-- **isFromPatient**: false
-- **bodyText**: We have openings Thursday morning and Friday afternoon. Which works better?
-- **attachments**: (none)
-
-##### messages 3
-
-- **deliveryInstantISO**: 2025-11-03T09:40:00Z
-- **senderName**: Homer Simpson
-- **isFromPatient**: true
-- **bodyText**: Friday afternoon. Thursday is donut day at the plant.
-- **attachments**: (none)
-
-##### messages 4
-
-- **deliveryInstantISO**: 2025-11-03T10:12:00Z
-- **senderName**: Springfield Spine Clinic
-- **isFromPatient**: false
-- **bodyText**: Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.
-- **attachments**: (none)
-
-##### messages 5
-
-- **deliveryInstantISO**: 2025-11-07T11:00:00Z
-- **senderName**: Julius Hibbert, MD
-- **isFromPatient**: false
-- **bodyText**: Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.
-- **attachments**: (none)
+| hthId | subject | audienceNames | latestMessageInstantISO | hasUnreadMessages | hasUrgentMsgs | hasAttachments |
+| - | - | - | - | - | - | - |
+| CONV-001 | Weight Management Follow-up | Julius Hibbert, MD | 2026-01-11T09:00:00Z | false | false | false |
+| CONV-002 | Discount Surgery Consultation | Nick Riviera, MD | 2025-12-16T08:05:00Z | false | false | true |
+| CONV-003 | Back pain after the bowling tournament | Julius Hibbert, MD | 2025-11-07T11:00:00Z | false | false | false |
+| CONV-100 | Appointment reminder 1 | Springfield General Front Desk | 2025-10-27T09:00:00Z | false | false | false |
+| CONV-101 | Appointment reminder 2 | Springfield General Front Desk | 2025-10-20T09:00:00Z | false | false | false |
+| CONV-102 | Appointment reminder 3 | Springfield General Front Desk | 2025-10-13T09:00:00Z | false | false | false |
+| CONV-103 | Appointment reminder 4 | Springfield General Front Desk | 2025-10-06T09:00:00Z | false | false | false |
+| CONV-104 | Appointment reminder 5 | Springfield General Front Desk | 2025-09-29T09:00:00Z | false | false | false |
+| CONV-105 | Appointment reminder 6 | Springfield General Front Desk | 2025-09-22T09:00:00Z | false | false | false |
+| CONV-106 | Appointment reminder 7 | Springfield General Front Desk | 2025-09-15T09:00:00Z | false | false | false |
+| CONV-107 | Appointment reminder 8 | Springfield General Front Desk | 2025-09-08T09:00:00Z | false | false | false |
+| CONV-108 | Appointment reminder 9 | Springfield General Front Desk | 2025-09-01T09:00:00Z | false | false | false |
+| CONV-109 | Appointment reminder 10 | Springfield General Front Desk | 2025-08-25T09:00:00Z | false | false | false |
+| CONV-110 | Appointment reminder 11 | Springfield General Front Desk | 2025-08-18T09:00:00Z | false | false | false |
+| CONV-111 | Appointment reminder 12 | Springfield General Front Desk | 2025-08-11T09:00:00Z | false | false | false |
+| CONV-112 | Appointment reminder 13 | Springfield General Front Desk | 2025-08-04T09:00:00Z | false | false | false |
+| CONV-113 | Appointment reminder 14 | Springfield General Front Desk | 2025-07-28T09:00:00Z | false | false | false |
+| CONV-114 | Appointment reminder 15 | Springfield General Front Desk | 2025-07-21T09:00:00Z | false | false | false |
+| CONV-115 | Appointment reminder 16 | Springfield General Front Desk | 2025-07-14T09:00:00Z | false | false | false |
+| CONV-116 | Appointment reminder 17 | Springfield General Front Desk | 2025-07-07T09:00:00Z | false | false | false |
+| CONV-117 | Appointment reminder 18 | Springfield General Front Desk | 2025-06-30T09:00:00Z | false | false | false |
+| CONV-118 | Appointment reminder 19 | Springfield General Front Desk | 2025-06-23T09:00:00Z | false | false | false |
+| CONV-119 | Appointment reminder 20 | Springfield General Front Desk | 2025-06-16T09:00:00Z | false | false | false |
+| CONV-120 | Appointment reminder 21 | Springfield General Front Desk | 2025-06-09T09:00:00Z | false | false | false |
+| CONV-121 | Appointment reminder 22 | Springfield General Front Desk | 2025-06-02T09:00:00Z | false | false | false |
+| CONV-122 | Appointment reminder 23 | Springfield General Front Desk | 2025-05-26T09:00:00Z | false | false | false |
+| CONV-123 | Appointment reminder 24 | Springfield General Front Desk | 2025-05-19T09:00:00Z | false | false | false |
+| CONV-124 | Appointment reminder 25 | Springfield General Front Desk | 2025-05-12T09:00:00Z | false | false | false |
+| CONV-125 | Appointment reminder 26 | Springfield General Front Desk | 2025-05-05T09:00:00Z | false | false | false |
+| CONV-126 | Appointment reminder 27 | Springfield General Front Desk | 2025-04-28T09:00:00Z | false | false | false |
+| CONV-127 | Appointment reminder 28 | Springfield General Front Desk | 2025-04-21T09:00:00Z | false | false | false |
+| CONV-128 | Appointment reminder 29 | Springfield General Front Desk | 2025-04-14T09:00:00Z | false | false | false |
+| CONV-129 | Appointment reminder 30 | Springfield General Front Desk | 2025-04-07T09:00:00Z | false | false | false |
+| CONV-130 | Appointment reminder 31 | Springfield General Front Desk | 2025-03-31T09:00:00Z | false | false | false |
+| CONV-131 | Appointment reminder 32 | Springfield General Front Desk | 2025-03-24T09:00:00Z | false | false | false |
+| CONV-132 | Appointment reminder 33 | Springfield General Front Desk | 2025-03-17T09:00:00Z | false | false | false |
+| CONV-133 | Appointment reminder 34 | Springfield General Front Desk | 2025-03-10T09:00:00Z | false | false | false |
+| CONV-134 | Appointment reminder 35 | Springfield General Front Desk | 2025-03-03T09:00:00Z | false | false | false |
+| CONV-135 | Appointment reminder 36 | Springfield General Front Desk | 2025-02-24T09:00:00Z | false | false | false |
+| CONV-136 | Appointment reminder 37 | Springfield General Front Desk | 2025-02-17T09:00:00Z | false | false | false |
+| CONV-137 | Appointment reminder 38 | Springfield General Front Desk | 2025-02-10T09:00:00Z | false | false | false |
+| CONV-138 | Appointment reminder 39 | Springfield General Front Desk | 2025-02-03T09:00:00Z | false | false | false |
+| CONV-139 | Appointment reminder 40 | Springfield General Front Desk | 2025-01-27T09:00:00Z | false | false | false |
+| CONV-140 | Appointment reminder 41 | Springfield General Front Desk | 2025-01-20T09:00:00Z | false | false | false |
+| CONV-141 | Appointment reminder 42 | Springfield General Front Desk | 2025-01-13T09:00:00Z | false | false | false |
+| CONV-142 | Appointment reminder 43 | Springfield General Front Desk | 2025-01-06T09:00:00Z | false | false | false |
+| CONV-143 | Appointment reminder 44 | Springfield General Front Desk | 2024-12-30T09:00:00Z | false | false | false |
+| CONV-144 | Appointment reminder 45 | Springfield General Front Desk | 2024-12-23T09:00:00Z | false | false | false |
+| CONV-145 | Appointment reminder 46 | Springfield General Front Desk | 2024-12-16T09:00:00Z | false | false | false |
+| CONV-146 | Appointment reminder 47 | Springfield General Front Desk | 2024-12-09T09:00:00Z | false | false | false |
+| CONV-147 | Appointment reminder 48 | Springfield General Front Desk | 2024-12-02T09:00:00Z | false | false | false |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (4871 chars)</summary>
+<summary><code>mode: json</code> (44320 chars)</summary>
 
 ```json
 {
   "legacyXUnreadCount": 0,
+  "truncated": false,
   "conversations": [
     {
       "hthId": "CONV-001",
@@ -11443,9 +13366,14 @@ Your cholesterol levels are concerning.
           "name": "Julius Hibbert, MD"
         }
       ],
+      "audienceNames": [
+        "Julius Hibbert, MD"
+      ],
+      "latestMessageInstantISO": "2026-01-11T09:00:00Z",
       "tags": {
         "Unread": false
       },
+      "hasUnreadMessages": false,
       "hasUrgentMsgs": false,
       "hasMoreMessages": false,
       "previewText": "Homer, we discussed your weight loss goals...",
@@ -11508,13 +13436,18 @@ Your cholesterol levels are concerning.
           "name": "Nick Riviera, MD"
         }
       ],
+      "audienceNames": [
+        "Nick Riviera, MD"
+      ],
+      "latestMessageInstantISO": "2025-12-16T08:05:00Z",
       "tags": {
         "Unread": false
       },
+      "hasUnreadMessages": false,
       "hasUrgentMsgs": false,
       "hasMoreMessages": false,
       "previewText": "Hi-Everybody! I have great news about...",
-      "hasAttachments": false,
+      "hasAttachments": true,
       "hasTasks": false,
       "messageType": "",
       "messages": [
@@ -11563,12 +13496,14 @@ Your cholesterol levels are concerning.
             {
               "name": "proof of coverage.pdf",
               "fileExtension": "PDF",
-              "dcsId": "WP-DCS-COVERAGE"
+              "dcsId": "WP-DCS-COVERAGE",
+              "type": 2
             },
             {
               "name": "insurance card.png",
               "fileExtension": "PNG",
-              "dcsId": "WP-DCS-CARD"
+              "dcsId": "WP-DCS-CARD",
+              "type": 2
             }
           ],
           "tasks": [],
@@ -11584,9 +13519,14 @@ Your cholesterol levels are concerning.
           "name": "Julius Hibbert, MD"
         }
       ],
+      "audienceNames": [
+        "Julius Hibbert, MD"
+      ],
+      "latestMessageInstantISO": "2025-11-07T11:00:00Z",
       "tags": {
         "Unread": false
       },
+      "hasUnreadMessages": false,
       "hasUrgentMsgs": false,
       "hasMoreMessages": true,
       "previewText": "Following up on the imaging we ordered...",
@@ -11670,13 +13610,147 @@ Your cholesterol levels are concerning.
           "suggestedActions": []
         }
       ]
-    }
-  ],
-  "localSummary": {
-    "hasMoreConversations": false,
-    "oldestLoadedInstantISO": ""
-  }
-}
+    },
+    {
+      "hthId": "CONV-100",
+      "subject": "Appointment reminder 1",
+      "audience": [
+        {
+          "name": "Springfield General Front Desk"
+        }
+      ],
+      "audienceNames": [
+        "Springfield General Front Desk"
+      ],
+      "latestMessageInstantISO": "2025-10-27T09:00:00Z",
+      "tags": {
+        "Unread": false
+      },
+      "hasUnreadMessages": false,
+      "hasUrgentMsgs": false,
+      "hasMoreMessages": false,
+      "previewText": "This is a reminder of your upcoming appointment...",
+      "hasAttachments": false,
+      "hasTasks": false,
+      "messageType": "",
+      "messages": [
+        {
+          "wmgId": "MSG-1000",
+          "deliveryInstantISO": "2025-10-27T09:00:00Z",
+          "senderName": "Springfield General Front Desk",
+          "isFromPatient": false,
+          "isUnread": false,
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 1 of 48. Please arrive fifteen minutes early.",
+          "author": {
+            "empKey": "PROV-FRONTDESK",
+            "wprKey": null
+          },
+          "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        }
+      ]
+    },
+    {
+      "hthId": "CONV-101",
+      "subject": "Appointment reminder 2",
+      "audience": [
+        {
+          "name": "Springfield General Front Desk"
+        }
+      ],
+      "audienceNames": [
+        "Springfield General Front Desk"
+      ],
+      "latestMessageInstantISO": "2025-10-20T09:00:00Z",
+      "tags": {
+        "Unread": false
+      },
+      "hasUnreadMessages": false,
+      "hasUrgentMsgs": false,
+      "hasMoreMessages": false,
+      "previewText": "This is a reminder of your upcoming appointment...",
+      "hasAttachments": false,
+      "hasTasks": false,
+      "messageType": "",
+      "messages": [
+        {
+          "wmgId": "MSG-1001",
+          "deliveryInstantISO": "2025-10-20T09:00:00Z",
+          "senderName": "Springfield General Front Desk",
+          "isFromPatient": false,
+          "isUnread": false,
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 2 of 48. Please arrive fifteen minutes early.",
+          "author": {
+            "empKey": "PROV-FRONTDESK",
+            "wprKey": null
+          },
+          "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        }
+      ]
+    },
+    {
+      "hthId": "CONV-102",
+      "subject": "Appointment reminder 3",
+      "audience": [
+        {
+          "name": "Springfield General Front Desk"
+        }
+      ],
+      "audienceNames": [
+        "Springfield General Front Desk"
+      ],
+      "latestMessageInstantISO": "2025-10-13T09:00:00Z",
+      "tags": {
+        "Unread": false
+      },
+      "hasUnreadMessages": false,
+      "hasUrgentMsgs": false,
+      "hasMoreMessages": false,
+      "previewText": "This is a reminder of your upcoming appointment...",
+      "hasAttachments": false,
+      "hasTasks": false,
+      "messageType": "",
+      "messages": [
+        {
+          "wmgId": "MSG-1002",
+          "deliveryInstantISO": "2025-10-13T09:00:00Z",
+          "senderName": "Springfield General Front Desk",
+          "isFromPatient": false,
+          "isUnread": false,
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 3 of 48. Please arrive fifteen minutes early.",
+          "author": {
+            "empKey": "PROV-FRONTDESK",
+            "wprKey": null
+          },
+          "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        }
+      ]
+    },
+    {
+      "hthId": "CONV-103",
+      "subject": "Appointment reminder 4",
+      "audience": [
+        {
+          "name": "Springfield General Front Desk"
+        }
+      ],
+      "audienceNames": [
+        "Springfield General Front Desk"
+      ],
+      "latestMessageInstantISO": "2025-10-06T09:00:00Z",
+      "tags": {
+        "Unread": false
+      },
+      "hasUnreadMessages": false,
+      "hasUrgentMsgs": false,
+      "hasMoreMessages": false,
+      "previewText": "This is a reminder of your upcoming appoin
+… (truncated; 53138 more characters)
 ```
 
 </details>
@@ -11685,14 +13759,14 @@ Your cholesterol levels are concerning.
 
 ### `get_message_thread`
 
-Every message in one conversation.
+Every message in one conversation: text, date, sender, and for each attachment its name and dcsId. An attachment's content is a separate call — get_message_attachment with that dcsId.
 
 Arguments: ```json
 {"conversation_id":"CONV-001"}
 ```
 
 <details>
-<summary><code>mode: raw</code> (3424 chars)</summary>
+<summary><code>mode: raw</code> (3624 chars)</summary>
 
 ```json
 {
@@ -11730,6 +13804,16 @@ Arguments: ```json
     "PROV-MONROE": {
       "empId": "",
       "name": "Marvin Monroe, MD",
+      "outOfContactEndDate": "",
+      "outOfContactContext": 0,
+      "outOfContactContextString": "",
+      "photoUrl": "",
+      "providerId": "",
+      "organizationId": ""
+    },
+    "PROV-FRONTDESK": {
+      "empId": "",
+      "name": "Springfield General Front Desk",
       "outOfContactEndDate": "",
       "outOfContactContext": 0,
       "outOfContactContextString": "",
