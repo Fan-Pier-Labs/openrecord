@@ -21,8 +21,8 @@ Today a scraper does two jobs: it talks to MyChart, and it decides what the
 caller gets to see. Those decisions are scattered and inconsistent. Medications
 picks 12 fields out of ~150 and throws the rest away. Visits returns all 159
 fields of Epic's view model untouched. Labs deletes one field and keeps the other
-~120. Notes hand back raw HTML. Preventive care parses an HTML page into records
-and the page itself is gone.
+~120. Notes hand back raw HTML. Preventive care parsed an HTML page into records and
+the page itself was gone — and the page turned out to carry no records at all.
 
 The processor layer splits the two jobs.
 
@@ -258,7 +258,8 @@ active-patient restore; there is no session to keep.
 | `profile.ts` | Print-header regex, email pick from `SecureCommunicationInfo`. |
 | `healthSummary.ts`, `medications.ts`, `allergies.ts`, `healthIssues.ts`, `immunizations.ts`, `medicalHistory.ts`, `goals.ts`, `letters.ts`, `documents.ts`, `referrals.ts`, `upcomingOrders.ts`, `questionnaires.ts`, `careJourneys.ts`, `activityFeed.ts`, `educationMaterials.ts`, `ehiExport.ts`, `otherMyCharts.ts`, `emergencyContacts.ts`, `careTeam.ts`, `notes.ts` (list) | The field projection into the local `type`. |
 | `vitals.ts` | Regrouping readings by row, page de-duplication, `readingValue`. Paging stays. |
-| `preventiveCare.ts`, `insurance.ts`, `bills.ts` (summary cards) | HTML parsing. |
+| `insurance.ts`, `bills.ts` (summary cards) | HTML parsing. |
+| `preventiveCare.ts` | HTML parsing — deleted outright. The page carries no advisories on any captured instance; the payload is `HealthAdvisories/GetTopics`. |
 | `visits/visits.ts` | Per-organization page merge, `visitTimestamp`. Paging stays. |
 | `labs/labResults.ts` | `dropUnusableAbnormalFlags`, nesting the report and trend bodies onto the order, imaging classification, narrative lifting, FDI extraction and `image_id` encoding. The SAML fetch stays in the scraper (it is a request). |
 | `messages/messageThreads.ts` | Ascending merge of pages, `senderName`, `isPatientAuthor`, the `ThreadMessage` rename. Paging stays. |

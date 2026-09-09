@@ -34,16 +34,20 @@ export function referralsPage(): string {
 }
 
 // ─── Preventive Care ──────────────────────────────────────────────────
-export function preventiveCarePage(items: Array<{ name: string; status: string; date: string }>): string {
-  const rows = items.map(item => {
-    const badge = item.status === 'overdue' ? 'badge-red' : item.status === 'due' ? 'badge-yellow' : 'badge-green';
-    const label = item.status === 'overdue' ? 'Overdue' : item.status === 'due' ? 'Due' : 'Completed';
-    const dateLabel = item.status === 'overdue' ? `Overdue since ${item.date}` : item.status === 'due' ? `Not due until ${item.date}` : `Completed on ${item.date}`;
-    return `<tr><td><strong>${item.name}</strong></td><td><span class="badge ${badge}">${label}</span></td><td>${dateLabel}</td></tr>`;
-  }).join('');
+// Health Advisories is a legacy jQuery activity, and its page carries NO
+// advisory markup at all: the captured instance serves an empty
+// `#hm-list-activity` div plus the controller that form-POSTs
+// `HealthAdvisories/GetTopics` and renders the topics client-side. Not one
+// <table>, <tr> or <td> in 111KB of page. A scraper that parses this page for a
+// table finds nothing, which is exactly the "no screenings due" bug the fake
+// used to hide by server-rendering a table it does not serve.
+export function preventiveCarePage(): string {
   return portalLayout('Preventive Care', 'HealthAdvisories', `
     <h1>Preventive Care</h1>
-    <table><tr><th>Screening</th><th>Status</th><th>Details</th></tr>${rows}</table>
+    <div id="hm-list-activity">
+\t<!-- Health Maintenance topic list goes here -->
+</div>
+    ${inlineScript('preventive-care.js')}
   `);
 }
 

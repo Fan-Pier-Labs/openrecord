@@ -45,7 +45,7 @@ token, then `POST` the endpoint(s) below it.
 | [`messages/`](chart/messages/) | five reads and three writes | React `/app/communication-center` |
 | [`notes/`](chart/notes/) | `get_visit_notes`, `get_note_content`, `get_visit_avs` | legacy `/Visits/VisitsList` |
 | [`otherMyCharts/`](chart/otherMyCharts/) | `get_linked_accounts` | legacy `/Community/Manage` |
-| [`preventiveCare/`](chart/preventiveCare/) | `get_preventive_care` | legacy `/HealthAdvisories` (HTML only) |
+| [`preventiveCare/`](chart/preventiveCare/) | `get_preventive_care` | legacy `HealthAdvisories/GetTopics` |
 | [`profile/`](chart/profile/) | `get_profile` | `/Home` + legacy `/PersonalInformation` |
 | [`questionnaires/`](chart/questionnaires/) | `get_questionnaires` | React `/app/questionnaires` |
 | [`referrals/`](chart/referrals/) | `get_referrals` | React `/app/referrals` |

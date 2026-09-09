@@ -399,7 +399,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Letters** | `letters.ts` | After-visit summaries from Dr. Hibbert |
 | **Goals** | `goals.ts` | Lose 50 lbs (care team), eat one vegetable/week (patient) |
 | **Referrals** | `referrals.ts` | Cardiology referral to Dr. Nick |
-| **Preventive Care** | `preventiveCare.ts` | Colonoscopy overdue, flu shot due |
+| **Preventive Care** | `preventiveCare.ts` | Three health-maintenance topics: overdue, not due, satisfied |
 | **Documents** | `documents.ts` | After Visit Summary, Lab Results Report |
 | **Questionnaires** | `questionnaires.ts` | Assigned: Annual Health Risk Assessment (due). Optional: Mood and Wellbeing Check-In |
 | **Care Journeys** | `careJourneys.ts` | Weight Management Program |

@@ -269,13 +269,25 @@ for (const mode of MOUNT_MODES) {
       expect(result.socialHistory.smokingHistory).toHaveProperty('smokingTobaccoStatus')
     }, 10_000)
 
-    it('getPreventiveCare returns one item per screening, none run together', async () => {
+    it('getPreventiveCare reads the topics from GetTopics, not from the shell page', async () => {
       const result = await getPreventiveCare(session)
-      expect(result.items).toEqual([
-        { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
-        { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
-        { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
+      expect(result.unavailable).toEqual([])
+      expect(result.items.map(i => [i.Name, i.dueStatus])).toEqual([
+        ['Colonoscopy', 'overdue'],
+        ['Influenza Vaccine', 'not_due'],
+        ['Lipid Panel', 'satisfied'],
       ])
+      // Every field of the captured envelope survives, including the ones the
+      // fixture leaves at the skeleton's neutral default.
+      expect(result.items[0]).toMatchObject({
+        TopicId: '32',
+        StatusCode: '100_OVERDUE',
+        Status: 'Overdue',
+        FormattedDueDate: 'January 1, 2024',
+        FormattedDoneDates: ['January 1, 2014'],
+        SchedAppointmentCSN: '',
+      })
+      expect(result.settings).toMatchObject({ HasApptDetailsSecurity: true })
     }, 10_000)
 
     it('getLetters returns letters sorted newest-first with undated last', async () => {

@@ -28,11 +28,15 @@ export function requireTermsRedirect(request: NextRequest): NextResponse | null 
  * scheduling workflow, which takes no session but does take the token off the
  * page that hosts it, and the legacy Insurance activity's own controller
  * (`Insurance/Coverages/*` — the payer catalogue and the coverage list), both
- * captured refusing a token-less POST.
+ * captured refusing a token-less POST. So does the legacy Health Advisories
+ * activity's `HealthAdvisories/GetTopics`, captured answering a token-less POST
+ * — and one carrying the token in the query string rather than the header —
+ * with the same error surface.
  */
 export function requiresAntiforgeryToken(lower: string): boolean {
   return lower.startsWith('api/')
     || lower.startsWith('clinical/careteam/')
     || lower.startsWith('scheduling/anonymous/')
-    || lower.startsWith('insurance/coverages/');
+    || lower.startsWith('insurance/coverages/')
+    || lower.startsWith('healthadvisories/');
 }

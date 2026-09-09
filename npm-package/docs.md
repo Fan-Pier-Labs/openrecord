@@ -157,7 +157,7 @@ import { convertCloToJpg, convertCloToBitmap16 } from 'mychart-cli';
 | `client.getGoals()` | `Promise<GoalsResult>` |
 | `client.getCareJourneys()` | `Promise<CareJourney[]>` |
 | `client.getUpcomingOrders()` | `Promise<UpcomingOrder[]>` |
-| `client.getPreventiveCare()` | `Promise<PreventiveCareItem[]>` |
+| `client.getPreventiveCare()` | `Promise<PreventiveCareStandard>` — `{ items, settings, unavailable }`: the health-maintenance topics, each with a derived `dueStatus`; a non-empty `unavailable` means the list is *not known*, not empty |
 | `client.getEducationMaterials()` | `Promise<EducationMaterial[]>` |
 | `client.getQuestionnaires()` | `Promise<QuestionnairesStandard>` — `{ assignedQuestionnaires, optionalQuestionnaires, questionnaireContextLists, completedQuestionnaires }` |
 | `client.getActivityFeed()` | `Promise<ActivityFeedItem[]>` |

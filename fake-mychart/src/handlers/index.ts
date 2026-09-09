@@ -48,7 +48,7 @@ import { notesPost } from './notes';
 import { otherMyChartsPostPatterns } from './otherMyCharts';
 import { passkeysPost } from './passkeys';
 import { decisionTreePostPublic, preloginGetPublic, preloginPostPublic } from './prelogin';
-import { preventiveCareGet } from './preventiveCare';
+import { preventiveCareGet, preventiveCarePost } from './preventiveCare';
 import { profileGet, profilePostPatterns } from './profile';
 import { questionnairesPost } from './questionnaires';
 import { referralsGet, referralsPost } from './referrals';
@@ -128,6 +128,7 @@ export const POST_ROUTES: ExactRoutes = mergeExact(
   messagesPost,
   notesPost,
   passkeysPost,
+  preventiveCarePost,
   questionnairesPost,
   referralsPost,
   schedulingPost,
