@@ -289,6 +289,7 @@ export const messages: Conversation[] = [
         from: 'Dr. Julius Hibbert',
         date: '2026-01-12',
         body: "Hi Homer, your lab results from your annual physical are in. Your A1c has crept up to 7.2% and your liver enzymes are elevated. Your cholesterol is also still above target despite the Atorvastatin. We really need to talk about diet — and I mean it this time. Please come in for a follow-up. Also, please continue all your current medications.",
+        attachments: [{ attachmentId: 'att-001', name: 'Low-cholesterol diet plan.pdf', mimeType: 'application/pdf', sizeBytes: 184_320 }],
       },
       {
         from: 'Homer Simpson',
