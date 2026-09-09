@@ -36,7 +36,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3424 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40587 | 3530 | 4175 | 1087 |
+| `get_billing` | 40587 | 3530 | 4175 | 1118 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19278 | 1225 | 875 | 532 |
@@ -12449,7 +12449,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1087 chars)</summary>
+<summary><code>mode: concise</code> (1118 chars)</summary>
 
 - **totalDue**: 275
 
@@ -12480,9 +12480,9 @@ Billing history and account balances.
 
 #### statements (1)
 
-| dateISO | FormattedDateDisplay | Description | StatementAmountDisplay | IsRead |
-| - | - | - | - | - |
-| 2026-01-15 | Jan 15, 2026 | Sent via postal mail | $350.00 | false |
+| dateISO | FormattedDateDisplay | Description | StatementAmountDisplay | IsRead | RecordID |
+| - | - | - | - | - | - |
+| 2026-01-15 | Jan 15, 2026 | Sent via postal mail | $350.00 | false | HOMER-REC-001 |
 
 #### payments (2)
 

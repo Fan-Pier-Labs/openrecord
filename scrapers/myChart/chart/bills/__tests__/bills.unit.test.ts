@@ -526,8 +526,8 @@ describe('billingProcessor.concise', () => {
         { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
       ],
       statements: [
-        { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false },
-        { dateISO: '2025-12-01', FormattedDateDisplay: 'Dec 1, 2025', Description: 'Itemized bill', StatementAmountDisplay: '$1,200.00', IsRead: true },
+        { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false, RecordID: 'REC-1' },
+        { dateISO: '2025-12-01', FormattedDateDisplay: 'Dec 1, 2025', Description: 'Itemized bill', StatementAmountDisplay: '$1,200.00', IsRead: true, RecordID: 'REC-2' },
       ],
       payments: [
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$350.00' },
