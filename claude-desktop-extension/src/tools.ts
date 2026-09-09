@@ -41,6 +41,7 @@
  *                                                  //   skips password + 2FA on future sessions
  */
 
+import { pathToFileURL } from 'url';
 import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -98,7 +99,8 @@ import { saveFilePayload } from './save-file';
 
 type ToolContent =
   | { type: 'text'; text: string }
-  | { type: 'image'; data: string; mimeType: string };
+  | { type: 'image'; data: string; mimeType: string }
+  | { type: 'resource'; resource: { uri: string; mimeType: string; blob: string } };
 type ToolResult = { content: ToolContent[]; isError?: boolean };
 
 function jsonResult(data: unknown): ToolResult {
@@ -226,6 +228,22 @@ const SAVE_SCHEMA = z
   )
   .optional();
 
+/**
+ * Putting a file capability's content into the result, offered by this
+ * client only. The mirror image of `save_to_downloads`: a file is always
+ * saved, and this asks for it to be readable here as well.
+ */
+const RETURN_PARAM = 'return_content';
+const RETURN_SCHEMA = z
+  .boolean()
+  .describe(
+    "Also put the file's content in the result so it can be read here: a PDF as a document, a text file as text (a picture is shown whenever it fits, with or without this). " +
+      "Defaults to false — the file is only saved to the user's Downloads folder and the result carries its path. " +
+      'Only a file under about 800 KB fits under the 1MB tool-result cap; a larger one is saved and the result says so. ' +
+      'Pass true when the user asks what a document says.',
+  )
+  .optional();
+
 /** Translate one registry parameter into its zod equivalent. */
 function zodForParam(param: CapabilityParam): z.ZodType {
   let schema: z.ZodType;
@@ -305,6 +323,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   // user browses. Keyed off the flag, so a second media capability gets it
   // without being named here.
   if (capability.rendersMedia) shape[SAVE_PARAM] = SAVE_SCHEMA;
+  if (capability.returnsFile) shape[RETURN_PARAM] = RETURN_SCHEMA;
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
   const hints =
@@ -346,7 +365,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
           return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
         if (capability.returnsFile) {
-          return fileResult(payload as FilePayload);
+          return fileResult(payload as FilePayload, args[RETURN_PARAM] === true);
         }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
@@ -362,29 +381,44 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
 const INLINE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 /**
- * A `returnsFile` capability's result: the file is written to the user's
- * Downloads folder — the only place a PDF can go from a stdio server — and an
- * image small enough for the host's 1MB result cap is shown inline as well.
+ * A `returnsFile` capability's result: the file is always written to the
+ * user's Downloads folder, and its content goes into the result as well when
+ * the host can carry it under its 1MB cap — an image whenever it fits, a PDF
+ * (as an embedded document) or a text file only when `returnContent` asks.
  * Whatever else the capability knew about the file (an attachment's dcsId, a
  * statement's date) rides in the summary; the bytes never do.
  *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion. `baseDir` is the test seam.
  */
-export function fileResult(payload: FilePayload, baseDir?: string): ToolResult {
+export function fileResult(payload: FilePayload, returnContent: boolean, baseDir?: string): ToolResult {
   const { bytes, fileName, mimeType, ...rest } = payload;
   const savedTo = baseDir === undefined ? saveFilePayload(payload) : saveFilePayload(payload, baseDir);
 
   const isImage = INLINE_IMAGE_TYPES.has(mimeType);
-  const base64 = isImage ? Buffer.from(bytes).toString('base64') : '';
-  const inline = isImage && base64.length <= INLINE_BUDGET_BYTES;
+  const isPdf = mimeType === 'application/pdf';
+  const isText = mimeType.startsWith('text/');
+  const base64 = isImage || returnContent ? Buffer.from(bytes).toString('base64') : '';
+  const fits = base64.length <= INLINE_BUDGET_BYTES;
 
-  const note =
-    isImage && !inline
-      ? 'The image is too large to show in the conversation; open the saved file to view it.'
-      : mimeType === 'application/pdf'
-        ? 'Open the saved PDF to read it; its text is not in this result.'
-        : undefined;
+  let note: string | undefined;
+  let attached: ToolContent | undefined;
+  if (isImage) {
+    if (fits) attached = { type: 'image', data: base64, mimeType };
+    else note = 'The image is too large to show in the conversation; open the saved file to view it.';
+  } else if (returnContent) {
+    if (!fits) {
+      note = `The file is too large to return in the conversation (the cap is about ${Math.round(INLINE_BUDGET_BYTES / 1024)} KB); open the saved file to read it.`;
+    } else if (isPdf) {
+      attached = { type: 'resource', resource: { uri: pathToFileURL(savedTo).href, mimeType, blob: base64 } };
+    } else if (isText) {
+      attached = { type: 'text', text: Buffer.from(bytes).toString('utf8') };
+    } else {
+      note = `A ${mimeType} file cannot be shown in the conversation; open the saved file.`;
+    }
+  } else if (isPdf || isText) {
+    note = `Open the saved ${isPdf ? 'PDF' : 'file'} to read it, or call again with ${RETURN_PARAM}: true to read it here; its content is not in this result.`;
+  }
 
   const content: ToolContent[] = [
     {
@@ -396,7 +430,7 @@ export function fileResult(payload: FilePayload, baseDir?: string): ToolResult {
       ),
     },
   ];
-  if (inline) content.push({ type: 'image', data: base64, mimeType });
+  if (attached) content.push(attached);
   return { content };
 }
 

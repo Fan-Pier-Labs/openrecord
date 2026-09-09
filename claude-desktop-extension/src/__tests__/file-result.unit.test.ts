@@ -9,6 +9,7 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, fileResult } from '../tools';
 import { saveFilePayload } from '../save-file';
@@ -68,11 +69,19 @@ describe('get_message_attachment registration', () => {
     expect(Object.keys(schema)).not.toContain('save_to_downloads');
     expect(Object.keys(schema)).not.toContain('mode');
   });
+
+  test('every returnsFile tool, and only those, offers return_content', () => {
+    const withParam = [...captureTools().entries()]
+      .filter(([, tool]) => 'return_content' in (tool.config.inputSchema ?? {}))
+      .map(([name]) => name)
+      .sort();
+    expect(withParam).toEqual(['download_billing_statement', 'get_message_attachment']);
+  });
 });
 
 describe('fileResult', () => {
   test('writes a PDF to disk and reports where, with no inline block', () => {
-    const result = fileResult(file(), baseDir);
+    const result = fileResult(file(), false, baseDir);
     const s = summary(result);
     expect(s.file_name).toBe('proof of coverage.pdf');
     expect(s.mime_type).toBe('application/pdf');
@@ -81,13 +90,14 @@ describe('fileResult', () => {
     expect(fs.readFileSync(s.saved_to as string)).toEqual(Buffer.from(PDF));
     expect(result.content).toHaveLength(1);
     expect(String(s.note)).toContain('Open the saved PDF');
+    expect(String(s.note)).toContain('return_content: true');
     // What the capability knew about the file rides along; the bytes never do.
     expect(s.dcsId).toBe('WP-DCS-1');
     expect(s).not.toHaveProperty('bytes');
   });
 
   test('shows an image inline as well as saving it', () => {
-    const result = fileResult(file({ fileName: 'card.jpg', fileExtension: 'JPG', mimeType: 'image/jpeg', bytes: JPEG }), baseDir);
+    const result = fileResult(file({ fileName: 'card.jpg', fileExtension: 'JPG', mimeType: 'image/jpeg', bytes: JPEG }), false, baseDir);
     expect(result.content).toHaveLength(2);
     expect(result.content[1]).toEqual({ type: 'image', data: Buffer.from(JPEG).toString('base64'), mimeType: 'image/jpeg' });
     expect(fs.existsSync(path.join(baseDir, 'card.jpg'))).toBe(true);
@@ -96,10 +106,43 @@ describe('fileResult', () => {
 
   test('saves an image over the inline budget without inlining it, and says so', () => {
     const big = new Uint8Array(INLINE_BUDGET_BYTES);
-    const result = fileResult(file({ fileName: 'scan.png', fileExtension: 'PNG', mimeType: 'image/png', bytes: big }), baseDir);
+    const result = fileResult(file({ fileName: 'scan.png', fileExtension: 'PNG', mimeType: 'image/png', bytes: big }), false, baseDir);
     expect(result.content).toHaveLength(1);
     expect(String(summary(result).note)).toContain('too large');
     expect(fs.statSync(path.join(baseDir, 'scan.png')).size).toBe(big.length);
+  });
+});
+
+describe('fileResult with return_content', () => {
+  test('embeds a PDF as a document beside the saved copy', () => {
+    const result = fileResult(file(), true, baseDir);
+    expect(result.content).toHaveLength(2);
+    expect(result.content[1]).toEqual({
+      type: 'resource',
+      resource: { uri: pathToFileURL(path.join(baseDir, 'proof of coverage.pdf')).href, mimeType: 'application/pdf', blob: Buffer.from(PDF).toString('base64') },
+    });
+    expect(summary(result)).not.toHaveProperty('note');
+    expect(fs.existsSync(path.join(baseDir, 'proof of coverage.pdf'))).toBe(true);
+  });
+
+  test('returns a text file as text', () => {
+    const csv = new TextEncoder().encode('date,amount\n2026-01-15,350.00\n');
+    const result = fileResult(file({ fileName: 'charges.csv', fileExtension: 'CSV', mimeType: 'text/csv', bytes: csv }), true, baseDir);
+    expect(result.content[1]).toEqual({ type: 'text', text: 'date,amount\n2026-01-15,350.00\n' });
+  });
+
+  test('saves a PDF over the budget without embedding it, and says so', () => {
+    const big = new Uint8Array(INLINE_BUDGET_BYTES);
+    const result = fileResult(file({ bytes: big }), true, baseDir);
+    expect(result.content).toHaveLength(1);
+    expect(String(summary(result).note)).toContain('too large');
+    expect(fs.statSync(path.join(baseDir, 'proof of coverage.pdf')).size).toBe(big.length);
+  });
+
+  test('says a type it cannot show was only saved', () => {
+    const result = fileResult(file({ fileName: 'notes.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), true, baseDir);
+    expect(result.content).toHaveLength(1);
+    expect(String(summary(result).note)).toContain('cannot be shown');
   });
 });
 
