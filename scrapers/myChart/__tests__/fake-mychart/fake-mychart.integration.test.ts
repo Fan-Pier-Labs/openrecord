@@ -604,7 +604,7 @@ for (const mode of MOUNT_MODES) {
     it('getConversationMessages returns a short thread in one page', async () => {
       const result = (await getConversationMessages(session, 'CONV-002'))!
       expect(result.subject).toBe('Discount Surgery Consultation')
-      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005'])
+      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005', 'MSG-006'])
     }, 10_000)
 
     // GetConversationDetails answers an unknown id with 200 and a literal null,

@@ -2,6 +2,7 @@
 
 import { fetchConversationsRaw, conversationsProcessor } from '../../../scrapers/myChart/chart/messages/conversations';
 import { fetchConversationThreadRaw, conversationThreadProcessor } from '../../../scrapers/myChart/chart/messages/messageThreads';
+import { downloadMessageAttachment, type MessageAttachmentFile } from '../../../scrapers/myChart/chart/messages/messageAttachment';
 import {
   fetchMessageRecipientsRaw,
   fetchMessageTopicsRaw,
@@ -58,6 +59,21 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
       return raw;
     },
     processor: conversationThreadProcessor,
+  },
+  {
+    id: 'get_message_attachment',
+    title: 'Message attachment',
+    description:
+      'Download one file attached to a message — a PDF, photo or other document a provider or the patient attached. Identify it by the conversation_id from get_messages and the attachment_id (the attachment’s dcsId) from get_messages or get_message_thread. The file is saved on the user’s own device; images are also shown inline.',
+    kind: 'read',
+    group: 'Messages',
+    returnsFile: true,
+    params: [
+      { name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true },
+      { name: 'attachment_id', type: 'string', description: 'The attachment’s dcsId from get_messages or get_message_thread. Copy it verbatim.', required: true },
+    ],
+    run: (request, args): Promise<MessageAttachmentFile> =>
+      downloadMessageAttachment(request, requireStr(args, 'conversation_id'), requireStr(args, 'attachment_id')),
   },
   {
     id: 'get_message_recipients',
