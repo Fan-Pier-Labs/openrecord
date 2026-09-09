@@ -273,6 +273,8 @@ export {
   getBillingHistory,
   fetchBillingRaw,
   billingProcessor,
+  downloadBillingStatement,
+  type BillingStatementPdf,
   type BillingStandard,
   type BillingAccountStandard,
   type BillingVisitStandard,

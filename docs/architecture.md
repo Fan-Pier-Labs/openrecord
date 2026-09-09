@@ -155,8 +155,8 @@ not compile for any client — the enforcement for "every dispatch goes through 
   real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
   and an earlier budget spent on those first N junk entries returned zero images with zero
   errors. fake-mychart's CT study reproduces that shape.
-- **`returnsFile`** marks a capability (`get_message_attachment` today) whose payload is one
-  finished file — a `FilePayload` of safe file name, MIME type and bytes — rather than JSON. There
+- **`returnsFile`** marks a capability (`get_message_attachment`, `download_billing_statement`)
+  whose payload is one finished file — a `FilePayload` of safe file name, MIME type and bytes — rather than JSON. There
   is nothing to decode, so a client only decides where the file goes: the extension writes it to
   the Downloads folder (never overwriting, and showing a small image inline), the CLI writes it
   under `--output` (default: the current directory), and the mobile app keeps an image for the chat

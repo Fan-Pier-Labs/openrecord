@@ -327,7 +327,7 @@ describe('rendersMedia', () => {
 describe('returnsFile', () => {
   it('is what the clients branch on, so a second file capability needs no edits', async () => {
     const files = CAPABILITIES.filter((c) => c.returnsFile);
-    expect(files.map((c) => c.id)).toEqual(['get_message_attachment']);
+    expect(files.map((c) => c.id).sort()).toEqual(['download_billing_statement', 'get_message_attachment']);
     // A file payload is not JSON, so it has no output modes to offer.
     for (const c of files) expect(acceptsModeParam(c)).toBe(false);
     // No capability is both: a study is decoded per client, a file is saved as-is.
@@ -342,6 +342,7 @@ describe('returnsFile', () => {
       expect(source).toContain('capability.returnsFile');
       expect(source).not.toContain("'get_message_attachment'");
       expect(source).not.toContain('"get_message_attachment"');
+      expect(source).not.toContain('download_billing_statement');
     }
   });
 });
@@ -561,6 +562,7 @@ describe('npm library', () => {
       send_reply: 'sendReply',
       delete_message: 'deleteMessage',
       get_billing: 'getBillingHistory',
+      download_billing_statement: 'downloadBillingStatement',
       get_insurance: 'getInsurance',
       get_insurance_payers: 'getInsurancePayers',
       get_care_team: 'getCareTeam',

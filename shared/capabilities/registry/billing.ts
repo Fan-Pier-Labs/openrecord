@@ -1,8 +1,9 @@
 /** The `Billing` group — what was charged, and who is covering it. */
 
-import { fetchBillingRaw, billingProcessor } from '../../../scrapers/myChart/chart/bills/bills';
+import { fetchBillingRaw, billingProcessor, downloadBillingStatement } from '../../../scrapers/myChart/chart/bills/bills';
 import { fetchInsuranceRaw, insuranceProcessor } from '../../../scrapers/myChart/chart/insurance/insurance';
 import { fetchInsurancePayersRaw, insurancePayersProcessor } from '../../../scrapers/myChart/chart/insurancePayers/insurancePayers';
+import { requireStr } from '../args';
 import type { CapabilityImpl } from '../types';
 
 export const BILLING_CAPABILITIES: readonly CapabilityImpl[] = [
@@ -15,6 +16,19 @@ export const BILLING_CAPABILITIES: readonly CapabilityImpl[] = [
     params: [],
     run: (request) => fetchBillingRaw(request),
     processor: billingProcessor,
+  },
+  {
+    id: 'download_billing_statement',
+    title: 'Download billing statement',
+    description:
+      'Download one billing statement or itemized bill as the PDF MyChart serves for it. Identify it with the `RecordID` of a statement from get_billing. The file is saved on the user’s own device and the path returned.',
+    kind: 'read',
+    group: 'Billing',
+    returnsFile: true,
+    params: [
+      { name: 'record_id', type: 'string', required: true, description: 'The `RecordID` of the chosen statement from get_billing. Copy it verbatim.' },
+    ],
+    run: (request, args) => downloadBillingStatement(request, requireStr(args, 'record_id')),
   },
   {
     id: 'get_insurance',
