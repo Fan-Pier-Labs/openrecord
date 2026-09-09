@@ -40,13 +40,18 @@ Clinical documents and visit records filed to the chart — the "Document Center
 - **`LoadDocumentsToSign` is the page's other list** — documents awaiting the
   patient's signature. It answered `{"documentsToSign":[]}` on the one live
   account, so its element shape has never been observed and nothing scrapes it.
-- **`download_document` is the same DCS exchange attachments use.** Epic's own
-  row calls `useDcsDocument({ dcsId: doc.dcsID, fileExtension: doc.docExt })` with
+- **`download_document` is the same DCS exchange attachments use**, and shares
+  it: the two-step and its traps live in
+  [`core/dcsDocument.ts`](../../core/dcsDocument.ts), and this scraper adds only
+  the id and the wording of a refusal. Epic's own row calls
+  `useDcsDocument({ dcsId: doc.dcsID, fileExtension: doc.docExt })` with
   `useOldMobileLink: true` and no `legacyEncryption`, which is what picks
   `GetDocumentDetails` over the `…Legacy` sibling
   [`messages/messageAttachment.ts`](../messages/messageAttachment.ts) uses. Both
   answered identically here — same bytes, same length — differing only in
   `legacyEncryption` and whether the link is `Download` or `DownloadOrStream`.
+  **`useOldMobileLink` was never measured to matter**: each caller sends what its
+  own portal hook sends, rather than agreeing on a value nobody verified.
 - **`fileExtension` is ignored, so a download needs no list walk.** Measured five
   ways on one live instance — correct, empty, omitted, wrong, and `dcsId` alone —
   every variant returned the same `mimeType`, the same `displayName` and the same
@@ -54,17 +59,14 @@ Clinical documents and visit records filed to the chart — the "Document Center
   takes only the id and sends `''`, the portal hook's own default. Walking the
   document list first would have cost up to 40 requests per download for an
   extension the server never reads.
-- **Three payload traps on the download, none of them a status code.** An id the
-  record does not hold answers **200 with a literal JSON `null`**; a document
-  MyChart will not release answers with `downloadUrl` and `token` both empty (1 of
-  42, a BMP) and its `previewUrl` then streams **200 with an empty body**; a bogus
-  link answers **200 with an empty body and no Content-Type**.
-- **`text/html` is a real document type here** — an e-signed document is HTML, 8 of
-  42 — so "a web page where the file should be" is only a failure when MyChart
-  itself did not say the file was HTML.
-- **The file is named from `Content-Disposition`.** It carried
-  `attachment; filename="<displayName>.<ext>"` on every download, while
-  `displayName` alone had the extension on some documents and not others.
+- **Three payload traps on the download**, none of them a status code, all
+  handled in `core/dcsDocument.ts`: an id the record does not hold answers **200
+  with a literal JSON `null`**; a document MyChart will not release answers with
+  `downloadUrl` and `token` both empty (1 of 42, a BMP) and its `previewUrl` then
+  streams **200 with an empty body**; a bogus link answers **200 with an empty
+  body and no Content-Type**. `text/html` is a real document type here — an
+  e-signed document is HTML, 8 of 42 — so "a web page where the file should be"
+  is only a failure when MyChart itself did not say the file was HTML.
 - **The identifiers are long.** `dcsID` measured 85-94 characters, `docID` 82-114,
   `dat` 82-92 — all past the 60-character table-cell limit in
   [`processors/markdown.ts`](../../processors/markdown.ts), which is why concise

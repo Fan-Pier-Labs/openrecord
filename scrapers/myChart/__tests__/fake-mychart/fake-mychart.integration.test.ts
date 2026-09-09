@@ -364,9 +364,12 @@ for (const mode of MOUNT_MODES) {
       expect(result.patientGoals[0]!.text).toBeTruthy()
     }, 10_000)
 
-    it('getDocuments returns documents', async () => {
+    // The exact count, not `> 0`: the fixture is 27 documents and MyChart
+    // serves 25 per page, so a scraper that asked for the initial load and
+    // stopped would pass a loose assertion with 25 of them.
+    it('getDocuments walks every page, not just the first', async () => {
       const result = await getDocuments(session)
-      expect(result.documents.length).toBeGreaterThan(0)
+      expect(result.documents).toHaveLength(27)
     }, 10_000)
 
     it('getUpcomingOrders returns orders', async () => {

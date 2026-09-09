@@ -2,24 +2,18 @@
  * One file attached to a message: the bytes MyChart holds for it.
  *
  * The thread endpoints only describe an attachment — `name`, `fileExtension`,
- * a `dcsId` — and never carry its content. The portal downloads it the way its
- * `useDcsDocument` hook (`epic.px.client.document-viewer.js`) does:
+ * a `dcsId` — and never carry its content. The bytes come from Epic's DCS blob
+ * store, the same one Document Center documents use; the exchange and its
+ * traps are in [`core/dcsDocument.ts`](../../core/dcsDocument.ts). This module
+ * owns the half that is attachment-specific: finding the attachment on its
+ * thread, refusing the kinds that do not go through DCS, and wording a refusal
+ * in terms of the conversation the caller named.
  *
- *   POST /api/documents/viewer/GetDocumentDetailsLegacy
- *        { dcsId, fileExtension, organizationId, useOldMobileLink: false }
- *   GET  <downloadUrl>          e.g. /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…
- *
- * The details call answers `{ downloadUrl, previewUrl, mimeType, allowPreview,
- * displayName, fileDescription, legacyEncryption, … }`; `downloadUrl` is
- * mount-relative and the GET streams the file with its real `Content-Type`
- * and a `Content-Disposition: attachment; filename="…"`. Measured on two
- * instances across PDF, PNG and JPG attachments.
- *
- * Two traps, both verified on the same two instances. An id the record does
- * not hold gets **200 with a literal JSON `null`** from the details call — the
- * GetConversationDetails pattern again — and a bogus id on the download GET
- * gets **200 with an empty body and no Content-Type**. Neither is a status
- * code, so both are checked on the payload.
+ * The portal's message viewer (`useDcsDocument` with `legacyEncryption`)
+ * sends `GetDocumentDetailsLegacy` and `useOldMobileLink: false`, so that is
+ * what this sends. Measured across PDF, PNG and JPG attachments on two
+ * instances; the legacy and non-legacy variants returned identical bytes on a
+ * third, differing only in `legacyEncryption` and the link's name.
  *
  * Only `MessageDocType.DCS` (`type: 2`) attachments go this way; every one
  * captured so far is. An ETX attachment (`type: 1`, a clinical reference the
@@ -28,10 +22,9 @@
  * organization's portal) have not been observed on any instance, so they are
  * refused with a reason rather than guessed at.
  */
-import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
-import type { RequestConfig } from '../../core/types';
-import { RawCollector, describeResponseFailure } from '../../core/rawResponse';
+import { RawCollector } from '../../core/rawResponse';
+import { DcsDocumentError, fetchDcsFile } from '../../core/dcsDocument';
 import { safeFileName } from '../../core/safeFileName';
 import type { FilePayload } from '../../../../shared/capabilities/types';
 import { list, rec, text } from '../../processors/read';
@@ -49,6 +42,12 @@ export interface MessageAttachmentFile extends FilePayload {
   dcsId: string;
   /** MyChart's extension for it, upper-case (`PDF`, `PNG`, `JPG`). */
   fileExtension: string;
+}
+
+/** `attachment.pdf` — what an attachment the thread left unnamed is called. */
+function extensionFallback(fileExtension: string): string {
+  const extension = fileExtension.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return extension ? `attachment.${extension}` : 'attachment';
 }
 
 /** What the thread says about one attachment, as MyChart sent it. */
@@ -133,52 +132,40 @@ export async function downloadMessageAttachment(
 
   const collector = new RawCollector(mychartRequest);
   const token = await collector.pageToken('/app/communication-center');
-  const documentDetails = await collector.postJson('/api/documents/viewer/GetDocumentDetailsLegacy', token, {
-    dcsId: attachment.dcsId,
-    fileExtension: attachment.fileExtension,
-    organizationId: attachment.organizationId,
-    useOldMobileLink: false,
-  });
-  // A literal `null` is MyChart saying the record does not hold this document.
-  if (documentDetails === null || typeof documentDetails !== 'object') {
-    throw new Error(
-      `MyChart has no document ${attachment.dcsId} on the active patient record, although the thread lists it. Check that the right patient is active.`,
-    );
-  }
-  const downloadUrl = text(rec(documentDetails).downloadUrl);
-  if (!downloadUrl) {
-    throw new Error(`MyChart returned no download link for ${attachment.name}; it may not be downloadable from the portal either.`);
-  }
 
-  const config: RequestConfig = { path: downloadUrl.startsWith('/') ? downloadUrl : `/${downloadUrl}` };
-  const response = await makeAuthenticatedRequest(mychartRequest, config);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  const contentType = response.headers.get('content-type') ?? '';
-  const failure = describeResponseFailure(response, contentType.includes('text/html') ? textOf(bytes) : '', config);
-  if (failure) {
-    throw new Error(`MyChart answered the download of ${attachment.name} with ${failure}; nothing was downloaded.`);
+  try {
+    const file = await fetchDcsFile(mychartRequest, collector, token, {
+      dcsId: attachment.dcsId,
+      fileExtension: attachment.fileExtension,
+      organizationId: attachment.organizationId,
+      useOldMobileLink: false,
+      legacy: true,
+    });
+    return {
+      conversationId,
+      dcsId: attachment.dcsId,
+      fileExtension: attachment.fileExtension,
+      // The thread's own name (`results.pdf`) beats the store's `displayName`,
+      // which is a system name like `MyChart_Document_1` — and when the thread
+      // named it nothing, the extension alone beats that system name too.
+      fileName: safeFileName(attachment.name, extensionFallback(attachment.fileExtension)),
+      mimeType: file.mimeType,
+      bytes: file.bytes,
+    };
+  } catch (error) {
+    if (!(error instanceof DcsDocumentError)) throw error;
+    const { failure } = error;
+    if (failure.reason === 'no_such_document') {
+      throw new Error(
+        `MyChart has no document ${attachment.dcsId} on the active patient record, although the thread lists it. ` +
+          'Check that the right patient is active.',
+      );
+    }
+    if (failure.reason === 'not_released') {
+      throw new Error(
+        `MyChart returned no download link for ${attachment.name}; it may not be downloadable from the portal either.`,
+      );
+    }
+    throw new Error(`MyChart answered the download of ${attachment.name} with ${failure.detail}; nothing was downloaded.`);
   }
-  // The bogus-id answer: 200, no Content-Type, no body. Also catches a login
-  // page where a file should be, which makeAuthenticatedRequest would have
-  // retried once already.
-  if (bytes.length === 0 || contentType.includes('text/html')) {
-    throw new Error(
-      `MyChart answered the download of ${attachment.name} with ${bytes.length === 0 ? 'an empty body' : 'a web page instead of the file'}; nothing was downloaded.`,
-    );
-  }
-
-  const mimeType = text(rec(documentDetails).mimeType) || contentType.split(';')[0]!.trim();
-  const extension = attachment.fileExtension.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  return {
-    conversationId,
-    dcsId: attachment.dcsId,
-    fileName: safeFileName(attachment.name, extension ? `attachment.${extension}` : 'attachment'),
-    fileExtension: attachment.fileExtension,
-    mimeType,
-    bytes,
-  };
-}
-
-function textOf(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes.subarray(0, 4096));
 }
