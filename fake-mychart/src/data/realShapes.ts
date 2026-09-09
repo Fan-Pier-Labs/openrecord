@@ -4692,3 +4692,59 @@ export const healthAdvisoriesGetTopics = {
     "HasUpcomingApptSecurity": false
   }
 } as const;
+
+// /api/billing-details/getbenefitssummary — the "Insurance benefits" card on
+// the billing activity: the deductible and out-of-pocket-maximum accumulators
+// for one guarantor account. Captured on ONE real instance (N=1). `moop` is
+// Epic's name for maximum out-of-pocket. Each accumulator carries two buckets;
+// on the capture `accountBucket` was entirely blank (empty-string amounts,
+// `rollPeriod` the string "0") while `patientBucket` carried the numbers, so
+// the empty strings below are the observed neutral, not a placeholder for a
+// field that is always populated.
+const benefitsBucketShape = {
+  "isLimit": false,
+  "type": "",
+  "totalAmount": "",
+  "usedAmount": "",
+  "remainingAmount": "",
+  "usedRatio": 0,
+  "isTotalZero": false,
+  "rollPeriodEndDate": "",
+  "rollPeriod": "",
+  "numberOfPeriods": 0,
+  "usedOnPrevLevel": ""
+} as const;
+
+const benefitsLimitShape = {
+  "type": "",
+  "network": "",
+  "name": "",
+  "accountBucket": benefitsBucketShape,
+  "patientBucket": benefitsBucketShape
+} as const;
+
+export const getBenefitsSummary = {
+  "coverageName": "",
+  "payerName": "",
+  "payerLogoBlobMagicId": "",
+  "lastUpdatedText": "",
+  "benefitsPatientId": "",
+  "helpText": "",
+  "coverageId": "",
+  "queryKey": "",
+  "noCoverageAvailable": false,
+  "hasAmbiguousCoverages": false,
+  "hasRTEUpdateInProgress": false,
+  "canAccessInsuranceHub": false,
+  "canAccessInsuranceSummary": false,
+  "canAccessCustomerService": false,
+  "canAccessAnyLinks": false,
+  "insuranceHubUrl": "",
+  "payerPhoneNumber": "",
+  "showPhoneNumberAsAction": false,
+  "showPhoneNumberAsTextOnly": false,
+  "showInsuranceSummaryMessage": false,
+  "deductible": benefitsLimitShape,
+  "moop": benefitsLimitShape,
+  "insuranceLimit": benefitsLimitShape
+} as const;

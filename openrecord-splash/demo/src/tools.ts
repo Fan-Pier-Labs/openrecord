@@ -268,7 +268,13 @@ export const TOOL_SPECS: ToolSpec[] = [
     description: 'Download one billing statement or itemized bill as a PDF, by the RecordID of a statement from get_billing',
     args: { record_id: 'RecordID from get_billing', instance: 'optional' },
   },
-  { name: 'get_insurance', group: 'Billing', description: 'Insurance plan, member id, copays, deductible', args: { instance: 'optional' } },
+  { name: 'get_insurance', group: 'Billing', description: 'Insurance plan, member id, copays, coverage dates', args: { instance: 'optional' } },
+  {
+    name: 'get_insurance_benefits',
+    group: 'Billing',
+    description: 'Deductible and out-of-pocket maximum — total, spent, remaining, and when each resets. Keyed by billing guarantor account, with family and individual tallies kept apart',
+    args: { instance: 'optional' },
+  },
   {
     name: 'get_insurance_payers',
     group: 'Billing',
@@ -963,6 +969,7 @@ const HANDLERS: Record<string, Handler> = {
   download_billing_statement: () =>
     fail('The demo record has no statement PDFs. On a real MyChart account this saves the statement to the Downloads folder.'),
   get_insurance: (s) => clone(record(s).insurance),
+  get_insurance_benefits: (s) => clone(record(s).insuranceBenefits),
   // Organization-level: deliberately not read through record(s), so switching
   // patients never changes it.
   get_insurance_payers: () => clone(data.insurancePayers),

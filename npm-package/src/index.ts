@@ -303,6 +303,15 @@ export {
   type InsuranceCoverageStandard,
 } from '../../scrapers/myChart/chart/insurance/insurance';
 export {
+  getInsuranceBenefits,
+  fetchInsuranceBenefitsRaw,
+  insuranceBenefitsProcessor,
+  type InsuranceBenefitsStandard,
+  type InsuranceBenefitsAccountStandard,
+  type BenefitLimitStandard,
+  type BenefitBucketStandard,
+} from '../../scrapers/myChart/chart/insuranceBenefits/insuranceBenefits';
+export {
   getInsurancePayers,
   fetchInsurancePayersRaw,
   insurancePayersProcessor,

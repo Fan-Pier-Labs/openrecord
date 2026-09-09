@@ -418,6 +418,57 @@ export const insurance = [
   },
 ];
 
+/**
+ * The benefit accumulators, as MyChart's own `GetBenefitsSummary` shapes them:
+ * keyed by billing guarantor account, with the account-wide and patient-only
+ * tallies kept apart because they are different numbers.
+ */
+export const insuranceBenefits = [
+  {
+    guarantorNumber: '7704201',
+    patientName: 'Homer J. Simpson',
+    payerName: 'Springfield Mutual Health',
+    coverageName: 'Springfield Nuclear Power Plant — PPO',
+    lastUpdatedText: 'Last updated 2/14/2026',
+    deductible: {
+      name: 'In-network deductible',
+      network: 'In Network',
+      accountBucket: {
+        type: 'Family',
+        totalAmount: '$3,000.00',
+        usedAmount: '$1,910.00',
+        remainingAmount: '$1,090.00',
+        rollPeriodEndDate: '12/31/2026',
+      },
+      patientBucket: {
+        type: 'Individual',
+        totalAmount: '$1,500.00',
+        usedAmount: '$1,140.00',
+        remainingAmount: '$360.00',
+        rollPeriodEndDate: '12/31/2026',
+      },
+    },
+    moop: {
+      name: 'In-network out-of-pocket maximum',
+      network: 'In Network',
+      accountBucket: {
+        type: 'Family',
+        totalAmount: '$12,000.00',
+        usedAmount: '$2,640.00',
+        remainingAmount: '$9,360.00',
+        rollPeriodEndDate: '12/31/2026',
+      },
+      patientBucket: {
+        type: 'Individual',
+        totalAmount: '$6,000.00',
+        usedAmount: '$1,580.00',
+        remainingAmount: '$4,420.00',
+        rollPeriodEndDate: '12/31/2026',
+      },
+    },
+  },
+];
+
 // Organization-level, not part of any patient's record: the payers this
 // hospital's portal offers when adding a coverage — the same list whichever
 // patient is active, exactly as the real endpoint behaves. Field names mirror
@@ -1015,6 +1066,7 @@ export const homerRecord: PatientRecord = {
   messageTopics,
   billing,
   insurance,
+  insuranceBenefits,
 
   medications,
   messages,

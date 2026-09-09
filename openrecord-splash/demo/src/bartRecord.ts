@@ -366,6 +366,54 @@ export const bartRecord: PatientRecord = {
     },
   ],
 
+  // Bart is covered on Homer's plan, so the family accumulators match the
+  // account holder's while his own individual tallies are his.
+  insuranceBenefits: [
+    {
+      guarantorNumber: '7704201',
+      patientName: 'Homer J. Simpson',
+      payerName: 'Springfield Mutual Health',
+      coverageName: 'Springfield Nuclear Power Plant — PPO',
+      lastUpdatedText: 'Last updated 2/14/2026',
+      deductible: {
+        name: 'In-network deductible',
+        network: 'In Network',
+        accountBucket: {
+          type: 'Family',
+          totalAmount: '$3,000.00',
+          usedAmount: '$1,910.00',
+          remainingAmount: '$1,090.00',
+          rollPeriodEndDate: '12/31/2026',
+        },
+        patientBucket: {
+          type: 'Individual',
+          totalAmount: '$1,500.00',
+          usedAmount: '$430.00',
+          remainingAmount: '$1,070.00',
+          rollPeriodEndDate: '12/31/2026',
+        },
+      },
+      moop: {
+        name: 'In-network out-of-pocket maximum',
+        network: 'In Network',
+        accountBucket: {
+          type: 'Family',
+          totalAmount: '$12,000.00',
+          usedAmount: '$2,640.00',
+          remainingAmount: '$9,360.00',
+          rollPeriodEndDate: '12/31/2026',
+        },
+        patientBucket: {
+          type: 'Individual',
+          totalAmount: '$6,000.00',
+          usedAmount: '$602.00',
+          remainingAmount: '$5,398.00',
+          rollPeriodEndDate: '12/31/2026',
+        },
+      },
+    },
+  ],
+
   medications: [
     {
       name: 'Albuterol HFA 90mcg inhaler',

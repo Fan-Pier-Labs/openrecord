@@ -189,6 +189,31 @@ export type InsurancePlan = {
   outOfPocketMax: string;
 };
 
+/**
+ * One side of a benefit accumulator, in MyChart's own field names. Real
+ * MyChart keys these to a billing guarantor account rather than to a coverage,
+ * and returns the account-wide and the patient-only tallies separately.
+ */
+export type BenefitBucket = {
+  type: string;
+  totalAmount: string;
+  usedAmount: string;
+  remainingAmount: string;
+  rollPeriodEndDate: string;
+};
+
+export type BenefitLimit = { name: string; network: string; accountBucket: BenefitBucket; patientBucket: BenefitBucket };
+
+export type InsuranceBenefits = {
+  guarantorNumber: string;
+  patientName: string;
+  payerName: string;
+  coverageName: string;
+  lastUpdatedText: string;
+  deductible: BenefitLimit;
+  moop: BenefitLimit;
+};
+
 export type MessageAttachment = { attachmentId: string; name: string; mimeType: string; sizeBytes: number };
 
 export type MessageEntry = { from: string; date: string; body: string; attachments?: MessageAttachment[] };
@@ -299,6 +324,7 @@ export type PatientRecord = {
   messageTopics: MessageTopic[];
   billing: BillingCharge[];
   insurance: InsurancePlan[];
+  insuranceBenefits: InsuranceBenefits[];
 
   medications: Medication[];
   messages: Conversation[];

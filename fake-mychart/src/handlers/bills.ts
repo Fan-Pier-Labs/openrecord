@@ -49,6 +49,30 @@ export const billsGetPatterns: readonly PatternRoute[] = [
   }),
 ];
 
+/**
+ * The "Insurance benefits" card — the patient's deductible and out-of-pocket
+ * maximum for one guarantor account.
+ *
+ * A React `/api/*` route, so it takes a JSON body and the antiforgery token as
+ * a header (the shared POST gate enforces the header). Its two arguments are
+ * the `id` and `context` the billing summary page carries per guarantor
+ * account, under the names `guarantorId` and `billingSystem` — the endpoint is
+ * keyed by billing account, not by coverage, so each account has its own card.
+ *
+ * A `guarantorId` this dataset has no card for is answered with
+ * `noCoverageAvailable: true` and empty accumulators, which is MyChart's own
+ * "nothing to show" answer and the only shape the capture provides. What a
+ * real instance does with an id that is not the session's is unobserved, so
+ * the fake does not invent a status code for it.
+ */
+export const billsPost: ExactRoutes = {
+  'api/billing-details/getbenefitssummary': async ({ request, ds }) => {
+    const body = await request.json().catch(() => ({})) as { guarantorId?: string };
+    const card = ds.billingBenefits[body.guarantorId ?? ''];
+    return json(conformToShape(shapes.getBenefitsSummary, card ?? { noCoverageAvailable: true }));
+  },
+};
+
 export const billsPostPatterns: readonly PatternRoute[] = [
   prefix('billing/details/getmorevisits', async ({ request, ds }) => {
     const rows = hydrateRequested(await request.text(), ds.billingHydratedVisits ?? []);
