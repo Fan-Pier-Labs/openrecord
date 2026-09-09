@@ -609,11 +609,12 @@ describe('lazy-loaded charge rows', () => {
     expect(JSON.stringify(visits)).not.toContain('Visit at ')
   })
 
+  // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
+  const NO_HYDRATE: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
+
   it('marks a row hydration could not fill in, so its placeholder $0.00 cannot pass as settled', () => {
-    // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
-    const noHydrate: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
-    const account = billingProcessor.standard(noHydrate).accounts[0]!
-    const row = account.visits.find((v) => v.Description === 'Visit at ')!
+    const account = billingProcessor.standard(NO_HYDRATE).accounts[0]!
+    const row = account.visits.find((v) => v.StartDateDisplay === 'Mar 14, 2025')!
 
     // The row is still reported — it is a real visit with a real date — but it
     // says outright that its amounts are placeholders, which is the whole
@@ -623,11 +624,49 @@ describe('lazy-loaded charge rows', () => {
     expect(account.visits.find((v) => v.Description === 'ER Visit')!.detailLoaded).toBe(true)
 
     // And concise says it too, because that is the mode the clients default to.
-    const concise = billingProcessor.concise(billingProcessor.standard(noHydrate)) as {
+    const concise = billingProcessor.concise(billingProcessor.standard(NO_HYDRATE)) as {
       accounts: Array<{ unhydratedVisits: number; visits: Array<{ detailLoaded: boolean }> }>
     }
     expect(concise.accounts[0]!.unhydratedVisits).toBe(1)
     expect(concise.accounts[0]!.visits.some((v) => !v.detailLoaded)).toBe(true)
+  })
+
+  it('nulls every fabricated field on an unhydrated row rather than reporting its placeholder', () => {
+    const visits = billingProcessor.standard(NO_HYDRATE).accounts[0]!.visits
+    const stub = visits.find((v) => v.StartDateDisplay === 'Mar 14, 2025')!
+    const real = visits.find((v) => v.Description === 'ER Visit')!
+
+    // Every one of these is a value a hydrated row legitimately carries — a
+    // settled visit really is "$0.00", and a fully-covered one really has no
+    // SelfPaymentAmount — so passing the placeholder through leaves the two
+    // indistinguishable. null cannot be confused for money.
+    expect(stub.ChargeAmount).toBeNull()
+    expect(stub.InsurancePaymentAmount).toBeNull()
+    expect(stub.InsuranceAmountDue).toBeNull()
+    expect(stub.SelfPaymentAmount).toBeNull()
+    expect(stub.SelfAmountDue).toBeNull()
+    expect(stub.SelfAmountDueRaw).toBeNull()
+    expect(stub.InsuranceAmountDueRaw).toBeNull()
+    // The "{VisitType} at {Facility}" template with both slots blank is not a
+    // description; a UI rendering it shows the literal string "Visit at ".
+    expect(stub.Description).toBeNull()
+
+    // The service date is genuine on a stub — it is how a row maps to a
+    // statement — so it survives.
+    expect(stub.StartDateDisplay).toBe('Mar 14, 2025')
+    expect(stub.HospitalAccountId).toBe('WP-24aG9kR2wQ7pL4xNvB8sT1cE')
+
+    // A hydrated row's own $0.00 is untouched: this is about unknowns, not zeros.
+    expect(real.SelfPaymentAmount).toBe('$0.00')
+    expect(real.InsuranceAmountDue).toBe('$0.00')
+
+    // Concise carries the same nulls, since it reads these fields off standard.
+    const concise = billingProcessor.concise(billingProcessor.standard(NO_HYDRATE)) as {
+      accounts: Array<{ visits: Array<{ detailLoaded: boolean; ChargeAmount: string | null; Description: string | null }> }>
+    }
+    const conciseStub = concise.accounts[0]!.visits.find((v) => !v.detailLoaded)!
+    expect(conciseStub.ChargeAmount).toBeNull()
+    expect(conciseStub.Description).toBeNull()
   })
 
   it('reports every row loaded once hydration succeeded', () => {

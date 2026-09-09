@@ -471,6 +471,8 @@ describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
     expect(standard.accounts[0]!.visits).toHaveLength(1)
     expect(standard.accounts[0]!.visits[0]!.detailLoaded).toBe(false)
     expect(standard.accounts[0]!.unhydratedVisits).toBe(1)
+    // Marked, and priced at nothing rather than at the stub's fake "$0.00".
+    expect(standard.accounts[0]!.visits[0]!.ChargeAmount).toBeNull()
   })
 
   it('skips hydration when the details page carried no token', async () => {

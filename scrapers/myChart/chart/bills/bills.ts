@@ -101,8 +101,8 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
  * Best-effort by design: the charge list already loaded is worth returning
  * even if hydration fails. What makes that safe is the processor marking any
  * row that is still a stub — `detailLoaded: false`, counted per account as
- * `unhydratedVisits` — so a failure here can never pass a placeholder
- * `"$0.00"` off as a settled balance.
+ * `unhydratedVisits` — and nulling its fabricated amounts, so a failure here
+ * can never pass a placeholder `"$0.00"` off as a settled balance.
  */
 async function hydrateStubs(
   collector: RawCollector,

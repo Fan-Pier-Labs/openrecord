@@ -111,10 +111,11 @@ export interface BillingVisitStandard {
    * 5xx or WAF page, a batch that returned nothing new, a handle that did not
    * round-trip).
    *
-   * It matters because a stub's amounts are all the string `"$0.00"`, which
-   * reads exactly like a settled visit. Without this marker the failure path
-   * would reintroduce the silent undercount the hydration exists to remove.
-   * `true` on every row that carries real numbers.
+   * On such a row every fabricated field is reported as `null` rather than as
+   * the placeholder MyChart sent — see {@link UNKNOWN_ON_STUB} — so nothing
+   * can be mistaken for money that was never quoted. This flag is what tells
+   * a caller the nulls mean "withheld" rather than "nothing". `true` on every
+   * row that carries real numbers.
    */
   detailLoaded: boolean;
   StartDateDisplay: string | null;
@@ -345,11 +346,53 @@ function coverageInfo(value: unknown): BillingCoverageInfoStandard {
   };
 }
 
+/**
+ * The fields an unhydrated row fabricates, and what they are reported as
+ * instead.
+ *
+ * A stub prices every amount at the string `"$0.00"` (`0` on the `…Raw`
+ * numbers) and renders `Description` from the `"{VisitType} at {Facility}"`
+ * template with both slots blank, on visits that were charged thousands.
+ * Every one of those placeholders is also a legitimate value on a hydrated
+ * row — plenty of real visits are settled at `$0.00`, and one that insurance
+ * covered entirely carries no `SelfPaymentAmount` at all — so a caller
+ * comparing values cannot tell "nothing was charged" from "MyChart did not
+ * say", and a sum over the column silently undercounts.
+ *
+ * `null` is the one value that cannot be mistaken for money, so it is what
+ * these become; `detailLoaded: false` says why. `StartDateDisplay`,
+ * `DateRangeDisplay` and the account handle are genuine on a stub — that date
+ * is how a row maps to a statement — and are kept.
+ */
+const UNKNOWN_ON_STUB = {
+  Description: null,
+  ChargeAmount: null,
+  InsurancePaymentAmount: null,
+  InsuranceAmountDue: null,
+  InsuranceEstimatedPaymentAmount: null,
+  InsuranceAmountDueRaw: null,
+  SelfPaymentAmount: null,
+  SelfAmountDue: null,
+  SelfAmountDueRaw: null,
+  SelfAdjustmentAmount: null,
+  SelfDiscountAmount: null,
+  SelfBadDebtAmount: null,
+  SelfBadDebtAmountRaw: null,
+  SelfPaymentPlanAmountDue: null,
+  SelfPaymentPlanAmountDueRaw: null,
+  NotOnPlanAmount: null,
+  NotOnPlanAmountRaw: null,
+  ContestedChargeAmount: null,
+  ContestedPaymentAmount: null,
+  SurchargeAmount: null,
+  TaxOrSurcharge: null,
+} as const satisfies Partial<BillingVisitStandard>;
+
 export function visit(value: unknown, category: BillingVisitCategory): BillingVisitStandard {
   const v = rec(value);
   const estimate = v.EstimateInfo === null || v.EstimateInfo === undefined ? null : rec(v.EstimateInfo);
   const agency = rec(v.AgencyInformation);
-  return {
+  const row: BillingVisitStandard = {
     category,
     detailLoaded: !isStubRow(v),
     StartDateDisplay: textOrNull(v.StartDateDisplay),
@@ -397,6 +440,7 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
     ProcedureGroupList: list(v.ProcedureGroupList).map(procedureGroup),
     CoverageInfoList: list(v.CoverageInfoList).map(coverageInfo),
   };
+  return row.detailLoaded ? row : { ...row, ...UNKNOWN_ON_STUB };
 }
 
 /**

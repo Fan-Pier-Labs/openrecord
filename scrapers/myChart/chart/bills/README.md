@@ -80,8 +80,13 @@ Every URL carries `noCache=<random>`.
   sends what the client sends, and skips hydration when no token could be read), and the
   whole hydration is
   best-effort — a failure leaves the stub in place rather than costing the caller the charge
-  list, marked `detailLoaded: false` and counted in the account's `unhydratedVisits` so a
-  placeholder `"$0.00"` can never be read as a settled balance. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
+  list, marked `detailLoaded: false` and counted in the account's `unhydratedVisits`. On such a
+  row **every fabricated field is reported as `null`** — the amounts, the `…Raw` numbers and the
+  blank `"{VisitType} at {Facility}"` template — because each of MyChart's placeholders is also
+  a legitimate value on a hydrated row (a settled visit really is `"$0.00"`; a fully-covered one
+  really has no `SelfPaymentAmount`), so passing them through leaves "withheld" and "nothing"
+  indistinguishable and any sum over the column silently short. The service date and the account
+  handle are genuine on a stub and are kept. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
   value has been observed. Verified on the wire against 1 real instance.
 - **The UI's default filter is not the scraper's.** The billing activity sends
   `filterOption=` empty (and empty dates), which on the captured account returned
@@ -146,7 +151,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `UnifiedVisitList[]`, `VisitList[]`, `InformationalVisitList[]`, `NoBalanceVisitList[]`, `BadDebtVisitList[]`, `PaymentPlanVisitList[]`, `AdvanceBillVisitList[]`, `ContestedVisitList[]`, `AdjustmentVisitList[]` | The charge lists; overlapping across releases | ✓ | merged into one `visits[]`, de-duplicated on (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`) | same | Derived merge (#380). Reading one list loses charges on whichever release does not populate it; reading all double-counts. |
 | `category` | Which list the row came from | ✓ | ✓ | ✓ | Derived. "Bad debt" and "payment plan" change what a charge means. |
-| `detailLoaded` | Whether this row carries real numbers, or is still the stub hydration could not fill in | ✓ | ✓ | ✓ | Derived from `LevelOfDetailLoaded`. `true` on a healthy read; `false` only when `GetMoreVisits` did not run or did not work, and then every amount on the row is a placeholder `"$0.00"`. In concise because that is the mode the model-facing clients read. |
+| `detailLoaded` | Whether this row carries real numbers, or is still the stub hydration could not fill in | ✓ | ✓ | ✓ | Derived from `LevelOfDetailLoaded`. `true` on a healthy read; `false` only when `GetMoreVisits` did not run or did not work, and then `Description` and every amount on the row are `null`. It is what says those nulls mean "MyChart withheld this", not "nothing was charged". In concise because that is the mode the model-facing clients read. |
 | `NotPaymentPlanVisitList[]`, `VisitAutoPayVisitList[]` | Filtered views of rows already in the others | — | — | — | Duplicate. |
 | `*VisitListAmount`, `PaymentPlanVisitListAutoPayAmount`, `PaymentPlanVisitListScheduledDate`, `EstimatedPaymentPlanBalance`, `PaymentPlanVisitListPostResolutionAmount` | Per-list totals | — | ✓ | — | Totals as MyChart computed them; detail. |
 | `CanMakePayment`, `HasUnconvertedPBVisits`, `HasVisits` | Account state | — | ✓ | — | Whether online payment is possible; detail. |
