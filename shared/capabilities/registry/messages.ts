@@ -32,7 +32,9 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_messages',
     title: 'Messages',
-    description: 'Inbox conversations with the care team.',
+    description:
+      'Every conversation in the inbox: its id, subject, who it is with, when the latest message arrived, and ' +
+      'whether it is unread, urgent or has attachments. The messages themselves come from get_message_thread.',
     kind: 'read',
     group: 'Messages',
     params: [],
@@ -42,7 +44,9 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_message_thread',
     title: 'Message thread',
-    description: 'Every message in one conversation.',
+    description:
+      'Every message in one conversation: text, date, sender, and for each attachment its name and dcsId. ' +
+      'An attachment\'s content is a separate call — get_message_attachment with that dcsId.',
     kind: 'read',
     group: 'Messages',
     params: [{ name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true }],
@@ -64,13 +68,13 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
     id: 'get_message_attachment',
     title: 'Message attachment',
     description:
-      'Download one file attached to a message — a PDF, photo or other document a provider or the patient attached. Identify it by the conversation_id from get_messages and the attachment_id (the attachment’s dcsId) from get_messages or get_message_thread. The file is saved on the user’s own device; images are also shown inline.',
+      'Download one file attached to a message — a PDF, photo or other document a provider or the patient attached. Identify it by the conversation_id from get_messages and the attachment_id (the attachment’s dcsId) from get_message_thread. The file is saved on the user’s own device; images are also shown inline.',
     kind: 'read',
     group: 'Messages',
     returnsFile: true,
     params: [
       { name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true },
-      { name: 'attachment_id', type: 'string', description: 'The attachment’s dcsId from get_messages or get_message_thread. Copy it verbatim.', required: true },
+      { name: 'attachment_id', type: 'string', description: 'The attachment’s dcsId from get_message_thread. Copy it verbatim.', required: true },
     ],
     run: (request, args): Promise<MessageAttachmentFile> =>
       downloadMessageAttachment(request, requireStr(args, 'conversation_id'), requireStr(args, 'attachment_id')),

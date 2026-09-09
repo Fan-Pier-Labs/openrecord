@@ -174,6 +174,28 @@ describe('capability registry against fake-mychart', () => {
     expect(thread.messages.some((m) => !m.isFromPatient)).toBe(true)
   }, 30_000)
 
+  // Real MyChart answers the inbox 50 threads at a time. The fixture has more
+  // than that on purpose: a client that read only the first page would pass
+  // against a small fixture and drop a patient's older threads in production.
+  it('walks every page of the inbox and merges them without duplicates', async () => {
+    const inbox = (await executeCapability(session, 'get_messages')) as {
+      truncated: boolean
+      conversations: Array<{ hthId: string; latestMessageInstantISO: string | null }>
+      localSummary: { hasMoreConversations: boolean }
+    }
+    const ids = inbox.conversations.map((c) => c.hthId)
+    expect(ids.length).toBeGreaterThan(50)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(inbox.truncated).toBe(false)
+    expect(inbox.localSummary.hasMoreConversations).toBe(false)
+    // Newest thread first, as the portal lists them.
+    const instants = inbox.conversations.map((c) => c.latestMessageInstantISO ?? '')
+    expect([...instants].sort().reverse()).toEqual(instants)
+
+    const raw = (await executeCapability(session, 'get_messages', { mode: 'raw' })) as { requests: Array<{ path: string }> }
+    expect(raw.requests.filter((r) => r.path.endsWith('GetConversationList'))).toHaveLength(2)
+  }, 30_000)
+
   // Real MyChart wraps every body in Epic's formatter markup and the fake does
   // the same (`fake-mychart/src/lib/messageBody.ts`), so this is the only place
   // the strip is proven end-to-end rather than against a hand-written fixture.

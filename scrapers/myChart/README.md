@@ -42,7 +42,7 @@ token, then `POST` the endpoint(s) below it.
 | [`letters/`](chart/letters/) | `get_letters`, `get_letter_details` | React `/app/letters` |
 | [`medicalHistory/`](chart/medicalHistory/) | `get_medical_history` | React `/app/histories` |
 | [`medications/`](chart/medications/) | `get_medications` (`request_refill` is declared, not implemented) | legacy `/Clinical/Medications` |
-| [`messages/`](chart/messages/) | four reads and three writes | React `/app/communication-center` |
+| [`messages/`](chart/messages/) | five reads and three writes | React `/app/communication-center` |
 | [`notes/`](chart/notes/) | `get_visit_notes`, `get_note_content`, `get_visit_avs` | legacy `/Visits/VisitsList` |
 | [`otherMyCharts/`](chart/otherMyCharts/) | `get_linked_accounts` | legacy `/Community/Manage` |
 | [`preventiveCare/`](chart/preventiveCare/) | `get_preventive_care` | legacy `/HealthAdvisories` (HTML only) |
