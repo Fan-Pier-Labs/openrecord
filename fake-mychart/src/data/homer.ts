@@ -2537,6 +2537,26 @@ export const documents = {
   ],
 };
 
+/**
+ * The bytes behind a Document Center document, keyed by `dcsID`. Not every
+ * document has an entry: on the captured account 1 of 42 answered
+ * `GetDocumentDetails` with `downloadUrl` and `token` both empty — MyChart
+ * offering it for viewing in the portal and serving no file — and its
+ * `previewUrl` then streamed 200 with an empty body. `documents[4]` is that
+ * document, so the refusal has something to be measured against.
+ *
+ * `displayName` is MyChart's own name for the file and is what the download's
+ * `Content-Disposition` carries; it is not the `docType` the list shows.
+ */
+export const documentFiles: Record<string, { mimeType: string; displayName: string; base64: string }> = {
+  [documents.documents[0]!.dcsID]: { mimeType: 'application/pdf', displayName: 'After Visit Summary', base64: 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NyA+PgpzdHJlYW0KQlQgL0YxIDE0IFRmIDIwIDUwIFRkIChQcm9vZiBvZiBjb3ZlcmFnZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0MDgKJSVFT0YK' },
+  // An e-signed document really is served as HTML — 8 of 42 on the capture —
+  // so the download path must not mistake it for a login page.
+  [documents.documents[1]!.dcsID]: { mimeType: 'text/html', displayName: 'Consent - Procedure', base64: 'PG1haW4+PGgxPkNvbnNlbnQgLSBQcm9jZWR1cmU8L2gxPjxwPlNpZ25lZCBlbGVjdHJvbmljYWxseS48L3A+PC9tYWluPg==' },
+  [documents.documents[2]!.dcsID]: { mimeType: 'image/jpeg', displayName: 'Insurance Card Front', base64: '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD+/iiiigD/2Q==' },
+  [documents.documents[3]!.dcsID]: { mimeType: 'image/tiff', displayName: 'Outside Records 2025', base64: 'SUkqAAgAAAABAAAAAAAAAAA=' },
+};
+
 // ─── Questionnaires ─────────────────────────────────────────────────
 // Shaped to the captured `/api/questionnaire/GetQuestionnaireList` response
 // (`realShapes.getQuestionnaireList`): one assigned questionnaire with a due

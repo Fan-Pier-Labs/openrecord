@@ -73,6 +73,7 @@ export type {
 } from './types';
 export { encodeImageId, decodeImageId, type StudyImagePayload } from './imaging';
 export type { MessageAttachmentFile } from '../../scrapers/myChart/chart/messages/messageAttachment';
+export type { DocumentFile } from '../../scrapers/myChart/chart/documents/documentDownload';
 export { resolveRecipient, resolveTopic } from './resolve';
 export {
   ACCOUNT_PARAM,
