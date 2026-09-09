@@ -4,8 +4,20 @@
 
 `bun run lint` is **type-aware** (typescript-eslint `projectService`): each file is resolved against
 its package's tsconfig, so every package's deps must be installed first (`expo-app`, `npm-package`,
-`claude-desktop-extension`). A missing `node_modules` degrades imports to `any` and the type-aware
-rules silently stop seeing them — lint passes while checking less.
+`claude-desktop-extension`) **and `npm-package` must be built** — its integration test imports its
+types from `../../dist/index.js`, so without `dist/` those types don't resolve. Everything lint
+needs, from a clean checkout:
+
+```bash
+bun install && (cd expo-app && bun install) && (cd claude-desktop-extension && bun install) \
+  && (cd npm-package && bun install && bun run build) && bun run lint
+```
+
+Skip a step and the unresolved imports degrade to `any`, which breaks lint in both directions: the
+type-aware rules silently stop seeing those imports (lint passes while checking less), *and* they
+invent errors. With no `dist/`, `no-unnecessary-type-assertion` reports the `!`s in
+`npm-package/src/__tests__/fake-mychart.integration.test.ts` as unnecessary — removing them fails
+`bun run typecheck`, which is why CI builds npm-package before eslint.
 
 **Every TS file in the repo belongs to a tsconfig project — there is deliberately no
 `allowDefaultProject` escape hatch.** A new file outside every tsconfig fails lint with a "not
