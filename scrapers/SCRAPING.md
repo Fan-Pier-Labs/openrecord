@@ -31,11 +31,16 @@ endpoint name: the caller is right there, with the exact `requestData` keys, any
 
 **Check the React activity is actually served before trusting its bundle.** An
 instance that still runs the legacy jQuery version of an activity answers
-`GET /app/<activity>` with a **200 Home page** (the `<title>` says "Home"), and
-every `/api/*` endpoint that activity's bundle names 500s with
-`{"Message":"An error has occurred."}` whatever it is sent — which reads exactly
-like "no data on file". The bundle is still downloadable, so the caller looks
-perfectly real. The legacy page's own bundles (`/<mount>/bundles/<area>-controllers`,
+`GET /app/<activity>` with a **200 Home page** (a 302 to `/Home`, whose `<title>`
+says "Home" and which still carries an antiforgery token), and every `/api/*`
+endpoint that activity's bundle names 500s — `{"Message":"An error has occurred."}`
+or a bare `{}` — whatever it is sent, which reads exactly like "no data on file".
+The bundle is still downloadable, so the caller looks perfectly real. **The Home
+redirect alone proves nothing**: `/app/documents` lands on Home on every instance
+seen (4 of 4) and `LoadOtherDocuments` then answers normally. Only the redirect
+*and* a failed API call together mean "not served", which is what
+`RawCollector` reports when it sees both (`GET /app/care-journeys` on an August
+2025 web build, 1 of 4 accounts). The legacy page's own bundles (`/<mount>/bundles/<area>-controllers`,
 listed as `<script src>` on the legacy page) hold the real endpoint, reached by
 `makeLink("Area/Controller/Action")` and usually a form-encoded `$.post`.
 `/api/insurance/LoadPayers` vs `Insurance/Coverages/GetPayors` was this exact

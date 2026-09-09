@@ -38,6 +38,14 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
    Validation/login errors show inline beneath the button.
 3. **Two-step verification** — shown only if `setup_account` reports the portal
    requires a code; entering it calls `complete_2fa`.
+4. **Set up a passkey?** — shown after login only when the account has no
+   passkey saved. It explains what a passkey changes (no password or code when
+   the session expires), where the private key is stored (the server's live
+   answer — keystore or the file fallback — not a promise), that it adds a
+   credential to the MyChart account until removed, and that some portals
+   refuse registration. **Set up passkey** calls `register_passkey`; **Skip for
+   now** finishes without one, and the message handed back to the chat says
+   which happened so Claude doesn't offer again.
 
 > **Logos.** MyChart's only per-instance brand asset is the wide banner logo
 > (`ichart2.epic.com`, ~640×230), so the widget uses it everywhere — a
@@ -111,11 +119,16 @@ machine and have no counterpart in the other clients.
 ### Imaging
 
 `download_imaging_study` returns each picture as an image content block, so
-Claude can look at the scan and talk about it. Ask to **save, download or
-export** it and the same call runs with `save_to_downloads`, writing the JPEGs
-to your Downloads folder in a folder named for the study — inline blocks go away
-with the conversation, and this is the copy you keep. Nothing is overwritten, so
-saving the same study twice leaves `XR_CHEST` and `XR_CHEST-2`.
+Claude can look at the scan and talk about it. What goes in the chat is a
+**reduced-size preview**: Claude Desktop rejects any tool result over 1MB, and
+one full-size radiograph is ~4MB as a JPEG, so the pictures are downscaled
+until the whole set fits, and a study with more than a dozen images (a CT) is
+sampled evenly rather than shown slice by slice. Ask to **save, download or
+export** it and the same call runs with `save_to_downloads`, writing the
+**full-resolution** JPEGs to your Downloads folder in a folder named for the
+study — inline previews go away with the conversation, and this is the copy
+you keep. Nothing is overwritten, so saving the same study twice leaves
+`XR_CHEST` and `XR_CHEST-2`.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which

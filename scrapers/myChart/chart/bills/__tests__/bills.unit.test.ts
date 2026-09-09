@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
+import { statement, statementDateISO } from '../bills.processor'
 import { parsePaymentPath } from '../summaryHtml'
 import type { RawResponse } from '../../../core/rawResponse'
 import { renderOutput } from '../../../processors/processor'
@@ -475,8 +476,8 @@ describe('billingProcessor.standard', () => {
   it('merges the two statement lists and projects the payments', () => {
     const account = standard.accounts[0]!
     expect(account.statements).toEqual([
-      { FormattedDateDisplay: 'Jan 15, 2026', DateDisplay: '20260115', Description: 'Sent via postal mail', SubText: '', StatementAmountDisplay: '$350.00', IsRead: false, IsDetailBill: false, IsPaperless: false, ServiceDateStart: null, ServiceDateEnd: null, RecordID: 'REC-1' },
-      { FormattedDateDisplay: 'Dec 1, 2025', DateDisplay: '20251201', Description: 'Itemized bill', SubText: null, StatementAmountDisplay: '$1,200.00', IsRead: true, IsDetailBill: true, IsPaperless: null, ServiceDateStart: 67580, ServiceDateEnd: 67580, RecordID: 'REC-2' },
+      { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', DateDisplay: '20260115', Description: 'Sent via postal mail', SubText: '', StatementAmountDisplay: '$350.00', IsRead: false, IsDetailBill: false, IsPaperless: false, ServiceDateStart: null, ServiceDateEnd: null, RecordID: 'REC-1' },
+      { dateISO: '2025-12-01', FormattedDateDisplay: 'Dec 1, 2025', DateDisplay: '20251201', Description: 'Itemized bill', SubText: null, StatementAmountDisplay: '$1,200.00', IsRead: true, IsDetailBill: true, IsPaperless: null, ServiceDateStart: 67580, ServiceDateEnd: 67580, RecordID: 'REC-2' },
     ])
     expect(account.payments.map((p) => [p.PaymentAmountDisplay, p.Receipt])).toEqual([
       ['$350.00', { DisplayNumber: 'R-001', SerialNumber: 'SN-1' }],
@@ -525,8 +526,8 @@ describe('billingProcessor.concise', () => {
         { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
       ],
       statements: [
-        { FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false },
-        { FormattedDateDisplay: 'Dec 1, 2025', Description: 'Itemized bill', StatementAmountDisplay: '$1,200.00', IsRead: true },
+        { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false },
+        { dateISO: '2025-12-01', FormattedDateDisplay: 'Dec 1, 2025', Description: 'Itemized bill', StatementAmountDisplay: '$1,200.00', IsRead: true },
       ],
       payments: [
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$350.00' },
@@ -543,5 +544,24 @@ describe('billingProcessor.concise', () => {
     const concise = renderOutput(billingProcessor, RAW, 'concise') as string
     expect(concise).toContain('| ER Visit |')
     expect(concise).not.toContain('CoverageInfoList')
+  })
+})
+
+describe('statementDateISO', () => {
+  it('turns DateDisplay YYYYMMDD into YYYY-MM-DD', () => {
+    expect(statementDateISO('20251130')).toBe('2025-11-30')
+  })
+
+  it('is null for anything that is not eight digits', () => {
+    expect(statementDateISO('')).toBeNull()
+    expect(statementDateISO(null)).toBeNull()
+    expect(statementDateISO('Nov 30, 2025')).toBeNull()
+    expect(statementDateISO('2025-11-30')).toBeNull()
+  })
+
+  it('still dates a statement when the instance sends FormattedDateDisplay null', () => {
+    const s = statement({ FormattedDateDisplay: null, DateDisplay: '20251130', Description: 'Statement for $50.00', StatementAmountDisplay: '$50.00' })
+    expect(s.dateISO).toBe('2025-11-30')
+    expect(s.FormattedDateDisplay).toBeNull()
   })
 })

@@ -327,6 +327,45 @@ const SETUP_UI_TEMPLATE = `
       border-radius: 3px;
       background: var(--bg);
     }
+    /* Step 4: the passkey offer, shown after login when none is saved. */
+    .passkey-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--hover);
+    }
+    .passkey-badge {
+      align-self: flex-start;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--success);
+      background: rgba(56, 142, 60, 0.12);
+      border: 1px solid rgba(56, 142, 60, 0.3);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    .passkey-card p {
+      margin: 0;
+      font-size: 13px;
+    }
+    .passkey-card ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .passkey-note {
+      font-size: 11px;
+      opacity: 0.7;
+    }
     @keyframes pop {
       0% { transform: scale(0); }
       80% { transform: scale(1.08); }
@@ -399,6 +438,25 @@ const SETUP_UI_TEMPLATE = `
       </div>
     </div>
 
+    <!-- ── Step 4: offer a passkey — only when the account has none saved ── -->
+    <div id="step-passkey" hidden>
+      <div class="passkey-card">
+        <span class="passkey-badge">Recommended</span>
+        <p><strong>You're signed in.</strong> Set up a passkey so Claude can reconnect on its own next time.</p>
+        <ul>
+          <li><strong>No more codes.</strong> When your MyChart session expires, Claude signs back in without your username, password or a verification code. Without a passkey, you may be asked for a new code each time.</li>
+          <li><strong>Stays on this computer.</strong> The private key is stored in <span id="passkey-storage">your OS keystore</span>. It is never sent to Anthropic.</li>
+          <li><strong>Lives on your MyChart account.</strong> It adds a new sign-in credential to <span id="passkey-instance">MyChart</span> that stays valid until you remove it. Ask Claude to delete the passkey, or disconnect the account, at any time.</li>
+        </ul>
+        <p class="passkey-note">Some health systems don't allow passkeys to be registered from the portal. If this one doesn't, the account still works; you'll just be asked for a code when the session expires.</p>
+      </div>
+      <div class="actions">
+        <button id="register-passkey">Set up passkey</button>
+        <button id="skip-passkey" class="link-btn" type="button">Skip for now</button>
+        <p class="field-error" id="passkey-error" hidden></p>
+      </div>
+    </div>
+
     <!-- ── Success ─────────────────────────────────────────────────────── -->
     <div id="success-card" class="success-card">
       <div class="check-circle">
@@ -406,6 +464,7 @@ const SETUP_UI_TEMPLATE = `
       </div>
       <p class="success-title">Connected!</p>
       <p class="success-sub" id="success-host"></p>
+      <p class="success-sub" id="success-passkey" hidden></p>
       <p class="success-hint">Press <kbd>Enter</kbd> in the chat to continue.</p>
     </div>
   </div>
@@ -435,8 +494,16 @@ const SETUP_UI_TEMPLATE = `
     var twoFaError = document.getElementById('twofa-error');
     var successCard = document.getElementById('success-card');
     var successHost = document.getElementById('success-host');
+    var successPasskey = document.getElementById('success-passkey');
+    var stepPasskey = document.getElementById('step-passkey');
+    var passkeyStorage = document.getElementById('passkey-storage');
+    var passkeyInstance = document.getElementById('passkey-instance');
+    var registerPasskeyBtn = document.getElementById('register-passkey');
+    var skipPasskeyBtn = document.getElementById('skip-passkey');
+    var passkeyError = document.getElementById('passkey-error');
 
     var pendingId = null;
+    var connectedAccount = null;
     var selectedInstance = null;
     var currentRows = [];
     var activeIndex = -1;
@@ -445,12 +512,15 @@ const SETUP_UI_TEMPLATE = `
       picker: 'Connect to MyChart',
       creds: 'Sign in to MyChart',
       twofa: 'Two-step verification',
+      passkey: 'Set up a passkey?',
+      done: 'Connected',
     };
 
     function showStep(step) {
       stepPicker.hidden = step !== 'picker';
       stepCreds.hidden = step !== 'creds';
       stepTwoFa.hidden = step !== 'twofa';
+      stepPasskey.hidden = step !== 'passkey';
       successCard.classList.remove('visible');
       titleEl.innerText = STEP_TITLES[step] || STEP_TITLES.picker;
     }
@@ -734,28 +804,51 @@ const SETUP_UI_TEMPLATE = `
       passwordInput.focus();
     };
 
+    // Logged in (with or without 2FA). The login tool recommends a passkey
+    // rather than registering one, and this widget is the recommended setup
+    // path — so it makes the offer itself, on its own step, and registers only
+    // when the user clicks. Compared against false rather than negated: a
+    // result missing the field is not a result saying there is no passkey.
     function showSuccess(account, result) {
+      if (result && result.passkey_saved === false) showPasskeyOffer(account, result);
+      else finish(account, result && result.passkey_saved === true ? 'saved' : null);
+    }
+
+    function showPasskeyOffer(account, result) {
+      connectedAccount = account;
       hideStatus();
-      stepPicker.hidden = true;
-      stepCreds.hidden = true;
-      stepTwoFa.hidden = true;
+      // Where the key lands is the server's live answer (keystore or the
+      // 0600-file fallback), never a promise the widget makes on its own.
+      passkeyStorage.innerText = result.passkey_storage_description || 'your OS keystore';
+      passkeyInstance.innerText = (selectedInstance && selectedInstance.name) || 'MyChart';
+      registerPasskeyBtn.disabled = false;
+      registerPasskeyBtn.innerText = 'Set up passkey';
+      skipPasskeyBtn.disabled = false;
+      clearError(passkeyError);
+      showStep('passkey');
+      registerPasskeyBtn.focus();
+    }
+
+    // passkey: 'registered' — this widget just saved one; 'saved' — one was
+    // already on file; null — none, the user skipped the offer.
+    function finish(account, passkey) {
+      hideStatus();
+      showStep('done');
       successHost.innerText = account ? 'Linked to ' + account : '';
+      successPasskey.hidden = passkey !== 'registered';
+      successPasskey.innerText = passkey === 'registered'
+        ? 'Passkey saved. Future sign-ins skip the password and verification code.'
+        : '';
       successCard.classList.add('visible');
       // ui/message injects a user-role message so Claude resumes the original
-      // task immediately — the user doesn't have to type anything.
-      var hostMsg = account
-        ? 'My MyChart account at ' + account + ' is now connected. Please continue with my original request.'
-        : 'My MyChart account is now connected. Please continue with my original request.';
-      // The login tool recommends a passkey rather than registering one, and
-      // this widget is the recommended setup path — so carry the recommendation
-      // into the conversation instead of letting the GUI route swallow it.
-      // Compared against false rather than negated: a result missing the field
-      // is not a result saying there is no passkey.
-      if (result && result.passkey_saved === false) {
-        hostMsg += ' First, though: tell me whether you recommend setting up a passkey for this account,' +
-          ' what it changes about how I sign in, and where the key is stored — then wait for my answer' +
-          ' before registering anything.';
-      }
+      // task immediately — the user doesn't have to type anything. The offer
+      // has already been made here, so the message reports how it went rather
+      // than asking Claude to make it a second time.
+      var hostMsg = 'My MyChart account' + (account ? ' at ' + account : '') + ' is now connected';
+      if (passkey === 'registered') hostMsg += ' and a passkey is saved';
+      hostMsg += '.';
+      if (passkey === null) hostMsg += ' I chose not to set up a passkey right now, so do not offer one again.';
+      hostMsg += ' Please continue with my original request.';
       rpc('ui/message', {
         role: 'user',
         content: [{ type: 'text', text: hostMsg }],
@@ -852,6 +945,36 @@ const SETUP_UI_TEMPLATE = `
         verifyBtn.innerText = 'Verify Code';
       }
     };
+
+    // ── Step 4: register a passkey on the just-connected account ────────────
+    registerPasskeyBtn.onclick = async function () {
+      if (!connectedAccount) { finish(null, null); return; }
+      clearError(passkeyError);
+      registerPasskeyBtn.disabled = true;
+      skipPasskeyBtn.disabled = true;
+      registerPasskeyBtn.innerHTML = '<span class="loader"></span> Registering...';
+
+      try {
+        var result = await callTool('register_passkey', { account: connectedAccount });
+        if (result && result.registered === true) {
+          finish(connectedAccount, 'registered');
+          return;
+        }
+        // callTool flattens an isError result to its "Error: …" text; some
+        // instances refuse passkey registration from the portal, and that is
+        // the message they get. Skipping is still available beneath it.
+        var msg = typeof result === 'string' ? result : 'MyChart did not return a passkey.';
+        if (msg.indexOf('Error: ') === 0) msg = msg.slice(7);
+        showError(passkeyError, msg);
+      } catch (e) {
+        showError(passkeyError, 'Error: ' + (e && e.message ? e.message : e));
+      }
+      registerPasskeyBtn.disabled = false;
+      skipPasskeyBtn.disabled = false;
+      registerPasskeyBtn.innerText = 'Try again';
+    };
+
+    skipPasskeyBtn.onclick = function () { finish(connectedAccount, null); };
 
     // Clear the inline error as soon as the user starts correcting the input.
     usernameInput.addEventListener('input', function () { clearError(credsError); });

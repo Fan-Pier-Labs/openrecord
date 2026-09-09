@@ -30,6 +30,7 @@ import {
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
+  type FilePayload,
 } from '../../shared/capabilities';
 import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
@@ -70,6 +71,7 @@ export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filt
   (capability) =>
     capability.kind === 'read' &&
     !capability.rendersMedia &&
+    !capability.returnsFile &&
     acceptsPatientParam(capability) &&
     capability.params.every((param) => !param.required),
 );
@@ -298,7 +300,27 @@ export async function writeStudyImages(
   return written;
 }
 
-/** Run one capability against one session and print its JSON result. */
+/**
+ * The CLI's rendering of a `returnsFile` payload: the bytes written under
+ * `outputDir` as `fileName` (the scraper already made it a safe basename), a
+ * numeric suffix keeping a re-download from overwriting the first. Returns
+ * the path written.
+ */
+export async function writeFilePayload(payload: FilePayload, outputDir: string): Promise<string> {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  const { name, ext } = path.parse(path.basename(payload.fileName));
+  for (let attempt = 1; attempt <= 100; attempt++) {
+    const filePath = path.join(outputDir, attempt === 1 ? `${name}${ext}` : `${name}-${attempt}${ext}`);
+    try {
+      await fs.promises.writeFile(filePath, payload.bytes, { flag: 'wx' });
+      return filePath;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+  }
+  throw new Error(`Could not write ${payload.fileName} under ${outputDir} — 100 copies already exist.`);
+}
+
 /**
  * Run one capability against one session and print its JSON result.
  *
@@ -335,6 +357,14 @@ export async function runCapabilityAction(
     // executeCapability, never capability.run: the active-patient assertion
     // lives there, and it has to run for media capabilities too.
     const result = await executeCapability(session.request, capability.id, coerced, ctx);
+
+    if (capability.returnsFile) {
+      // A file payload becomes exactly that: the file, under --output (default: the current directory).
+      const { bytes, ...rest } = result as FilePayload;
+      const filePath = await writeFilePayload(result as FilePayload, path.resolve(outputDir ?? process.cwd()));
+      console.log(JSON.stringify({ filePath, sizeBytes: bytes.length, ...rest }, jsonSafeReplacer, 2));
+      return true;
+    }
 
     if (capability.rendersMedia) {
       // Media payloads become files on disk, never bytes in the terminal.

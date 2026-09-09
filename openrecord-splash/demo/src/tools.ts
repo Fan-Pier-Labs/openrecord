@@ -283,6 +283,12 @@ export const TOOL_SPECS: ToolSpec[] = [
     description: 'Every message in one conversation',
     args: { conversation_id: 'thread id from get_messages', instance: 'optional' },
   },
+  {
+    name: 'get_message_attachment',
+    group: 'Messaging',
+    description: 'Download one file attached to a message (a PDF, photo or other document). The file is saved on the user’s own device',
+    args: { conversation_id: 'thread id from get_messages', attachment_id: 'attachmentId from get_messages or get_message_thread', instance: 'optional' },
+  },
   { name: 'get_message_recipients', group: 'Messaging', description: 'Providers and departments that can receive a new message', args: { instance: 'optional' } },
   { name: 'get_message_topics', group: 'Messaging', description: 'Topics a new message can be filed under. send_message resolves the topic itself, so this is rarely needed', args: { instance: 'optional' } },
   {
@@ -977,7 +983,36 @@ const HANDLERS: Record<string, Handler> = {
         sentDate: message.date,
         messageBody: message.body,
         isFromPatient: matchesName(patientName, message.from),
+        attachments: clone(message.attachments ?? []),
       })),
+    };
+  },
+
+  /**
+   * The real product writes the file to the user's Downloads folder (and shows
+   * an image inline); a browser demo has no disk to write to, so it reports
+   * what would have been saved.
+   */
+  get_message_attachment: (s, args) => {
+    const conversationId = str(args, 'conversation_id');
+    if (!conversationId) return fail('conversation_id is required. Call get_messages for valid ids.');
+    const thread = s.messages.find((m) => m.id === conversationId);
+    if (!thread) return fail(`No conversation with id "${conversationId}". Call get_messages for valid ids.`);
+    const attachmentId = str(args, 'attachment_id');
+    const available = thread.messages.flatMap((m) => m.attachments ?? []);
+    const attachment = available.find((a) => a.attachmentId === attachmentId);
+    if (!attachment) {
+      const listed = available.length
+        ? `The attachments on that conversation are: ${available.map((a) => `${a.name} (attachment_id ${a.attachmentId})`).join(', ')}.`
+        : 'That conversation has no attachments.';
+      return fail(`No attachment "${attachmentId}" on conversation "${conversationId}". ${listed}`);
+    }
+    return {
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      savedTo: `~/Downloads/${attachment.name}`,
+      note: 'In the real product the file is written to the Downloads folder on the user’s own device; this demo has no disk, so nothing was saved.',
     };
   },
 

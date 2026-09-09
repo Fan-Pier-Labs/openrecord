@@ -189,7 +189,9 @@ export type InsurancePlan = {
   outOfPocketMax: string;
 };
 
-export type MessageEntry = { from: string; date: string; body: string };
+export type MessageAttachment = { attachmentId: string; name: string; mimeType: string; sizeBytes: number };
+
+export type MessageEntry = { from: string; date: string; body: string; attachments?: MessageAttachment[] };
 
 export type Conversation = {
   id: string;
