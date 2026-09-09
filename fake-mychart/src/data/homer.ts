@@ -1932,6 +1932,100 @@ export const billingPayments = {
   },
 };
 
+// The "Insurance benefits" card, keyed by the guarantor account's `detailsId`
+// — `api/billing-details/GetBenefitsSummary` takes that id as `guarantorId`,
+// so this endpoint is per billing account rather than per coverage.
+//
+// The bucket split mirrors what the live capture showed: `accountBucket`
+// entirely blank (empty-string amounts, `rollPeriod` the string "0") while
+// `patientBucket` carries the numbers. Keeping the blank side blank is what
+// makes a scraper that reads the wrong bucket fail here instead of in
+// production. `insuranceLimit` is the other observed case — a named
+// accumulator the payer populated nothing for.
+const blankBenefitBucket = {
+  isLimit: false,
+  type: '',
+  totalAmount: '',
+  usedAmount: '',
+  remainingAmount: '',
+  usedRatio: 0,
+  isTotalZero: false,
+  rollPeriodEndDate: '',
+  rollPeriod: '0',
+  numberOfPeriods: 0,
+  usedOnPrevLevel: '',
+};
+
+export const billingBenefits: Record<string, Record<string, unknown>> = {
+  'WP-BILLING-001': {
+    coverageName: 'Springfield Nuclear Power Plant Employee Health Plan (PPO)',
+    payerName: 'Springfield Mutual Health',
+    payerLogoBlobMagicId: 'WP-PAYER-LOGO-001',
+    lastUpdatedText: 'Last updated 1/15/2026',
+    benefitsPatientId: 'WP-BENEFITS-PAT-001',
+    helpText: 'These amounts come from your insurer and may not include your most recent visits.',
+    coverageId: 'WP-COVERAGE-SNPP-1',
+    queryKey: 'WP-BENEFITS-QUERY-001',
+    noCoverageAvailable: false,
+    hasAmbiguousCoverages: false,
+    hasRTEUpdateInProgress: false,
+    canAccessInsuranceHub: true,
+    canAccessInsuranceSummary: true,
+    canAccessCustomerService: true,
+    canAccessAnyLinks: true,
+    insuranceHubUrl: '/insurance-hub',
+    payerPhoneNumber: '555-0100',
+    showPhoneNumberAsAction: true,
+    showPhoneNumberAsTextOnly: false,
+    showInsuranceSummaryMessage: false,
+    deductible: {
+      type: 'Deductible',
+      network: 'In Network',
+      name: 'In-network deductible',
+      accountBucket: blankBenefitBucket,
+      patientBucket: {
+        isLimit: true,
+        type: 'Family',
+        totalAmount: '$2,000.00',
+        usedAmount: '$1,240.00',
+        remainingAmount: '$760.00',
+        usedRatio: 0.62,
+        isTotalZero: false,
+        rollPeriodEndDate: '12/31/2026',
+        rollPeriod: 'ConYear',
+        numberOfPeriods: 1,
+        usedOnPrevLevel: '',
+      },
+    },
+    moop: {
+      type: 'MOOP',
+      network: 'In Network',
+      name: 'In-network out-of-pocket maximum',
+      accountBucket: blankBenefitBucket,
+      patientBucket: {
+        isLimit: true,
+        type: 'Family',
+        totalAmount: '$6,000.00',
+        usedAmount: '$1,240.00',
+        remainingAmount: '$4,760.00',
+        usedRatio: 0.2067,
+        isTotalZero: false,
+        rollPeriodEndDate: '12/31/2026',
+        rollPeriod: 'ConYear',
+        numberOfPeriods: 1,
+        usedOnPrevLevel: '',
+      },
+    },
+    insuranceLimit: {
+      type: 'Limit',
+      network: 'In Network',
+      name: 'In-network benefit limit',
+      accountBucket: blankBenefitBucket,
+      patientBucket: blankBenefitBucket,
+    },
+  },
+};
+
 // ─── Letters ────────────────────────────────────────────────────────
 // Intentionally NOT in date order so getLetters can prove its newest-first
 // sort actually fires. The empty-dateISO entry exercises the

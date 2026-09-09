@@ -2,6 +2,7 @@
 
 import { fetchBillingRaw, billingProcessor, downloadBillingStatement } from '../../../scrapers/myChart/chart/bills/bills';
 import { fetchInsuranceRaw, insuranceProcessor } from '../../../scrapers/myChart/chart/insurance/insurance';
+import { fetchInsuranceBenefitsRaw, insuranceBenefitsProcessor } from '../../../scrapers/myChart/chart/insuranceBenefits/insuranceBenefits';
 import { fetchInsurancePayersRaw, insurancePayersProcessor } from '../../../scrapers/myChart/chart/insurancePayers/insurancePayers';
 import { requireStr } from '../args';
 import type { CapabilityImpl } from '../types';
@@ -33,12 +34,28 @@ export const BILLING_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_insurance',
     title: 'Insurance',
-    description: 'Insurance coverages on file.',
+    description:
+      'Insurance coverages on file: payer, plan, member and group numbers, effective dates. ' +
+      'Not the deductible or out-of-pocket maximum — those are get_insurance_benefits.',
     kind: 'read',
     group: 'Billing',
     params: [],
     run: (request) => fetchInsuranceRaw(request),
     processor: insuranceProcessor,
+  },
+  {
+    id: 'get_insurance_benefits',
+    title: 'Insurance benefits',
+    description:
+      'How much of the deductible and the out-of-pocket maximum has been used, how much is left, ' +
+      'and when each resets. MyChart keys these to a billing guarantor account rather than to a ' +
+      'coverage, so a patient with two accounts gets one set per account. For the coverages ' +
+      'themselves — payer, plan, member id — use get_insurance.',
+    kind: 'read',
+    group: 'Billing',
+    params: [],
+    run: (request) => fetchInsuranceBenefitsRaw(request),
+    processor: insuranceBenefitsProcessor,
   },
   {
     id: 'get_insurance_payers',

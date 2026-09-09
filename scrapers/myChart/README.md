@@ -37,6 +37,7 @@ token, then `POST` the endpoint(s) below it.
 | [`healthSummary/`](chart/healthSummary/) | `get_health_summary` | React `/app/health-summary` |
 | [`immunizations/`](chart/immunizations/) | `get_immunizations` | legacy `/Clinical/Immunizations` |
 | [`insurance/`](chart/insurance/) | `get_insurance` | legacy `/Insurance` |
+| [`insuranceBenefits/`](chart/insuranceBenefits/) | `get_insurance_benefits` | React `/api/billing-details` |
 | [`insurancePayers/`](chart/insurancePayers/) | `get_insurance_payers` | legacy `/Insurance` |
 | [`labs/`](chart/labs/) | `get_lab_results`, `get_imaging_results`, `download_imaging_study` | React `/app/test-results` |
 | [`letters/`](chart/letters/) | `get_letters`, `get_letter_details` | React `/app/letters` |

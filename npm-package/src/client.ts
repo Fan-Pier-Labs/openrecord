@@ -82,6 +82,7 @@ import { getBillingHistory, downloadBillingStatement } from '../../scrapers/myCh
 import { getCareTeam } from '../../scrapers/myChart/chart/careTeam/careTeam';
 import { getReferrals } from '../../scrapers/myChart/chart/referrals/referrals';
 import { getInsurance } from '../../scrapers/myChart/chart/insurance/insurance';
+import { getInsuranceBenefits } from '../../scrapers/myChart/chart/insuranceBenefits/insuranceBenefits';
 import { getInsurancePayers } from '../../scrapers/myChart/chart/insurancePayers/insurancePayers';
 import { getDocuments } from '../../scrapers/myChart/chart/documents/documents';
 import { getGoals } from '../../scrapers/myChart/chart/goals/goals';
@@ -495,6 +496,7 @@ export class MyChartClient {
   getCareTeam()           { return getCareTeam(this.req()); }
   getReferrals()          { return getReferrals(this.req()); }
   getInsurance()          { return getInsurance(this.req()); }
+  getInsuranceBenefits()  { return getInsuranceBenefits(this.req()); }
   getInsurancePayers()    { return getInsurancePayers(this.req()); }
   getDocuments()          { return getDocuments(this.req()); }
   getGoals()              { return getGoals(this.req()); }

@@ -38,6 +38,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 40587 | 3530 | 4175 | 1118 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
+| `get_insurance_benefits` | 34386 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19278 | 1225 | 875 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
@@ -15122,7 +15123,7 @@ Billing history and account balances.
 
 ### `get_insurance`
 
-Insurance coverages on file.
+Insurance coverages on file: payer, plan, member and group numbers, effective dates. Not the deductible or out-of-pocket maximum — those are get_insurance_benefits.
 
 <details>
 <summary><code>mode: raw</code> (2002 chars)</summary>
@@ -15367,6 +15368,532 @@ Insurance coverages on file.
     "CanViewInsHub": true,
     "IsInsHubOn": true
   }
+}
+```
+
+</details>
+
+---
+
+### `get_insurance_benefits`
+
+How much of the deductible and the out-of-pocket maximum has been used, how much is left, and when each resets. MyChart keys these to a billing guarantor account rather than to a coverage, so a patient with two accounts gets one set per account. For the coverages themselves — payer, plan, member id — use get_insurance.
+
+<details>
+<summary><code>mode: raw</code> (34386 chars)</summary>
+
+```json
+{
+  "requests": [
+    {
+      "path": "/api/billing-details/GetBenefitsSummary",
+      "method": "POST",
+      "requestBody": {
+        "guarantorId": "WP-BILLING-001",
+        "billingSystem": "WP-BILLING-CTX-001"
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "coverageName": "Springfield Nuclear Power Plant Employee Health Plan (PPO)",
+        "payerName": "Springfield Mutual Health",
+        "payerLogoBlobMagicId": "WP-PAYER-LOGO-001",
+        "lastUpdatedText": "Last updated 1/15/2026",
+        "benefitsPatientId": "WP-BENEFITS-PAT-001",
+        "helpText": "These amounts come from your insurer and may not include your most recent visits.",
+        "coverageId": "WP-COVERAGE-SNPP-1",
+        "queryKey": "WP-BENEFITS-QUERY-001",
+        "noCoverageAvailable": false,
+        "hasAmbiguousCoverages": false,
+        "hasRTEUpdateInProgress": false,
+        "canAccessInsuranceHub": true,
+        "canAccessInsuranceSummary": true,
+        "canAccessCustomerService": true,
+        "canAccessAnyLinks": true,
+        "insuranceHubUrl": "/insurance-hub",
+        "payerPhoneNumber": "555-0100",
+        "showPhoneNumberAsAction": true,
+        "showPhoneNumberAsTextOnly": false,
+        "showInsuranceSummaryMessage": false,
+        "deductible": {
+          "type": "Deductible",
+          "network": "In Network",
+          "name": "In-network deductible",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "0",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": true,
+            "type": "Family",
+            "totalAmount": "$2,000.00",
+            "usedAmount": "$1,240.00",
+            "remainingAmount": "$760.00",
+            "usedRatio": 0.62,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "12/31/2026",
+            "rollPeriod": "ConYear",
+            "numberOfPeriods": 1,
+            "usedOnPrevLevel": ""
+          }
+        },
+        "moop": {
+          "type": "MOOP",
+          "network": "In Network",
+          "name": "In-network out-of-pocket maximum",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "0",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": true,
+            "type": "Family",
+            "totalAmount": "$6,000.00",
+            "usedAmount": "$1,240.00",
+            "remainingAmount": "$4,760.00",
+            "usedRatio": 0.2067,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "12/31/2026",
+            "rollPeriod": "ConYear",
+            "numberOfPeriods": 1,
+            "usedOnPrevLevel": ""
+          }
+        },
+        "insuranceLimit": {
+          "type": "Limit",
+          "network": "In Network",
+          "name": "In-network benefit limit",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "0",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "0",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          }
+        }
+      }
+    },
+    {
+      "path": "/Billing/Details?ID=WP-BILLING-001&Context=WP-BILLING-CTX-001",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; h
+… (truncated; 24021 more characters)
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (3564 chars)</summary>
+
+## accounts (1)
+
+### accounts 1
+
+- **guarantorNumber**: 742
+- **patientName**: Homer Simpson
+- **coverageName**: Springfield Nuclear Power Plant Employee Health Plan (PPO)
+- **payerName**: Springfield Mutual Health
+- **lastUpdatedText**: Last updated 1/15/2026
+- **helpText**: These amounts come from your insurer and may not include your most recent visits.
+- **coverageId**: WP-COVERAGE-SNPP-1
+- **benefitsPatientId**: WP-BENEFITS-PAT-001
+- **queryKey**: WP-BENEFITS-QUERY-001
+- **noCoverageAvailable**: false
+- **hasAmbiguousCoverages**: false
+- **hasRTEUpdateInProgress**: false
+- **canAccessInsuranceHub**: true
+- **canAccessInsuranceSummary**: true
+- **canAccessCustomerService**: true
+- **canAccessAnyLinks**: true
+- **insuranceHubUrl**: /insurance-hub
+- **payerPhoneNumber**: 555-0100
+
+#### deductible
+
+- **type**: Deductible
+- **network**: In Network
+- **name**: In-network deductible
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: 0
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: true
+- **type**: Family
+- **totalAmount**: $2,000.00
+- **usedAmount**: $1,240.00
+- **remainingAmount**: $760.00
+- **totalAmountNumber**: 2000
+- **usedAmountNumber**: 1240
+- **remainingAmountNumber**: 760
+- **usedRatio**: 0.62
+- **isTotalZero**: false
+- **rollPeriodEndDate**: 12/31/2026
+- **rollPeriod**: ConYear
+- **numberOfPeriods**: 1
+- **usedOnPrevLevel**: (empty)
+
+#### moop
+
+- **type**: MOOP
+- **network**: In Network
+- **name**: In-network out-of-pocket maximum
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: 0
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: true
+- **type**: Family
+- **totalAmount**: $6,000.00
+- **usedAmount**: $1,240.00
+- **remainingAmount**: $4,760.00
+- **totalAmountNumber**: 6000
+- **usedAmountNumber**: 1240
+- **remainingAmountNumber**: 4760
+- **usedRatio**: 0.2067
+- **isTotalZero**: false
+- **rollPeriodEndDate**: 12/31/2026
+- **rollPeriod**: ConYear
+- **numberOfPeriods**: 1
+- **usedOnPrevLevel**: (empty)
+
+#### insuranceLimit
+
+- **type**: Limit
+- **network**: In Network
+- **name**: In-network benefit limit
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: 0
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: 0
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+- **hasNoBenefits**: false
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (1562 chars)</summary>
+
+## accounts (1)
+
+### accounts 1
+
+- **guarantorNumber**: 742
+- **patientName**: Homer Simpson
+- **payerName**: Springfield Mutual Health
+- **coverageName**: Springfield Nuclear Power Plant Employee Health Plan (PPO)
+- **lastUpdatedText**: Last updated 1/15/2026
+- **noCoverageAvailable**: false
+
+#### deductible
+
+- **name**: In-network deductible
+- **network**: In Network
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: Family
+- **totalAmount**: $2,000.00
+- **usedAmount**: $1,240.00
+- **remainingAmount**: $760.00
+- **rollPeriodEndDate**: 12/31/2026
+
+#### moop
+
+- **name**: In-network out-of-pocket maximum
+- **network**: In Network
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: Family
+- **totalAmount**: $6,000.00
+- **usedAmount**: $1,240.00
+- **remainingAmount**: $4,760.00
+- **rollPeriodEndDate**: 12/31/2026
+
+#### insuranceLimit
+
+- **name**: In-network benefit limit
+- **network**: In Network
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+- **hasNoBenefits**: false
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (2862 chars)</summary>
+
+```json
+{
+  "accounts": [
+    {
+      "guarantorNumber": "742",
+      "patientName": "Homer Simpson",
+      "coverageName": "Springfield Nuclear Power Plant Employee Health Plan (PPO)",
+      "payerName": "Springfield Mutual Health",
+      "lastUpdatedText": "Last updated 1/15/2026",
+      "helpText": "These amounts come from your insurer and may not include your most recent visits.",
+      "coverageId": "WP-COVERAGE-SNPP-1",
+      "benefitsPatientId": "WP-BENEFITS-PAT-001",
+      "queryKey": "WP-BENEFITS-QUERY-001",
+      "noCoverageAvailable": false,
+      "hasAmbiguousCoverages": false,
+      "hasRTEUpdateInProgress": false,
+      "canAccessInsuranceHub": true,
+      "canAccessInsuranceSummary": true,
+      "canAccessCustomerService": true,
+      "canAccessAnyLinks": true,
+      "insuranceHubUrl": "/insurance-hub",
+      "payerPhoneNumber": "555-0100",
+      "deductible": {
+        "type": "Deductible",
+        "network": "In Network",
+        "name": "In-network deductible",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "0",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": true,
+          "type": "Family",
+          "totalAmount": "$2,000.00",
+          "usedAmount": "$1,240.00",
+          "remainingAmount": "$760.00",
+          "totalAmountNumber": 2000,
+          "usedAmountNumber": 1240,
+          "remainingAmountNumber": 760,
+          "usedRatio": 0.62,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "12/31/2026",
+          "rollPeriod": "ConYear",
+          "numberOfPeriods": 1,
+          "usedOnPrevLevel": ""
+        }
+      },
+      "moop": {
+        "type": "MOOP",
+        "network": "In Network",
+        "name": "In-network out-of-pocket maximum",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "0",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": true,
+          "type": "Family",
+          "totalAmount": "$6,000.00",
+          "usedAmount": "$1,240.00",
+          "remainingAmount": "$4,760.00",
+          "totalAmountNumber": 6000,
+          "usedAmountNumber": 1240,
+          "remainingAmountNumber": 4760,
+          "usedRatio": 0.2067,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "12/31/2026",
+          "rollPeriod": "ConYear",
+          "numberOfPeriods": 1,
+          "usedOnPrevLevel": ""
+        }
+      },
+      "insuranceLimit": {
+        "type": "Limit",
+        "network": "In Network",
+        "name": "In-network benefit limit",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "0",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "0",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        }
+      }
+    }
+  ],
+  "hasNoBenefits": false,
+  "unavailable": []
 }
 ```
 

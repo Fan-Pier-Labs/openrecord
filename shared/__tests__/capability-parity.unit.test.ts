@@ -564,6 +564,7 @@ describe('npm library', () => {
       get_billing: 'getBillingHistory',
       download_billing_statement: 'downloadBillingStatement',
       get_insurance: 'getInsurance',
+      get_insurance_benefits: 'getInsuranceBenefits',
       get_insurance_payers: 'getInsurancePayers',
       get_care_team: 'getCareTeam',
       get_referrals: 'getReferrals',
