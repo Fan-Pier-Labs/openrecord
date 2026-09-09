@@ -77,7 +77,7 @@ import {
 import { sendReply, type SendReplyParams, type SendReplyResult } from '../../scrapers/myChart/chart/messages/sendReply';
 import { deleteMessage } from '../../scrapers/myChart/chart/messages/deleteMessage';
 
-import { getBillingHistory } from '../../scrapers/myChart/chart/bills/bills';
+import { getBillingHistory, downloadBillingStatement } from '../../scrapers/myChart/chart/bills/bills';
 
 import { getCareTeam } from '../../scrapers/myChart/chart/careTeam/careTeam';
 import { getReferrals } from '../../scrapers/myChart/chart/referrals/referrals';
@@ -488,6 +488,8 @@ export class MyChartClient {
 
   // ── Bills ───────────────────────────────────────────────────────────────
   getBillingHistory() { return getBillingHistory(this.req()); }
+  /** One statement's PDF bytes, by the `RecordID` from {@link getBillingHistory}. */
+  downloadBillingStatement(recordId: string) { return downloadBillingStatement(this.req(), recordId); }
 
   // ── Care coordination ──────────────────────────────────────────────────
   getCareTeam()           { return getCareTeam(this.req()); }
