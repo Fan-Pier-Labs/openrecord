@@ -54,14 +54,12 @@ Health maintenance — the screenings and vaccines that are due, overdue or done
   failed request, an error `Text` or an envelope without the key is named in `unavailable`
   instead of being flattened to an empty list.
 
-- **The HTML parser is kept as a fallback**, for an instance that still renders the table
-  server-side. No captured instance does (`n = 1`), so it has no integration coverage and
-  the fake serves the shell; it is reached only when `GetTopics` did not answer, and it
-  fills only the fields a table row can prove — under the names `GetTopics` uses for the
-  same facts, so a caller reads either source the same way. It parses rows first (one
-  `<tr>` is one screening) and falls back to line pairing, rejecting column headers, status
-  badges, `Previously done:` lines and bare dates as screening names, so it cannot invent a
-  record out of page chrome.
+- **There is no HTML parser.** One survived the rewrite as a fallback "for an instance that
+  still renders the table server-side" — but no such instance has ever been captured, so it
+  could only ever produce items from a page shape nobody has seen, which is the same class
+  of answer this scraper exists to stop giving. `unavailable` is the honest answer when the
+  endpoint does not answer. If a server-rendered instance turns up, its capture says what
+  to write.
 
 ### Sample size
 
@@ -114,7 +112,3 @@ HealthAdvisorySettings }`.
 | `items[].StatusCode`, `CareGapType`, `TopicId`, the `…ISO` dates, `FormattedDoneDates`, `FormattedLastCompletedDate`, `FormattedPostponedDate`, `FormattedLastRequestedDate`, the `Can…` / `Is…` / `Has…` flags, `ContentLink*`, `OrderId`, `OrderTicketId`, `Sched*`, `UpdateInformation` | The rest of the topic | — | ✓ | — | Pass-through: history, scheduling and attestation detail. Detail, so out of concise. |
 | `settings` | `HealthAdvisorySettings` — the activity's appointment-scheduling context | — | ✓ | — | Pass-through. Chrome for the scheduling buttons, not the record. |
 | `unavailable[]` | The paths that did not answer | ✓ | ✓ | ✓ | Derived. Non-empty means the item list is *not known*, not empty. In concise too: it is the difference between "nothing due" and "nothing read". |
-
-When the fallback ran, an item carries only what a table row proves — `Name`, `dueStatus`,
-`FormattedDueDate`, `FormattedLastDoneDate`, `FormattedDoneDates` — and `unavailable` names
-`GetTopics`.

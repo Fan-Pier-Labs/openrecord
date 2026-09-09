@@ -259,7 +259,7 @@ active-patient restore; there is no session to keep.
 | `healthSummary.ts`, `medications.ts`, `allergies.ts`, `healthIssues.ts`, `immunizations.ts`, `medicalHistory.ts`, `goals.ts`, `letters.ts`, `documents.ts`, `referrals.ts`, `upcomingOrders.ts`, `questionnaires.ts`, `careJourneys.ts`, `activityFeed.ts`, `educationMaterials.ts`, `ehiExport.ts`, `otherMyCharts.ts`, `emergencyContacts.ts`, `careTeam.ts`, `notes.ts` (list) | The field projection into the local `type`. |
 | `vitals.ts` | Regrouping readings by row, page de-duplication, `readingValue`. Paging stays. |
 | `insurance.ts`, `bills.ts` (summary cards) | HTML parsing. |
-| `preventiveCare.ts` | HTML parsing — now only the fallback for an instance that renders advisories server-side; the payload is `HealthAdvisories/GetTopics`. |
+| `preventiveCare.ts` | HTML parsing — deleted outright. The page carries no advisories on any captured instance; the payload is `HealthAdvisories/GetTopics`. |
 | `visits/visits.ts` | Per-organization page merge, `visitTimestamp`. Paging stays. |
 | `labs/labResults.ts` | `dropUnusableAbnormalFlags`, nesting the report and trend bodies onto the order, imaging classification, narrative lifting, FDI extraction and `image_id` encoding. The SAML fetch stays in the scraper (it is a request). |
 | `messages/messageThreads.ts` | Ascending merge of pages, `senderName`, `isPatientAuthor`, the `ThreadMessage` rename. Paging stays. |

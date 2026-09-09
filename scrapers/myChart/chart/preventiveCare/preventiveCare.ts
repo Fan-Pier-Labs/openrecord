@@ -10,7 +10,6 @@ import {
 export type { PreventiveCareStandard, PreventiveCareItemStandard, PreventiveCareStatus } from './preventiveCare.processor';
 export {
   preventiveCareProcessor,
-  parsePreventiveCareHtml,
   statusFromCode,
   ADVISORIES_PAGE_PATH,
   GET_TOPICS_PATH,
@@ -38,10 +37,11 @@ export {
  * `registryID` is sent as the controller sends it rather than trimmed to what
  * one instance ignores.
  *
- * The failure is tolerated rather than thrown so the processor can still try
- * the page, for an instance that renders the table server-side; it reports
- * `unavailable: ['/HealthAdvisories/GetTopics']` when neither answered, so an
- * unread page can never come back as a chart with nothing due.
+ * The failure is tolerated rather than thrown so the answer is a named gap
+ * rather than an exception: the processor reports
+ * `unavailable: ['/HealthAdvisories/GetTopics']`, which a caller can tell apart
+ * from a chart with nothing due. The page is fetched only for its token —
+ * there is nothing else on it to read.
  */
 export async function fetchPreventiveCareRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
