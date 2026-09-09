@@ -211,8 +211,11 @@ for (const mode of MOUNT_MODES) {
           .flatMap((fs) => fs.readings)
           .find((r) => r.rowId === rowId && r.instantTakenIso?.startsWith(day))!.value
       }
+      // Weight arrives in ounces and height in inches; `value` is in the row's
+      // display unit, the way the MyChart UI shows it.
       expect(valueOn('Weight', '2026-01-10')).toBe('260')
       expect(valueOn('Weight', '2026-03-14')).toBe('252')
+      expect(valueOn('Height', '2026-01-10')).toBe(`6' 0"`)
       expect(valueOn('Pulse', '2026-01-10')).toBe('88')
       expect(valueOn('Blood Pressure', '2026-01-10')).toBe('145/95')
     }, 10_000)
