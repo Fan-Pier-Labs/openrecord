@@ -92,6 +92,13 @@ export interface BillingCoverageInfoStandard {
 export interface BillingVisitStandard {
   /** Derived: which `GetVisits` list the row came from. */
   category: BillingVisitCategory;
+  /**
+   * Derived from `LevelOfDetailLoaded`: whether MyChart actually populated
+   * this row, or sent the unhydrated stub the activity fills in on demand.
+   * `false` means every amount on the row is a placeholder, not a balance —
+   * see {@link isDetailLoaded}.
+   */
+  detailLoaded: boolean | null;
   StartDateDisplay: string | null;
   DateRangeDisplay: string | null;
   Description: string | null;
@@ -175,6 +182,14 @@ export interface BillingAccountStandard {
   paymentUrl: string | null;
   /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
   visits: BillingVisitStandard[];
+  /**
+   * Derived from `Data.ShowingAll`: whether MyChart returned the account's
+   * whole charge history. `false` means it paged, which is the condition
+   * under which the rows past the first page arrive unhydrated — so a
+   * reader that sees `false` should expect `detailLoaded: false` rows and
+   * must not treat the list as a complete ledger.
+   */
+  showingAllVisits: boolean | null;
   VisitListAmount: string | null;
   BadDebtVisitListAmount: string | null;
   PaymentPlanVisitListAmount: string | null;
@@ -220,6 +235,33 @@ export interface BillingStandard {
 
 function scalarOrNull(value: unknown): string | number | null {
   return typeof value === 'string' || typeof value === 'number' ? value : null;
+}
+
+/**
+ * Whether `GetVisits` populated a charge row, read off `LevelOfDetailLoaded`.
+ *
+ * Epic pages this endpoint and lazy-loads the rows past the first page: the
+ * activity renders them collapsed and hydrates one when the patient expands
+ * it. An unhydrated row is not empty, it is *fabricated* — `Description` is
+ * the `"{VisitType} at {Facility}"` template rendered with both slots blank
+ * (`"Visit at "`), `ProcedureList` is empty, `HospitalAccountId` is an
+ * encrypted handle rather than the HAR number, and every amount, including
+ * `ChargeAmount` and `SelfAmountDue`, is the string `"$0.00"`.
+ *
+ * That last part is why this exists. A placeholder `"$0.00"` is
+ * indistinguishable from a genuinely settled visit, so anything summing a
+ * charge column silently undercounts rather than visibly failing. One real
+ * instance answered with 25 such rows out of 45 (`ShowingAll: false`), and a
+ * visit charged several hundred dollars was among the ones reported as zero.
+ *
+ * Only two levels have been observed — `0` on every stub and `2` on every
+ * populated row — so the test is against the `0` sentinel rather than a
+ * guess at what a middle value would mean. `null` when the instance sent no
+ * such field, which is "not known", not "not loaded".
+ */
+export function isDetailLoaded(levelOfDetailLoaded: unknown): boolean | null {
+  const level = num(levelOfDetailLoaded);
+  return level === null ? null : level > 0;
 }
 
 export function payment(value: unknown): BillingPaymentStandard {
@@ -285,6 +327,7 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
   const agency = rec(v.AgencyInformation);
   return {
     category,
+    detailLoaded: isDetailLoaded(v.LevelOfDetailLoaded),
     StartDateDisplay: textOrNull(v.StartDateDisplay),
     DateRangeDisplay: textOrNull(v.DateRangeDisplay),
     Description: textOrNull(v.Description),
@@ -409,6 +452,7 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
     amountDueNumber: source.amountDue ?? null,
     paymentUrl: paymentPathFor(raw, source),
     visits: mergeVisitLists(data),
+    showingAllVisits: boolOrNull(data.ShowingAll),
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
     PaymentPlanVisitListAmount: textOrNull(data.PaymentPlanVisitListAmount),
@@ -463,7 +507,9 @@ export const billingProcessor: Processor<BillingStandard> = {
         guarantorNumber: a.guarantorNumber,
         patientName: a.patientName,
         amountDueNumber: a.amountDueNumber,
+        showingAllVisits: a.showingAllVisits,
         visits: a.visits.map((v) => ({
+          detailLoaded: v.detailLoaded,
           StartDateDisplay: v.StartDateDisplay,
           DateRangeDisplay: v.DateRangeDisplay,
           Description: v.Description,

@@ -54,6 +54,20 @@ Every URL carries `noCache=<random>`.
   The processor merges them and de-duplicates on
   (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`), keeping which list
   a row came from as `category` — "bad debt" and "payment plan" change what a charge means.
+- **`GetVisits` pages, and the rows past the first page come back unhydrated.** Epic's
+  activity renders them collapsed and loads one when the patient expands it, so what the
+  scraper receives is a stub: `Description` is the `"{VisitType} at {Facility}"` template
+  with both slots blank (`"Visit at "`), `ProcedureList` and `CoverageInfoList` are null,
+  `HospitalAccountId` is an encrypted handle instead of the HAR number, and **every amount
+  is the string `"$0.00"`** — including on a visit that was charged hundreds of dollars.
+  The service date is real; only the detail is missing. A live instance answered with 25
+  such rows out of 45, alongside `ShowingAll: false`. A fabricated `"$0.00"` is
+  indistinguishable from a settled balance, so anything summing a charge column silently
+  undercounts; the processor therefore derives `detailLoaded` from `LevelOfDetailLoaded`
+  (`0` on every stub, `2` on every populated row) and `showingAllVisits` from `ShowingAll`.
+  The stubs are **kept**, not dropped — they are real visits whose detail MyChart withheld,
+  and Epic's own UI lists them. Hydrating one is unimplemented; the encrypted
+  `HospitalAccountId` is presumably its key.
 - Statements arrive in **two lists** (`DataStatement` and `DataDetailBill`); they are
   merged with `IsDetailBill` telling them apart. Both download the same way.
 - **The statement PDF needs five keys from two places.** Four ride on the statement row
@@ -100,6 +114,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `guarantorNumber`, `patientName` | From the card header | ✓ | ✓ | ✓ | Derived from the summary HTML. Which account and whose. |
 | `amountDueNumber` | Card balance, parsed | ✓ | ✓ | ✓ | Derived. What is owed. |
+| `showingAllVisits` | Whether MyChart returned the account's whole charge history | ✓ | ✓ | ✓ | Derived from `Data.ShowingAll`. `false` means it paged, which is when unhydrated rows appear — a reader must not treat the list as a complete ledger. |
 | `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
@@ -110,6 +125,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `UnifiedVisitList[]`, `VisitList[]`, `InformationalVisitList[]`, `NoBalanceVisitList[]`, `BadDebtVisitList[]`, `PaymentPlanVisitList[]`, `AdvanceBillVisitList[]`, `ContestedVisitList[]`, `AdjustmentVisitList[]` | The charge lists; overlapping across releases | ✓ | merged into one `visits[]`, de-duplicated on (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`) | same | Derived merge (#380). Reading one list loses charges on whichever release does not populate it; reading all double-counts. |
 | `category` | Which list the row came from | ✓ | ✓ | ✓ | Derived. "Bad debt" and "payment plan" change what a charge means. |
+| `detailLoaded` | Whether MyChart populated this row, or sent the collapsed stub it fills in on demand | ✓ | ✓ | ✓ | Derived from `LevelOfDetailLoaded`. `false` means every amount on the row is a placeholder `"$0.00"`, not a balance — without it a paged history reads as a pile of settled visits. In concise because that is the mode the model-facing clients read. |
 | `NotPaymentPlanVisitList[]`, `VisitAutoPayVisitList[]` | Filtered views of rows already in the others | — | — | — | Duplicate. |
 | `*VisitListAmount`, `PaymentPlanVisitListAutoPayAmount`, `PaymentPlanVisitListScheduledDate`, `EstimatedPaymentPlanBalance`, `PaymentPlanVisitListPostResolutionAmount` | Per-list totals | — | ✓ | — | Totals as MyChart computed them; detail. |
 | `CanMakePayment`, `HasUnconvertedPBVisits`, `HasVisits` | Account state | — | ✓ | — | Whether online payment is possible; detail. |
@@ -118,7 +134,7 @@ Account (from the summary HTML and the join):
 | `UndistributedPayments[]` | Payments not yet applied | — | ✓ | — | Uncaptured; passed through. |
 | `SharedAgencyInformation.Name`, `.PhoneNumber` | Collections agency | — | ✓ | — | A patient in collections wants to know; detail. |
 | `URLMakePayment` | The pay-online link for this account | — | ✓ | — | A portal link by class, kept anyway (rule 4, with the reason here): it is how a patient pays a bill from the app, not a button MyChart's page renders. The Expo bill alert deep-links to it. Reviewed in #388. |
-| `Success`, `ShowingAll`, `CanEditPaymentPlan`, `URLEditPaymentPlan`, `Filters`, `BillingSystem`, `billType`, `IsStatement`, `StatementDisplayDate`, `ShouldShowADACopyright` | Page config | — | — | — | UI flag / portal link / internal. |
+| `Success`, `CanEditPaymentPlan`, `URLEditPaymentPlan`, `Filters`, `BillingSystem`, `billType`, `IsStatement`, `StatementDisplayDate`, `ShouldShowADACopyright` | Page config | — | — | — | UI flag / portal link / internal. |
 
 Per charge (each visit row):
 
@@ -148,7 +164,8 @@ Per charge (each visit row):
 | `CoverageInfoList[].CoverageName`, `.Billed`, `.Covered`, `.PendingInsurance`, `.RemainingResponsibility`, `.Copay`, `.Deductible`, `.Coinsurance`, `.NotCovered`, `.Benefits[].Name`, `.Amount` | Explanation of benefits | — | ✓ | — | Detail. |
 | `CoverageInfoList[].ShowInsuranceCoveredHelp`, `.ShowInsurancePendingHelp`, `ShowCoverageHelp`, `ShowInsurancePendingHelp`, `ShowInsuranceCoveredHelp` | Help-icon flags | — | — | — | UI flag. |
 | `VisitAutoPay`, `ShowVisitAutoPay`, `CanAddToPaymentPlan` | Auto-pay enrollment UI | — | — | — | UI flag. |
-| `GroupType`, `Index`, `BillingSystem`, `BillingSystemDisplay`, `IsSBO`, `ProviderId`, `IsLTCSeries`, `LevelOfDetailLoaded`, `IsExpanded`, `BlockExpanding`, `AlwaysShowDetails`, `SuppressDayFromDate`, `SuppressProcedureAmount`, `AdjustmentSuppressionSetting`, `StartDateAccessibleText` | Rendering and ids | — | — | — | UI flag / internal. |
+| `LevelOfDetailLoaded` | How much of the row MyChart loaded | — | — | — | Source of the derived `detailLoaded`, which is what the other modes carry. |
+| `GroupType`, `Index`, `BillingSystem`, `BillingSystemDisplay`, `IsSBO`, `ProviderId`, `IsLTCSeries`, `IsExpanded`, `BlockExpanding`, `AlwaysShowDetails`, `SuppressDayFromDate`, `SuppressProcedureAmount`, `AdjustmentSuppressionSetting`, `StartDateAccessibleText` | Rendering and ids | — | — | — | UI flag / internal. |
 | `StartDate`, `StartDayOfMonth`, `StartMonth`, `StartYear` | Epic day count and split renderings of `StartDateDisplay` | — | — | — | Internal / duplicate. |
 
 Statements (`DataStatement.StatementList[]` and `DataDetailBill.StatementList[]`,
