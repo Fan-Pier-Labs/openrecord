@@ -188,10 +188,15 @@ export const healthSummaryHeader = {
 // Real MyChart splits this across two endpoints: GetFlowsheets returns the
 // flowsheet DEFINITION (rows, episodeId) with an always-empty `readings`,
 // and GetFlowsheetReadings returns the actual values keyed by rowId.
+// `numericValue` is Epic's base unit, not the display unit: Weight rows carry
+// OUNCES beside `unitsDisplayName: 'lbs'` and Height rows INCHES beside `'ft'`
+// (real capture, see scrapers/myChart/chart/vitals/README.md). Pulse carries
+// no units field at all — the key is absent, not empty.
 const VITALS_ROWS = [
   { id: 'row-bp', name: 'Blood Pressure', rowType: '1', valueType: '4', unitsDisplayName: 'mmHg', decimalPlaces: 0 },
   { id: 'row-hr', name: 'Pulse', rowType: '1', valueType: '1', decimalPlaces: 0 },
   { id: 'row-wt', name: 'Weight', rowType: '1', valueType: '5', units: '6', unitsDisplayName: 'lbs', decimalPlaces: 0 },
+  { id: 'row-ht', name: 'Height', rowType: '1', valueType: '6', units: '7', unitsDisplayName: 'ft', decimalPlaces: 0 },
 ];
 
 // GetFlowsheets response — definition only, `readings` empty (matches real MyChart)
@@ -233,10 +238,11 @@ export const vitalsReadings = {
       // The weight the Lose 50 lbs goal records on the same date. A goal
       // reading with no flowsheet reading behind it is the fixture holding a
       // number in one endpoint and denying it in another.
-      { id: 'rd-wt-2', fsdId: 'fsd-4', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-03-14T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 252, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-wt-2', fsdId: 'fsd-4', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-03-14T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 4032, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' }, // 252 lb
       { id: 'rd-bp-1', fsdId: 'fsd-1', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: true, documentationSource: '34000', stringValue: '145/95', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
       { id: 'rd-hr-1', fsdId: 'fsd-1', rowId: 'row-hr', valueType: '1', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 88, dataType: '32005', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
-      { id: 'rd-wt-1', fsdId: 'fsd-1', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 260, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      { id: 'rd-wt-1', fsdId: 'fsd-1', rowId: 'row-wt', valueType: '5', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 4160, units: '6', dataType: '32001', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' }, // 260 lb
+      { id: 'rd-ht-1', fsdId: 'fsd-1', rowId: 'row-ht', valueType: '6', entryType: 'clinical', instantTakenIso: '2026-01-10T09:00:00', isAbnormal: false, documentationSource: '34000', numericValue: 72, units: '7', dataType: '32000', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' }, // 6' 0"
       { id: 'rd-bp-2', fsdId: 'fsd-2', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-07-15T10:30:00', isAbnormal: true, documentationSource: '34002', stringValue: '150/98', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
       { id: 'rd-bp-3', fsdId: 'fsd-3', rowId: 'row-bp', valueType: '4', entryType: 'clinical', instantTakenIso: '2025-01-20T08:15:00', isAbnormal: false, documentationSource: '34002', stringValue: '142/92', dataType: '32105', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
     ],
@@ -2140,11 +2146,72 @@ export const referrals = {
 };
 
 // ─── Preventive Care ────────────────────────────────────────────────
-export const preventiveCare = [
-  { name: 'Colonoscopy', status: 'overdue', date: '01/01/2024' },
-  { name: 'Influenza Vaccine', status: 'due', date: '10/01/2026' },
-  { name: 'Lipid Panel', status: 'completed', date: '01/10/2026' },
-];
+// The `HealthAdvisories/GetTopics` envelope (`realShapes.healthAdvisoriesGetTopics`).
+// The activity page itself is a client-rendered shell on the captured instance,
+// so this — not any markup — is where the advisories live.
+//
+// Three topics covering the three `StatusCode` values a chart with history
+// shows: overdue with a due date and one prior completion, not-due with a
+// future due date, and satisfied. `DueDateOverride` is 'Due' on the overdue
+// one, as the capture has it for a topic whose due date is in the past.
+export const preventiveCare = {
+  HealthAdvisoryViewModelList: [
+    {
+      TopicId: '32',
+      CareGapType: '10',
+      Name: 'Colonoscopy',
+      StatusCode: '100_OVERDUE',
+      Status: 'Overdue',
+      DueDateISO: '2024-01-01',
+      FormattedDueDate: 'January 1, 2024',
+      DueDateOverride: 'Due',
+      LastDoneDateISO: '2014-01-01',
+      FormattedLastDoneDate: 'January 1, 2014',
+      LastCompletedDateISO: '2014-01-01',
+      FormattedLastCompletedDate: 'January 1, 2014',
+      FormattedDoneDates: ['January 1, 2014'],
+      ActionDateISO: '2024-01-01',
+      IsActionable: true,
+      CanRequestAppointment: true,
+      ContentLinkURL: 'https://healthwise.example.org/colonoscopy',
+      ContentLinkTarget: '_blank',
+    },
+    {
+      TopicId: '9',
+      CareGapType: '22',
+      Name: 'Influenza Vaccine',
+      StatusCode: '500_NOTDUE',
+      Status: 'Not due',
+      DueDateISO: '2026-10-01',
+      FormattedDueDate: 'October 1, 2026',
+      LastDoneDateISO: '2025-10-05',
+      FormattedLastDoneDate: 'October 5, 2025',
+      LastCompletedDateISO: '2025-10-05',
+      FormattedLastCompletedDate: 'October 5, 2025',
+      FormattedDoneDates: ['October 5, 2025'],
+      ContentLinkURL: 'https://healthwise.example.org/influenza-vaccine',
+      ContentLinkTarget: '_blank',
+    },
+    {
+      TopicId: '25',
+      CareGapType: '31',
+      Name: 'Lipid Panel',
+      StatusCode: '700_SATISFIED',
+      Status: 'Completed',
+      LastDoneDateISO: '2026-01-10',
+      FormattedLastDoneDate: 'January 10, 2026',
+      LastCompletedDateISO: '2026-01-10',
+      FormattedLastCompletedDate: 'January 10, 2026',
+      FormattedDoneDates: ['January 10, 2026', 'January 12, 2024'],
+      ContentLinkURL: 'https://healthwise.example.org/lipid-panel',
+      ContentLinkTarget: '_blank',
+    },
+  ],
+  HealthAdvisorySettings: {
+    HasApptDetailsSecurity: true,
+    HasUpcomingApptSecurity: true,
+  },
+};
 
 // ─── Documents ──────────────────────────────────────────────────────
 export const documents = {

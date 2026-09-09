@@ -211,8 +211,11 @@ for (const mode of MOUNT_MODES) {
           .flatMap((fs) => fs.readings)
           .find((r) => r.rowId === rowId && r.instantTakenIso?.startsWith(day))!.value
       }
+      // Weight arrives in ounces and height in inches; `value` is in the row's
+      // display unit, the way the MyChart UI shows it.
       expect(valueOn('Weight', '2026-01-10')).toBe('260')
       expect(valueOn('Weight', '2026-03-14')).toBe('252')
+      expect(valueOn('Height', '2026-01-10')).toBe(`6' 0"`)
       expect(valueOn('Pulse', '2026-01-10')).toBe('88')
       expect(valueOn('Blood Pressure', '2026-01-10')).toBe('145/95')
     }, 10_000)
@@ -266,13 +269,25 @@ for (const mode of MOUNT_MODES) {
       expect(result.socialHistory.smokingHistory).toHaveProperty('smokingTobaccoStatus')
     }, 10_000)
 
-    it('getPreventiveCare returns one item per screening, none run together', async () => {
+    it('getPreventiveCare reads the topics from GetTopics, not from the shell page', async () => {
       const result = await getPreventiveCare(session)
-      expect(result.items).toEqual([
-        { name: 'Colonoscopy', status: 'overdue', overdueSince: '01/01/2024', notDueUntil: '', previouslyDone: [], completedDate: '' },
-        { name: 'Influenza Vaccine', status: 'not_due', overdueSince: '', notDueUntil: '10/01/2026', previouslyDone: [], completedDate: '' },
-        { name: 'Lipid Panel', status: 'completed', overdueSince: '', notDueUntil: '', previouslyDone: [], completedDate: '01/10/2026' },
+      expect(result.unavailable).toEqual([])
+      expect(result.items.map(i => [i.Name, i.dueStatus])).toEqual([
+        ['Colonoscopy', 'overdue'],
+        ['Influenza Vaccine', 'not_due'],
+        ['Lipid Panel', 'satisfied'],
       ])
+      // Every field of the captured envelope survives, including the ones the
+      // fixture leaves at the skeleton's neutral default.
+      expect(result.items[0]).toMatchObject({
+        TopicId: '32',
+        StatusCode: '100_OVERDUE',
+        Status: 'Overdue',
+        FormattedDueDate: 'January 1, 2024',
+        FormattedDoneDates: ['January 1, 2014'],
+        SchedAppointmentCSN: '',
+      })
+      expect(result.settings).toMatchObject({ HasApptDetailsSecurity: true })
     }, 10_000)
 
     it('getLetters returns letters sorted newest-first with undated last', async () => {

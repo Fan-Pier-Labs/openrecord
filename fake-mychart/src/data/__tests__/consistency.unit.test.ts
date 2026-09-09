@@ -116,7 +116,10 @@ describe('homer fixture, across endpoints', () => {
       // holding a number in one endpoint and denying it in another.
       const day = reading.instantTakenIso.slice(0, 10);
       const match = readings.find((r) => r.rowId === 'row-wt' && r.instantTakenIso.startsWith(day));
-      expect({ day, value: match?.numericValue }).toEqual({ day, value: reading.numericValue });
+      // Track My Health stores weight in ounces beside a `lbs` display unit
+      // (verified on a real instance); the goal reading's unit is uncaptured
+      // and the fixture keeps it in pounds.
+      expect({ day, value: match && match.numericValue / 16 }).toEqual({ day, value: reading.numericValue });
     }
   });
 
