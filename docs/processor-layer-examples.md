@@ -44,7 +44,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
-| `get_documents` | 25309 | 10173 | 4944 | 1958 |
+| `get_documents` | 32572 | 17436 | 20096 | 1595 |
 | `get_upcoming_orders` | 557 | 427 | 381 | 353 |
 | `get_questionnaires` | 1634 | 1455 | 1957 | 538 |
 | `get_care_journeys` | 228 | 228 | 264 | 264 |
@@ -16964,7 +16964,7 @@ Plan: Continue current medications. Referred to weight management program. Follo
 Clinical documents and visit records.
 
 <details>
-<summary><code>mode: raw</code> (25309 chars)</summary>
+<summary><code>mode: raw</code> (32572 chars)</summary>
 
 ```json
 {
@@ -16981,11 +16981,11 @@ Clinical documents and visit records.
         "documents": [
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-001",
-            "docID": "WP-DOC-001",
+            "dcsID": "WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D",
+            "docID": "WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D",
             "date": "1/10/2026",
             "dateRaw": "67580",
-            "dat": "WP-001A",
+            "dat": "WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "After Visit Summary",
@@ -17000,11 +17000,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "3",
-            "dcsID": "WP-DCS-002",
-            "docID": "WP-DOC-002",
+            "dcsID": "WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D",
+            "docID": "WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D",
             "date": "11/4/2025",
             "dateRaw": "67513",
-            "dat": "WP-002A",
+            "dat": "WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D",
             "docExt": "HTML",
             "docDesc": "",
             "docType": "Consent - Procedure",
@@ -17019,11 +17019,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "185",
-            "dcsID": "WP-DCS-003",
-            "docID": "WP-DOC-003",
+            "dcsID": "WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D",
+            "docID": "WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D",
             "date": "9/18/2025",
             "dateRaw": "67466",
-            "dat": "WP-003A",
+            "dat": "WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D",
             "docExt": "JPG",
             "docDesc": "Front and back",
             "docType": "Insurance Card",
@@ -17038,11 +17038,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-004",
-            "docID": "WP-DOC-004",
+            "dcsID": "WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D",
+            "docID": "WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D",
             "date": "6/2/2025",
             "dateRaw": "67358",
-            "dat": "WP-004A",
+            "dat": "WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D",
             "docExt": "TIF",
             "docDesc": "",
             "docType": "Outside Records",
@@ -17057,11 +17057,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-005",
-            "docID": "WP-DOC-005",
+            "dcsID": "WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D",
+            "docID": "WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D",
             "date": "5/15/2025",
             "dateRaw": "67340",
-            "dat": "WP-005A",
+            "dat": "WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17076,11 +17076,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-006",
-            "docID": "WP-DOC-006",
+            "dcsID": "WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D",
+            "docID": "WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D",
             "date": "4/15/2025",
             "dateRaw": "67310",
-            "dat": "WP-006A",
+            "dat": "WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17095,11 +17095,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-007",
-            "docID": "WP-DOC-007",
+            "dcsID": "WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D",
+            "docID": "WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D",
             "date": "3/15/2025",
             "dateRaw": "67279",
-            "dat": "WP-007A",
+            "dat": "WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17114,11 +17114,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-008",
-            "docID": "WP-DOC-008",
+            "dcsID": "WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D",
+            "docID": "WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D",
             "date": "2/15/2025",
             "dateRaw": "67251",
-            "dat": "WP-008A",
+            "dat": "WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17133,11 +17133,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-009",
-            "docID": "WP-DOC-009",
+            "dcsID": "WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D",
+            "docID": "WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D",
             "date": "1/15/2025",
             "dateRaw": "67220",
-            "dat": "WP-009A",
+            "dat": "WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17152,11 +17152,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-010",
-            "docID": "WP-DOC-010",
+            "dcsID": "WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D",
+            "docID": "WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D",
             "date": "12/15/2024",
             "dateRaw": "67189",
-            "dat": "WP-010A",
+            "dat": "WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17171,11 +17171,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-011",
-            "docID": "WP-DOC-011",
+            "dcsID": "WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D",
+            "docID": "WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D",
             "date": "11/15/2024",
             "dateRaw": "67159",
-            "dat": "WP-011A",
+            "dat": "WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17190,11 +17190,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-012",
-            "docID": "WP-DOC-012",
+            "dcsID": "WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D",
+            "docID": "WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D",
             "date": "10/15/2024",
             "dateRaw": "67128",
-            "dat": "WP-012A",
+            "dat": "WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17209,11 +17209,11 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-013",
-            "docID": "WP-DOC-013",
+            "dcsID": "WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D",
+            "docID": "WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D",
             "date": "9/15/2024",
             "dateRaw": "67098",
-            "dat": "WP-013A",
+            "dat": "WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D",
             "docExt": "PDF",
             "docDesc": "",
             "docType": "Visit Summary",
@@ -17228,209 +17228,633 @@ Clinical documents and visit records.
           },
           {
             "blobCat": "20",
-            "dcsID": "WP-DCS-014",
-            "docID": "WP-DOC-014",
-            "date": "8/15/2024",
-            "dateRaw": "67067",
-            "dat": "WP-014A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-DCS-015",
-            "docID": "WP-DOC-015",
-            "date": "7/15/2024",
-            "dateRaw": "67036",
-            "dat": "WP-015A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-DCS-016",
-            "docID": "WP-DOC-016",
-            "date": "6/15/2024",
-            "dateRaw": "67006",
-            "dat": "WP-016A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-DCS-017",
-            "docID": "WP-DOC-017",
-            "date": "5/15/2024",
-            "dateRaw": "66975",
-            "dat": "WP-017A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-DCS-018",
-            "docID": "WP-DOC-018",
-            "date": "4/15/2024",
-            "dateRaw": "66945",
-            "dat": "WP-018A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-DCS-019",
-            "docID": "WP-DOC-019",
-            "date": "3/15/2024",
-            "dateRaw": "66914",
-            "dat": "WP-019A",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID
-… (truncated; 20597 more characters)
+            "dcsID": "WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D",
+            "docID": "WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfS
+… (truncated; 27860 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (4944 chars)</summary>
+<summary><code>mode: standard</code> (20096 chars)</summary>
 
 ## documents (27)
 
-| dcsID | docID | docType | docDesc | docExt | date | dateRaw | dateISO | blobCat | dat | new | wasESigned | isExpired | downloadOnly | onlyAllowedPreview | pendingRequiredSignatures | pendingApprovalStatus | rejectionReasonFreetext |
-| - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| WP-DCS-001 | WP-DOC-001 | After Visit Summary | (empty) | PDF | 1/10/2026 | 67580 | 2026-01-10 | 20 | WP-001A | true | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-002 | WP-DOC-002 | Consent - Procedure | (empty) | HTML | 11/4/2025 | 67513 | 2025-11-04 | 3 | WP-002A | false | true | false | false | false | false | 0 | (empty) |
-| WP-DCS-003 | WP-DOC-003 | Insurance Card | Front and back | JPG | 9/18/2025 | 67466 | 2025-09-18 | 185 | WP-003A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-004 | WP-DOC-004 | Outside Records | (empty) | TIF | 6/2/2025 | 67358 | 2025-06-02 | 20 | WP-004A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-005 | WP-DOC-005 | Visit Summary | (empty) | PDF | 5/15/2025 | 67340 | 2025-05-15 | 20 | WP-005A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-006 | WP-DOC-006 | Visit Summary | (empty) | PDF | 4/15/2025 | 67310 | 2025-04-15 | 20 | WP-006A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-007 | WP-DOC-007 | Visit Summary | (empty) | PDF | 3/15/2025 | 67279 | 2025-03-15 | 20 | WP-007A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-008 | WP-DOC-008 | Visit Summary | (empty) | PDF | 2/15/2025 | 67251 | 2025-02-15 | 20 | WP-008A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-009 | WP-DOC-009 | Visit Summary | (empty) | PDF | 1/15/2025 | 67220 | 2025-01-15 | 20 | WP-009A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-010 | WP-DOC-010 | Visit Summary | (empty) | PDF | 12/15/2024 | 67189 | 2024-12-15 | 20 | WP-010A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-011 | WP-DOC-011 | Visit Summary | (empty) | PDF | 11/15/2024 | 67159 | 2024-11-15 | 20 | WP-011A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-012 | WP-DOC-012 | Visit Summary | (empty) | PDF | 10/15/2024 | 67128 | 2024-10-15 | 20 | WP-012A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-013 | WP-DOC-013 | Visit Summary | (empty) | PDF | 9/15/2024 | 67098 | 2024-09-15 | 20 | WP-013A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-014 | WP-DOC-014 | Visit Summary | (empty) | PDF | 8/15/2024 | 67067 | 2024-08-15 | 20 | WP-014A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-015 | WP-DOC-015 | Visit Summary | (empty) | PDF | 7/15/2024 | 67036 | 2024-07-15 | 20 | WP-015A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-016 | WP-DOC-016 | Visit Summary | (empty) | PDF | 6/15/2024 | 67006 | 2024-06-15 | 20 | WP-016A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-017 | WP-DOC-017 | Visit Summary | (empty) | PDF | 5/15/2024 | 66975 | 2024-05-15 | 20 | WP-017A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-018 | WP-DOC-018 | Visit Summary | (empty) | PDF | 4/15/2024 | 66945 | 2024-04-15 | 20 | WP-018A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-019 | WP-DOC-019 | Visit Summary | (empty) | PDF | 3/15/2024 | 66914 | 2024-03-15 | 20 | WP-019A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-020 | WP-DOC-020 | Visit Summary | (empty) | PDF | 2/15/2024 | 66885 | 2024-02-15 | 20 | WP-020A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-021 | WP-DOC-021 | Visit Summary | (empty) | PDF | 1/15/2024 | 66854 | 2024-01-15 | 20 | WP-021A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-022 | WP-DOC-022 | Visit Summary | (empty) | PDF | 12/15/2023 | 66823 | 2023-12-15 | 20 | WP-022A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-023 | WP-DOC-023 | Visit Summary | (empty) | PDF | 11/15/2023 | 66793 | 2023-11-15 | 20 | WP-023A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-024 | WP-DOC-024 | Visit Summary | (empty) | PDF | 10/15/2023 | 66762 | 2023-10-15 | 20 | WP-024A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-025 | WP-DOC-025 | Visit Summary | (empty) | PDF | 9/15/2023 | 66732 | 2023-09-15 | 20 | WP-025A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-026 | WP-DOC-026 | Visit Summary | (empty) | PDF | 8/15/2023 | 66701 | 2023-08-15 | 20 | WP-026A | false | false | false | false | false | false | 0 | (empty) |
-| WP-DCS-027 | WP-DOC-027 | Visit Summary | (empty) | PDF | 7/15/2023 | 66670 | 2023-07-15 | 20 | WP-027A | false | false | false | false | false | false | 0 | (empty) |
+### documents 1
+
+- **dcsID**: WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D
+- **docID**: WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D
+- **docType**: After Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/10/2026
+- **dateRaw**: 67580
+- **dateISO**: 2026-01-10
+- **blobCat**: 20
+- **dat**: WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D
+- **new**: true
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 2
+
+- **dcsID**: WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D
+- **docID**: WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D
+- **docType**: Consent - Procedure
+- **docDesc**: (empty)
+- **docExt**: HTML
+- **date**: 11/4/2025
+- **dateRaw**: 67513
+- **dateISO**: 2025-11-04
+- **blobCat**: 3
+- **dat**: WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D
+- **new**: false
+- **wasESigned**: true
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 3
+
+- **dcsID**: WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D
+- **docID**: WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D
+- **docType**: Insurance Card
+- **docDesc**: Front and back
+- **docExt**: JPG
+- **date**: 9/18/2025
+- **dateRaw**: 67466
+- **dateISO**: 2025-09-18
+- **blobCat**: 185
+- **dat**: WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 4
+
+- **dcsID**: WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D
+- **docID**: WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D
+- **docType**: Outside Records
+- **docDesc**: (empty)
+- **docExt**: TIF
+- **date**: 6/2/2025
+- **dateRaw**: 67358
+- **dateISO**: 2025-06-02
+- **blobCat**: 20
+- **dat**: WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 5
+
+- **dcsID**: WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D
+- **docID**: WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 5/15/2025
+- **dateRaw**: 67340
+- **dateISO**: 2025-05-15
+- **blobCat**: 20
+- **dat**: WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 6
+
+- **dcsID**: WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D
+- **docID**: WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 4/15/2025
+- **dateRaw**: 67310
+- **dateISO**: 2025-04-15
+- **blobCat**: 20
+- **dat**: WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 7
+
+- **dcsID**: WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D
+- **docID**: WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 3/15/2025
+- **dateRaw**: 67279
+- **dateISO**: 2025-03-15
+- **blobCat**: 20
+- **dat**: WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 8
+
+- **dcsID**: WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D
+- **docID**: WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 2/15/2025
+- **dateRaw**: 67251
+- **dateISO**: 2025-02-15
+- **blobCat**: 20
+- **dat**: WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 9
+
+- **dcsID**: WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D
+- **docID**: WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/15/2025
+- **dateRaw**: 67220
+- **dateISO**: 2025-01-15
+- **blobCat**: 20
+- **dat**: WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 10
+
+- **dcsID**: WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D
+- **docID**: WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 12/15/2024
+- **dateRaw**: 67189
+- **dateISO**: 2024-12-15
+- **blobCat**: 20
+- **dat**: WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 11
+
+- **dcsID**: WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D
+- **docID**: WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 11/15/2024
+- **dateRaw**: 67159
+- **dateISO**: 2024-11-15
+- **blobCat**: 20
+- **dat**: WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 12
+
+- **dcsID**: WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D
+- **docID**: WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 10/15/2024
+- **dateRaw**: 67128
+- **dateISO**: 2024-10-15
+- **blobCat**: 20
+- **dat**: WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 13
+
+- **dcsID**: WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D
+- **docID**: WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 9/15/2024
+- **dateRaw**: 67098
+- **dateISO**: 2024-09-15
+- **blobCat**: 20
+- **dat**: WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 14
+
+- **dcsID**: WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D
+- **docID**: WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfSaz2YUFV9AVtObPjwEqTQY5km0pbD893IzBtmagh8cN6KO-2B0ZIo-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 8/15/2024
+- **dateRaw**: 67067
+- **dateISO**: 2024-08-15
+- **blobCat**: 20
+- **dat**: WP-247DXJTGRILMcimIyP2ty3lhtDJGlGBosOgKYXQNmnD5D9dovMN2yYCkeVOHMzZRvrTkzcJU6cKg-2BTGRI-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 15
+
+- **dcsID**: WP-247lGWh2XxISQ6Zt8PwuXFTfSEDKBhosyczZq7Sop5nNYONuVpkowIpRa7IK79Ph8qpI5FUQU6jh45-2Bh2Xx-3D-3D
+- **docID**: WP-247bWAlMpxiYs8f7sZOeFb1F8oZmhFii0yprYl4gFxdjE2vgvjKC2kr5KPImr5Pl04NwJv8aG29N6boGf3r7yqNERV4UWw-2BlMpx-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 7/15/2024
+- **dateRaw**: 67036
+- **dateISO**: 2024-07-15
+- **blobCat**: 20
+- **dat**: WP-247DXJiTujIQiS8gH2129j1NVXKzMJ8S4gAyhIla5d3BTpOPGzcWC4OyN6zW5pTvfZuRcbAqW6G2-2BiTuj-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 16
+
+- **dcsID**: WP-247lGWST22ZgywdNzo5VWfnDqWmN88Z0kmdvb61B0z9TEGoRQMjayCpXNy7DKzxhE64lMebQUWP19S-2BST22-3D-3D
+- **docID**: WP-247bWAWfOsDOMoBtN05RUpDFwEON28TUq0XTTw9Xonxn06yJamRQogZhz8Xz4NJJ2CEXi0dKoOxLvGDturVhuYOR2UhumW-2BWfOs-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 6/15/2024
+- **dateRaw**: 67006
+- **dateISO**: 2024-06-15
+- **blobCat**: 20
+- **dat**: WP-247DXJzyhstkKO0oIVwdCBzFvB5oXGNq6q6SOna5i3JbFjFYns3qkCqyupWp0bxt7LDWrOLOAaKq-2Bzyhs-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 17
+
+- **dcsID**: WP-247lGWDkhnUMMYLT8P6elP1JqMBAjD26IohRCVUSLX9NMgzg9ZS0s81lY1wsVXt5OihWDH4SiCpXov-2BDkhn-3D-3D
+- **docID**: WP-247bWAH43X2K2eDPeZUk5BzhOG3Gh3Gm4iztaj2QlLD96UrI3JsY2sFd4rkcbZvP8G5YZPUsO61pGtkIHZbRQKfudvuIy2-2BH43X-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 5/15/2024
+- **dateRaw**: 66975
+- **dateISO**: 2024-05-15
+- **blobCat**: 20
+- **dat**: WP-247DXJEZmbU6UIwAxSlYTlz9zTgb6bYQAYMEr4Xe7nPhbfgfqhcci8o49QTArLPpVrE5CRCGw4sw-2BEZmb-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 18
+
+- **dcsID**: WP-247lGWuBg2nUam1JFOXLiPNbiGEpYmZUqGp1hk1vYPvH0qanQibKw25l10PDsntRaug7gUZKMm7Nre-2BuBg2-3D-3D
+- **docID**: WP-247bWA2tYybwi6NVpu7bArt588SdCM7Oa4phDadhIxzPAiQrEOFkkWB9BMbvizD7QoO3MkFQ6QvJd4flCxfb6cQvic5iek-2B2tYy-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 4/15/2024
+- **dateRaw**: 66945
+- **dateISO**: 2024-04-15
+- **blobCat**: 20
+- **dat**: WP-247DXJV4d0VaKaQ6ahS3ghlH3Xti56Rmi48Um56dK9VPvfXIFU1OSIYKGB4HYJ1rbj1QlyfkCIeM-2BV4d0-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 19
+
+- **dcsID**: WP-247lGWfyHBSkeWbDGBYkp13P4CrkFxwQwmjJ0FqQPBVxUiN2RxMsIQfHezAuHTZVM4Fi3x2EWUF3AX-2BfyHB-3D-3D
+- **docID**: WP-247bWAnAHP6q4elXyd6yzfZnsutsBP6EaU3lEFwsRdPHmEBkxtky04b5Yl2MNxjDeUjsRDgaAWZhsRcoxPxTuE5Upx8cME-2BnAHP-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 3/15/2024
+- **dateRaw**: 66914
+- **dateISO**: 2024-03-15
+- **blobCat**: 20
+- **dat**: WP-247DXJknulyM2eSURaV6h5tHFpev49uQs4SoLSp6hvVVhxQbmRokeWIklsJchFHBLHCdUZQy2Uu2-2Bknul-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 20
+
+- **dcsID**: WP-247lGH1mzz96Kij8IjAOwVHf6rts3HhqiYx6Ilkiy5jz4L9s3ZfSKwVgQ9uWShRRER5MLHj8EqDQKL-2B1mzz-3D-3D
+- **docID**: WP-247bWv1AVvLiOwZog5gwMFdtGpLejhVKuyJkgrW2GdjhSV9IZV9ciyLicbOyy3Z5895arrd8C4l2cJe4YFtn6LRcHTTyem-2B1AVv-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 2/15/2024
+- **dateRaw**: 66885
+- **dateISO**: 2024-02-15
+- **blobCat**: 20
+- **dat**: WP-247DXYcT8X9qoyavZsV2sxNVNcM7GxZmKoc7nMH6UNzPjWiz8dtMsk4z1g1as7FDfS03ElPW4m8n-2BcT8X-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 21
+
+- **dcsID**: WP-247lGHGNGSImyY1yToNPTjPjOrcRw8qUWc1AjS1VTT3tI5aXSGswqOpqlaj77FZNsXMdAWCkqW7Qzq-2BGNGS-3D-3D
+- **docID**: WP-247bWvGtyosMoqnwxWRPVHRHQ9QLwuywOmHKvUTrbv9D6LKF8YyYQK9kDGBDpl7hqRCxqa8aWeDwJUd9vbLZAl6roqcOeO-2BGtyo-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/15/2024
+- **dateRaw**: 66854
+- **dateISO**: 2024-01-15
+- **blobCat**: 20
+- **dat**: WP-247DXYNs7cYKEAk7Yp855zdHN2XCvuGyWEuHar69pdHxrsj0NoGWEYa3SzAvLp1rXYtk9eiso2Sz-2BNs7c-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 22
+
+- **dcsID**: WP-247lGHV4xXfkm8HAa5AGeP7dshFutjFc8irYUf00a35TOBPcPrLeUuz4APCOo59veLFeHRLesKV8Wt-2BV4xX-3D-3D
+- **docID**: WP-247bWvVSPjHmYsfIOBWKQVnXcxR0DBdkQ25W2fiUyBh7y5NiRLdmq4bGyPCyA3tB4v9iljJ2qS5UOhGQI5Tn8pzyVDXOYm-2BVSPj-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 12/15/2023
+- **dateRaw**: 66823
+- **dateISO**: 2023-12-15
+- **blobCat**: 20
+- **dat**: WP-247DXY6NGTlGgyMzra1kEnLNDqKLUtLEmIEdXYdsyvFrd0MbwrvOKAGhRM3uITlRnA4tWfp4gyOh-2B6NGT-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 23
+
+- **dcsID**: WP-247lGHkHIOiwCsjyD2rvP5PtmPcnAmsKEGJudWjL5bDFedUPCUQYCkrMjeNpXp3nA98z8cCsWsRcZC-2BkHIO-3D-3D
+- **docID**: WP-247bWvkf0a2MmOF4hKFzXrX341yrcKg4OcLO9CNHPPzFIbkfO2mQGWfsbgX7VnjVgNc3gkAuAqT4HiNPpVZVObaFUemYke-2Bkf0a-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 11/15/2023
+- **dateRaw**: 66793
+- **dateISO**: 2023-11-15
+- **blobCat**: 20
+- **dat**: WP-247DXYrAr24ys2ydAJQ7dPPZbkdWD2sQQY6PAXsfl1j196Tq9ymiE6Y3YRc9xJpvtkNi5yyKuQi7-2BrAr2-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 24
+
+- **dcsID**: WP-247lGHz6nVNK6cdoKFe6ItVHONVET15IaGPsSXg4u3hfC3Z8ljnYSSVW2b4uez9z6dHIZTF8akJKE7-2Bz6nV-3D-3D
+- **docID**: WP-247bWv3MxF9mA2d8A7SSCrbPY7bat7vyykXymFcwgX99YVHSt7TMCujIcfa4aXZ50lzuFvdCY85KCny4CTvH43Zo5zVk6o-2B3MxF-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 10/15/2023
+- **dateRaw**: 66762
+- **dateISO**: 2023-10-15
+- **blobCat**: 20
+- **dat**: WP-247DXYaP8NP8CsGH369CKfbbZk6VcNnK0GqrJ6Pw07BZz8QrwvjYSagFja7KoXvTxkm1mTDmi2oN-2BaP8N-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 25
+
+- **dcsID**: WP-247lGHEJ8IAYMyD8Vm3f153n0DqTMmsaUYbubERnPf7jSBq3eOKku4XmXwFVjPRv6pOD6Y2W2Wn6RQ-2BEJ8I-3D-3D
+- **docID**: WP-247bWvIxEKeuEqpEf2tzT9nNa7eBSKAoAql2ZMRNrVrNMxMfyKWySAPuXeJ1RXbR6PwxyQCUCIDkbyT7RtzhAlKXEEywWG-2BIxEK-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 9/15/2023
+- **dateRaw**: 66732
+- **dateISO**: 2023-09-15
+- **blobCat**: 20
+- **dat**: WP-247DXYLCj084uwCDSDczVjthBCxKpC6OeCyPSNifzFVJR0fWHcEAssU38n4FHFdbPaJs1AiSUK8j-2BLCj0-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 26
+
+- **dcsID**: WP-247lGHTsdDTcwk3oIvkIczRBATfUv7ZqYqJgAvyeSt3hwp5OtrLwIC1cEzo0uP7rytjyzjJakCjauJ-2BTsdD-3D-3D
+- **docID**: WP-247bWvX8fxtcaIvASba4cPXp0RBQpVzyMcJcKvSyOnRBEZX0tLZi2QLg8bcC891pkvRMHHFSawtqeFyME3HReh72DN78Es-2BX8fx-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 8/15/2023
+- **dateRaw**: 66701
+- **dateISO**: 2023-08-15
+- **blobCat**: 20
+- **dat**: WP-247DXY4hsrxIqIOx12J0GdfTt6gxy9XUgcQhnUfKKLNlpMQZ6jLyaG6hvY1kqrVHVm09Alf4SK4X-2B4hsr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 27
+
+- **dcsID**: WP-247lGHibqmKgWK7yX6HPr1x10z6DuOcke0DO1mXxd5zPyVeP8uogyQLoZ259553zclEdoysO0gXUNI-2Bibqm-3D-3D
+- **docID**: WP-247bWvmr8G46eS9OB2DrnhpjmNizAEoWy4fKBGB3V91puZS12eKUGYDYRmdvPRjn4JO7wYAMyiDMfCHFJF73IRczUQKoCQ-2Bmr8G-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 7/15/2023
+- **dateRaw**: 66670
+- **dateISO**: 2023-07-15
+- **blobCat**: 20
+- **dat**: WP-247DXYpyXqYccaSlinkjLXnrvqLGv2owWuIXGN6h3RPd7CzqRCsquIYHMnwlXBBJ9MzoDmeYYSmN-2BpyXq-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1958 chars)</summary>
+<summary><code>mode: concise</code> (1595 chars)</summary>
 
 ## documents (27)
 
-| dcsID | docType | docDesc | docExt | dateISO | new |
-| - | - | - | - | - | - |
-| WP-DCS-001 | After Visit Summary | (empty) | PDF | 2026-01-10 | true |
-| WP-DCS-002 | Consent - Procedure | (empty) | HTML | 2025-11-04 | false |
-| WP-DCS-003 | Insurance Card | Front and back | JPG | 2025-09-18 | false |
-| WP-DCS-004 | Outside Records | (empty) | TIF | 2025-06-02 | false |
-| WP-DCS-005 | Visit Summary | (empty) | PDF | 2025-05-15 | false |
-| WP-DCS-006 | Visit Summary | (empty) | PDF | 2025-04-15 | false |
-| WP-DCS-007 | Visit Summary | (empty) | PDF | 2025-03-15 | false |
-| WP-DCS-008 | Visit Summary | (empty) | PDF | 2025-02-15 | false |
-| WP-DCS-009 | Visit Summary | (empty) | PDF | 2025-01-15 | false |
-| WP-DCS-010 | Visit Summary | (empty) | PDF | 2024-12-15 | false |
-| WP-DCS-011 | Visit Summary | (empty) | PDF | 2024-11-15 | false |
-| WP-DCS-012 | Visit Summary | (empty) | PDF | 2024-10-15 | false |
-| WP-DCS-013 | Visit Summary | (empty) | PDF | 2024-09-15 | false |
-| WP-DCS-014 | Visit Summary | (empty) | PDF | 2024-08-15 | false |
-| WP-DCS-015 | Visit Summary | (empty) | PDF | 2024-07-15 | false |
-| WP-DCS-016 | Visit Summary | (empty) | PDF | 2024-06-15 | false |
-| WP-DCS-017 | Visit Summary | (empty) | PDF | 2024-05-15 | false |
-| WP-DCS-018 | Visit Summary | (empty) | PDF | 2024-04-15 | false |
-| WP-DCS-019 | Visit Summary | (empty) | PDF | 2024-03-15 | false |
-| WP-DCS-020 | Visit Summary | (empty) | PDF | 2024-02-15 | false |
-| WP-DCS-021 | Visit Summary | (empty) | PDF | 2024-01-15 | false |
-| WP-DCS-022 | Visit Summary | (empty) | PDF | 2023-12-15 | false |
-| WP-DCS-023 | Visit Summary | (empty) | PDF | 2023-11-15 | false |
-| WP-DCS-024 | Visit Summary | (empty) | PDF | 2023-10-15 | false |
-| WP-DCS-025 | Visit Summary | (empty) | PDF | 2023-09-15 | false |
-| WP-DCS-026 | Visit Summary | (empty) | PDF | 2023-08-15 | false |
-| WP-DCS-027 | Visit Summary | (empty) | PDF | 2023-07-15 | false |
+| docType | docDesc | docExt | dateISO | new |
+| - | - | - | - | - |
+| After Visit Summary | (empty) | PDF | 2026-01-10 | true |
+| Consent - Procedure | (empty) | HTML | 2025-11-04 | false |
+| Insurance Card | Front and back | JPG | 2025-09-18 | false |
+| Outside Records | (empty) | TIF | 2025-06-02 | false |
+| Visit Summary | (empty) | PDF | 2025-05-15 | false |
+| Visit Summary | (empty) | PDF | 2025-04-15 | false |
+| Visit Summary | (empty) | PDF | 2025-03-15 | false |
+| Visit Summary | (empty) | PDF | 2025-02-15 | false |
+| Visit Summary | (empty) | PDF | 2025-01-15 | false |
+| Visit Summary | (empty) | PDF | 2024-12-15 | false |
+| Visit Summary | (empty) | PDF | 2024-11-15 | false |
+| Visit Summary | (empty) | PDF | 2024-10-15 | false |
+| Visit Summary | (empty) | PDF | 2024-09-15 | false |
+| Visit Summary | (empty) | PDF | 2024-08-15 | false |
+| Visit Summary | (empty) | PDF | 2024-07-15 | false |
+| Visit Summary | (empty) | PDF | 2024-06-15 | false |
+| Visit Summary | (empty) | PDF | 2024-05-15 | false |
+| Visit Summary | (empty) | PDF | 2024-04-15 | false |
+| Visit Summary | (empty) | PDF | 2024-03-15 | false |
+| Visit Summary | (empty) | PDF | 2024-02-15 | false |
+| Visit Summary | (empty) | PDF | 2024-01-15 | false |
+| Visit Summary | (empty) | PDF | 2023-12-15 | false |
+| Visit Summary | (empty) | PDF | 2023-11-15 | false |
+| Visit Summary | (empty) | PDF | 2023-10-15 | false |
+| Visit Summary | (empty) | PDF | 2023-09-15 | false |
+| Visit Summary | (empty) | PDF | 2023-08-15 | false |
+| Visit Summary | (empty) | PDF | 2023-07-15 | false |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (10173 chars)</summary>
+<summary><code>mode: json</code> (17436 chars)</summary>
 
 ```json
 {
   "documents": [
     {
-      "dcsID": "WP-DCS-001",
-      "docID": "WP-DOC-001",
+      "dcsID": "WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D",
+      "docID": "WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D",
       "docType": "After Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17438,7 +17862,7 @@ Clinical documents and visit records.
       "dateRaw": "67580",
       "dateISO": "2026-01-10",
       "blobCat": "20",
-      "dat": "WP-001A",
+      "dat": "WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D",
       "new": true,
       "wasESigned": false,
       "isExpired": false,
@@ -17449,8 +17873,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-002",
-      "docID": "WP-DOC-002",
+      "dcsID": "WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D",
+      "docID": "WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D",
       "docType": "Consent - Procedure",
       "docDesc": "",
       "docExt": "HTML",
@@ -17458,7 +17882,7 @@ Clinical documents and visit records.
       "dateRaw": "67513",
       "dateISO": "2025-11-04",
       "blobCat": "3",
-      "dat": "WP-002A",
+      "dat": "WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D",
       "new": false,
       "wasESigned": true,
       "isExpired": false,
@@ -17469,8 +17893,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-003",
-      "docID": "WP-DOC-003",
+      "dcsID": "WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D",
+      "docID": "WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D",
       "docType": "Insurance Card",
       "docDesc": "Front and back",
       "docExt": "JPG",
@@ -17478,7 +17902,7 @@ Clinical documents and visit records.
       "dateRaw": "67466",
       "dateISO": "2025-09-18",
       "blobCat": "185",
-      "dat": "WP-003A",
+      "dat": "WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17489,8 +17913,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-004",
-      "docID": "WP-DOC-004",
+      "dcsID": "WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D",
+      "docID": "WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D",
       "docType": "Outside Records",
       "docDesc": "",
       "docExt": "TIF",
@@ -17498,7 +17922,7 @@ Clinical documents and visit records.
       "dateRaw": "67358",
       "dateISO": "2025-06-02",
       "blobCat": "20",
-      "dat": "WP-004A",
+      "dat": "WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17509,8 +17933,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-005",
-      "docID": "WP-DOC-005",
+      "dcsID": "WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D",
+      "docID": "WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17518,7 +17942,7 @@ Clinical documents and visit records.
       "dateRaw": "67340",
       "dateISO": "2025-05-15",
       "blobCat": "20",
-      "dat": "WP-005A",
+      "dat": "WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17529,8 +17953,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-006",
-      "docID": "WP-DOC-006",
+      "dcsID": "WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D",
+      "docID": "WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17538,7 +17962,7 @@ Clinical documents and visit records.
       "dateRaw": "67310",
       "dateISO": "2025-04-15",
       "blobCat": "20",
-      "dat": "WP-006A",
+      "dat": "WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17549,8 +17973,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-007",
-      "docID": "WP-DOC-007",
+      "dcsID": "WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D",
+      "docID": "WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17558,7 +17982,7 @@ Clinical documents and visit records.
       "dateRaw": "67279",
       "dateISO": "2025-03-15",
       "blobCat": "20",
-      "dat": "WP-007A",
+      "dat": "WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17569,8 +17993,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-008",
-      "docID": "WP-DOC-008",
+      "dcsID": "WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D",
+      "docID": "WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17578,7 +18002,7 @@ Clinical documents and visit records.
       "dateRaw": "67251",
       "dateISO": "2025-02-15",
       "blobCat": "20",
-      "dat": "WP-008A",
+      "dat": "WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17589,8 +18013,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-009",
-      "docID": "WP-DOC-009",
+      "dcsID": "WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D",
+      "docID": "WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17598,7 +18022,7 @@ Clinical documents and visit records.
       "dateRaw": "67220",
       "dateISO": "2025-01-15",
       "blobCat": "20",
-      "dat": "WP-009A",
+      "dat": "WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17609,8 +18033,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-010",
-      "docID": "WP-DOC-010",
+      "dcsID": "WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D",
+      "docID": "WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17618,7 +18042,7 @@ Clinical documents and visit records.
       "dateRaw": "67189",
       "dateISO": "2024-12-15",
       "blobCat": "20",
-      "dat": "WP-010A",
+      "dat": "WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17629,8 +18053,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-011",
-      "docID": "WP-DOC-011",
+      "dcsID": "WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D",
+      "docID": "WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17638,7 +18062,7 @@ Clinical documents and visit records.
       "dateRaw": "67159",
       "dateISO": "2024-11-15",
       "blobCat": "20",
-      "dat": "WP-011A",
+      "dat": "WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17649,8 +18073,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-012",
-      "docID": "WP-DOC-012",
+      "dcsID": "WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D",
+      "docID": "WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17658,7 +18082,7 @@ Clinical documents and visit records.
       "dateRaw": "67128",
       "dateISO": "2024-10-15",
       "blobCat": "20",
-      "dat": "WP-012A",
+      "dat": "WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17669,8 +18093,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-013",
-      "docID": "WP-DOC-013",
+      "dcsID": "WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D",
+      "docID": "WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17678,7 +18102,7 @@ Clinical documents and visit records.
       "dateRaw": "67098",
       "dateISO": "2024-09-15",
       "blobCat": "20",
-      "dat": "WP-013A",
+      "dat": "WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17689,8 +18113,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-014",
-      "docID": "WP-DOC-014",
+      "dcsID": "WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D",
+      "docID": "WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfSaz2YUFV9AVtObPjwEqTQY5km0pbD893IzBtmagh8cN6KO-2B0ZIo-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17698,7 +18122,7 @@ Clinical documents and visit records.
       "dateRaw": "67067",
       "dateISO": "2024-08-15",
       "blobCat": "20",
-      "dat": "WP-014A",
+      "dat": "WP-247DXJTGRILMcimIyP2ty3lhtDJGlGBosOgKYXQNmnD5D9dovMN2yYCkeVOHMzZRvrTkzcJU6cKg-2BTGRI-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17709,8 +18133,8 @@ Clinical documents and visit records.
       "rejectionReasonFreetext": ""
     },
     {
-      "dcsID": "WP-DCS-015",
-      "docID": "WP-DOC-015",
+      "dcsID": "WP-247lGWh2XxISQ6Zt8PwuXFTfSEDKBhosyczZq7Sop5nNYONuVpkowIpRa7IK79Ph8qpI5FUQU6jh45-2Bh2Xx-3D-3D",
+      "docID": "WP-247bWAlMpxiYs8f7sZOeFb1F8oZmhFii0yprYl4gFxdjE2vgvjKC2kr5KPImr5Pl04NwJv8aG29N6boGf3r7yqNERV4UWw-2BlMpx-3D-3D",
       "docType": "Visit Summary",
       "docDesc": "",
       "docExt": "PDF",
@@ -17718,7 +18142,7 @@ Clinical documents and visit records.
       "dateRaw": "67036",
       "dateISO": "2024-07-15",
       "blobCat": "20",
-      "dat": "WP-015A",
+      "dat": "WP-247DXJiTujIQiS8gH2129j1NVXKzMJ8S4gAyhIla5d3BTpOPGzcWC4OyN6zW5pTvfZuRcbAqW6G2-2BiTuj-3D-3D",
       "new": false,
       "wasESigned": false,
       "isExpired": false,
@@ -17726,162 +18150,8 @@ Clinical documents and visit records.
       "onlyAllowedPreview": false,
       "pendingRequiredSignatures": false,
       "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-016",
-      "docID": "WP-DOC-016",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "6/15/2024",
-      "dateRaw": "67006",
-      "dateISO": "2024-06-15",
-      "blobCat": "20",
-      "dat": "WP-016A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-017",
-      "docID": "WP-DOC-017",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "5/15/2024",
-      "dateRaw": "66975",
-      "dateISO": "2024-05-15",
-      "blobCat": "20",
-      "dat": "WP-017A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-018",
-      "docID": "WP-DOC-018",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "4/15/2024",
-      "dateRaw": "66945",
-      "dateISO": "2024-04-15",
-      "blobCat": "20",
-      "dat": "WP-018A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-019",
-      "docID": "WP-DOC-019",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "3/15/2024",
-      "dateRaw": "66914",
-      "dateISO": "2024-03-15",
-      "blobCat": "20",
-      "dat": "WP-019A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-020",
-      "docID": "WP-DOC-020",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "2/15/2024",
-      "dateRaw": "66885",
-      "dateISO": "2024-02-15",
-      "blobCat": "20",
-      "dat": "WP-020A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-021",
-      "docID": "WP-DOC-021",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "1/15/2024",
-      "dateRaw": "66854",
-      "dateISO": "2024-01-15",
-      "blobCat": "20",
-      "dat": "WP-021A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-022",
-      "docID": "WP-DOC-022",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "12/15/2023",
-      "dateRaw": "66823",
-      "dateISO": "2023-12-15",
-      "blobCat": "20",
-      "dat": "WP-022A",
-      "new": false,
-      "wasESigned": false,
-      "isExpired": false,
-      "downloadOnly": false,
-      "onlyAllowedPreview": false,
-      "pendingRequiredSignatures": false,
-      "pendingApprovalStatus": 0,
-      "rejectionReasonFreetext": ""
-    },
-    {
-      "dcsID": "WP-DCS-023",
-      "docID": "WP-DOC-023",
-      "docType": "Visit Summary",
-      "docDesc": "",
-      "docExt": "PDF",
-      "date": "11/15/2023",
-      "dateRaw": "66793",
-      "dateISO": "2023-11-15",
-      "blobCat": "20",
-      "dat": "WP-023A",
-      "new": false,
-      "wasESigned"
-… (truncated; 2339 more characters)
+      "rejectionReasonFr
+… (truncated; 9602 more characters)
 ```
 
 </details>

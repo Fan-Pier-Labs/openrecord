@@ -44,6 +44,12 @@ Clinical documents and visit records filed to the chart — the "Document Center
   [`messages/messageAttachment.ts`](../messages/messageAttachment.ts) already
   implements for attachments.
 
+- **The identifiers are long.** `dcsID` measured 85-94 characters, `docID` 82-114,
+  `dat` 82-92 — all past the 60-character table-cell limit in
+  [`processors/markdown.ts`](../../processors/markdown.ts), which is why concise
+  carries none of them and why the fake's fixture uses tokens of the same length
+  rather than tidy short ids.
+
 **Verified on 1 live account** (42 documents, `docExt` ∈ {PDF, TIF, JPG, PNG, BMP,
 HTML}) end to end, plus the `epic.px.client.document-center` bundle on 5 further
 instances, which name `isInitialLoad` and the `< 25` page-end rule identically.
@@ -72,12 +78,12 @@ own page sorts on.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
-| `dcsID` | The handle `GetDocumentDetailsLegacy` takes as `dcsId` to fetch the file | — | ✓ | ✓ | The only way back to the document's bytes. |
+| `dcsID` | The handle `GetDocumentDetailsLegacy` takes as `dcsId` to fetch the file | — | ✓ | — | The only way back to the document's bytes, but nothing takes it yet — and at 85-94 characters it is a third of concise and enough on its own to push every row out of table form. Belongs in concise the day a capability accepts it. |
 | `docType` | What the Document Center shows as the document's name | — | ✓ | ✓ | The title. |
 | `docDesc` | Free-text description; `""` on half the captured documents, and what Epic shows instead of `docType` on a pending or rejected upload | — | ✓ | ✓ | Names the document when `docType` is generic. |
 | `docExt` | `PDF`, `TIF`, `JPG`, `PNG`, `BMP` or `HTML` (an e-signed document) | — | ✓ | ✓ | Says what a download would produce, and is the `fileExtension` that exchange needs. |
 | `dateISO` | The document's date | ✓ | ✓ | ✓ | Derived from `dateRaw`. The one date form a caller can sort or filter on. |
 | `new` | Not yet opened in MyChart | — | ✓ | ✓ | What the patient has not read. |
 | `date` · `dateRaw` | MyChart's M/D/YYYY display date, and the Epic day number behind it | — | ✓ | — | Kept whole (rule 1), but `dateISO` is the one worth showing. |
-| `docID` · `dat` · `blobCat` | Epic's other identifiers for the document and its blob category | — | ✓ | — | Opaque; no observed use beyond `dcsID`. |
+| `docID` · `dat` · `blobCat` | Epic's other identifiers for the document and its blob category | — | ✓ | — | Opaque, and `docID` / `dat` are 82-114 characters; no observed use beyond `dcsID`. |
 | `wasESigned` · `isExpired` · `downloadOnly` · `onlyAllowedPreview` · `pendingRequiredSignatures` · `pendingApprovalStatus` · `rejectionReasonFreetext` | Signature, expiry, upload-approval and download-restriction state | — | ✓ | — | All neutral on every captured document, so no per-mode judgement is possible yet; kept in standard rather than dropped for being empty (rule 2). |

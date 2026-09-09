@@ -86,10 +86,17 @@ export const documentsProcessor: Processor<DocumentsStandard> = {
     documents.sort((a, b) => Number(b.dateRaw ?? 0) - Number(a.dateRaw ?? 0));
     return { documents };
   },
+  /**
+   * `dcsID` is deliberately not here. It is the download handle, but nothing
+   * takes it yet, and at 85-94 characters on a real instance it is both a
+   * third of concise's bytes and enough on its own to push every row out of
+   * table form (`MAX_TABLE_CELL` in processors/markdown.ts). It belongs back
+   * in concise the day a capability accepts it, the way `dcsId` joined the
+   * message projections once attachments could be fetched (#439).
+   */
   concise(standard) {
     return {
       documents: standard.documents.map((d) => ({
-        dcsID: d.dcsID,
         docType: d.docType,
         docDesc: d.docDesc,
         docExt: d.docExt,

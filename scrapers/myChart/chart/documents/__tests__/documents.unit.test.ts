@@ -113,17 +113,35 @@ describe('getDocuments', () => {
     expect((await getDocuments(req)).documents.map((d) => d.dateISO)).toEqual([null, null])
   })
 
-  it('renders every mode; concise keeps the handle, name, format and unread flag', async () => {
+  it('renders every mode; concise keeps the name, format, date and unread flag', async () => {
     const req = mockRequest([TOKEN, page([doc(1, { docType: 'Consent', docDesc: 'Signed copy', new: true })])])
     const raw = await fetchDocumentsRaw(req)
 
     expect(renderOutput(documentsProcessor, raw, 'raw')).toEqual({ documents: [doc(1, { docType: 'Consent', docDesc: 'Signed copy', new: true })] })
     expect(documentsProcessor.concise(documentsProcessor.standard(raw))).toEqual({
-      documents: [{ dcsID: 'DCS-1', docType: 'Consent', docDesc: 'Signed copy', docExt: 'PDF', dateISO: '2026-09-07', new: true }],
+      documents: [{ docType: 'Consent', docDesc: 'Signed copy', docExt: 'PDF', dateISO: '2026-09-07', new: true }],
     })
     const standard = renderOutput(documentsProcessor, raw, 'standard') as string
     expect(standard).toContain('Consent')
     expect(standard).toContain('blobCat')
     expect(renderOutput(documentsProcessor, raw, 'concise')).not.toContain('blobCat')
+  })
+
+  /**
+   * A real `dcsID` is 85-94 characters, which is past the renderer's 60-char
+   * table-cell limit — carrying it would push every document into its own
+   * sub-section and triple concise. Asserted on the rendering, not on the
+   * field list, because that is the cost that actually reaches a model.
+   */
+  it('keeps concise a table by leaving the long opaque handles out of it', async () => {
+    const long = 'WP-24' + 'a'.repeat(80) + '-3D'
+    const req = mockRequest([TOKEN, page([doc(1, { dcsID: long, docID: long, dat: long })])])
+    const raw = await fetchDocumentsRaw(req)
+
+    const concise = renderOutput(documentsProcessor, raw, 'concise') as string
+    expect(concise).not.toContain(long)
+    expect(concise).toContain('| docType |')
+    // standard still carries all three, whatever it costs there.
+    expect(renderOutput(documentsProcessor, raw, 'standard')).toContain(long)
   })
 })

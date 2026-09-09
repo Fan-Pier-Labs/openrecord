@@ -2468,6 +2468,25 @@ export const preventiveCare = {
 // filler takes the list to 27: one past a page, and no more.
 const EPIC_EPOCH_UTC = Date.UTC(1840, 11, 31);
 
+/**
+ * `dcsID`, `docID` and `dat` are long opaque tokens on a real instance —
+ * `WP-` and then base64 with `$`, `+` and `=` percent-escaped into `-24`,
+ * `-2B` and `-3D`, measured at 85-94, 82-114 and 82-92 characters. Short
+ * stand-ins are not a harmless simplification here: the markdown renderer
+ * drops a list out of table form as soon as one cell exceeds 60 characters,
+ * so tidy ids make the fake render a compact table no real account ever gets.
+ */
+function opaqueId(seed: string, length: number): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let h = 2166136261;
+  let out = '';
+  while (out.length < length) {
+    h = Math.imul(h ^ (seed.charCodeAt(out.length % seed.length) + out.length), 16777619) >>> 0;
+    out += alphabet[h % alphabet.length];
+  }
+  return `WP-24${out.slice(0, length - 12)}-2B${out.slice(4, 8)}-3D-3D`;
+}
+
 function fakeDocument(fields: {
   n: number;
   docType: string;
@@ -2481,11 +2500,11 @@ function fakeDocument(fields: {
   const at = new Date(`${fields.dateISO}T00:00:00Z`);
   return {
     blobCat: fields.blobCat,
-    dcsID: `WP-DCS-${String(fields.n).padStart(3, '0')}`,
-    docID: `WP-DOC-${String(fields.n).padStart(3, '0')}`,
+    dcsID: opaqueId(`dcs${fields.n}`, 88),
+    docID: opaqueId(`doc${fields.n}`, 104),
     date: `${at.getUTCMonth() + 1}/${at.getUTCDate()}/${at.getUTCFullYear()}`,
     dateRaw: String(Math.round((at.valueOf() - EPIC_EPOCH_UTC) / 86_400_000)),
-    dat: `WP-${String(fields.n).padStart(3, '0')}A`,
+    dat: opaqueId(`dat${fields.n}`, 86),
     docExt: fields.docExt,
     docDesc: fields.docDesc ?? '',
     docType: fields.docType,
