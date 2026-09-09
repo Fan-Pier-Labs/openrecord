@@ -9,6 +9,7 @@ import {
   letterDetailsProcessor,
 } from '../../../scrapers/myChart/chart/letters/letters';
 import { fetchDocumentsRaw, documentsProcessor } from '../../../scrapers/myChart/chart/documents/documents';
+import { downloadDocument } from '../../../scrapers/myChart/chart/documents/documentDownload';
 import { fetchUpcomingOrdersRaw, upcomingOrdersProcessor } from '../../../scrapers/myChart/chart/upcomingOrders/upcomingOrders';
 import { fetchQuestionnairesRaw, questionnairesProcessor } from '../../../scrapers/myChart/chart/questionnaires/questionnaires';
 import { fetchCareJourneysRaw, careJourneysProcessor } from '../../../scrapers/myChart/chart/careJourneys/careJourneys';
@@ -74,6 +75,20 @@ export const CARE_CAPABILITIES: readonly CapabilityImpl[] = [
     params: [],
     run: (request) => fetchDocumentsRaw(request),
     processor: documentsProcessor,
+  },
+  {
+    id: 'download_document',
+    title: 'Download document',
+    description:
+      'Download one Document Center document as the file MyChart serves for it — a PDF, an image (TIF/JPG/PNG) or an e-signed HTML document. ' +
+      'Identify it with the `dcsID` of a document from get_documents. The file is saved on the user’s own device and the path returned.',
+    kind: 'read',
+    group: 'Care',
+    returnsFile: true,
+    params: [
+      { name: 'document_id', type: 'string', required: true, description: 'The `dcsID` of the chosen document from get_documents. Copy it verbatim.' },
+    ],
+    run: (request, args) => downloadDocument(request, requireStr(args, 'document_id')),
   },
   {
     id: 'get_upcoming_orders',

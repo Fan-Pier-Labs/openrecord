@@ -463,20 +463,35 @@ falls back to the default.
 alike. A sender's name comes from `viewers[wprKey]` for patient-side authors and
 from `userOverrideNames[empKey] || users[empKey]` for staff.
 
-### Attachments
+### The DCS blob store: attachments and documents
+
+Epic serves message attachments and Document Center documents from one
+`dcsId` space and one download route, and so does this fake — the handlers live
+in `handlers/documents.ts` and resolve an id against both producers.
 
 One seeded message carries two attachments — a one-page PDF and a 1×1 PNG, real
 files, so a client checking magic bytes gets a real answer. The thread endpoints
 list them as a live instance does (`type: 2`, upper-case `fileExtension`, no
-organization, no community link) and never carry bytes. The download is the
-portal's own two-step, held to the field set captured on two live instances:
+organization, no community link) and never carry bytes. Four of the seeded
+documents have files behind them in `homer.documentFiles` (PDF, JPG, TIF, and an
+e-signed HTML one, because `text/html` is a real document type here); the rest
+have none, which models the document MyChart holds but will not release —
+`downloadUrl` and `token` both empty and a `previewUrl` that streams nothing,
+1 of 42 on the captured account. That is a different answer from the `null` an
+unknown id gets, and clients have to tell them apart.
+
+The download is the portal's own two-step, held to the field set captured on
+live instances:
 
 ```
 1. POST /api/documents/viewer/getdocumentdetailslegacy { dcsId, fileExtension, organizationId, useOldMobileLink }
      → { downloadUrl, previewUrl, mimeType, allowPreview, displayName, fileDescription, … }
      An unknown or empty dcsId answers 200 and a literal JSON `null`; the
-     fileExtension posted is ignored. `getdocumentdetails` is the same with a
-     `DownloadOrStream` link.
+     fileExtension posted is ignored (measured five ways on one account:
+     correct, empty, omitted, wrong and absent all returned the same file).
+     `getdocumentdetails` is the same with a `DownloadOrStream` link and
+     `legacyEncryption: false`; the Document Center uses that one, attachments
+     the legacy one, and both stream identical bytes.
 2. GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…
      → the bytes, with Content-Type, Content-Length and
        Content-Disposition: attachment; filename="…".
@@ -485,8 +500,9 @@ portal's own two-step, held to the field set captured on two live instances:
 
 Both lookups are scoped to the record the session is in, so a proxy record
 cannot fetch the account holder's document by id. The bytes live in
-`homer.messageAttachmentFiles`, apart from the conversation fixture, so
-`conformToShape` never serves them as attachment fields.
+`homer.messageAttachmentFiles` and `homer.documentFiles`, apart from the
+conversation and document fixtures, so `conformToShape` never serves them as
+list fields.
 
 ### Message flow (what the scraper does)
 

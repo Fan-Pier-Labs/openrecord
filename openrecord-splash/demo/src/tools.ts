@@ -249,6 +249,12 @@ export const TOOL_SPECS: ToolSpec[] = [
     args: { hno_id: 'hnoId from the chosen get_letters entry', csn: 'csn from the same entry', instance: 'optional' },
   },
   { name: 'get_documents', group: 'Documents', description: 'Clinical documents on file', args: { instance: 'optional' } },
+  {
+    name: 'download_document',
+    group: 'Documents',
+    description: 'Download one document as the file MyChart serves for it — a PDF, an image, or an e-signed HTML document — by the dcsID of a document from get_documents',
+    args: { document_id: 'dcsID from the chosen get_documents entry', instance: 'optional' },
+  },
   { name: 'get_questionnaires', group: 'Documents', description: 'Assigned questionnaires and health assessments', args: { instance: 'optional' } },
   { name: 'get_education_materials', group: 'Documents', description: 'Patient education materials assigned by the care team', args: { instance: 'optional' } },
   { name: 'get_activity_feed', group: 'Documents', description: 'Recent portal activity feed', args: { instance: 'optional' } },
@@ -953,6 +959,10 @@ const HANDLERS: Record<string, Handler> = {
     return clone(record(s).letterDetailsByHnoId[hnoId] ?? { bodyHTML: '' });
   },
   get_documents: (s) => clone(record(s).documents),
+  // The real product writes the file to disk; the demo's documents are list
+  // rows with no bytes behind them, so there is no dcsID this could be handed.
+  download_document: () =>
+    fail('The demo record has no document files. On a real MyChart account this saves the document to the Downloads folder.'),
   get_questionnaires: (s) => clone(record(s).questionnaires),
   get_education_materials: (s) => clone(record(s).educationMaterials),
   get_activity_feed: (s) => clone(record(s).activityFeed),

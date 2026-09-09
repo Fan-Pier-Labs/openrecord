@@ -75,7 +75,7 @@ describe('get_message_attachment registration', () => {
       .filter(([, tool]) => 'return_content' in (tool.config.inputSchema ?? {}))
       .map(([name]) => name)
       .sort();
-    expect(withParam).toEqual(['download_billing_statement', 'get_message_attachment']);
+    expect(withParam).toEqual(['download_billing_statement', 'download_document', 'get_message_attachment']);
   });
 });
 

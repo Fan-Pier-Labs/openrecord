@@ -29,6 +29,7 @@ import {
   type FilePayload,
   type StudyImagePayload,
   type MessageAttachmentFile,
+  type DocumentFile,
 } from '../../../../shared/capabilities'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
@@ -250,6 +251,56 @@ describe('capability registry against fake-mychart', () => {
     await expect(
       executeCapability(session, 'get_message_attachment', { conversation_id: conversation!.hthId, attachment_id: 'WP-DCS-NOPE' }),
     ).rejects.toThrow(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/)
+  }, 60_000)
+
+  // ── Documents ─────────────────────────────────────────────────────────────
+
+  it('downloads every document the Document Center has a file for, and refuses the rest', async () => {
+    const { documents } = (await executeCapability(session, 'get_documents')) as {
+      documents: Array<{ dcsID: string; docExt: string; docType: string }>
+    }
+    // The walk pages at 25, so a list that stops there never proved it paged.
+    expect(documents.length).toBeGreaterThan(25)
+
+    const magic: Record<string, number[]> = {
+      PDF: [0x25, 0x50, 0x44, 0x46],
+      JPG: [0xff, 0xd8, 0xff, 0xe0],
+      TIF: [0x49, 0x49, 0x2a, 0x00],
+    }
+    const mime: Record<string, string> = {
+      PDF: 'application/pdf',
+      JPG: 'image/jpeg',
+      TIF: 'image/tiff',
+      HTML: 'text/html',
+    }
+    for (const ext of Object.keys(mime)) {
+      const document = documents.find((d) => d.docExt === ext)
+      expect(document).toBeDefined()
+      const file = (await executeCapability(session, 'download_document', {
+        document_id: document!.dcsID,
+      })) as DocumentFile
+
+      expect(file.dcsID).toBe(document!.dcsID)
+      expect(file.mimeType).toBe(mime[ext]!)
+      expect(file.fileName.toLowerCase().endsWith(`.${ext.toLowerCase()}`)).toBe(true)
+      expect(file.bytes.length).toBeGreaterThan(0)
+      // An e-signed document really is HTML; the others carry their own magic.
+      if (magic[ext]) expect(Array.from(file.bytes.subarray(0, 4))).toEqual(magic[ext])
+      else expect(new TextDecoder().decode(file.bytes)).toContain('<main>')
+    }
+
+    // A document the record holds but MyChart will not release: answered with
+    // an empty downloadUrl, not a null, so it is a different refusal.
+    const previewOnly = documents.find((d) => d.docExt === 'PDF' && d.docType === 'Visit Summary')
+    expect(previewOnly).toBeDefined()
+    await expect(
+      executeCapability(session, 'download_document', { document_id: previewOnly!.dcsID }),
+    ).rejects.toThrow(/serves no file for it/)
+
+    // An id from nowhere: the literal-null answer.
+    await expect(
+      executeCapability(session, 'download_document', { document_id: 'WP-24NOPE-3D' }),
+    ).rejects.toThrow(/no document WP-24NOPE-3D on the active patient record/)
   }, 60_000)
 
   // ── Imaging ───────────────────────────────────────────────────────────────
@@ -492,6 +543,7 @@ describe('capability registry against fake-mychart', () => {
       ...dependentReads.map((d) => d.id),
       'download_imaging_study',
       'download_billing_statement',
+      'download_document',
       'send_message',
       'send_reply',
       'delete_message',
