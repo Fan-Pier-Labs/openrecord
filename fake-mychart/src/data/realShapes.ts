@@ -4612,3 +4612,83 @@ export const insuranceGetPayors = {
     }
   ]
 } as const;
+
+// /healthadvisories/gettopics
+// The Health Maintenance topic list behind the `/HealthAdvisories` activity,
+// whose page is a client-rendered shell. Captured on one live instance
+// (November 2025, mount /MyChart-PRD): 13 topics, union of their field sets.
+// `FormattedDoneDates` is an array of formatted dates, so its element shape is
+// a bare string.
+export const healthAdvisoriesGetTopics = {
+  "HealthAdvisoryViewModelList": [
+    {
+      "TopicId": "",
+      "CareGapType": "",
+      "Name": "",
+      "DueDateISO": "",
+      "LastCompletedDateISO": "",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "",
+      "StatusCode": "",
+      "DueDateOverride": "",
+      "Status": "",
+      "CanRequestAppointment": false,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "",
+      "ContentLinkTarget": "",
+      "FormattedDueDate": "",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "",
+      "FormattedLastCompletedDate": "",
+      "FormattedDoneDates": [
+        ""
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": false,
+      "ActionDateISO": "",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": ""
+    }
+  ],
+  "HealthAdvisorySettings": {
+    "FormattedGeneralVisitDate": "",
+    "GeneralVisitCSN": "",
+    "HasApptDetailsSecurity": false,
+    "HasUpcomingApptSecurity": false
+  }
+} as const;

@@ -2044,11 +2044,72 @@ export const referrals = {
 };
 
 // ─── Preventive Care ────────────────────────────────────────────────
-export const preventiveCare = [
-  { name: 'Colonoscopy', status: 'overdue', date: '01/01/2024' },
-  { name: 'Influenza Vaccine', status: 'due', date: '10/01/2026' },
-  { name: 'Lipid Panel', status: 'completed', date: '01/10/2026' },
-];
+// The `HealthAdvisories/GetTopics` envelope (`realShapes.healthAdvisoriesGetTopics`).
+// The activity page itself is a client-rendered shell on the captured instance,
+// so this — not any markup — is where the advisories live.
+//
+// Three topics covering the three `StatusCode` values a chart with history
+// shows: overdue with a due date and one prior completion, not-due with a
+// future due date, and satisfied. `DueDateOverride` is 'Due' on the overdue
+// one, as the capture has it for a topic whose due date is in the past.
+export const preventiveCare = {
+  HealthAdvisoryViewModelList: [
+    {
+      TopicId: '32',
+      CareGapType: '10',
+      Name: 'Colonoscopy',
+      StatusCode: '100_OVERDUE',
+      Status: 'Overdue',
+      DueDateISO: '2024-01-01',
+      FormattedDueDate: 'January 1, 2024',
+      DueDateOverride: 'Due',
+      LastDoneDateISO: '2014-01-01',
+      FormattedLastDoneDate: 'January 1, 2014',
+      LastCompletedDateISO: '2014-01-01',
+      FormattedLastCompletedDate: 'January 1, 2014',
+      FormattedDoneDates: ['January 1, 2014'],
+      ActionDateISO: '2024-01-01',
+      IsActionable: true,
+      CanRequestAppointment: true,
+      ContentLinkURL: 'https://healthwise.example.org/colonoscopy',
+      ContentLinkTarget: '_blank',
+    },
+    {
+      TopicId: '9',
+      CareGapType: '22',
+      Name: 'Influenza Vaccine',
+      StatusCode: '500_NOTDUE',
+      Status: 'Not due',
+      DueDateISO: '2026-10-01',
+      FormattedDueDate: 'October 1, 2026',
+      LastDoneDateISO: '2025-10-05',
+      FormattedLastDoneDate: 'October 5, 2025',
+      LastCompletedDateISO: '2025-10-05',
+      FormattedLastCompletedDate: 'October 5, 2025',
+      FormattedDoneDates: ['October 5, 2025'],
+      ContentLinkURL: 'https://healthwise.example.org/influenza-vaccine',
+      ContentLinkTarget: '_blank',
+    },
+    {
+      TopicId: '25',
+      CareGapType: '31',
+      Name: 'Lipid Panel',
+      StatusCode: '700_SATISFIED',
+      Status: 'Completed',
+      LastDoneDateISO: '2026-01-10',
+      FormattedLastDoneDate: 'January 10, 2026',
+      LastCompletedDateISO: '2026-01-10',
+      FormattedLastCompletedDate: 'January 10, 2026',
+      FormattedDoneDates: ['January 10, 2026', 'January 12, 2024'],
+      ContentLinkURL: 'https://healthwise.example.org/lipid-panel',
+      ContentLinkTarget: '_blank',
+    },
+  ],
+  HealthAdvisorySettings: {
+    HasApptDetailsSecurity: true,
+    HasUpcomingApptSecurity: true,
+  },
+};
 
 // ─── Documents ──────────────────────────────────────────────────────
 export const documents = {
