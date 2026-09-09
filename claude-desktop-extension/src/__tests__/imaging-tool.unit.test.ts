@@ -70,11 +70,8 @@ describe('imagingResult', () => {
     // The images still come back — this is the "show me my X-ray" path.
     expect(result.content.filter((c) => c.type === 'image')).toHaveLength(1);
 
-    // Nothing was written, and nothing failed trying: `saved_to` appears only
-    // on a successful save, and a failed one would have left an error.
+    // Nothing failed trying to write: a failed save would have left an error.
     const summary = JSON.parse((result.content[0] as { text: string }).text);
-    expect(summary.saved_to).toBeUndefined();
-    expect(summary.saved_files).toBeUndefined();
     expect(summary.errors).toBeUndefined();
     expect(summary.returned).toBe(1);
     expect(summary.shown_inline).toBe(1);

@@ -5,7 +5,8 @@
  * radiograph is ~4MB as a quality-100 JPEG (5.7MB once base64-encoded). So
  * the pictures shown inline are previews: downscaled and re-encoded until the
  * whole set fits under {@link INLINE_BUDGET_BYTES}. Full resolution is what
- * `save_to_downloads` writes to disk, never what goes in the chat.
+ * `save_to_downloads` writes to disk, never what goes in the chat — and a
+ * saving call shows no pictures at all, only where the files went.
  *
  * A CT is hundreds of slices, and hundreds of thumbnails is not a useful
  * preview of one, so at most {@link MAX_INLINE_IMAGES} are shown, spread

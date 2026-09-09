@@ -1,4 +1,5 @@
 import { MyChartRequest } from "../core/myChartRequest";
+import { directoryPrefixesFor } from '../../list-all-mycharts/searchDirectory';
 import * as cheerio from 'cheerio';
 
 import { getRequestVerificationTokenFromBody } from "../core/util";
@@ -266,7 +267,14 @@ export function extractMountsFromLinks(html: string, preferHostname?: string): M
 const COMMON_FIRST_PATH_PART_CANDIDATES = ['MyChart', 'MyChart-PRD', 'MyChartPRD'];
 
 export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest: MyChartRequest): Promise<string | null> {
-  for (const candidate of COMMON_FIRST_PATH_PART_CANDIDATES) {
+  // The directory's own prefixes come last: on a host with one tenant the
+  // common names usually hit first, and on a host with several this is the
+  // only way to find any of them.
+  const candidates = [...COMMON_FIRST_PATH_PART_CANDIDATES];
+  for (const prefix of directoryPrefixesFor(mychartRequest.hostname)) {
+    if (!candidates.some((c) => c.toLowerCase() === prefix.toLowerCase())) candidates.push(prefix);
+  }
+  for (const candidate of candidates) {
     const candidateUrl = `${mychartRequest.protocol}://${mychartRequest.hostname}/${candidate}/Authentication/Login`;
     try {
       const resp = await mychartRequest.makeRequest({ url: candidateUrl });

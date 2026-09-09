@@ -69,8 +69,10 @@ export type {
   CapabilityKind,
   CapabilityParam,
   CapabilityParamType,
+  FilePayload,
 } from './types';
 export { encodeImageId, decodeImageId, type StudyImagePayload } from './imaging';
+export type { MessageAttachmentFile } from '../../scrapers/myChart/chart/messages/messageAttachment';
 export { resolveRecipient, resolveTopic } from './resolve';
 export {
   ACCOUNT_PARAM,

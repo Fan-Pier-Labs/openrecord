@@ -119,9 +119,9 @@
   },
   {
     "name": "Adventist Health",
-    "url": "https://mychartweb.ohsu.edu/MyChart/",
+    "url": "https://mychart.adventisthealth.org/Mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7BD499FB-74B8-4356-BC46-71651418D547/2b65ef996cfe0676f99e91498d088a0b.png",
-    "slgId": "302",
+    "slgId": "1438",
     "aliases": []
   },
   {
@@ -132,13 +132,6 @@
     "aliases": [
       "AHCG"
     ]
-  },
-  {
-    "name": "Adventist Health System",
-    "url": "https://mychart.adventisthealth.org/Mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7BD499FB-74B8-4356-BC46-71651418D547/2b65ef996cfe0676f99e91498d088a0b.png",
-    "slgId": "1438",
-    "aliases": []
   },
   {
     "name": "Advocate Aurora Health",
@@ -273,6 +266,17 @@
     "slgId": "465",
     "aliases": [
       "District One"
+    ]
+  },
+  {
+    "name": "Alomere Health",
+    "url": "https://mychart.centracare.com/mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/ACE154C2-7EE9-4397-BB8E-69C485026829/f635494bcee721ef939b196fba76da6f.png",
+    "slgId": "515-2",
+    "aliases": [
+      "Alexandria",
+      "DCH",
+      "Alomere"
     ]
   },
   {
@@ -649,7 +653,7 @@
   },
   {
     "name": "Baptist Health",
-    "url": "https://mychart.baptisthealth.com/MyChart/",
+    "url": "https://mychart.baptisthealthal.com/Baptist/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/19552AF8-4A2D-472F-90CA-0E5168B0AA6D/09d354a1833cbbf936896a84e81f87da.png",
     "slgId": "1131-1",
     "aliases": []
@@ -1439,6 +1443,15 @@
     "aliases": []
   },
   {
+    "name": "Center for Comprehensive Care & Diagnosis of Inherited Blood Disorders",
+    "url": "https://mychart.ochin.org/CIBD/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/AB46E058-FE98-447E-95A1-8AC214D867CA/1b77dd21055cb3a13756c59ab8f7d43e.png",
+    "slgId": "432-253",
+    "aliases": [
+      "CIBD"
+    ]
+  },
+  {
     "name": "CentraCare",
     "url": "https://mychart.centracare.com/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E15B35A5-DF39-4849-B254-EC38914B2B05/f5c9ac66617e36a1042bf46f842f250b.png",
@@ -1484,6 +1497,13 @@
       "Northumberland Hills Hospital",
       "NHH"
     ]
+  },
+  {
+    "name": "Central Health",
+    "url": "https://mychart.centralhealth.net/CentralHealth/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6B155FBA-37DE-42EA-9905-9CA888A32F30/74fbd8dc2aec75a5bd8ebb0091fc1016.png",
+    "slgId": "1164-1",
+    "aliases": []
   },
   {
     "name": "Central Michigan University",
@@ -1777,6 +1797,13 @@
     "aliases": [
       "CCHC"
     ]
+  },
+  {
+    "name": "ChristianaCare",
+    "url": "https://mychart.christianacare.org/Mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1E529041-F53E-4014-AD12-5ACCA46FD865/a5396703b7b05aad49596af015b7a501.png",
+    "slgId": "1461",
+    "aliases": []
   },
   {
     "name": "Christie Clinic",
@@ -2120,6 +2147,15 @@
     "aliases": []
   },
   {
+    "name": "Community Health Centers Burlington",
+    "url": "https://mychart.ochin.org/CHCB/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/A58429BB-B04B-4D7B-A4EB-93AFB13B181C/fd040509a98885db7a8c4eb2312fd6cb.png",
+    "slgId": "432-248",
+    "aliases": [
+      "CHCB"
+    ]
+  },
+  {
     "name": "Community Health Connections",
     "url": "https://www.mychart.chcfhc.org/CHCMyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/614ED497-6585-40B9-B63A-FA0F6751B053/840b36bacc39943642aa0714c5cafd98.png",
@@ -2297,6 +2333,13 @@
     "aliases": []
   },
   {
+    "name": "Comprehensive Orthopaedics",
+    "url": "https://mychartplus.org/comc/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1839A31E-643A-4343-AFE6-662DFFF5DCE7/78544f462d14498e39aee1f1e2b7bffe.png",
+    "slgId": "908-9",
+    "aliases": []
+  },
+  {
     "name": "Concentra",
     "url": "https://mychart.concentra.com/ConcentraMyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F45BA4A4-86BC-41C8-9143-1E5312151BFE/b43cf5d87bd5d8e2c57d00c51e2398c8.png",
@@ -2437,9 +2480,9 @@
     ]
   },
   {
-    "name": "Covenant Health and Grace Clinic",
+    "name": "Covenant Health",
     "url": "https://orca.myonlinechart.org/affiliate/Authentication/Login",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/03CFD2C8-AA67-4B5A-A281-AF5D7CF7A7F5/6bc4a485298d9bb18f8e9d90a84b6330.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CEAA1C3A-C697-4006-AB8B-789D5C103816/cf33ad6504f2cba782e44b243a6e6bf6.png",
     "slgId": "808-8",
     "aliases": []
   },
@@ -2499,6 +2542,13 @@
     "url": "https://mychart.crossingrivers.org/CRH/Authentication/Login",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0620BEB2-BF49-434E-9230-7BC71FA8AC33/ddd7f69a9053f8c5dc3201202f5cb347.png",
     "slgId": "605-3",
+    "aliases": []
+  },
+  {
+    "name": "Crouse Health",
+    "url": "https://mycrousechart.crouse.org/crouse/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/C6BB4EA3-D980-4D14-88AE-A248BBFA58CF/9f0354328b857ddc3d782f5ba4a09675.png",
+    "slgId": "1381-1",
     "aliases": []
   },
   {
@@ -2651,17 +2701,6 @@
     "aliases": []
   },
   {
-    "name": "Douglas County Hospital",
-    "url": "https://mychart.centracare.com/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/ACE154C2-7EE9-4397-BB8E-69C485026829/f635494bcee721ef939b196fba76da6f.png",
-    "slgId": "515-2",
-    "aliases": [
-      "Alexandria",
-      "DCH",
-      "Alomere"
-    ]
-  },
-  {
     "name": "Douglas County Memorial Hospital",
     "url": "https://www.mychartcp.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6C4DDB04-0E63-4E9F-B936-D05C92546A6A/98382a1598faefbce99cdc73b46441a3.png",
@@ -2809,9 +2848,9 @@
     ]
   },
   {
-    "name": "El Camino Hospital",
+    "name": "El Camino Health",
     "url": "https://mycare.elcaminohospital.org/mychart",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BB4C7E45-10F0-477B-B2EF-572690A5A8EC/06eb20753f808b10ea9b2233b99207ad.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/09C31F41-339C-476E-AB0D-D37843033FED/61fd2ac5fc0b298ab2d2e7878e4f5324.png",
     "slgId": "920",
     "aliases": [
       "David Chui, MD",
@@ -2951,7 +2990,7 @@
   {
     "name": "Endeavor Health – NorthShore University HealthSystem",
     "url": "https://www.northshoreconnect.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/63BF786D-03F2-4B10-A8EE-EDC287B1B94D/e15d9669090ad6ffea6b7a20e2ef3b92.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1D3707AA-9ABE-477E-B86D-4A558AB60A7F/74dd919094e150b021468576e0a80d3a.png",
     "slgId": "431",
     "aliases": [
       "Northshore University Health System"
@@ -3640,6 +3679,13 @@
     "aliases": []
   },
   {
+    "name": "Great Lakes Surgical Associates",
+    "url": "https://mymidmichigan.midmichigan.net/IPP/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/675AD1D5-F245-4E64-B5A7-D174B15465E0/5570be166c95db7b7fc07eb13fb37b32.png",
+    "slgId": "1003-5",
+    "aliases": []
+  },
+  {
     "name": "Great Ormond Street Hospital",
     "url": "https://my.gosh.nhs.uk/mychart",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8E3786FC-A083-4C45-A4E9-B39D9E174A75/b200dddca2b142df04f05b2f957173f1.png",
@@ -3829,6 +3875,15 @@
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8D9505B2-CE99-4BB0-97F0-658442628067/070e4e1e1df28d413313cf0c7dc3019f.png",
     "slgId": "432-151",
     "aliases": []
+  },
+  {
+    "name": "Harness Health Pharmacy",
+    "url": "https://chpepiceweb.health-partners.org/mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/37F6E802-D4E0-4F65-90DF-841CF9AF3FBB/e47a587f707b1257dd717283a8adee43.png",
+    "slgId": "742-9",
+    "aliases": [
+      "Harness Health"
+    ]
   },
   {
     "name": "Harney District Hospital",
@@ -4418,6 +4473,13 @@
     "url": "https://mychart-cc-ida-nchmd.org/mychart-cc-nchmd/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7807AEFD-A099-4910-966A-9E4287C34881/bf039b1e096c755b36ea1a3a9257c8cb.png",
     "slgId": "1233-4",
+    "aliases": []
+  },
+  {
+    "name": "Infinity Cancer Care",
+    "url": "https://wamt.myonlinechart.org/affiliate/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9D58F852-7BC2-45D9-B263-E174AA31C386/b61d0f920d522691bbf17841a3b74a9b.png",
+    "slgId": "802-42",
     "aliases": []
   },
   {
@@ -7653,7 +7715,7 @@
   {
     "name": "PediaTrust",
     "url": "https://mychart.pediatrust.com/pediatrust/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/744B1543-CFF4-4250-AEC7-D83867D7DAE1/564f20de8826d8ac38dab2b077504f11.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2D572A81-B9EC-4FFB-86FD-5BD146E37323/796c3fead77ccb867a08d2c18a3691fe.png",
     "slgId": "301-3",
     "aliases": []
   },
@@ -8015,30 +8077,37 @@
     ]
   },
   {
-    "name": "Providence Health & Services",
+    "name": "Providence Swedish",
+    "url": "https://mychartwa.providence.org/mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9880C6A1-1E95-42F0-9C2E-5D27A0F1F1DC/3b207b5fdcde401296aee4e373ec5041.png",
+    "slgId": "802-17",
+    "aliases": []
+  },
+  {
+    "name": "Providence Swedish Rehabilitation Hospital",
+    "url": "https://wamt.myonlinechart.org/affiliate/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CFA44219-0500-4ECE-BF3F-722760CAD9B1/580a0e8c732df6da49dfbb319ab6c2ba.png",
+    "slgId": "802-34",
+    "aliases": []
+  },
+  {
+    "name": "Providence, Alaska",
     "url": "https://mychartak.providence.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2861E9F1-2532-4A2F-B05D-42839875B813/51ea8ab04132e78beca846391c4f0146.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/A61A26F5-F784-4F4E-AA1C-B0697994CADD/3d9e6c65b7b672eb8e019614ccf55e5a.png",
     "slgId": "758",
     "aliases": []
   },
   {
-    "name": "Providence Health & Services",
-    "url": "https://mychartwa.providence.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7A5E35DB-5919-4D80-985C-4B3FFCC32E41/df50e3abc1d1ad3ad8dacea15e971e7c.png",
-    "slgId": "802",
-    "aliases": []
-  },
-  {
-    "name": "Providence Health & Services",
+    "name": "Providence, Greater Portland Area",
     "url": "https://mychartor.providence.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2C641714-1907-49A5-9D84-2E2C31B06872/7f3f66217e43a3d7720c9de592e1b742.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/DB6DD5F9-2568-44E0-A7D7-B59CCC27CBE4/d6eed7a7bda076c846ce114cd17ecee2.png",
     "slgId": "808",
     "aliases": []
   },
   {
-    "name": "Providence Health & Services",
+    "name": "Providence, Oregon, California",
     "url": "https://mychartor.providence.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/89CF4906-2A99-48D8-BDB9-B2B174B97820/9087499e3cadfb17a38092cb8517b455.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/869BE637-725C-4009-9CDD-BEB2C47959F3/accfa310c4e576c2698b155a1316835c.png",
     "slgId": "808-10",
     "aliases": [
       "St Joseph Hospital Orange",
@@ -8054,17 +8123,10 @@
     ]
   },
   {
-    "name": "Providence Swedish",
+    "name": "Providence, Washington, Idaho, Montana",
     "url": "https://mychartwa.providence.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9880C6A1-1E95-42F0-9C2E-5D27A0F1F1DC/3b207b5fdcde401296aee4e373ec5041.png",
-    "slgId": "802-17",
-    "aliases": []
-  },
-  {
-    "name": "Providence Swedish Rehabilitation Hospital",
-    "url": "https://wamt.myonlinechart.org/affiliate/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CFA44219-0500-4ECE-BF3F-722760CAD9B1/580a0e8c732df6da49dfbb319ab6c2ba.png",
-    "slgId": "802-34",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8E9F4A11-4D7F-4986-8353-3D6273B45C88/5c4087e71dec9a6c4cd8468fc6184ea1.png",
+    "slgId": "802",
     "aliases": []
   },
   {
@@ -8506,6 +8568,15 @@
     "aliases": []
   },
   {
+    "name": "Rocky Boy Health Center",
+    "url": "https://mychart.ochin.org/RBHC/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2435C85A-FF6D-46EE-89BE-0FF79E14C932/4317c646b638fad82ec63931c04dd640.png",
+    "slgId": "432-251",
+    "aliases": [
+      "RBHC"
+    ]
+  },
+  {
     "name": "Rocky Mountain ENT",
     "url": "https://wamt.myonlinechart.org/affiliate/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/3DCC1AE5-216C-4597-ACED-798785786B99/e94502cdc5ce59f7e7c2ec0ee1e4cceb.png",
@@ -8531,7 +8602,9 @@
     "url": "https://mychart.rsfh.com/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BE234A57-A6ED-4313-A0ED-28239B2ED68E/20b1a78b0dbc0488e91c9783f2413426.png",
     "slgId": "742-6",
-    "aliases": []
+    "aliases": [
+      "Boeing"
+    ]
   },
   {
     "name": "Rukmini D. Kumar MD",
@@ -8811,6 +8884,13 @@
     "url": "https://mychart.ochin.org/smc/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/68CFBE44-6845-4DC6-B1D3-971E63308CB4/3e70b1329bd537f1e92104b55841f66c.png",
     "slgId": "432-210",
+    "aliases": []
+  },
+  {
+    "name": "SCA Health",
+    "url": "https://mychartplus.org/sca/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/AB4031CD-A7C0-450E-A244-67909DC1ACD7/150ba516764d3b84653b253596ac19de.png",
+    "slgId": "908-10",
     "aliases": []
   },
   {
@@ -9373,6 +9453,13 @@
     "aliases": []
   },
   {
+    "name": "Squaxin Island Tribal Health Center",
+    "url": "https://mychart.ochin.org/Squaxin/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E069B0EE-08E8-4D24-AF09-A859B8952F18/e00b0ee81e13f2b3115dcaf027505211.png",
+    "slgId": "432-252",
+    "aliases": []
+  },
+  {
     "name": "SSM Health",
     "url": "https://mychart.ssmhc.com/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BBB11DF9-0909-4C61-9426-47E76373AFD4/5f07a715f751ed497cb3420a88fb54c9.png",
@@ -9919,6 +10006,13 @@
       "New York Concierge Care",
       "New York Mount Sinai Concierge Care"
     ]
+  },
+  {
+    "name": "The Healthcare Connection",
+    "url": "https://mychart.ochin.org/healthcareconnection/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/28EF12BB-1E15-4339-8FF7-8BE58B26753B/a5e6089b12f008a5257637bd7aa61b61.png",
+    "slgId": "432-249",
+    "aliases": []
   },
   {
     "name": "The Institute for Family Health",
@@ -11115,6 +11209,13 @@
     ]
   },
   {
+    "name": "Vail Health",
+    "url": "https://mychart.portal.vailhealth.org/vail/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9E23FC49-9A6E-4D8E-A6A9-C64CFCCF4C80/886f307b4d424ac6cf2420e8988bf17d.png",
+    "slgId": "755-4",
+    "aliases": []
+  },
+  {
     "name": "Valley Children's Hospital",
     "url": "https://mychart.valleychildrens.org/portal/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/049BB6E0-673B-45DA-9CC6-617CA3810A3C/948a4d24c3802559e2ee3b81d1a9e240.png",
@@ -11472,6 +11573,13 @@
     "url": "https://mychart.wellstar.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/DA19A269-D8BD-4FC8-8ED2-01D82CFA7CA5/c5ca149d8a01aeb93c292c9c78dfaac1.png",
     "slgId": "863",
+    "aliases": []
+  },
+  {
+    "name": "West Ascension Parish Hospital",
+    "url": "https://mychart.fmolhs.org/MyChart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/5AB52ECB-297B-4580-BEBF-F2C88433D16C/26a00341ae270a7e06d4c8b68b0b53f6.png",
+    "slgId": "830-25",
     "aliases": []
   },
   {
