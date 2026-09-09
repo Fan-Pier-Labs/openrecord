@@ -1408,6 +1408,22 @@ export const pastVisits = {
  * / `wprKey` (patient side) and leaves `displayName` empty — the name is looked
  * up in the `users` / `viewers` maps on the conversation payload.
  */
+/**
+ * An attachment as the thread endpoints describe it — never its bytes, which
+ * `GetDocumentDetailsLegacy` + the download link serve from
+ * `messageAttachmentFiles`. `type: 2` is `MessageDocType.DCS`, the only kind
+ * observed on a live instance (18 attachments across two instances).
+ */
+export type FakeConversationAttachment = {
+  type: number;
+  dcsId: string;
+  etxId: string;
+  name: string;
+  fileExtension: string;
+  legacyUrlForCommunityJump: string;
+  organizationId: string;
+};
+
 export type FakeConversationMessage = {
   wmgId: string;
   author: { displayName: string; empKey?: string; wprKey?: string };
@@ -1418,6 +1434,7 @@ export type FakeConversationMessage = {
    * has no bare-string body. Newlines become separate Epic paragraphs.
    */
   body: string;
+  attachments?: FakeConversationAttachment[];
 };
 
 export type FakeConversationThread = {
@@ -1500,6 +1517,18 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
           deliveryInstantISO: '2025-12-15T11:30:00Z',
           body: "Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!",
         },
+        {
+          wmgId: 'MSG-006',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-12-16T08:05:00Z',
+          body: 'Attached my insurance card and the coverage letter, as requested.',
+          // As a live instance lists them: the extension upper-case, no
+          // organization, no community link, and `type: 2` (a DCS document).
+          attachments: [
+            { type: 2, dcsId: 'WP-DCS-COVERAGE', etxId: '', name: 'proof of coverage.pdf', fileExtension: 'PDF', legacyUrlForCommunityJump: '', organizationId: '' },
+            { type: 2, dcsId: 'WP-DCS-CARD', etxId: '', name: 'insurance card.png', fileExtension: 'PNG', legacyUrlForCommunityJump: '', organizationId: '' },
+          ],
+        },
       ],
     },
     {
@@ -1580,6 +1609,27 @@ for (const thread of SEEDED_CONVERSATIONS.conversations) {
 }
 
 export const conversations: FakeConversations = SEEDED_CONVERSATIONS;
+
+/**
+ * The bytes behind each attachment above, keyed by `dcsId`, plus what
+ * `GetDocumentDetailsLegacy` reports about the file. Kept apart from the
+ * conversation fixture so `conformToShape` never serves them as fields of an
+ * attachment. A one-page PDF and a 1×1 PNG: real files, so a client that
+ * checks the magic bytes gets the real answer.
+ */
+export const messageAttachmentFiles: Record<string, { mimeType: string; displayName: string; base64: string }> = {
+  'WP-DCS-COVERAGE': {
+    mimeType: 'application/pdf',
+    displayName: 'MyChart_Document_1',
+    base64:
+      'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NyA+PgpzdHJlYW0KQlQgL0YxIDE0IFRmIDIwIDUwIFRkIChQcm9vZiBvZiBjb3ZlcmFnZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0MDgKJSVFT0YK',
+  },
+  'WP-DCS-CARD': {
+    mimeType: 'image/png',
+    displayName: 'MyChart_Document_2',
+    base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC',
+  },
+};
 
 // ─── Billing ────────────────────────────────────────────────────────
 export const billingSummary = [
@@ -2354,7 +2404,7 @@ export const imagingLabResultDetails = {
       resultNote: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
       reportDetails: {
         isDownloadablePDFReport: false,
-        reportID: 'RPT-XRAY-001',
+        reportID: 'RPT-IMAGING-001',
         openRemotely: false,
         reportContext: '',
         reportVars: { ordId: 'ORD-XRAY-001', ordDat: 'ORD-XRAY-001-DAT' },
@@ -2580,7 +2630,7 @@ export const ctLabResultDetails = {
       resultNote: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
       reportDetails: {
         isDownloadablePDFReport: false,
-        reportID: 'RPT-CT-001',
+        reportID: 'RPT-IMAGING-001',
         openRemotely: false,
         reportContext: '',
         reportVars: { ordId: 'ORD-CT-001', ordDat: 'ORD-CT-001-DAT' },
@@ -2632,6 +2682,14 @@ export const ctReportContent = {
 export const imagingReportContent = {
   reportContent: `<div class="report-content"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='${JSON.stringify({ fdi: 'FDI-XRAY-001', ord: 'ORD-XRAY-001' })}'><a href="#">View Images</a></div></div>`,
   reportCss: '',
+};
+
+// `reportID` names a report template, so both imaging results above post the
+// same one ('RPT-IMAGING-001'); only `assumedVariables.ordId` picks the report
+// (scrapers/myChart/chart/labs/README.md, "reportID names a report template").
+export const imagingReportsByOrder: Record<string, { reportContent: string; reportCss: string }> = {
+  'ORD-XRAY-001': imagingReportContent,
+  'ORD-CT-001': ctReportContent,
 };
 
 // ─── Clinical Notes (Shared Notes tab) ──────────────────────────────

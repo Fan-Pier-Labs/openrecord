@@ -63,6 +63,7 @@ import {
   type CapabilityContext,
   type CapabilityParam,
   type StudyImagePayload,
+  type FilePayload,
 } from '../../shared/capabilities';
 
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
@@ -87,9 +88,11 @@ import {
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
-import { decodeStudy, encodeFullResolutionJpegs } from './imaging/download-study';
+import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
+import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
+import { saveFilePayload } from './save-file';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -217,9 +220,9 @@ const SAVE_PARAM = 'save_to_downloads';
 const SAVE_SCHEMA = z
   .boolean()
   .describe(
-    "Also save the pictures to the user's Downloads folder, as full-resolution JPEGs in a folder named for the study. " +
-      'Defaults to false — reduced-size previews are shown in the conversation either way, and saving leaves files behind. ' +
-      'Pass true only when the user asks to save, download, export, keep a copy, or see the full-resolution images.',
+    "Save the pictures to the user's Downloads folder, as full-resolution JPEGs in a folder named for the study, INSTEAD of showing them in the conversation. " +
+      'Defaults to false — reduced-size previews are shown inline. With true, the result is a short confirmation of where the files went and no images. ' +
+      'Pass true only when the user asks to save, download, export, or keep a copy.',
   )
   .optional();
 
@@ -342,6 +345,9 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (capability.rendersMedia) {
           return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
         }
+        if (capability.returnsFile) {
+          return fileResult(payload as FilePayload);
+        }
         // The markdown modes come back as a string and go out as text; the
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
@@ -350,6 +356,48 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
       }
     },
   );
+}
+
+/** Image types Claude Desktop renders from an `image` content block. */
+const INLINE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+/**
+ * A `returnsFile` capability's result: the file is written to the user's
+ * Downloads folder — the only place a PDF can go from a stdio server — and an
+ * image small enough for the host's 1MB result cap is shown inline as well.
+ * Whatever else the capability knew about the file (an attachment's dcsId, a
+ * statement's date) rides in the summary; the bytes never do.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion. `baseDir` is the test seam.
+ */
+export function fileResult(payload: FilePayload, baseDir?: string): ToolResult {
+  const { bytes, fileName, mimeType, ...rest } = payload;
+  const savedTo = baseDir === undefined ? saveFilePayload(payload) : saveFilePayload(payload, baseDir);
+
+  const isImage = INLINE_IMAGE_TYPES.has(mimeType);
+  const base64 = isImage ? Buffer.from(bytes).toString('base64') : '';
+  const inline = isImage && base64.length <= INLINE_BUDGET_BYTES;
+
+  const note =
+    isImage && !inline
+      ? 'The image is too large to show in the conversation; open the saved file to view it.'
+      : mimeType === 'application/pdf'
+        ? 'Open the saved PDF to read it; its text is not in this result.'
+        : undefined;
+
+  const content: ToolContent[] = [
+    {
+      type: 'text',
+      text: JSON.stringify(
+        { file_name: fileName, mime_type: mimeType, size_bytes: bytes.length, saved_to: savedTo, ...rest, ...(note ? { note } : {}) },
+        null,
+        2,
+      ),
+    },
+  ];
+  if (inline) content.push({ type: 'image', data: base64, mimeType });
+  return { content };
 }
 
 /**
@@ -361,9 +409,9 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
  * The inline pictures are budgeted previews (`inline-preview.ts`): Claude
  * Desktop refuses a tool result over 1MB, and one full-size radiograph is
  * several times that. With `save_to_downloads`, the full-resolution JPEGs are
- * written to the user's Downloads folder. Off by default: looking at a scan
- * should not litter someone's disk, and the previews are what "show me my
- * X-ray" asks for. Keeping a copy is a second, explicit request.
+ * written to the user's Downloads folder instead of shown. Off by default:
+ * looking at a scan should not litter someone's disk, and the previews are
+ * what "show me my X-ray" asks for. Keeping a copy is a second, explicit request.
  *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion.
@@ -375,13 +423,12 @@ export async function imagingResult(
   const study = decodeStudy(payload);
   const errors = [...study.errors];
 
-  // Saving must never cost the user the pictures themselves: a read-only
-  // Downloads folder or a full disk becomes a reported error beside images
-  // that still render.
-  let saved: SavedStudy | undefined;
+  // A failed save must never cost the user the pictures themselves: a
+  // read-only Downloads folder or a full disk falls through to the previews
+  // with the error reported beside them.
   if (saveToDownloads && study.images.length > 0) {
     try {
-      saved = saveStudyJpegs(encodeFullResolutionJpegs(study));
+      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study)), errors);
     } catch (err) {
       errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
     }
@@ -397,7 +444,7 @@ export async function imagingResult(
   if (preview.images.length < study.images.length) {
     notes.push(`Showing ${preview.images.length} of ${study.images.length} images, spread evenly across the study.`);
   }
-  if (notes.length && !saved) {
+  if (notes.length && !saveToDownloads) {
     notes.push('Pass save_to_downloads: true to write every image at full resolution to the Downloads folder.');
   }
 
@@ -411,7 +458,6 @@ export async function imagingResult(
           returned: study.images.length,
           shown_inline: preview.images.length,
           ...(notes.length ? { note: notes.join(' ') } : {}),
-          ...(saved ? { saved_to: saved.directory, saved_files: saved.files } : {}),
           ...(errors.length ? { errors } : {}),
         },
         null,
@@ -436,6 +482,15 @@ export async function imagingResult(
   }
 
   return { content };
+}
+
+function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): ToolResult {
+  const count = saved.files.length;
+  const lines = [
+    `Successfully saved ${count} full-resolution image${count === 1 ? '' : 's'} from ${study.studyName} to ${saved.directory}`,
+  ];
+  if (errors.length) lines.push('', 'Errors:', ...errors.map((e) => `- ${e}`));
+  return textResult(lines.join('\n'));
 }
 
 // ── Shared login path ───────────────────────────────────────────────────────

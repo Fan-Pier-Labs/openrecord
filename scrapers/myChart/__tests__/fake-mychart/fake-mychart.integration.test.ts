@@ -604,7 +604,7 @@ for (const mode of MOUNT_MODES) {
     it('getConversationMessages returns a short thread in one page', async () => {
       const result = (await getConversationMessages(session, 'CONV-002'))!
       expect(result.subject).toBe('Discount Surgery Consultation')
-      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005'])
+      expect(result.messages.map(m => m.wmgId)).toEqual(['MSG-004', 'MSG-005', 'MSG-006'])
     }, 10_000)
 
     // GetConversationDetails answers an unknown id with 200 and a literal null,
@@ -643,6 +643,17 @@ for (const mode of MOUNT_MODES) {
       const ctText = ct.order.results.map(r => `${r.studyResult.narrative.contentAsString}\n${r.reportContentText}`).join('\n')
       expect(ctText).toContain('crayon')
       expect(ct.fdiContext.fdi).toBe('FDI-CT-001')
+
+      // Both results post the same reportID (a report template); only the
+      // order variables pick the report. A join on reportID alone hands the CT
+      // the X-ray's report and mints its image_id from the X-ray's context.
+      const xrayReport = xray.order.results.map(r => r.reportContentText).join('\n')
+      expect(xrayReport).toContain('XR Skull 2 Views')
+      expect(xrayReport).not.toContain('CT Head')
+      const ctReport = ct.order.results.map(r => r.reportContentText).join('\n')
+      expect(ctReport).toContain('CT Head without Contrast')
+      expect(ctReport).not.toContain('XR Skull')
+      expect(ct.fdiContext.ord).toBe('ORD-CT-001')
     }, 30_000)
 
     it('followSamlChain reaches eUnity viewer', async () => {
