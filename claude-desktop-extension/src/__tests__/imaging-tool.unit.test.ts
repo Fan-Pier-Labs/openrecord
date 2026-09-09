@@ -8,7 +8,8 @@
  * result builder writes nothing unless it is told to.
  */
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, imagingResult } from '../tools';
@@ -105,5 +106,40 @@ describe('imagingResult', () => {
     expect(summary.shown_inline).toBe(3);
     expect(summary.note).toContain('reduced-size previews');
     expect(summary.note).toContain('save_to_downloads');
+  });
+});
+
+describe('imagingResult with save_to_downloads', () => {
+  test('saves the images and answers with one confirmation, no pictures', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'openrecord-save-'));
+    try {
+      const result = await imagingResult(xrayPayload(), true, dir);
+      expect(result.content).toHaveLength(1);
+      expect(result.content[0]!.type).toBe('text');
+      expect((result.content[0] as { text: string }).text).toContain('Successfully saved 1 full-resolution image');
+      const studyDir = readdirSync(dir).map((name) => join(dir, name)).find((p) => statSync(p).isDirectory());
+      expect(studyDir).toBeDefined();
+      expect(readdirSync(studyDir!).some((f) => f.endsWith('.jpg'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('falls through to the previews, with the error beside them, when the save fails', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'openrecord-save-'));
+    try {
+      // A file where the study folder's parent should be: mkdir fails with ENOTDIR.
+      const notADir = join(dir, 'not-a-directory');
+      writeFileSync(notADir, '');
+      const result = await imagingResult(xrayPayload(), true, notADir);
+      expect(result.content.filter((c) => c.type === 'image')).toHaveLength(1);
+      const summary = JSON.parse((result.content[0] as { text: string }).text);
+      expect(summary.errors).toHaveLength(1);
+      expect(summary.errors[0]).toContain('could not save them to disk');
+      // Telling the user to pass the flag they just passed would be noise.
+      expect(summary.note ?? '').not.toContain('Pass save_to_downloads');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { MyChartRequest } from "../core/myChartRequest";
-import { directoryPrefixesFor } from '../../list-all-mycharts/searchDirectory';
+import { directoryPrefixesFor } from '../../list-all-mycharts/directory';
 import * as cheerio from 'cheerio';
 
 import { getRequestVerificationTokenFromBody } from "../core/util";
