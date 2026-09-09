@@ -18,7 +18,7 @@ fixture rebuilt from it.
 | `get_upcoming_orders` | `POST /api/upcoming-orders/GetUpcomingOrders` | Element shape of `orderList{}` values, and of `orderGroupList{}` / `providerList{}` (all `{}` on every capture) | |
 | `get_allergies` | `POST /api/allergies/LoadAllergies` | `dataList[]` element (`[]` on the captured account). The scraper hedges between `allergyItem.*` and flat fields | |
 | `get_documents` | `POST /api/documents/viewer/LoadOtherDocuments` | The whole response; never captured | |
-| `get_questionnaires` | `POST /Questionnaire/GetQuestionnaireList` | The whole response; never captured. `scrapers/myChart/api-surface-gaps.md` saw the React-era `POST /api/questionnaire/GetQuestionnaireList` return 3.9 KB of real data; decide which endpoint to call | |
+| `get_questionnaires` | `POST /api/questionnaire/GetQuestionnaireList` | `completedQuestionnaires[]` element (`[]` on all four captures), and whether the May 2026 build wraps the lists in `questionnaireLists.assignedQuestionnaireGroups[]` | Envelope and the assigned / optional elements captured on four accounts |
 | `get_care_journeys` | `POST /api/care-journeys/GetCareJourneys` | The whole response; never captured | |
 | `get_health_summary` | `FetchHealthSummary` | `conditionList[]`, `journeyList[]`, `actionPlans[]` elements (`[]` on every capture) | |
 | `get_medications` | `LoadMedicationsPage` | `prescriptionList.pickups[]`, `.deliveries[]`, `.inProgressWorkRequests[]`, `owningPharmacy.hours[]`, `lastDispense.delivery.shipmentTrackingInfo[]` elements | Mail-order accounts only |
@@ -62,13 +62,12 @@ through whole and answer empty honestly. Those belong in the table above.
 ## 2. Requests to verify
 
 - **`request_refill` body.** The scraper posts `{ medicationKey }` to `/api/medications/RequestRefill`. `medicationKey` exists only in the fake's fixture; the captured medications skeleton has `id`. Capture the web UI's refill request (`epic.px.client.medications.js` on any instance) and fix both the scraper and the fixture. The medications processor exposes `id`, and the capability itself is now declared-not-implemented (§1a) rather than shipping a request nobody has watched land.
-- **`get_questionnaires` endpoint.** Legacy `/Questionnaire/GetQuestionnaireList` vs React `/api/questionnaire/GetQuestionnaireList` (see above). Checked on four live instances after the migration: three serve the legacy page and return an empty list; one answers the `/Questionnaire` page itself with HTTP 500, so the capability now fails there with `MissingVerificationTokenError` (it used to read as "no questionnaires"). The React endpoint is the one to move to.
 - **`IsPastVisit`.** Documented false on rows `LoadPast` returned (#377, #380). Confirm on the August 2025 release too, so the drop is release-independent.
 - **`results[].isAbnormal`.** `false` on all 39 captured results including out-of-range ones (#375). One more instance would settle whether any release sets it.
 
 ## 3. fake-mychart follow-ups
 
-- Replace the invented element fields (upcoming orders, allergies, documents, questionnaires, care journeys) with captured ones as each capture lands. Do not delete them before then: the fake would serve empty lists and the scrapers would lose their only test coverage. Insurance is done (`insuranceGetCoverages`); goals are modelled on Epic's own client bundle rather than on a capture, which is better than invented but is still not rule 10.
+- Replace the invented element fields (upcoming orders, allergies, documents, care journeys) with captured ones as each capture lands. Do not delete them before then: the fake would serve empty lists and the scrapers would lose their only test coverage. Insurance is done (`insuranceGetCoverages`); goals are modelled on Epic's own client bundle rather than on a capture, which is better than invented but is still not rule 10.
 - Make `conformToShape` fail loudly, or at least log, when a fixture carries a key the skeleton does not, so an invented field cannot ship silently again (`fake-mychart/README.md` calls this out as the trap).
 
 ## 4. Open PRs to re-cut against the layer

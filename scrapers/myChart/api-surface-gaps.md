@@ -221,9 +221,10 @@ matter more than the entries:
   catalogue you pick from when reporting an allergy. It is a global catalogue, so it belongs with the
   search/typeahead helpers above. It returns "real data" on every account, which is exactly why
   sorting by "did this account return data" misfiled it.
-- **`POST /api/questionnaire/GetQuestionnaireList`** (3.9 KB) — the React-era list. We already call the
-  legacy `/Questionnaire/GetQuestionnaireList` and it works. Same data, newer route; see the
-  `/api/visits/*` note above for when that kind of swap becomes worth it.
+- **`POST /api/questionnaire/GetQuestionnaireList`** (3.9 KB) — the React-era list. `get_questionnaires`
+  now calls this: the legacy `/Questionnaire/GetQuestionnaireList` was not "working", it was answering
+  an error page as an empty list on all four accounts. See
+  [`chart/questionnaires/README.md`](chart/questionnaires/README.md).
 
 ---
 

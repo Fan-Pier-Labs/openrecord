@@ -159,7 +159,7 @@ import { convertCloToJpg, convertCloToBitmap16 } from 'mychart-cli';
 | `client.getUpcomingOrders()` | `Promise<UpcomingOrder[]>` |
 | `client.getPreventiveCare()` | `Promise<PreventiveCareItem[]>` |
 | `client.getEducationMaterials()` | `Promise<EducationMaterial[]>` |
-| `client.getQuestionnaires()` | `Promise<Questionnaire[]>` |
+| `client.getQuestionnaires()` | `Promise<QuestionnairesStandard>` — `{ assignedQuestionnaires, optionalQuestionnaires, questionnaireContextLists, completedQuestionnaires }` |
 | `client.getActivityFeed()` | `Promise<ActivityFeedItem[]>` |
 | `client.getLetters()` | `Promise<Letter[]>` |
 | `client.getLetterDetails(hnoId, csn)` | `Promise<LetterDetailsResponse>` |

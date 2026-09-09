@@ -1,6 +1,9 @@
+import { conformToShape } from '@/lib/shape';
+import * as shapes from '@/data/realShapes';
 import { json } from './respond';
 import type { ExactRoutes } from './types';
 
 export const questionnairesPost: ExactRoutes = {
-  'questionnaire/getquestionnairelist': ({ ds }) => json(ds.questionnaires),
+  'api/questionnaire/getquestionnairelist': ({ ds }) =>
+    json(conformToShape(shapes.getQuestionnaireList, ds.questionnaires)),
 };

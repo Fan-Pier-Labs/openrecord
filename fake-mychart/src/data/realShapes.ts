@@ -1630,6 +1630,191 @@ export const getRelationships = {
   "hasEndOfLifePageMnemonic": false
 } as const;
 
+// /api/questionnaire/getquestionnairelist
+export const getQuestionnaireList = {
+  "assignedQuestionnaires": [
+    {
+      "dueDateISO": "",
+      "apptDateISO": "",
+      "isHistory": false,
+      "seriesData": {
+        "seriesName": "",
+        "pastResponses": [
+          {
+            "filedDateISO": "",
+            "filedTimeISO": "",
+            "timeSinceFiled": 0,
+            "filedDateFormatted": "",
+            "filedTimeFormatted": "",
+            "rootHqaID": "",
+            "answeringUser": "",
+            "viewingPastResponsesNotAllowed": false
+          }
+        ],
+        "isSeriesForSurgery": false,
+        "surgeryData": {
+          "provider": "",
+          "procedureName": "",
+          "procedureDateISO": "",
+          "laterality": ""
+        },
+        "assigningEncounterIdentifier": "",
+        "isSeriesForToDo": false
+      },
+      "hxData": {
+        "hxContext": "",
+        "hxContextID": ""
+      },
+      "displayNameOverride": "",
+      "isTravelScreening": false,
+      "isProxyAccessing": false,
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "filterType": "",
+        "isContextSpecific": false,
+        "preText": "",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "",
+        "id": "",
+        "name": ""
+      }
+    }
+  ],
+  "optionalQuestionnaires": [
+    {
+      "description": "",
+      "disablePastResponse": false,
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": "",
+          "from": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "isContextSpecific": false,
+        "preText": "",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "",
+        "id": "",
+        "name": ""
+      }
+    }
+  ],
+  "questionnaireContextLists": [
+    {
+      "listContext": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": ""
+        }
+      },
+      "assignedQuestionnaires": [
+        {
+          "dueDateISO": "",
+          "apptDateISO": "",
+          "isHistory": false,
+          "seriesData": {
+            "seriesName": "",
+            "pastResponses": [
+              {
+                "filedDateISO": "",
+                "filedTimeISO": "",
+                "timeSinceFiled": 0,
+                "filedDateFormatted": "",
+                "filedTimeFormatted": "",
+                "rootHqaID": "",
+                "answeringUser": "",
+                "viewingPastResponsesNotAllowed": false
+              }
+            ],
+            "isSeriesForSurgery": false,
+            "surgeryData": {
+              "provider": "",
+              "procedureName": "",
+              "procedureDateISO": "",
+              "laterality": ""
+            },
+            "assigningEncounterIdentifier": "",
+            "isSeriesForToDo": false
+          },
+          "hxData": {
+            "hxContext": "",
+            "hxContextID": ""
+          },
+          "displayNameOverride": "",
+          "isTravelScreening": false,
+          "isProxyAccessing": false,
+          "context": {
+            "contextType": 0,
+            "contextIdentifier": "",
+            "extraContextInfo": {
+              "ltkID": "",
+              "ltkInstant": "",
+              "larID": "",
+              "cjnID": "",
+              "isPreadmission": false,
+              "rshID": ""
+            }
+          },
+          "questionnaire": {
+            "type": 0,
+            "filterType": "",
+            "isContextSpecific": false,
+            "preText": "",
+            "postText": "",
+            "isPreTextSmartText": false,
+            "isPostTextSmartText": false,
+            "status": 0,
+            "rootName": "",
+            "id": "",
+            "name": ""
+          }
+        }
+      ],
+      "index": 0
+    }
+  ],
+  "completedQuestionnaires": [],
+  "showSeriesText": false,
+  "showBackButton": false,
+  "callingApp": 0,
+  "showPretext": false,
+  "messageQnrExpired": false,
+  "sourceActivity": 0
+} as const;
+
 // /api/referrals/listreferrals
 export const listReferrals = {
   "referralList": [

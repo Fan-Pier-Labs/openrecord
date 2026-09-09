@@ -359,9 +359,18 @@ for (const mode of MOUNT_MODES) {
       expect(result.orderList.length).toBeGreaterThan(0)
     }, 10_000)
 
-    it('getQuestionnaires returns questionnaires', async () => {
+    // The fields a consumer reads, not just the envelope: the fixture is
+    // conformed to the captured shape, so a fixture that set the wrong key
+    // would still serve a complete, real-looking response with the name and
+    // the due date blank.
+    it('getQuestionnaires returns the assigned and optional lists', async () => {
       const result = await getQuestionnaires(session)
-      expect(result.questionnaires.length).toBeGreaterThan(0)
+      expect(result.assignedQuestionnaires.length).toBeGreaterThan(0)
+      expect(result.optionalQuestionnaires.length).toBeGreaterThan(0)
+      const assigned = result.assignedQuestionnaires[0]!
+      expect(assigned.questionnaire.name).toBeTruthy()
+      expect(assigned.dueDateISO).toBeTruthy()
+      expect(result.optionalQuestionnaires[0]!.questionnaire.name).toBeTruthy()
     }, 10_000)
 
     it('getCareJourneys returns care journeys', async () => {

@@ -401,7 +401,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Referrals** | `referrals.ts` | Cardiology referral to Dr. Nick |
 | **Preventive Care** | `preventiveCare.ts` | Colonoscopy overdue, flu shot due |
 | **Documents** | `documents.ts` | After Visit Summary, Lab Results Report |
-| **Questionnaires** | `questionnaires.ts` | PHQ-9, Health Risk Assessment |
+| **Questionnaires** | `questionnaires.ts` | Assigned: Annual Health Risk Assessment (due). Optional: Mood and Wellbeing Check-In |
 | **Care Journeys** | `careJourneys.ts` | Weight Management Program |
 | **Activity Feed** | `activityFeed.ts` | New lab results, appointment reminders |
 | **Education Materials** | `educationMaterials.ts` | Heart Health, Managing Cholesterol |

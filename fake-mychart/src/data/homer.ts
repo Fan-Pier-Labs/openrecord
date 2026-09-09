@@ -2059,11 +2059,36 @@ export const documents = {
 };
 
 // ─── Questionnaires ─────────────────────────────────────────────────
+// Shaped to the captured `/api/questionnaire/GetQuestionnaireList` response
+// (`realShapes.getQuestionnaireList`): one assigned questionnaire with a due
+// date, one optional one. The numeric enums (`status`, `type`, `contextType`)
+// stay at the skeleton's neutral 0 — no capture shows what their values mean,
+// and a wrong enum conforms exactly as well as a right one.
 export const questionnaires = {
-  questionnaires: [
-    { id: 'QUEST-001', name: 'PHQ-9 Depression Screening', status: 'Completed', dueDate: '01/10/2026', completedDate: '01/10/2026' },
-    { id: 'QUEST-002', name: 'Health Risk Assessment', status: 'Pending', dueDate: '04/15/2026', completedDate: '' },
+  assignedQuestionnaires: [
+    {
+      dueDateISO: '2026-04-15',
+      apptDateISO: '2026-04-22',
+      questionnaire: {
+        id: 'QNR-1041',
+        rootName: 'Annual Health Risk Assessment',
+        name: 'Annual Health Risk Assessment',
+        preText: 'Please finish this before your visit with Dr. Hibbert.',
+      },
+    },
   ],
+  optionalQuestionnaires: [
+    {
+      description: 'Tell us how you have been feeling over the past two weeks.',
+      questionnaire: {
+        id: 'QNR-2088',
+        rootName: 'Mood and Wellbeing Check-In',
+        name: 'Mood and Wellbeing Check-In',
+      },
+    },
+  ],
+  questionnaireContextLists: [],
+  completedQuestionnaires: [],
 };
 
 // ─── Care Journeys ──────────────────────────────────────────────────
