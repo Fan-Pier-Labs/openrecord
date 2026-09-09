@@ -62,7 +62,11 @@ Every URL carries `noCache=<random>`.
   account. `download_billing_statement` therefore re-walks the summary and each account's
   statement list to find the row whose `RecordID` it was given, then reads that account's
   page for `EncID`. A bad key does not 4xx: `DownloadFromBlob` answers 200 with an HTML page,
-  so the bytes are checked for the `%PDF` signature before they are called a PDF.
+  so the bytes are checked for the `%PDF` signature before they are called a PDF. The handle
+  is `RecordID` rather than an opaque id packing all five keys the way `image_id` does for
+  imaging: the other four come from a live session and how long they stay valid past it is
+  unverified, so re-reading them costs two-plus-N requests per download but can never hand
+  `DownloadFromBlob` a stale key.
 - **Procedure descriptions arrive with markup inside them** (`<span class='subtlecolor'>`),
   so they need the same text conversion any other MyChart prose field does.
 
@@ -188,6 +192,7 @@ capability — there is no `mode` — and it is `returnsFile`: `run` returns a `
 so a caller can label what it saved. Each client puts the bytes somewhere the user can open
 them: the Claude Desktop extension writes to the Downloads folder (never overwriting — a
 second copy is `Statement_20260115-2.pdf`) and answers with the path; the CLI writes to
-`--output <dir>` (default: the working directory) and prints the path; the mobile app has
-no file surface and refuses up front, naming the two clients that do.
-`fileName` is `Statement_<DateDisplay>.pdf`, the name MyChart's own download button uses.
+`--output <dir>` (default: the working directory) and prints the path; the mobile app runs
+the shared `returnsFile` path and, having no file surface, reports that a PDF cannot be shown
+there and names the two clients that save it. `fileName` is `Statement_<DateDisplay>.pdf`,
+the name MyChart's own download button uses, made safe by `safeFileName`.

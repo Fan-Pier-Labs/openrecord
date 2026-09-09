@@ -215,7 +215,7 @@ describe('downloadBillingStatement', () => {
 
   it('names the RecordIDs it did find when the one asked for is not there', async () => {
     const { req } = withStatementLists(twoAccounts())
-    await expect(downloadBillingStatement(req, 'REC-9')).rejects.toThrow(/No billing statement has RecordID "REC-9".*REC-1, REC-2/)
+    await expect(downloadBillingStatement(req, 'REC-9')).rejects.toThrow(/No billing statement has RecordID "REC-9".*account 1: REC-1; account 2: REC-2/)
   })
 
   it('refuses when the details page has no EncID rather than requesting a broken download', async () => {

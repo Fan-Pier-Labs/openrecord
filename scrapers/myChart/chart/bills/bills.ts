@@ -6,6 +6,7 @@ import type { BillingAccount, PaymentListResponse, StatementItem, StatementListR
 import { logger } from '../../../../shared/logger';
 import { toEpicDteLocal } from '../../../../shared/epicDate';
 import type { FilePayload } from '../../../../shared/capabilities/types';
+import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
 import { billingProcessor, statementDateISO, type BillingStandard } from './bills.processor';
 
@@ -145,11 +146,12 @@ async function findStatement(
     ];
     const statement = statements.find((s) => s.RecordID === recordId);
     if (statement) return { account, statement };
-    seen.push(...statements.map((s) => s.RecordID).filter(Boolean));
+    const ids = statements.map((s) => s.RecordID).filter(Boolean);
+    if (ids.length) seen.push(`account ${account.guarantorNumber}: ${ids.join(', ')}`);
   }
   throw new Error(
     `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; ` +
-      (seen.length ? `this account has: ${seen.join(', ')}.` : 'this account has no statements.'),
+      (seen.length ? `the statements on this login are — ${seen.join('; ')}.` : 'this login has no statements on any account.'),
   );
 }
 
@@ -179,7 +181,7 @@ export async function downloadBillingStatement(
     );
   }
   return {
-    fileName: `Statement_${statement.DateDisplay || recordId}.pdf`.replace(/[^A-Za-z0-9._-]+/g, '_'),
+    fileName: safeFileName(`Statement_${statement.DateDisplay || recordId}.pdf`, 'statement.pdf'),
     mimeType: 'application/pdf',
     bytes,
     statement: {
