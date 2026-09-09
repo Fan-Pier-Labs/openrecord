@@ -2454,11 +2454,107 @@ export const preventiveCare = {
 };
 
 // ─── Documents ──────────────────────────────────────────────────────
+// The Document Center's "other documents" list, shaped to
+// `realShapes.loadOtherDocuments`. `dateRaw` is an Epic day number and `date`
+// is its M/D/YYYY rendering; on the captured account the two agreed on all 42
+// documents, so `fakeDocument` derives one from the other rather than letting
+// a hand-typed pair drift apart.
+//
+// MyChart answers this endpoint 25 documents at a time, so a fixture with
+// fewer never exercises the paging — and a scraper that read only the first
+// page would pass against the fake while dropping the rest of a patient's
+// documents in production. Four seeded documents carry the states worth
+// asserting on (unread, e-signed, a description, a non-PDF extension) and the
+// filler takes the list to 27: one past a page, and no more.
+const EPIC_EPOCH_UTC = Date.UTC(1840, 11, 31);
+
+/**
+ * `dcsID`, `docID` and `dat` are long opaque tokens on a real instance —
+ * `WP-` and then base64 with `$`, `+` and `=` percent-escaped into `-24`,
+ * `-2B` and `-3D`, measured at 85-94, 82-114 and 82-92 characters. Short
+ * stand-ins are not a harmless simplification here: the markdown renderer
+ * drops a list out of table form as soon as one cell exceeds 60 characters,
+ * so tidy ids make the fake render a compact table no real account ever gets.
+ */
+function opaqueId(seed: string, length: number): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let h = 2166136261;
+  let out = '';
+  while (out.length < length) {
+    h = Math.imul(h ^ (seed.charCodeAt(out.length % seed.length) + out.length), 16777619) >>> 0;
+    out += alphabet[h % alphabet.length];
+  }
+  return `WP-24${out.slice(0, length - 12)}-2B${out.slice(4, 8)}-3D-3D`;
+}
+
+function fakeDocument(fields: {
+  n: number;
+  docType: string;
+  docExt: string;
+  blobCat: string;
+  dateISO: string;
+  docDesc?: string;
+  isNew?: boolean;
+  wasESigned?: boolean;
+}) {
+  const at = new Date(`${fields.dateISO}T00:00:00Z`);
+  return {
+    blobCat: fields.blobCat,
+    dcsID: opaqueId(`dcs${fields.n}`, 88),
+    docID: opaqueId(`doc${fields.n}`, 104),
+    date: `${at.getUTCMonth() + 1}/${at.getUTCDate()}/${at.getUTCFullYear()}`,
+    dateRaw: String(Math.round((at.valueOf() - EPIC_EPOCH_UTC) / 86_400_000)),
+    dat: opaqueId(`dat${fields.n}`, 86),
+    docExt: fields.docExt,
+    docDesc: fields.docDesc ?? '',
+    docType: fields.docType,
+    pendingApprovalStatus: 0,
+    rejectionReasonFreetext: '',
+    wasESigned: fields.wasESigned ?? false,
+    downloadOnly: false,
+    new: fields.isNew ?? false,
+    isExpired: false,
+    pendingRequiredSignatures: false,
+    onlyAllowedPreview: false,
+  };
+}
+
 export const documents = {
   documents: [
-    { id: 'DOC-001', title: 'After Visit Summary', documentType: 'Clinical', date: '01/10/2026', providerName: 'Julius Hibbert, MD', organizationName: 'Springfield General Hospital' },
-    { id: 'DOC-002', title: 'Lab Results Report', documentType: 'Lab', date: '01/10/2026', providerName: 'Julius Hibbert, MD', organizationName: 'Springfield General Hospital' },
+    fakeDocument({ n: 1, docType: 'After Visit Summary', docExt: 'PDF', blobCat: '20', dateISO: '2026-01-10', isNew: true }),
+    fakeDocument({ n: 2, docType: 'Consent - Procedure', docExt: 'HTML', blobCat: '3', dateISO: '2025-11-04', wasESigned: true }),
+    fakeDocument({ n: 3, docType: 'Insurance Card', docExt: 'JPG', blobCat: '185', dateISO: '2025-09-18', docDesc: 'Front and back' }),
+    fakeDocument({ n: 4, docType: 'Outside Records', docExt: 'TIF', blobCat: '20', dateISO: '2025-06-02' }),
+    // One visit summary a month, older than every seeded document.
+    ...Array.from({ length: 23 }, (_, i) =>
+      fakeDocument({
+        n: 5 + i,
+        docType: 'Visit Summary',
+        docExt: 'PDF',
+        blobCat: '20',
+        dateISO: new Date(Date.UTC(2025, 4 - i, 15)).toISOString().slice(0, 10),
+      })),
   ],
+};
+
+/**
+ * The bytes behind a Document Center document, keyed by `dcsID`. Not every
+ * document has an entry: on the captured account 1 of 42 answered
+ * `GetDocumentDetails` with `downloadUrl` and `token` both empty — MyChart
+ * offering it for viewing in the portal and serving no file — and its
+ * `previewUrl` then streamed 200 with an empty body. `documents[4]` is that
+ * document, so the refusal has something to be measured against.
+ *
+ * `displayName` is MyChart's own name for the file and is what the download's
+ * `Content-Disposition` carries; it is not the `docType` the list shows.
+ */
+export const documentFiles: Record<string, { mimeType: string; displayName: string; base64: string }> = {
+  [documents.documents[0]!.dcsID]: { mimeType: 'application/pdf', displayName: 'After Visit Summary', base64: 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NyA+PgpzdHJlYW0KQlQgL0YxIDE0IFRmIDIwIDUwIFRkIChQcm9vZiBvZiBjb3ZlcmFnZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0MDgKJSVFT0YK' },
+  // An e-signed document really is served as HTML — 8 of 42 on the capture —
+  // so the download path must not mistake it for a login page.
+  [documents.documents[1]!.dcsID]: { mimeType: 'text/html', displayName: 'Consent - Procedure', base64: 'PG1haW4+PGgxPkNvbnNlbnQgLSBQcm9jZWR1cmU8L2gxPjxwPlNpZ25lZCBlbGVjdHJvbmljYWxseS48L3A+PC9tYWluPg==' },
+  [documents.documents[2]!.dcsID]: { mimeType: 'image/jpeg', displayName: 'Insurance Card Front', base64: '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD+/iiiigD/2Q==' },
+  [documents.documents[3]!.dcsID]: { mimeType: 'image/tiff', displayName: 'Outside Records 2025', base64: 'SUkqAAgAAAABAAAAAAAAAAA=' },
 };
 
 // ─── Questionnaires ─────────────────────────────────────────────────

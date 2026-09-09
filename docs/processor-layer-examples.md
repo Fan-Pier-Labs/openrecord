@@ -15,7 +15,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 
 | Capability | raw | json | standard | concise |
 | --- | ---: | ---: | ---: | ---: |
-| `get_profile` | 35954 | 888 | 1149 | 209 |
+| `get_profile` | 35974 | 888 | 1149 | 209 |
 | `get_health_summary` | 2337 | 394 | 463 | 353 |
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
@@ -36,15 +36,15 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3624 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 52744 | 7714 | 8963 | 2227 |
+| `get_billing` | 52764 | 7714 | 8963 | 2227 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
-| `get_insurance_benefits` | 34386 | 2862 | 3564 | 1562 |
+| `get_insurance_benefits` | 34406 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19278 | 1225 | 875 | 532 |
+| `get_care_team` | 19288 | 1225 | 875 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
-| `get_documents` | 367 | 367 | 329 | 329 |
+| `get_documents` | 32572 | 17436 | 20096 | 1595 |
 | `get_upcoming_orders` | 557 | 427 | 381 | 353 |
 | `get_questionnaires` | 1634 | 1455 | 1957 | 538 |
 | `get_care_journeys` | 228 | 228 | 264 | 264 |
@@ -61,7 +61,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 Patient profile (name, date of birth, medical record number, primary care provider) plus the account email address.
 
 <details>
-<summary><code>mode: raw</code> (35954 chars)</summary>
+<summary><code>mode: raw</code> (35974 chars)</summary>
 
 ```json
 {
@@ -72,7 +72,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Home</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"active\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a href=\"
-… (truncated; 26349 more characters)
+… (truncated; 26369 more characters)
 ```
 
 </details>
@@ -14746,7 +14746,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (52744 chars)</summary>
+<summary><code>mode: raw</code> (52764 chars)</summary>
 
 ```json
 {
@@ -14757,7 +14757,7 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺<
-… (truncated; 54723 more characters)
+… (truncated; 54743 more characters)
 ```
 
 </details>
@@ -15715,7 +15715,7 @@ Insurance coverages on file: payer, plan, member and group numbers, effective da
 How much of the deductible and the out-of-pocket maximum has been used, how much is left, and when each resets. MyChart keys these to a billing guarantor account rather than to a coverage, so a patient with two accounts gets one set per account. For the coverages themselves — payer, plan, member id — use get_insurance.
 
 <details>
-<summary><code>mode: raw</code> (34386 chars)</summary>
+<summary><code>mode: raw</code> (34406 chars)</summary>
 
 ```json
 {
@@ -15851,7 +15851,7 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; h
-… (truncated; 24021 more characters)
+… (truncated; 24041 more characters)
 ```
 
 </details>
@@ -16555,7 +16555,7 @@ The insurance payers this organization's MyChart offers when adding a coverage �
 Providers on the care team, including outside providers, each with their role and specialty.
 
 <details>
-<summary><code>mode: raw</code> (19278 chars)</summary>
+<summary><code>mode: raw</code> (19288 chars)</summary>
 
 ```json
 {
@@ -16566,7 +16566,7 @@ Providers on the care team, including outside providers, each with their role an
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n      
-… (truncated; 9312 more characters)
+… (truncated; 9322 more characters)
 ```
 
 </details>
@@ -16964,81 +16964,1194 @@ Plan: Continue current medications. Referred to weight management program. Follo
 Clinical documents and visit records.
 
 <details>
-<summary><code>mode: raw</code> (367 chars)</summary>
+<summary><code>mode: raw</code> (32572 chars)</summary>
 
 ```json
 {
-  "documents": [
+  "requests": [
     {
-      "id": "DOC-001",
-      "title": "After Visit Summary",
-      "documentType": "Clinical",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    },
-    {
-      "id": "DOC-002",
-      "title": "Lab Results Report",
-      "documentType": "Lab",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    }
-  ]
-}
+      "path": "/api/documents/viewer/LoadOtherDocuments",
+      "method": "POST",
+      "requestBody": {
+        "isInitialLoad": true
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "documents": [
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D",
+            "docID": "WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D",
+            "date": "1/10/2026",
+            "dateRaw": "67580",
+            "dat": "WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "After Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": true,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "3",
+            "dcsID": "WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D",
+            "docID": "WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D",
+            "date": "11/4/2025",
+            "dateRaw": "67513",
+            "dat": "WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D",
+            "docExt": "HTML",
+            "docDesc": "",
+            "docType": "Consent - Procedure",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": true,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "185",
+            "dcsID": "WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D",
+            "docID": "WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D",
+            "date": "9/18/2025",
+            "dateRaw": "67466",
+            "dat": "WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D",
+            "docExt": "JPG",
+            "docDesc": "Front and back",
+            "docType": "Insurance Card",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D",
+            "docID": "WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D",
+            "date": "6/2/2025",
+            "dateRaw": "67358",
+            "dat": "WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D",
+            "docExt": "TIF",
+            "docDesc": "",
+            "docType": "Outside Records",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D",
+            "docID": "WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D",
+            "date": "5/15/2025",
+            "dateRaw": "67340",
+            "dat": "WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D",
+            "docID": "WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D",
+            "date": "4/15/2025",
+            "dateRaw": "67310",
+            "dat": "WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D",
+            "docID": "WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D",
+            "date": "3/15/2025",
+            "dateRaw": "67279",
+            "dat": "WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D",
+            "docID": "WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D",
+            "date": "2/15/2025",
+            "dateRaw": "67251",
+            "dat": "WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D",
+            "docID": "WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D",
+            "date": "1/15/2025",
+            "dateRaw": "67220",
+            "dat": "WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D",
+            "docID": "WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D",
+            "date": "12/15/2024",
+            "dateRaw": "67189",
+            "dat": "WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D",
+            "docID": "WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D",
+            "date": "11/15/2024",
+            "dateRaw": "67159",
+            "dat": "WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D",
+            "docID": "WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D",
+            "date": "10/15/2024",
+            "dateRaw": "67128",
+            "dat": "WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D",
+            "docID": "WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D",
+            "date": "9/15/2024",
+            "dateRaw": "67098",
+            "dat": "WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D",
+            "docID": "WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfS
+… (truncated; 27860 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (329 chars)</summary>
+<summary><code>mode: standard</code> (20096 chars)</summary>
 
-## documents (2)
+## documents (27)
 
-| id | title | documentType | date | providerName | organizationName |
-| - | - | - | - | - | - |
-| DOC-001 | After Visit Summary | Clinical | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
-| DOC-002 | Lab Results Report | Lab | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
+### documents 1
+
+- **dcsID**: WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D
+- **docID**: WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D
+- **docType**: After Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/10/2026
+- **dateRaw**: 67580
+- **dateISO**: 2026-01-10
+- **blobCat**: 20
+- **dat**: WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D
+- **new**: true
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 2
+
+- **dcsID**: WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D
+- **docID**: WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D
+- **docType**: Consent - Procedure
+- **docDesc**: (empty)
+- **docExt**: HTML
+- **date**: 11/4/2025
+- **dateRaw**: 67513
+- **dateISO**: 2025-11-04
+- **blobCat**: 3
+- **dat**: WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D
+- **new**: false
+- **wasESigned**: true
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 3
+
+- **dcsID**: WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D
+- **docID**: WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D
+- **docType**: Insurance Card
+- **docDesc**: Front and back
+- **docExt**: JPG
+- **date**: 9/18/2025
+- **dateRaw**: 67466
+- **dateISO**: 2025-09-18
+- **blobCat**: 185
+- **dat**: WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 4
+
+- **dcsID**: WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D
+- **docID**: WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D
+- **docType**: Outside Records
+- **docDesc**: (empty)
+- **docExt**: TIF
+- **date**: 6/2/2025
+- **dateRaw**: 67358
+- **dateISO**: 2025-06-02
+- **blobCat**: 20
+- **dat**: WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 5
+
+- **dcsID**: WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D
+- **docID**: WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 5/15/2025
+- **dateRaw**: 67340
+- **dateISO**: 2025-05-15
+- **blobCat**: 20
+- **dat**: WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 6
+
+- **dcsID**: WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D
+- **docID**: WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 4/15/2025
+- **dateRaw**: 67310
+- **dateISO**: 2025-04-15
+- **blobCat**: 20
+- **dat**: WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 7
+
+- **dcsID**: WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D
+- **docID**: WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 3/15/2025
+- **dateRaw**: 67279
+- **dateISO**: 2025-03-15
+- **blobCat**: 20
+- **dat**: WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 8
+
+- **dcsID**: WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D
+- **docID**: WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 2/15/2025
+- **dateRaw**: 67251
+- **dateISO**: 2025-02-15
+- **blobCat**: 20
+- **dat**: WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 9
+
+- **dcsID**: WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D
+- **docID**: WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/15/2025
+- **dateRaw**: 67220
+- **dateISO**: 2025-01-15
+- **blobCat**: 20
+- **dat**: WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 10
+
+- **dcsID**: WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D
+- **docID**: WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 12/15/2024
+- **dateRaw**: 67189
+- **dateISO**: 2024-12-15
+- **blobCat**: 20
+- **dat**: WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 11
+
+- **dcsID**: WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D
+- **docID**: WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 11/15/2024
+- **dateRaw**: 67159
+- **dateISO**: 2024-11-15
+- **blobCat**: 20
+- **dat**: WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 12
+
+- **dcsID**: WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D
+- **docID**: WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 10/15/2024
+- **dateRaw**: 67128
+- **dateISO**: 2024-10-15
+- **blobCat**: 20
+- **dat**: WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 13
+
+- **dcsID**: WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D
+- **docID**: WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 9/15/2024
+- **dateRaw**: 67098
+- **dateISO**: 2024-09-15
+- **blobCat**: 20
+- **dat**: WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 14
+
+- **dcsID**: WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D
+- **docID**: WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfSaz2YUFV9AVtObPjwEqTQY5km0pbD893IzBtmagh8cN6KO-2B0ZIo-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 8/15/2024
+- **dateRaw**: 67067
+- **dateISO**: 2024-08-15
+- **blobCat**: 20
+- **dat**: WP-247DXJTGRILMcimIyP2ty3lhtDJGlGBosOgKYXQNmnD5D9dovMN2yYCkeVOHMzZRvrTkzcJU6cKg-2BTGRI-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 15
+
+- **dcsID**: WP-247lGWh2XxISQ6Zt8PwuXFTfSEDKBhosyczZq7Sop5nNYONuVpkowIpRa7IK79Ph8qpI5FUQU6jh45-2Bh2Xx-3D-3D
+- **docID**: WP-247bWAlMpxiYs8f7sZOeFb1F8oZmhFii0yprYl4gFxdjE2vgvjKC2kr5KPImr5Pl04NwJv8aG29N6boGf3r7yqNERV4UWw-2BlMpx-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 7/15/2024
+- **dateRaw**: 67036
+- **dateISO**: 2024-07-15
+- **blobCat**: 20
+- **dat**: WP-247DXJiTujIQiS8gH2129j1NVXKzMJ8S4gAyhIla5d3BTpOPGzcWC4OyN6zW5pTvfZuRcbAqW6G2-2BiTuj-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 16
+
+- **dcsID**: WP-247lGWST22ZgywdNzo5VWfnDqWmN88Z0kmdvb61B0z9TEGoRQMjayCpXNy7DKzxhE64lMebQUWP19S-2BST22-3D-3D
+- **docID**: WP-247bWAWfOsDOMoBtN05RUpDFwEON28TUq0XTTw9Xonxn06yJamRQogZhz8Xz4NJJ2CEXi0dKoOxLvGDturVhuYOR2UhumW-2BWfOs-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 6/15/2024
+- **dateRaw**: 67006
+- **dateISO**: 2024-06-15
+- **blobCat**: 20
+- **dat**: WP-247DXJzyhstkKO0oIVwdCBzFvB5oXGNq6q6SOna5i3JbFjFYns3qkCqyupWp0bxt7LDWrOLOAaKq-2Bzyhs-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 17
+
+- **dcsID**: WP-247lGWDkhnUMMYLT8P6elP1JqMBAjD26IohRCVUSLX9NMgzg9ZS0s81lY1wsVXt5OihWDH4SiCpXov-2BDkhn-3D-3D
+- **docID**: WP-247bWAH43X2K2eDPeZUk5BzhOG3Gh3Gm4iztaj2QlLD96UrI3JsY2sFd4rkcbZvP8G5YZPUsO61pGtkIHZbRQKfudvuIy2-2BH43X-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 5/15/2024
+- **dateRaw**: 66975
+- **dateISO**: 2024-05-15
+- **blobCat**: 20
+- **dat**: WP-247DXJEZmbU6UIwAxSlYTlz9zTgb6bYQAYMEr4Xe7nPhbfgfqhcci8o49QTArLPpVrE5CRCGw4sw-2BEZmb-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 18
+
+- **dcsID**: WP-247lGWuBg2nUam1JFOXLiPNbiGEpYmZUqGp1hk1vYPvH0qanQibKw25l10PDsntRaug7gUZKMm7Nre-2BuBg2-3D-3D
+- **docID**: WP-247bWA2tYybwi6NVpu7bArt588SdCM7Oa4phDadhIxzPAiQrEOFkkWB9BMbvizD7QoO3MkFQ6QvJd4flCxfb6cQvic5iek-2B2tYy-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 4/15/2024
+- **dateRaw**: 66945
+- **dateISO**: 2024-04-15
+- **blobCat**: 20
+- **dat**: WP-247DXJV4d0VaKaQ6ahS3ghlH3Xti56Rmi48Um56dK9VPvfXIFU1OSIYKGB4HYJ1rbj1QlyfkCIeM-2BV4d0-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 19
+
+- **dcsID**: WP-247lGWfyHBSkeWbDGBYkp13P4CrkFxwQwmjJ0FqQPBVxUiN2RxMsIQfHezAuHTZVM4Fi3x2EWUF3AX-2BfyHB-3D-3D
+- **docID**: WP-247bWAnAHP6q4elXyd6yzfZnsutsBP6EaU3lEFwsRdPHmEBkxtky04b5Yl2MNxjDeUjsRDgaAWZhsRcoxPxTuE5Upx8cME-2BnAHP-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 3/15/2024
+- **dateRaw**: 66914
+- **dateISO**: 2024-03-15
+- **blobCat**: 20
+- **dat**: WP-247DXJknulyM2eSURaV6h5tHFpev49uQs4SoLSp6hvVVhxQbmRokeWIklsJchFHBLHCdUZQy2Uu2-2Bknul-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 20
+
+- **dcsID**: WP-247lGH1mzz96Kij8IjAOwVHf6rts3HhqiYx6Ilkiy5jz4L9s3ZfSKwVgQ9uWShRRER5MLHj8EqDQKL-2B1mzz-3D-3D
+- **docID**: WP-247bWv1AVvLiOwZog5gwMFdtGpLejhVKuyJkgrW2GdjhSV9IZV9ciyLicbOyy3Z5895arrd8C4l2cJe4YFtn6LRcHTTyem-2B1AVv-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 2/15/2024
+- **dateRaw**: 66885
+- **dateISO**: 2024-02-15
+- **blobCat**: 20
+- **dat**: WP-247DXYcT8X9qoyavZsV2sxNVNcM7GxZmKoc7nMH6UNzPjWiz8dtMsk4z1g1as7FDfS03ElPW4m8n-2BcT8X-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 21
+
+- **dcsID**: WP-247lGHGNGSImyY1yToNPTjPjOrcRw8qUWc1AjS1VTT3tI5aXSGswqOpqlaj77FZNsXMdAWCkqW7Qzq-2BGNGS-3D-3D
+- **docID**: WP-247bWvGtyosMoqnwxWRPVHRHQ9QLwuywOmHKvUTrbv9D6LKF8YyYQK9kDGBDpl7hqRCxqa8aWeDwJUd9vbLZAl6roqcOeO-2BGtyo-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 1/15/2024
+- **dateRaw**: 66854
+- **dateISO**: 2024-01-15
+- **blobCat**: 20
+- **dat**: WP-247DXYNs7cYKEAk7Yp855zdHN2XCvuGyWEuHar69pdHxrsj0NoGWEYa3SzAvLp1rXYtk9eiso2Sz-2BNs7c-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 22
+
+- **dcsID**: WP-247lGHV4xXfkm8HAa5AGeP7dshFutjFc8irYUf00a35TOBPcPrLeUuz4APCOo59veLFeHRLesKV8Wt-2BV4xX-3D-3D
+- **docID**: WP-247bWvVSPjHmYsfIOBWKQVnXcxR0DBdkQ25W2fiUyBh7y5NiRLdmq4bGyPCyA3tB4v9iljJ2qS5UOhGQI5Tn8pzyVDXOYm-2BVSPj-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 12/15/2023
+- **dateRaw**: 66823
+- **dateISO**: 2023-12-15
+- **blobCat**: 20
+- **dat**: WP-247DXY6NGTlGgyMzra1kEnLNDqKLUtLEmIEdXYdsyvFrd0MbwrvOKAGhRM3uITlRnA4tWfp4gyOh-2B6NGT-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 23
+
+- **dcsID**: WP-247lGHkHIOiwCsjyD2rvP5PtmPcnAmsKEGJudWjL5bDFedUPCUQYCkrMjeNpXp3nA98z8cCsWsRcZC-2BkHIO-3D-3D
+- **docID**: WP-247bWvkf0a2MmOF4hKFzXrX341yrcKg4OcLO9CNHPPzFIbkfO2mQGWfsbgX7VnjVgNc3gkAuAqT4HiNPpVZVObaFUemYke-2Bkf0a-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 11/15/2023
+- **dateRaw**: 66793
+- **dateISO**: 2023-11-15
+- **blobCat**: 20
+- **dat**: WP-247DXYrAr24ys2ydAJQ7dPPZbkdWD2sQQY6PAXsfl1j196Tq9ymiE6Y3YRc9xJpvtkNi5yyKuQi7-2BrAr2-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 24
+
+- **dcsID**: WP-247lGHz6nVNK6cdoKFe6ItVHONVET15IaGPsSXg4u3hfC3Z8ljnYSSVW2b4uez9z6dHIZTF8akJKE7-2Bz6nV-3D-3D
+- **docID**: WP-247bWv3MxF9mA2d8A7SSCrbPY7bat7vyykXymFcwgX99YVHSt7TMCujIcfa4aXZ50lzuFvdCY85KCny4CTvH43Zo5zVk6o-2B3MxF-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 10/15/2023
+- **dateRaw**: 66762
+- **dateISO**: 2023-10-15
+- **blobCat**: 20
+- **dat**: WP-247DXYaP8NP8CsGH369CKfbbZk6VcNnK0GqrJ6Pw07BZz8QrwvjYSagFja7KoXvTxkm1mTDmi2oN-2BaP8N-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 25
+
+- **dcsID**: WP-247lGHEJ8IAYMyD8Vm3f153n0DqTMmsaUYbubERnPf7jSBq3eOKku4XmXwFVjPRv6pOD6Y2W2Wn6RQ-2BEJ8I-3D-3D
+- **docID**: WP-247bWvIxEKeuEqpEf2tzT9nNa7eBSKAoAql2ZMRNrVrNMxMfyKWySAPuXeJ1RXbR6PwxyQCUCIDkbyT7RtzhAlKXEEywWG-2BIxEK-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 9/15/2023
+- **dateRaw**: 66732
+- **dateISO**: 2023-09-15
+- **blobCat**: 20
+- **dat**: WP-247DXYLCj084uwCDSDczVjthBCxKpC6OeCyPSNifzFVJR0fWHcEAssU38n4FHFdbPaJs1AiSUK8j-2BLCj0-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 26
+
+- **dcsID**: WP-247lGHTsdDTcwk3oIvkIczRBATfUv7ZqYqJgAvyeSt3hwp5OtrLwIC1cEzo0uP7rytjyzjJakCjauJ-2BTsdD-3D-3D
+- **docID**: WP-247bWvX8fxtcaIvASba4cPXp0RBQpVzyMcJcKvSyOnRBEZX0tLZi2QLg8bcC891pkvRMHHFSawtqeFyME3HReh72DN78Es-2BX8fx-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 8/15/2023
+- **dateRaw**: 66701
+- **dateISO**: 2023-08-15
+- **blobCat**: 20
+- **dat**: WP-247DXY4hsrxIqIOx12J0GdfTt6gxy9XUgcQhnUfKKLNlpMQZ6jLyaG6hvY1kqrVHVm09Alf4SK4X-2B4hsr-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
+
+### documents 27
+
+- **dcsID**: WP-247lGHibqmKgWK7yX6HPr1x10z6DuOcke0DO1mXxd5zPyVeP8uogyQLoZ259553zclEdoysO0gXUNI-2Bibqm-3D-3D
+- **docID**: WP-247bWvmr8G46eS9OB2DrnhpjmNizAEoWy4fKBGB3V91puZS12eKUGYDYRmdvPRjn4JO7wYAMyiDMfCHFJF73IRczUQKoCQ-2Bmr8G-3D-3D
+- **docType**: Visit Summary
+- **docDesc**: (empty)
+- **docExt**: PDF
+- **date**: 7/15/2023
+- **dateRaw**: 66670
+- **dateISO**: 2023-07-15
+- **blobCat**: 20
+- **dat**: WP-247DXYpyXqYccaSlinkjLXnrvqLGv2owWuIXGN6h3RPd7CzqRCsquIYHMnwlXBBJ9MzoDmeYYSmN-2BpyXq-3D-3D
+- **new**: false
+- **wasESigned**: false
+- **isExpired**: false
+- **downloadOnly**: false
+- **onlyAllowedPreview**: false
+- **pendingRequiredSignatures**: false
+- **pendingApprovalStatus**: 0
+- **rejectionReasonFreetext**: (empty)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (329 chars)</summary>
+<summary><code>mode: concise</code> (1595 chars)</summary>
 
-## documents (2)
+## documents (27)
 
-| id | title | documentType | date | providerName | organizationName |
-| - | - | - | - | - | - |
-| DOC-001 | After Visit Summary | Clinical | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
-| DOC-002 | Lab Results Report | Lab | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
+| docType | docDesc | docExt | dateISO | new |
+| - | - | - | - | - |
+| After Visit Summary | (empty) | PDF | 2026-01-10 | true |
+| Consent - Procedure | (empty) | HTML | 2025-11-04 | false |
+| Insurance Card | Front and back | JPG | 2025-09-18 | false |
+| Outside Records | (empty) | TIF | 2025-06-02 | false |
+| Visit Summary | (empty) | PDF | 2025-05-15 | false |
+| Visit Summary | (empty) | PDF | 2025-04-15 | false |
+| Visit Summary | (empty) | PDF | 2025-03-15 | false |
+| Visit Summary | (empty) | PDF | 2025-02-15 | false |
+| Visit Summary | (empty) | PDF | 2025-01-15 | false |
+| Visit Summary | (empty) | PDF | 2024-12-15 | false |
+| Visit Summary | (empty) | PDF | 2024-11-15 | false |
+| Visit Summary | (empty) | PDF | 2024-10-15 | false |
+| Visit Summary | (empty) | PDF | 2024-09-15 | false |
+| Visit Summary | (empty) | PDF | 2024-08-15 | false |
+| Visit Summary | (empty) | PDF | 2024-07-15 | false |
+| Visit Summary | (empty) | PDF | 2024-06-15 | false |
+| Visit Summary | (empty) | PDF | 2024-05-15 | false |
+| Visit Summary | (empty) | PDF | 2024-04-15 | false |
+| Visit Summary | (empty) | PDF | 2024-03-15 | false |
+| Visit Summary | (empty) | PDF | 2024-02-15 | false |
+| Visit Summary | (empty) | PDF | 2024-01-15 | false |
+| Visit Summary | (empty) | PDF | 2023-12-15 | false |
+| Visit Summary | (empty) | PDF | 2023-11-15 | false |
+| Visit Summary | (empty) | PDF | 2023-10-15 | false |
+| Visit Summary | (empty) | PDF | 2023-09-15 | false |
+| Visit Summary | (empty) | PDF | 2023-08-15 | false |
+| Visit Summary | (empty) | PDF | 2023-07-15 | false |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (367 chars)</summary>
+<summary><code>mode: json</code> (17436 chars)</summary>
 
 ```json
 {
   "documents": [
     {
-      "id": "DOC-001",
-      "title": "After Visit Summary",
-      "documentType": "Clinical",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
+      "dcsID": "WP-247lGWWk9Lxdg0SKDzBn2KsUFFjbE2WWdRDzOMAQplTj8eeinV5BOeiK7Z3b0EA2P7f3gWOavR7N8C-2BWk9L-3D-3D",
+      "docID": "WP-247bWAO21f7r0MSOljRBcK0wD1Fr4EUMnLrHUcwKJZplmwwKFltD8WOaflJDuoy09ZZN2ccSZzzdgGU2d7dxIa8G5j1tII-2BO21f-3D-3D",
+      "docType": "After Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "1/10/2026",
+      "dateRaw": "67580",
+      "dateISO": "2026-01-10",
+      "blobCat": "20",
+      "dat": "WP-247DXJtL79l9BbrHZBdXfxl5dzxFjpXDd5NtBxbHNdhftPfVP7T7xJVVzRDvJNBZRZHNTzNtDv5r-2BtL79-3D-3D",
+      "new": true,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
     },
     {
-      "id": "DOC-002",
-      "title": "Lab Results Report",
-      "documentType": "Lab",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    }
-  ]
-}
+      "dcsID": "WP-247lGHNbU5NVYLxbizDZkb5bC1Rh0TfH4B5jI53fIP33yz7jY1lZgrh3EdxVq9TLQ159IjNvsrN9wp-2BNbU5-3D-3D",
+      "docID": "WP-247bWvhxs1nHQ7DXYtXxY9vNcHvbellpqFHJup7fcZJLgNBh8L3toZNFAzxTOVNZiBzlUNNXSrL1cdV76xpxWDpR21l3aJ-2Bhxs1-3D-3D",
+      "docType": "Consent - Procedure",
+      "docDesc": "",
+      "docExt": "HTML",
+      "date": "11/4/2025",
+      "dateRaw": "67513",
+      "dateISO": "2025-11-04",
+      "blobCat": "3",
+      "dat": "WP-247DXYyMC77l7c604zx7vWmoKxl1ZwaGkTHjlIE443HpbyawiFr1da4s0rn9liOC2zNbtqWsSBNP-2ByMC7-3D-3D",
+      "new": false,
+      "wasESigned": true,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lG2IutpLxCyKoZrJNAMsEXdzZAsMuH35rEOQ6zpd5AYEYxHzloSGcPnFfoYEmvHzhWuo2LNrxgC-2BIutp-3D-3D",
+      "docID": "WP-247bWgUCN95rmEsgTfxXIcYOJZX3U0oUTHVhKIAKrjJBEeyURlNLkAciZrlxIi2yHT3RYQaOvfbtiEYszh7XsK2sZr9B6a-2BUCN9-3D-3D",
+      "docType": "Insurance Card",
+      "docDesc": "Front and back",
+      "docExt": "JPG",
+      "date": "9/18/2025",
+      "dateRaw": "67466",
+      "dateISO": "2025-09-18",
+      "blobCat": "185",
+      "dat": "WP-247DXn7DLrRzX1hnH9RZjlPv7ZrxZXT5NLnTJHJLnjppt9PXZvTFbPnDjvLB1x5JDNBBh3vL953f-2B7DLr-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGnXlgFXxUbNj6dttwnPtuLH7YhDJujpbupRpYFx3mHl7IzphsldnoH9tiVVxKXF3a977mx5vON-2BXlgF-3D-3D",
+      "docID": "WP-247bWRf74tftIdDXCbHHqbDxs15fUfdXGjJVUhdtKt5no7l1odB7yVp3Ij9HqZhBgJxrWVp58jRJs5VZ6PBHu9RTmlr12l-2Bf74t-3D-3D",
+      "docType": "Outside Records",
+      "docDesc": "",
+      "docExt": "TIF",
+      "date": "6/2/2025",
+      "dateRaw": "67358",
+      "dateISO": "2025-06-02",
+      "blobCat": "20",
+      "dat": "WP-247DX2sy0bLJ3gMS8jptDY6K8LzZrCCCinhLpScM2fhXFOI0yvtPJUQKObjtl6s8KbdhLg0WY31x-2Bsy0b-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGYGktNFLaoyWj15zAI4KpNTbsMgmb5HNkyEmp93rgSkS1lz5Ak0Y9TFRIoq2jfVH0IQmjHVP0k-2BGktN-3D-3D",
+      "docID": "WP-247bWGSkxTl3MOUYhx11Mu8GrJd7O6q0VDpxGmQOFvVj008IvVxBwkiMRLjJOmu49PfTCAEI7xXlGUYaLPxLS8CaRbphyM-2BSkxT-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "5/15/2025",
+      "dateRaw": "67340",
+      "dateISO": "2025-05-15",
+      "blobCat": "20",
+      "dat": "WP-247DXH9xVbTLVNZV1jJzp5XnlzFxjrVjfnvD5ddrhXpdH9Xld5ZlH9vFpXXL3z1f199x7vrz3RhD-2B9xVb-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGJVng9tjmd3F0ZtVwLHjMbrTQHnXsVVTS1bfwZPvw33pmPNj0ddDw3r941hNIJBTe9TXOd7FOV-2BVng9-3D-3D",
+      "docID": "WP-247bW1lvoPPrAlzFCzx7yF3jOphJWffz6rz78ddz8Vx1k9pHq1PP4VdDaPhJU91Vgh9VAvL7clFfQNhlwlf7INvREzb1yt-2BlvoP-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "4/15/2025",
+      "dateRaw": "67310",
+      "dateISO": "2025-04-15",
+      "blobCat": "20",
+      "dat": "WP-247DXWuEEpDlLe4q01fnfQYOCLnNTS2cSPfZJAMQs5HL1Gsso7nfpye2obb73kQOEJDntIyI2nxj-2BuEEp-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lG4MArj9TAo8klbHFM4awx7nn2oe6LlPfCCY0VBzTMKCO7RPd66gc1nb3kmMsFxv5ywU8vVFDaW-2BMArj-3D-3D",
+      "docID": "WP-247bWmQu5Zx5ikce5bnnS8i8TtXXs0kg5BdxaMgML1V74MKMXnhLKc6M7tH5m4G4pHJjAWiGJjX3qy22JBXpm4S8JJNLca-2BQu5Z-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "3/15/2025",
+      "dateRaw": "67279",
+      "dateISO": "2025-03-15",
+      "blobCat": "20",
+      "dat": "WP-247DXlzpLjJ7dTD3pFTz3rNDlLDTFnd5JndjjnDLrfdx375ldHFnZxRtV7PhHT1fRxP7bXH5Z7RJ-2BzpLj-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGpHxAHVbEZBHW39rkjPTslfVCdrP4jttYxbpQdVnirfN01vpintlMtB5eVFTSD9fsHFLy7PJQF-2BHxAH-3D-3D",
+      "docID": "WP-247bWXj5UFZHSZPxQXn1w3Nh2rDbyJ1bqjFL4b3bABHLwn5ZmdpDGF9ritjpivNTUPBJYtJVSd9H81RXcxj3oZxL05nRw5-2Bj5UF-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "2/15/2025",
+      "dateRaw": "67251",
+      "dateISO": "2025-02-15",
+      "blobCat": "20",
+      "dat": "WP-247DX086WXfFjmy8afl3ZEYSYZFDN2qg4t1pV8KUcb33tYcUSJftX20ewRDbhgcOgzHh3EGWkTvZ-2B86WX-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGaWK3vjbSAiyprFXaa6uv1pds6MaP5bRGqmsfRndYMiktBjxw8YadpzRQAw67t1VkKuwdvTjGY-2BWK3v-3D-3D",
+      "docID": "WP-247bWEeQ7VvRWUOMNnXVYA6KLvHNA2gOjJBRGKECz9tBSYUcJXhB0gAOnDDlI82o71Zd0IOcDrd3yees9VZ96CAqNFJROI-2BeQ7V-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "1/15/2025",
+      "dateRaw": "67220",
+      "dateISO": "2025-01-15",
+      "blobCat": "20",
+      "dat": "WP-247DXFttHvffJzLnbXxdPdxZt7JNTFzvVJZl3btP9hlnX9xd1JRhDfRnvzTfBxlpBV55dzTLtlXB-2BttHv-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWyRC8pkmcnTpSDRsRdFsU6ZqMNYckXpfmNzorP5I8IdYwxo4wR7XmBTi3ld28Ux42j6KUB3Js-2ByRC8-3D-3D",
+      "docID": "WP-247bWAyt64L8QurPJGppknp5oEYjA6bImk1H7wFP0fZ7gm6HOKvQY8dJh8VZK5fL8AOvOe72KWnNpazJshNxEau1m4bQ8k-2Byt64-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "12/15/2024",
+      "dateRaw": "67189",
+      "dateISO": "2024-12-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJR4B6pGIiWEct01St99fJpWXml6SsAsgtClYp57LlTyLKD6ym4GkzsLInBlLD9ERSZk0Gim-2BR4B6-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWjirZMA8CJ1GRSCtbL3o8PMXZUy4cD5EF06PzvBEMbchhqsC8zvqJmWTDfF2230VJSKSC3zMB-2BjirZ-3D-3D",
+      "docID": "WP-247bWAjAZVAykWnD0rQEL7PXYKT4594y8IVtwLwQZ7nDEmNWnLcSqKJzmFwiT39ZyG7YRDSWyAfNQH2ohT9NE8LGlFSUc8-2BjAZV-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "11/15/2024",
+      "dateRaw": "67159",
+      "dateISO": "2024-11-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJgnSrEcAKaWfobEbxTndRkhan4GKuykLWzYv13d3xC36p88UuuATYxYJNvxThgNgzc0gOao-2BgnSr-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D",
+      "docID": "WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "10/15/2024",
+      "dateRaw": "67128",
+      "dateISO": "2024-10-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D",
+      "docID": "WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "9/15/2024",
+      "dateRaw": "67098",
+      "dateISO": "2024-09-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D",
+      "docID": "WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfSaz2YUFV9AVtObPjwEqTQY5km0pbD893IzBtmagh8cN6KO-2B0ZIo-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "8/15/2024",
+      "dateRaw": "67067",
+      "dateISO": "2024-08-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJTGRILMcimIyP2ty3lhtDJGlGBosOgKYXQNmnD5D9dovMN2yYCkeVOHMzZRvrTkzcJU6cKg-2BTGRI-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-247lGWh2XxISQ6Zt8PwuXFTfSEDKBhosyczZq7Sop5nNYONuVpkowIpRa7IK79Ph8qpI5FUQU6jh45-2Bh2Xx-3D-3D",
+      "docID": "WP-247bWAlMpxiYs8f7sZOeFb1F8oZmhFii0yprYl4gFxdjE2vgvjKC2kr5KPImr5Pl04NwJv8aG29N6boGf3r7yqNERV4UWw-2BlMpx-3D-3D",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "7/15/2024",
+      "dateRaw": "67036",
+      "dateISO": "2024-07-15",
+      "blobCat": "20",
+      "dat": "WP-247DXJiTujIQiS8gH2129j1NVXKzMJ8S4gAyhIla5d3BTpOPGzcWC4OyN6zW5pTvfZuRcbAqW6G2-2BiTuj-3D-3D",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFr
+… (truncated; 9602 more characters)
 ```
 
 </details>

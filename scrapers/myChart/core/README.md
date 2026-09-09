@@ -1,11 +1,12 @@
 # `core` — the request path every scraper shares
 
 Cookies, redirects, the deployment prefix, the antiforgery token, session expiry and
-renewal, the keepalive heartbeat, and the raw envelope every read scraper returns.
+renewal, the keepalive heartbeat, the raw envelope every read scraper returns, and the
+DCS blob store every downloadable file comes out of.
 
 | | |
 | --- | --- |
-| **Source** | [`myChartRequest.ts`](myChartRequest.ts) · [`makeAuthenticatedRequest.ts`](makeAuthenticatedRequest.ts) · [`sessionRenewal.ts`](sessionRenewal.ts) · [`sessionStore.ts`](sessionStore.ts) · [`rawResponse.ts`](rawResponse.ts) · [`csrf.ts`](csrf.ts) · [`util.ts`](util.ts) · [`types.ts`](types.ts) |
+| **Source** | [`myChartRequest.ts`](myChartRequest.ts) · [`makeAuthenticatedRequest.ts`](makeAuthenticatedRequest.ts) · [`sessionRenewal.ts`](sessionRenewal.ts) · [`sessionStore.ts`](sessionStore.ts) · [`rawResponse.ts`](rawResponse.ts) · [`csrf.ts`](csrf.ts) · [`dcsDocument.ts`](dcsDocument.ts) · [`safeFileName.ts`](safeFileName.ts) · [`util.ts`](util.ts) · [`types.ts`](types.ts) |
 
 ## `MyChartRequest`
 
@@ -146,3 +147,29 @@ request.**
 ("May 12, 2026 8:56 PM"). Unparseable input returns `MISSING_DATE`
 (`Number.NEGATIVE_INFINITY`) so a newest-first sort always puts undated items last, even
 against pre-1970 dates.
+
+## `dcsDocument.ts` — the DCS blob store
+
+Every downloadable file in MyChart comes out of one store, through one two-step:
+`POST /api/documents/viewer/GetDocumentDetails[Legacy]` for a `downloadUrl`, then a
+`GET` for the bytes. Two producers reach it — a message attachment
+([`chart/messages/`](../chart/messages/)) and a Document Center document
+([`chart/documents/`](../chart/documents/)) — and they differ only in how they find a
+`dcsId`, never in what happens after, so `fetchDcsFile` owns everything after.
+
+That matters because the answers are payload-shaped, never status codes, and each one
+read as success to a caller that checked `response.ok`:
+
+| Answer | What it means |
+| --- | --- |
+| 200, literal JSON `null` | this record holds no such document |
+| 200, `downloadUrl` and `token` both empty | held, but MyChart releases no file (1 of 42 on the captured account) |
+| 200, empty body, no `Content-Type` | the download link was bogus |
+
+`text/html` is **not** one of them: an e-signed document really is HTML (8 of 42), so a
+web-page body is only a failure when the details call did not itself declare the file
+HTML. The two callers disagreed on exactly that before they shared this.
+
+`fetchDcsFile` throws `DcsDocumentError` carrying a machine-readable `failure`, and the
+caller words the refusal — only it knows whether the id it was handed is an attachment
+on a conversation or a `dcsID` from `get_documents`.

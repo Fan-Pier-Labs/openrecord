@@ -12,6 +12,14 @@ type Session = {
    * not carried in the URL of every subsequent request.
    */
   activeProxyId: string;
+  /**
+   * How far the Document Center's `LoadOtherDocuments` walk has got. Real
+   * MyChart keeps this cursor server-side too — the request says only whether
+   * it is the initial load, never which page it wants — which is why a
+   * request that omits `isInitialLoad` on a fresh session gets an empty list
+   * rather than the first page.
+   */
+  documentsCursor: number;
 };
 
 // In-memory session store. Sessions expire after 30 minutes of inactivity.
@@ -23,7 +31,7 @@ const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 export function createSession(username: string | null = null): string {
   const id = uuidv4();
   const now = Date.now();
-  sessions.set(id, { createdAt: now, lastAccess: now, termsAccepted: false, username, activeProxyId: '' });
+  sessions.set(id, { createdAt: now, lastAccess: now, termsAccepted: false, username, activeProxyId: '', documentsCursor: 0 });
   return id;
 }
 
@@ -67,6 +75,20 @@ export function setActiveProxyId(cookieHeader: string | null, proxyId: string): 
   if (!session) return false;
   session.activeProxyId = proxyId;
   return true;
+}
+
+/**
+ * The cursor for this session's `LoadOtherDocuments` walk. `isInitialLoad`
+ * rewinds it to 0; every other request advances it by the page it served.
+ * A request with no session behaves like a session parked past the end.
+ */
+export function nextDocumentsPage(cookieHeader: string | null, isInitialLoad: boolean, pageSize: number): number {
+  const id = getSessionId(cookieHeader);
+  const session = id ? sessions.get(id) : undefined;
+  if (!session) return Number.MAX_SAFE_INTEGER;
+  const from = isInitialLoad ? 0 : session.documentsCursor;
+  session.documentsCursor = from + pageSize;
+  return from;
 }
 
 export function sessionCookieHeader(sessionId: string): string {

@@ -148,7 +148,7 @@ describe('RawCollector failed answers', () => {
     expect(error!.message).not.toContain('Home page');
   });
 
-  it('says nothing about Home when the API answered — /app/documents lands there on every instance', async () => {
+  it('says nothing about Home when the API answered — a guessed-wrong page path lands there too', async () => {
     const req = mockRequest([
       { body: '<html><input name="__RequestVerificationToken" value="t"></html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Home' },
       { body: JSON.stringify({ documents: [] }) },

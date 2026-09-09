@@ -21,6 +21,31 @@ export const loadAllergies = {
   "allergiesStatus": 0
 } as const;
 
+// /api/documents/viewer/loadotherdocuments
+export const loadOtherDocuments = {
+  "documents": [
+    {
+      "blobCat": "",
+      "dcsID": "",
+      "docID": "",
+      "date": "",
+      "dateRaw": "",
+      "dat": "",
+      "docExt": "",
+      "docDesc": "",
+      "docType": "",
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": "",
+      "wasESigned": false,
+      "downloadOnly": false,
+      "new": false,
+      "isExpired": false,
+      "pendingRequiredSignatures": false,
+      "onlyAllowedPreview": false
+    }
+  ]
+} as const;
+
 // /api/documents/viewer/getdocumentdetailslegacy (and getdocumentdetails: same field set)
 export const getDocumentDetailsLegacy = {
   "dcsId": "",

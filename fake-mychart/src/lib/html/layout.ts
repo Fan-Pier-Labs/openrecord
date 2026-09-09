@@ -43,7 +43,7 @@ const NAV_ITEMS = [
   ]},
   { group: 'Records', items: [
     { icon: '\u2709\uFE0F', label: 'Letters', path: 'Letters' },
-    { icon: '\u{1F4C4}', label: 'Documents', path: 'Documents' },
+    { icon: '\u{1F4C4}', label: 'Documents', path: 'app/document-center' },
     { icon: '\u{1F4DA}', label: 'Education', path: 'Education' },
   ]},
   { group: 'Account', items: [
