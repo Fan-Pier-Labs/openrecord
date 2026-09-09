@@ -127,8 +127,9 @@ sampled evenly rather than shown slice by slice. Ask to **save, download or
 export** it and the same call runs with `save_to_downloads`, writing the
 **full-resolution** JPEGs to your Downloads folder in a folder named for the
 study — inline previews go away with the conversation, and this is the copy
-you keep. Nothing is overwritten, so saving the same study twice leaves
-`XR_CHEST` and `XR_CHEST-2`.
+you keep. A saving call shows no pictures in the chat, just a confirmation of
+where the files went. Nothing is overwritten, so saving the same study twice
+leaves `XR_CHEST` and `XR_CHEST-2`.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which
