@@ -158,7 +158,8 @@ not compile for any client — the enforcement for "every dispatch goes through 
 - **`returnsFile`** marks a capability (`get_message_attachment`, `download_billing_statement`)
   whose payload is one finished file — a `FilePayload` of safe file name, MIME type and bytes — rather than JSON. There
   is nothing to decode, so a client only decides where the file goes: the extension writes it to
-  the Downloads folder (never overwriting, and showing a small image inline), the CLI writes it
+  the Downloads folder (never overwriting, showing a small image inline, and embedding a PDF or
+  text file in the result when its own `return_content` flag asks and it fits), the CLI writes it
   under `--output` (default: the current directory), and the mobile app keeps an image for the chat
   and says so for anything else. Same rule as `rendersMedia`: clients branch on the flag after the
   dispatch, never on the id, and `capability-parity.unit.test.ts` greps for it. The scraper makes
