@@ -102,6 +102,14 @@ one hop of the root redirect places about 48 of them wrong, because these are al
    own HTML links, with no redirect to follow.
 4. **The redirect is scripted**, not a header:
    `<script>window.location="…/MyDovetale/"</script>`.
+5. **The host serves several tenants and its root names none of them** (5 hosts, September
+   2026 sweep): `mychart.adventhealth.com/gracemedical` and `/shepherdshope`,
+   `mychart.connectomc.org/posm` and `/SVH`, `www.ohnmychart.org/tgmc`, `cob.ccmychart.org/COB`,
+   `mychart.nomshealthcare.com/MyChart-Prod`. The root 404s, links nothing, and none of the
+   common mount names exist. Epic's own directory is the only thing that knows the mounts,
+   so the last-resort probe tries the prefixes the bundled seed publishes for that host after
+   the common names. 48 directory hosts serve 452 organizations this way; most redirect
+   their root to one tenant and were never a problem — these five do not.
 
 So discovery walks the chain to the end the way a browser does — Location headers, meta
 refreshes and scripted redirects, on or off the original host. **Nothing is trusted on
@@ -111,7 +119,11 @@ the chain, never the scheme, so a session that starts on HTTPS stays there.
 
 **682 of 750 hosts** resolve to a working login page. Six do not, and cannot: they answer
 their root with a bot-block or with a stub that names no mount, so there is nothing in the
-response to read. Separately, ~20 hosts sit behind a custom or SSO front end (Okta, IBM
+response to read. (The September 2026 sweep of 768 hosts put 47 more in a bucket worth
+knowing about: 4 dead hostnames still in the directory, 10 unreachable from the US, and
+**5 real instances whose server sends only its leaf certificate** — no intermediate — which a
+browser repairs by fetching the chain and Bun/Node do not, so the scraper cannot connect
+to them at all. That is a transport decision, not a discovery failure.) Separately, ~20 hosts sit behind a custom or SSO front end (Okta, IBM
 ISAM, VA, Kaiser) that the scraper cannot log into at all, by design — those are not
 discovery failures.
 

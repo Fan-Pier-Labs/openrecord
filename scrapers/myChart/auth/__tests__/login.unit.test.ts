@@ -880,6 +880,28 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
     expect(result).toBe('MyChart')
   })
 
+  it('falls back to the prefixes the directory publishes for a multi-tenant host', async () => {
+    // mychart.adventhealth.com serves several tenants and answers 404 at its
+    // root and at every common mount name; only the directory knows the tenants.
+    const req = new MyChartRequest('mychart.adventhealth.com')
+    const tried: string[] = []
+    req.transport = mock(async (url: string) => {
+      const href = url.toString()
+      tried.push(new URL(href).pathname)
+      if (/^\/(gracemedical|shepherdshope)\/Authentication\/Login$/i.test(new URL(href).pathname)) {
+        return new Response(`<html><body>
+          <input name="__RequestVerificationToken" value="csrf-token" />
+        </body></html>`, { status: 200 })
+      }
+      return new Response('<html><body>Not found</body></html>', { status: 404 })
+    })
+
+    const result = await probeFirstPathPartByTryingCommonLoginPaths(req)
+    expect(result).toMatch(/^(gracemedical|shepherdshope)$/i)
+    // The common names were still tried first.
+    expect(tried[0]).toBe('/MyChart/Authentication/Login')
+  })
+
   it('returns null when common login paths do not work', async () => {
     const req = new MyChartRequest('mychart.example.com')
     req.transport = mock(async () => {
