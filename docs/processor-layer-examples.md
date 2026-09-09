@@ -32,7 +32,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
 | `get_lab_results` | 41985 | 17182 | 21355 | 5338 |
 | `get_imaging_results` | 42709 | 5202 | 6082 | 2781 |
-| `get_messages` | 78765 | 54088 | 66028 | 7694 |
+| `get_messages` | 65444 | 44320 | 54112 | 6266 |
 | `get_message_thread` | 3624 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
@@ -10657,7 +10657,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Every conversation in the inbox: its id, subject, who it is with, when the latest message arrived, and whether it is unread, urgent or has attachments. The messages themselves come from get_message_thread.
 
 <details>
-<summary><code>mode: raw</code> (78765 chars)</summary>
+<summary><code>mode: raw</code> (65444 chars)</summary>
 
 ```json
 {
@@ -10927,18 +10927,18 @@ Every conversation in the inbox: its id, subject, who it is with, when the lates
               },
               {
                 "wmgId": "MSG-017"
-… (truncated; 114974 more characters)
+… (truncated; 93325 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (66028 chars)</summary>
+<summary><code>mode: standard</code> (54112 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 - **truncated**: false
 
-## conversations (63)
+## conversations (51)
 
 ### conversations 1
 
@@ -11248,7 +11248,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 1 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 1 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11291,7 +11291,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 2 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 2 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11334,7 +11334,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 3 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 3 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11377,7 +11377,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 4 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 4 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11420,7 +11420,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 5 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 5 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11463,7 +11463,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 6 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 6 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11506,7 +11506,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 7 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 7 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11549,7 +11549,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 8 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 8 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11592,7 +11592,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 9 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 9 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11635,7 +11635,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 10 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 10 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11678,7 +11678,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 11 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 11 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11721,7 +11721,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 12 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 12 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11764,7 +11764,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 13 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 13 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11807,7 +11807,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 14 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 14 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11850,7 +11850,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 15 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 15 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11893,7 +11893,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 16 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 16 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11936,7 +11936,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 17 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 17 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -11979,7 +11979,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 18 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 18 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12022,7 +12022,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 19 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 19 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12065,7 +12065,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 20 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 20 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12108,7 +12108,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 21 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 21 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12151,7 +12151,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 22 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 22 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12194,7 +12194,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 23 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 23 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12237,7 +12237,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 24 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 24 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12280,7 +12280,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 25 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 25 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12323,7 +12323,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 26 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 26 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12366,7 +12366,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 27 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 27 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12409,7 +12409,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 28 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 28 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12452,7 +12452,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 29 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 29 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12495,7 +12495,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 30 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 30 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12538,7 +12538,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 31 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 31 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12581,7 +12581,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 32 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 32 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12624,7 +12624,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 33 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 33 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12667,7 +12667,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 34 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 34 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12710,7 +12710,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 35 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 35 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12753,7 +12753,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 36 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 36 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12796,7 +12796,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 37 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 37 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12839,7 +12839,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 38 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 38 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12882,7 +12882,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 39 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 39 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12925,7 +12925,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 40 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 40 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -12968,7 +12968,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 41 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 41 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13011,7 +13011,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 42 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 42 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13054,7 +13054,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 43 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 43 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13097,7 +13097,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 44 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 44 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13140,7 +13140,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 45 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 45 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13183,7 +13183,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 46 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 46 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13226,7 +13226,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 47 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 47 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13269,523 +13269,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield General Front Desk
 - **isFromPatient**: false
 - **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 48 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 52
-
-- **hthId**: CONV-148
-- **subject**: Appointment reminder 49
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-11-25T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1048
-- **deliveryInstantISO**: 2024-11-25T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 49 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 53
-
-- **hthId**: CONV-149
-- **subject**: Appointment reminder 50
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-11-18T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1049
-- **deliveryInstantISO**: 2024-11-18T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 50 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 54
-
-- **hthId**: CONV-150
-- **subject**: Appointment reminder 51
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-11-11T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1050
-- **deliveryInstantISO**: 2024-11-11T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 51 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 55
-
-- **hthId**: CONV-151
-- **subject**: Appointment reminder 52
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-11-04T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1051
-- **deliveryInstantISO**: 2024-11-04T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 52 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 56
-
-- **hthId**: CONV-152
-- **subject**: Appointment reminder 53
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-10-28T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1052
-- **deliveryInstantISO**: 2024-10-28T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 53 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 57
-
-- **hthId**: CONV-153
-- **subject**: Appointment reminder 54
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-10-21T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1053
-- **deliveryInstantISO**: 2024-10-21T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 54 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 58
-
-- **hthId**: CONV-154
-- **subject**: Appointment reminder 55
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-10-14T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1054
-- **deliveryInstantISO**: 2024-10-14T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 55 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 59
-
-- **hthId**: CONV-155
-- **subject**: Appointment reminder 56
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-10-07T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1055
-- **deliveryInstantISO**: 2024-10-07T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 56 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 60
-
-- **hthId**: CONV-156
-- **subject**: Appointment reminder 57
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-09-30T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1056
-- **deliveryInstantISO**: 2024-09-30T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 57 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 61
-
-- **hthId**: CONV-157
-- **subject**: Appointment reminder 58
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-09-23T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1057
-- **deliveryInstantISO**: 2024-09-23T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 58 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 62
-
-- **hthId**: CONV-158
-- **subject**: Appointment reminder 59
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-09-16T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1058
-- **deliveryInstantISO**: 2024-09-16T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 59 of 60. Please arrive fifteen minutes early.
-
-###### author
-
-- **empKey**: PROV-FRONTDESK
-- **wprKey**: (none)
-- **attachments**: (none)
-- **tasks**: (none)
-- **suggestedActions**: (none)
-
-### conversations 63
-
-- **hthId**: CONV-159
-- **subject**: Appointment reminder 60
-
-#### audience (1)
-
-| name |
-| - |
-| Springfield General Front Desk |
-- **audienceNames**: Springfield General Front Desk
-- **latestMessageInstantISO**: 2024-09-09T09:00:00Z
-
-#### tags
-
-- **Unread**: false
-- **hasUnreadMessages**: false
-- **hasUrgentMsgs**: false
-- **hasMoreMessages**: false
-- **previewText**: This is a reminder of your upcoming appointment...
-- **hasAttachments**: false
-- **hasTasks**: false
-- **messageType**: (empty)
-
-#### messages (1)
-
-##### messages 1
-
-- **wmgId**: MSG-1059
-- **deliveryInstantISO**: 2024-09-09T09:00:00Z
-- **senderName**: Springfield General Front Desk
-- **isFromPatient**: false
-- **isUnread**: false
-- **bodyText**: This is a reminder of your upcoming appointment. Reminder 60 of 60. Please arrive fifteen minutes early.
+- **bodyText**: This is a reminder of your upcoming appointment. Reminder 48 of 48. Please arrive fifteen minutes early.
 
 ###### author
 
@@ -13798,17 +13282,17 @@ Your cholesterol levels are concerning.
 ## localSummary
 
 - **hasMoreConversations**: false
-- **oldestLoadedInstantISO**: 2024-09-09T09:00:00Z
+- **oldestLoadedInstantISO**: 2024-12-02T09:00:00Z
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (7694 chars)</summary>
+<summary><code>mode: concise</code> (6266 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 - **truncated**: false
 
-## conversations (63)
+## conversations (51)
 
 | hthId | subject | audienceNames | latestMessageInstantISO | hasUnreadMessages | hasUrgentMsgs | hasAttachments |
 | - | - | - | - | - | - | - |
@@ -13863,23 +13347,11 @@ Your cholesterol levels are concerning.
 | CONV-145 | Appointment reminder 46 | Springfield General Front Desk | 2024-12-16T09:00:00Z | false | false | false |
 | CONV-146 | Appointment reminder 47 | Springfield General Front Desk | 2024-12-09T09:00:00Z | false | false | false |
 | CONV-147 | Appointment reminder 48 | Springfield General Front Desk | 2024-12-02T09:00:00Z | false | false | false |
-| CONV-148 | Appointment reminder 49 | Springfield General Front Desk | 2024-11-25T09:00:00Z | false | false | false |
-| CONV-149 | Appointment reminder 50 | Springfield General Front Desk | 2024-11-18T09:00:00Z | false | false | false |
-| CONV-150 | Appointment reminder 51 | Springfield General Front Desk | 2024-11-11T09:00:00Z | false | false | false |
-| CONV-151 | Appointment reminder 52 | Springfield General Front Desk | 2024-11-04T09:00:00Z | false | false | false |
-| CONV-152 | Appointment reminder 53 | Springfield General Front Desk | 2024-10-28T09:00:00Z | false | false | false |
-| CONV-153 | Appointment reminder 54 | Springfield General Front Desk | 2024-10-21T09:00:00Z | false | false | false |
-| CONV-154 | Appointment reminder 55 | Springfield General Front Desk | 2024-10-14T09:00:00Z | false | false | false |
-| CONV-155 | Appointment reminder 56 | Springfield General Front Desk | 2024-10-07T09:00:00Z | false | false | false |
-| CONV-156 | Appointment reminder 57 | Springfield General Front Desk | 2024-09-30T09:00:00Z | false | false | false |
-| CONV-157 | Appointment reminder 58 | Springfield General Front Desk | 2024-09-23T09:00:00Z | false | false | false |
-| CONV-158 | Appointment reminder 59 | Springfield General Front Desk | 2024-09-16T09:00:00Z | false | false | false |
-| CONV-159 | Appointment reminder 60 | Springfield General Front Desk | 2024-09-09T09:00:00Z | false | false | false |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (54088 chars)</summary>
+<summary><code>mode: json</code> (44320 chars)</summary>
 
 ```json
 {
@@ -14168,7 +13640,7 @@ Your cholesterol levels are concerning.
           "senderName": "Springfield General Front Desk",
           "isFromPatient": false,
           "isUnread": false,
-          "bodyText": "This is a reminder of your upcoming appointment. Reminder 1 of 60. Please arrive fifteen minutes early.",
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 1 of 48. Please arrive fifteen minutes early.",
           "author": {
             "empKey": "PROV-FRONTDESK",
             "wprKey": null
@@ -14208,7 +13680,7 @@ Your cholesterol levels are concerning.
           "senderName": "Springfield General Front Desk",
           "isFromPatient": false,
           "isUnread": false,
-          "bodyText": "This is a reminder of your upcoming appointment. Reminder 2 of 60. Please arrive fifteen minutes early.",
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 2 of 48. Please arrive fifteen minutes early.",
           "author": {
             "empKey": "PROV-FRONTDESK",
             "wprKey": null
@@ -14248,7 +13720,7 @@ Your cholesterol levels are concerning.
           "senderName": "Springfield General Front Desk",
           "isFromPatient": false,
           "isUnread": false,
-          "bodyText": "This is a reminder of your upcoming appointment. Reminder 3 of 60. Please arrive fifteen minutes early.",
+          "bodyText": "This is a reminder of your upcoming appointment. Reminder 3 of 48. Please arrive fifteen minutes early.",
           "author": {
             "empKey": "PROV-FRONTDESK",
             "wprKey": null
@@ -14278,7 +13750,7 @@ Your cholesterol levels are concerning.
       "hasUrgentMsgs": false,
       "hasMoreMessages": false,
       "previewText": "This is a reminder of your upcoming appoin
-… (truncated; 67418 more characters)
+… (truncated; 53138 more characters)
 ```
 
 </details>

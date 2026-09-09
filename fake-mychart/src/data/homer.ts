@@ -1443,9 +1443,11 @@ export type FakeConversationMessage = {
  * instance with more than 50), so a fixture with fewer never exercises the
  * paging a large inbox needs, and a client that read only the first page
  * would pass against the fake and drop a patient's older threads in
- * production. One reminder a week, older than every seeded thread.
+ * production. One reminder a week, older than every seeded thread — 48, so the
+ * three seeded threads make 51: one more than a page, and no more than that,
+ * because every one of them is rendered into the processor examples doc.
  */
-const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 60 }, (_, i) => {
+const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 48 }, (_, i) => {
   const n = i + 1;
   const sent = new Date(Date.UTC(2025, 9, 27, 9, 0, 0) - i * 7 * 24 * 60 * 60 * 1000).toISOString().replace('.000Z', 'Z');
   return {
@@ -1459,7 +1461,7 @@ const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 60 }, (_, 
         wmgId: `MSG-${String(1000 + i)}`,
         author: { empKey: 'PROV-FRONTDESK', displayName: '' },
         deliveryInstantISO: sent,
-        body: `This is a reminder of your upcoming appointment. Reminder ${n} of 60. Please arrive fifteen minutes early.`,
+        body: `This is a reminder of your upcoming appointment. Reminder ${n} of 48. Please arrive fifteen minutes early.`,
       },
     ],
   };

@@ -217,7 +217,8 @@ function conversationStandard(value: unknown, listing: Record<string, unknown>):
 
 export const conversationsProcessor: Processor<ConversationsStandard> = {
   standard(raw: RawResponse): ConversationsStandard {
-    const pages = findRequests(raw, 'GetConversationList').map((r) => rec(r.body));
+    const requests = findRequests(raw, 'GetConversationList');
+    const pages = requests.map((r) => rec(r.body));
     const first = pages[0] ?? {};
     const last = pages[pages.length - 1] ?? {};
 
@@ -234,11 +235,15 @@ export const conversationsProcessor: Processor<ConversationsStandard> = {
     }
 
     const summary = rec(last.localSummary);
+    // The scraper stops with `hasMoreConversations` still set in two cases: at
+    // its page cap, and when a page ends at the very instant it asked to start
+    // from (asking again would loop forever). Only the cap leaves threads
+    // unread; the second is the server repeating itself, so the inbox is whole.
+    const askedFrom = text(rec(rec(requests[requests.length - 1]?.requestBody).localLoadParams).loadStartInstantISO);
+    const stoppedRepeating = text(summary.oldestLoadedInstantISO) === askedFrom;
     return {
       legacyXUnreadCount: num(first.legacyXUnreadCount),
-      // The scraper only stops on a non-empty page that still claims more
-      // when it hits its page cap; an empty page is the end of the inbox.
-      truncated: bool(summary.hasMoreConversations) && list(last.conversations).length > 0,
+      truncated: bool(summary.hasMoreConversations) && list(last.conversations).length > 0 && !stoppedRepeating,
       conversations,
       localSummary: {
         hasMoreConversations: boolOrNull(summary.hasMoreConversations),

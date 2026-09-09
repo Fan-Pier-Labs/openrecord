@@ -242,6 +242,22 @@ describe('conversationsProcessor', () => {
     expect(conversationsProcessor.standard(envelope(LISTING, { conversations: [], localSummary: { hasMoreConversations: true } })).truncated).toBe(false)
   })
 
+  // The scraper also stops when a page ends at the instant it asked to start
+  // from: the server repeating itself, not an inbox with more to read.
+  it('does not report truncated when the last page ends where the scraper asked it to start', () => {
+    const repeated: RawResponse = {
+      requests: [
+        { path: '/app/communication-center', method: 'GET', status: 200, contentType: 'text/html', body: TOKEN_PAGE },
+        { path: '/api/conversations/GetConversationList', method: 'POST', status: 200, contentType: 'application/json', body: LISTING },
+        {
+          path: '/api/conversations/GetConversationList', method: 'POST', status: 200, contentType: 'application/json', body: LISTING,
+          requestBody: { localLoadParams: { loadStartInstantISO: LISTING.localSummary.oldestLoadedInstantISO } },
+        },
+      ],
+    }
+    expect(conversationsProcessor.standard(repeated).truncated).toBe(false)
+  })
+
   it('emits every listed field even when the listing is empty', () => {
     const standard = conversationsProcessor.standard({
       requests: [{ path: '/api/conversations/GetConversationList', method: 'POST', status: 200, contentType: 'application/json', body: { conversations: [] } }],

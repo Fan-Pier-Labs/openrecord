@@ -394,7 +394,7 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |
 | **Lab Results** | `labResults.ts` | CMP, Lipid Panel, CBC — cholesterol and triglycerides high |
 | **Visits** | `visits.ts` | Upcoming: annual physical. Past: ER donut incident, radiation screening |
-| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt), Dr. Nick (discount surgery, with a PDF and a PNG attached to one message), an 8-message back-pain thread that spans pages, and 60 appointment reminders so the inbox itself spans pages |
+| **Messages** | `conversations.ts` | Threads with Dr. Hibbert (weight mgmt), Dr. Nick (discount surgery, with a PDF and a PNG attached to one message), an 8-message back-pain thread that spans pages, and 48 appointment reminders so the inbox itself spans pages |
 | **Billing** | `bills.ts` | Multiple billing accounts with charges |
 | **Letters** | `letters.ts` | After-visit summaries from Dr. Hibbert |
 | **Goals** | `goals.ts` | Lose 50 lbs (care team), eat one vegetable/week (patient) |
