@@ -11,7 +11,7 @@ export type {
   FlowsheetRowGroupStandard,
   VitalReadingStandard,
 } from './vitals.processor';
-export { vitalsProcessor, readingValue } from './vitals.processor';
+export { vitalsProcessor, readingValue, displayValue } from './vitals.processor';
 
 /** End-of-day tomorrow, formatted as MyChart expects (no timezone suffix). */
 function defaultEndInstantIso(): string {

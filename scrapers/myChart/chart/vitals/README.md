@@ -42,15 +42,22 @@ they are worth knowing before changing anything here.
   holds something — `stringValue ?? numericValue` reads the empty string as a value and
   blanks every numeric vital ([#370](https://github.com/Fan-Pier-Labs/openrecord/pull/370)).
 
-- **`units` is unverified.** `unitsDisplayName` appears in **no captured skeleton**:
-  `realShapes.ts`, generated from three real instances, records flowsheet rows as
-  `{ id, name, rowType, valueType, decimalPlaces }`. The fixture's `'mmHg'`/`'lbs'` are
-  curated, not observed, so if real rows carry no units field then every vital OpenRecord
-  returns is unitless on a real instance while the fake makes units look fine — the fidelity
-  contract running backwards. The likeliest explanation is that the captured flowsheet held
-  only Blood Pressure. `dev-scripts/probe-flowsheet-shape.ts` settles it against a real
-  account ([#381](https://github.com/Fan-Pier-Labs/openrecord/pull/381)); it reports field
-  names and presence only, never a reading's value or date.
+- **`numericValue` is Epic's base unit, not the unit the row names.** Verified on one real
+  instance (Epic November 2025 release, seven rows): Weight rows carry `units: "6"`,
+  `unitsDisplayName: "lbs"` and a `numericValue` in **ounces** (a 150 lb patient arrives as
+  `2400`); Height rows carry `units: "7"`, `unitsDisplayName: "ft"` and **inches** (`70`);
+  Temperature carries `units: "11"`, `unitsDisplayName: "°F"` and is already °F. Read as-is
+  that is a 2400 lb, 70-foot patient. The processor converts `numericValue` into the row's
+  `unitsDisplayName` for the derived `value` (`150`, `5' 10"`) and leaves `numericValue`
+  untouched. `kg` / `cm` are converted from the same base units but **unverified** — no
+  metric instance has been captured.
+
+- **`units` / `unitsDisplayName` are present only on rows that have a unit.** Weight, Height,
+  Temperature and Blood Pressure (`mmHg`, no `units` code) carry them; Pulse, Respirations
+  and the calculated BMI row omit the keys entirely. That is why the generated skeleton in
+  `realShapes.ts` lists rows as `{ id, name, rowType, valueType, decimalPlaces }` — it
+  records the fields every row has — and why the fixture must set them per row rather than
+  the skeleton supplying an empty string to rows real MyChart leaves bare.
 
 - `instantTakenIso` is **clinic-local with no zone suffix**; `timeZone` beside it is what
   makes it interpretable.
@@ -88,17 +95,18 @@ scraper.
 | `flowsheets[].hasMoreData` | Paging hint | — | — | — | Always wrong: false while older readings exist (scraper comment). |
 | `rows[].id` | Row (vital type) id | — | ✓ | — | Internal handle that ties readings to rows; concise groups by name instead. |
 | `rows[].name` | Vital type ("Weight", "Pulse") | — | ✓ | ✓ | The measurement. |
-| `rows[].unitsDisplayName` | Units | — | ✓ | ✓ | A value without units is not a value. |
+| `rows[].unitsDisplayName` | Display unit (`lbs`, `ft`, `°F`, `mmHg`); absent on unitless rows | — | ✓ | ✓ | A value without units is not a value. |
+| `rows[].units` | Epic's unit code (`6` lbs, `7` ft, `11` °F) | — | — | — | Duplicate of `unitsDisplayName`. |
 | `rows[].rowType`, `.valueType`, `.decimalPlaces` | Value formatting | — | ✓ | — | Tells a consumer how to render; detail. |
 | `rowGroups[].id`, `.name`, `.rowIds[]` | Which rows belong together (systolic/diastolic) | — | ✓ | — | Structure a consumer needs to pair readings; detail. |
 | `readings[].rowId` | Which vital type | — | ✓ | ✓ | Ties the reading to its row. |
 | `readings[].instantTakenIso` | When taken, clinic-local, no zone | — | ✓ | ✓ | The date of every reading. |
 | `readings[].timeZone` | The zone of `instantTakenIso` | — | ✓ | — | What makes the instant interpretable; dropped today. Concise shows the clinic-local time as MyChart does. |
-| `readings[].stringValue`, `.numericValue` | The value; string rows fill one, numeric rows the other | — | ✓ | — | Both raw forms kept in standard so nothing is lost. |
-| `value` | First non-empty of the two, as a string | ✓ | ✓ | ✓ | Derived from `stringValue` / `numericValue`; the one field a reader looks at. |
+| `readings[].stringValue`, `.numericValue` | The value; string rows fill one, numeric rows the other. `numericValue` is Epic's base unit (ounces, inches) | — | ✓ | — | Both raw forms kept in standard so nothing is lost. |
+| `value` | The reading in the row's `unitsDisplayName`: `stringValue` as is, or `numericValue` converted | ✓ | ✓ | ✓ | Derived from `stringValue` / `numericValue`; the one field a reader looks at. |
 | `readings[].isAbnormal` | Flagged abnormal | — | ✓ | ✓ | The one verdict MyChart does give on vitals. Emitted when false (rule 6). |
 | `readings[].entryType`, `.documentationSource` | Who recorded it (clinic, patient, device) | — | ✓ | — | Provenance; detail. |
-| `readings[].id`, `.fsdId`, `.sourceRowId`, `.line`, `.valueType`, `.dataType`, `.decimalPlaces` | Storage ids and formatting | — | — | — | Internal, or duplicate of the row's formatting. |
+| `readings[].id`, `.fsdId`, `.sourceRowId`, `.line`, `.valueType`, `.units`, `.dataType`, `.decimalPlaces` | Storage ids and formatting | — | — | — | Internal, or duplicate of the row's formatting. |
 | `userSettings.*` | Session, device, patient ids | — | — | — | Session context. |
 
 Concise renders per vital type (`flowsheets[].rows[]`): `name`,
