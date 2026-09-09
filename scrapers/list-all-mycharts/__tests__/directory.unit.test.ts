@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 
 import { setTestTransport } from '../../http';
 import {
+  directoryPrefixesFor,
   defaultLogoUrl,
   fetchMyChartDirectory,
   fetchMyChartIcon,
@@ -186,5 +187,21 @@ describe('fetchMyChartIcon', () => {
     expect(await fetchMyChartIcon('https://media.epic.com/logo.png')).toBeNull();
 
     expect(await fetchMyChartIcon('')).toBeNull();
+  });
+});
+
+describe('directoryPrefixesFor', () => {
+  it('lists every mount the seed publishes for a multi-tenant host, most-listed first', () => {
+    // mychart.adventhealth.com serves a handful of tenants and its root names
+    // none of them; discovery has no other way to learn the mounts.
+    const prefixes = directoryPrefixesFor('mychart.adventhealth.com');
+    expect(prefixes).toContain('shepherdshope');
+    expect(prefixes).toContain('gracemedical');
+    expect(new Set(prefixes.map((p) => p.toLowerCase())).size).toBe(prefixes.length);
+  });
+
+  it('matches the host case-insensitively and answers nothing for an unknown host', () => {
+    expect(directoryPrefixesFor('MYCHART.ADVENTHEALTH.COM')).toEqual(directoryPrefixesFor('mychart.adventhealth.com'));
+    expect(directoryPrefixesFor('nobody.example.org')).toEqual([]);
   });
 });
