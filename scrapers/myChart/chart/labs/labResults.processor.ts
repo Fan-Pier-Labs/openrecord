@@ -379,6 +379,7 @@ export function reportHtmlForResult(reports: Map<string, string>, rawResult: unk
 /** The raw `GetDetails` results recorded for the order with `key`, in the order MyChart sent them. */
 export function rawResultsForOrder(raw: RawResponse, key: string | null): unknown[] {
   if (!key) return [];
+  // Mirrors `standard()`'s `key: textOrNull(body.key) ?? orderKey`.
   const details = findRequests(raw, 'test-results/GetDetails').find(
     (d) => text(rec(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
   );
