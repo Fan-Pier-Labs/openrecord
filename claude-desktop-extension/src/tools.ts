@@ -419,6 +419,8 @@ export function fileResult(payload: FilePayload, baseDir?: string): ToolResult {
 export async function imagingResult(
   payload: StudyImagePayload,
   saveToDownloads: boolean,
+  /** Where a save lands; the test seam. The product always saves to Downloads. */
+  baseDir?: string,
 ): Promise<ToolResult> {
   const study = decodeStudy(payload);
   const errors = [...study.errors];
@@ -428,7 +430,7 @@ export async function imagingResult(
   // with the error reported beside them.
   if (saveToDownloads && study.images.length > 0) {
     try {
-      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study)), errors);
+      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study), baseDir), errors);
     } catch (err) {
       errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
     }
