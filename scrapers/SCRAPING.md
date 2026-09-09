@@ -36,11 +36,20 @@ says "Home" and which still carries an antiforgery token), and every `/api/*`
 endpoint that activity's bundle names 500s — `{"Message":"An error has occurred."}`
 or a bare `{}` — whatever it is sent, which reads exactly like "no data on file".
 The bundle is still downloadable, so the caller looks perfectly real. **The Home
-redirect alone proves nothing**: `/app/documents` lands on Home on every instance
-seen (4 of 4) and `LoadOtherDocuments` then answers normally. Only the redirect
-*and* a failed API call together mean "not served", which is what
-`RawCollector` reports when it sees both (`GET /app/care-journeys` on an August
-2025 web build, 1 of 4 accounts). The legacy page's own bundles (`/<mount>/bundles/<area>-controllers`,
+redirect alone proves nothing**, though: an activity path you simply guessed
+wrong lands on Home too, and its API then answers fine — `/app/documents` did
+that on 4 of 4 instances, because the activity is `/app/document-center` and
+`/app/documents` is not a page anywhere. Only the redirect *and* a failed API
+call together mean "not served", which is what `RawCollector` reports when it
+sees both (`GET /app/care-journeys` on an August 2025 web build, 1 of 4
+accounts).
+
+**Take the activity path from the bundle name, not from the endpoint's.** The
+`scriptUpdates` map is the list of real activities: `epic.px.client.<activity>`
+is served at `/app/<activity>`. Guessing it from the controller
+(`/api/documents/…` → `/app/documents`) is how the wrong page above got in, and
+a wrong page still yields a working antiforgery token, so nothing downstream
+complains. The legacy page's own bundles (`/<mount>/bundles/<area>-controllers`,
 listed as `<script src>` on the legacy page) hold the real endpoint, reached by
 `makeLink("Area/Controller/Action")` and usually a form-encoded `$.post`.
 `/api/insurance/LoadPayers` vs `Insurance/Coverages/GetPayors` was this exact

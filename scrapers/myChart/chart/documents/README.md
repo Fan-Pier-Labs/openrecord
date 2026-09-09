@@ -6,28 +6,47 @@ Clinical documents and visit records filed to the chart — the "Document Center
 | --- | --- |
 | **Capabilities** | `get_documents` (read) |
 | **Source** | [`documents.ts`](documents.ts) · [`documents.processor.ts`](documents.processor.ts) |
-| **Activity** | React `/app/documents` |
+| **Activity** | React `/app/document-center` |
 
 ## Endpoints
 
 | Request | Body | Purpose |
 | --- | --- | --- |
-| `GET /app/documents` | — | antiforgery token |
-| `POST /api/documents/viewer/LoadOtherDocuments` | `{}` | the document list |
-
-`LoadOtherDocuments` is the only endpoint this scraper calls.
+| `GET /app/document-center` | — | antiforgery token |
+| `POST /api/documents/viewer/LoadOtherDocuments` | `{ isInitialLoad: true \| false }` | one page of the document list |
 
 ## Notes and research
 
-- **No captured skeleton.** The six fields the scraper reads exist only in the fixture, so
-  `realShapes.ts` cannot hold this endpoint to a live shape. Elements therefore pass through
-  whole, and concise will narrow to title / type / date / provider once a real response is
-  captured.
-- Deliberately **not** flagged `unverified`
-  ([#405](https://github.com/Fan-Pier-Labs/openrecord/pull/405)): passing elements through
-  whole means the answer is honest even when the element shape is unknown.
-- Downloading a document's bytes is not implemented — no download exchange for this
-  activity has been captured.
+- **`isInitialLoad` is the whole endpoint.** The cursor is server-side session
+  state — the request never names a page. `true` rewinds it and answers the first
+  25 documents; anything else answers the next 25 from wherever the session left
+  off, and answers `{"documents":[]}` once the walk is done. So a `{}` body on a
+  fresh session asks for the page *after* a walk that never started, and gets a
+  200 with an empty list. This scraper sent `{}` until
+  [#453](https://github.com/Fan-Pier-Labs/openrecord/pull/453), which is why an
+  account with 42 documents read as "no documents on file".
+- **25 per page, and a short page is the only end-of-walk signal** — no count,
+  no cursor, no `hasMore`. Epic's own page hides its "Load more" button on
+  `documents.length < 25`; the scraper stops on the same condition.
+- **`dateRaw` is an Epic day number** (`shared/epicDate.ts`), not a timestamp.
+  It agreed with the `date` string on all 42 documents of the captured account,
+  so `dateISO` is derived from it rather than from parsing `date`.
+- **The activity is `/app/document-center`, not `/app/documents`.** The latter is
+  not a page on any instance and redirects to Home. That still yields a usable
+  token, which is why the old path worked at all, but it costs `RawCollector` its
+  "this activity is not served here" signal.
+- **`LoadDocumentsToSign` is the page's other list** — documents awaiting the
+  patient's signature. It answered `{"documentsToSign":[]}` on the one live
+  account, so its element shape has never been observed and nothing scrapes it.
+- **Downloading a document's bytes is now reachable but not implemented.**
+  Epic's own row calls `useDcsDocument({ dcsId: doc.dcsID, fileExtension: doc.docExt,
+  useOldMobileLink: true })` — the same exchange
+  [`messages/messageAttachment.ts`](../messages/messageAttachment.ts) already
+  implements for attachments.
+
+**Verified on 1 live account** (42 documents, `docExt` ∈ {PDF, TIF, JPG, PNG, BMP,
+HTML}) end to end, plus the `epic.px.client.document-center` bundle on 5 further
+instances, which name `isInitialLoad` and the `< 25` page-end rule identically.
 
 ## Modes: what each mode carries
 
@@ -47,9 +66,18 @@ members are all listed so nothing is implied.
 
 ## `get_documents`
 
-`POST /api/documents/viewer/LoadOtherDocuments`. No captured skeleton; the six
-fields the scraper reads exist only in the fixture.
+`POST /api/documents/viewer/LoadOtherDocuments`, once per page. Every page's
+`documents` is concatenated and sorted newest first on `dateRaw`, the key Epic's
+own page sorts on.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
-| `documents[]` | One document per element, whole | — | ✓ | ✓ | Uncaptured; passed through whole. Once captured, concise narrows to title, type, date and provider. |
+| `dcsID` | The handle `GetDocumentDetailsLegacy` takes as `dcsId` to fetch the file | — | ✓ | ✓ | The only way back to the document's bytes. |
+| `docType` | What the Document Center shows as the document's name | — | ✓ | ✓ | The title. |
+| `docDesc` | Free-text description; `""` on half the captured documents, and what Epic shows instead of `docType` on a pending or rejected upload | — | ✓ | ✓ | Names the document when `docType` is generic. |
+| `docExt` | `PDF`, `TIF`, `JPG`, `PNG`, `BMP` or `HTML` (an e-signed document) | — | ✓ | ✓ | Says what a download would produce, and is the `fileExtension` that exchange needs. |
+| `dateISO` | The document's date | ✓ | ✓ | ✓ | Derived from `dateRaw`. The one date form a caller can sort or filter on. |
+| `new` | Not yet opened in MyChart | — | ✓ | ✓ | What the patient has not read. |
+| `date` · `dateRaw` | MyChart's M/D/YYYY display date, and the Epic day number behind it | — | ✓ | — | Kept whole (rule 1), but `dateISO` is the one worth showing. |
+| `docID` · `dat` · `blobCat` | Epic's other identifiers for the document and its blob category | — | ✓ | — | Opaque; no observed use beyond `dcsID`. |
+| `wasESigned` · `isExpired` · `downloadOnly` · `onlyAllowedPreview` · `pendingRequiredSignatures` · `pendingApprovalStatus` · `rejectionReasonFreetext` | Signature, expiry, upload-approval and download-restriction state | — | ✓ | — | All neutral on every captured document, so no per-mode judgement is possible yet; kept in standard rather than dropped for being empty (rule 2). |

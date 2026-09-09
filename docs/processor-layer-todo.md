@@ -17,7 +17,6 @@ fixture rebuilt from it.
 | `get_goals` | `POST /api/goals/LoadCareTeamGoals` | Element shape (`careTeamGoals: []` on all four captures, with `FullLoad: true` too) | Field names from the bundle: `title`, `goalId`, `goalType`, `complianceType`, `readings[]`, `createdByUser`, `creationDate` |
 | `get_upcoming_orders` | `POST /api/upcoming-orders/GetUpcomingOrders` | Element shape of `orderList{}` values, and of `orderGroupList{}` / `providerList{}` (all `{}` on every capture) | |
 | `get_allergies` | `POST /api/allergies/LoadAllergies` | `dataList[]` element (`[]` on the captured account). The scraper hedges between `allergyItem.*` and flat fields | |
-| `get_documents` | `POST /api/documents/viewer/LoadOtherDocuments` | The whole response; never captured | |
 | `get_questionnaires` | `POST /api/questionnaire/GetQuestionnaireList` | `completedQuestionnaires[]` element (`[]` on all four captures), and whether the May 2026 build wraps the lists in `questionnaireLists.assignedQuestionnaireGroups[]` | Envelope and the assigned / optional elements captured on four accounts |
 | `get_care_journeys` | `POST /api/care-journeys/GetCareJourneys` | The whole response; never captured | |
 | `get_health_summary` | `FetchHealthSummary` | `conditionList[]`, `journeyList[]`, `actionPlans[]` elements (`[]` on every capture) | |
@@ -56,7 +55,7 @@ rebuilding the fake's handler around it, and watching one real refill land.
 
 This is for capabilities with no trustworthy implementation at all. It is **not** for a
 capability whose envelope is confirmed and whose element shape is merely uncaptured —
-`get_allergies`, `get_documents`, `get_care_journeys`, `get_upcoming_orders` all pass elements
+`get_allergies`, `get_care_journeys`, `get_upcoming_orders` all pass elements
 through whole and answer empty honestly. Those belong in the table above.
 
 ## 2. Requests to verify
@@ -67,7 +66,7 @@ through whole and answer empty honestly. Those belong in the table above.
 
 ## 3. fake-mychart follow-ups
 
-- Replace the invented element fields (upcoming orders, allergies, documents, care journeys) with captured ones as each capture lands. Do not delete them before then: the fake would serve empty lists and the scrapers would lose their only test coverage. Insurance is done (`insuranceGetCoverages`); goals are modelled on Epic's own client bundle rather than on a capture, which is better than invented but is still not rule 10.
+- Replace the invented element fields (upcoming orders, allergies, care journeys) with captured ones as each capture lands. Do not delete them before then: the fake would serve empty lists and the scrapers would lose their only test coverage. Insurance is done (`insuranceGetCoverages`); goals are modelled on Epic's own client bundle rather than on a capture, which is better than invented but is still not rule 10.
 - Make `conformToShape` fail loudly, or at least log, when a fixture carries a key the skeleton does not, so an invented field cannot ship silently again (`fake-mychart/README.md` calls this out as the trap).
 
 ## 4. Open PRs to re-cut against the layer

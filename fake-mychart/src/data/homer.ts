@@ -2454,10 +2454,67 @@ export const preventiveCare = {
 };
 
 // ─── Documents ──────────────────────────────────────────────────────
+// The Document Center's "other documents" list, shaped to
+// `realShapes.loadOtherDocuments`. `dateRaw` is an Epic day number and `date`
+// is its M/D/YYYY rendering; on the captured account the two agreed on all 42
+// documents, so `fakeDocument` derives one from the other rather than letting
+// a hand-typed pair drift apart.
+//
+// MyChart answers this endpoint 25 documents at a time, so a fixture with
+// fewer never exercises the paging — and a scraper that read only the first
+// page would pass against the fake while dropping the rest of a patient's
+// documents in production. Four seeded documents carry the states worth
+// asserting on (unread, e-signed, a description, a non-PDF extension) and the
+// filler takes the list to 27: one past a page, and no more.
+const EPIC_EPOCH_UTC = Date.UTC(1840, 11, 31);
+
+function fakeDocument(fields: {
+  n: number;
+  docType: string;
+  docExt: string;
+  blobCat: string;
+  dateISO: string;
+  docDesc?: string;
+  isNew?: boolean;
+  wasESigned?: boolean;
+}) {
+  const at = new Date(`${fields.dateISO}T00:00:00Z`);
+  return {
+    blobCat: fields.blobCat,
+    dcsID: `WP-DCS-${String(fields.n).padStart(3, '0')}`,
+    docID: `WP-DOC-${String(fields.n).padStart(3, '0')}`,
+    date: `${at.getUTCMonth() + 1}/${at.getUTCDate()}/${at.getUTCFullYear()}`,
+    dateRaw: String(Math.round((at.valueOf() - EPIC_EPOCH_UTC) / 86_400_000)),
+    dat: `WP-${String(fields.n).padStart(3, '0')}A`,
+    docExt: fields.docExt,
+    docDesc: fields.docDesc ?? '',
+    docType: fields.docType,
+    pendingApprovalStatus: 0,
+    rejectionReasonFreetext: '',
+    wasESigned: fields.wasESigned ?? false,
+    downloadOnly: false,
+    new: fields.isNew ?? false,
+    isExpired: false,
+    pendingRequiredSignatures: false,
+    onlyAllowedPreview: false,
+  };
+}
+
 export const documents = {
   documents: [
-    { id: 'DOC-001', title: 'After Visit Summary', documentType: 'Clinical', date: '01/10/2026', providerName: 'Julius Hibbert, MD', organizationName: 'Springfield General Hospital' },
-    { id: 'DOC-002', title: 'Lab Results Report', documentType: 'Lab', date: '01/10/2026', providerName: 'Julius Hibbert, MD', organizationName: 'Springfield General Hospital' },
+    fakeDocument({ n: 1, docType: 'After Visit Summary', docExt: 'PDF', blobCat: '20', dateISO: '2026-01-10', isNew: true }),
+    fakeDocument({ n: 2, docType: 'Consent - Procedure', docExt: 'HTML', blobCat: '3', dateISO: '2025-11-04', wasESigned: true }),
+    fakeDocument({ n: 3, docType: 'Insurance Card', docExt: 'JPG', blobCat: '185', dateISO: '2025-09-18', docDesc: 'Front and back' }),
+    fakeDocument({ n: 4, docType: 'Outside Records', docExt: 'TIF', blobCat: '20', dateISO: '2025-06-02' }),
+    // One visit summary a month, older than every seeded document.
+    ...Array.from({ length: 23 }, (_, i) =>
+      fakeDocument({
+        n: 5 + i,
+        docType: 'Visit Summary',
+        docExt: 'PDF',
+        blobCat: '20',
+        dateISO: new Date(Date.UTC(2025, 4 - i, 15)).toISOString().slice(0, 10),
+      })),
   ],
 };
 

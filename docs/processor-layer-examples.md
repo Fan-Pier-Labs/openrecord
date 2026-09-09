@@ -15,7 +15,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 
 | Capability | raw | json | standard | concise |
 | --- | ---: | ---: | ---: | ---: |
-| `get_profile` | 35954 | 888 | 1149 | 209 |
+| `get_profile` | 35974 | 888 | 1149 | 209 |
 | `get_health_summary` | 2337 | 394 | 463 | 353 |
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
@@ -36,15 +36,15 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3624 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 52744 | 7714 | 8963 | 2227 |
+| `get_billing` | 52764 | 7714 | 8963 | 2227 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
-| `get_insurance_benefits` | 34386 | 2862 | 3564 | 1562 |
+| `get_insurance_benefits` | 34406 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19278 | 1225 | 875 | 532 |
+| `get_care_team` | 19288 | 1225 | 875 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
-| `get_documents` | 367 | 367 | 329 | 329 |
+| `get_documents` | 25309 | 10173 | 4944 | 1958 |
 | `get_upcoming_orders` | 557 | 427 | 381 | 353 |
 | `get_questionnaires` | 1634 | 1455 | 1957 | 538 |
 | `get_care_journeys` | 228 | 228 | 264 | 264 |
@@ -61,7 +61,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 Patient profile (name, date of birth, medical record number, primary care provider) plus the account email address.
 
 <details>
-<summary><code>mode: raw</code> (35954 chars)</summary>
+<summary><code>mode: raw</code> (35974 chars)</summary>
 
 ```json
 {
@@ -72,7 +72,7 @@ Patient profile (name, date of birth, medical record number, primary care provid
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Home</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"active\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n        <a href=\"
-… (truncated; 26349 more characters)
+… (truncated; 26369 more characters)
 ```
 
 </details>
@@ -14746,7 +14746,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (52744 chars)</summary>
+<summary><code>mode: raw</code> (52764 chars)</summary>
 
 ```json
 {
@@ -14757,7 +14757,7 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺<
-… (truncated; 54723 more characters)
+… (truncated; 54743 more characters)
 ```
 
 </details>
@@ -15715,7 +15715,7 @@ Insurance coverages on file: payer, plan, member and group numbers, effective da
 How much of the deductible and the out-of-pocket maximum has been used, how much is left, and when each resets. MyChart keys these to a billing guarantor account rather than to a coverage, so a patient with two accounts gets one set per account. For the coverages themselves — payer, plan, member id — use get_insurance.
 
 <details>
-<summary><code>mode: raw</code> (34386 chars)</summary>
+<summary><code>mode: raw</code> (34406 chars)</summary>
 
 ```json
 {
@@ -15851,7 +15851,7 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; h
-… (truncated; 24021 more characters)
+… (truncated; 24041 more characters)
 ```
 
 </details>
@@ -16555,7 +16555,7 @@ The insurance payers this organization's MyChart offers when adding a coverage �
 Providers on the care team, including outside providers, each with their role and specialty.
 
 <details>
-<summary><code>mode: raw</code> (19278 chars)</summary>
+<summary><code>mode: raw</code> (19288 chars)</summary>
 
 ```json
 {
@@ -16566,7 +16566,7 @@ Providers on the care team, including outside providers, each with their role an
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n      
-… (truncated; 9312 more characters)
+… (truncated; 9322 more characters)
 ```
 
 </details>
@@ -16964,81 +16964,924 @@ Plan: Continue current medications. Referred to weight management program. Follo
 Clinical documents and visit records.
 
 <details>
-<summary><code>mode: raw</code> (367 chars)</summary>
+<summary><code>mode: raw</code> (25309 chars)</summary>
 
 ```json
 {
-  "documents": [
+  "requests": [
     {
-      "id": "DOC-001",
-      "title": "After Visit Summary",
-      "documentType": "Clinical",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    },
-    {
-      "id": "DOC-002",
-      "title": "Lab Results Report",
-      "documentType": "Lab",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    }
-  ]
-}
+      "path": "/api/documents/viewer/LoadOtherDocuments",
+      "method": "POST",
+      "requestBody": {
+        "isInitialLoad": true
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "documents": [
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-001",
+            "docID": "WP-DOC-001",
+            "date": "1/10/2026",
+            "dateRaw": "67580",
+            "dat": "WP-001A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "After Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": true,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "3",
+            "dcsID": "WP-DCS-002",
+            "docID": "WP-DOC-002",
+            "date": "11/4/2025",
+            "dateRaw": "67513",
+            "dat": "WP-002A",
+            "docExt": "HTML",
+            "docDesc": "",
+            "docType": "Consent - Procedure",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": true,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "185",
+            "dcsID": "WP-DCS-003",
+            "docID": "WP-DOC-003",
+            "date": "9/18/2025",
+            "dateRaw": "67466",
+            "dat": "WP-003A",
+            "docExt": "JPG",
+            "docDesc": "Front and back",
+            "docType": "Insurance Card",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-004",
+            "docID": "WP-DOC-004",
+            "date": "6/2/2025",
+            "dateRaw": "67358",
+            "dat": "WP-004A",
+            "docExt": "TIF",
+            "docDesc": "",
+            "docType": "Outside Records",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-005",
+            "docID": "WP-DOC-005",
+            "date": "5/15/2025",
+            "dateRaw": "67340",
+            "dat": "WP-005A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-006",
+            "docID": "WP-DOC-006",
+            "date": "4/15/2025",
+            "dateRaw": "67310",
+            "dat": "WP-006A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-007",
+            "docID": "WP-DOC-007",
+            "date": "3/15/2025",
+            "dateRaw": "67279",
+            "dat": "WP-007A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-008",
+            "docID": "WP-DOC-008",
+            "date": "2/15/2025",
+            "dateRaw": "67251",
+            "dat": "WP-008A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-009",
+            "docID": "WP-DOC-009",
+            "date": "1/15/2025",
+            "dateRaw": "67220",
+            "dat": "WP-009A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-010",
+            "docID": "WP-DOC-010",
+            "date": "12/15/2024",
+            "dateRaw": "67189",
+            "dat": "WP-010A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-011",
+            "docID": "WP-DOC-011",
+            "date": "11/15/2024",
+            "dateRaw": "67159",
+            "dat": "WP-011A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-012",
+            "docID": "WP-DOC-012",
+            "date": "10/15/2024",
+            "dateRaw": "67128",
+            "dat": "WP-012A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-013",
+            "docID": "WP-DOC-013",
+            "date": "9/15/2024",
+            "dateRaw": "67098",
+            "dat": "WP-013A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-014",
+            "docID": "WP-DOC-014",
+            "date": "8/15/2024",
+            "dateRaw": "67067",
+            "dat": "WP-014A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-015",
+            "docID": "WP-DOC-015",
+            "date": "7/15/2024",
+            "dateRaw": "67036",
+            "dat": "WP-015A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-016",
+            "docID": "WP-DOC-016",
+            "date": "6/15/2024",
+            "dateRaw": "67006",
+            "dat": "WP-016A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-017",
+            "docID": "WP-DOC-017",
+            "date": "5/15/2024",
+            "dateRaw": "66975",
+            "dat": "WP-017A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-018",
+            "docID": "WP-DOC-018",
+            "date": "4/15/2024",
+            "dateRaw": "66945",
+            "dat": "WP-018A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-DCS-019",
+            "docID": "WP-DOC-019",
+            "date": "3/15/2024",
+            "dateRaw": "66914",
+            "dat": "WP-019A",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID
+… (truncated; 20597 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (329 chars)</summary>
+<summary><code>mode: standard</code> (4944 chars)</summary>
 
-## documents (2)
+## documents (27)
 
-| id | title | documentType | date | providerName | organizationName |
-| - | - | - | - | - | - |
-| DOC-001 | After Visit Summary | Clinical | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
-| DOC-002 | Lab Results Report | Lab | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
+| dcsID | docID | docType | docDesc | docExt | date | dateRaw | dateISO | blobCat | dat | new | wasESigned | isExpired | downloadOnly | onlyAllowedPreview | pendingRequiredSignatures | pendingApprovalStatus | rejectionReasonFreetext |
+| - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| WP-DCS-001 | WP-DOC-001 | After Visit Summary | (empty) | PDF | 1/10/2026 | 67580 | 2026-01-10 | 20 | WP-001A | true | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-002 | WP-DOC-002 | Consent - Procedure | (empty) | HTML | 11/4/2025 | 67513 | 2025-11-04 | 3 | WP-002A | false | true | false | false | false | false | 0 | (empty) |
+| WP-DCS-003 | WP-DOC-003 | Insurance Card | Front and back | JPG | 9/18/2025 | 67466 | 2025-09-18 | 185 | WP-003A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-004 | WP-DOC-004 | Outside Records | (empty) | TIF | 6/2/2025 | 67358 | 2025-06-02 | 20 | WP-004A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-005 | WP-DOC-005 | Visit Summary | (empty) | PDF | 5/15/2025 | 67340 | 2025-05-15 | 20 | WP-005A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-006 | WP-DOC-006 | Visit Summary | (empty) | PDF | 4/15/2025 | 67310 | 2025-04-15 | 20 | WP-006A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-007 | WP-DOC-007 | Visit Summary | (empty) | PDF | 3/15/2025 | 67279 | 2025-03-15 | 20 | WP-007A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-008 | WP-DOC-008 | Visit Summary | (empty) | PDF | 2/15/2025 | 67251 | 2025-02-15 | 20 | WP-008A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-009 | WP-DOC-009 | Visit Summary | (empty) | PDF | 1/15/2025 | 67220 | 2025-01-15 | 20 | WP-009A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-010 | WP-DOC-010 | Visit Summary | (empty) | PDF | 12/15/2024 | 67189 | 2024-12-15 | 20 | WP-010A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-011 | WP-DOC-011 | Visit Summary | (empty) | PDF | 11/15/2024 | 67159 | 2024-11-15 | 20 | WP-011A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-012 | WP-DOC-012 | Visit Summary | (empty) | PDF | 10/15/2024 | 67128 | 2024-10-15 | 20 | WP-012A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-013 | WP-DOC-013 | Visit Summary | (empty) | PDF | 9/15/2024 | 67098 | 2024-09-15 | 20 | WP-013A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-014 | WP-DOC-014 | Visit Summary | (empty) | PDF | 8/15/2024 | 67067 | 2024-08-15 | 20 | WP-014A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-015 | WP-DOC-015 | Visit Summary | (empty) | PDF | 7/15/2024 | 67036 | 2024-07-15 | 20 | WP-015A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-016 | WP-DOC-016 | Visit Summary | (empty) | PDF | 6/15/2024 | 67006 | 2024-06-15 | 20 | WP-016A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-017 | WP-DOC-017 | Visit Summary | (empty) | PDF | 5/15/2024 | 66975 | 2024-05-15 | 20 | WP-017A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-018 | WP-DOC-018 | Visit Summary | (empty) | PDF | 4/15/2024 | 66945 | 2024-04-15 | 20 | WP-018A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-019 | WP-DOC-019 | Visit Summary | (empty) | PDF | 3/15/2024 | 66914 | 2024-03-15 | 20 | WP-019A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-020 | WP-DOC-020 | Visit Summary | (empty) | PDF | 2/15/2024 | 66885 | 2024-02-15 | 20 | WP-020A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-021 | WP-DOC-021 | Visit Summary | (empty) | PDF | 1/15/2024 | 66854 | 2024-01-15 | 20 | WP-021A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-022 | WP-DOC-022 | Visit Summary | (empty) | PDF | 12/15/2023 | 66823 | 2023-12-15 | 20 | WP-022A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-023 | WP-DOC-023 | Visit Summary | (empty) | PDF | 11/15/2023 | 66793 | 2023-11-15 | 20 | WP-023A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-024 | WP-DOC-024 | Visit Summary | (empty) | PDF | 10/15/2023 | 66762 | 2023-10-15 | 20 | WP-024A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-025 | WP-DOC-025 | Visit Summary | (empty) | PDF | 9/15/2023 | 66732 | 2023-09-15 | 20 | WP-025A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-026 | WP-DOC-026 | Visit Summary | (empty) | PDF | 8/15/2023 | 66701 | 2023-08-15 | 20 | WP-026A | false | false | false | false | false | false | 0 | (empty) |
+| WP-DCS-027 | WP-DOC-027 | Visit Summary | (empty) | PDF | 7/15/2023 | 66670 | 2023-07-15 | 20 | WP-027A | false | false | false | false | false | false | 0 | (empty) |
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (329 chars)</summary>
+<summary><code>mode: concise</code> (1958 chars)</summary>
 
-## documents (2)
+## documents (27)
 
-| id | title | documentType | date | providerName | organizationName |
+| dcsID | docType | docDesc | docExt | dateISO | new |
 | - | - | - | - | - | - |
-| DOC-001 | After Visit Summary | Clinical | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
-| DOC-002 | Lab Results Report | Lab | 01/10/2026 | Julius Hibbert, MD | Springfield General Hospital |
+| WP-DCS-001 | After Visit Summary | (empty) | PDF | 2026-01-10 | true |
+| WP-DCS-002 | Consent - Procedure | (empty) | HTML | 2025-11-04 | false |
+| WP-DCS-003 | Insurance Card | Front and back | JPG | 2025-09-18 | false |
+| WP-DCS-004 | Outside Records | (empty) | TIF | 2025-06-02 | false |
+| WP-DCS-005 | Visit Summary | (empty) | PDF | 2025-05-15 | false |
+| WP-DCS-006 | Visit Summary | (empty) | PDF | 2025-04-15 | false |
+| WP-DCS-007 | Visit Summary | (empty) | PDF | 2025-03-15 | false |
+| WP-DCS-008 | Visit Summary | (empty) | PDF | 2025-02-15 | false |
+| WP-DCS-009 | Visit Summary | (empty) | PDF | 2025-01-15 | false |
+| WP-DCS-010 | Visit Summary | (empty) | PDF | 2024-12-15 | false |
+| WP-DCS-011 | Visit Summary | (empty) | PDF | 2024-11-15 | false |
+| WP-DCS-012 | Visit Summary | (empty) | PDF | 2024-10-15 | false |
+| WP-DCS-013 | Visit Summary | (empty) | PDF | 2024-09-15 | false |
+| WP-DCS-014 | Visit Summary | (empty) | PDF | 2024-08-15 | false |
+| WP-DCS-015 | Visit Summary | (empty) | PDF | 2024-07-15 | false |
+| WP-DCS-016 | Visit Summary | (empty) | PDF | 2024-06-15 | false |
+| WP-DCS-017 | Visit Summary | (empty) | PDF | 2024-05-15 | false |
+| WP-DCS-018 | Visit Summary | (empty) | PDF | 2024-04-15 | false |
+| WP-DCS-019 | Visit Summary | (empty) | PDF | 2024-03-15 | false |
+| WP-DCS-020 | Visit Summary | (empty) | PDF | 2024-02-15 | false |
+| WP-DCS-021 | Visit Summary | (empty) | PDF | 2024-01-15 | false |
+| WP-DCS-022 | Visit Summary | (empty) | PDF | 2023-12-15 | false |
+| WP-DCS-023 | Visit Summary | (empty) | PDF | 2023-11-15 | false |
+| WP-DCS-024 | Visit Summary | (empty) | PDF | 2023-10-15 | false |
+| WP-DCS-025 | Visit Summary | (empty) | PDF | 2023-09-15 | false |
+| WP-DCS-026 | Visit Summary | (empty) | PDF | 2023-08-15 | false |
+| WP-DCS-027 | Visit Summary | (empty) | PDF | 2023-07-15 | false |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (367 chars)</summary>
+<summary><code>mode: json</code> (10173 chars)</summary>
 
 ```json
 {
   "documents": [
     {
-      "id": "DOC-001",
-      "title": "After Visit Summary",
-      "documentType": "Clinical",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
+      "dcsID": "WP-DCS-001",
+      "docID": "WP-DOC-001",
+      "docType": "After Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "1/10/2026",
+      "dateRaw": "67580",
+      "dateISO": "2026-01-10",
+      "blobCat": "20",
+      "dat": "WP-001A",
+      "new": true,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
     },
     {
-      "id": "DOC-002",
-      "title": "Lab Results Report",
-      "documentType": "Lab",
-      "date": "01/10/2026",
-      "providerName": "Julius Hibbert, MD",
-      "organizationName": "Springfield General Hospital"
-    }
-  ]
-}
+      "dcsID": "WP-DCS-002",
+      "docID": "WP-DOC-002",
+      "docType": "Consent - Procedure",
+      "docDesc": "",
+      "docExt": "HTML",
+      "date": "11/4/2025",
+      "dateRaw": "67513",
+      "dateISO": "2025-11-04",
+      "blobCat": "3",
+      "dat": "WP-002A",
+      "new": false,
+      "wasESigned": true,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-003",
+      "docID": "WP-DOC-003",
+      "docType": "Insurance Card",
+      "docDesc": "Front and back",
+      "docExt": "JPG",
+      "date": "9/18/2025",
+      "dateRaw": "67466",
+      "dateISO": "2025-09-18",
+      "blobCat": "185",
+      "dat": "WP-003A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-004",
+      "docID": "WP-DOC-004",
+      "docType": "Outside Records",
+      "docDesc": "",
+      "docExt": "TIF",
+      "date": "6/2/2025",
+      "dateRaw": "67358",
+      "dateISO": "2025-06-02",
+      "blobCat": "20",
+      "dat": "WP-004A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-005",
+      "docID": "WP-DOC-005",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "5/15/2025",
+      "dateRaw": "67340",
+      "dateISO": "2025-05-15",
+      "blobCat": "20",
+      "dat": "WP-005A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-006",
+      "docID": "WP-DOC-006",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "4/15/2025",
+      "dateRaw": "67310",
+      "dateISO": "2025-04-15",
+      "blobCat": "20",
+      "dat": "WP-006A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-007",
+      "docID": "WP-DOC-007",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "3/15/2025",
+      "dateRaw": "67279",
+      "dateISO": "2025-03-15",
+      "blobCat": "20",
+      "dat": "WP-007A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-008",
+      "docID": "WP-DOC-008",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "2/15/2025",
+      "dateRaw": "67251",
+      "dateISO": "2025-02-15",
+      "blobCat": "20",
+      "dat": "WP-008A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-009",
+      "docID": "WP-DOC-009",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "1/15/2025",
+      "dateRaw": "67220",
+      "dateISO": "2025-01-15",
+      "blobCat": "20",
+      "dat": "WP-009A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-010",
+      "docID": "WP-DOC-010",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "12/15/2024",
+      "dateRaw": "67189",
+      "dateISO": "2024-12-15",
+      "blobCat": "20",
+      "dat": "WP-010A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-011",
+      "docID": "WP-DOC-011",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "11/15/2024",
+      "dateRaw": "67159",
+      "dateISO": "2024-11-15",
+      "blobCat": "20",
+      "dat": "WP-011A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-012",
+      "docID": "WP-DOC-012",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "10/15/2024",
+      "dateRaw": "67128",
+      "dateISO": "2024-10-15",
+      "blobCat": "20",
+      "dat": "WP-012A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-013",
+      "docID": "WP-DOC-013",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "9/15/2024",
+      "dateRaw": "67098",
+      "dateISO": "2024-09-15",
+      "blobCat": "20",
+      "dat": "WP-013A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-014",
+      "docID": "WP-DOC-014",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "8/15/2024",
+      "dateRaw": "67067",
+      "dateISO": "2024-08-15",
+      "blobCat": "20",
+      "dat": "WP-014A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-015",
+      "docID": "WP-DOC-015",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "7/15/2024",
+      "dateRaw": "67036",
+      "dateISO": "2024-07-15",
+      "blobCat": "20",
+      "dat": "WP-015A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-016",
+      "docID": "WP-DOC-016",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "6/15/2024",
+      "dateRaw": "67006",
+      "dateISO": "2024-06-15",
+      "blobCat": "20",
+      "dat": "WP-016A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-017",
+      "docID": "WP-DOC-017",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "5/15/2024",
+      "dateRaw": "66975",
+      "dateISO": "2024-05-15",
+      "blobCat": "20",
+      "dat": "WP-017A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-018",
+      "docID": "WP-DOC-018",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "4/15/2024",
+      "dateRaw": "66945",
+      "dateISO": "2024-04-15",
+      "blobCat": "20",
+      "dat": "WP-018A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-019",
+      "docID": "WP-DOC-019",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "3/15/2024",
+      "dateRaw": "66914",
+      "dateISO": "2024-03-15",
+      "blobCat": "20",
+      "dat": "WP-019A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-020",
+      "docID": "WP-DOC-020",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "2/15/2024",
+      "dateRaw": "66885",
+      "dateISO": "2024-02-15",
+      "blobCat": "20",
+      "dat": "WP-020A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-021",
+      "docID": "WP-DOC-021",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "1/15/2024",
+      "dateRaw": "66854",
+      "dateISO": "2024-01-15",
+      "blobCat": "20",
+      "dat": "WP-021A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-022",
+      "docID": "WP-DOC-022",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "12/15/2023",
+      "dateRaw": "66823",
+      "dateISO": "2023-12-15",
+      "blobCat": "20",
+      "dat": "WP-022A",
+      "new": false,
+      "wasESigned": false,
+      "isExpired": false,
+      "downloadOnly": false,
+      "onlyAllowedPreview": false,
+      "pendingRequiredSignatures": false,
+      "pendingApprovalStatus": 0,
+      "rejectionReasonFreetext": ""
+    },
+    {
+      "dcsID": "WP-DCS-023",
+      "docID": "WP-DOC-023",
+      "docType": "Visit Summary",
+      "docDesc": "",
+      "docExt": "PDF",
+      "date": "11/15/2023",
+      "dateRaw": "66793",
+      "dateISO": "2023-11-15",
+      "blobCat": "20",
+      "dat": "WP-023A",
+      "new": false,
+      "wasESigned"
+… (truncated; 2339 more characters)
 ```
 
 </details>
