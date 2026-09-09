@@ -422,6 +422,7 @@ describe('billingProcessor.standard', () => {
     const v = standard.accounts[0]!.visits[1]!
     expect(v).toEqual({
       category: 'UnifiedVisitList',
+      detailLoaded: true,
       StartDateDisplay: '11/20/2025',
       DateRangeDisplay: null,
       Description: 'ER Visit',
@@ -521,9 +522,10 @@ describe('billingProcessor.concise', () => {
       guarantorNumber: '100',
       patientName: 'Homer Simpson',
       amountDueNumber: 350,
+      unhydratedVisits: 0,
       visits: [
-        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
-        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
+        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
+        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
       ],
       statements: [
         { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false, RecordID: 'REC-1' },
@@ -607,11 +609,31 @@ describe('lazy-loaded charge rows', () => {
     expect(JSON.stringify(visits)).not.toContain('Visit at ')
   })
 
-  it('keeps the stub when nothing hydrated it, rather than inventing a balance', () => {
+  it('marks a row hydration could not fill in, so its placeholder $0.00 cannot pass as settled', () => {
+    // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
     const noHydrate: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
-    const row = billingProcessor.standard(noHydrate).accounts[0]!.visits.find((v) => v.Description === 'Visit at ')!
-    expect(row).toBeDefined()
-    expect(row.ChargeAmount).toBe('$0.00')
+    const account = billingProcessor.standard(noHydrate).accounts[0]!
+    const row = account.visits.find((v) => v.Description === 'Visit at ')!
+
+    // The row is still reported — it is a real visit with a real date — but it
+    // says outright that its amounts are placeholders, which is the whole
+    // difference between an honest gap and a silent undercount.
+    expect(row.detailLoaded).toBe(false)
+    expect(account.unhydratedVisits).toBe(1)
+    expect(account.visits.find((v) => v.Description === 'ER Visit')!.detailLoaded).toBe(true)
+
+    // And concise says it too, because that is the mode the clients default to.
+    const concise = billingProcessor.concise(billingProcessor.standard(noHydrate)) as {
+      accounts: Array<{ unhydratedVisits: number; visits: Array<{ detailLoaded: boolean }> }>
+    }
+    expect(concise.accounts[0]!.unhydratedVisits).toBe(1)
+    expect(concise.accounts[0]!.visits.some((v) => !v.detailLoaded)).toBe(true)
+  })
+
+  it('reports every row loaded once hydration succeeded', () => {
+    const account = billingProcessor.standard(PAGED).accounts[0]!
+    expect(account.unhydratedVisits).toBe(0)
+    expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
   })
 
   it('reads the CPT code out of the markup MyChart buries it in', () => {

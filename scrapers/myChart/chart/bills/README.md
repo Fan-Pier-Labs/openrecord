@@ -14,7 +14,7 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 | --- | --- |
 | `GET /Billing/Summary` | HTML — one `.ba_card` per guarantor account |
 | `GET /Billing/Details/GetVisits?…&filterOption=1&searchStartDTE=…&searchStopDTE=…` | the charges (**payload**) |
-| `POST /Billing/Details/GetMoreVisits` | hydrates the stub rows `GetVisits` paged out (best effort; needs the details page's antiforgery token) |
+| `POST /Billing/Details/GetMoreVisits` | hydrates the stub rows `GetVisits` paged out (best effort; sent with the details page's antiforgery token) |
 | `GET /Billing/Details/GetStatementList?…` | statements (best effort) |
 | `GET /Billing/Details/LoadPaymentList?…` | payment history (best effort) |
 | `GET /Billing/Details?ID=…&Context=…` | HTML — carries `EncID`, the statement-PDF token (best effort) |
@@ -61,7 +61,7 @@ Every URL carries `noCache=<random>`.
   `HospitalAccountId` is an encrypted handle instead of the HAR number, and **every amount is
   the string `"$0.00"`** — on visits charged hundreds or thousands. Only the service date is
   real. A live instance answered with 25 such rows out of 45; hydrating them turned $0.00
-  into $29,633.70 of real charges, so reporting the stub as-is silently undercounts any sum
+  into tens of thousands of dollars of real charges, so reporting the stub as-is silently undercounts any sum
   over a charge column.
   Epic's own UI does not render them: it drops the stubs and offers "Load more accounts" /
   "Load all accounts", which post every outstanding stub to
@@ -75,9 +75,13 @@ Every URL carries `noCache=<random>`.
   before de-duplication — a stub and its hydrated self do not look alike, because the
   identity includes exactly the fields hydration fills in.
   Two things this needs that the older flow did not: the **details page is fetched first**,
-  because its antiforgery token is what `GetMoreVisits` requires, and the whole hydration is
+  because it carries the antiforgery token Epic's own client sends on this call (a token-less
+  POST was never tried, so whether the server refuses one is unverified — the scraper simply
+  sends what the client sends, and skips hydration when no token could be read), and the
+  whole hydration is
   best-effort — a failure leaves the stub in place rather than costing the caller the charge
-  list. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
+  list, marked `detailLoaded: false` and counted in the account's `unhydratedVisits` so a
+  placeholder `"$0.00"` can never be read as a settled balance. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
   value has been observed. Verified on the wire against 1 real instance.
 - **The UI's default filter is not the scraper's.** The billing activity sends
   `filterOption=` empty (and empty dates), which on the captured account returned
@@ -131,6 +135,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `guarantorNumber`, `patientName` | From the card header | ✓ | ✓ | ✓ | Derived from the summary HTML. Which account and whose. |
 | `amountDueNumber` | Card balance, parsed | ✓ | ✓ | ✓ | Derived. What is owed. |
+| `unhydratedVisits` | How many of `visits` are still unhydrated stubs | ✓ | ✓ | ✓ | Derived. Zero on a healthy read; non-zero means any sum over this account's charges is an undercount. |
 | `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
@@ -141,6 +146,7 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `UnifiedVisitList[]`, `VisitList[]`, `InformationalVisitList[]`, `NoBalanceVisitList[]`, `BadDebtVisitList[]`, `PaymentPlanVisitList[]`, `AdvanceBillVisitList[]`, `ContestedVisitList[]`, `AdjustmentVisitList[]` | The charge lists; overlapping across releases | ✓ | merged into one `visits[]`, de-duplicated on (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`) | same | Derived merge (#380). Reading one list loses charges on whichever release does not populate it; reading all double-counts. |
 | `category` | Which list the row came from | ✓ | ✓ | ✓ | Derived. "Bad debt" and "payment plan" change what a charge means. |
+| `detailLoaded` | Whether this row carries real numbers, or is still the stub hydration could not fill in | ✓ | ✓ | ✓ | Derived from `LevelOfDetailLoaded`. `true` on a healthy read; `false` only when `GetMoreVisits` did not run or did not work, and then every amount on the row is a placeholder `"$0.00"`. In concise because that is the mode the model-facing clients read. |
 | `NotPaymentPlanVisitList[]`, `VisitAutoPayVisitList[]` | Filtered views of rows already in the others | — | — | — | Duplicate. |
 | `*VisitListAmount`, `PaymentPlanVisitListAutoPayAmount`, `PaymentPlanVisitListScheduledDate`, `EstimatedPaymentPlanBalance`, `PaymentPlanVisitListPostResolutionAmount` | Per-list totals | — | ✓ | — | Totals as MyChart computed them; detail. |
 | `CanMakePayment`, `HasUnconvertedPBVisits`, `HasVisits` | Account state | — | ✓ | — | Whether online payment is possible; detail. |

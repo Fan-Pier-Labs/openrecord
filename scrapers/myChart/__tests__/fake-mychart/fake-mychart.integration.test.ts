@@ -667,6 +667,12 @@ for (const mode of MOUNT_MODES) {
       expect(pt.ProcedureList.map((p) => p.DescriptionText)).toContain('Therapeutic Exercise - 97110 (CPT®)')
       expect(JSON.stringify(pt)).not.toContain('<span')
       expect(pt.CoverageInfoList[0]!.Copay).toBe('$90.00')
+
+      // Every row is marked loaded on a healthy read, so a caller can tell
+      // this from the failure case where a stub survives.
+      const account = (await getBillingHistory(session)).accounts[0]!
+      expect(account.unhydratedVisits).toBe(0)
+      expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
     }, 30_000)
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {

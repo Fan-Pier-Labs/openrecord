@@ -36,7 +36,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3624 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 52744 | 7633 | 8862 | 2126 |
+| `get_billing` | 52744 | 7714 | 8963 | 2227 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19278 | 1225 | 875 | 532 |
@@ -14762,7 +14762,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (8862 chars)</summary>
+<summary><code>mode: standard</code> (8963 chars)</summary>
 
 - **totalDue**: 275
 
@@ -14780,6 +14780,7 @@ Billing history and account balances.
 ##### visits 1
 
 - **category**: InformationalVisitList
+- **detailLoaded**: true
 - **StartDateDisplay**: Jan 10, 2026
 - **DateRangeDisplay**: (none)
 - **Description**: Annual Physical at Springfield General Hospital
@@ -14838,6 +14839,7 @@ Billing history and account balances.
 ##### visits 2
 
 - **category**: UnifiedVisitList
+- **detailLoaded**: true
 - **StartDateDisplay**: Mar 14, 2025
 - **DateRangeDisplay**: (none)
 - **Description**: Physical Therapy at Springfield General Hospital
@@ -14915,6 +14917,7 @@ Billing history and account balances.
 ##### visits 3
 
 - **category**: UnifiedVisitList
+- **detailLoaded**: true
 - **StartDateDisplay**: Aug 2, 2024
 - **DateRangeDisplay**: (none)
 - **Description**: Emergency Department at Springfield General Hospital
@@ -14969,6 +14972,7 @@ Billing history and account balances.
 - **ProcedureGroupList**: (none)
 - **CoverageInfoList**: (none)
 
+- **unhydratedVisits**: 0
 - **VisitListAmount**: (empty)
 - **BadDebtVisitListAmount**: (empty)
 - **PaymentPlanVisitListAmount**: (empty)
@@ -15040,7 +15044,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (2126 chars)</summary>
+<summary><code>mode: concise</code> (2227 chars)</summary>
 
 - **totalDue**: 275
 
@@ -15051,11 +15055,13 @@ Billing history and account balances.
 - **guarantorNumber**: 742
 - **patientName**: Homer Simpson
 - **amountDueNumber**: 275
+- **unhydratedVisits**: 0
 
 #### visits (3)
 
 ##### visits 1
 
+- **detailLoaded**: true
 - **StartDateDisplay**: Jan 10, 2026
 - **DateRangeDisplay**: (none)
 - **Description**: Annual Physical at Springfield General Hospital
@@ -15071,6 +15077,7 @@ Billing history and account balances.
 
 ##### visits 2
 
+- **detailLoaded**: true
 - **StartDateDisplay**: Mar 14, 2025
 - **DateRangeDisplay**: (none)
 - **Description**: Physical Therapy at Springfield General Hospital
@@ -15086,6 +15093,7 @@ Billing history and account balances.
 
 ##### visits 3
 
+- **detailLoaded**: true
 - **StartDateDisplay**: Aug 2, 2024
 - **DateRangeDisplay**: (none)
 - **Description**: Emergency Department at Springfield General Hospital
@@ -15116,7 +15124,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: json</code> (7633 chars)</summary>
+<summary><code>mode: json</code> (7714 chars)</summary>
 
 ```json
 {
@@ -15130,6 +15138,7 @@ Billing history and account balances.
       "visits": [
         {
           "category": "InformationalVisitList",
+          "detailLoaded": true,
           "StartDateDisplay": "Jan 10, 2026",
           "DateRangeDisplay": null,
           "Description": "Annual Physical at Springfield General Hospital",
@@ -15207,6 +15216,7 @@ Billing history and account balances.
         },
         {
           "category": "UnifiedVisitList",
+          "detailLoaded": true,
           "StartDateDisplay": "Mar 14, 2025",
           "DateRangeDisplay": null,
           "Description": "Physical Therapy at Springfield General Hospital",
@@ -15302,6 +15312,7 @@ Billing history and account balances.
         },
         {
           "category": "UnifiedVisitList",
+          "detailLoaded": true,
           "StartDateDisplay": "Aug 2, 2024",
           "DateRangeDisplay": null,
           "Description": "Emergency Department at Springfield General Hospital",
@@ -15365,6 +15376,7 @@ Billing history and account balances.
           "CoverageInfoList": []
         }
       ],
+      "unhydratedVisits": 0,
       "VisitListAmount": "",
       "BadDebtVisitListAmount": "",
       "PaymentPlanVisitListAmount": "",

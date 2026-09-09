@@ -2,7 +2,7 @@ import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAu
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { getRequestVerificationTokenFromBody } from '../../core/util';
-import { list, num, rec, text } from '../../processors/read';
+import { list, rec, text } from '../../processors/read';
 import { subYears, addYears } from 'date-fns';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
 import { logger } from '../../../../shared/logger';
@@ -10,7 +10,7 @@ import { toEpicDteLocal } from '../../../../shared/epicDate';
 import type { FilePayload } from '../../../../shared/capabilities/types';
 import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
-import { VISIT_LIST_CATEGORIES, billingProcessor, statementDateISO, type BillingStandard } from './bills.processor';
+import { VISIT_LIST_CATEGORIES, billingProcessor, isStubRow, statementDateISO, type BillingStandard } from './bills.processor';
 
 export { parsePaymentUrl, parseBillingAccountsHtml, parseAmount } from './summaryHtml';
 export type {
@@ -56,28 +56,6 @@ function detailsPagePath(account: BillingAccount): string {
 export const GET_MORE_VISITS_PATH = '/Billing/Details/GetMoreVisits';
 
 /**
- * A charge row MyChart did not populate.
- *
- * `GetVisits` pages, and every row past the first page comes back as a stub:
- * `Description` is the `"{VisitType} at {Facility}"` template rendered with
- * both slots blank (`"Visit at "`), the procedure and coverage lists are
- * null, `HospitalAccountId` is an encrypted handle rather than the HAR
- * number, and every amount — `ChargeAmount` included — is the string
- * `"$0.00"`. Only the service date is real.
- *
- * Those zeros are the reason this is not left to the caller. A fabricated
- * `"$0.00"` is indistinguishable from a settled visit, so a reader summing a
- * charge column silently undercounts. On the instance this was captured
- * against, 25 of 45 rows were stubs and hydrating them turned $0.00 into
- * $29,633.70 of real charges.
- *
- * Levels observed on the wire: `0` on every stub, `2` on every populated row.
- */
-function isStub(row: unknown): boolean {
-  return num(rec(row).LevelOfDetailLoaded) === 0;
-}
-
-/**
  * The hydrate key for one stub, in the three shapes Epic's own client builds
  * (`AccountDetailsController.__processSingleListResponse`): a hospital
  * account, a hospital account billed under a specific provider, or a
@@ -121,8 +99,10 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
  * spinning if a batch comes back with nothing new.
  *
  * Best-effort by design: the charge list already loaded is worth returning
- * even if hydration fails, and the processor reports which rows are still
- * unhydrated instead of passing their `"$0.00"` off as a balance.
+ * even if hydration fails. What makes that safe is the processor marking any
+ * row that is still a stub — `detailLoaded: false`, counted per account as
+ * `unhydratedVisits` — so a failure here can never pass a placeholder
+ * `"$0.00"` off as a settled balance.
  */
 async function hydrateStubs(
   collector: RawCollector,
@@ -134,7 +114,7 @@ async function hydrateStubs(
   const pending = new Map<string, HydrateKey>();
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
-      if (!isStub(row)) continue;
+      if (!isStubRow(row)) continue;
       const key = hydrateKey(rec(row));
       if (key) pending.set(key.EncAccountID, key);
     }

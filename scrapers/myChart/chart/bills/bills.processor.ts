@@ -104,6 +104,19 @@ export interface BillingCoverageInfoStandard {
 export interface BillingVisitStandard {
   /** Derived: which `GetVisits` list the row came from. */
   category: BillingVisitCategory;
+  /**
+   * Derived: `false` when this row is STILL the unhydrated stub MyChart paged
+   * out — the scraper posts every stub to `GetMoreVisits`, so this is `false`
+   * only when that did not happen or did not work (no antiforgery token, a
+   * 5xx or WAF page, a batch that returned nothing new, a handle that did not
+   * round-trip).
+   *
+   * It matters because a stub's amounts are all the string `"$0.00"`, which
+   * reads exactly like a settled visit. Without this marker the failure path
+   * would reintroduce the silent undercount the hydration exists to remove.
+   * `true` on every row that carries real numbers.
+   */
+  detailLoaded: boolean;
   StartDateDisplay: string | null;
   DateRangeDisplay: string | null;
   Description: string | null;
@@ -187,6 +200,12 @@ export interface BillingAccountStandard {
   paymentUrl: string | null;
   /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
   visits: BillingVisitStandard[];
+  /**
+   * Derived: how many of `visits` are still unhydrated stubs, whose amounts
+   * are therefore placeholders rather than balances. Zero on a healthy read;
+   * non-zero means any sum over this account's charges is an undercount.
+   */
+  unhydratedVisits: number;
   VisitListAmount: string | null;
   BadDebtVisitListAmount: string | null;
   PaymentPlanVisitListAmount: string | null;
@@ -332,6 +351,7 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
   const agency = rec(v.AgencyInformation);
   return {
     category,
+    detailLoaded: !isStubRow(v),
     StartDateDisplay: textOrNull(v.StartDateDisplay),
     DateRangeDisplay: textOrNull(v.DateRangeDisplay),
     Description: textOrNull(v.Description),
@@ -448,6 +468,7 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
 
 function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string, Record<string, unknown>>): BillingAccountStandard {
   const data = rec(rec(accountRequest(raw, source, 'GetVisits')?.body).Data);
+  const visits = mergeVisitLists(data, hydrated);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
@@ -467,7 +488,8 @@ function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string,
     patientName: source.patientName,
     amountDueNumber: source.amountDue ?? null,
     paymentUrl: paymentPathFor(raw, source),
-    visits: mergeVisitLists(data, hydrated),
+    visits,
+    unhydratedVisits: visits.filter((v) => !v.detailLoaded).length,
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
     PaymentPlanVisitListAmount: textOrNull(data.PaymentPlanVisitListAmount),
@@ -523,7 +545,9 @@ export const billingProcessor: Processor<BillingStandard> = {
         guarantorNumber: a.guarantorNumber,
         patientName: a.patientName,
         amountDueNumber: a.amountDueNumber,
+        unhydratedVisits: a.unhydratedVisits,
         visits: a.visits.map((v) => ({
+          detailLoaded: v.detailLoaded,
           StartDateDisplay: v.StartDateDisplay,
           DateRangeDisplay: v.DateRangeDisplay,
           Description: v.Description,

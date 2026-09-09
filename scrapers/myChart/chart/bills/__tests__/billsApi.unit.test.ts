@@ -349,3 +349,150 @@ describe('getBillingHistory', () => {
     expect(await getBillingHistory(req)).toEqual({ totalDue: 0, accounts: [] })
   })
 })
+
+describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
+  const SUMMARY_HTML = `
+    <div class="ba_card">
+      <p class="ba_card_header_account_idAndType">Guarantor #G-1 (Homer Simpson)</p>
+      <p class="ba_card_status_due_amount">$42.50</p>
+      <a href="/Billing/Details?ID=ACC-ID&Context=CTX">Details</a>
+    </div>
+  `
+  const DETAILS_HTML = `<input name="__RequestVerificationToken" type="hidden" value="TOKEN-1" />`
+
+  const stub = (har: string, extra: Record<string, unknown> = {}) => ({
+    LevelOfDetailLoaded: 0, HospitalAccountId: har, Description: 'Visit at ',
+    ChargeAmount: '$0.00', SelfAmountDue: '$0.00', StartDate: 67278, ...extra,
+  })
+  const loaded = (har: string) => ({
+    LevelOfDetailLoaded: 2, HospitalAccountId: har, Description: 'Real Visit',
+    ChargeAmount: '$100.00', SelfAmountDue: '$10.00', StartDate: 67278,
+  })
+
+  /** Summary + details page + GetVisits carrying `stubs`, plus whatever else. */
+  function billingMock(stubs: unknown[], more: Array<[string, string | (() => Response)]> = []) {
+    return mockRouted([
+      ...more,
+      ['GetVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: stubs } })],
+      ['Billing/Details?ID=', DETAILS_HTML],
+      ['GetStatementList', '{}'],
+      ['LoadPaymentList', '{}'],
+      ['Billing/Summary', SUMMARY_HTML],
+    ])
+  }
+
+  /** The form-encoded body of the nth GetMoreVisits POST; the scraper only ever sends strings. */
+  const moreVisitsCalls = (calls: Call[]) => calls.filter((c) => c.url.includes('GetMoreVisits'))
+  const moreVisitsBody = (calls: Call[], n = 0) => {
+    const body = moreVisitsCalls(calls)[n]?.init.body
+    return typeof body === 'string' ? body : ''
+  }
+
+  it('posts the exact wire encoding captured off the real client', async () => {
+    const { req, calls } = billingMock(
+      [stub('HAR-A'), stub('HAR-B', { ProviderId: 'PROV-9' })],
+      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [loaded('HAR-A'), loaded('HAR-B')] } })]],
+    )
+    await fetchBillingRaw(req)
+
+    const body = new URLSearchParams(moreVisitsBody(calls))
+    // ASP.NET model binding, indexed — this encoding was captured, not inferred.
+    expect(body.get('id')).toBe('ACC-ID')
+    expect(body.get('context')).toBe('CTX')
+    expect(body.get('listOfAccounts[0].EncAccountID')).toBe('HAR-A')
+    expect(body.get('listOfAccounts[0].IsHar')).toBe('true')
+    expect(body.get('listOfAccounts[0].IsPes')).toBe('false')
+    expect(body.get('listOfAccounts[0].EncPBSerID')).toBeNull()
+    // A stub billed under a provider carries the provider handle too.
+    expect(body.get('listOfAccounts[1].EncAccountID')).toBe('HAR-B')
+    expect(body.get('listOfAccounts[1].EncPBSerID')).toBe('PROV-9')
+
+    const call = moreVisitsCalls(calls)[0]!
+    const headers = call.init.headers as Record<string, string>
+    expect(headers.__RequestVerificationToken).toBe('TOKEN-1')
+    expect(headers['Content-Type']).toContain('application/x-www-form-urlencoded')
+    expect(headers['X-Requested-With']).toBe('XMLHttpRequest')
+  })
+
+  it('keys a standalone estimate by EmptyVisitEstimateID instead', async () => {
+    const { req, calls } = billingMock(
+      [stub('', { HospitalAccountId: '', EmptyVisitEstimateID: 'EST-1' })],
+      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [] } })]],
+    )
+    await fetchBillingRaw(req)
+
+    const body = new URLSearchParams(moreVisitsBody(calls))
+    expect(body.get('listOfAccounts[0].EncAccountID')).toBe('EST-1')
+    expect(body.get('listOfAccounts[0].IsPes')).toBe('true')
+    expect(body.get('listOfAccounts[0].IsHar')).toBe('false')
+  })
+
+  it('asks again for whatever a capped batch left behind', async () => {
+    // Epic's own client re-checks how many rows came back, so the server is
+    // free to answer with fewer than were asked for.
+    let round = 0
+    const { req, calls } = billingMock(
+      [stub('HAR-A'), stub('HAR-B')],
+      [['GetMoreVisits', () => {
+        round += 1
+        const rows = round === 1 ? [loaded('HAR-A')] : [loaded('HAR-B')]
+        return new Response(JSON.stringify({ Success: true, Data: { UnifiedVisitList: rows } }), { status: 200 })
+      }]],
+    )
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(moreVisitsCalls(calls)).toHaveLength(2)
+    // The second request asks only for what is still missing.
+    const second = new URLSearchParams(moreVisitsBody(calls, 1))
+    expect(second.get('listOfAccounts[0].EncAccountID')).toBe('HAR-B')
+    expect(second.get('listOfAccounts[1].EncAccountID')).toBeNull()
+    expect(standard.accounts[0]!.unhydratedVisits).toBe(0)
+  })
+
+  it('stops instead of looping when a batch returns nothing new', async () => {
+    const { req, calls } = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [] } })]],
+    )
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(moreVisitsCalls(calls)).toHaveLength(1)
+    expect(standard.accounts[0]!.unhydratedVisits).toBe(1)
+    expect(standard.accounts[0]!.visits[0]!.detailLoaded).toBe(false)
+  })
+
+  it('tolerates a failed hydrate and still returns the charge list, marked', async () => {
+    const { req } = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', () => new Response('<html>error</html>', { status: 500 })]],
+    )
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(standard.accounts[0]!.visits).toHaveLength(1)
+    expect(standard.accounts[0]!.visits[0]!.detailLoaded).toBe(false)
+    expect(standard.accounts[0]!.unhydratedVisits).toBe(1)
+  })
+
+  it('skips hydration when the details page carried no token', async () => {
+    const { req, calls } = mockRouted([
+      ['GetVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [stub('HAR-A')] } })],
+      ['Billing/Details?ID=', '<html>no token here</html>'],
+      ['GetStatementList', '{}'],
+      ['LoadPaymentList', '{}'],
+      ['Billing/Summary', SUMMARY_HTML],
+    ])
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(moreVisitsCalls(calls)).toHaveLength(0)
+    expect(standard.accounts[0]!.unhydratedVisits).toBe(1)
+  })
+
+  it('makes no hydrate call at all when every row already came back loaded', async () => {
+    const { req, calls } = billingMock([loaded('HAR-A')])
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(moreVisitsCalls(calls)).toHaveLength(0)
+    expect(standard.accounts[0]!.unhydratedVisits).toBe(0)
+    expect(standard.accounts[0]!.visits[0]!.detailLoaded).toBe(true)
+  })
+})
