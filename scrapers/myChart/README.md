@@ -25,7 +25,7 @@ token, then `POST` the endpoint(s) below it.
 | --- | --- | --- |
 | [`activityFeed/`](chart/activityFeed/) | `get_activity_feed` | React `/app/home` |
 | [`allergies/`](chart/allergies/) | `get_allergies` | legacy `/Clinical/Allergies` |
-| [`bills/`](chart/bills/) | `get_billing` | legacy `/Billing/*` |
+| [`bills/`](chart/bills/) | `get_billing`, `download_billing_statement` | legacy `/Billing/*` |
 | [`careJourneys/`](chart/careJourneys/) | `get_care_journeys` | React `/app/care-journeys` |
 | [`careTeam/`](chart/careTeam/) | `get_care_team` | legacy `/Clinical/CareTeam` |
 | [`documents/`](chart/documents/) | `get_documents` | React `/app/documents` |
