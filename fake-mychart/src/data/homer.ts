@@ -2404,7 +2404,7 @@ export const imagingLabResultDetails = {
       resultNote: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
       reportDetails: {
         isDownloadablePDFReport: false,
-        reportID: 'RPT-XRAY-001',
+        reportID: 'RPT-IMAGING-001',
         openRemotely: false,
         reportContext: '',
         reportVars: { ordId: 'ORD-XRAY-001', ordDat: 'ORD-XRAY-001-DAT' },
@@ -2630,7 +2630,7 @@ export const ctLabResultDetails = {
       resultNote: { isRTF: false, hasContent: false, contentAsString: '', contentAsHtml: '', signingInstantTimestamp: '' },
       reportDetails: {
         isDownloadablePDFReport: false,
-        reportID: 'RPT-CT-001',
+        reportID: 'RPT-IMAGING-001',
         openRemotely: false,
         reportContext: '',
         reportVars: { ordId: 'ORD-CT-001', ordDat: 'ORD-CT-001-DAT' },
@@ -2682,6 +2682,14 @@ export const ctReportContent = {
 export const imagingReportContent = {
   reportContent: `<div class="report-content"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='${JSON.stringify({ fdi: 'FDI-XRAY-001', ord: 'ORD-XRAY-001' })}'><a href="#">View Images</a></div></div>`,
   reportCss: '',
+};
+
+// `reportID` names a report template, so both imaging results above post the
+// same one ('RPT-IMAGING-001'); only `assumedVariables.ordId` picks the report
+// (scrapers/myChart/chart/labs/README.md, "reportID names a report template").
+export const imagingReportsByOrder: Record<string, { reportContent: string; reportCss: string }> = {
+  'ORD-XRAY-001': imagingReportContent,
+  'ORD-CT-001': ctReportContent,
 };
 
 // ─── Clinical Notes (Shared Notes tab) ──────────────────────────────
