@@ -134,8 +134,16 @@ jobs:
       # `playwright` itself rides the root install; this fetches the browser it
       # drives. The passkey UI suite skips without it everywhere but CI, where
       # $CI forces it to run so a broken install step fails loudly.
+      #
+      # `--with-deps` runs `apt-get update` across every repo the runner image
+      # has configured, and the image ships Google's Chrome repo, whose index
+      # has served hash-sum mismatches for hours at a time. Playwright fetches
+      # its own Chromium and never reads that repo, so drop it first rather
+      # than let it fail a job that does not need it.
       - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*
+          bunx playwright install --with-deps chromium
       # npm-package's integration suite imports the BUILT `dist/index.js` on
       # purpose — it exists to test what consumers actually install — so the
       # build has to happen before anything runs.
