@@ -109,7 +109,10 @@ one hop of the root redirect places about 48 of them wrong, because these are al
    common mount names exist. Epic's own directory is the only thing that knows the mounts,
    so the last-resort probe tries the prefixes the bundled seed publishes for that host after
    the common names. 48 directory hosts serve 452 organizations this way; most redirect
-   their root to one tenant and were never a problem — these five do not.
+   their root to one tenant and were never a problem — these five do not. The widest host
+   (`mychart.ochin.org`, about 240 tenants) redirects its root today, so the step is never
+   reached there; the day that root fails, the probe issues one GET per prefix before giving
+   up — considered, and left uncapped, because every one of them is a real mount.
 
 So discovery walks the chain to the end the way a browser does — Location headers, meta
 refreshes and scripted redirects, on or off the original host. **Nothing is trusted on
