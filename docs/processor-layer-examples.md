@@ -20,9 +20,9 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
 | `get_health_issues` | 1927 | 969 | 1241 | 297 |
-| `get_vitals` | 6388 | 1617 | 1201 | 861 |
+| `get_vitals` | 7082 | 1944 | 1349 | 1084 |
 | `get_immunizations` | 891 | 601 | 432 | 236 |
-| `get_preventive_care` | 14380 | 397 | 311 | 284 |
+| `get_preventive_care` | 5097 | 5146 | 6303 | 354 |
 | `get_medical_history` | 1596 | 1178 | 1266 | 501 |
 | `get_goals` | 2849 | 942 | 1100 | 1100 |
 | `get_upcoming_visits` | 6373 | 1983 | 2492 | 619 |
@@ -1943,7 +1943,7 @@ Active health issues / problem list.
 Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, glucose, etc.).
 
 <details>
-<summary><code>mode: raw</code> (6388 chars)</summary>
+<summary><code>mode: raw</code> (7082 chars)</summary>
 
 ```json
 {
@@ -1978,7 +1978,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "rowIds": [
                 "row-bp",
                 "row-hr",
-                "row-wt"
+                "row-wt",
+                "row-ht"
               ]
             }
           ],
@@ -2006,6 +2007,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "units": "6",
               "unitsDisplayName": "lbs"
+            },
+            {
+              "id": "row-ht",
+              "name": "Height",
+              "rowType": "1",
+              "valueType": "6",
+              "decimalPlaces": 0,
+              "units": "7",
+              "unitsDisplayName": "ft"
             }
           ],
           "readings": [
@@ -2057,8 +2067,26 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "timeZone": "America/New_York",
               "sourceRowId": "",
-              "numericValue": 260,
+              "numericValue": 4160,
               "units": "6"
+            },
+            {
+              "id": "rd-ht-1",
+              "fsdId": "fsd-1",
+              "rowId": "row-ht",
+              "valueType": "6",
+              "entryType": "clinical",
+              "instantTakenIso": "2026-01-10T09:00:00",
+              "isAbnormal": false,
+              "documentationSource": "34000",
+              "stringValue": "",
+              "dataType": "32000",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": "",
+              "numericValue": 72,
+              "units": "7"
             },
             {
               "id": "rd-bp-2",
@@ -2140,7 +2168,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "rowIds": [
                 "row-bp",
                 "row-hr",
-                "row-wt"
+                "row-wt",
+                "row-ht"
               ]
             }
           ],
@@ -2168,6 +2197,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "units": "6",
               "unitsDisplayName": "lbs"
+            },
+            {
+              "id": "row-ht",
+              "name": "Height",
+              "rowType": "1",
+              "valueType": "6",
+              "decimalPlaces": 0,
+              "units": "7",
+              "unitsDisplayName": "ft"
             }
           ],
           "readings": [
@@ -2234,7 +2272,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
                 "rowIds": [
                   "row-bp",
                   "row-hr",
-                  "row-wt"
+                  "row-wt",
+                  "row-ht"
                 ]
               }
             ],
@@ -2262,6 +2301,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
                 "decimalPlaces": 0,
                 "units": "6",
                 "unitsDisplayName": "lbs"
+              },
+              {
+                "id": "row-ht",
+                "name": "Height",
+                "rowType": "1",
+                "valueType": "6",
+                "decimalPlaces": 0,
+                "units": "7",
+                "unitsDisplayName": "ft"
               }
             ],
             "readings": []
@@ -2288,17 +2336,14 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "GET",
       "status": 200,
       "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    }
-  ]
-}
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts
+… (truncated; 525 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1201 chars)</summary>
+<summary><code>mode: standard</code> (1349 chars)</summary>
 
 ## flowsheets (1)
 
@@ -2310,34 +2355,36 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 - **endDateIso**: (empty)
 - **instructions**: (empty)
 
-#### rows (3)
+#### rows (4)
 
 | id | name | unitsDisplayName | rowType | valueType | decimalPlaces |
 | - | - | - | - | - | - |
 | row-bp | Blood Pressure | mmHg | 1 | 4 | 0 |
 | row-hr | Pulse | (none) | 1 | 1 | 0 |
 | row-wt | Weight | lbs | 1 | 5 | 0 |
+| row-ht | Height | ft | 1 | 6 | 0 |
 
 #### rowGroups (1)
 
 | id | name | rowIds |
 | - | - | - |
-| -1 | (empty) | row-bp, row-hr, row-wt |
+| -1 | (empty) | row-bp, row-hr, row-wt, row-ht |
 
-#### readings (5)
+#### readings (6)
 
 | rowId | instantTakenIso | timeZone | stringValue | numericValue | value | isAbnormal | entryType | documentationSource |
 | - | - | - | - | - | - | - | - | - |
 | row-bp | 2026-01-10T09:00:00 | America/New_York | 145/95 | (none) | 145/95 | true | clinical | 34000 |
 | row-hr | 2026-01-10T09:00:00 | America/New_York | (empty) | 88 | 88 | false | clinical | 34000 |
-| row-wt | 2026-01-10T09:00:00 | America/New_York | (empty) | 260 | 260 | false | clinical | 34000 |
+| row-wt | 2026-01-10T09:00:00 | America/New_York | (empty) | 4160 | 260 | false | clinical | 34000 |
+| row-ht | 2026-01-10T09:00:00 | America/New_York | (empty) | 72 | 6' 0" | false | clinical | 34000 |
 | row-bp | 2025-07-15T10:30:00 | America/New_York | 150/98 | (none) | 150/98 | true | clinical | 34002 |
 | row-bp | 2025-01-20T08:15:00 | America/New_York | 142/92 | (none) | 142/92 | false | clinical | 34002 |
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (861 chars)</summary>
+<summary><code>mode: concise</code> (1084 chars)</summary>
 
 ## flowsheets (1)
 
@@ -2345,7 +2392,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 
 - **name**: Vitals Trending
 
-#### rows (3)
+#### rows (4)
 
 ##### rows 1
 
@@ -2392,10 +2439,23 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 - **isAbnormal**: false
 - **abnormalReadings**: (none)
 
+##### rows 4
+
+- **name**: Height
+- **unitsDisplayName**: ft
+- **readingCount**: 1
+
+###### latestReading
+
+- **instantTakenIso**: 2026-01-10T09:00:00
+- **value**: 6' 0"
+- **isAbnormal**: false
+- **abnormalReadings**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (1617 chars)</summary>
+<summary><code>mode: json</code> (1944 chars)</summary>
 
 ```json
 {
@@ -2430,6 +2490,14 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "rowType": "1",
           "valueType": "5",
           "decimalPlaces": 0
+        },
+        {
+          "id": "row-ht",
+          "name": "Height",
+          "unitsDisplayName": "ft",
+          "rowType": "1",
+          "valueType": "6",
+          "decimalPlaces": 0
         }
       ],
       "rowGroups": [
@@ -2439,7 +2507,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "rowIds": [
             "row-bp",
             "row-hr",
-            "row-wt"
+            "row-wt",
+            "row-ht"
           ]
         }
       ],
@@ -2471,8 +2540,19 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "instantTakenIso": "2026-01-10T09:00:00",
           "timeZone": "America/New_York",
           "stringValue": "",
-          "numericValue": 260,
+          "numericValue": 4160,
           "value": "260",
+          "isAbnormal": false,
+          "entryType": "clinical",
+          "documentationSource": "34000"
+        },
+        {
+          "rowId": "row-ht",
+          "instantTakenIso": "2026-01-10T09:00:00",
+          "timeZone": "America/New_York",
+          "stringValue": "",
+          "numericValue": 72,
+          "value": "6' 0\"",
           "isAbnormal": false,
           "entryType": "clinical",
           "documentationSource": "34000"
@@ -2664,351 +2744,644 @@ Vaccination history.
 Preventive care recommendations — overdue and upcoming screenings.
 
 <details>
-<summary><code>mode: raw</code> (14380 chars)</summary>
+<summary><code>mode: raw</code> (5097 chars)</summary>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MyChart - Preventive Care</title>
-  <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }
-a { color: #1a6fa5; text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Header */
-.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
-.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-.mc-header .logo span { color: #5dade2; }
-.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }
-.mc-header .user-info a { color: #aed6f1; }
-.mc-header .user-info a:hover { color: #fff; }
-
-/* Layout */
-.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
-
-/* Sidebar */
-.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }
-.mc-sidebar .nav-group { margin-bottom: 8px; }
-.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }
-.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }
-.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }
-.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }
-.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }
-
-/* Main content */
-.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }
-.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }
-.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }
-
-/* Cards */
-.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }
-.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-.card .meta { font-size: 13px; color: #666; margin-top: 4px; }
-.card .detail { font-size: 14px; color: #444; margin-top: 4px; }
-
-/* Grid cards */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.card-grid .card { margin-bottom: 0; }
-
-/* Dashboard cards */
-.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }
-.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }
-.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }
-.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }
-
-/* Badges */
-.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.badge-red { background: #fde8e8; color: #c0392b; }
-.badge-yellow { background: #fef9e7; color: #b7950b; }
-.badge-green { background: #e8f8f5; color: #1e8449; }
-.badge-blue { background: #d4eaf7; color: #1a5276; }
-.badge-gray { background: #eee; color: #666; }
-
-/* Tables */
-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }
-th { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
-td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fafbfc; }
-.abnormal { color: #c0392b; font-weight: 600; }
-
-/* Messages */
-.msg-list { display: flex; flex-direction: column; gap: 2px; }
-.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }
-.msg-item:hover { background: #f0f7fd; }
-.msg-item.unread { border-left: 4px solid #1a5276; }
-.msg-subject { font-weight: 600; font-size: 15px; }
-.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }
-.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }
-.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
-.msg-thread.visible { display: block; }
-.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }
-.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }
-.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }
-.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }
-.msg-bubble .body { font-size: 14px; line-height: 1.5; }
-
-/* Tabs */
-.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }
-.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
-.tab:hover { color: #1a5276; }
-.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }
-
-/* Loading */
-.loading { text-align: center; padding: 40px; color: #888; }
-
-/* Print header (scraper compat) */
-.proxy-switcher { position: relative; }
-.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }
-.proxy-switcher > summary::-webkit-details-marker { display: none; }
-.proxy-switcher > summary:hover { background: #17527a; }
-.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
-.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }
-.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }
-.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }
-.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }
-.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }
-.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }
-.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }
-.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }
-
-/* Letter detail */
-.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }
-.letter-body h2 { margin: 0 0 12px; }
-.letter-body p { margin: 8px 0; }
-
-/* Vitals chart placeholder */
-.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }
-.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }
-</style>
-</head>
-<body>
-  <div class='hidden' style='display:none' id='__CSRFContainer'><input name="__RequestVerificationToken" type="hidden" value="fake-csrf-token-00000000000000000000000000000000" /></div>
-  <script>
-(function () {
-  var originalFetch = window.fetch;
-  window.fetch = function (url, opts) {
-    opts = opts || {};
-    if ((opts.method || 'GET').toUpperCase() === 'POST') {
-      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');
-      if (el) {
-        opts.headers = opts.headers || {};
-        if (!opts.headers['__RequestVerificationToken']) {
-          opts.headers['__RequestVerificationToken'] = el.value;
-        }
-      }
+```json
+{
+  "HealthAdvisoryViewModelList": [
+    {
+      "TopicId": "32",
+      "CareGapType": "10",
+      "Name": "Colonoscopy",
+      "DueDateISO": "2024-01-01",
+      "LastCompletedDateISO": "2014-01-01",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2014-01-01",
+      "StatusCode": "100_OVERDUE",
+      "DueDateOverride": "Due",
+      "Status": "Overdue",
+      "CanRequestAppointment": true,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/colonoscopy",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "January 1, 2024",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "January 1, 2014",
+      "FormattedLastCompletedDate": "January 1, 2014",
+      "FormattedDoneDates": [
+        "January 1, 2014"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": true,
+      "ActionDateISO": "2024-01-01",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": ""
+    },
+    {
+      "TopicId": "9",
+      "CareGapType": "22",
+      "Name": "Influenza Vaccine",
+      "DueDateISO": "2026-10-01",
+      "LastCompletedDateISO": "2025-10-05",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2025-10-05",
+      "StatusCode": "500_NOTDUE",
+      "DueDateOverride": "",
+      "Status": "Not due",
+      "CanRequestAppointment": false,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/influenza-vaccine",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "October 1, 2026",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "October 5, 2025",
+      "FormattedLastCompletedDate": "October 5, 2025",
+      "FormattedDoneDates": [
+        "October 5, 2025"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": false,
+      "ActionDateISO": "",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": ""
+    },
+    {
+      "TopicId": "25",
+      "CareGapType": "31",
+      "Name": "Lipid Panel",
+      "DueDateISO": "",
+      "LastCompletedDateISO": "2026-01-10",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2026-01-10",
+      "StatusCode": "700_SATISFIED",
+      "DueDateOverride": "",
+      "Status": "Completed",
+      "CanRequestAppointment": false,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/lipid-panel",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "January 10, 2026",
+      "FormattedLastCompletedDate": "January 10, 2026",
+      "FormattedDoneDates": [
+        "January 10, 2026",
+        "January 12, 2024"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": false,
+      "ActionDateISO": "",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": ""
     }
-    return originalFetch.call(this, url, opts);
-  };
-})();
-</script>
-  <header class="mc-header">
-    <div class="logo">My<span>Chart</span></div>
-    <div class="user-info">
-      <details class="proxy-switcher">
-      <summary><span class="proxy-switcher-label">Viewing</span><strong>Homer Jay Simpson</strong><span class="proxy-switcher-caret">▾</span></summary>
-      <div class="proxySelectorDropDown">
-        <div class="proxy-switcher-heading">Switch patient record</div>
-        <a class="proxySubjectLink currentContext" data-id="WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C" href="/MyChart/inside.asp" aria-label="Access your record"><span class="proxySelectorDropDownNameEllipsis">Homer Jay Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C" aria-label="Access Bart Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Bart Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4" aria-label="Access Lisa Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Lisa Simpson</span></a>
-        <a class="proxySubjectLink" data-id="WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6" href="/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6" aria-label="Access Maggie Simpson's record"><span class="proxySelectorDropDownNameEllipsis">Maggie Simpson</span></a>
-      </div>
-    </details>
-      <a href="/MyChart/Authentication/Login">Sign out</a>
-    </div>
-  </header>
-  <div class="mc-layout">
-    <nav class="mc-sidebar">
-    <div class="nav-group">
-      <div class="nav-group-title">Overview</div>
-      
-        <a href="/MyChart/Home" class="">
-          <span class="nav-icon">🏠</span>Home
-        </a>
-      
-        <a href="/MyChart/Messaging" class="">
-          <span class="nav-icon">💬</span>Messages
-        </a>
-      
-        <a href="/MyChart/Visits" class="">
-          <span class="nav-icon">📅</span>Visits
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Health</div>
-      
-        <a href="/MyChart/TestResults" class="">
-          <span class="nav-icon">🧪</span>Test Results
-        </a>
-      
-        <a href="/MyChart/Clinical/Medications" class="">
-          <span class="nav-icon">💊</span>Medications
-        </a>
-      
-        <a href="/MyChart/Clinical/Allergies" class="">
-          <span class="nav-icon">⚠️</span>Allergies
-        </a>
-      
-        <a href="/MyChart/Clinical/HealthIssues" class="">
-          <span class="nav-icon">🩺</span>Health Issues
-        </a>
-      
-        <a href="/MyChart/Clinical/Immunizations" class="">
-          <span class="nav-icon">💉</span>Immunizations
-        </a>
-      
-        <a href="/MyChart/TrackMyHealth" class="">
-          <span class="nav-icon">📊</span>Vitals
-        </a>
-      
-        <a href="/MyChart/MedicalHistory" class="">
-          <span class="nav-icon">📋</span>Medical History
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Care</div>
-      
-        <a href="/MyChart/Clinical/CareTeam" class="">
-          <span class="nav-icon">👨‍⚕️</span>Care Team
-        </a>
-      
-        <a href="/MyChart/Goals" class="">
-          <span class="nav-icon">🎯</span>Goals
-        </a>
-      
-        <a href="/MyChart/Referrals" class="">
-          <span class="nav-icon">🔀</span>Referrals
-        </a>
-      
-        <a href="/MyChart/HealthAdvisories" class="active">
-          <span class="nav-icon">✅</span>Preventive Care
-        </a>
-      
-        <a href="/MyChart/CareJourneys" class="">
-          <span class="nav-icon">🛤️</span>Care Journeys
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Records</div>
-      
-        <a href="/MyChart/Letters" class="">
-          <span class="nav-icon">✉️</span>Letters
-        </a>
-      
-        <a href="/MyChart/Documents" class="">
-          <span class="nav-icon">📄</span>Documents
-        </a>
-      
-        <a href="/MyChart/Education" class="">
-          <span class="nav-icon">📚</span>Education
-        </a>
-      
-    </div>
-  
-    <div class="nav-group">
-      <div class="nav-group-title">Account</div>
-      
-        <a href="/MyChart/Billing/Summary" class="">
-          <span class="nav-icon">💳</span>Billing
-        </a>
-      
-        <a href="/MyChart/Insurance" class="">
-          <span class="nav-icon">🛡️</span>Insurance
-        </a>
-      
-        <a href="/MyChart/PersonalInformation" class="">
-          <span class="nav-icon">👤</span>Profile
-        </a>
-      
-        <a href="/MyChart/EmergencyContacts" class="">
-          <span class="nav-icon">📞</span>Emergency Contacts
-        </a>
-      
-        <a href="/MyChart/Settings" class="">
-          <span class="nav-icon">⚙️</span>Settings
-        </a>
-      
-    </div>
-  </nav>
-    <main class="mc-main">
-    <h1>Preventive Care</h1>
-    <table><tr><th>Screening</th><th>Status</th><th>Details</th></tr><tr><td><strong>Colonoscopy</strong></td><td><span class="badge badge-red">Overdue</span></td><td>Overdue since 01/01/2024</td></tr><tr><td><strong>Influenza Vaccine</strong></td><td><span class="badge badge-yellow">Due</span></td><td>Not due until 10/01/2026</td></tr><tr><td><strong>Lipid Panel</strong></td><td><span class="badge badge-green">Completed</span></td><td>Completed on 01/10/2026</td></tr></table>
-  </main>
-  </div>
-</body>
-</html>
+  ],
+  "HealthAdvisorySettings": {
+    "FormattedGeneralVisitDate": "",
+    "GeneralVisitCSN": "",
+    "HasApptDetailsSecurity": true,
+    "HasUpcomingApptSecurity": true
+  }
+}
+```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (311 chars)</summary>
+<summary><code>mode: standard</code> (6303 chars)</summary>
 
 ## items (3)
 
-| name | status | overdueSince | notDueUntil | completedDate | previouslyDone |
-| - | - | - | - | - | - |
-| Colonoscopy | overdue | 01/01/2024 | (empty) | (empty) | |
-| Influenza Vaccine | not_due | (empty) | 10/01/2026 | (empty) | |
-| Lipid Panel | completed | (empty) | (empty) | 01/10/2026 | |
+### items 1
+
+- **TopicId**: 32
+- **CareGapType**: 10
+- **Name**: Colonoscopy
+- **DueDateISO**: 2024-01-01
+- **LastCompletedDateISO**: 2014-01-01
+- **PostponedDateISO**: (empty)
+- **LastDoneDateISO**: 2014-01-01
+- **StatusCode**: 100_OVERDUE
+- **DueDateOverride**: Due
+- **Status**: Overdue
+- **CanRequestAppointment**: true
+- **CanScheduleAppointment**: false
+- **IsProviderFirst**: false
+- **ContentLinkURL**: https://healthwise.example.org/colonoscopy
+- **ContentLinkTarget**: _blank
+- **FormattedDueDate**: January 1, 2024
+- **FormattedPostponedDate**: (empty)
+- **FormattedLastDoneDate**: January 1, 2014
+- **FormattedLastCompletedDate**: January 1, 2014
+- **FormattedDoneDates**: January 1, 2014
+
+#### UpdateInformation
+
+- **CanMarkAsComplete**: false
+- **EarliestCompletionDateISO**: (empty)
+- **IsUpdatePending**: false
+- **FormattedEnteredDate**: (none)
+- **CanSubmitAttestation**: false
+- **HasActiveAttestation**: false
+- **HasHSDeclinedAttestation**: false
+- **AttestationVersion**: 0
+
+##### PotentialCompletionInfo
+
+- **RelevantAttestationTopicID**: (none)
+- **AttestationStatus**: 0
+- **ServiceDateISO**: (empty)
+- **ServiceDateFormatted**: (empty)
+- **ServiceLocation**: (empty)
+- **Comments**: (empty)
+- **DocumentID**: (none)
+- **FormattedPendingAttestedDates**: (none)
+- **CanHideReminderFromHomePage**: false
+- **IsHomePageReminderSnoozed**: false
+- **HomePageReminderSnoozedUntilDateISO**: (empty)
+- **HomePageReminderSnoozedUntilDate**: (empty)
+- **HomePageReminderSnoozeDefaultDuration**: 0
+- **HasUpcomingOrder**: false
+- **HasScheduledOrder**: false
+- **OrderId**: (empty)
+- **OrderTicketId**: (empty)
+- **IsActionable**: true
+- **ActionDateISO**: 2024-01-01
+- **SchedReasonForVisit**: (empty)
+- **SchedAppointmentDateISO**: (empty)
+- **SchedAppointmentCSN**: (empty)
+- **IsSchedulingSuppressed**: false
+- **IsAppointmentPotentialCompletion**: false
+- **FormattedSchedAppointmentDateISO**: (empty)
+- **LastRequestedDateISO**: (empty)
+- **FormattedLastRequestedDate**: (empty)
+- **dueStatus**: overdue
+
+### items 2
+
+- **TopicId**: 9
+- **CareGapType**: 22
+- **Name**: Influenza Vaccine
+- **DueDateISO**: 2026-10-01
+- **LastCompletedDateISO**: 2025-10-05
+- **PostponedDateISO**: (empty)
+- **LastDoneDateISO**: 2025-10-05
+- **StatusCode**: 500_NOTDUE
+- **DueDateOverride**: (empty)
+- **Status**: Not due
+- **CanRequestAppointment**: false
+- **CanScheduleAppointment**: false
+- **IsProviderFirst**: false
+- **ContentLinkURL**: https://healthwise.example.org/influenza-vaccine
+- **ContentLinkTarget**: _blank
+- **FormattedDueDate**: October 1, 2026
+- **FormattedPostponedDate**: (empty)
+- **FormattedLastDoneDate**: October 5, 2025
+- **FormattedLastCompletedDate**: October 5, 2025
+- **FormattedDoneDates**: October 5, 2025
+
+#### UpdateInformation
+
+- **CanMarkAsComplete**: false
+- **EarliestCompletionDateISO**: (empty)
+- **IsUpdatePending**: false
+- **FormattedEnteredDate**: (none)
+- **CanSubmitAttestation**: false
+- **HasActiveAttestation**: false
+- **HasHSDeclinedAttestation**: false
+- **AttestationVersion**: 0
+
+##### PotentialCompletionInfo
+
+- **RelevantAttestationTopicID**: (none)
+- **AttestationStatus**: 0
+- **ServiceDateISO**: (empty)
+- **ServiceDateFormatted**: (empty)
+- **ServiceLocation**: (empty)
+- **Comments**: (empty)
+- **DocumentID**: (none)
+- **FormattedPendingAttestedDates**: (none)
+- **CanHideReminderFromHomePage**: false
+- **IsHomePageReminderSnoozed**: false
+- **HomePageReminderSnoozedUntilDateISO**: (empty)
+- **HomePageReminderSnoozedUntilDate**: (empty)
+- **HomePageReminderSnoozeDefaultDuration**: 0
+- **HasUpcomingOrder**: false
+- **HasScheduledOrder**: false
+- **OrderId**: (empty)
+- **OrderTicketId**: (empty)
+- **IsActionable**: false
+- **ActionDateISO**: (empty)
+- **SchedReasonForVisit**: (empty)
+- **SchedAppointmentDateISO**: (empty)
+- **SchedAppointmentCSN**: (empty)
+- **IsSchedulingSuppressed**: false
+- **IsAppointmentPotentialCompletion**: false
+- **FormattedSchedAppointmentDateISO**: (empty)
+- **LastRequestedDateISO**: (empty)
+- **FormattedLastRequestedDate**: (empty)
+- **dueStatus**: not_due
+
+### items 3
+
+- **TopicId**: 25
+- **CareGapType**: 31
+- **Name**: Lipid Panel
+- **DueDateISO**: (empty)
+- **LastCompletedDateISO**: 2026-01-10
+- **PostponedDateISO**: (empty)
+- **LastDoneDateISO**: 2026-01-10
+- **StatusCode**: 700_SATISFIED
+- **DueDateOverride**: (empty)
+- **Status**: Completed
+- **CanRequestAppointment**: false
+- **CanScheduleAppointment**: false
+- **IsProviderFirst**: false
+- **ContentLinkURL**: https://healthwise.example.org/lipid-panel
+- **ContentLinkTarget**: _blank
+- **FormattedDueDate**: (empty)
+- **FormattedPostponedDate**: (empty)
+- **FormattedLastDoneDate**: January 10, 2026
+- **FormattedLastCompletedDate**: January 10, 2026
+- **FormattedDoneDates**: January 10, 2026, January 12, 2024
+
+#### UpdateInformation
+
+- **CanMarkAsComplete**: false
+- **EarliestCompletionDateISO**: (empty)
+- **IsUpdatePending**: false
+- **FormattedEnteredDate**: (none)
+- **CanSubmitAttestation**: false
+- **HasActiveAttestation**: false
+- **HasHSDeclinedAttestation**: false
+- **AttestationVersion**: 0
+
+##### PotentialCompletionInfo
+
+- **RelevantAttestationTopicID**: (none)
+- **AttestationStatus**: 0
+- **ServiceDateISO**: (empty)
+- **ServiceDateFormatted**: (empty)
+- **ServiceLocation**: (empty)
+- **Comments**: (empty)
+- **DocumentID**: (none)
+- **FormattedPendingAttestedDates**: (none)
+- **CanHideReminderFromHomePage**: false
+- **IsHomePageReminderSnoozed**: false
+- **HomePageReminderSnoozedUntilDateISO**: (empty)
+- **HomePageReminderSnoozedUntilDate**: (empty)
+- **HomePageReminderSnoozeDefaultDuration**: 0
+- **HasUpcomingOrder**: false
+- **HasScheduledOrder**: false
+- **OrderId**: (empty)
+- **OrderTicketId**: (empty)
+- **IsActionable**: false
+- **ActionDateISO**: (empty)
+- **SchedReasonForVisit**: (empty)
+- **SchedAppointmentDateISO**: (empty)
+- **SchedAppointmentCSN**: (empty)
+- **IsSchedulingSuppressed**: false
+- **IsAppointmentPotentialCompletion**: false
+- **FormattedSchedAppointmentDateISO**: (empty)
+- **LastRequestedDateISO**: (empty)
+- **FormattedLastRequestedDate**: (empty)
+- **dueStatus**: satisfied
+
+## settings
+
+- **FormattedGeneralVisitDate**: (empty)
+- **GeneralVisitCSN**: (empty)
+- **HasApptDetailsSecurity**: true
+- **HasUpcomingApptSecurity**: true
+- **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (284 chars)</summary>
+<summary><code>mode: concise</code> (354 chars)</summary>
 
 ## items (3)
 
-| name | status | overdueSince | notDueUntil | completedDate |
+| Name | dueStatus | Status | FormattedDueDate | FormattedLastDoneDate |
 | - | - | - | - | - |
-| Colonoscopy | overdue | 01/01/2024 | (empty) | (empty) |
-| Influenza Vaccine | not_due | (empty) | 10/01/2026 | (empty) |
-| Lipid Panel | completed | (empty) | (empty) | 01/10/2026 |
+| Colonoscopy | overdue | Overdue | January 1, 2024 | January 1, 2014 |
+| Influenza Vaccine | not_due | Not due | October 1, 2026 | October 5, 2025 |
+| Lipid Panel | satisfied | Completed | (empty) | January 10, 2026 |
+- **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (397 chars)</summary>
+<summary><code>mode: json</code> (5146 chars)</summary>
 
 ```json
 {
   "items": [
     {
-      "name": "Colonoscopy",
-      "status": "overdue",
-      "overdueSince": "01/01/2024",
-      "notDueUntil": "",
-      "completedDate": "",
-      "previouslyDone": []
+      "TopicId": "32",
+      "CareGapType": "10",
+      "Name": "Colonoscopy",
+      "DueDateISO": "2024-01-01",
+      "LastCompletedDateISO": "2014-01-01",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2014-01-01",
+      "StatusCode": "100_OVERDUE",
+      "DueDateOverride": "Due",
+      "Status": "Overdue",
+      "CanRequestAppointment": true,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/colonoscopy",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "January 1, 2024",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "January 1, 2014",
+      "FormattedLastCompletedDate": "January 1, 2014",
+      "FormattedDoneDates": [
+        "January 1, 2014"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": true,
+      "ActionDateISO": "2024-01-01",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": "",
+      "dueStatus": "overdue"
     },
     {
-      "name": "Influenza Vaccine",
-      "status": "not_due",
-      "overdueSince": "",
-      "notDueUntil": "10/01/2026",
-      "completedDate": "",
-      "previouslyDone": []
+      "TopicId": "9",
+      "CareGapType": "22",
+      "Name": "Influenza Vaccine",
+      "DueDateISO": "2026-10-01",
+      "LastCompletedDateISO": "2025-10-05",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2025-10-05",
+      "StatusCode": "500_NOTDUE",
+      "DueDateOverride": "",
+      "Status": "Not due",
+      "CanRequestAppointment": false,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/influenza-vaccine",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "October 1, 2026",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "October 5, 2025",
+      "FormattedLastCompletedDate": "October 5, 2025",
+      "FormattedDoneDates": [
+        "October 5, 2025"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": false,
+      "ActionDateISO": "",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": "",
+      "dueStatus": "not_due"
     },
     {
-      "name": "Lipid Panel",
-      "status": "completed",
-      "overdueSince": "",
-      "notDueUntil": "",
-      "completedDate": "01/10/2026",
-      "previouslyDone": []
+      "TopicId": "25",
+      "CareGapType": "31",
+      "Name": "Lipid Panel",
+      "DueDateISO": "",
+      "LastCompletedDateISO": "2026-01-10",
+      "PostponedDateISO": "",
+      "LastDoneDateISO": "2026-01-10",
+      "StatusCode": "700_SATISFIED",
+      "DueDateOverride": "",
+      "Status": "Completed",
+      "CanRequestAppointment": false,
+      "CanScheduleAppointment": false,
+      "IsProviderFirst": false,
+      "ContentLinkURL": "https://healthwise.example.org/lipid-panel",
+      "ContentLinkTarget": "_blank",
+      "FormattedDueDate": "",
+      "FormattedPostponedDate": "",
+      "FormattedLastDoneDate": "January 10, 2026",
+      "FormattedLastCompletedDate": "January 10, 2026",
+      "FormattedDoneDates": [
+        "January 10, 2026",
+        "January 12, 2024"
+      ],
+      "UpdateInformation": {
+        "CanMarkAsComplete": false,
+        "EarliestCompletionDateISO": "",
+        "IsUpdatePending": false,
+        "FormattedEnteredDate": null,
+        "CanSubmitAttestation": false,
+        "HasActiveAttestation": false,
+        "HasHSDeclinedAttestation": false,
+        "AttestationVersion": 0,
+        "PotentialCompletionInfo": {
+          "RelevantAttestationTopicID": null,
+          "AttestationStatus": 0,
+          "ServiceDateISO": "",
+          "ServiceDateFormatted": "",
+          "ServiceLocation": "",
+          "Comments": "",
+          "DocumentID": null
+        },
+        "FormattedPendingAttestedDates": [],
+        "CanHideReminderFromHomePage": false,
+        "IsHomePageReminderSnoozed": false,
+        "HomePageReminderSnoozedUntilDateISO": "",
+        "HomePageReminderSnoozedUntilDate": "",
+        "HomePageReminderSnoozeDefaultDuration": 0
+      },
+      "HasUpcomingOrder": false,
+      "HasScheduledOrder": false,
+      "OrderId": "",
+      "OrderTicketId": "",
+      "IsActionable": false,
+      "ActionDateISO": "",
+      "SchedReasonForVisit": "",
+      "SchedAppointmentDateISO": "",
+      "SchedAppointmentCSN": "",
+      "IsSchedulingSuppressed": false,
+      "IsAppointmentPotentialCompletion": false,
+      "FormattedSchedAppointmentDateISO": "",
+      "LastRequestedDateISO": "",
+      "FormattedLastRequestedDate": "",
+      "dueStatus": "satisfied"
     }
-  ]
+  ],
+  "settings": {
+    "FormattedGeneralVisitDate": "",
+    "GeneralVisitCSN": "",
+    "HasApptDetailsSecurity": true,
+    "HasUpcomingApptSecurity": true
+  },
+  "unavailable": []
 }
 ```
 
