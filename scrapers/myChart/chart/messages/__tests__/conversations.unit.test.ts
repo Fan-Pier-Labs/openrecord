@@ -135,7 +135,7 @@ describe('conversationsProcessor', () => {
       isUnread: true,
       bodyText: 'Your recent results look normal.\n\nSee you next month.',
       author: { empKey: 'EMP-HIBBERT', wprKey: null },
-      attachments: [{ name: 'results.pdf', fileExtension: 'pdf' }],
+      attachments: [{ name: 'results.pdf', fileExtension: 'pdf', dcsId: 'd' }],
       tasks: [],
       suggestedActions: [],
     })
@@ -194,6 +194,9 @@ describe('conversationsProcessor', () => {
       senderName: 'Julius Hibbert, MD',
       isFromPatient: false,
       bodyText: 'Your recent results look normal.\n\nSee you next month.',
+      // The handle get_message_attachment takes, so a model reading the
+      // concise inbox can download the file without a second, wider read.
+      attachments: [{ name: 'results.pdf', fileExtension: 'pdf', dcsId: 'd' }],
     })
   })
 })

@@ -28,6 +28,8 @@ export interface MessageDirectory {
 export interface MessageAttachmentStandard {
   name: string | null;
   fileExtension: string | null;
+  /** Handle: `get_message_attachment` takes it as `attachment_id`. */
+  dcsId: string | null;
 }
 
 export interface MessageStandard {
@@ -54,6 +56,7 @@ export interface MessageConcise {
   senderName: string;
   isFromPatient: boolean;
   bodyText: string;
+  attachments: MessageAttachmentStandard[];
 }
 
 export interface ConversationStandard {
@@ -124,6 +127,7 @@ export function messageStandard(value: unknown, directory: MessageDirectory): Me
     attachments: list(m.attachments).map((a) => ({
       name: textOrNull(rec(a).name),
       fileExtension: textOrNull(rec(a).fileExtension),
+      dcsId: textOrNull(rec(a).dcsId),
     })),
     tasks: list(m.tasks),
     suggestedActions: list(m.suggestedActions),
@@ -136,6 +140,7 @@ export function messageConcise(m: MessageStandard): MessageConcise {
     senderName: m.senderName,
     isFromPatient: m.isFromPatient,
     bodyText: m.bodyText,
+    attachments: m.attachments,
   };
 }
 

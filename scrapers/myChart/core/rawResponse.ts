@@ -71,12 +71,15 @@ export class MyChartResponseError extends Error {
   readonly path: string;
   readonly status: number;
 
-  constructor(record: RawRequestRecord, reason: string, excerpt: string) {
+  constructor(record: RawRequestRecord, reason: string, excerpt: string, notServedActivity?: string) {
     super(
       `MyChart answered ${record.method} ${record.path} with ${reason}` +
         (excerpt ? `: "${excerpt}"` : '') +
-        '. The request failed; nothing was read, so this is not an empty result. Retry later, ' +
-        'and if it keeps failing the instance may be down or blocking this request shape.',
+        '. The request failed; nothing was read, so this is not an empty result. ' +
+        (notServedActivity
+          ? `GET ${notServedActivity} had landed on the Home page instead of the activity, which is how an ` +
+            'instance that does not offer this activity answers — this MyChart has no such page, so there is nothing here to read.'
+          : 'Retry later, and if it keeps failing the instance may be down or blocking this request shape.'),
     );
     this.name = 'MyChartResponseError';
     this.method = record.method;
@@ -149,6 +152,15 @@ export function describeResponseFailure(
   return null;
 }
 
+/** Whether a followed activity-page GET ended on `/Home` — a URL the transport reports, so '' when it cannot. */
+function landedOnHome(url: string): boolean {
+  try {
+    return /\/home\/?$/i.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The first line or so of a body, tags stripped, for an error message. This
  * is page text — an error page's apology, a WAF's support id — never chart
@@ -203,6 +215,13 @@ export interface SendOptions {
  */
 export class RawCollector {
   readonly requests: RawRequestRecord[] = [];
+  /**
+   * The activity page the last {@link pageToken} asked for, when the instance
+   * redirected it to Home instead. Not a failure by itself: `/app/documents`
+   * lands on Home on every instance seen and its API still answers. Only when
+   * the API then fails does it say why — the activity is not served here.
+   */
+  private tokenPageLandedOnHome: string | null = null;
 
   constructor(
     private readonly request: MyChartRequest,
@@ -252,7 +271,8 @@ export class RawCollector {
 
     const reason = describeResponseFailure(response, text, config);
     if (reason) record.failure = reason;
-    const failure = reason ? new MyChartResponseError(record, reason, excerptOf(text)) : null;
+    const notServed = record.method === 'POST' && this.tokenPageLandedOnHome ? this.tokenPageLandedOnHome : undefined;
+    const failure = reason ? new MyChartResponseError(record, reason, excerptOf(text), notServed) : null;
     if (failure && !options.tolerateFailure) throw failure;
     return { response, body, text, failure };
   }
@@ -263,6 +283,7 @@ export class RawCollector {
    */
   async pageToken(pagePath: string): Promise<string> {
     const page = await this.send({ path: pagePath }, { purpose: 'token' });
+    this.tokenPageLandedOnHome = landedOnHome(page.response.url) ? pagePath : null;
     return requireVerificationToken(page.text, pagePath);
   }
 

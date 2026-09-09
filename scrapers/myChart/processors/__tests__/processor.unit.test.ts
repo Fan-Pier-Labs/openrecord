@@ -112,6 +112,45 @@ describe('RawCollector failed answers', () => {
     await expect(new RawCollector(req).pageToken('/Clinical/Allergies')).rejects.toThrow(/GET \/Clinical\/Allergies with HTTP 500/);
   });
 
+  it('names the activity as not served when its page landed on Home and the API then failed', async () => {
+    // `GET /app/care-journeys` → 302 → 200 `/Home` (a token page all the same), then the
+    // API 500s with `{}`: the shape of an instance that does not offer the activity.
+    // Seen on 1 of 4 real accounts (the August 2025 web build). "May be down" is wrong there.
+    const req = mockRequest([
+      { body: '<html><input name="__RequestVerificationToken" value="t"></html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Home' },
+      { body: '{}', status: 500 },
+    ]);
+    const collector = new RawCollector(req);
+    const token = await collector.pageToken('/app/care-journeys');
+    const error = await collector
+      .postJson('/api/care-journeys/GetCareJourneys', token, {})
+      .then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error).toBeInstanceOf(MyChartResponseError);
+    expect(error!.message).toContain('GET /app/care-journeys had landed on the Home page');
+    expect(error!.message).toContain('does not offer this activity');
+    expect(error!.message).not.toContain('may be down');
+  });
+
+  it('says nothing about Home when the API answered — /app/documents lands there on every instance', async () => {
+    const req = mockRequest([
+      { body: '<html><input name="__RequestVerificationToken" value="t"></html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Home' },
+      { body: JSON.stringify({ documents: [] }) },
+    ]);
+    const collector = new RawCollector(req);
+    const token = await collector.pageToken('/app/documents');
+    expect(await collector.postJson('/api/documents/viewer/LoadOtherDocuments', token, {})).toEqual({ documents: [] });
+  });
+
+  it('keeps the generic advice when the page was the activity itself', async () => {
+    const req = mockRequest([
+      { body: '<html><input name="__RequestVerificationToken" value="t"></html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/app/care-journeys/list' },
+      { body: '{}', status: 500 },
+    ]);
+    const collector = new RawCollector(req);
+    const token = await collector.pageToken('/app/care-journeys');
+    await expect(collector.postJson('/api/care-journeys/GetCareJourneys', token, {})).rejects.toThrow(/may be down/);
+  });
+
   it('throws on a 200 that came from the ASP.NET error page — the November 2025 redirect dance', async () => {
     // 302 /Home/FiveHundred → 302 /Home/Error?code=14 → 200: after the
     // redirects are followed, the status is fine and only the URL tells.
