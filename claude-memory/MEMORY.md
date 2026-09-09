@@ -30,7 +30,7 @@ scraper.
 - `MyChartRequest` handles cookies, headers, redirects via `makeRequest(config)`
 - CLI at `cli/cli.ts` with `--host`, `--user`, `--pass`, `--2fa`, `--action` args
 - Real-account testing goes through the CLI's credential resolution + cookie cache (`docs/cli.md`), not a creds.json in the repo root
-- Every open PR branch usually already lives in its own `.claude/worktrees/` checkout, so a cleanup session can't check it out again. Work on a `wip/<pr>` local branch cut from `origin/<branch>` and push with `git push origin wip/<pr>:<branch>`; force-push is blocked, so stack a dependent PR by merging the base PR's branch into it and retargeting `base` via `gh api … pulls/<n> -X PATCH -f base=…`
+- Every open PR branch usually already lives in its own `.claude/worktrees/` checkout, so a cleanup session can't check it out again. Work on a `wip/<pr>` local branch cut from `origin/<branch>`, push with `git push origin wip/<pr>:<branch>`, and stack a dependent PR by merging the base PR's branch into it
 
 ## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)
