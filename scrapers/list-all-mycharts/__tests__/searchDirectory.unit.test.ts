@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import { setTestTransport } from '../../http';
+import { directoryPrefixesFor } from '../searchDirectory';
 import {
   DEFAULT_DIRECTORY_SEARCH_LIMIT,
   MAX_DIRECTORY_SEARCH_LIMIT,
@@ -144,5 +145,20 @@ describe('searchMyChartDirectory', () => {
     expect((await searchMyChartDirectory('a')).matches.length).toBeLessThanOrEqual(
       DEFAULT_DIRECTORY_SEARCH_LIMIT,
     );
+  });
+});
+
+describe('directoryPrefixesFor', () => {
+  it('lists every mount the seed publishes for a multi-tenant host, most-listed first', () => {
+    // mychart.ochin.org serves ~240 tenants; the root lands on one of them and
+    // discovery has no other way to learn the rest.
+    const prefixes = directoryPrefixesFor('mychart.ochin.org');
+    expect(prefixes.length).toBeGreaterThan(100);
+    expect(new Set(prefixes.map((p) => p.toLowerCase())).size).toBe(prefixes.length);
+  });
+
+  it('matches the host case-insensitively and skips a root-mounted entry', () => {
+    expect(directoryPrefixesFor('MYCHART.OCHIN.ORG')).toEqual(directoryPrefixesFor('mychart.ochin.org'));
+    expect(directoryPrefixesFor('nobody.example.org')).toEqual([]);
   });
 });

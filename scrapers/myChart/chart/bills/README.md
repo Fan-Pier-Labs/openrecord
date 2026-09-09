@@ -146,8 +146,9 @@ merged with `IsDetailBill` telling them apart):
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
-| `FormattedDateDisplay` | Statement date | — | ✓ | ✓ | When. |
-| `DateDisplay` | Same, shorter | — | ✓ | — | Duplicate rendering; kept in standard because the PDF filename uses it. |
+| `dateISO` | Statement date as `YYYY-MM-DD` | ✓ | ✓ | ✓ | Derived from `DateDisplay`. One live instance (33 statements) sent `FormattedDateDisplay: null` on every statement while `DateDisplay` held `YYYYMMDD`, so this is the date a consumer can count on. |
+| `FormattedDateDisplay` | Statement date as MyChart renders it | — | ✓ | ✓ | When; null on some instances (see `dateISO`). |
+| `DateDisplay` | Same, as `YYYYMMDD` | — | ✓ | — | Source of `dateISO`; kept in standard because the PDF filename uses it. |
 | `Description` | What it is | — | ✓ | ✓ | What. |
 | `SubText` | Extra line | — | ✓ | — | Detail. |
 | `StatementAmountDisplay` | Amount | — | ✓ | ✓ | How much. |

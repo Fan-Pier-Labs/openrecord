@@ -140,6 +140,12 @@ export interface BillingVisitStandard {
 }
 
 export interface BillingStatementStandard {
+  /**
+   * Derived: `DateDisplay`'s `YYYYMMDD` as `YYYY-MM-DD`. On a live instance
+   * `FormattedDateDisplay` came back null on every statement while
+   * `DateDisplay` was populated, so this is the date a consumer can rely on.
+   */
+  dateISO: string | null;
   FormattedDateDisplay: string | null;
   DateDisplay: string | null;
   Description: string | null;
@@ -342,9 +348,16 @@ export function mergeVisitLists(data: Record<string, unknown>): BillingVisitStan
   return visits;
 }
 
+/** `20251130` → `2025-11-30`; null for anything else. */
+export function statementDateISO(dateDisplay: unknown): string | null {
+  const match = /^(\d{4})(\d{2})(\d{2})$/.exec(text(dateDisplay));
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
 export function statement(value: unknown): BillingStatementStandard {
   const s = rec(value);
   return {
+    dateISO: statementDateISO(s.DateDisplay),
     FormattedDateDisplay: textOrNull(s.FormattedDateDisplay),
     DateDisplay: textOrNull(s.DateDisplay),
     Description: textOrNull(s.Description),
@@ -465,6 +478,7 @@ export const billingProcessor: Processor<BillingStandard> = {
           category: v.category,
         })),
         statements: a.statements.map((s) => ({
+          dateISO: s.dateISO,
           FormattedDateDisplay: s.FormattedDateDisplay,
           Description: s.Description,
           StatementAmountDisplay: s.StatementAmountDisplay,

@@ -30,13 +30,13 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 41985 | 17182 | 21355 | 5338 |
-| `get_imaging_results` | 42709 | 5202 | 6082 | 2781 |
-| `get_messages` | 8224 | 4413 | 5523 | 3373 |
-| `get_message_thread` | 3424 | 1489 | 1807 | 997 |
+| `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
+| `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
+| `get_messages` | 9028 | 4871 | 6050 | 4005 |
+| `get_message_thread` | 3424 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 40587 | 3507 | 4148 | 1060 |
+| `get_billing` | 40587 | 3530 | 4175 | 1087 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 19278 | 1225 | 875 | 532 |
@@ -7854,7 +7854,7 @@ Follow up in 3 months. Schedule lipid panel before next visit.
 Lab results with reference ranges and prior values for trending.
 
 <details>
-<summary><code>mode: raw</code> (41985 chars)</summary>
+<summary><code>mode: raw</code> (42001 chars)</summary>
 
 ```json
 {
@@ -8095,7 +8095,7 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-XRAY-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-XRAY-001",
           "ordDat": "ORD-XRAY-001-DAT"
@@ -8117,7 +8117,7 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-CT-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-CT-001",
           "ordDat": "ORD-CT-001-DAT"
@@ -8215,14 +8215,14 @@ Lab results with reference ranges and prior values for trending.
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "S
-… (truncated; 59435 more characters)
+                  "n
+… (truncated; 59451 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (21355 chars)</summary>
+<summary><code>mode: standard</code> (21363 chars)</summary>
 
 ## orders (5)
 
@@ -9099,7 +9099,7 @@ Lab results with reference ranges and prior values for trending.
 
 ###### reportDetails
 
-- **reportID**: RPT-XRAY-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -9200,7 +9200,7 @@ View Images
 
 ###### reportDetails
 
-- **reportID**: RPT-CT-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -9411,7 +9411,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (17182 chars)</summary>
+<summary><code>mode: json</code> (17190 chars)</summary>
 
 ```json
 {
@@ -9775,7 +9775,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
             },
             "addenda": [],
 
-… (truncated; 18271 more characters)
+… (truncated; 18279 more characters)
 ```
 
 </details>
@@ -9787,7 +9787,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries that have viewable pictures carry an `image_id` — pass that to download_imaging_study to get the actual images.
 
 <details>
-<summary><code>mode: raw</code> (42709 chars)</summary>
+<summary><code>mode: raw</code> (42725 chars)</summary>
 
 ```json
 {
@@ -10028,7 +10028,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-XRAY-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-XRAY-001",
           "ordDat": "ORD-XRAY-001-DAT"
@@ -10050,7 +10050,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/report-content/LoadReportContent",
       "method": "POST",
       "requestBody": {
-        "reportID": "RPT-CT-001",
+        "reportID": "RPT-IMAGING-001",
         "assumedVariables": {
           "ordId": "ORD-CT-001",
           "ordDat": "ORD-CT-001-DAT"
@@ -10148,14 +10148,14 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
               {
                 "componentInfo": {
                   "componentID": "COMP-NA",
-                  "name": "S
-… (truncated; 60349 more characters)
+                  "n
+… (truncated; 60365 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (6082 chars)</summary>
+<summary><code>mode: standard</code> (6090 chars)</summary>
 
 ## orders (2)
 
@@ -10240,7 +10240,7 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
 
 ###### reportDetails
 
-- **reportID**: RPT-XRAY-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -10346,7 +10346,7 @@ View Images
 
 ###### reportDetails
 
-- **reportID**: RPT-CT-001
+- **reportID**: RPT-IMAGING-001
 - **isDownloadablePDFReport**: false
 - **reportContentText**:
 
@@ -10455,7 +10455,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 </details>
 
 <details>
-<summary><code>mode: json</code> (5202 chars)</summary>
+<summary><code>mode: json</code> (5210 chars)</summary>
 
 ```json
 {
@@ -10532,7 +10532,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
           },
           "providerComments": [],
           "reportDetails": {
-            "reportID": "RPT-XRAY-001",
+            "reportID": "RPT-IMAGING-001",
             "isDownloadablePDFReport": false
           },
           "reportContentText": "XR Skull 2 Views\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.\n\nView Images",
@@ -10624,7 +10624,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
           },
           "providerComments": [],
           "reportDetails": {
-            "reportID": "RPT-CT-001",
+            "reportID": "RPT-IMAGING-001",
             "isDownloadablePDFReport": false
           },
           "reportContentText": "CT Head without Contrast\n\nFINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons (at least 5).",
@@ -10657,7 +10657,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Inbox conversations with the care team.
 
 <details>
-<summary><code>mode: raw</code> (8224 chars)</summary>
+<summary><code>mode: raw</code> (9028 chars)</summary>
 
 ```json
 {
@@ -10783,6 +10783,39 @@ Inbox conversations with the care team.
             "wprKey": "WPR-HOMER"
           },
           "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        },
+        {
+          "wmgId": "MSG-006",
+          "isUnread": false,
+          "deliveryInstantISO": "2025-12-16T08:05:00Z",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Attached my insurance card and the coverage letter, as requested.</span></div></div>",
+          "author": {
+            "displayName": "",
+            "empKey": "",
+            "wprKey": "WPR-HOMER"
+          },
+          "attachments": [
+            {
+              "type": 2,
+              "dcsId": "WP-DCS-COVERAGE",
+              "etxId": "",
+              "name": "proof of coverage.pdf",
+              "fileExtension": "PDF",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            },
+            {
+              "type": 2,
+              "dcsId": "WP-DCS-CARD",
+              "etxId": "",
+              "name": "insurance card.png",
+              "fileExtension": "PNG",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
           "tasks": [],
           "suggestedActions": []
         }
@@ -10941,28 +10974,14 @@ Inbox conversations with the care team.
       "outOfContactContext": 0,
       "outOfContactContextString": "",
       "photoUrl": "",
-      "providerId": "",
-      "organizationId": ""
-    }
-  },
-  "viewers": {
-    "WPR-HOMER": {
-      "wprId": "",
-      "name": "Homer Simpson",
-      "isSelf": true,
-      "isShown": false,
-      "isSelected": false,
-      "organizationId": ""
-    }
-  },
-  "externalSummaries": {}
-}
+    
+… (truncated; 280 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (5523 chars)</summary>
+<summary><code>mode: standard</code> (6050 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -11067,7 +11086,7 @@ Your cholesterol levels are concerning.
 - **hasTasks**: false
 - **messageType**: (empty)
 
-#### messages (2)
+#### messages (3)
 
 ##### messages 1
 
@@ -11100,6 +11119,29 @@ Your cholesterol levels are concerning.
 - **empKey**: (empty)
 - **wprKey**: WPR-HOMER
 - **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+##### messages 3
+
+- **wmgId**: MSG-006
+- **deliveryInstantISO**: 2025-12-16T08:05:00Z
+- **senderName**: Homer Simpson
+- **isFromPatient**: true
+- **isUnread**: false
+- **bodyText**: Attached my insurance card and the coverage letter, as requested.
+
+###### author
+
+- **empKey**: (empty)
+- **wprKey**: WPR-HOMER
+
+###### attachments (2)
+
+| name | fileExtension | dcsId |
+| - | - | - |
+| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
+| insurance card.png | PNG | WP-DCS-CARD |
 - **tasks**: (none)
 - **suggestedActions**: (none)
 
@@ -11219,7 +11261,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (3373 chars)</summary>
+<summary><code>mode: concise</code> (4005 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -11256,12 +11298,15 @@ Homer, as we discussed during your visit, I strongly recommend reducing your don
   
 Your cholesterol levels are concerning.
 
+- **attachments**: (none)
+
 ##### messages 2
 
 - **deliveryInstantISO**: 2026-01-10T15:45:00Z
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: But doc, donuts are a food group! Can't I just take more pills instead?
+- **attachments**: (none)
 
 ##### messages 3
 
@@ -11269,6 +11314,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.
+- **attachments**: (none)
 
 ### conversations 2
 
@@ -11288,7 +11334,7 @@ Your cholesterol levels are concerning.
 - **hasMoreMessages**: false
 - **previewText**: Hi-Everybody! I have great news about...
 
-#### messages (2)
+#### messages (3)
 
 ##### messages 1
 
@@ -11296,6 +11342,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Nick Riviera, MD
 - **isFromPatient**: false
 - **bodyText**: Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.
+- **attachments**: (none)
 
 ##### messages 2
 
@@ -11303,6 +11350,21 @@ Your cholesterol levels are concerning.
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!
+- **attachments**: (none)
+
+##### messages 3
+
+- **deliveryInstantISO**: 2025-12-16T08:05:00Z
+- **senderName**: Homer Simpson
+- **isFromPatient**: true
+- **bodyText**: Attached my insurance card and the coverage letter, as requested.
+
+###### attachments (2)
+
+| name | fileExtension | dcsId |
+| - | - | - |
+| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
+| insurance card.png | PNG | WP-DCS-CARD |
 
 ### conversations 3
 
@@ -11330,6 +11392,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: Let's get imaging. I have placed the order; the department will reach out to schedule.
+- **attachments**: (none)
 
 ##### messages 2
 
@@ -11337,6 +11400,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield Spine Clinic
 - **isFromPatient**: false
 - **bodyText**: We have openings Thursday morning and Friday afternoon. Which works better?
+- **attachments**: (none)
 
 ##### messages 3
 
@@ -11344,6 +11408,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: Friday afternoon. Thursday is donut day at the plant.
+- **attachments**: (none)
 
 ##### messages 4
 
@@ -11351,6 +11416,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield Spine Clinic
 - **isFromPatient**: false
 - **bodyText**: Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.
+- **attachments**: (none)
 
 ##### messages 5
 
@@ -11358,11 +11424,12 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.
+- **attachments**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (4413 chars)</summary>
+<summary><code>mode: json</code> (4871 chars)</summary>
 
 ```json
 {
@@ -11478,6 +11545,32 @@ Your cholesterol levels are concerning.
             "wprKey": "WPR-HOMER"
           },
           "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        },
+        {
+          "wmgId": "MSG-006",
+          "deliveryInstantISO": "2025-12-16T08:05:00Z",
+          "senderName": "Homer Simpson",
+          "isFromPatient": true,
+          "isUnread": false,
+          "bodyText": "Attached my insurance card and the coverage letter, as requested.",
+          "author": {
+            "empKey": "",
+            "wprKey": "WPR-HOMER"
+          },
+          "attachments": [
+            {
+              "name": "proof of coverage.pdf",
+              "fileExtension": "PDF",
+              "dcsId": "WP-DCS-COVERAGE"
+            },
+            {
+              "name": "insurance card.png",
+              "fileExtension": "PNG",
+              "dcsId": "WP-DCS-CARD"
+            }
+          ],
           "tasks": [],
           "suggestedActions": []
         }
@@ -11821,7 +11914,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (997 chars)</summary>
+<summary><code>mode: concise</code> (1076 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -11848,12 +11941,15 @@ Homer, as we discussed during your visit, I strongly recommend reducing your don
   
 Your cholesterol levels are concerning.
 
+- **attachments**: (none)
+
 ### messages 2
 
 - **deliveryInstantISO**: 2026-01-10T15:45:00Z
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: But doc, donuts are a food group! Can't I just take more pills instead?
+- **attachments**: (none)
 
 ### messages 3
 
@@ -11861,6 +11957,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.
+- **attachments**: (none)
 
 </details>
 
@@ -12208,7 +12305,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (4148 chars)</summary>
+<summary><code>mode: standard</code> (4175 chars)</summary>
 
 - **totalDue**: 275
 
@@ -12315,9 +12412,9 @@ Billing history and account balances.
 
 #### statements (1)
 
-| FormattedDateDisplay | DateDisplay | Description | SubText | StatementAmountDisplay | IsRead | IsDetailBill | IsPaperless | ServiceDateStart | ServiceDateEnd | RecordID |
-| - | - | - | - | - | - | - | - | - | - | - |
-| Jan 15, 2026 | 20260115 | Sent via postal mail | (empty) | $350.00 | false | false | false | (none) | (none) | HOMER-REC-001 |
+| dateISO | FormattedDateDisplay | DateDisplay | Description | SubText | StatementAmountDisplay | IsRead | IsDetailBill | IsPaperless | ServiceDateStart | ServiceDateEnd | RecordID |
+| - | - | - | - | - | - | - | - | - | - | - | - |
+| 2026-01-15 | Jan 15, 2026 | 20260115 | Sent via postal mail | (empty) | $350.00 | false | false | false | (none) | (none) | HOMER-REC-001 |
 
 #### payments (2)
 
@@ -12352,7 +12449,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1060 chars)</summary>
+<summary><code>mode: concise</code> (1087 chars)</summary>
 
 - **totalDue**: 275
 
@@ -12383,9 +12480,9 @@ Billing history and account balances.
 
 #### statements (1)
 
-| FormattedDateDisplay | Description | StatementAmountDisplay | IsRead |
-| - | - | - | - |
-| Jan 15, 2026 | Sent via postal mail | $350.00 | false |
+| dateISO | FormattedDateDisplay | Description | StatementAmountDisplay | IsRead |
+| - | - | - | - | - |
+| 2026-01-15 | Jan 15, 2026 | Sent via postal mail | $350.00 | false |
 
 #### payments (2)
 
@@ -12398,7 +12495,7 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: json</code> (3507 chars)</summary>
+<summary><code>mode: json</code> (3530 chars)</summary>
 
 ```json
 {
@@ -12518,6 +12615,7 @@ Billing history and account balances.
       },
       "statements": [
         {
+          "dateISO": "2026-01-15",
           "FormattedDateDisplay": "Jan 15, 2026",
           "DateDisplay": "20260115",
           "Description": "Sent via postal mail",

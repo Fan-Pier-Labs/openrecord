@@ -27,12 +27,12 @@ export const notesPost: ExactRoutes = {
         const avs = ds.avsByCsn[body.csn];
         if (avs) return json(conformToShape(shapes.loadReportContent, avs));
       }
-      // Imaging report bodies (existing).
-      else if (body.reportID === 'RPT-XRAY-001') {
-        return json(conformToShape(shapes.loadReportContent, ds.imagingReportContent));
-      }
-      else if (body.reportID === 'RPT-CT-001') {
-        return json(conformToShape(shapes.loadReportContent, ds.ctReportContent));
+      // Imaging report bodies. `reportID` is a template id shared by every
+      // imaging result, so the order in `assumedVariables` picks the report —
+      // as on a real instance (see scrapers/myChart/chart/labs/README.md).
+      else if (body.reportID) {
+        const report = ds.imagingReportsByOrder[body.assumedVariables?.ordId];
+        if (report) return json(conformToShape(shapes.loadReportContent, report));
       }
     } catch { /* fall through */ }
     return json(conformToShape(shapes.loadReportContent, { reportContent: '', reportCss: '' }));

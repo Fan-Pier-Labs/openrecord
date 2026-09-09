@@ -415,6 +415,7 @@ Messages are fully interactive. You can:
 
 - **List conversations** — returns seed data plus any new messages sent this session, inlining only the newest five messages of each thread
 - **Read conversation threads** — `getconversationdetails` for the subject, the name maps and the newest page, then `getconversationmessages` to page backwards through anything older
+- **Download an attachment** — `getdocumentdetailslegacy` for the link, then the `Documents/ViewDocument/Download` GET for the bytes (see *Attachments* below)
 - **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
 - **Reply to a message** — appends to an existing conversation thread
 - **Delete a conversation** — removes it from the in-memory list
@@ -461,6 +462,31 @@ falls back to the default.
 `author.displayName` is empty on every message, on real instances and here
 alike. A sender's name comes from `viewers[wprKey]` for patient-side authors and
 from `userOverrideNames[empKey] || users[empKey]` for staff.
+
+### Attachments
+
+One seeded message carries two attachments — a one-page PDF and a 1×1 PNG, real
+files, so a client checking magic bytes gets a real answer. The thread endpoints
+list them as a live instance does (`type: 2`, upper-case `fileExtension`, no
+organization, no community link) and never carry bytes. The download is the
+portal's own two-step, held to the field set captured on two live instances:
+
+```
+1. POST /api/documents/viewer/getdocumentdetailslegacy { dcsId, fileExtension, organizationId, useOldMobileLink }
+     → { downloadUrl, previewUrl, mimeType, allowPreview, displayName, fileDescription, … }
+     An unknown or empty dcsId answers 200 and a literal JSON `null`; the
+     fileExtension posted is ignored. `getdocumentdetails` is the same with a
+     `DownloadOrStream` link.
+2. GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…
+     → the bytes, with Content-Type, Content-Length and
+       Content-Disposition: attachment; filename="…".
+     An unknown dcsid answers 200 with NO body and NO Content-Type — not a 404.
+```
+
+Both lookups are scoped to the record the session is in, so a proxy record
+cannot fetch the account holder's document by id. The bytes live in
+`homer.messageAttachmentFiles`, apart from the conversation fixture, so
+`conformToShape` never serves them as attachment fields.
 
 ### Message flow (what the scraper does)
 
@@ -515,8 +541,8 @@ The fake server includes a stub eUnity imaging viewer co-located on the same hos
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/MyChart/api/test-results/GetWidgetList?groupType=2` | POST | Lists imaging studies (X-ray skull, CT head) |
-| `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportID` |
-| `/MyChart/api/report-content/LoadReportContent` | POST | Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
+| `/MyChart/api/test-results/GetDetails?id=...` | POST | Returns study metadata with `reportDetails` — both studies carry the same `reportID` (a report *template* id, as on a real instance) and are told apart by `reportVars.ordId` |
+| `/MyChart/api/report-content/LoadReportContent` | POST | Dispatched on `assumedVariables.ordId`, never on `reportID` alone; an unknown order gets the empty report. Returns HTML containing `data-fdi-context` (X-ray study only — see below) |
 | `/MyChart/Extensibility/Redirection/FdiData` | POST | Bridge: returns `{url, launchmode, IsFdiPost}` pointing at `/e/saml-sts` |
 | `/e/saml-sts` | GET | SAML STS page with auto-submit form (mimics real STS) |
 | `/e/saml-acs` | POST | SAML ACS that 302-redirects to the eUnity viewer |
