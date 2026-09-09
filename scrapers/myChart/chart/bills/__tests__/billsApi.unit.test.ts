@@ -289,12 +289,14 @@ describe('getBillingHistory', () => {
     const { req } = fullMock()
     const raw = await fetchBillingRaw(req)
 
+    // The details page is fetched first: it carries both the EncID the
+    // statement download needs and the antiforgery token GetMoreVisits wants.
     expect(raw.requests.map((r) => r.path.split('?')[0])).toEqual([
       '/Billing/Summary',
+      '/Billing/Details',
       '/Billing/Details/GetVisits',
       '/Billing/Details/GetStatementList',
       '/Billing/Details/LoadPaymentList',
-      '/Billing/Details',
     ])
     for (const r of raw.requests.slice(1)) {
       expect(r.path).not.toContain('noCache')
@@ -302,7 +304,7 @@ describe('getBillingHistory', () => {
       expect(r.path).toMatch(/context=CTX7/i)
     }
     // The details page is recorded whole (parsed, since this one is JSON-shaped); EncID is raw-only.
-    expect(raw.requests[4]!.body).toEqual({ EncID: 'ENC-7' })
+    expect(raw.requests[1]!.body).toEqual({ EncID: 'ENC-7' })
     expect(renderOutput(billingProcessor, raw, 'raw')).toBe(raw)
     expect(renderOutput(billingProcessor, raw, 'concise')).toContain('- **totalDue**: 42.5')
   })

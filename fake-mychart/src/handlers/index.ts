@@ -24,7 +24,7 @@
 import { activityFeedPost } from './activityFeed';
 import { allergiesGet, allergiesPost } from './allergies';
 import { authGet, authGetPatterns, authPost, authPostPatterns } from './auth';
-import { billsGet, billsGetPatterns } from './bills';
+import { billsGet, billsGetPatterns, billsPostPatterns } from './bills';
 import { careJourneysGet, careJourneysPost } from './careJourneys';
 import { careTeamGet, careTeamPost } from './careTeam';
 import { documentsGet, documentsPost } from './documents';
@@ -138,6 +138,7 @@ export const POST_ROUTES: ExactRoutes = mergeExact(
 
 export const POST_PATTERNS: readonly PatternRoute[] = [
   ...authPostPatterns,
+  ...billsPostPatterns,
   ...imagingPostPatterns,
   ...otherMyChartsPostPatterns,
   ...profilePostPatterns,

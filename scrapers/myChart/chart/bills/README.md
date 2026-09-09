@@ -14,6 +14,7 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 | --- | --- |
 | `GET /Billing/Summary` | HTML — one `.ba_card` per guarantor account |
 | `GET /Billing/Details/GetVisits?…&filterOption=1&searchStartDTE=…&searchStopDTE=…` | the charges (**payload**) |
+| `POST /Billing/Details/GetMoreVisits` | hydrates the stub rows `GetVisits` paged out (best effort; needs the details page's antiforgery token) |
 | `GET /Billing/Details/GetStatementList?…` | statements (best effort) |
 | `GET /Billing/Details/LoadPaymentList?…` | payment history (best effort) |
 | `GET /Billing/Details?ID=…&Context=…` | HTML — carries `EncID`, the statement-PDF token (best effort) |
@@ -54,20 +55,36 @@ Every URL carries `noCache=<random>`.
   The processor merges them and de-duplicates on
   (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`), keeping which list
   a row came from as `category` — "bad debt" and "payment plan" change what a charge means.
-- **`GetVisits` pages, and the rows past the first page come back unhydrated.** Epic's
-  activity renders them collapsed and loads one when the patient expands it, so what the
-  scraper receives is a stub: `Description` is the `"{VisitType} at {Facility}"` template
+- **`GetVisits` pages, and the scraper hydrates what it holds back.** The rows past the
+  first page come back as stubs: `Description` is the `"{VisitType} at {Facility}"` template
   with both slots blank (`"Visit at "`), `ProcedureList` and `CoverageInfoList` are null,
-  `HospitalAccountId` is an encrypted handle instead of the HAR number, and **every amount
-  is the string `"$0.00"`** — including on a visit that was charged hundreds of dollars.
-  The service date is real; only the detail is missing. A live instance answered with 25
-  such rows out of 45, alongside `ShowingAll: false`. A fabricated `"$0.00"` is
-  indistinguishable from a settled balance, so anything summing a charge column silently
-  undercounts; the processor therefore derives `detailLoaded` from `LevelOfDetailLoaded`
-  (`0` on every stub, `2` on every populated row) and `showingAllVisits` from `ShowingAll`.
-  The stubs are **kept**, not dropped — they are real visits whose detail MyChart withheld,
-  and Epic's own UI lists them. Hydrating one is unimplemented; the encrypted
-  `HospitalAccountId` is presumably its key.
+  `HospitalAccountId` is an encrypted handle instead of the HAR number, and **every amount is
+  the string `"$0.00"`** — on visits charged hundreds or thousands. Only the service date is
+  real. A live instance answered with 25 such rows out of 45; hydrating them turned $0.00
+  into $29,633.70 of real charges, so reporting the stub as-is silently undercounts any sum
+  over a charge column.
+  Epic's own UI does not render them: it drops the stubs and offers "Load more accounts" /
+  "Load all accounts", which post every outstanding stub to
+  **`POST /Billing/Details/GetMoreVisits`** — form-encoded `id`, `context` and
+  `listOfAccounts[i].{EncAccountID,IsPes,IsHar}`, where `EncAccountID` is the stub's own
+  encrypted `HospitalAccountId`, plus `EncPBSerID` when the stub carries a `ProviderId`
+  (`IsPes: true` instead, for a standalone estimate keyed by `EmptyVisitEstimateID`). The
+  answer is whole replacement rows with `LevelOfDetailLoaded: 2`, under
+  `Data.UnifiedVisitList`. The scraper posts every stub at once, loops on whatever is still
+  missing (the server may cap a batch), and the processor swaps each stub for its real row
+  before de-duplication — a stub and its hydrated self do not look alike, because the
+  identity includes exactly the fields hydration fills in.
+  Two things this needs that the older flow did not: the **details page is fetched first**,
+  because its antiforgery token is what `GetMoreVisits` requires, and the whole hydration is
+  best-effort — a failure leaves the stub in place rather than costing the caller the charge
+  list. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
+  value has been observed. Verified on the wire against 1 real instance.
+- **The UI's default filter is not the scraper's.** The billing activity sends
+  `filterOption=` empty (and empty dates), which on the captured account returned
+  `HasVisits: false` — nothing at all. The scraper's `filterOption=1` with a 100-year window
+  is what surfaces the full history, and is also what puts the account into the paged,
+  lazy-loading path. `Data.ShowingAll` is **never read by Epic's own client** and is `false`
+  even when nothing is truncated, so it is not a truncation signal and is not reported.
 - Statements arrive in **two lists** (`DataStatement` and `DataDetailBill`); they are
   merged with `IsDetailBill` telling them apart. Both download the same way.
 - **The statement PDF needs five keys from two places.** Four ride on the statement row
@@ -114,7 +131,6 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `guarantorNumber`, `patientName` | From the card header | ✓ | ✓ | ✓ | Derived from the summary HTML. Which account and whose. |
 | `amountDueNumber` | Card balance, parsed | ✓ | ✓ | ✓ | Derived. What is owed. |
-| `showingAllVisits` | Whether MyChart returned the account's whole charge history | ✓ | ✓ | ✓ | Derived from `Data.ShowingAll`. `false` means it paged, which is when unhydrated rows appear — a reader must not treat the list as a complete ledger. |
 | `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
@@ -125,7 +141,6 @@ Account (from the summary HTML and the join):
 | --- | --- | :-: | :-: | :-: | --- |
 | `UnifiedVisitList[]`, `VisitList[]`, `InformationalVisitList[]`, `NoBalanceVisitList[]`, `BadDebtVisitList[]`, `PaymentPlanVisitList[]`, `AdvanceBillVisitList[]`, `ContestedVisitList[]`, `AdjustmentVisitList[]` | The charge lists; overlapping across releases | ✓ | merged into one `visits[]`, de-duplicated on (`HospitalAccountId`, `StartDate`, `Description`, `SelfAmountDueRaw`) | same | Derived merge (#380). Reading one list loses charges on whichever release does not populate it; reading all double-counts. |
 | `category` | Which list the row came from | ✓ | ✓ | ✓ | Derived. "Bad debt" and "payment plan" change what a charge means. |
-| `detailLoaded` | Whether MyChart populated this row, or sent the collapsed stub it fills in on demand | ✓ | ✓ | ✓ | Derived from `LevelOfDetailLoaded`. `false` means every amount on the row is a placeholder `"$0.00"`, not a balance — without it a paged history reads as a pile of settled visits. In concise because that is the mode the model-facing clients read. |
 | `NotPaymentPlanVisitList[]`, `VisitAutoPayVisitList[]` | Filtered views of rows already in the others | — | — | — | Duplicate. |
 | `*VisitListAmount`, `PaymentPlanVisitListAutoPayAmount`, `PaymentPlanVisitListScheduledDate`, `EstimatedPaymentPlanBalance`, `PaymentPlanVisitListPostResolutionAmount` | Per-list totals | — | ✓ | — | Totals as MyChart computed them; detail. |
 | `CanMakePayment`, `HasUnconvertedPBVisits`, `HasVisits` | Account state | — | ✓ | — | Whether online payment is possible; detail. |
@@ -134,7 +149,7 @@ Account (from the summary HTML and the join):
 | `UndistributedPayments[]` | Payments not yet applied | — | ✓ | — | Uncaptured; passed through. |
 | `SharedAgencyInformation.Name`, `.PhoneNumber` | Collections agency | — | ✓ | — | A patient in collections wants to know; detail. |
 | `URLMakePayment` | The pay-online link for this account | — | ✓ | — | A portal link by class, kept anyway (rule 4, with the reason here): it is how a patient pays a bill from the app, not a button MyChart's page renders. The Expo bill alert deep-links to it. Reviewed in #388. |
-| `Success`, `CanEditPaymentPlan`, `URLEditPaymentPlan`, `Filters`, `BillingSystem`, `billType`, `IsStatement`, `StatementDisplayDate`, `ShouldShowADACopyright` | Page config | — | — | — | UI flag / portal link / internal. |
+| `Success`, `ShowingAll`, `CanEditPaymentPlan`, `URLEditPaymentPlan`, `Filters`, `BillingSystem`, `billType`, `IsStatement`, `StatementDisplayDate`, `ShouldShowADACopyright` | Page config | — | — | — | UI flag / portal link / internal. |
 
 Per charge (each visit row):
 
@@ -157,14 +172,15 @@ Per charge (each visit row):
 | `EstimateInfo.EstimateAmount`, `.EstimateStatus` | Cost estimate | — | ✓ | — | Detail. |
 | `EstimateInfo.EstimateID`, `IsPaymentPlanEstimate`, `IsResolvedEstimatedPPAccount`, `EmptyVisitEstimateID` | Estimate plumbing | — | — | — | Internal. |
 | `AgencyInformation.Name`, `.PhoneNumber`, `AgencyInformationDescription` | Collections agency | — | ✓ | — | Detail. |
-| `ProcedureList[].Description`, `.Amount`, `.SelfAmountDue`, `.InsuranceAmountDue`, `.IsContested`, `.HasAmountDue` | Line items | — | ✓ | — | The itemization; detail. |
+| `ProcedureList[].DescriptionText` | Line-item description, markup stripped | ✓ | ✓ | — | Derived (rule 9). MyChart wraps the procedure code inside the description — `"Office Visit, Established Pat - <span class='subtlecolor'>99213 (CPT®)</span>"` — so the **CPT code only reaches a reader as text** if the span is converted rather than passed through. `Description` itself carries markup and stays in `raw`. |
+| `ProcedureList[].Amount`, `.SelfAmountDue`, `.InsuranceAmountDue`, `.IsContested`, `.HasAmountDue` | Line items | — | ✓ | — | The itemization; detail. |
 | `ProcedureList[].PaymentList[]`, `.SelfBadDebtAmount`, `.HasBadDebtAmount`, `.AdjustmentsOnly`, `.BillingSystem` | Line-item detail | — | ✓ | — | Detail. |
 | `ProcedureGroupList[].Description`, `.Amount`, `.ProcedureList[]`, `.PaymentList[]`, `.EstPlanPaymentList[]` | Grouped line items and their payments | — | ✓ | — | Detail. |
 | `ProcedureGroupList[].VisitIndex`, `.VisitGroupType`, `.HasEstPlanList`, `.IsPaymentsOnly`, `.HasPaymentsTowardsEstimates`, `.HasContestedProcedures`, `.IsExpanded`, `.AlwaysShowDetails` | Grouping plumbing | — | — | — | Internal / UI flag. |
 | `CoverageInfoList[].CoverageName`, `.Billed`, `.Covered`, `.PendingInsurance`, `.RemainingResponsibility`, `.Copay`, `.Deductible`, `.Coinsurance`, `.NotCovered`, `.Benefits[].Name`, `.Amount` | Explanation of benefits | — | ✓ | — | Detail. |
 | `CoverageInfoList[].ShowInsuranceCoveredHelp`, `.ShowInsurancePendingHelp`, `ShowCoverageHelp`, `ShowInsurancePendingHelp`, `ShowInsuranceCoveredHelp` | Help-icon flags | — | — | — | UI flag. |
 | `VisitAutoPay`, `ShowVisitAutoPay`, `CanAddToPaymentPlan` | Auto-pay enrollment UI | — | — | — | UI flag. |
-| `LevelOfDetailLoaded` | How much of the row MyChart loaded | — | — | — | Source of the derived `detailLoaded`, which is what the other modes carry. |
+| `LevelOfDetailLoaded` | How much of the row MyChart loaded | — | — | — | Internal: `0` marks a stub the scraper then hydrates via `GetMoreVisits`, so no unhydrated row reaches a caller. |
 | `GroupType`, `Index`, `BillingSystem`, `BillingSystemDisplay`, `IsSBO`, `ProviderId`, `IsLTCSeries`, `IsExpanded`, `BlockExpanding`, `AlwaysShowDetails`, `SuppressDayFromDate`, `SuppressProcedureAmount`, `AdjustmentSuppressionSetting`, `StartDateAccessibleText` | Rendering and ids | — | — | — | UI flag / internal. |
 | `StartDate`, `StartDayOfMonth`, `StartMonth`, `StartYear` | Epic day count and split renderings of `StartDateDisplay` | — | — | — | Internal / duplicate. |
 

@@ -1,6 +1,8 @@
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
+import { getRequestVerificationTokenFromBody } from '../../core/util';
+import { list, num, rec, text } from '../../processors/read';
 import { subYears, addYears } from 'date-fns';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
 import { logger } from '../../../../shared/logger';
@@ -8,7 +10,7 @@ import { toEpicDteLocal } from '../../../../shared/epicDate';
 import type { FilePayload } from '../../../../shared/capabilities/types';
 import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
-import { billingProcessor, statementDateISO, type BillingStandard } from './bills.processor';
+import { VISIT_LIST_CATEGORIES, billingProcessor, statementDateISO, type BillingStandard } from './bills.processor';
 
 export { parsePaymentUrl, parseBillingAccountsHtml, parseAmount } from './summaryHtml';
 export type {
@@ -51,22 +53,169 @@ function detailsPagePath(account: BillingAccount): string {
   return `/Billing/Details?ID=${account.id}&Context=${account.context}`;
 }
 
+export const GET_MORE_VISITS_PATH = '/Billing/Details/GetMoreVisits';
+
 /**
- * `GET /Billing/Summary`, then per account `GetVisits`, `GetStatementList`,
- * `LoadPaymentList` and the details page (for `EncID`). The summary is
- * parsed here only to learn which accounts to fetch; the processor re-parses
- * the recorded page to build the account rows. The three supplementary
- * calls are best-effort — a statement-list outage should not cost the
- * caller the visit history — and a non-OK response is still recorded. The
- * summary and the visit list are the payload: a failure there throws.
+ * A charge row MyChart did not populate.
+ *
+ * `GetVisits` pages, and every row past the first page comes back as a stub:
+ * `Description` is the `"{VisitType} at {Facility}"` template rendered with
+ * both slots blank (`"Visit at "`), the procedure and coverage lists are
+ * null, `HospitalAccountId` is an encrypted handle rather than the HAR
+ * number, and every amount — `ChargeAmount` included — is the string
+ * `"$0.00"`. Only the service date is real.
+ *
+ * Those zeros are the reason this is not left to the caller. A fabricated
+ * `"$0.00"` is indistinguishable from a settled visit, so a reader summing a
+ * charge column silently undercounts. On the instance this was captured
+ * against, 25 of 45 rows were stubs and hydrating them turned $0.00 into
+ * $29,633.70 of real charges.
+ *
+ * Levels observed on the wire: `0` on every stub, `2` on every populated row.
+ */
+function isStub(row: unknown): boolean {
+  return num(rec(row).LevelOfDetailLoaded) === 0;
+}
+
+/**
+ * The hydrate key for one stub, in the three shapes Epic's own client builds
+ * (`AccountDetailsController.__processSingleListResponse`): a hospital
+ * account, a hospital account billed under a specific provider, or a
+ * standalone estimate.
+ */
+type HydrateKey = { EncAccountID: string } & Record<string, string>;
+
+function hydrateKey(row: Record<string, unknown>): HydrateKey | null {
+  const har = text(row.HospitalAccountId);
+  const estimate = text(row.EmptyVisitEstimateID);
+  if (!har && estimate) return { EncAccountID: estimate, IsPes: 'true', IsHar: 'false' };
+  if (!har) return null;
+  const provider = text(row.ProviderId);
+  return provider
+    ? { EncAccountID: har, IsPes: 'false', IsHar: 'true', EncPBSerID: provider }
+    : { EncAccountID: har, IsPes: 'false', IsHar: 'true' };
+}
+
+/**
+ * `listOfAccounts` as ASP.NET model binding wants it —
+ * `listOfAccounts[0].EncAccountID=…&listOfAccounts[0].IsHar=true&…` — which
+ * is the encoding captured off the real request, not an inference.
+ */
+function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
+  const params = new URLSearchParams({ id: account.id ?? '', context: account.context ?? '' });
+  keys.forEach((key, i) => {
+    for (const [field, value] of Object.entries(key)) params.append(`listOfAccounts[${i}].${field}`, value);
+  });
+  return params.toString();
+}
+
+/**
+ * Hydrate every stub in a `GetVisits` body, in as few requests as MyChart
+ * allows.
+ *
+ * Epic's "Load all accounts" button posts every outstanding stub at once, and
+ * a 25-stub account came back in a single response — but its own client
+ * re-checks how many rows actually arrived and only advances by that many, so
+ * the server is free to cap a batch. This loops on what is still missing
+ * rather than assuming one round trip, and stops making progress rather than
+ * spinning if a batch comes back with nothing new.
+ *
+ * Best-effort by design: the charge list already loaded is worth returning
+ * even if hydration fails, and the processor reports which rows are still
+ * unhydrated instead of passing their `"$0.00"` off as a balance.
+ */
+async function hydrateStubs(
+  collector: RawCollector,
+  account: BillingAccount,
+  visitsBody: unknown,
+  token: string | undefined,
+): Promise<void> {
+  const data = rec(rec(visitsBody).Data);
+  const pending = new Map<string, HydrateKey>();
+  for (const category of VISIT_LIST_CATEGORIES) {
+    for (const row of list(data[category])) {
+      if (!isStub(row)) continue;
+      const key = hydrateKey(rec(row));
+      if (key) pending.set(key.EncAccountID, key);
+    }
+  }
+  if (pending.size === 0) return;
+  if (!token) {
+    logger.debug(`Billing: ${pending.size} unhydrated charge rows but no antiforgery token; leaving them.`);
+    return;
+  }
+
+  // A stub list can only shrink; the guard is against a batch that returns
+  // nothing, which would otherwise loop forever.
+  while (pending.size > 0) {
+    const batch = [...pending.values()];
+    const { body, failure } = await collector.send(
+      {
+        path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest',
+          __RequestVerificationToken: token,
+        },
+        body: moreVisitsBody(account, batch),
+      },
+      { tolerateFailure: true },
+    );
+    if (failure) {
+      logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
+      return;
+    }
+    let hydrated = 0;
+    for (const row of list(rec(rec(body).Data).UnifiedVisitList)) {
+      const har = text(rec(row).HospitalAccountId);
+      if (pending.delete(har)) hydrated += 1;
+    }
+    if (hydrated === 0) {
+      logger.debug(`Billing: GetMoreVisits returned no new rows; ${pending.size} left unhydrated.`);
+      return;
+    }
+  }
+}
+
+/**
+ * `GET /Billing/Summary`, then per account the details page, `GetVisits`,
+ * however many `GetMoreVisits` calls it takes to fill in the lazy-loaded
+ * rows, `GetStatementList` and `LoadPaymentList`.
+ *
+ * The details page is fetched *first* because it carries both the `EncID` the
+ * statement download needs and the antiforgery token `GetMoreVisits` requires.
+ * The summary is parsed here only to learn which accounts to fetch; the
+ * processor re-parses the recorded page to build the account rows.
+ *
+ * The supplementary calls are best-effort — a statement-list outage should
+ * not cost the caller the charge history — and a non-OK response is still
+ * recorded. The summary and the visit list are the payload: a failure there
+ * throws.
  */
 export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
   const summary = await collector.send({ path: '/Billing/Summary' });
 
   for (const account of parseBillingAccountsHtml(summary.text, mychartRequest.hostname)) {
-    await collector.send({ path: visitsPath(account) });
-    for (const path of [statementListPath(account), paymentListPath(account), detailsPagePath(account)]) {
+    let token: string | undefined;
+    try {
+      const details = await collector.send({ path: detailsPagePath(account) }, { tolerateFailure: true });
+      token = getRequestVerificationTokenFromBody(details.text);
+    } catch (err) {
+      if (err instanceof SessionExpiredError) throw err;
+      logger.debug('Failed to fetch billing details page:', (err as Error).message);
+    }
+
+    const visits = await collector.send({ path: visitsPath(account) });
+    try {
+      await hydrateStubs(collector, account, visits.body, token);
+    } catch (err) {
+      if (err instanceof SessionExpiredError) throw err;
+      logger.debug('Failed to hydrate billing charge rows:', (err as Error).message);
+    }
+
+    for (const path of [statementListPath(account), paymentListPath(account)]) {
       try {
         await collector.send({ path }, { tolerateFailure: true });
       } catch (err) {
@@ -139,10 +288,10 @@ async function findStatement(
   const accounts = parseBillingAccountsHtml(await summary.text(), mychartRequest.hostname);
   const seen: string[] = [];
   for (const account of accounts) {
-    const list = await getStatementList(mychartRequest, account);
+    const statementList = await getStatementList(mychartRequest, account);
     const statements = [
-      ...(list.DataStatement?.StatementList ?? []),
-      ...(list.DataDetailBill?.StatementList ?? []),
+      ...(statementList.DataStatement?.StatementList ?? []),
+      ...(statementList.DataDetailBill?.StatementList ?? []),
     ];
     const statement = statements.find((s) => s.RecordID === recordId);
     if (statement) return { account, statement };
