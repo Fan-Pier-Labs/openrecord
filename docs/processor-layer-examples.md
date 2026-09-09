@@ -20,7 +20,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
 | `get_health_issues` | 1927 | 969 | 1241 | 297 |
-| `get_vitals` | 6388 | 1617 | 1201 | 861 |
+| `get_vitals` | 7082 | 1944 | 1349 | 1084 |
 | `get_immunizations` | 891 | 601 | 432 | 236 |
 | `get_preventive_care` | 5097 | 5146 | 6303 | 354 |
 | `get_medical_history` | 1596 | 1178 | 1266 | 501 |
@@ -1943,7 +1943,7 @@ Active health issues / problem list.
 Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, glucose, etc.).
 
 <details>
-<summary><code>mode: raw</code> (6388 chars)</summary>
+<summary><code>mode: raw</code> (7082 chars)</summary>
 
 ```json
 {
@@ -1978,7 +1978,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "rowIds": [
                 "row-bp",
                 "row-hr",
-                "row-wt"
+                "row-wt",
+                "row-ht"
               ]
             }
           ],
@@ -2006,6 +2007,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "units": "6",
               "unitsDisplayName": "lbs"
+            },
+            {
+              "id": "row-ht",
+              "name": "Height",
+              "rowType": "1",
+              "valueType": "6",
+              "decimalPlaces": 0,
+              "units": "7",
+              "unitsDisplayName": "ft"
             }
           ],
           "readings": [
@@ -2057,8 +2067,26 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "timeZone": "America/New_York",
               "sourceRowId": "",
-              "numericValue": 260,
+              "numericValue": 4160,
               "units": "6"
+            },
+            {
+              "id": "rd-ht-1",
+              "fsdId": "fsd-1",
+              "rowId": "row-ht",
+              "valueType": "6",
+              "entryType": "clinical",
+              "instantTakenIso": "2026-01-10T09:00:00",
+              "isAbnormal": false,
+              "documentationSource": "34000",
+              "stringValue": "",
+              "dataType": "32000",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": "",
+              "numericValue": 72,
+              "units": "7"
             },
             {
               "id": "rd-bp-2",
@@ -2140,7 +2168,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "rowIds": [
                 "row-bp",
                 "row-hr",
-                "row-wt"
+                "row-wt",
+                "row-ht"
               ]
             }
           ],
@@ -2168,6 +2197,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "decimalPlaces": 0,
               "units": "6",
               "unitsDisplayName": "lbs"
+            },
+            {
+              "id": "row-ht",
+              "name": "Height",
+              "rowType": "1",
+              "valueType": "6",
+              "decimalPlaces": 0,
+              "units": "7",
+              "unitsDisplayName": "ft"
             }
           ],
           "readings": [
@@ -2234,7 +2272,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
                 "rowIds": [
                   "row-bp",
                   "row-hr",
-                  "row-wt"
+                  "row-wt",
+                  "row-ht"
                 ]
               }
             ],
@@ -2262,6 +2301,15 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
                 "decimalPlaces": 0,
                 "units": "6",
                 "unitsDisplayName": "lbs"
+              },
+              {
+                "id": "row-ht",
+                "name": "Height",
+                "rowType": "1",
+                "valueType": "6",
+                "decimalPlaces": 0,
+                "units": "7",
+                "unitsDisplayName": "ft"
               }
             ],
             "readings": []
@@ -2288,17 +2336,14 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "GET",
       "status": 200,
       "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
-      "purpose": "token"
-    }
-  ]
-}
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts
+… (truncated; 525 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1201 chars)</summary>
+<summary><code>mode: standard</code> (1349 chars)</summary>
 
 ## flowsheets (1)
 
@@ -2310,34 +2355,36 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 - **endDateIso**: (empty)
 - **instructions**: (empty)
 
-#### rows (3)
+#### rows (4)
 
 | id | name | unitsDisplayName | rowType | valueType | decimalPlaces |
 | - | - | - | - | - | - |
 | row-bp | Blood Pressure | mmHg | 1 | 4 | 0 |
 | row-hr | Pulse | (none) | 1 | 1 | 0 |
 | row-wt | Weight | lbs | 1 | 5 | 0 |
+| row-ht | Height | ft | 1 | 6 | 0 |
 
 #### rowGroups (1)
 
 | id | name | rowIds |
 | - | - | - |
-| -1 | (empty) | row-bp, row-hr, row-wt |
+| -1 | (empty) | row-bp, row-hr, row-wt, row-ht |
 
-#### readings (5)
+#### readings (6)
 
 | rowId | instantTakenIso | timeZone | stringValue | numericValue | value | isAbnormal | entryType | documentationSource |
 | - | - | - | - | - | - | - | - | - |
 | row-bp | 2026-01-10T09:00:00 | America/New_York | 145/95 | (none) | 145/95 | true | clinical | 34000 |
 | row-hr | 2026-01-10T09:00:00 | America/New_York | (empty) | 88 | 88 | false | clinical | 34000 |
-| row-wt | 2026-01-10T09:00:00 | America/New_York | (empty) | 260 | 260 | false | clinical | 34000 |
+| row-wt | 2026-01-10T09:00:00 | America/New_York | (empty) | 4160 | 260 | false | clinical | 34000 |
+| row-ht | 2026-01-10T09:00:00 | America/New_York | (empty) | 72 | 6' 0" | false | clinical | 34000 |
 | row-bp | 2025-07-15T10:30:00 | America/New_York | 150/98 | (none) | 150/98 | true | clinical | 34002 |
 | row-bp | 2025-01-20T08:15:00 | America/New_York | 142/92 | (none) | 142/92 | false | clinical | 34002 |
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (861 chars)</summary>
+<summary><code>mode: concise</code> (1084 chars)</summary>
 
 ## flowsheets (1)
 
@@ -2345,7 +2392,7 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 
 - **name**: Vitals Trending
 
-#### rows (3)
+#### rows (4)
 
 ##### rows 1
 
@@ -2392,10 +2439,23 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 - **isAbnormal**: false
 - **abnormalReadings**: (none)
 
+##### rows 4
+
+- **name**: Height
+- **unitsDisplayName**: ft
+- **readingCount**: 1
+
+###### latestReading
+
+- **instantTakenIso**: 2026-01-10T09:00:00
+- **value**: 6' 0"
+- **isAbnormal**: false
+- **abnormalReadings**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (1617 chars)</summary>
+<summary><code>mode: json</code> (1944 chars)</summary>
 
 ```json
 {
@@ -2430,6 +2490,14 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "rowType": "1",
           "valueType": "5",
           "decimalPlaces": 0
+        },
+        {
+          "id": "row-ht",
+          "name": "Height",
+          "unitsDisplayName": "ft",
+          "rowType": "1",
+          "valueType": "6",
+          "decimalPlaces": 0
         }
       ],
       "rowGroups": [
@@ -2439,7 +2507,8 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "rowIds": [
             "row-bp",
             "row-hr",
-            "row-wt"
+            "row-wt",
+            "row-ht"
           ]
         }
       ],
@@ -2471,8 +2540,19 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "instantTakenIso": "2026-01-10T09:00:00",
           "timeZone": "America/New_York",
           "stringValue": "",
-          "numericValue": 260,
+          "numericValue": 4160,
           "value": "260",
+          "isAbnormal": false,
+          "entryType": "clinical",
+          "documentationSource": "34000"
+        },
+        {
+          "rowId": "row-ht",
+          "instantTakenIso": "2026-01-10T09:00:00",
+          "timeZone": "America/New_York",
+          "stringValue": "",
+          "numericValue": 72,
+          "value": "6' 0\"",
           "isAbnormal": false,
           "entryType": "clinical",
           "documentationSource": "34000"

@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test'
-import { getVitals, fetchVitalsRaw, vitalsProcessor, readingValue } from '../vitals'
+import { getVitals, fetchVitalsRaw, vitalsProcessor, readingValue, displayValue } from '../vitals'
 import { MyChartRequest } from '../../../core/myChartRequest'
 import { MissingVerificationTokenError } from '../../../core/util'
 import { renderOutput } from '../../../processors/processor'
@@ -35,7 +35,7 @@ describe('getVitals', () => {
       // GetFlowsheetReadings — the actual data, keyed by rowId
       { body: JSON.stringify({ flowsheet: { episodeId: 'EP-1', rows: ROWS, hasMoreData: false, readings: [
         { rowId: 'row-bp', instantTakenIso: '2025-08-11T06:29:00', timeZone: 'America/New_York', stringValue: '123/81', isAbnormal: false, entryType: 'clinical', documentationSource: 'Clinic' },
-        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', numericValue: 175, isAbnormal: true, entryType: 'clinical' },
+        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', numericValue: 2800, isAbnormal: true, entryType: 'clinical' }, // ounces: 175 lb
       ] } }) },
     ])
 
@@ -49,7 +49,7 @@ describe('getVitals', () => {
     expect(fs.rowGroups).toEqual([{ id: 'g', name: 'BP', rowIds: ['row-bp'] }])
     expect(fs.readings).toEqual([
       { rowId: 'row-bp', instantTakenIso: '2025-08-11T06:29:00', timeZone: 'America/New_York', stringValue: '123/81', numericValue: null, value: '123/81', isAbnormal: false, entryType: 'clinical', documentationSource: 'Clinic' },
-      { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', timeZone: null, stringValue: null, numericValue: 175, value: '175', isAbnormal: true, entryType: 'clinical', documentationSource: null },
+      { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', timeZone: null, stringValue: null, numericValue: 2800, value: '175', isAbnormal: true, entryType: 'clinical', documentationSource: null },
     ])
   })
 
@@ -79,7 +79,7 @@ describe('getVitals', () => {
       { body: JSON.stringify({ flowsheet: { episodeId: 'EP-1', rows, hasMoreData: false, readings: [
         { rowId: 'row-bp', instantTakenIso: '2025-08-11T06:29:00', stringValue: '123/81' },
         { rowId: 'row-hr', instantTakenIso: '2025-08-11T06:29:00', stringValue: '', numericValue: 88 },
-        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', stringValue: '  ', numericValue: 175.5 },
+        { rowId: 'row-wt', instantTakenIso: '2025-08-11T06:29:00', stringValue: '  ', numericValue: 2808 }, // ounces: 175.5 lb
       ] } }) },
     ])
 
@@ -88,6 +88,57 @@ describe('getVitals', () => {
     expect(readings.find((r) => r.rowId === 'row-wt')!.value).toBe('175.5')
     expect(readings.find((r) => r.rowId === 'row-bp')!.value).toBe('123/81')
     expect(readingValue({})).toBe('')
+  })
+
+  it('converts numericValue from Epic\'s base unit into the row\'s display unit', async () => {
+    // Real instance: Weight arrives in OUNCES beside `unitsDisplayName: 'lbs'`
+    // and Height in INCHES beside `'ft'`. Read as-is they claim a 2400 lb,
+    // 70-foot patient. Temperature is already °F and Pulse has no unit.
+    const rows = [
+      { id: 'row-wt', name: 'Weight', valueType: '5', units: '6', unitsDisplayName: 'lbs' },
+      { id: 'row-ht', name: 'Height', valueType: '6', units: '7', unitsDisplayName: 'ft' },
+      { id: 'row-tp', name: 'Temperature', valueType: '7', units: '11', unitsDisplayName: '°F' },
+      { id: 'row-hr', name: 'Pulse', valueType: '1' },
+    ]
+    const req = mockRequest([
+      TOKEN,
+      { body: JSON.stringify({ flowsheets: [{ episodeId: 'EP-1', rows, readings: [] }] }) },
+      { body: JSON.stringify({ flowsheet: { episodeId: 'EP-1', rows, readings: [
+        { rowId: 'row-wt', instantTakenIso: '2025-09-26T10:00:00', stringValue: '', numericValue: 2400, units: '6' },
+        { rowId: 'row-wt', instantTakenIso: '2025-08-01T10:00:00', stringValue: '', numericValue: 2489.6, units: '6' },
+        { rowId: 'row-ht', instantTakenIso: '2025-09-19T10:00:00', stringValue: '', numericValue: 70, units: '7' },
+        { rowId: 'row-ht', instantTakenIso: '2025-08-01T10:00:00', stringValue: '', numericValue: 64.5, units: '7' },
+        { rowId: 'row-tp', instantTakenIso: '2025-09-26T10:00:00', stringValue: '', numericValue: 98.6, units: '11' },
+        { rowId: 'row-hr', instantTakenIso: '2025-09-26T10:00:00', stringValue: '', numericValue: 72 },
+      ] } }) },
+    ])
+
+    const readings = (await getVitals(req)).flowsheets[0]!.readings
+    const values = (rowId: string) => readings.filter((r) => r.rowId === rowId).map((r) => r.value)
+    expect(values('row-wt')).toEqual(['150', '155.6'])
+    expect(values('row-ht')).toEqual([`5' 10"`, `5' 4.5"`])
+    expect(values('row-tp')).toEqual(['98.6'])
+    expect(values('row-hr')).toEqual(['72'])
+    // The raw number is kept beside the converted one, never rewritten.
+    expect(readings.find((r) => r.rowId === 'row-wt')!.numericValue).toBe(2400)
+  })
+
+  it('displayValue converts by display unit and passes unknown units through', () => {
+    expect(displayValue(2400, 'lbs')).toBe('150')
+    expect(displayValue(2400, 'LB')).toBe('150')
+    expect(displayValue(74, 'ft')).toBe(`6' 2"`)
+    expect(displayValue(71.96, 'ft')).toBe(`6' 0"`)
+    expect(displayValue(59.97, 'ft')).toBe(`5' 0"`)
+    // No metric instance has been captured, so kg / cm are not modelled: the
+    // number passes through as sent rather than as a guess.
+    expect(displayValue(2400, 'kg')).toBe('2400')
+    expect(displayValue(74, 'cm')).toBe('74')
+    expect(displayValue(98.6, '°F')).toBe('98.6')
+    expect(displayValue(88, null)).toBe('88')
+    expect(displayValue(88, undefined)).toBe('88')
+    expect(readingValue({ numericValue: 2400 }, 'lbs')).toBe('150')
+    // A string value is never converted, whatever the row's unit says.
+    expect(readingValue({ stringValue: '120/80', numericValue: 5 }, 'lbs')).toBe('120/80')
   })
 
   it('backfills row metadata from the readings page when GetFlowsheets omitted it', async () => {
