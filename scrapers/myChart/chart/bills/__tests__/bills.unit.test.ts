@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
-import { statement, statementDateISO } from '../bills.processor'
+import { isStubRow, statement, statementDateISO } from '../bills.processor'
 import { parsePaymentPath } from '../summaryHtml'
 import type { RawResponse } from '../../../core/rawResponse'
 import { renderOutput } from '../../../processors/processor'
@@ -333,7 +333,7 @@ const CHARGE = {
   ProcedureList: [{ BillingSystem: 3, Description: 'ER Level 3', Amount: '$1,200.00', PaymentList: null, InsuranceAmountDue: null, SelfAmountDue: '$350.00', HasAmountDue: true, SelfBadDebtAmount: null, HasBadDebtAmount: false, AdjustmentsOnly: false, IsContested: false }],
   ProcedureGroupList: [{ VisitIndex: 0, VisitGroupType: 0, Description: 'Payments', Amount: '$0.00', ProcedureList: null, PaymentList: [PAYMENT], EstPlanPaymentList: [], HasEstPlanList: false, IsExpanded: false }],
   CoverageInfoList: [{ CoverageName: 'Springfield Health', Billed: '$1,200.00', Covered: '$850.00', PendingInsurance: null, RemainingResponsibility: '$350.00', Copay: '$50.00', Deductible: null, Coinsurance: null, NotCovered: null, Benefits: [{ Name: 'Copay', Amount: '$50.00' }], ShowInsuranceCoveredHelp: false }],
-  ShowCoverageHelp: true, VisitAutoPay: null, ShowVisitAutoPay: false, LevelOfDetailLoaded: 0,
+  ShowCoverageHelp: true, VisitAutoPay: null, ShowVisitAutoPay: false, LevelOfDetailLoaded: 2,
   SelfBadDebtAmount: null, SelfBadDebtAmountRaw: 0, IsClosedHospitalAccount: false, IsBadDebtVisit: false, IsContestedHAR: false,
   IsPaymentPlanEstimate: false, NotOnPlanAmount: null, NotOnPlanAmountRaw: 0, EmptyVisitEstimateID: null,
   EstimateInfo: { EstimateID: 'EST-1', EstimateAmount: '$300.00', EstimateStatus: 2 },
@@ -422,6 +422,7 @@ describe('billingProcessor.standard', () => {
     const v = standard.accounts[0]!.visits[1]!
     expect(v).toEqual({
       category: 'UnifiedVisitList',
+      detailLoaded: true,
       StartDateDisplay: '11/20/2025',
       DateRangeDisplay: null,
       Description: 'ER Visit',
@@ -463,7 +464,7 @@ describe('billingProcessor.standard', () => {
       EstimateInfo: { EstimateAmount: '$300.00', EstimateStatus: 2 },
       AgencyInformation: { Name: '', PhoneNumber: '' },
       AgencyInformationDescription: null,
-      ProcedureList: [{ Description: 'ER Level 3', Amount: '$1,200.00', SelfAmountDue: '$350.00', InsuranceAmountDue: null, IsContested: false, HasAmountDue: true, PaymentList: [], SelfBadDebtAmount: null, HasBadDebtAmount: false, AdjustmentsOnly: false, BillingSystem: 3 }],
+      ProcedureList: [{ DescriptionText: 'ER Level 3', Amount: '$1,200.00', SelfAmountDue: '$350.00', InsuranceAmountDue: null, IsContested: false, HasAmountDue: true, PaymentList: [], SelfBadDebtAmount: null, HasBadDebtAmount: false, AdjustmentsOnly: false, BillingSystem: 3 }],
       ProcedureGroupList: [{
         Description: 'Payments', Amount: '$0.00', ProcedureList: [],
         PaymentList: [{ FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', SubText: 'Visa x4242', PaymentAmountDisplay: '$350.00', UndistributedAmountDisplay: null, Receipt: { DisplayNumber: 'R-001', SerialNumber: 'SN-1' } }],
@@ -521,9 +522,10 @@ describe('billingProcessor.concise', () => {
       guarantorNumber: '100',
       patientName: 'Homer Simpson',
       amountDueNumber: 350,
+      unhydratedVisits: 0,
       visits: [
-        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
-        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
+        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
+        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
       ],
       statements: [
         { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false, RecordID: 'REC-1' },
@@ -544,6 +546,108 @@ describe('billingProcessor.concise', () => {
     const concise = renderOutput(billingProcessor, RAW, 'concise') as string
     expect(concise).toContain('| ER Visit |')
     expect(concise).not.toContain('CoverageInfoList')
+  })
+})
+
+describe('lazy-loaded charge rows', () => {
+  // Copied from a live instance that answered GetVisits with 45 rows, 25 of
+  // them like this: a real service date, the "{VisitType} at {Facility}"
+  // template rendered with both slots blank, null procedure and coverage
+  // lists, an encrypted account handle, and "$0.00" in every amount column.
+  const STUB = {
+    GroupType: 0, Index: 20, BillingSystem: 2, IsSBO: false, BillingSystemDisplay: 'Hospital Services',
+    DateRangeDisplay: null, StartDate: 67278, StartDayOfMonth: 14, StartMonth: 3, StartYear: 2025,
+    StartDateDisplay: 'Mar 14, 2025', StartDateAccessibleText: 'March 14, 2025',
+    Description: 'Visit at ', Patient: null, Provider: null, ProviderId: '',
+    HospitalAccountDisplay: null, HospitalAccountId: 'WP-24aG9kR2wQ7pL4xNvB8sT1cE',
+    PrimaryPayer: null, ChargeAmount: '$0.00', InsuranceAmountDue: null, InsuranceAmountDueRaw: 0,
+    SelfAmountDue: '$0.00', SelfAmountDueRaw: 0, InsurancePaymentAmount: '$0.00', SelfPaymentAmount: null,
+    ProcedureList: null, ProcedureGroupList: null, CoverageInfoList: null,
+    LevelOfDetailLoaded: 0, PatFriendlyAccountStatusAccessibleText: '',
+    AgencyInformation: { Name: null, PhoneNumber: null, AgencyID: 0 },
+  }
+
+  // What GetMoreVisits sends back for it: the same row, populated.
+  const HYDRATED = {
+    ...STUB,
+    Description: 'Physical Therapy at Springfield General',
+    Patient: 'Homer Simpson',
+    ChargeAmount: '$450.00',
+    SelfAmountDue: '$90.00',
+    SelfAmountDueRaw: 90,
+    LevelOfDetailLoaded: 2,
+    ProcedureList: [{
+      BillingSystem: 1,
+      Description: "Therapeutic Exercise - <span class='subtlecolor'>97110 (CPT®)</span>",
+      Amount: '$200.00', PaymentList: null, InsuranceAmountDue: null, SelfAmountDue: '$90.00',
+      HasAmountDue: true, SelfBadDebtAmount: null, HasBadDebtAmount: false, AdjustmentsOnly: false, IsContested: false,
+    }],
+    CoverageInfoList: [{
+      CoverageName: 'Springfield Health', Billed: '$450.00', Covered: '-$360.00', PendingInsurance: null,
+      RemainingResponsibility: '$90.00', Copay: '$90.00', Deductible: null, Coinsurance: null, NotCovered: null,
+      Benefits: [{ Name: 'Copay', Amount: '$90.00' }],
+    }],
+  }
+
+  const PAGED: RawResponse = {
+    requests: [
+      { path: '/Billing/Summary', method: 'GET', status: 200, contentType: 'text/html', body: SUMMARY },
+      get('/Billing/Details/GetVisits?id=A1&context=C1&filterOption=1&cid=', {
+        Success: true, Data: { UnifiedVisitList: [CHARGE, STUB], ShowingAll: false, HasVisits: true },
+      }),
+      { ...get('/Billing/Details/GetMoreVisits', { Success: true, Data: { UnifiedVisitList: [HYDRATED] } }), method: 'POST' as const },
+    ],
+  }
+
+  it('replaces a stub with the row GetMoreVisits returned, so no caller sees the placeholder $0.00', () => {
+    const visits = billingProcessor.standard(PAGED).accounts[0]!.visits
+    const row = visits.find((v) => v.StartDateDisplay === 'Mar 14, 2025')!
+    expect(row.ChargeAmount).toBe('$450.00')
+    expect(row.SelfAmountDue).toBe('$90.00')
+    expect(row.Description).toBe('Physical Therapy at Springfield General')
+    // The fabricated zeros and the blank template are gone entirely.
+    expect(JSON.stringify(visits)).not.toContain('Visit at ')
+  })
+
+  it('marks a row hydration could not fill in, so its placeholder $0.00 cannot pass as settled', () => {
+    // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
+    const noHydrate: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
+    const account = billingProcessor.standard(noHydrate).accounts[0]!
+    const row = account.visits.find((v) => v.Description === 'Visit at ')!
+
+    // The row is still reported — it is a real visit with a real date — but it
+    // says outright that its amounts are placeholders, which is the whole
+    // difference between an honest gap and a silent undercount.
+    expect(row.detailLoaded).toBe(false)
+    expect(account.unhydratedVisits).toBe(1)
+    expect(account.visits.find((v) => v.Description === 'ER Visit')!.detailLoaded).toBe(true)
+
+    // And concise says it too, because that is the mode the clients default to.
+    const concise = billingProcessor.concise(billingProcessor.standard(noHydrate)) as {
+      accounts: Array<{ unhydratedVisits: number; visits: Array<{ detailLoaded: boolean }> }>
+    }
+    expect(concise.accounts[0]!.unhydratedVisits).toBe(1)
+    expect(concise.accounts[0]!.visits.some((v) => !v.detailLoaded)).toBe(true)
+  })
+
+  it('reports every row loaded once hydration succeeded', () => {
+    const account = billingProcessor.standard(PAGED).accounts[0]!
+    expect(account.unhydratedVisits).toBe(0)
+    expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
+  })
+
+  it('reads the CPT code out of the markup MyChart buries it in', () => {
+    const row = billingProcessor.standard(PAGED).accounts[0]!.visits.find((v) => v.StartDateDisplay === 'Mar 14, 2025')!
+    expect(row.ProcedureList[0]!.DescriptionText).toBe('Therapeutic Exercise - 97110 (CPT®)')
+    // Rule 9: no markup escapes into the non-raw modes.
+    expect(JSON.stringify(row)).not.toContain('<span')
+  })
+
+  it('identifies a stub by LevelOfDetailLoaded 0 and nothing else', () => {
+    expect(isStubRow({ LevelOfDetailLoaded: 0 })).toBe(true)
+    expect(isStubRow({ LevelOfDetailLoaded: 2 })).toBe(false)
+    expect(isStubRow({})).toBe(false)
+    expect(isStubRow({ LevelOfDetailLoaded: '0' })).toBe(false)
   })
 })
 
