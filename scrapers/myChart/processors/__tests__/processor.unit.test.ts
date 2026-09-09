@@ -126,9 +126,26 @@ describe('RawCollector failed answers', () => {
       .postJson('/api/care-journeys/GetCareJourneys', token, {})
       .then(() => null, (e: unknown) => e as MyChartResponseError);
     expect(error).toBeInstanceOf(MyChartResponseError);
-    expect(error!.message).toContain('GET /app/care-journeys had landed on the Home page');
-    expect(error!.message).toContain('does not offer this activity');
-    expect(error!.message).not.toContain('may be down');
+    expect(error!.message).toContain('GET /app/care-journeys had also landed on the Home page');
+    expect(error!.message).toContain('does not serve it');
+    // The retry advice stays: the same shape is also a WAF block or a passing 500.
+    expect(error!.message).toContain('may be down');
+  });
+
+  it('forgets the Home landing once the API answers, so a later failure gets the generic advice', async () => {
+    const req = mockRequest([
+      { body: '<html><input name="__RequestVerificationToken" value="t"></html>', contentType: 'text/html', url: 'https://mychart.example.com/MyChart/Home' },
+      { body: JSON.stringify({ documents: [] }) },
+      { body: '{}', status: 500 },
+    ]);
+    const collector = new RawCollector(req);
+    const token = await collector.pageToken('/app/documents');
+    await collector.postJson('/api/documents/viewer/LoadOtherDocuments', token, {});
+    const error = await collector
+      .postJson('/api/documents/viewer/LoadOtherDocuments', token, {})
+      .then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error!.message).toContain('may be down');
+    expect(error!.message).not.toContain('Home page');
   });
 
   it('says nothing about Home when the API answered — /app/documents lands there on every instance', async () => {
@@ -148,7 +165,11 @@ describe('RawCollector failed answers', () => {
     ]);
     const collector = new RawCollector(req);
     const token = await collector.pageToken('/app/care-journeys');
-    await expect(collector.postJson('/api/care-journeys/GetCareJourneys', token, {})).rejects.toThrow(/may be down/);
+    const error = await collector
+      .postJson('/api/care-journeys/GetCareJourneys', token, {})
+      .then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error!.message).toContain('may be down');
+    expect(error!.message).not.toContain('Home page');
   });
 
   it('throws on a 200 that came from the ASP.NET error page — the November 2025 redirect dance', async () => {

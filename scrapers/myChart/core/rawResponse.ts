@@ -76,10 +76,15 @@ export class MyChartResponseError extends Error {
       `MyChart answered ${record.method} ${record.path} with ${reason}` +
         (excerpt ? `: "${excerpt}"` : '') +
         '. The request failed; nothing was read, so this is not an empty result. ' +
+        'Retry later, and if it keeps failing the instance may be down or blocking this request shape.' +
+        // Both facts, not a verdict: a Home landing plus a 500 is what an
+        // instance that does not serve the activity answers (1 of 4 real
+        // accounts, one activity), but a WAF block or a passing 500 after the
+        // same landing reads identically here, and retrying does help those.
         (notServedActivity
-          ? `GET ${notServedActivity} had landed on the Home page instead of the activity, which is how an ` +
-            'instance that does not offer this activity answers — this MyChart has no such page, so there is nothing here to read.'
-          : 'Retry later, and if it keeps failing the instance may be down or blocking this request shape.'),
+          ? ` GET ${notServedActivity} had also landed on the Home page instead of the activity, which is how an ` +
+            'instance that does not serve it answers — if this keeps failing, this MyChart most likely has no such page.'
+          : ''),
     );
     this.name = 'MyChartResponseError';
     this.method = record.method;
@@ -272,6 +277,8 @@ export class RawCollector {
     const reason = describeResponseFailure(response, text, config);
     if (reason) record.failure = reason;
     const notServed = record.method === 'POST' && this.tokenPageLandedOnHome ? this.tokenPageLandedOnHome : undefined;
+    // An API that answered proves the activity is served, whatever its page did.
+    if (!reason && record.method === 'POST') this.tokenPageLandedOnHome = null;
     const failure = reason ? new MyChartResponseError(record, reason, excerptOf(text), notServed) : null;
     if (failure && !options.tolerateFailure) throw failure;
     return { response, body, text, failure };
