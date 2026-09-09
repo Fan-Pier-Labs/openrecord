@@ -115,7 +115,7 @@ mychart-cli --host mychart.example.org --action get_medications --mode concise
 ```
 
 `--arg mode=<mode>` means the same thing and wins when both are given. Writes,
-`search_mycharts` and `download_imaging_study` ignore it.
+`search_mycharts`, `download_imaging_study` and `get_message_attachment` ignore it.
 
 ### Public lookups — no `--host`, no credentials
 

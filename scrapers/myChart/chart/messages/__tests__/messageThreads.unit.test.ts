@@ -309,6 +309,22 @@ describe('conversationThreadProcessor', () => {
       ],
     })
   })
+
+  // The dcsId is what get_message_attachment takes, so it survives every mode
+  // (rule 5); the bytes themselves are never here.
+  it('carries each attachment\'s name and dcsId in standard and concise, never its content', () => {
+    const attachment = { type: 2, dcsId: 'WP-DCS-7', etxId: '', name: 'Nutrition plan.pdf', fileExtension: 'PDF', legacyUrlForCommunityJump: '', organizationId: '' }
+    const standard = conversationThreadProcessor.standard(envelope({
+      ...DETAILS,
+      hasAttachments: true,
+      messages: [{ ...message('MSG-001', '2026-01-10T14:30:00Z', NAMELESS_STAFF, 'See attached.'), attachments: [attachment] }],
+    }))!
+    expect(standard.hasAttachments).toBe(true)
+    expect(standard.messages[0]!.attachments).toEqual([{ name: 'Nutrition plan.pdf', fileExtension: 'PDF', dcsId: 'WP-DCS-7', type: 2 }])
+    const concise = conversationThreadProcessor.concise(standard) as { messages: Array<{ attachments: unknown }> }
+    expect(concise.messages[0]!.attachments).toEqual([{ name: 'Nutrition plan.pdf', dcsId: 'WP-DCS-7' }])
+    expect(JSON.stringify(standard)).not.toContain('etxId')
+  })
 })
 
 describe('getConversationMessages', () => {

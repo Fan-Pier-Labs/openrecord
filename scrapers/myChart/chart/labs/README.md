@@ -106,6 +106,16 @@ list for 0 and 1; a 500 for the rest, faithfully). Then per unique order key:
 `raw` is the envelope. Joining the trend and report onto the order, and deleting
 the abnormal flag, become processor work.
 
+**`reportID` names a report template, not a report.** Every result of the same
+kind posts the same one — on Mass General Brigham three procedure results years
+apart, from different providers, all carried one `reportID` and came back as
+three different reports (1 instance, 3 orders). `assumedVariables.ordId` /
+`.ordDat` are what pick the report, so the processor joins `LoadReportContent`
+back onto a result by all three. Joining on `reportID` alone gave every such
+result the first one's report — an old procedure note standing in for a recent
+scan, with `resultStatus: Final` and no other sign — and, for imaging, would
+have minted one order's `image_id` from another's report.
+
 The `GetDetails` body, per order:
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
@@ -146,7 +156,7 @@ The `GetDetails` body, per order:
 | `results[].resultNote.contentAsString`, `.signingInstantTimestamp` | Provider's note to the patient | — | ✓ | ✓ (text) | The clinician's interpretation, written for the patient. |
 | `results[].resultLetter.contentAsString`, `.signingInstantTimestamp` | Result letter | — | ✓ | ✓ (text) | Same standing as the note. |
 | `results[].providerComments[].commentText`, `.providerName`, `.commentDate` | Threaded comments | — | ✓ | — | Detail. |
-| `results[].reportDetails.reportID`, `.isDownloadablePDFReport` | Report id and PDF availability | — | ✓ | — | Detail. |
+| `results[].reportDetails.reportID`, `.isDownloadablePDFReport` | Report template id and PDF availability | — | ✓ | — | Detail. Shared by every result of a kind; see above. |
 | `results[].reportDetails.reportVars.ordId`, `.ordDat`, `.reportContext`, `.openRemotely` | Fetch variables | — | — | — | Internal. |
 | `reportContent` (joined `LoadReportContent.reportContent`) | Rendered report HTML | — | — | — | Markup stays in `raw` (rule 9). |
 | `reportContentText` | Plain text of the report | ✓ | ✓ | ✓ | Derived. The rendered report often carries what the structured fields do not (pathology, microbiology). |

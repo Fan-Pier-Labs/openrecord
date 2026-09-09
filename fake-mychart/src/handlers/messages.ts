@@ -30,6 +30,14 @@ const MAX_MESSAGE_BODY_LENGTH = 500;
  */
 const CONVERSATION_PAGE_SIZE = 5;
 
+/**
+ * Conversations `GetConversationList` answers per page, newest thread first.
+ * Measured on the one live instance with more than this many: 50, then the
+ * remainder on a second request whose `localLoadParams.loadStartInstantISO`
+ * is the first page's `oldestLoadedInstantISO`.
+ */
+const CONVERSATION_LIST_PAGE_SIZE = 50;
+
 type FakeConversation = ConversationStore['conversations'][number];
 
 function asString(v: unknown): string {
@@ -65,6 +73,37 @@ function conversationPage(conv: FakeConversation, before: string, limit: number)
   const older = before ? ordered.filter(m => m.deliveryInstantISO < before) : ordered;
   const messages = older.slice(Math.max(0, older.length - limit));
   return { messages, hasMoreMessages: messages.length < older.length };
+}
+
+/** When a thread last moved: the instant of its newest message. This is what the inbox sorts and pages on. */
+function latestInstant(conv: FakeConversation): string {
+  return conv.messages.reduce((best, m) => (m.deliveryInstantISO > best ? m.deliveryInstantISO : best), '');
+}
+
+/**
+ * One page of the inbox: the newest `limit` threads strictly older than
+ * `before` (an exclusive bound on {@link latestInstant}; empty means "now"),
+ * plus the `localSummary` the portal feeds back to ask for the next page.
+ */
+function conversationListPage(store: ConversationStore, before: string, limit: number) {
+  const ordered = [...store.conversations].sort((a, b) => latestInstant(b).localeCompare(latestInstant(a)));
+  const older = before ? ordered.filter(c => latestInstant(c) < before) : ordered;
+  const page = older.slice(0, limit);
+  return {
+    conversations: page,
+    localSummary: {
+      hasMoreConversations: page.length < older.length,
+      newestLoadedInstantISO: page.length ? latestInstant(page[0]!) : '',
+      numberLoaded: page.length,
+      oldestLoadedInstantISO: page.length ? latestInstant(page[page.length - 1]!) : '',
+      oldestSearchedInstantISO: '',
+      pagingInfo: 0,
+    },
+  };
+}
+
+function hasAttachments(conv: FakeConversation): boolean {
+  return conv.messages.some(m => (m.attachments?.length ?? 0) > 0);
 }
 
 /**
@@ -196,17 +235,24 @@ export const messagesGet: ExactRoutes = {
 };
 
 export const messagesPost: ExactRoutes = {
-  'api/conversations/getconversationlist': ({ request }) => {
+  'api/conversations/getconversationlist': async ({ request }) => {
     const store = activeConversations(request);
+    const body = await readJsonBody(request);
+    const loadParams = body.localLoadParams && typeof body.localLoadParams === 'object'
+      ? body.localLoadParams as Record<string, unknown>
+      : {};
+    const page = conversationListPage(store, asString(loadParams.loadStartInstantISO), CONVERSATION_LIST_PAGE_SIZE);
     return json(conformToShape(shapes.getConversationList, {
       ...store,
       // The listing inlines only the newest page of each thread; everything
       // older is behind GetConversationMessages.
-      conversations: store.conversations.map(conv => ({
+      conversations: page.conversations.map(conv => ({
         ...conv,
+        hasAttachments: hasAttachments(conv),
         ...conversationPage(conv, '', CONVERSATION_PAGE_SIZE),
         ...participantKeys(conv),
       })),
+      localSummary: page.localSummary,
     }));
   },
 
@@ -233,6 +279,7 @@ export const messagesPost: ExactRoutes = {
       previewText: conv.previewText,
       audience: conv.audience,
       totalMessages: conv.messages.length,
+      hasAttachments: hasAttachments(conv),
       userOverrideNames: conv.userOverrideNames,
       // Only details carries the name maps, so this is the one response that
       // lets a client turn an author's empKey / wprKey into a display name.

@@ -487,6 +487,28 @@ describe('the conversation-read endpoints that only accept `id`', () => {
     expect(olderBody.hasMoreMessages).toBe(false)
   })
 
+  it('pages GetConversationList 50 threads at a time, newest first, from an exclusive loadStartInstantISO', async () => {
+    const first = await api('/api/conversations/GetConversationList', {
+      tag: 1, localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 }, externalLoadParams: {}, searchQuery: '', PageNonce: '',
+    })
+    type Listing = { conversations: Array<{ hthId: string }>; localSummary: { hasMoreConversations: boolean; numberLoaded: number; oldestLoadedInstantISO: string; pagingInfo: number } }
+    const page1 = await first.json() as Listing
+    expect(page1.conversations).toHaveLength(50)
+    expect(page1.localSummary).toMatchObject({ hasMoreConversations: true, numberLoaded: 50, pagingInfo: 0 })
+    expect(page1.conversations[0]!.hthId).toBe('CONV-001')
+
+    const second = await api('/api/conversations/GetConversationList', {
+      tag: 1,
+      localLoadParams: { loadStartInstantISO: page1.localSummary.oldestLoadedInstantISO, loadEndInstantISO: '', pagingInfo: page1.localSummary.pagingInfo },
+      externalLoadParams: {}, searchQuery: '', PageNonce: '',
+    })
+    const page2 = await second.json() as Listing
+    expect(page2.localSummary.hasMoreConversations).toBe(false)
+    expect(page2.conversations.length).toBeGreaterThan(0)
+    const ids1 = new Set(page1.conversations.map(c => c.hthId))
+    expect(page2.conversations.some(c => ids1.has(c.hthId))).toBe(false)
+  })
+
   it('leaves author.displayName empty, so names only resolve through the users/viewers maps', async () => {
     const res = await api('/api/conversations/GetConversationDetails', { id: 'CONV-003', PageNonce: '' })
     const body = await res.json() as {
@@ -751,3 +773,4 @@ describe('insurance payer catalogue fidelity', () => {
     expect(memberOnly?.optionalFields).toEqual([])
   })
 })
+

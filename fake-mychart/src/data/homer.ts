@@ -1437,6 +1437,36 @@ export type FakeConversationMessage = {
   attachments?: FakeConversationAttachment[];
 };
 
+/**
+ * Enough threads to push the inbox past one page. Real MyChart answers
+ * `GetConversationList` 50 conversations at a time (measured on the one live
+ * instance with more than 50), so a fixture with fewer never exercises the
+ * paging a large inbox needs, and a client that read only the first page
+ * would pass against the fake and drop a patient's older threads in
+ * production. One reminder a week, older than every seeded thread — 48, so the
+ * three seeded threads make 51: one more than a page, and no more than that,
+ * because every one of them is rendered into the processor examples doc.
+ */
+const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 48 }, (_, i) => {
+  const n = i + 1;
+  const sent = new Date(Date.UTC(2025, 9, 27, 9, 0, 0) - i * 7 * 24 * 60 * 60 * 1000).toISOString().replace('.000Z', 'Z');
+  return {
+    hthId: `CONV-${String(100 + i)}`,
+    subject: `Appointment reminder ${n}`,
+    previewText: 'This is a reminder of your upcoming appointment...',
+    audience: [{ name: 'Springfield General Front Desk' }],
+    userOverrideNames: {},
+    messages: [
+      {
+        wmgId: `MSG-${String(1000 + i)}`,
+        author: { empKey: 'PROV-FRONTDESK', displayName: '' },
+        deliveryInstantISO: sent,
+        body: `This is a reminder of your upcoming appointment. Reminder ${n} of 48. Please arrive fifteen minutes early.`,
+      },
+    ],
+  };
+});
+
 export type FakeConversationThread = {
   hthId: string;
   subject: string;
@@ -1593,11 +1623,13 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
         },
       ],
     },
+    ...FILLER_THREADS,
   ],
   users: {
     'PROV-HIBBERT': { name: 'Julius Hibbert, MD' },
     'PROV-NICK': { name: 'Nick Riviera, MD' },
     'PROV-MONROE': { name: 'Marvin Monroe, MD' },
+    'PROV-FRONTDESK': { name: 'Springfield General Front Desk' },
   },
   viewers: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },
