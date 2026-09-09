@@ -77,8 +77,7 @@ export interface QuestionnairesStandard {
   completedQuestionnaires: unknown[];
 }
 
-function questionnaireOf(value: unknown): QuestionnaireStandard {
-  const q = rec(value);
+function questionnaireOf(q: Record<string, unknown>): QuestionnaireStandard {
   return {
     type: num(q.type),
     isContextSpecific: boolOrNull(q.isContextSpecific),
@@ -104,19 +103,19 @@ function assignedOf(value: unknown): AssignedQuestionnaireStandard {
     displayNameOverride: textOrNull(entry.displayNameOverride),
     isTravelScreening: boolOrNull(entry.isTravelScreening),
     context: rec(entry.context),
-    questionnaire: {
-      ...questionnaireOf(entry.questionnaire),
-      filterType: textOrNull(rec(entry.questionnaire).filterType),
-    },
+    questionnaire: assignedQuestionnaireOf(rec(entry.questionnaire)),
   };
 }
 
+function assignedQuestionnaireOf(q: Record<string, unknown>) {
+  return { ...questionnaireOf(q), filterType: textOrNull(q.filterType) };
+}
 function optionalOf(value: unknown): OptionalQuestionnaireStandard {
   const entry = rec(value);
   return {
     description: textOrNull(entry.description),
     context: rec(entry.context),
-    questionnaire: questionnaireOf(entry.questionnaire),
+    questionnaire: questionnaireOf(rec(entry.questionnaire)),
   };
 }
 
