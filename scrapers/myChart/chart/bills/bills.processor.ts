@@ -156,7 +156,7 @@ export interface BillingStatementStandard {
   IsPaperless: boolean | null;
   ServiceDateStart: string | number | null;
   ServiceDateEnd: string | number | null;
-  /** Handle for a future statement-PDF capability. */
+  /** The handle `download_billing_statement` takes. */
   RecordID: string | null;
 }
 
@@ -483,6 +483,7 @@ export const billingProcessor: Processor<BillingStandard> = {
           Description: s.Description,
           StatementAmountDisplay: s.StatementAmountDisplay,
           IsRead: s.IsRead,
+          RecordID: s.RecordID,
         })),
         payments: a.payments.map((p) => ({
           FormattedDateDisplay: p.FormattedDateDisplay,

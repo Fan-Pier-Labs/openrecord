@@ -131,6 +131,15 @@ you keep. A saving call shows no pictures in the chat, just a confirmation of
 where the files went. Nothing is overwritten, so saving the same study twice
 leaves `XR_CHEST` and `XR_CHEST-2`.
 
+### Billing statements
+
+`download_billing_statement` is the other tool that produces a file: the PDF
+of one statement or itemized bill, picked by the `RecordID` that `get_billing`
+lists beside each statement. A PDF has no inline form in a tool result, so it
+is written to your Downloads folder on every call (`Statement_20260115.pdf`,
+never overwriting — a second copy gets `-2`) and Claude gets the path back
+along with the statement's date and amount.
+
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which
 [`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
