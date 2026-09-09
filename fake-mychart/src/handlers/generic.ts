@@ -9,7 +9,6 @@ import { prefix, type ExactRoutes, type Handler, type PatternRoute } from './typ
  * about is that the token is present.
  */
 export const genericGet: ExactRoutes = {
-  'questionnaire': () => html(genericTokenPage('MyChart')),
   'community/manage': () => html(genericTokenPage('MyChart')),
 };
 

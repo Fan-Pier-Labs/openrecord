@@ -45,7 +45,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_letter_details` | 483 | 460 | 475 | 475 |
 | `get_documents` | 367 | 367 | 329 | 329 |
 | `get_upcoming_orders` | 557 | 427 | 381 | 353 |
-| `get_questionnaires` | 260 | 260 | 247 | 247 |
+| `get_questionnaires` | 1634 | 1455 | 1957 | 538 |
 | `get_care_journeys` | 228 | 228 | 264 | 264 |
 | `get_activity_feed` | 3220 | 1119 | 1429 | 549 |
 | `get_education_materials` | 862 | 463 | 391 | 151 |
@@ -13834,76 +13834,327 @@ Standing/upcoming orders — labs, imaging and procedures the care team has orde
 Open and completed questionnaires / health assessments.
 
 <details>
-<summary><code>mode: raw</code> (260 chars)</summary>
+<summary><code>mode: raw</code> (1634 chars)</summary>
 
 ```json
 {
-  "questionnaires": [
+  "assignedQuestionnaires": [
     {
-      "id": "QUEST-001",
-      "name": "PHQ-9 Depression Screening",
-      "status": "Completed",
-      "dueDate": "01/10/2026",
-      "completedDate": "01/10/2026"
-    },
-    {
-      "id": "QUEST-002",
-      "name": "Health Risk Assessment",
-      "status": "Pending",
-      "dueDate": "04/15/2026",
-      "completedDate": ""
+      "dueDateISO": "2026-04-15",
+      "apptDateISO": "2026-04-22",
+      "isHistory": false,
+      "seriesData": {
+        "seriesName": "",
+        "pastResponses": [],
+        "isSeriesForSurgery": false,
+        "surgeryData": {
+          "provider": "",
+          "procedureName": "",
+          "procedureDateISO": "",
+          "laterality": ""
+        },
+        "assigningEncounterIdentifier": "",
+        "isSeriesForToDo": false
+      },
+      "hxData": {
+        "hxContext": "",
+        "hxContextID": ""
+      },
+      "displayNameOverride": "",
+      "isTravelScreening": false,
+      "isProxyAccessing": false,
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "filterType": "",
+        "isContextSpecific": false,
+        "preText": "Please finish this before your visit with Dr. Hibbert.",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "Annual Health Risk Assessment",
+        "id": "QNR-1041",
+        "name": "Annual Health Risk Assessment"
+      }
     }
-  ]
+  ],
+  "optionalQuestionnaires": [
+    {
+      "description": "Tell us how you have been feeling over the past two weeks.",
+      "disablePastResponse": false,
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": "",
+          "from": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "isContextSpecific": false,
+        "preText": "",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "Mood and Wellbeing Check-In",
+        "id": "QNR-2088",
+        "name": "Mood and Wellbeing Check-In"
+      }
+    }
+  ],
+  "questionnaireContextLists": [],
+  "completedQuestionnaires": [],
+  "showSeriesText": false,
+  "showBackButton": false,
+  "callingApp": 0,
+  "showPretext": false,
+  "messageQnrExpired": false,
+  "sourceActivity": 0
 }
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (247 chars)</summary>
+<summary><code>mode: standard</code> (1957 chars)</summary>
 
-## questionnaires (2)
+## assignedQuestionnaires (1)
 
-| id | name | status | dueDate | completedDate |
-| - | - | - | - | - |
-| QUEST-001 | PHQ-9 Depression Screening | Completed | 01/10/2026 | 01/10/2026 |
-| QUEST-002 | Health Risk Assessment | Pending | 04/15/2026 | (empty) |
+### assignedQuestionnaires 1
+
+- **dueDateISO**: 2026-04-15
+- **apptDateISO**: 2026-04-22
+- **isHistory**: false
+
+#### seriesData
+
+- **seriesName**: (empty)
+- **pastResponses**: (none)
+- **isSeriesForSurgery**: false
+
+##### surgeryData
+
+- **provider**: (empty)
+- **procedureName**: (empty)
+- **procedureDateISO**: (empty)
+- **laterality**: (empty)
+- **assigningEncounterIdentifier**: (empty)
+- **isSeriesForToDo**: false
+
+#### hxData
+
+- **hxContext**: (empty)
+- **hxContextID**: (empty)
+- **displayNameOverride**: (empty)
+- **isTravelScreening**: false
+
+#### context
+
+- **contextType**: 0
+- **contextIdentifier**: (empty)
+
+##### extraContextInfo
+
+- **ltkID**: (empty)
+- **ltkInstant**: (empty)
+- **larID**: (empty)
+- **cjnID**: (empty)
+- **isPreadmission**: false
+- **rshID**: (empty)
+
+#### questionnaire
+
+- **type**: 0
+- **isContextSpecific**: false
+- **preText**: Please finish this before your visit with Dr. Hibbert.
+- **postText**: (empty)
+- **isPreTextSmartText**: false
+- **isPostTextSmartText**: false
+- **status**: 0
+- **rootName**: Annual Health Risk Assessment
+- **id**: QNR-1041
+- **name**: Annual Health Risk Assessment
+- **filterType**: (empty)
+
+## optionalQuestionnaires (1)
+
+### optionalQuestionnaires 1
+
+- **description**: Tell us how you have been feeling over the past two weeks.
+
+#### context
+
+- **contextType**: 0
+- **contextIdentifier**: (empty)
+
+##### extraContextInfo
+
+- **ltkID**: (empty)
+- **ltkInstant**: (empty)
+- **larID**: (empty)
+- **cjnID**: (empty)
+- **isPreadmission**: false
+- **rshID**: (empty)
+- **from**: (empty)
+
+#### questionnaire
+
+- **type**: 0
+- **isContextSpecific**: false
+- **preText**: (empty)
+- **postText**: (empty)
+- **isPreTextSmartText**: false
+- **isPostTextSmartText**: false
+- **status**: 0
+- **rootName**: Mood and Wellbeing Check-In
+- **id**: QNR-2088
+- **name**: Mood and Wellbeing Check-In
+
+- **questionnaireContextLists**: (none)
+- **completedQuestionnaires**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (247 chars)</summary>
+<summary><code>mode: concise</code> (538 chars)</summary>
 
-## questionnaires (2)
+## assignedQuestionnaires (1)
 
-| id | name | status | dueDate | completedDate |
-| - | - | - | - | - |
-| QUEST-001 | PHQ-9 Depression Screening | Completed | 01/10/2026 | 01/10/2026 |
-| QUEST-002 | Health Risk Assessment | Pending | 04/15/2026 | (empty) |
+### assignedQuestionnaires 1
+
+- **dueDateISO**: 2026-04-15
+- **displayNameOverride**: (empty)
+
+#### questionnaire
+
+- **id**: QNR-1041
+- **name**: Annual Health Risk Assessment
+- **status**: 0
+
+## optionalQuestionnaires (1)
+
+### optionalQuestionnaires 1
+
+- **description**: Tell us how you have been feeling over the past two weeks.
+
+#### questionnaire
+
+- **id**: QNR-2088
+- **name**: Mood and Wellbeing Check-In
+- **status**: 0
+
+- **questionnaireContextLists**: (none)
+- **completedQuestionnaires**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (260 chars)</summary>
+<summary><code>mode: json</code> (1455 chars)</summary>
 
 ```json
 {
-  "questionnaires": [
+  "assignedQuestionnaires": [
     {
-      "id": "QUEST-001",
-      "name": "PHQ-9 Depression Screening",
-      "status": "Completed",
-      "dueDate": "01/10/2026",
-      "completedDate": "01/10/2026"
-    },
-    {
-      "id": "QUEST-002",
-      "name": "Health Risk Assessment",
-      "status": "Pending",
-      "dueDate": "04/15/2026",
-      "completedDate": ""
+      "dueDateISO": "2026-04-15",
+      "apptDateISO": "2026-04-22",
+      "isHistory": false,
+      "seriesData": {
+        "seriesName": "",
+        "pastResponses": [],
+        "isSeriesForSurgery": false,
+        "surgeryData": {
+          "provider": "",
+          "procedureName": "",
+          "procedureDateISO": "",
+          "laterality": ""
+        },
+        "assigningEncounterIdentifier": "",
+        "isSeriesForToDo": false
+      },
+      "hxData": {
+        "hxContext": "",
+        "hxContextID": ""
+      },
+      "displayNameOverride": "",
+      "isTravelScreening": false,
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "isContextSpecific": false,
+        "preText": "Please finish this before your visit with Dr. Hibbert.",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "Annual Health Risk Assessment",
+        "id": "QNR-1041",
+        "name": "Annual Health Risk Assessment",
+        "filterType": ""
+      }
     }
-  ]
+  ],
+  "optionalQuestionnaires": [
+    {
+      "description": "Tell us how you have been feeling over the past two weeks.",
+      "context": {
+        "contextType": 0,
+        "contextIdentifier": "",
+        "extraContextInfo": {
+          "ltkID": "",
+          "ltkInstant": "",
+          "larID": "",
+          "cjnID": "",
+          "isPreadmission": false,
+          "rshID": "",
+          "from": ""
+        }
+      },
+      "questionnaire": {
+        "type": 0,
+        "isContextSpecific": false,
+        "preText": "",
+        "postText": "",
+        "isPreTextSmartText": false,
+        "isPostTextSmartText": false,
+        "status": 0,
+        "rootName": "Mood and Wellbeing Check-In",
+        "id": "QNR-2088",
+        "name": "Mood and Wellbeing Check-In"
+      }
+    }
+  ],
+  "questionnaireContextLists": [],
+  "completedQuestionnaires": []
 }
 ```
 

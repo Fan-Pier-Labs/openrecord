@@ -2,18 +2,28 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { questionnairesProcessor, type QuestionnairesStandard } from './questionnaires.processor';
 
-export type { QuestionnairesStandard } from './questionnaires.processor';
+export type {
+  QuestionnairesStandard,
+  QuestionnaireStandard,
+  AssignedQuestionnaireStandard,
+  OptionalQuestionnaireStandard,
+  QuestionnaireContextListStandard,
+} from './questionnaires.processor';
 export { questionnairesProcessor } from './questionnaires.processor';
 
 /**
- * `GET /Questionnaire` for the token, then `POST /Questionnaire/GetQuestionnaireList`.
- * `scrapers/myChart/api-surface-gaps.md` also saw a React-era `/api/questionnaire/GetQuestionnaireList`
- * return data on a probed account, so the endpoint itself may change.
+ * `GET /app/questionnaires` for the token, then `POST /api/questionnaire/GetQuestionnaireList`.
+ *
+ * The legacy `/Questionnaire` activity this used to call is dead — it answers
+ * with Epic's `/Home/Error?code=15` page on all four accounts checked, so the
+ * token fetch was the request that failed. The React route answers 200 with the
+ * list on the same four, and Epic's own client posts it no request data at all,
+ * so the body is `{}`. See README.md.
  */
 export async function fetchQuestionnairesRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
-  const token = await collector.pageToken('/Questionnaire');
-  await collector.postJson('/Questionnaire/GetQuestionnaireList', token, {});
+  const token = await collector.pageToken('/app/questionnaires');
+  await collector.postJson('/api/questionnaire/GetQuestionnaireList', token, {});
   return collector.toRaw();
 }
 
