@@ -126,9 +126,13 @@ describe('getVitals', () => {
   it('displayValue converts by display unit and passes unknown units through', () => {
     expect(displayValue(2400, 'lbs')).toBe('150')
     expect(displayValue(2400, 'LB')).toBe('150')
-    expect(displayValue(2400, 'kg')).toBe('68')
     expect(displayValue(74, 'ft')).toBe(`6' 2"`)
-    expect(displayValue(74, 'cm')).toBe('188')
+    expect(displayValue(71.96, 'ft')).toBe(`6' 0"`)
+    expect(displayValue(59.97, 'ft')).toBe(`5' 0"`)
+    // No metric instance has been captured, so kg / cm are not modelled: the
+    // number passes through as sent rather than as a guess.
+    expect(displayValue(2400, 'kg')).toBe('2400')
+    expect(displayValue(74, 'cm')).toBe('74')
     expect(displayValue(98.6, '°F')).toBe('98.6')
     expect(displayValue(88, null)).toBe('88')
     expect(displayValue(88, undefined)).toBe('88')

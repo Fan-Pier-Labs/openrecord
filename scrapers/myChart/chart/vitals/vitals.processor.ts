@@ -66,21 +66,20 @@ function oneDecimal(n: number): string {
  * temperature in °F — while `unitsDisplayName` names the unit the MyChart UI
  * shows. Verified on a real instance: a 150 lb weight arrives as 2400 beside
  * `lbs`, a 5' 10" height as 70 beside `ft` (README). Convert into the display
- * unit; an unrecognised unit passes the number through untouched.
+ * unit. Any other unit — including `kg` / `cm`, which no captured instance has
+ * sent — passes the number through untouched rather than modelling a guess.
  */
 export function displayValue(n: number, unitsDisplayName: string | null | undefined): string {
   switch ((unitsDisplayName ?? '').trim().toLowerCase()) {
     case 'lbs':
     case 'lb':
       return oneDecimal(n / 16);
-    case 'kg': // unverified: no metric instance captured yet
-      return oneDecimal(n * 0.028349523125);
     case 'ft': {
-      const feet = Math.floor(n / 12);
-      return `${feet}' ${oneDecimal(n - feet * 12)}"`;
+      // Round the total first so 71.96 in is 6' 0", not 5' 12".
+      const total = Number(n.toFixed(1));
+      const feet = Math.floor(total / 12);
+      return `${feet}' ${oneDecimal(total - feet * 12)}"`;
     }
-    case 'cm': // unverified: no metric instance captured yet
-      return oneDecimal(n * 2.54);
     default:
       return String(n);
   }

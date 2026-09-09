@@ -49,8 +49,11 @@ they are worth knowing before changing anything here.
   Temperature carries `units: "11"`, `unitsDisplayName: "°F"` and is already °F. Read as-is
   that is a 2400 lb, 70-foot patient. The processor converts `numericValue` into the row's
   `unitsDisplayName` for the derived `value` (`150`, `5' 10"`) and leaves `numericValue`
-  untouched. `kg` / `cm` are converted from the same base units but **unverified** — no
-  metric instance has been captured.
+  untouched. **`kg` / `cm` are not converted**: no metric instance has been captured, so
+  whether a metric row keeps the imperial base unit or sends kilograms outright is unknown,
+  and the number passes through as sent. The `units` code (`6` lbs, `7` ft, `11` °F here)
+  is what a future metric capture should be checked against — the processor keys on the
+  display name only because the two were 1:1 on every captured row.
 
 - **`units` / `unitsDisplayName` are present only on rows that have a unit.** Weight, Height,
   Temperature and Blood Pressure (`mmHg`, no `units` code) carry them; Pulse, Respirations
