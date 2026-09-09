@@ -648,6 +648,33 @@ for (const mode of MOUNT_MODES) {
       expect(result.accounts[0]!.visits.length).toBeGreaterThan(0)
     }, 30_000)
 
+    it('hydrates the lazy-loaded charge rows instead of reporting their placeholder $0.00', async () => {
+      const visits = (await getBillingHistory(session)).accounts[0]!.visits
+
+      // GetVisits returns these two as stubs: "Visit at " and $0.00 in every
+      // amount column. GetMoreVisits is what turns them into real charges.
+      const hydrated = visits.filter((v) => v.StartDateDisplay === 'Mar 14, 2025' || v.StartDateDisplay === 'Aug 2, 2024')
+      expect(hydrated).toHaveLength(2)
+      expect(hydrated.map((v) => v.ChargeAmount).sort((a, b) => String(a).localeCompare(String(b)))).toEqual(['$325.00', '$450.00'])
+      for (const v of hydrated) expect(v.Description).not.toBe('Visit at ')
+
+      // Nothing anywhere still carries the fabricated placeholder.
+      expect(JSON.stringify(visits)).not.toContain('Visit at ')
+
+      // The line items come with it, and the CPT code is readable text rather
+      // than the markup MyChart buries it in.
+      const pt = hydrated.find((v) => v.StartDateDisplay === 'Mar 14, 2025')!
+      expect(pt.ProcedureList.map((p) => p.DescriptionText)).toContain('Therapeutic Exercise - 97110 (CPT®)')
+      expect(JSON.stringify(pt)).not.toContain('<span')
+      expect(pt.CoverageInfoList[0]!.Copay).toBe('$90.00')
+
+      // Every row is marked loaded on a healthy read, so a caller can tell
+      // this from the failure case where a stub survives.
+      const account = (await getBillingHistory(session)).accounts[0]!
+      expect(account.unhydratedVisits).toBe(0)
+      expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
+    }, 30_000)
+
     it('getImagingResults returns X-ray and CT studies with report text', async () => {
       const result = await getImagingResults(session)
       expect(result.orders.length).toBeGreaterThanOrEqual(2)

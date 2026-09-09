@@ -13,10 +13,16 @@
  * double-counts (#380). They are merged most-specific-first and
  * de-duplicated on (`HospitalAccountId`, `StartDate`, `Description`,
  * `SelfAmountDueRaw`), with `category` naming the list a row came from.
+ *
+ * `GetVisits` also pages, returning the rows past the first page unhydrated
+ * and priced at a fabricated `"$0.00"`. The scraper posts those back to
+ * `GetMoreVisits`; {@link hydratedRows} collects the answers and the merge
+ * swaps each stub for its real row, so no caller ever sees the placeholder.
  */
 
 import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
+import { htmlToText } from '../../processors/htmlText';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
 import { parseBillingAccountsHtml, parsePaymentPath } from './summaryHtml';
 import type { BillingAccount } from './types';
@@ -55,7 +61,13 @@ export interface BillingPaymentStandard {
 }
 
 export interface BillingProcedureStandard {
-  Description: string | null;
+  /**
+   * Derived: `Description` with its markup stripped (rule 9). MyChart wraps
+   * the procedure code in the description — `"Office Visit, Established Pat -
+   * <span class='subtlecolor'>99213 (CPT®)</span>"` — so the CPT code only
+   * reaches a reader as text if the span is converted rather than passed on.
+   */
+  DescriptionText: string | null;
   Amount: string | null;
   SelfAmountDue: string | null;
   InsuranceAmountDue: string | null;
@@ -92,6 +104,19 @@ export interface BillingCoverageInfoStandard {
 export interface BillingVisitStandard {
   /** Derived: which `GetVisits` list the row came from. */
   category: BillingVisitCategory;
+  /**
+   * Derived: `false` when this row is STILL the unhydrated stub MyChart paged
+   * out — the scraper posts every stub to `GetMoreVisits`, so this is `false`
+   * only when that did not happen or did not work (no antiforgery token, a
+   * 5xx or WAF page, a batch that returned nothing new, a handle that did not
+   * round-trip).
+   *
+   * It matters because a stub's amounts are all the string `"$0.00"`, which
+   * reads exactly like a settled visit. Without this marker the failure path
+   * would reintroduce the silent undercount the hydration exists to remove.
+   * `true` on every row that carries real numbers.
+   */
+  detailLoaded: boolean;
   StartDateDisplay: string | null;
   DateRangeDisplay: string | null;
   Description: string | null;
@@ -175,6 +200,12 @@ export interface BillingAccountStandard {
   paymentUrl: string | null;
   /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
   visits: BillingVisitStandard[];
+  /**
+   * Derived: how many of `visits` are still unhydrated stubs, whose amounts
+   * are therefore placeholders rather than balances. Zero on a healthy read;
+   * non-zero means any sum over this account's charges is an undercount.
+   */
+  unhydratedVisits: number;
   VisitListAmount: string | null;
   BadDebtVisitListAmount: string | null;
   PaymentPlanVisitListAmount: string | null;
@@ -222,6 +253,40 @@ function scalarOrNull(value: unknown): string | number | null {
   return typeof value === 'string' || typeof value === 'number' ? value : null;
 }
 
+/**
+ * Whether `GetVisits` populated a charge row, read off `LevelOfDetailLoaded`.
+ *
+ * Epic pages this endpoint and lazy-loads the rows past the first page. An
+ * unhydrated row is not empty, it is fabricated: `Description` is the
+ * `"{VisitType} at {Facility}"` template with both slots blank, the procedure
+ * and coverage lists are null, and every amount is the string `"$0.00"` even
+ * on a visit charged thousands. The scraper posts those rows back to
+ * `GetMoreVisits` and this merges the answers in, so a caller sees real
+ * money; this predicate is how both sides agree on what still needs filling.
+ *
+ * Levels observed on the wire: `0` on every stub, `2` on every populated row.
+ */
+export function isStubRow(row: unknown): boolean {
+  return num(rec(row).LevelOfDetailLoaded) === 0;
+}
+
+/**
+ * The hydrated rows from every `GetMoreVisits` answer, by `HospitalAccountId`
+ * — the encrypted handle a stub is posted back under and comes home with.
+ */
+function hydratedRows(raw: RawResponse): Map<string, Record<string, unknown>> {
+  const byAccount = new Map<string, Record<string, unknown>>();
+  for (const record of findRequests(raw, 'GetMoreVisits')) {
+    if (!answered(record)) continue;
+    for (const row of list(rec(rec(record.body).Data).UnifiedVisitList)) {
+      const r = rec(row);
+      const har = text(r.HospitalAccountId);
+      if (har && !isStubRow(r)) byAccount.set(har, r);
+    }
+  }
+  return byAccount;
+}
+
 export function payment(value: unknown): BillingPaymentStandard {
   const p = rec(value);
   const receipt = p.Receipt === null || p.Receipt === undefined ? null : rec(p.Receipt);
@@ -237,8 +302,9 @@ export function payment(value: unknown): BillingPaymentStandard {
 
 function procedure(value: unknown): BillingProcedureStandard {
   const p = rec(value);
+  const description = textOrNull(p.Description);
   return {
-    Description: textOrNull(p.Description),
+    DescriptionText: description === null ? null : htmlToText(description),
     Amount: textOrNull(p.Amount),
     SelfAmountDue: textOrNull(p.SelfAmountDue),
     InsuranceAmountDue: textOrNull(p.InsuranceAmountDue),
@@ -285,6 +351,7 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
   const agency = rec(v.AgencyInformation);
   return {
     category,
+    detailLoaded: !isStubRow(v),
     StartDateDisplay: textOrNull(v.StartDateDisplay),
     DateRangeDisplay: textOrNull(v.DateRangeDisplay),
     Description: textOrNull(v.Description),
@@ -332,13 +399,25 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
   };
 }
 
-/** The nine `GetVisits` lists as one, most specific category first, de-duplicated. */
-export function mergeVisitLists(data: Record<string, unknown>): BillingVisitStandard[] {
+/**
+ * The nine `GetVisits` lists as one, most specific category first,
+ * de-duplicated — with every stub replaced by the row `GetMoreVisits`
+ * returned for it.
+ *
+ * The swap happens before de-duplication because a stub and its hydrated self
+ * do not look alike: the identity includes `Description` and
+ * `SelfAmountDueRaw`, which are exactly the fields hydration fills in.
+ */
+export function mergeVisitLists(
+  data: Record<string, unknown>,
+  hydrated: Map<string, Record<string, unknown>> = new Map(),
+): BillingVisitStandard[] {
   const seen = new Set<string>();
   const visits: BillingVisitStandard[] = [];
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
-      const r = rec(row);
+      let r = rec(row);
+      if (isStubRow(r)) r = hydrated.get(text(r.HospitalAccountId)) ?? r;
       const identity = `${text(r.HospitalAccountId)}|${num(r.StartDate) ?? ''}|${text(r.Description)}|${num(r.SelfAmountDueRaw) ?? ''}`;
       if (seen.has(identity)) continue;
       seen.add(identity);
@@ -387,8 +466,9 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
   });
 }
 
-function account(raw: RawResponse, source: BillingAccount): BillingAccountStandard {
+function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string, Record<string, unknown>>): BillingAccountStandard {
   const data = rec(rec(accountRequest(raw, source, 'GetVisits')?.body).Data);
+  const visits = mergeVisitLists(data, hydrated);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
@@ -408,7 +488,8 @@ function account(raw: RawResponse, source: BillingAccount): BillingAccountStanda
     patientName: source.patientName,
     amountDueNumber: source.amountDue ?? null,
     paymentUrl: paymentPathFor(raw, source),
-    visits: mergeVisitLists(data),
+    visits,
+    unhydratedVisits: visits.filter((v) => !v.detailLoaded).length,
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
     PaymentPlanVisitListAmount: textOrNull(data.PaymentPlanVisitListAmount),
@@ -452,7 +533,8 @@ function paymentPathFor(raw: RawResponse, source: BillingAccount): string | null
 export const billingProcessor: Processor<BillingStandard> = {
   standard(raw: RawResponse): BillingStandard {
     const summary = text(findRequest(raw, '/Billing/Summary')?.body);
-    const accounts = parseBillingAccountsHtml(summary).map((source) => account(raw, source));
+    const hydrated = hydratedRows(raw);
+    const accounts = parseBillingAccountsHtml(summary).map((source) => account(raw, source, hydrated));
     const cents = accounts.reduce((sum, a) => sum + Math.round((a.amountDueNumber ?? 0) * 100), 0);
     return { totalDue: cents / 100, accounts };
   },
@@ -463,7 +545,9 @@ export const billingProcessor: Processor<BillingStandard> = {
         guarantorNumber: a.guarantorNumber,
         patientName: a.patientName,
         amountDueNumber: a.amountDueNumber,
+        unhydratedVisits: a.unhydratedVisits,
         visits: a.visits.map((v) => ({
+          detailLoaded: v.detailLoaded,
           StartDateDisplay: v.StartDateDisplay,
           DateRangeDisplay: v.DateRangeDisplay,
           Description: v.Description,

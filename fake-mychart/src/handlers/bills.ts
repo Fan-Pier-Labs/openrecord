@@ -5,6 +5,25 @@ import { billingDetailsPage, billingSummaryPage } from '@/lib/html';
 import { html, json } from './respond';
 import { prefix, type ExactRoutes, type PatternRoute } from './types';
 
+/**
+ * `GetMoreVisits` — how Epic hydrates the charge rows `GetVisits` returned as
+ * stubs. The real endpoint takes `listOfAccounts[i].EncAccountID` (the
+ * encrypted `HospitalAccountId` off the stub) form-encoded, and answers with
+ * `Data.UnifiedVisitList` holding those rows populated: real description,
+ * real amounts, `LevelOfDetailLoaded: 2`.
+ *
+ * Serving this is what stops a scraper from reporting a stub's fabricated
+ * `"$0.00"` as a settled balance — the fixture's stubs exist to be hydrated,
+ * so the fake has to hydrate them.
+ */
+function hydrateRequested(body: string, hydrated: readonly Record<string, unknown>[]) {
+  const params = new URLSearchParams(body);
+  const asked = new Set(
+    [...params.entries()].filter(([k]) => k.endsWith('.EncAccountID')).map(([, v]) => v),
+  );
+  return hydrated.filter((r) => asked.has(String(r.HospitalAccountId ?? '')));
+}
+
 export const billsGet: ExactRoutes = {
   'billing/summary': ({ ds }) => html(billingSummaryPage(ds.billingSummary)),
   'billing/details': ({ ds }) => html(billingDetailsPage(ds.billingEncId)),
@@ -53,3 +72,10 @@ export const billsPost: ExactRoutes = {
     return json(conformToShape(shapes.getBenefitsSummary, card ?? { noCoverageAvailable: true }));
   },
 };
+
+export const billsPostPatterns: readonly PatternRoute[] = [
+  prefix('billing/details/getmorevisits', async ({ request, ds }) => {
+    const rows = hydrateRequested(await request.text(), ds.billingHydratedVisits ?? []);
+    return json(conformToShape(shapes.billingGetVisits, { Success: true, Data: { UnifiedVisitList: rows } }));
+  }),
+];
