@@ -127,6 +127,31 @@ export interface Capability {
    * capability — they just post-process `run`'s output.
    */
   rendersMedia?: boolean;
+  /**
+   * True when `run` returns one finished {@link FilePayload} — bytes plus a
+   * safe file name and MIME type — rather than JSON. Unlike
+   * {@link rendersMedia} there is nothing to decode; each client only decides
+   * where the file goes (the MCPB saves it to Downloads and inlines an image,
+   * the CLI writes it under `--output`, the mobile app shows an image inline).
+   * Clients branch on this flag, never on the id, exactly like `rendersMedia`.
+   */
+  returnsFile?: boolean;
+}
+
+/**
+ * What a {@link Capability.returnsFile} capability's `run` returns. A
+ * capability extends it with what it knows about the file (a message
+ * attachment carries its conversation and `dcsId`); clients pass those extra
+ * fields through in the summary they show beside the saved path.
+ */
+export interface FilePayload {
+  /**
+   * A basename safe to create under any directory, with its extension —
+   * `safeFileName` in `scrapers/myChart/core/safeFileName.ts` makes one.
+   */
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
 }
 
 /**

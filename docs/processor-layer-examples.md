@@ -32,8 +32,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
 | `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
 | `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
-| `get_messages` | 8224 | 4413 | 5523 | 3373 |
-| `get_message_thread` | 3424 | 1489 | 1807 | 997 |
+| `get_messages` | 9028 | 4871 | 6050 | 4005 |
+| `get_message_thread` | 3424 | 1489 | 1807 | 1076 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 40587 | 3530 | 4175 | 1087 |
@@ -10657,7 +10657,7 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 Inbox conversations with the care team.
 
 <details>
-<summary><code>mode: raw</code> (8224 chars)</summary>
+<summary><code>mode: raw</code> (9028 chars)</summary>
 
 ```json
 {
@@ -10783,6 +10783,39 @@ Inbox conversations with the care team.
             "wprKey": "WPR-HOMER"
           },
           "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        },
+        {
+          "wmgId": "MSG-006",
+          "isUnread": false,
+          "deliveryInstantISO": "2025-12-16T08:05:00Z",
+          "body": "<div class=\"fmtConv\" style=\"line-height: normal; font-family: Arial; widows: 1; orphans: 1;\"><div data-paragraph=\"1\"><span style=\"font-size: 1.083333rem; font-family: Arial, monospace; color: #000000;\" lang=\"en\">Attached my insurance card and the coverage letter, as requested.</span></div></div>",
+          "author": {
+            "displayName": "",
+            "empKey": "",
+            "wprKey": "WPR-HOMER"
+          },
+          "attachments": [
+            {
+              "type": 2,
+              "dcsId": "WP-DCS-COVERAGE",
+              "etxId": "",
+              "name": "proof of coverage.pdf",
+              "fileExtension": "PDF",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            },
+            {
+              "type": 2,
+              "dcsId": "WP-DCS-CARD",
+              "etxId": "",
+              "name": "insurance card.png",
+              "fileExtension": "PNG",
+              "legacyUrlForCommunityJump": "",
+              "organizationId": ""
+            }
+          ],
           "tasks": [],
           "suggestedActions": []
         }
@@ -10941,28 +10974,14 @@ Inbox conversations with the care team.
       "outOfContactContext": 0,
       "outOfContactContextString": "",
       "photoUrl": "",
-      "providerId": "",
-      "organizationId": ""
-    }
-  },
-  "viewers": {
-    "WPR-HOMER": {
-      "wprId": "",
-      "name": "Homer Simpson",
-      "isSelf": true,
-      "isShown": false,
-      "isSelected": false,
-      "organizationId": ""
-    }
-  },
-  "externalSummaries": {}
-}
+    
+… (truncated; 280 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (5523 chars)</summary>
+<summary><code>mode: standard</code> (6050 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -11067,7 +11086,7 @@ Your cholesterol levels are concerning.
 - **hasTasks**: false
 - **messageType**: (empty)
 
-#### messages (2)
+#### messages (3)
 
 ##### messages 1
 
@@ -11100,6 +11119,29 @@ Your cholesterol levels are concerning.
 - **empKey**: (empty)
 - **wprKey**: WPR-HOMER
 - **attachments**: (none)
+- **tasks**: (none)
+- **suggestedActions**: (none)
+
+##### messages 3
+
+- **wmgId**: MSG-006
+- **deliveryInstantISO**: 2025-12-16T08:05:00Z
+- **senderName**: Homer Simpson
+- **isFromPatient**: true
+- **isUnread**: false
+- **bodyText**: Attached my insurance card and the coverage letter, as requested.
+
+###### author
+
+- **empKey**: (empty)
+- **wprKey**: WPR-HOMER
+
+###### attachments (2)
+
+| name | fileExtension | dcsId |
+| - | - | - |
+| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
+| insurance card.png | PNG | WP-DCS-CARD |
 - **tasks**: (none)
 - **suggestedActions**: (none)
 
@@ -11219,7 +11261,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (3373 chars)</summary>
+<summary><code>mode: concise</code> (4005 chars)</summary>
 
 - **legacyXUnreadCount**: 0
 
@@ -11256,12 +11298,15 @@ Homer, as we discussed during your visit, I strongly recommend reducing your don
   
 Your cholesterol levels are concerning.
 
+- **attachments**: (none)
+
 ##### messages 2
 
 - **deliveryInstantISO**: 2026-01-10T15:45:00Z
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: But doc, donuts are a food group! Can't I just take more pills instead?
+- **attachments**: (none)
 
 ##### messages 3
 
@@ -11269,6 +11314,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.
+- **attachments**: (none)
 
 ### conversations 2
 
@@ -11288,7 +11334,7 @@ Your cholesterol levels are concerning.
 - **hasMoreMessages**: false
 - **previewText**: Hi-Everybody! I have great news about...
 
-#### messages (2)
+#### messages (3)
 
 ##### messages 1
 
@@ -11296,6 +11342,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Nick Riviera, MD
 - **isFromPatient**: false
 - **bodyText**: Hi-Everybody! I have great news about a new discount liposuction & lap-band procedure. Only $29.95! Results may vary.
+- **attachments**: (none)
 
 ##### messages 2
 
@@ -11303,6 +11350,21 @@ Your cholesterol levels are concerning.
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: Woohoo! Sign me up, Dr. Nick! That's cheaper than a month of donuts!
+- **attachments**: (none)
+
+##### messages 3
+
+- **deliveryInstantISO**: 2025-12-16T08:05:00Z
+- **senderName**: Homer Simpson
+- **isFromPatient**: true
+- **bodyText**: Attached my insurance card and the coverage letter, as requested.
+
+###### attachments (2)
+
+| name | fileExtension | dcsId |
+| - | - | - |
+| proof of coverage.pdf | PDF | WP-DCS-COVERAGE |
+| insurance card.png | PNG | WP-DCS-CARD |
 
 ### conversations 3
 
@@ -11330,6 +11392,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: Let's get imaging. I have placed the order; the department will reach out to schedule.
+- **attachments**: (none)
 
 ##### messages 2
 
@@ -11337,6 +11400,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield Spine Clinic
 - **isFromPatient**: false
 - **bodyText**: We have openings Thursday morning and Friday afternoon. Which works better?
+- **attachments**: (none)
 
 ##### messages 3
 
@@ -11344,6 +11408,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: Friday afternoon. Thursday is donut day at the plant.
+- **attachments**: (none)
 
 ##### messages 4
 
@@ -11351,6 +11416,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Springfield Spine Clinic
 - **isFromPatient**: false
 - **bodyText**: Booked for Friday at 2:00 PM. Please arrive fifteen minutes early.
+- **attachments**: (none)
 
 ##### messages 5
 
@@ -11358,11 +11424,12 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: Imaging looks reassuring. Keep moving gently and follow up if the pain worsens.
+- **attachments**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (4413 chars)</summary>
+<summary><code>mode: json</code> (4871 chars)</summary>
 
 ```json
 {
@@ -11478,6 +11545,32 @@ Your cholesterol levels are concerning.
             "wprKey": "WPR-HOMER"
           },
           "attachments": [],
+          "tasks": [],
+          "suggestedActions": []
+        },
+        {
+          "wmgId": "MSG-006",
+          "deliveryInstantISO": "2025-12-16T08:05:00Z",
+          "senderName": "Homer Simpson",
+          "isFromPatient": true,
+          "isUnread": false,
+          "bodyText": "Attached my insurance card and the coverage letter, as requested.",
+          "author": {
+            "empKey": "",
+            "wprKey": "WPR-HOMER"
+          },
+          "attachments": [
+            {
+              "name": "proof of coverage.pdf",
+              "fileExtension": "PDF",
+              "dcsId": "WP-DCS-COVERAGE"
+            },
+            {
+              "name": "insurance card.png",
+              "fileExtension": "PNG",
+              "dcsId": "WP-DCS-CARD"
+            }
+          ],
           "tasks": [],
           "suggestedActions": []
         }
@@ -11821,7 +11914,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (997 chars)</summary>
+<summary><code>mode: concise</code> (1076 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -11848,12 +11941,15 @@ Homer, as we discussed during your visit, I strongly recommend reducing your don
   
 Your cholesterol levels are concerning.
 
+- **attachments**: (none)
+
 ### messages 2
 
 - **deliveryInstantISO**: 2026-01-10T15:45:00Z
 - **senderName**: Homer Simpson
 - **isFromPatient**: true
 - **bodyText**: But doc, donuts are a food group! Can't I just take more pills instead?
+- **attachments**: (none)
 
 ### messages 3
 
@@ -11861,6 +11957,7 @@ Your cholesterol levels are concerning.
 - **senderName**: Julius Hibbert, MD
 - **isFromPatient**: false
 - **bodyText**: No Homer, that's not how it works. Let's schedule a nutritionist appointment. I'm also referring you to a weight management program.
+- **attachments**: (none)
 
 </details>
 
