@@ -222,9 +222,9 @@ export class RawCollector {
   readonly requests: RawRequestRecord[] = [];
   /**
    * The activity page the last {@link pageToken} asked for, when the instance
-   * redirected it to Home instead. Not a failure by itself: `/app/documents`
-   * lands on Home on every instance seen and its API still answers. Only when
-   * the API then fails does it say why — the activity is not served here.
+   * redirected it to Home instead. Not a failure by itself: a mistyped or
+   * guessed activity path lands on Home too and its API still answers. Only
+   * when the API then fails does it say why — the activity is not served here.
    */
   private tokenPageLandedOnHome: string | null = null;
 
