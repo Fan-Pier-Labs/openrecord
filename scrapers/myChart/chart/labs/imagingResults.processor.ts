@@ -19,10 +19,13 @@ import { Base64 } from 'js-base64';
 import type { RawResponse } from '../../core/rawResponse';
 import { extractFdiContext, extractFdiContextFromFdiLink, type FdiContext } from '../../eunity/imagingViewer';
 import type { Processor } from '../../processors/processor';
+import { rec, textOrNull } from '../../processors/read';
 import {
   conciseLabOrder,
   labResultsProcessor,
-  reportHtmlByReportId,
+  rawResultsForOrder,
+  reportHtmlByReport,
+  reportHtmlForResult,
   type ImageStudyStandard,
   type LabOrderConcise,
   type LabOrderStandard,
@@ -84,12 +87,13 @@ export function isImagingOrder(order: LabOrderStandard): boolean {
  * (Mass General Brigham) serve instead. The first result that yields one wins.
  */
 export function fdiContextForOrder(raw: RawResponse, order: LabOrderStandard): FdiContext | null {
-  const reports = reportHtmlByReportId(raw);
-  for (const r of order.results) {
-    const html = r.reportDetails.reportID ? reports.get(r.reportDetails.reportID) : undefined;
-    const fdi =
-      (html ? extractFdiContext(html) : null) ??
-      (r.fdiLink.redirectUrl ? extractFdiContextFromFdiLink(r.fdiLink.redirectUrl) : null);
+  const reports = reportHtmlByReport(raw);
+  // Everything the join needs is on the raw result, `fdiLink` included, so
+  // nothing here depends on `standard()` keeping `results` 1:1 with the envelope.
+  for (const rawResult of rawResultsForOrder(raw, order.key)) {
+    const html = reportHtmlForResult(reports, rawResult);
+    const redirectUrl = textOrNull(rec(rec(rawResult).fdiLink).redirectUrl);
+    const fdi = (html ? extractFdiContext(html) : null) ?? (redirectUrl ? extractFdiContextFromFdiLink(redirectUrl) : null);
     if (fdi) return fdi;
   }
   return null;

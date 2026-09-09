@@ -46,7 +46,7 @@ function emptyLike<T>(value: T): T {
  * key-by-key would leave a child's chart advertising the account holder's visit
  * identifiers with blank contents, so they collapse to `{}` instead.
  */
-const LOOKUP_MAP_KEYS = ['visitNotesByCsn', 'noteContent', 'avsByCsn', 'letterDetails'] as const;
+const LOOKUP_MAP_KEYS = ['visitNotesByCsn', 'noteContent', 'avsByCsn', 'letterDetails', 'imagingReportsByOrder'] as const;
 
 let emptyBaseCache: PatientDataset | null = null;
 

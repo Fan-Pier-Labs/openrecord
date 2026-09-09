@@ -6,7 +6,8 @@
  * `GetDetails`, a `GetMultipleHistoricalResultComponents` and, when the
  * result names a report, a `LoadReportContent`. This joins the three onto
  * the order by the request bodies the scraper posted (`orderKey`, `orderID`,
- * `reportID`) and lifts the encounter context off the `GetList` group.
+ * `reportID` + `assumedVariables`) and lifts the encounter context off the
+ * `GetList` group.
  *
  * `abnormalFlagCategoryValue` is in `raw` only: it is the literal `"Unknown"`
  * on every captured component, out-of-range ones included (#375). Neither
@@ -286,11 +287,11 @@ function studyResult(value: unknown): StudyResultStandard {
   };
 }
 
-function result(value: unknown, reportHtmlFor: (reportID: string) => string | null): LabResultStandard {
+function result(value: unknown, reports: Map<string, string>): LabResultStandard {
   const r = rec(value);
   const report = rec(r.reportDetails);
   const reportID = textOrNull(report.reportID);
-  const reportHtml = reportID ? reportHtmlFor(reportID) : null;
+  const reportHtml = reportHtmlForResult(reports, r);
   return {
     name: textOrNull(r.name),
     key: textOrNull(r.key),
@@ -339,17 +340,50 @@ function historicalComponent(value: unknown): HistoricalComponentStandard {
 }
 
 /**
- * The recorded `LoadReportContent` bodies keyed by the `reportID` the scraper
- * posted. A report that failed (non-JSON body) reads as no report.
+ * `reportID` is the id of a report *template* (Epic's LRP record), and every
+ * result of the same kind names the same one — on Mass General Brigham three
+ * procedure results years apart all posted one `reportID`. What tells
+ * the reports apart is the order in `assumedVariables`, so the join key is
+ * the whole identity the scraper posted. Keying on `reportID` alone handed
+ * every such result the first one's report.
  */
-export function reportHtmlByReportId(raw: RawResponse): Map<string, string> {
+function reportKey(reportID: string, vars: Record<string, unknown>): string {
+  return JSON.stringify([reportID, text(vars.ordId), text(vars.ordDat)]);
+}
+
+/**
+ * The recorded `LoadReportContent` bodies keyed by the report identity the
+ * scraper posted. A report that failed (non-JSON body) reads as no report.
+ */
+export function reportHtmlByReport(raw: RawResponse): Map<string, string> {
   const reports = new Map<string, string>();
   for (const request of findRequests(raw, 'LoadReportContent')) {
-    const reportID = text(rec(request.requestBody).reportID);
+    const body = rec(request.requestBody);
+    const reportID = text(body.reportID);
     const html = textOrNull(rec(request.body).reportContent);
-    if (reportID && html !== null && !reports.has(reportID)) reports.set(reportID, html);
+    if (!reportID || html === null) continue;
+    const key = reportKey(reportID, rec(body.assumedVariables));
+    if (!reports.has(key)) reports.set(key, html);
   }
   return reports;
+}
+
+/** The report HTML recorded for one raw `GetDetails` result, or null when it names none. */
+export function reportHtmlForResult(reports: Map<string, string>, rawResult: unknown): string | null {
+  const details = rec(rec(rawResult).reportDetails);
+  const reportID = text(details.reportID);
+  if (!reportID) return null;
+  return reports.get(reportKey(reportID, rec(details.reportVars))) ?? null;
+}
+
+/** The raw `GetDetails` results recorded for the order with `key`, in the order MyChart sent them. */
+export function rawResultsForOrder(raw: RawResponse, key: string | null): unknown[] {
+  if (!key) return [];
+  // Mirrors `standard()`'s `key: textOrNull(body.key) ?? orderKey`.
+  const details = findRequests(raw, 'test-results/GetDetails').find(
+    (d) => text(rec(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
+  );
+  return list(rec(details?.body).results);
 }
 
 /** The `GetList` groups across every recorded page, keyed by order key (first wins). */
@@ -408,8 +442,7 @@ export function conciseLabOrder(order: LabOrderStandard): LabOrderConcise {
 export const labResultsProcessor: Processor<LabResultsStandard> = {
   standard(raw: RawResponse): LabResultsStandard {
     const groups = resultGroupsByKey(raw);
-    const reports = reportHtmlByReportId(raw);
-    const reportHtmlFor = (reportID: string) => reports.get(reportID) ?? null;
+    const reports = reportHtmlByReport(raw);
     const trends = findRequests(raw, 'GetMultipleHistoricalResultComponents');
 
     const orders: LabOrderStandard[] = [];
@@ -432,7 +465,7 @@ export const labResultsProcessor: Processor<LabResultsStandard> = {
         isEDVisit: boolOrNull(group.isEDVisit),
         formattedAdmitDate: textOrNull(group.formattedAdmitDate),
         formattedDischargeDate: textOrNull(group.formattedDischargeDate),
-        results: list(body.results).map((r) => result(r, reportHtmlFor)),
+        results: list(body.results).map((r) => result(r, reports)),
         historicalResults,
       });
     }

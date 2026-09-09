@@ -476,7 +476,7 @@ describe('labResultsProcessor.standard', () => {
     }),
     post('/api/test-results/GetList', { groupType: 1 }, 'Server Error', 500),
     post('/api/test-results/GetDetails', { orderKey: 'order-1' }, CBC_DETAILS),
-    post('/api/report-content/LoadReportContent', { reportID: 'rpt-1' }, CBC_REPORT),
+    post('/api/report-content/LoadReportContent', { reportID: 'rpt-1', assumedVariables: { ordId: '1', ordDat: '2' } }, CBC_REPORT),
     post('/api/past-results/GetMultipleHistoricalResultComponents', { orderID: 'order-1' }, CBC_HISTORY),
     post('/api/test-results/GetDetails', { orderKey: 'order-2' }, { orderName: 'Lipid Panel', key: 'order-2', results: [] }),
     post('/api/past-results/GetMultipleHistoricalResultComponents', { orderID: 'order-2' }, null),
@@ -508,6 +508,27 @@ describe('labResultsProcessor.standard', () => {
 
     const lipids = standard.orders[1]!
     expect(lipids).toMatchObject({ orderName: 'Lipid Panel', isInpatient: false, formattedAdmitDate: null, results: [], historicalResults: {} })
+  })
+
+  it('joins each report by the order it was posted for, not by reportID alone', () => {
+    // reportID names a report template, and every result of a kind shares
+    // it; only assumedVariables says whose report came back.
+    const resultWith = (key: string, ordId: string, ordDat: string) => ({
+      ...CBC_DETAILS.results[0],
+      key,
+      reportDetails: { ...CBC_DETAILS.results[0]!.reportDetails, reportID: 'rpt-shared', reportVars: { ordId, ordDat } },
+    })
+    const shared = envelope([
+      post('/api/test-results/GetDetails', { orderKey: 'order-a' }, { orderName: 'Procedure 2023', key: 'order-a', results: [resultWith('ra', 'ord-a', 'dat-a')] }),
+      post('/api/report-content/LoadReportContent', { reportID: 'rpt-shared', assumedVariables: { ordId: 'ord-a', ordDat: 'dat-a' } }, { reportContent: '<p>Report A</p>' }),
+      post('/api/test-results/GetDetails', { orderKey: 'order-b' }, { orderName: 'Procedure 2024', key: 'order-b', results: [resultWith('rb', 'ord-b', 'dat-b')] }),
+      post('/api/report-content/LoadReportContent', { reportID: 'rpt-shared', assumedVariables: { ordId: 'ord-b', ordDat: 'dat-b' } }, { reportContent: '<p>Report B</p>' }),
+      post('/api/test-results/GetDetails', { orderKey: 'order-c' }, { orderName: 'Procedure 2025', key: 'order-c', results: [resultWith('rc', 'ord-c', 'dat-c')] }),
+      post('/api/report-content/LoadReportContent', { reportID: 'rpt-shared', assumedVariables: { ordId: 'ord-c', ordDat: 'dat-c' } }, 'Request Rejected', 200),
+    ])
+    const texts = labResultsProcessor.standard(shared).orders.map((o) => o.results[0]!.reportContentText)
+    // The third report failed, so that result has no report rather than a neighbour's.
+    expect(texts).toEqual(['Report A', 'Report B', null])
   })
 
   it('keeps every listed result field under its MyChart name', () => {
@@ -609,7 +630,7 @@ describe('labResultsProcessor.concise', () => {
 
     const raw = envelope([
       post('/api/test-results/GetDetails', { orderKey: 'order-1' }, CBC_DETAILS),
-      post('/api/report-content/LoadReportContent', { reportID: 'rpt-1' }, CBC_REPORT),
+      post('/api/report-content/LoadReportContent', { reportID: 'rpt-1', assumedVariables: { ordId: '1', ordDat: '2' } }, CBC_REPORT),
       post('/api/past-results/GetMultipleHistoricalResultComponents', { orderID: 'order-1' }, CBC_HISTORY),
     ])
     const concise = labResultsProcessor.concise(labResultsProcessor.standard(raw)) as { orders: LabOrderConcise[] }
