@@ -45,6 +45,7 @@
  */
 
 import { scraperFetch } from '../http';
+import bundledInstances from './mychart-instances.json';
 
 /** The org-picker's data source. `locale` only changes the localized names. */
 export const MYCHART_DIRECTORY_API_URL =
@@ -320,4 +321,28 @@ export async function fetchMyChartIcon(
     bytes,
     dataUri: `data:${contentType};base64,${Buffer.from(bytes).toString('base64')}`,
   };
+}
+
+/**
+ * Every mount prefix the bundled directory publishes for a host, most-listed
+ * first. A host that serves several tenants (`mychart.adventhealth.com/gracemedical`,
+ * `/shepherdshope`, …) often has no default at its root, so discovery has
+ * nowhere to land — but Epic's own picker knows every mount on it.
+ */
+export function directoryPrefixesFor(hostname: string): string[] {
+  const wanted = hostname.toLowerCase();
+  const counts = new Map<string, number>();
+  for (const instance of bundledInstances as MyChartInstanceSeed[]) {
+    let url: URL;
+    try {
+      url = new URL(instance.url);
+    } catch {
+      continue;
+    }
+    if (url.host.toLowerCase() !== wanted) continue;
+    const prefix = url.pathname.split('/').find(Boolean);
+    if (!prefix || prefix.toLowerCase() === 'authentication') continue;
+    counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1]).map(([prefix]) => prefix);
 }
