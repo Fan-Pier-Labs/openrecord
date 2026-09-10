@@ -9,11 +9,13 @@ source is not MyChart**, and the only one that needs no account at all.
 | **Source** | [`npiRegistry.ts`](npiRegistry.ts) · [`npiRegistry.processor.ts`](npiRegistry.processor.ts) |
 
 A National Provider Identifier is the 10-digit number Medicare, insurers and MyChart itself
-use to name a clinician or an organization. **MyChart is not a source for one.** The care
-team's `NationalProviderID` is named like an NPI but holds an Epic-encrypted token, and
-every other provider MyChart names (visits, notes, letters,
-message senders) carries no NPI field at all. So the way from a chart to an NPI is
-`search_npi_registry` by provider name, and `lookup_npi` is for a number you already have.
+use to name a clinician or an organization. **MyChart hands out exactly one kind:** the care
+team's provider bios, which `get_care_team` surfaces as `npi` (the care team's own
+`NationalProviderID` field is an Epic-encrypted token, not a number — see
+[`../myChart/chart/careTeam/README.md`](../myChart/chart/careTeam/README.md)). Every other
+provider MyChart names (visits, notes, letters, message senders) carries no NPI field at all.
+So `lookup_npi` takes a care-team `npi` or a number you already have, and `search_npi_registry`
+by provider name is the way from any other row of a chart to an NPI.
 
 ## Endpoint
 

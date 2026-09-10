@@ -2728,6 +2728,79 @@ export const careTeamLoad = {
   "CustomRequestAppointmentLink": ""
 } as const;
 
+// /api/providers/getproviderbioprivate
+// HAND-WRITTEN, like careTeamLoad above: transcribed from a live response on
+// one instance (7 providers, identical key sets). The React provider-details
+// page's data call, keyed by a care team row's encrypted `ID`; `npi` is the
+// provider's NPI in plain digits. Arrays that were empty on every provider
+// (`race`, `languages`, `reviews`, `educationEntries`, …) are `[]` here
+// because their element shape has never been seen.
+export const getProviderBioPrivate = {
+  "name": "",
+  "photoUrl": "",
+  "staticPhotoUrl": "",
+  "bioPath": "",
+  "bioSlug": "",
+  "bioId": "",
+  "nameLastFirst": "",
+  "providerPatientRelation": 0,
+  "gender": "",
+  "race": [],
+  "ethnicity": [],
+  "credentials": "",
+  "languages": [],
+  "clinicalInterests": [],
+  "specialtyIds": [""],
+  "locations": [
+    {
+      "id": "",
+      "recordType": 0,
+      "name": "",
+      "address": [""],
+      "discreteAddress": {
+        "streetAddress": [""],
+        "city": "",
+        "state": "",
+        "stateName": "",
+        "zip": "",
+        "country": ""
+      },
+      "coordinates": { "latitude": 0, "longitude": 0 },
+      "phoneNumber": "",
+      "accessRestrictions": [],
+      "telehealthStyles": [],
+      "isInNetwork": false,
+      "seesNewPatients": "",
+      "bioSlug": "",
+      "bioId": ""
+    }
+  ],
+  "aboutMe": "",
+  "videos": [],
+  "webPageUrl": "",
+  "npi": "",
+  "patientGroupsSeen": [],
+  "seesNewPatients": "",
+  "specialties": [""],
+  "standardFilterNames": [],
+  "nrxFilterNames": [],
+  "managedCareFilterName": "",
+  "rating": { "ratingValue": 0, "ratingMaxValue": 0, "ratingCount": 0 },
+  "reviews": [],
+  "educationEntries": [],
+  "publications": [],
+  "allPublicationsUrl": "",
+  "affiliations": [],
+  "keywords": [],
+  "boardCertifications": [],
+  "licenses": [{ "state": "", "licenseNumber": "" }],
+  "hospitalAffiliations": [],
+  "isInternal": false,
+  "completedCulturalTraining": "",
+  "specialtySearchTerms": [],
+  "id": ""
+} as const;
+
 // /community/shared/loadcommunitylinks
 export const loadCommunityLinks = {
   "IsConsentNeeded": false,

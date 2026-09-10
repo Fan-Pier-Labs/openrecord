@@ -3,7 +3,7 @@ import { getCareTeam, fetchCareTeamRaw, careTeamProcessor } from '../careTeam'
 import { MyChartRequest } from '../../../core/myChartRequest'
 import { SessionExpiredError } from '../../../core/makeAuthenticatedRequest'
 import { MissingVerificationTokenError } from '../../../core/util'
-import type { RawResponse } from '../../../core/rawResponse'
+import type { RawRequestRecord, RawResponse } from '../../../core/rawResponse'
 
 type Reply = { body: string; status?: number; headers?: Record<string, string>; throws?: Error }
 
@@ -32,7 +32,7 @@ function mockRequest(replies: Reply[]) {
 
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok" />'
 
-/** What `NationalProviderID` actually held on all 7 providers of the instance probed for it. */
+/** What `NationalProviderID` actually holds on every clinician of four live instances: the NPI, Epic-encrypted. */
 const ENCRYPTED_NPI = 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D'
 
 /** One `ProvidersList` element as four live instances return it. */
@@ -63,31 +63,51 @@ const HIBBERT = {
   CanHideProvider: false,
 }
 
+/** The bio `GetProviderBioPrivate` answers for Hibbert's `ID` — the interesting part of a 45-field response. */
+const HIBBERT_BIO = { name: 'Julius Hibbert, MD', npi: '1000000004', credentials: 'MD', licenses: [{ state: 'Illinois', licenseNumber: '1' }] }
+
 const HIBBERT_STANDARD = {
   Name: 'Julius Hibbert, MD',
   Relation: 'Primary Care Provider',
   Specialty: 'Internal Medicine',
   IsExternal: false,
   fromExternalList: false,
+  npi: '1000000004',
   ID: 'PROV-1',
-  encryptedNationalProviderID: ENCRYPTED_NPI,
   DepartmentID: 'DEP-1',
   CanMessage: true,
 }
 
+/** An outside provider as `LoadExternal` lists one: no details link, so no bio call. */
 const MONROE = { ID: 'PROV-EXT', Name: 'Marvin Monroe, MD', Specialty: 'Psychiatry', Relation: 'Outside Provider', IsExternal: true }
 
-function careTeamReplies(internal: unknown[], external: unknown[]): Reply[] {
+/** The payer entry one instance lists on the care team: the page links it, and its bio has no NPI. */
+const PAYER = { ID: 'PAYER-1', Name: 'Springfield Health Plan', Relation: 'Payer', CanViewProviderDetails: true }
+
+function careTeamReplies(internal: unknown[], external: unknown[], bios: Reply[] = [{ body: JSON.stringify(HIBBERT_BIO) }]): Reply[] {
   return [
     { body: TOKEN_PAGE },
     { body: JSON.stringify({ ProvidersList: internal, DescriptiveTitle: 'Your Care Team' }) },
     { body: JSON.stringify({ ProvidersList: external }) },
+    ...bios,
   ]
 }
 
 type Recorded = { body: unknown; status?: number; failure?: string }
 
-function envelope(load: Recorded, loadExternal?: Recorded): RawResponse {
+function bioRecord(id: string, bio: Recorded): RawRequestRecord {
+  return {
+    path: '/api/Providers/GetProviderBioPrivate',
+    method: 'POST',
+    requestBody: { id },
+    status: bio.status ?? 200,
+    contentType: 'application/json',
+    body: bio.body,
+    ...(bio.failure ? { failure: bio.failure } : {}),
+  }
+}
+
+function envelope(load: Recorded, loadExternal?: Recorded, bios: RawRequestRecord[] = [bioRecord('PROV-1', { body: HIBBERT_BIO })]): RawResponse {
   return {
     requests: [
       { path: '/Clinical/CareTeam', method: 'GET', status: 200, contentType: 'text/html', body: TOKEN_PAGE },
@@ -103,12 +123,13 @@ function envelope(load: Recorded, loadExternal?: Recorded): RawResponse {
             ...(loadExternal.failure ? { failure: loadExternal.failure } : {}),
           }]
         : []),
+      ...bios,
     ],
   }
 }
 
 describe('fetchCareTeamRaw', () => {
-  it('POSTs both endpoints with the page token and an empty JSON body, recording all three', async () => {
+  it('POSTs both list endpoints with the page token and an empty body, then one bio per linked row', async () => {
     const { req, sent } = mockRequest(careTeamReplies([HIBBERT], [MONROE]))
 
     const raw = await fetchCareTeamRaw(req)
@@ -117,13 +138,32 @@ describe('fetchCareTeamRaw', () => {
       'GET /MyChart/Clinical/CareTeam',
       'POST /MyChart/Clinical/CareTeam/Load',
       'POST /MyChart/Clinical/CareTeam/LoadExternal',
+      'POST /MyChart/api/Providers/GetProviderBioPrivate',
     ])
-    for (const call of sent.slice(1)) {
-      expect(call.headers['__RequestVerificationToken']).toBe('tok')
-      expect(call.body).toBe('{}')
-    }
-    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/CareTeam', '/Clinical/CareTeam/Load', '/Clinical/CareTeam/LoadExternal'])
+    for (const call of sent.slice(1)) expect(call.headers['__RequestVerificationToken']).toBe('tok')
+    for (const call of sent.slice(1, 3)) expect(call.body).toBe('{}')
+    // The bio takes the row's encrypted ID as sent; the page adds no other parameter.
+    expect(sent[3]!.body).toBe(JSON.stringify({ id: 'PROV-1' }))
+    expect(raw.requests.map((r) => r.path)).toEqual([
+      '/Clinical/CareTeam',
+      '/Clinical/CareTeam/Load',
+      '/Clinical/CareTeam/LoadExternal',
+      '/api/Providers/GetProviderBioPrivate',
+    ])
     expect(raw.requests[1]!.body).toEqual({ ProvidersList: [HIBBERT], DescriptiveTitle: 'Your Care Team' })
+    expect(raw.requests[3]).toMatchObject({ requestBody: { id: 'PROV-1' }, body: HIBBERT_BIO })
+  })
+
+  // The page links a row to its details only when it says so; a row it does
+  // not link (an outside provider, a row with no provider record) gets no call.
+  it('asks for a bio only where the page would link the row', async () => {
+    const { req, sent } = mockRequest(careTeamReplies(
+      [HIBBERT, { ...HIBBERT, ID: 'PROV-2', CanViewProviderDetails: false }, { ...HIBBERT, ID: 'PROV-3', HasNoProviderRecord: true }, { ...HIBBERT, ID: '' }],
+      [MONROE, { ...MONROE, ID: 'PROV-EXT-2', CanViewProviderDetails: true }],
+      [{ body: JSON.stringify(HIBBERT_BIO) }, { body: JSON.stringify({ name: 'Marvin Monroe, MD', npi: '' }) }],
+    ))
+    await fetchCareTeamRaw(req)
+    expect(sent.slice(3).map((s) => s.body)).toEqual([JSON.stringify({ id: 'PROV-1' }), JSON.stringify({ id: 'PROV-EXT-2' })])
   })
 
   // Both endpoints refuse a token-less POST, so a page with no token is an
@@ -140,6 +180,7 @@ describe('fetchCareTeamRaw', () => {
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
       { body: 'server error', status: 500 },
+      { body: JSON.stringify(HIBBERT_BIO) },
     ])
     const raw = await fetchCareTeamRaw(req)
     expect(raw.requests[2]).toMatchObject({ path: '/Clinical/CareTeam/LoadExternal', status: 500, body: 'server error' })
@@ -150,18 +191,37 @@ describe('fetchCareTeamRaw', () => {
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
       { body: '', throws: new Error('socket hang up') },
+      { body: JSON.stringify(HIBBERT_BIO) },
     ])
     const raw = await fetchCareTeamRaw(req)
-    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/CareTeam', '/Clinical/CareTeam/Load'])
+    expect(raw.requests.map((r) => r.path)).toEqual(['/Clinical/CareTeam', '/Clinical/CareTeam/Load', '/api/Providers/GetProviderBioPrivate'])
   })
 
-  it('does not swallow an expired session on the external arm', async () => {
-    const { req } = mockRequest([
+  // An id the instance cannot resolve is a 500 `{"Message":"An error has
+  // occurred."}`; recorded, so the row's npi is null and the team is intact.
+  it('records a failed bio as it came, and a thrown one not at all, without failing the read', async () => {
+    const { req } = mockRequest(careTeamReplies(
+      [HIBBERT, { ...HIBBERT, ID: 'PROV-2' }],
+      [],
+      [{ body: JSON.stringify({ Message: 'An error has occurred.' }), status: 500 }, { body: '', throws: new Error('socket hang up') }],
+    ))
+    const raw = await fetchCareTeamRaw(req)
+    expect(raw.requests.slice(3)).toHaveLength(1)
+    expect(raw.requests[3]).toMatchObject({ requestBody: { id: 'PROV-1' }, status: 500, body: { Message: 'An error has occurred.' } })
+    expect(raw.requests[3]!.failure).toBeTruthy()
+  })
+
+  it('does not swallow an expired session on the external arm or on a bio', async () => {
+    const external = mockRequest([
       { body: TOKEN_PAGE },
       { body: JSON.stringify({ ProvidersList: [HIBBERT] }) },
       { body: '', throws: new SessionExpiredError() },
+      { body: JSON.stringify(HIBBERT_BIO) },
     ])
-    await expect(fetchCareTeamRaw(req)).rejects.toBeInstanceOf(SessionExpiredError)
+    await expect(fetchCareTeamRaw(external.req)).rejects.toBeInstanceOf(SessionExpiredError)
+
+    const bio = mockRequest(careTeamReplies([HIBBERT], [], [{ body: '', throws: new SessionExpiredError() }]))
+    await expect(fetchCareTeamRaw(bio.req)).rejects.toBeInstanceOf(SessionExpiredError)
   })
 })
 
@@ -182,8 +242,8 @@ describe('careTeamProcessor', () => {
           Specialty: 'Psychiatry',
           IsExternal: true,
           fromExternalList: true,
+          npi: null,
           ID: 'PROV-EXT',
-          encryptedNationalProviderID: null,
           DepartmentID: null,
           CanMessage: null,
         },
@@ -193,13 +253,31 @@ describe('careTeamProcessor', () => {
     expect(standard.ProvidersList[0]).not.toHaveProperty('AboutMeBlurb')
   })
 
-  // MyChart's field is named like an NPI but holds an encrypted token, so the
-  // name that promised an NPI is raw-only and the value is carried under one
-  // that does not.
-  it('carries NationalProviderID under a name that does not promise an NPI', () => {
-    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
+  // MyChart's field is named like an NPI but holds the NPI encrypted; the
+  // digits come from the bio, matched to the row by the id the bio was asked for.
+  it('derives npi from the bio for the row\'s ID, and keeps NationalProviderID raw-only', () => {
+    const standard = careTeamProcessor.standard(envelope(
+      { body: { ProvidersList: [{ ...HIBBERT, ID: 'PROV-2' }, HIBBERT] } },
+      { body: { ProvidersList: [] } },
+      [bioRecord('PROV-1', { body: HIBBERT_BIO }), bioRecord('PROV-2', { body: { name: 'Nick Riviera, MD', npi: '1000000012' } })],
+    ))
+    expect(standard.ProvidersList.map((p) => [p.ID, p.npi])).toEqual([['PROV-2', '1000000012'], ['PROV-1', '1000000004']])
     expect(standard.ProvidersList[0]).not.toHaveProperty('NationalProviderID')
-    expect(standard.ProvidersList[0]?.encryptedNationalProviderID).toBe(ENCRYPTED_NPI)
+    expect(standard.ProvidersList[0]).not.toHaveProperty('encryptedNationalProviderID')
+  })
+
+  // A null npi is the honest answer for every way the bio can fall short: not
+  // asked for, refused, answered without one, or answered with "" — which is
+  // what a nurse's or a medical assistant's bio carries on a real instance.
+  it('reports npi null when the bio was not fetched, failed, or carried no NPI', () => {
+    const load = { body: { ProvidersList: [HIBBERT, { ...HIBBERT, ID: 'PROV-2' }, { ...HIBBERT, ID: 'PROV-3' }, { ...HIBBERT, ID: 'PROV-4' }, PAYER] } }
+    const standard = careTeamProcessor.standard(envelope(load, { body: { ProvidersList: [] } }, [
+      bioRecord('PROV-2', { body: { Message: 'An error has occurred.' }, status: 500, failure: 'HTTP 500' }),
+      bioRecord('PROV-3', { body: '<html>error</html>', status: 200, failure: 'HTTP 200 from its error page' }),
+      bioRecord('PROV-4', { body: { name: 'Julius Hibbert, MD' } }),
+      bioRecord('PAYER-1', { body: { name: 'Springfield Health Plan', npi: '' } }),
+    ]))
+    expect(standard.ProvidersList.map((p) => p.npi)).toEqual([null, null, null, null, null])
   })
 
   it('keeps IsExternal on an internal-list provider distinct from fromExternalList', () => {
@@ -208,7 +286,7 @@ describe('careTeamProcessor', () => {
   })
 
   it('reports a genuinely empty care team as empty', () => {
-    expect(careTeamProcessor.standard(envelope({ body: { ProvidersList: [] } }, { body: { ProvidersList: [] } }))).toEqual({
+    expect(careTeamProcessor.standard(envelope({ body: { ProvidersList: [] } }, { body: { ProvidersList: [] } }, []))).toEqual({
       DescriptiveTitle: null,
       externalProvidersUnavailable: false,
       ProvidersList: [],
@@ -229,7 +307,7 @@ describe('careTeamProcessor', () => {
     // A November 2025 instance bounces a failed request to a 200 HTML page; the
     // collector marks the tolerated record, and the status alone would not.
     const standard = careTeamProcessor.standard(
-      envelope({ body: { ProvidersList: [] } }, { body: '<html>error</html>', status: 200, failure: 'HTTP 200 from its error page' }),
+      envelope({ body: { ProvidersList: [] } }, { body: '<html>error</html>', status: 200, failure: 'HTTP 200 from its error page' }, []),
     )
     expect(standard.externalProvidersUnavailable).toBe(true)
   })
@@ -256,11 +334,11 @@ describe('careTeamProcessor', () => {
     expect(standard.ProvidersList[0]).toMatchObject({ Relation: null, Name: 'Julius Hibbert, MD' })
   })
 
-  it('projects concise to who, role, specialty and the two external flags', () => {
+  it('projects concise to who, role, specialty, the two external flags and the NPI', () => {
     const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
     expect(careTeamProcessor.concise(standard)).toEqual({
       externalProvidersUnavailable: false,
-      ProvidersList: [{ Name: 'Julius Hibbert, MD', Relation: 'Primary Care Provider', Specialty: 'Internal Medicine', IsExternal: false, fromExternalList: false }],
+      ProvidersList: [{ Name: 'Julius Hibbert, MD', Relation: 'Primary Care Provider', Specialty: 'Internal Medicine', IsExternal: false, fromExternalList: false, npi: '1000000004' }],
     })
   })
 })
@@ -269,7 +347,7 @@ describe('getCareTeam', () => {
   it('returns the standard object', async () => {
     const { req } = mockRequest(careTeamReplies([HIBBERT], [MONROE]))
     const result = await getCareTeam(req)
-    expect(result.ProvidersList.map((p) => [p.Name, p.fromExternalList])).toEqual([['Julius Hibbert, MD', false], ['Marvin Monroe, MD', true]])
+    expect(result.ProvidersList.map((p) => [p.Name, p.fromExternalList, p.npi])).toEqual([['Julius Hibbert, MD', false, '1000000004'], ['Marvin Monroe, MD', true, null]])
     expect(result.externalProvidersUnavailable).toBe(false)
   })
 

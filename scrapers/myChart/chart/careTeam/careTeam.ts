@@ -1,6 +1,7 @@
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { SessionExpiredError } from '../../core/makeAuthenticatedRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
+import { rec } from '../../processors/read';
 import { logger } from '../../../../shared/logger';
 import { careTeamProcessor, type CareTeamStandard } from './careTeam.processor';
 
@@ -32,20 +33,57 @@ export { careTeamProcessor } from './careTeam.processor';
  * response is recorded as it came, and a call that throws (anything but an
  * expired session) is logged and leaves no `LoadExternal` record, which the
  * processor reports as `externalProvidersUnavailable`.
+ *
+ * Then one more call per provider, the one the page's own "provider details"
+ * link leads to:
+ *
+ *   POST /api/Providers/GetProviderBioPrivate  { id: <the row's ID> }
+ *
+ * The care team's `NationalProviderID` is an Epic-encrypted token, but this
+ * React endpoint takes the row's (equally encrypted) `ID` and answers with the
+ * provider's bio, `npi` in plain digits included — the server holds the key,
+ * so the server is asked. It is called only where the page itself would link
+ * (`CanViewProviderDetails`, and not `HasNoProviderRecord`), and an unknown or
+ * foreign id is a 500 `{"Message":"An error has occurred."}`, recorded rather
+ * than thrown: a missing bio costs one provider's `npi`, not the care team.
+ * See README.md for the capture.
  */
 export async function fetchCareTeamRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
   const token = await collector.pageToken('/Clinical/CareTeam');
 
-  await Promise.all([
+  const [load, loadExternal] = await Promise.all([
     collector.postJson('/Clinical/CareTeam/Load', token, {}),
     collector.postJson('/Clinical/CareTeam/LoadExternal', token, {}, { tolerateFailure: true }).catch((err: unknown) => {
       if (err instanceof SessionExpiredError) throw err;
       logger.debug(`Could not read external care team providers: ${String(err)}`);
+      return undefined;
     }),
   ]);
 
+  const ids = [...providersOf(load), ...providersOf(loadExternal)].map(detailsIdOf).filter((id): id is string => id !== null);
+  await Promise.all(
+    ids.map((id) =>
+      collector.postJson('/api/Providers/GetProviderBioPrivate', token, { id }, { tolerateFailure: true }).catch((err: unknown) => {
+        if (err instanceof SessionExpiredError) throw err;
+        logger.debug(`Could not read a care team provider's bio: ${String(err)}`);
+      }),
+    ),
+  );
+
   return collector.toRaw();
+}
+
+function providersOf(body: unknown): unknown[] {
+  const list = rec(body).ProvidersList;
+  return Array.isArray(list) ? list : [];
+}
+
+/** The row's `ID` when the page would link it to `/app/providers/details?id=<ID>` (the conditions are `careteam.min.js`'s), else null. */
+function detailsIdOf(provider: unknown): string | null {
+  const p = rec(provider);
+  const links = p.CanViewProviderDetails === true && p.HasNoProviderRecord !== true;
+  return links && typeof p.ID === 'string' && p.ID !== '' ? p.ID : null;
 }
 
 /**
