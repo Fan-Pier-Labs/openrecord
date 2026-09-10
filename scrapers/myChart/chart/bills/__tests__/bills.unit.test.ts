@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
-import { isStubRow, statement, statementDateISO } from '../bills.processor'
+import { isStubRow, statement, statementDateISO, postedHydrateKeys, BillingNotFullyLoadedError } from '../bills.processor'
 import { parsePaymentPath } from '../summaryHtml'
 import type { RawResponse } from '../../../core/rawResponse'
 import { renderOutput } from '../../../processors/processor'
@@ -422,7 +422,6 @@ describe('billingProcessor.standard', () => {
     const v = standard.accounts[0]!.visits[1]!
     expect(v).toEqual({
       category: 'UnifiedVisitList',
-      detailLoaded: true,
       StartDateDisplay: '11/20/2025',
       DateRangeDisplay: null,
       Description: 'ER Visit',
@@ -522,10 +521,9 @@ describe('billingProcessor.concise', () => {
       guarantorNumber: '100',
       patientName: 'Homer Simpson',
       amountDueNumber: 350,
-      unhydratedVisits: 0,
       visits: [
-        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
-        { detailLoaded: true, StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
+        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'Old debt', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'BadDebtVisitList' },
+        { StartDateDisplay: '11/20/2025', DateRangeDisplay: null, Description: 'ER Visit', Patient: 'Homer Simpson', Provider: 'Nick Riviera, MD', PrimaryPayer: 'Springfield Health', ChargeAmount: '$1,200.00', InsurancePaymentAmount: '$850.00', InsuranceAmountDue: '$0.00', SelfPaymentAmount: '$0.00', SelfAmountDue: '$350.00', category: 'UnifiedVisitList' },
       ],
       statements: [
         { dateISO: '2026-01-15', FormattedDateDisplay: 'Jan 15, 2026', Description: 'Sent via postal mail', StatementAmountDisplay: '$350.00', IsRead: false, RecordID: 'REC-1' },
@@ -567,9 +565,15 @@ describe('lazy-loaded charge rows', () => {
     AgencyInformation: { Name: null, PhoneNumber: null, AgencyID: 0 },
   }
 
-  // What GetMoreVisits sends back for it: the same row, populated.
+  // What GetMoreVisits sends back for it: the same visit, populated — and
+  // carrying the PLAIN account number where the stub carried the encrypted
+  // handle, with `Index` restarted for the returned list. The row shares no
+  // identifier with its stub, so the pairing can only be positional.
   const HYDRATED = {
     ...STUB,
+    Index: 0,
+    HospitalAccountId: '4820015507',
+    HospitalAccountDisplay: 'Account #4820015507',
     Description: 'Physical Therapy at Springfield General',
     Patient: 'Homer Simpson',
     ChargeAmount: '$450.00',
@@ -595,7 +599,17 @@ describe('lazy-loaded charge rows', () => {
       get('/Billing/Details/GetVisits?id=A1&context=C1&filterOption=1&cid=', {
         Success: true, Data: { UnifiedVisitList: [CHARGE, STUB], ShowingAll: false, HasVisits: true },
       }),
-      { ...get('/Billing/Details/GetMoreVisits', { Success: true, Data: { UnifiedVisitList: [HYDRATED] } }), method: 'POST' as const },
+      {
+        ...get('/Billing/Details/GetMoreVisits', { Success: true, Data: { UnifiedVisitList: [HYDRATED] } }),
+        method: 'POST' as const,
+        // Recorded exactly as the scraper posted it — the processor re-reads
+        // this to know which stub row 0 of the answer belongs to.
+        requestBody: `id=A1&context=C1&${new URLSearchParams({
+          'listOfAccounts[0].EncAccountID': STUB.HospitalAccountId,
+          'listOfAccounts[0].IsPes': 'false',
+          'listOfAccounts[0].IsHar': 'true',
+        }).toString()}`,
+      },
     ],
   }
 
@@ -612,28 +626,30 @@ describe('lazy-loaded charge rows', () => {
   it('marks a row hydration could not fill in, so its placeholder $0.00 cannot pass as settled', () => {
     // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
     const noHydrate: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
-    const account = billingProcessor.standard(noHydrate).accounts[0]!
-    const row = account.visits.find((v) => v.Description === 'Visit at ')!
-
-    // The row is still reported — it is a real visit with a real date — but it
-    // says outright that its amounts are placeholders, which is the whole
-    // difference between an honest gap and a silent undercount.
-    expect(row.detailLoaded).toBe(false)
-    expect(account.unhydratedVisits).toBe(1)
-    expect(account.visits.find((v) => v.Description === 'ER Visit')!.detailLoaded).toBe(true)
-
-    // And concise says it too, because that is the mode the clients default to.
-    const concise = billingProcessor.concise(billingProcessor.standard(noHydrate)) as {
-      accounts: Array<{ unhydratedVisits: number; visits: Array<{ detailLoaded: boolean }> }>
-    }
-    expect(concise.accounts[0]!.unhydratedVisits).toBe(1)
-    expect(concise.accounts[0]!.visits.some((v) => !v.detailLoaded)).toBe(true)
+    // A stub's amounts are all a fabricated "$0.00", which reads exactly like
+    // a settled visit — so the read fails instead of reporting one.
+    expect(() => billingProcessor.standard(noHydrate)).toThrow(BillingNotFullyLoadedError)
+    expect(() => billingProcessor.standard(noHydrate)).toThrow(/paged out 1 of 2 charge rows/)
   })
 
-  it('reports every row loaded once hydration succeeded', () => {
+  it('carries real amounts once hydration succeeded, and no placeholder $0.00 row', () => {
     const account = billingProcessor.standard(PAGED).accounts[0]!
-    expect(account.unhydratedVisits).toBe(0)
-    expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
+    expect(account.visits.map((v) => v.Description)).not.toContain('Visit at ')
+    expect(account.visits.every((v) => v.ChargeAmount !== '$0.00')).toBe(true)
+  })
+
+  it('reads the posted hydrate keys back in index order, not parse order', () => {
+    // The pairing is positional, so the order these come back in IS the join.
+    const body = new URLSearchParams([
+      ['id', 'ACC'],
+      ['listOfAccounts[1].EncAccountID', 'ENC-B'],
+      ['listOfAccounts[1].IsHar', 'true'],
+      ['listOfAccounts[0].EncAccountID', 'ENC-A'],
+      ['listOfAccounts[0].IsHar', 'true'],
+    ]).toString()
+    expect(postedHydrateKeys(body)).toEqual(['ENC-A', 'ENC-B'])
+    expect(postedHydrateKeys(undefined)).toEqual([])
+    expect(postedHydrateKeys({ notAString: true })).toEqual([])
   })
 
   it('reads the CPT code out of the markup MyChart buries it in', () => {
