@@ -74,20 +74,20 @@ Every URL carries `noCache=<random>`.
   missing (the server may cap a batch), and the processor swaps each stub for its real row
   before de-duplication — a stub and its hydrated self do not look alike, because the
   identity includes exactly the fields hydration fills in.
-- **The hydrate answer pairs with the request POSITIONALLY, and there is nothing else to
-  join on.** This is the trap: the stub's `HospitalAccountId` is the encrypted handle
-  (`WP-24…`) it was posted under, but the hydrated row's is the **plain account number**
-  (`4820015507`), and no field on the hydrated row carries the handle back. On a live
-  instance the two sets overlapped on **zero** of 25 rows. So row `i` of
-  `Data.UnifiedVisitList` answers posted key `i` — which is what Epic's own client relies
-  on, advancing its cursor by however many rows came back rather than looking anything up,
-  and why a capped batch is re-asked for by trimming from the front. The processor re-reads
-  the recorded `requestBody` to recover the posted order. A join on `HospitalAccountId`
-  matches nothing, silently leaves every row a stub, and is exactly the bug that shipped in
-  #449 — it passed every test because fake-mychart echoed the handle back.
-  Each pair is checked on `StartDate` before the swap, since the service date is the one
-  field a stub already has right; a pair that disagrees is dropped rather than attaching one
-  visit's charges to another.
+- **The scraper posts one stub per `GetMoreVisits` request, because a batched answer cannot be
+  joined.** This is the trap: the stub's `HospitalAccountId` is the encrypted handle (`WP-24…`)
+  it was posted under, but the hydrated row's is the **plain account number** (`4820015507`),
+  and no field on the hydrated row carries the handle back. On a live instance the two sets
+  overlapped on **zero** of 25 rows. Epic's own client batches and pairs the answer with its
+  request by position — the only correspondence there is. Rather than model that assumption,
+  the scraper sends each stub in its own request (fanned out under the per-host limiter): the
+  single row that comes back is the answer to the single handle that was posted, read off the
+  recorded `requestBody`, and a request that fails names exactly the visit it failed for. A
+  join on `HospitalAccountId` matches nothing, silently leaves every row a stub, and is exactly
+  the bug that shipped in #449 — it passed every test because fake-mychart echoed the handle
+  back. Each answer is still checked against its stub on `StartDate` before the swap, since the
+  service date is the one field a stub already has right; a row that disagrees is dropped
+  rather than attaching one visit's charges to another.
 - **Every row is hydrated or the read fails.** The details page is fetched **first**, because
   it carries the antiforgery token Epic's own client sends on this call (a token-less POST was
   never tried, so whether the server refuses one is unverified — the scraper simply sends what

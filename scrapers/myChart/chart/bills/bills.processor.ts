@@ -15,9 +15,10 @@
  * `SelfAmountDueRaw`), with `category` naming the list a row came from.
  *
  * `GetVisits` also pages, returning the rows past the first page unhydrated
- * and priced at a fabricated `"$0.00"`. The scraper posts those back to
- * `GetMoreVisits`; {@link hydratedRows} collects the answers and the merge
- * swaps each stub for its real row, so no caller ever sees the placeholder.
+ * and priced at a fabricated `"$0.00"`. The scraper posts each of those back
+ * to `GetMoreVisits`, one per request; {@link hydratedRows} collects the
+ * answers and the merge swaps each stub for its real row. No caller ever
+ * sees the placeholder: if one survives, the read throws.
  */
 
 import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
@@ -252,10 +253,10 @@ export function isStubRow(row: unknown): boolean {
 }
 
 /**
- * The `listOfAccounts[i].EncAccountID` values a `GetMoreVisits` body posted,
- * in the order they were posted. `URLSearchParams` preserves that order, and
- * the index in the field name is authoritative, so the sort is on `i` rather
- * than on the order the parser happens to walk.
+ * The `listOfAccounts[i].EncAccountID` value(s) a `GetMoreVisits` body
+ * posted, in index order. The scraper posts one per request, so this is
+ * normally a single handle; the index in the field name is still honoured
+ * rather than parse order, because it is what ASP.NET binds on.
  */
 export function postedHydrateKeys(requestBody: unknown): string[] {
   if (typeof requestBody !== 'string') return [];
@@ -271,18 +272,15 @@ export function postedHydrateKeys(requestBody: unknown): string[] {
  * The hydrated rows from every `GetMoreVisits` answer, keyed by the encrypted
  * handle of the stub each one answers.
  *
- * **The join is positional, because the answer carries nothing to join on.**
- * A stub's `HospitalAccountId` is an encrypted handle (`WP-24…`); its
- * hydrated row's is the plain account number (`4820015507`), and no field on
- * the hydrated row carries the handle back. Epic's own client relies on the
- * same correspondence — it advances its cursor by however many rows came back
- * rather than looking anything up. So row `i` of `UnifiedVisitList` is the
- * answer for posted key `i`.
+ * The answer carries nothing to join on — a stub's `HospitalAccountId` is an
+ * encrypted handle (`WP-24…`), its hydrated row's is the plain account number
+ * (`4820015507`), and no field on the hydrated row carries the handle back.
+ * So the handle a row answers is read off the request it came back to: the
+ * recorded `requestBody`. The scraper posts one stub per request, which makes
+ * that pairing exact — one handle in, one row out.
  *
- * Positional pairing puts real money on a row, so it is checked rather than
- * trusted: a pair whose `StartDate` disagrees is dropped. The service date is
- * the one field a stub already has right, so a shifted response fails to
- * match instead of quietly attaching one visit's charges to another.
+ * The pairing puts real money on a row, so it is checked rather than
+ * trusted: {@link hydratedFor} drops a pair whose `StartDate` disagrees.
  */
 function hydratedRows(raw: RawResponse): Map<string, Record<string, unknown>> {
   const byAccount = new Map<string, Record<string, unknown>>();
@@ -301,8 +299,10 @@ function hydratedRows(raw: RawResponse): Map<string, Record<string, unknown>> {
 }
 
 /**
- * The hydrated row answering one stub, or null when the pair does not agree
- * on the service date — see {@link hydratedRows} for why the check is here.
+ * The hydrated row answering one stub, or null when it does not agree with
+ * the stub on the service date. The date is the one field a stub already has
+ * right, so a row that came back to the wrong request fails to match instead
+ * of quietly attaching one visit's charges to another.
  */
 function hydratedFor(
   stub: Record<string, unknown>,

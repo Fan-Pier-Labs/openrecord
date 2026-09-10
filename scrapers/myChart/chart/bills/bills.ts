@@ -88,23 +88,17 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
 }
 
 /**
- * Hydrate every stub in a `GetVisits` body, in as few requests as MyChart
- * allows.
+ * Hydrate every stub in a `GetVisits` body — one `GetMoreVisits` POST per
+ * stub, fanned out under the per-host limiter.
  *
- * Epic's "Load all accounts" button posts every outstanding stub at once, and
- * a 25-stub account came back in a single response — but its own client
- * re-checks how many rows actually arrived and only advances by that many, so
- * the server is free to cap a batch. This loops on what is still missing
- * rather than assuming one round trip, and stops making progress rather than
- * spinning if a batch comes back with nothing new.
- *
- * The answer pairs with the request POSITIONALLY, and cannot be joined on
- * anything else: a stub's `HospitalAccountId` is an encrypted handle, its
- * hydrated row's is the plain account number, and no field on the hydrated
- * row carries the handle back. Epic's own client relies on the same
- * correspondence, advancing its cursor by however many rows came back — which
- * is why a capped batch has to be re-asked for by trimming from the front,
- * not by looking up what is missing.
+ * Epic's own client batches these, and a batch is where the trouble is: the
+ * answer carries nothing to join on (a stub's `HospitalAccountId` is an
+ * encrypted handle, the hydrated row's is the plain account number, and no
+ * field on the hydrated row carries the handle back), so a batched answer can
+ * only be paired with its request by position. One stub per request makes
+ * the correspondence a fact instead of an assumption: the single row that
+ * comes back is the answer to the single handle that was posted, and a
+ * request that fails names exactly the visit it failed for.
  *
  * Best-effort here, but not silently: the processor throws if any row is
  * still a stub once the answers are merged, because a stub's fabricated
@@ -125,49 +119,36 @@ async function hydrateStubs(
       if (key) byHandle.set(key.EncAccountID, key);
     }
   }
-  let pending = [...byHandle.values()];
-  if (pending.length === 0) return;
+  if (byHandle.size === 0) return;
   if (!token) {
-    logger.debug(`Billing: ${pending.length} unhydrated charge rows but no antiforgery token; leaving them.`);
+    logger.debug(`Billing: ${byHandle.size} unhydrated charge rows but no antiforgery token; leaving them.`);
     return;
   }
 
-  // The list can only shrink; the guard is against a batch that returns
-  // nothing, which would otherwise loop forever.
-  while (pending.length > 0) {
-    const { body, failure } = await collector.send(
-      {
-        path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'X-Requested-With': 'XMLHttpRequest',
-          __RequestVerificationToken: token,
+  await Promise.all(
+    [...byHandle.values()].map(async (key) => {
+      const { failure } = await collector.send(
+        {
+          path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            __RequestVerificationToken: token,
+          },
+          body: moreVisitsBody(account, [key]),
         },
-        body: moreVisitsBody(account, pending),
-      },
-      { tolerateFailure: true },
-    );
-    if (failure) {
-      logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
-      return;
-    }
-    // Only rows that actually came back hydrated count as progress; a server
-    // that echoes the stubs would otherwise look like a full answer.
-    const rows = list(rec(rec(body).Data).UnifiedVisitList);
-    const hydrated = rows.filter((row) => !isStubRow(row)).length;
-    if (hydrated === 0) {
-      logger.debug(`Billing: GetMoreVisits returned no hydrated rows; ${pending.length} left unhydrated.`);
-      return;
-    }
-    pending = pending.slice(rows.length);
-  }
+        { tolerateFailure: true },
+      );
+      if (failure) logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
+    }),
+  );
 }
 
 /**
  * `GET /Billing/Summary`, then per account the details page, `GetVisits`,
- * however many `GetMoreVisits` calls it takes to fill in the lazy-loaded
- * rows, `GetStatementList` and `LoadPaymentList`.
+ * one `GetMoreVisits` per lazy-loaded row, `GetStatementList` and
+ * `LoadPaymentList`.
  *
  * The details page is fetched *first* because it carries both the `EncID` the
  * statement download needs and the antiforgery token `GetMoreVisits` requires.
