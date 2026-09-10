@@ -137,6 +137,11 @@ function stable(doc: string): string {
  * behind it. Sorting by path keeps the document readable and deterministic;
  * the order requests happened to complete in was never the point.
  *
+ * The request body is part of the key because path alone no longer separates
+ * them: `get_care_team` posts one `GetProviderBioPrivate` per provider, and
+ * those tie on path, so the sort left them in completion order and the coin
+ * flip came back. The body is the provider id, which is stable per fixture.
+ *
  * Only the doc is reordered. `RawResponse` itself is untouched, so a caller
  * still sees exactly what the scraper recorded.
  */
@@ -144,10 +149,14 @@ function orderRequests(output: unknown): unknown {
   if (output === null || typeof output !== 'object') return output;
   const record = output as { requests?: unknown };
   if (!Array.isArray(record.requests)) return output;
-  const requests = [...(record.requests as { path?: string; method?: string }[])].sort((a, b) =>
-    `${a.path ?? ''} ${a.method ?? ''}`.localeCompare(`${b.path ?? ''} ${b.method ?? ''}`),
+  const requests = [...(record.requests as { path?: string; method?: string; requestBody?: unknown }[])].sort((a, b) =>
+    keyOf(a).localeCompare(keyOf(b)),
   );
   return { ...record, requests };
+}
+
+function keyOf(request: { path?: string; method?: string; requestBody?: unknown }): string {
+  return `${request.path ?? ''} ${request.method ?? ''} ${JSON.stringify(request.requestBody ?? null)}`;
 }
 
 function sizeOf(payload: unknown): number {
