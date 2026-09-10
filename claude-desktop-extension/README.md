@@ -139,10 +139,12 @@ bill picked by the `RecordID` that `get_billing` lists beside each statement.
 The file is always written to your Downloads folder (never overwriting — a
 second copy gets `-2`) and Claude gets the path back, with the attachment's id
 or the statement's date and amount. A picture that fits under the 1MB
-tool-result cap is shown in the chat as well. A PDF or text file is not, unless
-the call runs with `return_content` — ask what a document says and Claude asks
-for its content, which goes into the result as an embedded document (or as text)
-when it fits under the cap; a larger file is saved and the result says so.
+tool-result cap is shown in the chat as well. A text file is not, unless the
+call runs with `return_content` — ask what a document says and Claude asks for
+its content, which goes into the result as text when it fits under the cap; a
+larger file is saved and the result says so. A PDF cannot be shown in a chat at
+all — no content block carries one to a model — so the result says the type is
+unsupported and points at the saved copy.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which

@@ -1,15 +1,15 @@
 /**
- * A `returnsFile` payload is delivered as a file on disk, plus an inline
- * picture when it is an image the host can show. Both halves are pinned here:
- * the result builder always writes the file (a PDF has nowhere else to go),
- * never overwrites an earlier download of the same name, and only inlines an
- * image that fits under the host's result cap.
+ * A `returnsFile` payload is delivered as a file on disk, plus inline content
+ * only when a model can actually read it — an image the host can show, or text.
+ * Both halves are pinned here: the result builder always writes the file (a PDF
+ * has nowhere else to go), never overwrites an earlier download of the same
+ * name, only inlines an image that fits under the host's result cap, and says a
+ * type it cannot show was saved instead of attaching bytes the host will drop.
  */
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { pathToFileURL } from 'url';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, fileResult } from '../tools';
 import { saveFilePayload } from '../save-file';
@@ -89,11 +89,18 @@ describe('fileResult', () => {
     expect(s.saved_to).toBe(path.join(baseDir, 'proof of coverage.pdf'));
     expect(fs.readFileSync(s.saved_to as string)).toEqual(Buffer.from(PDF));
     expect(result.content).toHaveLength(1);
-    expect(String(s.note)).toContain('Open the saved PDF');
-    expect(String(s.note)).toContain('return_content: true');
+    expect(String(s.note)).toContain('Unsupported file type');
+    expect(String(s.note)).toContain('application/pdf');
     // What the capability knew about the file rides along; the bytes never do.
     expect(s.dcsId).toBe('WP-DCS-1');
     expect(s).not.toHaveProperty('bytes');
+  });
+
+  test('saves a text file and points at return_content, which can show it', () => {
+    const csv = new TextEncoder().encode('date,amount\n2026-01-15,350.00\n');
+    const result = fileResult(file({ fileName: 'charges.csv', fileExtension: 'CSV', mimeType: 'text/csv', bytes: csv }), false, baseDir);
+    expect(result.content).toHaveLength(1);
+    expect(String(summary(result).note)).toContain('return_content: true');
   });
 
   test('shows an image inline as well as saving it', () => {
@@ -114,15 +121,15 @@ describe('fileResult', () => {
 });
 
 describe('fileResult with return_content', () => {
-  test('embeds a PDF as a document beside the saved copy', () => {
+  // A PDF has no content block that survives to a model: MCP's embedded
+  // resource is the only legal shape for one, and the hosts drop or divert its
+  // bytes. Saying where the file went beats attaching bytes that vanish.
+  test('saves a PDF and says the conversation cannot show it, attaching nothing', () => {
     const result = fileResult(file(), true, baseDir);
-    expect(result.content).toHaveLength(2);
-    expect(result.content[1]).toEqual({
-      type: 'resource',
-      resource: { uri: pathToFileURL(path.join(baseDir, 'proof of coverage.pdf')).href, mimeType: 'application/pdf', blob: Buffer.from(PDF).toString('base64') },
-    });
-    expect(summary(result)).not.toHaveProperty('note');
-    expect(fs.existsSync(path.join(baseDir, 'proof of coverage.pdf'))).toBe(true);
+    expect(result.content).toHaveLength(1);
+    expect(String(summary(result).note)).toContain('Unsupported file type');
+    expect(String(summary(result).note)).toContain('application/pdf');
+    expect(fs.readFileSync(path.join(baseDir, 'proof of coverage.pdf'))).toEqual(Buffer.from(PDF));
   });
 
   test('returns a text file as text', () => {
@@ -131,18 +138,18 @@ describe('fileResult with return_content', () => {
     expect(result.content[1]).toEqual({ type: 'text', text: 'date,amount\n2026-01-15,350.00\n' });
   });
 
-  test('saves a PDF over the budget without embedding it, and says so', () => {
+  test('saves a text file over the budget without returning it, and says so', () => {
     const big = new Uint8Array(INLINE_BUDGET_BYTES);
-    const result = fileResult(file({ bytes: big }), true, baseDir);
+    const result = fileResult(file({ fileName: 'charges.csv', fileExtension: 'CSV', mimeType: 'text/csv', bytes: big }), true, baseDir);
     expect(result.content).toHaveLength(1);
     expect(String(summary(result).note)).toContain('too large');
-    expect(fs.statSync(path.join(baseDir, 'proof of coverage.pdf')).size).toBe(big.length);
+    expect(fs.statSync(path.join(baseDir, 'charges.csv')).size).toBe(big.length);
   });
 
   test('says a type it cannot show was only saved', () => {
     const result = fileResult(file({ fileName: 'notes.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), true, baseDir);
     expect(result.content).toHaveLength(1);
-    expect(String(summary(result).note)).toContain('cannot be shown');
+    expect(String(summary(result).note)).toContain('Unsupported file type');
   });
 });
 
