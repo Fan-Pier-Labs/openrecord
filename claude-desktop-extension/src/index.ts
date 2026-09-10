@@ -77,14 +77,10 @@ async function main(): Promise<void> {
         '     `account` from the previous step.' +
         '\n\n' +
         'Long tool calls: a call that has not answered after 2.5 minutes keeps running in the background ' +
-        'and returns a note carrying an id instead of its result. Call check_pending_call with that id to ' +
-        'wait for and receive the result (it is returned exactly as the original tool would have returned ' +
-        'it). Never repeat the original call with the same arguments while it is pending: it is already ' +
-        'running, it would be refused, and for a tool that sends something a second call would send it ' +
-        'twice. Other tools are not affected, except switch_proxy_target on that account, which waits for ' +
-        'the read to finish. check_pending_call with abandon: true stops waiting for the call and discards ' +
-        'its result, but does not stop the work — anything it already sent still lands. A call is given ' +
-        'up on 10 minutes after it started.' +
+        'and returns a note carrying an id instead of its result; collect the result with ' +
+        'check_pending_call(id). Never repeat that call with the same arguments while it is pending — it ' +
+        'is already running and would be refused, and a tool that sends something would send it twice. ' +
+        'Other tools are unaffected, except switch_proxy_target on that account, which waits for the read.' +
         '\n\n' +
         'Public information (no account): get_hospital_info(hostname) returns what a MyChart ' +
         'instance publishes about its health system to anyone — support phone lines, the bookable ' +

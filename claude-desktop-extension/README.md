@@ -168,43 +168,25 @@ different family member's record than the one the call is about.
 
 ### Long tool calls: `check_pending_call`
 
-Claude Desktop cancels a tool call it has waited too long on. The one
-measurement on record is in its own client log (`~/Library/Logs/Claude/mcp.log`):
-a `notifications/cancelled` with "MCP error -32001: Request timed out" sent 197 s
-after the request, on the June 2026 build; the figure usually quoted is four
-minutes. A read that pages through years of billing or pulls a large imaging
-study can take longer than either. So every tool runs under a 2.5-minute
-deadline, under both figures and above the scrapers' 2-minute per-request cap.
-A call that answers in time returns as usual. One that does not keeps running
-in the background and returns a note carrying an id; the result is collected
-with **`check_pending_call`**, which returns it exactly as the original tool
-would have.
+Claude Desktop cancels a tool call it has waited too long on (its own log
+records one cancel 197 s after the request; four minutes is the figure usually
+quoted), and a paged billing read or an imaging study can take longer. So every
+tool runs under a 2.5-minute deadline. A call that answers in time returns as
+usual. One that does not keeps running in the background and returns a note
+with an id; `check_pending_call(id)` waits up to 2.5 minutes more and returns
+the result exactly as the original tool would have (`wait: false` reports at
+once). A call is given up on 10 minutes after it started.
 
-Nothing is serialized. Claude Desktop dispatches the tool calls of one turn as
-they stream, without waiting for earlier ones to answer (its log shows a second
-call issued 5.5 s after a first that had not answered), so several calls can
-run at once and more than one can park. A parked call blocks exactly one thing:
-**a repeat of itself with the same arguments** while it is running or its
-result is unread. That is the retry, and a retried `send_message` is a second
-message to the doctor. Everything else runs, with one exception:
-`switch_proxy_target` on that account refuses until the parked read has
-actually finished, because the read is still reading whichever patient is
-active on MyChart's server.
+Calls still run concurrently. A parked call blocks exactly one thing, a repeat
+of itself with the same arguments, because that retry is how `send_message`
+would send twice. The one other effect: `switch_proxy_target` on that account
+refuses until the parked read has finished, since the read is still reading
+whichever patient is active on MyChart's server.
 
-- `check_pending_call(id)` waits up to 2.5 minutes for the result, then either
-  returns it or says the call is still running and for how long. The id can be
-  omitted while only one call is parked; with several and no id, it lists them.
-- `check_pending_call(id, wait: false)` reports at once.
-- `check_pending_call(id, abandon: true)` stops waiting and discards the result.
-  **Abandon means abandon, not cancel** — nothing in the scraper core takes an
-  abort signal, so the work runs on in the background until it finishes on its
-  own, a message or request it already sent still lands, and the proxy-switch
-  guard above keeps refusing until it does finish.
-- A call is given up on 10 minutes after it started, the same way. An unread
-  result is kept 10 minutes after it lands.
-
-The parked calls live in memory (`src/pending-call.ts`) and die with the server
-process.
+`abandon: true` stops waiting and discards the result. **Abandon means abandon,
+not cancel** — nothing in the scraper core takes an abort signal, so the work
+runs on, a message already sent still lands, and the proxy-switch guard holds
+until it finishes. The parked calls live in memory (`src/pending-call.ts`).
 
 ### Output modes
 

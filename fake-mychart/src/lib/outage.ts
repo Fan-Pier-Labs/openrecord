@@ -19,14 +19,9 @@
  * other knob; `/reset` clears it.
  *
  * The other bad day is a slow one. `responseDelaySeconds` holds every gated
- * (post-login) request for that long before it is answered, so a client's
- * handling of a call that outruns its host's patience — the Claude Desktop
- * extension's `check_pending_call` — can be exercised against this server.
- * Applied at the same point as the outage, after the gates, so login itself
- * stays quick. Keep it under the scrapers' 2-minute per-request deadline
- * (`scrapers/http.ts`) or every request simply fails; a chart read makes at
- * least two gated requests, so 110 s is enough to push any data tool past the
- * extension's 2.5-minute deadline.
+ * (post-login) request that long, for exercising the Claude Desktop
+ * extension's `check_pending_call` by hand. Keep it under the scrapers'
+ * 2-minute per-request deadline (`scrapers/http.ts`) or every request fails.
  */
 
 const outageState: { failingEndpoints: Set<string>; responseDelaySeconds: number } = {

@@ -6,12 +6,10 @@
  *                   setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
  *                   disconnect_account, check_pending_call. These are
- *                   MCPB-specific: all but two
- *                   manage the credentials stored on this machine, which is
- *                   not something the other clients share, and get_setup_widget
- *                   returns a Claude Desktop UI resource no other client can
- *                   render, and check_pending_call collects a result that
- *                   outran Claude Desktop's tool-call limit (pending-call.ts).
+ *                   MCPB-specific: most manage the credentials stored on this
+ *                   machine, get_setup_widget returns a Claude Desktop UI
+ *                   resource, and check_pending_call collects a result that
+ *                   outran Claude Desktop's request timeout (pending-call.ts).
  *                   `search_mycharts` used to be one of them and is now
  *                   a `public` capability in the shared registry, so every
  *                   client has it; `get_hospital_info` is account-free in the
@@ -288,7 +286,6 @@ function contextFor(ref: string): CapabilityContext {
   };
 }
 
-/** The one capability that changes which patient every other read sees. */
 const SWITCH_PROXY_TOOL = 'switch_proxy_target';
 
 /**
@@ -350,18 +347,14 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // A public capability has no account to resolve and no credentials to
         // read: `executeCapability` runs it with a null session.
         const account = isPublicCapability(capability) ? '' : readAccountArg(args) ?? '';
-        // A parked read is still reading whichever patient is active, and the
-        // active patient is server-side state; switching under it would hand
-        // the read the wrong chart. Abandoning the read does not stop it, so
-        // the guard answers for an abandoned call too.
-        if (capability.id === SWITCH_PROXY_TOOL) {
-          const busy = unsettledCallOnAccount(account);
-          if (busy) {
-            return errorResult(
-              `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient ` +
-                `cannot change yet. Wait for it with ${CHECK_TOOL} — abandoning it does not stop it — and switch afterwards.`,
-            );
-          }
+        // A parked read is still reading whichever patient is active; switching
+        // under it would hand the read the wrong chart.
+        const busy = capability.id === SWITCH_PROXY_TOOL ? unsettledCallOnAccount(account) : undefined;
+        if (busy) {
+          return errorResult(
+            `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient cannot ` +
+              `change yet. Wait for it with ${CHECK_TOOL} (abandoning does not stop it), then switch.`,
+          );
         }
         const session = isPublicCapability(capability) ? null : await resolveSession(account);
         // executeCapability, not capability.run, for EVERY capability: the
@@ -603,14 +596,13 @@ async function connectWithPassword(hostname: string, username: string, password:
   }
 }
 
-// ── The pending-call slot ──────────────────────────────────────────────────
+// ── Parking long calls ─────────────────────────────────────────────────────
 
 /**
- * A server whose every registration runs under `runGuarded`: the deadline,
- * and the parking behind check_pending_call. Only the `registerTool` this
- * file calls is wrapped; the declared type is kept so the handlers' argument
- * types still come from their zod shapes. Every tool here declares an
- * inputSchema, so the SDK's first callback argument is always the arguments.
+ * A server whose every registration runs under `runGuarded`. The declared
+ * type is kept so handlers' argument types still come from their zod shapes;
+ * every tool declares an inputSchema, so the first callback argument is the
+ * arguments.
  */
 function guarded(server: McpServer): McpServer {
   const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
@@ -625,47 +617,27 @@ function registerCheckPendingCall(server: McpServer): void {
     CHECK_TOOL,
     {
       description:
-        `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked with an id, or find ` +
-        'out how it is doing. Returns the finished result exactly as the original tool would have. Otherwise, ' +
-        `with \`wait\` (the default) it waits up to ${DEADLINE_LABEL} for the result before reporting that the ` +
-        'call is still running and for how long; with `wait: false` it reports at once. Pass the `id` from the ' +
-        'parking note; it can be omitted while only one call is parked, and with several and no id the ' +
-        'result lists them. A parked call blocks only a repeat of the same call with the same arguments; ' +
-        'it is given up on 10 minutes after it started. `abandon: true` stops waiting for the call and ' +
-        'discards its result. Abandon means abandon, not cancel: the work runs on in the background until ' +
-        'it finishes on its own, a message or request it already sent still lands, and switch_proxy_target ' +
-        'on that account refuses until it has finished.',
+        `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked under an id, exactly as ` +
+        `the original tool would have returned it. Waits up to ${DEADLINE_LABEL} for it (wait: false reports at ` +
+        'once). abandon: true stops waiting and discards the result — it does not stop the work, and anything ' +
+        'already sent still lands. A parked call is given up on 10 minutes after it started.',
       inputSchema: {
-        id: z.string().optional().describe('The id from the parking note. Optional while only one call is parked.'),
-        wait: z
-          .boolean()
-          .optional()
-          .describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true). false reports its state at once.`),
-        abandon: z
-          .boolean()
-          .optional()
-          .describe(
-            'Stop waiting for the pending call and discard its result. This does not stop the work: it runs on ' +
-              'in the background, and anything it already sent still lands.',
-          ),
+        id: z.string().describe('The id from the parking note.'),
+        wait: z.boolean().optional().describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true).`),
+        abandon: z.boolean().optional().describe('Stop waiting and discard the result. Does not stop the work.'),
       } satisfies ZodRawShape,
       // Not read-only: abandon discards a result.
       ...toolMeta('Check a pending tool call', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
     },
     ({ id, wait, abandon }) =>
-      checkPendingCall({
-        ...(id !== undefined ? { id } : {}),
-        ...(wait !== undefined ? { wait } : {}),
-        ...(abandon !== undefined ? { abandon } : {}),
-      }),
+      checkPendingCall({ id, ...(wait !== undefined ? { wait } : {}), ...(abandon !== undefined ? { abandon } : {}) }),
   );
 }
 
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(rawServer: McpServer): void {
-  // check_pending_call collects parked results, so it is never itself parked:
-  // it goes on the raw server, and everything below runs guarded.
+  // check_pending_call collects parked results, so it is never itself parked.
   registerCheckPendingCall(rawServer);
   const server = guarded(rawServer);
 
