@@ -15,7 +15,7 @@
         "js-base64": "^3.9.3",
         "markdown-table": "^3.0.4",
         "node-sqlite3-wasm": "^0.8.60",
-        "pica": "^9.0.1",
+        "pica": "9",
         "totp-generator": "^2.0.1",
         "tough-cookie": "^6.0.2",
         "zod": "^4.4.3",
