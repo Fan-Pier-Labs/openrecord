@@ -48,12 +48,17 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
    which happened so Claude doesn't offer again.
 
 > **Logos.** MyChart's only per-instance brand asset is the wide banner logo
-> (`ichart2.epic.com`, ~640×230), so the widget uses it everywhere — a
+> (`media.epic.com`, ~640×230), so the widget uses it everywhere — a
 > banner-shaped slot in the dropdown and a banner above the inputs on the
 > sign-in / 2FA steps. Square favicons aren't used: ~half of instances are
 > multi-tenant (many orgs share one host, e.g. 200+ on `mychart.ochin.org`) and
 > favicons are per-host, so they can't distinguish those orgs; most are also
 > just the generic Epic icon.
+>
+> That host has to be named in the widget resource's `_meta.ui.csp`
+> (`SETUP_UI_RESOURCE_META` in `src/ui.ts`): the MCP Apps host builds the
+> sandbox CSP from that declaration and every directive defaults to `'none'`,
+> so an undeclared origin — `data:` included — renders as a broken image.
 
 ### Tool-call fallback
 

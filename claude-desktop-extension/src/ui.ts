@@ -1,4 +1,20 @@
+import { MYCHART_MEDIA_ORIGIN } from '../../scrapers/list-all-mycharts/directory';
+
 export const SETUP_UI_MIME_TYPE = 'text/html;profile=mcp-app';
+
+/**
+ * `_meta.ui` for the ui://openrecord/setup resource.
+ *
+ * The host renders the widget in a sandboxed iframe whose CSP it builds from
+ * this declaration, and every directive defaults to `'none'` — a resource that
+ * declares nothing gets `img-src 'none'`, which is why the health-system logos
+ * rendered as broken images. `resourceDomains` maps to `img-src`, so it has to
+ * name Epic's media host (every directory logo) and `data:` (the bundled SVG
+ * the fake-mychart sandbox entry carries inline).
+ */
+export const SETUP_UI_RESOURCE_META = {
+  ui: { csp: { resourceDomains: [MYCHART_MEDIA_ORIGIN, 'data:'] } },
+};
 
 /**
  * Where MyChart says it sent the 2FA code, phrased for the hint line.

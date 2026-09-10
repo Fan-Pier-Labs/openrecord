@@ -58,6 +58,12 @@ export const MYCHART_DIRECTORY_API_URL =
  */
 export const MYCHART_MEDIA_BASE = 'https://media.epic.com/mychartdotorg';
 
+/**
+ * The origin every logo is served from. A sandboxed UI (the MCPB setup widget)
+ * has to name it in its CSP, or the host serves it `img-src 'none'`.
+ */
+export const MYCHART_MEDIA_ORIGIN = new URL(MYCHART_MEDIA_BASE).origin;
+
 /** The generic logo, shown for an organization that has none of its own. */
 export function defaultLogoUrl(mediaBase: string = MYCHART_MEDIA_BASE): string {
   return `${mediaBase}/site/en-us/images/login/default.png`;

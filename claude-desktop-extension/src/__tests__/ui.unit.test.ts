@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, twoFaDeliveryLabel } from '../ui';
+import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META, twoFaDeliveryLabel } from '../ui';
+import { MYCHART_MEDIA_ORIGIN } from '../../../scrapers/list-all-mycharts/directory';
+import { SANDBOX_INSTANCE } from '../../../scrapers/list-all-mycharts/searchDirectory';
+import bundledInstances from '../../../scrapers/list-all-mycharts/mychart-instances.json';
 
 describe('buildSetupUiHtml', () => {
   test('serves the MCP Apps mime type', () => {
@@ -71,5 +74,26 @@ describe('buildSetupUiHtml', () => {
     expect(html).not.toContain('FEATURED');
     // Empty/focus state hides results rather than rendering a default list.
     expect(html).toContain('hideResults();');
+  });
+});
+
+describe('SETUP_UI_RESOURCE_META', () => {
+  // The host builds the widget's sandbox CSP from this and defaults every
+  // directive to 'none', so an origin missing here is a broken logo, not a
+  // console warning.
+  const domains: readonly string[] = SETUP_UI_RESOURCE_META.ui.csp.resourceDomains;
+
+  test('allows every origin the bundled directory serves a logo from', () => {
+    const origins = new Set(
+      (bundledInstances as { logoUrl: string }[]).map(i => new URL(i.logoUrl).origin),
+    );
+    expect(origins.size).toBeGreaterThan(0);
+    for (const origin of origins) expect(domains).toContain(origin);
+    expect(domains).toContain(MYCHART_MEDIA_ORIGIN);
+  });
+
+  test("allows the sandbox entry's inline logo", () => {
+    expect(SANDBOX_INSTANCE.logoUrl.startsWith('data:')).toBe(true);
+    expect(domains).toContain('data:');
   });
 });
