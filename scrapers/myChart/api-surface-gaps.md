@@ -310,7 +310,10 @@ POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers
   **Not every entry is a clinician** — one instance listed the patient's insurance payer with
   `Relation: "Payer"`, no NPI and no specialty. **`NationalProviderID` is not an NPI**: it holds an
   Epic-encrypted `WP-$…$…` token (all 7 providers of the instance probed), so the scraper keeps
-  MyChart's name raw-only and carries the value as `encryptedNationalProviderID`.
+  MyChart's name raw-only and carries the value as `encryptedNationalProviderID`. The NPI itself
+  comes from the page's provider-details call, `POST /api/Providers/GetProviderBioPrivate
+  {id: <row ID>}` — plain digits on 7/7 providers of that instance, confirmed against the NPI
+  registry by state license number; the capture is in the scraper's README.
   `NationalProviderID`, `Specialty`, `Photo`,
   `WebPageUrl`, `InfoBlurbUrl` and `CommCenterMessageUrl` are all empty strings on some real entries,
   so only `ID` and `Name` can be relied on. `LoadExternal` returns the same envelope with its own
