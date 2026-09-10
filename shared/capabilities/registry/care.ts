@@ -24,7 +24,7 @@ export const CARE_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'get_care_team',
     title: 'Care team',
-    description: 'Providers on the care team, including outside providers, each with their role and specialty.',
+    description: 'Providers on the care team, including outside providers, each with their role, specialty and NPI.',
     kind: 'read',
     group: 'Care',
     params: [],

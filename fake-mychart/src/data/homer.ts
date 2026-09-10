@@ -257,8 +257,12 @@ export const vitalsReadings = {
 // `NationalProviderID` is NOT a number here, and that is the point: on the one
 // instance probed for it, every provider carried an Epic-encrypted `WP-$…$…`
 // blob in that field, never a 10-digit NPI. A fixture with digits taught
-// readers of this repo a contract real MyChart does not offer. The fields
-// left out here are filled from the shape template: on both captured instances
+// readers of this repo a contract real MyChart does not offer. The digits
+// live in `providerBios` below, behind the provider-details call, which is
+// where that instance serves them. `CanViewProviderDetails` is set where the
+// real page links a row to its details (7/7 providers there); the payer entry
+// and the outside provider leave it to the template, as unobserved cases. The
+// fields left out here are filled from the shape template: on both captured instances
 // `AboutMeBlurb` was an empty array and `Organizations` /
 // `SchedulableVisitTypes` were null on every provider. `TabColorClass` and
 // `CustomRequestAppointmentLink` ride along because both instances always
@@ -268,6 +272,7 @@ export const careTeam = {
   ProvidersList: [
     {
       ID: 'PROV-HIBBERT',
+      CanViewProviderDetails: true,
       Name: 'Julius Hibbert, MD',
       NationalProviderID: 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D',
       Specialty: 'Internal Medicine',
@@ -281,6 +286,7 @@ export const careTeam = {
       // and referrals use, so joining the care team to a message recipient on
       // provider id works here the way it does on a real instance.
       ID: 'PROV-NICK',
+      CanViewProviderDetails: true,
       Name: 'Nick Riviera, MD',
       NationalProviderID: 'WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D',
       Specialty: 'General Surgery',
@@ -303,6 +309,7 @@ export const careTeam = {
       // not "", on a real instance — most of one account's providers did — so
       // anything reading this field meets that case here too.
       ID: 'PROV-VELIMIROVIC',
+      CanViewProviderDetails: true,
       Name: 'Dr. Velimirovic, MD',
       NationalProviderID: 'WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D',
       Specialty: 'Cardiothoracic Surgery',
@@ -333,6 +340,69 @@ export const careTeamExternal = {
   TabColorClass: 'tab-01',
   CustomRequestAppointmentLink: '/MyChart/scheduling/request',
 };
+
+// `/api/Providers/GetProviderBioPrivate`, keyed by the care team row's `ID` —
+// the request the page's "provider details" link makes. This is where the
+// instance that encrypts `NationalProviderID` serves the NPI in plain digits
+// (Luhn-valid, as `lookup_npi` requires), beside the bio: sex, credentials,
+// specialties, clinic locations and state licenses. An id not in this map is
+// a 500, as on the real instance.
+export const providerBios: Record<string, Record<string, unknown>> = {
+  'PROV-HIBBERT': providerBio({
+    id: 'PROV-HIBBERT', name: 'Julius Hibbert, MD', nameLastFirst: 'Hibbert, Julius, MD', slug: 'julius-hibbert',
+    gender: 'Male', credentials: 'MD', npi: '1000000004', specialtyId: '17', specialty: 'Internal Medicine',
+    location: { id: 'LOC-IM-1', name: 'Springfield General Hospital Internal Medicine', phone: '555-555-0110' },
+    license: { state: 'Illinois', licenseNumber: '036-118220' },
+  }),
+  'PROV-NICK': providerBio({
+    id: 'PROV-NICK', name: 'Nick Riviera, MD', nameLastFirst: 'Riviera, Nick, MD', slug: 'nick-riviera',
+    gender: 'Male', credentials: 'MD', npi: '1000000012', specialtyId: '41', specialty: 'General Surgery',
+    location: { id: 'LOC-SURG-1', name: 'Springfield General Hospital Surgery', phone: '555-555-0120' },
+    license: { state: 'Illinois', licenseNumber: '036-004010' },
+  }),
+  'PROV-VELIMIROVIC': providerBio({
+    id: 'PROV-VELIMIROVIC', name: 'Dr. Velimirovic, MD', nameLastFirst: 'Velimirovic, MD', slug: 'velimirovic',
+    gender: 'Male', credentials: 'MD', npi: '1000000020', specialtyId: '44', specialty: 'Cardiothoracic Surgery',
+    location: { id: 'LOC-SURG-2', name: 'Springfield General Hospital Cardiothoracic Surgery', phone: '555-555-0130' },
+    license: { state: 'Illinois', licenseNumber: '036-077311' },
+  }),
+};
+
+/** One bio in the shape the real endpoint answers with; the skeleton fills every field this leaves out. */
+export function providerBio(p: {
+  id: string; name: string; nameLastFirst: string; slug: string; gender: string; credentials: string; npi: string;
+  specialtyId: string; specialty: string; location: { id: string; name: string; phone: string }; license: { state: string; licenseNumber: string };
+}) {
+  return {
+    name: p.name,
+    photoUrl: `/MyChart/Content/Photos/${p.slug}.jpg`,
+    bioPath: `/MyChart/app/providers/details?id=${p.id}`,
+    bioSlug: p.slug,
+    bioId: `${p.id}-BIO`,
+    nameLastFirst: p.nameLastFirst,
+    providerPatientRelation: 1,
+    gender: p.gender,
+    credentials: p.credentials,
+    specialtyIds: [p.specialtyId],
+    locations: [
+      {
+        id: p.location.id,
+        recordType: 1,
+        name: p.location.name,
+        address: ['742 Evergreen Terrace', 'Springfield, IL 62701'],
+        discreteAddress: { streetAddress: ['742 Evergreen Terrace'], city: 'Springfield', state: 'IL', stateName: 'Illinois', zip: '62701', country: 'USA' },
+        coordinates: { latitude: 39.7817, longitude: -89.6501 },
+        phoneNumber: p.location.phone,
+        isInNetwork: true,
+      },
+    ],
+    npi: p.npi,
+    specialties: [p.specialty],
+    licenses: [p.license],
+    isInternal: true,
+    id: `${p.id}-DETAILS`,
+  };
+}
 
 // ─── Insurance ──────────────────────────────────────────────────────
 // `Insurance/Coverages/GetCoverages`, keyed by MyChart's five workflow

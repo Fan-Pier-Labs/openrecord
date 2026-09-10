@@ -248,8 +248,13 @@ for (const mode of MOUNT_MODES) {
       // patient's insurance payer, with no NPI and no specialty.
       const payer = result.ProvidersList.find(m => m.Relation === 'Payer')
       expect(payer?.Name).toBeTruthy()
-      expect(payer?.encryptedNationalProviderID).toBe('')
       expect(payer?.Specialty).toBe('')
+
+      // The NPI is not in the list (its NationalProviderID is an encrypted
+      // token) but in the provider bio the page links each clinician to.
+      expect(pcp?.npi).toBe('1000000004')
+      expect(pcp).not.toHaveProperty('NationalProviderID')
+      expect(payer?.npi).toBeNull()
     }, 10_000)
 
     it('getReferrals returns referrals', async () => {

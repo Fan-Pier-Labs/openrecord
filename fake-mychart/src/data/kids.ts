@@ -9,6 +9,7 @@
 //
 // All fictional. Ages are as of 2026.
 
+import { providerBio } from '@/data/homer';
 import type { PatientDatasetOverrides } from '@/lib/dataset';
 import type { FakeUserProfile } from '@/lib/state';
 
@@ -43,7 +44,22 @@ const PEDIATRICIAN_PROVIDER = {
   Specialty: 'Pediatrics',
   DepartmentID: 'DEP-PEDS-1',
   CanMessage: true,
+  CanViewProviderDetails: true,
 };
+// The same NPI as on Homer's chart: one clinician, one number, whichever
+// family member's care team lists them.
+const PEDIATRICIAN_BIO = providerBio({
+  id: 'PROV-HIBBERT', name: PEDIATRICIAN_SHORT, nameLastFirst: 'Hibbert, Julius, MD', slug: 'julius-hibbert',
+  gender: 'Male', credentials: 'MD', npi: '1000000004', specialtyId: '28', specialty: 'Pediatrics',
+  location: { id: 'LOC-PEDS-1', name: 'Springfield General Hospital Pediatrics', phone: '555-555-0140' },
+  license: { state: 'Illinois', licenseNumber: '036-118220' },
+});
+const PULMONOLOGIST_BIO = providerBio({
+  id: 'PROV-RAMIREZ', name: 'Dr. Corazon Ramirez, MD', nameLastFirst: 'Ramirez, Corazon, MD', slug: 'corazon-ramirez',
+  gender: 'Female', credentials: 'MD', npi: '1000000038', specialtyId: '29', specialty: 'Pediatric Pulmonology',
+  location: { id: 'LOC-PULM-1', name: 'Springfield General Hospital Pediatric Pulmonology', phone: '555-555-0150' },
+  license: { state: 'Illinois', licenseNumber: '036-141605' },
+});
 
 const SPRINGFIELD_PHARMACY = {
   name: 'Kwik-E-Mart Pharmacy',
@@ -165,10 +181,11 @@ const bart: KidRecord = {
       { name: 'DTaP', id: 'IMM-BART-003', formattedAdministeredDates: ['06/01/2014', '08/01/2014', '10/01/2014', '04/15/2015', '05/02/2018'] },
       { name: 'Varicella', id: 'IMM-BART-004', formattedAdministeredDates: ['04/20/2015'] },
     ]),
+    providerBios: { 'PROV-HIBBERT': PEDIATRICIAN_BIO, 'PROV-RAMIREZ': PULMONOLOGIST_BIO },
     careTeam: {
       ProvidersList: [
         PEDIATRICIAN_PROVIDER,
-        { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: 'WP-246DHYQLwhRyQx9gZAs5-2FyvQ-3D-3D-24wKxMOx-2FmIgC-2BR5fTiLE4h-2B-2BOmsqsBlDWiHviWKHD5zQ-3D', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
+        { ID: 'PROV-RAMIREZ', CanViewProviderDetails: true, Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: 'WP-246DHYQLwhRyQx9gZAs5-2FyvQ-3D-3D-24wKxMOx-2FmIgC-2BR5fTiLE4h-2B-2BOmsqsBlDWiHviWKHD5zQ-3D', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
       TabColorClass: 'tab-01',
@@ -249,6 +266,7 @@ const lisa: KidRecord = {
       { name: 'DTaP', id: 'IMM-LISA-003', formattedAdministeredDates: ['07/09/2016', '09/09/2016', '11/09/2016', '06/14/2017', '07/01/2020'] },
       { name: 'HPV', id: 'IMM-LISA-004', formattedAdministeredDates: ['01/28/2026'] },
     ]),
+    providerBios: { 'PROV-HIBBERT': PEDIATRICIAN_BIO },
     careTeam: {
       ProvidersList: [
         PEDIATRICIAN_PROVIDER,
@@ -327,6 +345,7 @@ const maggie: KidRecord = {
       { name: 'MMR', id: 'IMM-MAGGIE-004', formattedAdministeredDates: ['01/15/2026'] },
       { name: 'Varicella', id: 'IMM-MAGGIE-005', formattedAdministeredDates: ['01/15/2026'] },
     ]),
+    providerBios: { 'PROV-HIBBERT': PEDIATRICIAN_BIO },
     careTeam: {
       ProvidersList: [
         PEDIATRICIAN_PROVIDER,

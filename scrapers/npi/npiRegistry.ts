@@ -3,9 +3,9 @@
  *
  * A National Provider Identifier is the 10-digit number Medicare, insurers and
  * MyChart itself use to name a clinician or an organization. MyChart hands a
- * few of them out (the care team lists each provider's `NationalProviderID`)
- * and names many more providers without one (visits, notes, letters, message
- * senders). This scraper goes in both directions:
+ * few of them out (the care team's provider bios carry `npi`; its
+ * `NationalProviderID` field is an encrypted token) and names many more
+ * providers without one (visits, notes, letters, message senders). This scraper goes in both directions:
  *
  *  - {@link fetchNpiLookupRaw} — an NPI, to the provider it belongs to.
  *  - {@link fetchNpiSearchRaw} — a name, specialty and/or place, to the

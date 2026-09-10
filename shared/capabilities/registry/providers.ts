@@ -36,9 +36,9 @@ export const PROVIDER_CAPABILITIES: readonly CapabilityImpl[] = [
         name: 'npi',
         type: 'string',
         description:
-          'The 10-digit National Provider Identifier. MyChart is not a source for one — the ' +
-          "care team's NationalProviderID is an Epic-encrypted token, not an NPI. Turn a " +
-          'provider name into an NPI with search_npi_registry.',
+          'The 10-digit National Provider Identifier — get_care_team returns each provider\'s as ' +
+          "`npi` (its NationalProviderID field is an Epic-encrypted token, not an NPI). For a " +
+          'provider named anywhere else in a chart, search_npi_registry turns a name into an NPI.',
         required: true,
       },
     ],
