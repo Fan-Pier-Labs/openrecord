@@ -27,7 +27,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAllTools } from './tools';
 import { clearAllSessions } from './session-manager';
-import { buildSetupUiHtml, SETUP_UI_MIME_TYPE } from './ui';
+import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
 
 async function main(): Promise<void> {
   const server = new McpServer(
@@ -94,15 +94,22 @@ async function main(): Promise<void> {
 
   // Serve the interactive setup widget HTML.
   const setupHtml = buildSetupUiHtml();
+  // The CSP goes on both the listing (what the host reviews when it connects)
+  // and the content item (what it applies when it renders); the content item wins.
   server.registerResource(
     'setup-ui',
     'ui://openrecord/setup',
-    { title: 'Connect MyChart (Setup Widget)', mimeType: SETUP_UI_MIME_TYPE },
+    {
+      title: 'Connect MyChart (Setup Widget)',
+      mimeType: SETUP_UI_MIME_TYPE,
+      _meta: SETUP_UI_RESOURCE_META,
+    },
     () => ({
       contents: [{
         uri: 'ui://openrecord/setup',
         mimeType: SETUP_UI_MIME_TYPE,
         text: setupHtml,
+        _meta: SETUP_UI_RESOURCE_META,
       }],
     })
   );
