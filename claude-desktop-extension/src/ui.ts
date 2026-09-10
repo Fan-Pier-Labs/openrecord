@@ -1,6 +1,21 @@
 export const SETUP_UI_MIME_TYPE = 'text/html;profile=mcp-app';
 
 /**
+ * Where MyChart says it sent the 2FA code, phrased for the hint line.
+ * setup_account reports delivery as `{ method, contact }` — the contact is a
+ * masked phone or address, and is absent whenever MyChart named no target.
+ * The widget script gets this function by source (`${twoFaDeliveryLabel}`),
+ * which is also the only way to reach it from a test.
+ */
+export function twoFaDeliveryLabel(delivery?: { method?: string; contact?: string } | null): string | null {
+  if (!delivery) return null;
+  if (delivery.contact) return delivery.contact;
+  if (delivery.method === 'sms') return 'your phone';
+  if (delivery.method === 'email') return 'your email';
+  return null;
+}
+
+/**
  * Interactive Setup Widget for OpenRecord.
  *
  * Served via the MCP Apps ui:// protocol. Step-based flow:
@@ -776,11 +791,15 @@ const SETUP_UI_TEMPLATE = `
       searchInput.focus();
     }
 
+    // Injected by source from ui.ts so the phrasing has one home and a test.
+    var deliveryLabel = ${twoFaDeliveryLabel};
+
     // Move to the dedicated 2FA step once setup_account reports need_2fa.
     function showTwoFa(delivery) {
       fillHeader(instanceLogo2fa, instanceName2fa, selectedInstance || {});
-      twoFaHint.innerText = delivery
-        ? 'Enter the 6-digit code sent to ' + delivery + ' to finish signing in.'
+      var label = deliveryLabel(delivery);
+      twoFaHint.innerText = label
+        ? 'Enter the 6-digit code sent to ' + label + ' to finish signing in.'
         : 'Enter the 6-digit verification code to finish signing in.';
       twoFaInput.value = '';
       verifyBtn.disabled = false;
@@ -891,7 +910,7 @@ const SETUP_UI_TEMPLATE = `
           pendingId = result.pending_id;
           submitBtn.disabled = false;
           submitBtn.innerText = 'Connect Account';
-          showTwoFa(result.delivery || result.target || null);
+          showTwoFa(result.delivery || null);
         } else if (result.state === 'logged_in') {
           showSuccess(result.account || hostname, result);
         } else if (result.state === 'invalid_login') {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildSetupUiHtml, SETUP_UI_MIME_TYPE } from '../ui';
+import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, twoFaDeliveryLabel } from '../ui';
 
 describe('buildSetupUiHtml', () => {
   test('serves the MCP Apps mime type', () => {
@@ -49,6 +49,20 @@ describe('buildSetupUiHtml', () => {
     expect(html).toContain('id="creds-error"');
     expect(html).toContain('id="twofa-error"');
     expect(html).toContain('class="field-error"');
+  });
+
+  test('names the 2FA target instead of stringifying the delivery object', () => {
+    // setup_account returns `{ method, contact }`; concatenating it straight
+    // into the hint rendered "sent to [object Object]".
+    expect(twoFaDeliveryLabel({ method: 'sms', contact: '***-***-1234' })).toBe('***-***-1234');
+    // MyChart often reports the method with no masked contact.
+    expect(twoFaDeliveryLabel({ method: 'sms' })).toBe('your phone');
+    expect(twoFaDeliveryLabel({ method: 'email' })).toBe('your email');
+    // No usable target falls back to the generic hint.
+    expect(twoFaDeliveryLabel({})).toBeNull();
+    expect(twoFaDeliveryLabel(null)).toBeNull();
+    // The widget calls the same function, injected by source.
+    expect(buildSetupUiHtml()).toContain('var deliveryLabel = function twoFaDeliveryLabel');
   });
 
   test('does not show default picker suggestions (no featured list)', () => {
