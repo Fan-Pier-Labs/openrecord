@@ -41,7 +41,6 @@
  *                                                  //   skips password + 2FA on future sessions
  */
 
-import { pathToFileURL } from 'url';
 import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -99,8 +98,7 @@ import { saveFilePayload } from './save-file';
 
 type ToolContent =
   | { type: 'text'; text: string }
-  | { type: 'image'; data: string; mimeType: string }
-  | { type: 'resource'; resource: { uri: string; mimeType: string; blob: string } };
+  | { type: 'image'; data: string; mimeType: string };
 type ToolResult = { content: ToolContent[]; isError?: boolean };
 
 function jsonResult(data: unknown): ToolResult {
@@ -237,9 +235,10 @@ const RETURN_PARAM = 'return_content';
 const RETURN_SCHEMA = z
   .boolean()
   .describe(
-    "Also put the file's content in the result so it can be read here: a PDF as a document, a text file as text (a picture is shown whenever it fits, with or without this). " +
+    "Also put the file's content in the result so it can be read here: a text file as text (a picture is shown whenever it fits, with or without this). " +
       "Defaults to false — the file is only saved to the user's Downloads folder and the result carries its path. " +
       'Only a file under about 800 KB fits under the 1MB tool-result cap; a larger one is saved and the result says so. ' +
+      'A PDF, and any other type no conversation can show, is saved and the result says so however this is set. ' +
       'Pass true when the user asks what a document says.',
   )
   .optional();
@@ -382,11 +381,11 @@ const INLINE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'ima
 
 /**
  * A `returnsFile` capability's result: the file is always written to the
- * user's Downloads folder, and its content goes into the result as well when
- * the host can carry it under its 1MB cap — an image whenever it fits, a PDF
- * (as an embedded document) or a text file only when `returnContent` asks.
- * Whatever else the capability knew about the file (an attachment's dcsId, a
- * statement's date) rides in the summary; the bytes never do.
+ * user's Downloads folder, and its content goes into the result as well only
+ * when a model can actually read it there — an image whenever it fits, a text
+ * file when `returnContent` asks. Whatever else the capability knew about the
+ * file (an attachment's dcsId, a statement's date) rides in the summary; the
+ * bytes never do.
  *
  * Takes the payload rather than running the capability, so it cannot become a
  * second path around the active-patient assertion. `baseDir` is the test seam.
@@ -396,9 +395,8 @@ export function fileResult(payload: FilePayload, returnContent: boolean, baseDir
   const savedTo = baseDir === undefined ? saveFilePayload(payload) : saveFilePayload(payload, baseDir);
 
   const isImage = INLINE_IMAGE_TYPES.has(mimeType);
-  const isPdf = mimeType === 'application/pdf';
   const isText = mimeType.startsWith('text/');
-  const base64 = isImage || returnContent ? Buffer.from(bytes).toString('base64') : '';
+  const base64 = isImage || (returnContent && isText) ? Buffer.from(bytes).toString('base64') : '';
   const fits = base64.length <= INLINE_BUDGET_BYTES;
 
   let note: string | undefined;
@@ -406,18 +404,19 @@ export function fileResult(payload: FilePayload, returnContent: boolean, baseDir
   if (isImage) {
     if (fits) attached = { type: 'image', data: base64, mimeType };
     else note = 'The image is too large to show in the conversation; open the saved file to view it.';
-  } else if (returnContent) {
-    if (!fits) {
-      note = `The file is too large to return in the conversation (the cap is about ${Math.round(INLINE_BUDGET_BYTES / 1024)} KB); open the saved file to read it.`;
-    } else if (isPdf) {
-      attached = { type: 'resource', resource: { uri: pathToFileURL(savedTo).href, mimeType, blob: base64 } };
-    } else if (isText) {
-      attached = { type: 'text', text: Buffer.from(bytes).toString('utf8') };
-    } else {
-      note = `A ${mimeType} file cannot be shown in the conversation; open the saved file.`;
-    }
-  } else if (isPdf || isText) {
-    note = `Open the saved ${isPdf ? 'PDF' : 'file'} to read it, or call again with ${RETURN_PARAM}: true to read it here; its content is not in this result.`;
+  } else if (!isText) {
+    // Those four image types and text are the whole of what survives the trip
+    // to a model. A PDF has no content block that carries it: MCP's embedded
+    // resource is the only legal shape, and Claude Desktop drops such a
+    // resource's `blob` on the way to the API while Claude Code diverts it to
+    // a temp file of its own. Saying so beats attaching bytes that vanish.
+    note = `Unsupported file type for the conversation (${mimeType}), so it was saved to the Downloads folder instead; open the saved file to read it.`;
+  } else if (!returnContent) {
+    note = `Open the saved file to read it, or call again with ${RETURN_PARAM}: true to read it here; its content is not in this result.`;
+  } else if (!fits) {
+    note = `The file is too large to return in the conversation (the cap is about ${Math.round(INLINE_BUDGET_BYTES / 1024)} KB); open the saved file to read it.`;
+  } else {
+    attached = { type: 'text', text: Buffer.from(bytes).toString('utf8') };
   }
 
   const content: ToolContent[] = [
