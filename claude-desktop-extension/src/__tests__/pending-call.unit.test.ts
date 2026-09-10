@@ -57,6 +57,18 @@ describe('runGuarded', () => {
     expect(text(unread)).toContain('finished, with its result unread');
   });
 
+  it('tells calls apart by nested arguments too, in any key order', async () => {
+    const d1 = deferred();
+    const d2 = deferred();
+    const a = await runGuarded('get_x', { account: 'X', filter: { from: '2024', to: '2025' } }, d1.fn, 5);
+    const b = await runGuarded('get_x', { account: 'X', filter: { from: '2023', to: '2025' } }, d2.fn, 5);
+    expect([b.isError, idOf(b) === idOf(a)]).toEqual([undefined, false]);
+    const same = await runGuarded('get_x', { filter: { to: '2025', from: '2024' }, account: 'X' }, () => ok('twice'), 5);
+    expect(text(same)).toContain(`id "${idOf(a)}"`);
+    d1.resolve(ok('1'));
+    d2.resolve(ok('2'));
+  });
+
   it('does not block an identical call that is merely inside the deadline', async () => {
     let runs = 0;
     const d = deferred();

@@ -57,6 +57,21 @@ function elapsed(startedAt: number, now: number): string {
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
 }
 
+/**
+ * Sorted keys at every level, so argument order cannot make two calls differ.
+ * Not a `JSON.stringify` replacer array: that is an allowlist applied at every
+ * depth, so a nested object's keys are dropped and it serialises as `{}`.
+ */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const o = value as Record<string, unknown>;
+    const keys = Object.keys(o).filter((k) => o[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical(o[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
 /** The result if it arrives within `ms`, else undefined. Never rejects. */
 function settleWithin(promise: Promise<CallToolResult>, ms: number): Promise<CallToolResult | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -85,7 +100,7 @@ export async function runGuarded(
 ): Promise<CallToolResult> {
   const now = Date.now();
   sweep(now);
-  const key = `${tool} ${JSON.stringify(args, Object.keys(args).sort())}`;
+  const key = `${tool} ${canonical(args)}`;
   const same = [...parked.values()].find((p) => p.key === key && !p.abandoned);
   if (same) {
     const state = same.settledAt === undefined ? `running (started ${elapsed(same.startedAt, now)} ago)` : 'finished, with its result unread';
