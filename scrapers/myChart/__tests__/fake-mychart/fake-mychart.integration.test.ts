@@ -671,11 +671,12 @@ for (const mode of MOUNT_MODES) {
       expect(JSON.stringify(pt)).not.toContain('<span')
       expect(pt.CoverageInfoList[0]!.Copay).toBe('$90.00')
 
-      // Every row is marked loaded on a healthy read, so a caller can tell
-      // this from the failure case where a stub survives.
+      // No row survives as a stub, so no amount a caller reads is a
+      // placeholder — the hydrated rows come back keyed by the plain account
+      // number, not the encrypted handle they were asked for under.
       const account = (await getBillingHistory(session)).accounts[0]!
-      expect(account.unhydratedVisits).toBe(0)
-      expect(account.visits.every((v) => v.detailLoaded)).toBe(true)
+      expect(account.visits.map((v) => v.HospitalAccountId)).toContain('HS-742-002')
+      expect(account.visits.every((v) => v.ChargeAmount !== '$0.00')).toBe(true)
     }, 30_000)
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {

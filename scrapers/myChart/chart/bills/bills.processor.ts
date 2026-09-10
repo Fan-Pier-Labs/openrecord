@@ -104,19 +104,6 @@ export interface BillingCoverageInfoStandard {
 export interface BillingVisitStandard {
   /** Derived: which `GetVisits` list the row came from. */
   category: BillingVisitCategory;
-  /**
-   * Derived: `false` when this row is STILL the unhydrated stub MyChart paged
-   * out — the scraper posts every stub to `GetMoreVisits`, so this is `false`
-   * only when that did not happen or did not work (no antiforgery token, a
-   * 5xx or WAF page, a batch that returned nothing new, a handle that did not
-   * round-trip).
-   *
-   * It matters because a stub's amounts are all the string `"$0.00"`, which
-   * reads exactly like a settled visit. Without this marker the failure path
-   * would reintroduce the silent undercount the hydration exists to remove.
-   * `true` on every row that carries real numbers.
-   */
-  detailLoaded: boolean;
   StartDateDisplay: string | null;
   DateRangeDisplay: string | null;
   Description: string | null;
@@ -200,12 +187,6 @@ export interface BillingAccountStandard {
   paymentUrl: string | null;
   /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
   visits: BillingVisitStandard[];
-  /**
-   * Derived: how many of `visits` are still unhydrated stubs, whose amounts
-   * are therefore placeholders rather than balances. Zero on a healthy read;
-   * non-zero means any sum over this account's charges is an undercount.
-   */
-  unhydratedVisits: number;
   VisitListAmount: string | null;
   BadDebtVisitListAmount: string | null;
   PaymentPlanVisitListAmount: string | null;
@@ -271,20 +252,65 @@ export function isStubRow(row: unknown): boolean {
 }
 
 /**
- * The hydrated rows from every `GetMoreVisits` answer, by `HospitalAccountId`
- * — the encrypted handle a stub is posted back under and comes home with.
+ * The `listOfAccounts[i].EncAccountID` values a `GetMoreVisits` body posted,
+ * in the order they were posted. `URLSearchParams` preserves that order, and
+ * the index in the field name is authoritative, so the sort is on `i` rather
+ * than on the order the parser happens to walk.
+ */
+export function postedHydrateKeys(requestBody: unknown): string[] {
+  if (typeof requestBody !== 'string') return [];
+  const indexed: Array<{ i: number; id: string }> = [];
+  for (const [field, value] of new URLSearchParams(requestBody)) {
+    const match = /^listOfAccounts\[(\d+)\]\.EncAccountID$/.exec(field);
+    if (match) indexed.push({ i: Number(match[1]), id: value });
+  }
+  return indexed.sort((a, b) => a.i - b.i).map((entry) => entry.id);
+}
+
+/**
+ * The hydrated rows from every `GetMoreVisits` answer, keyed by the encrypted
+ * handle of the stub each one answers.
+ *
+ * **The join is positional, because the answer carries nothing to join on.**
+ * A stub's `HospitalAccountId` is an encrypted handle (`WP-24…`); its
+ * hydrated row's is the plain account number (`4820015507`), and no field on
+ * the hydrated row carries the handle back. Epic's own client relies on the
+ * same correspondence — it advances its cursor by however many rows came back
+ * rather than looking anything up. So row `i` of `UnifiedVisitList` is the
+ * answer for posted key `i`.
+ *
+ * Positional pairing puts real money on a row, so it is checked rather than
+ * trusted: a pair whose `StartDate` disagrees is dropped. The service date is
+ * the one field a stub already has right, so a shifted response fails to
+ * match instead of quietly attaching one visit's charges to another.
  */
 function hydratedRows(raw: RawResponse): Map<string, Record<string, unknown>> {
   const byAccount = new Map<string, Record<string, unknown>>();
   for (const record of findRequests(raw, 'GetMoreVisits')) {
     if (!answered(record)) continue;
-    for (const row of list(rec(rec(record.body).Data).UnifiedVisitList)) {
+    const posted = postedHydrateKeys(record.requestBody);
+    const rows = list(rec(rec(record.body).Data).UnifiedVisitList);
+    rows.forEach((row, i) => {
+      const handle = posted[i];
       const r = rec(row);
-      const har = text(r.HospitalAccountId);
-      if (har && !isStubRow(r)) byAccount.set(har, r);
-    }
+      if (!handle || isStubRow(r)) return;
+      byAccount.set(handle, r);
+    });
   }
   return byAccount;
+}
+
+/**
+ * The hydrated row answering one stub, or null when the pair does not agree
+ * on the service date — see {@link hydratedRows} for why the check is here.
+ */
+function hydratedFor(
+  stub: Record<string, unknown>,
+  hydrated: Map<string, Record<string, unknown>>,
+): Record<string, unknown> | null {
+  const row = hydrated.get(text(stub.HospitalAccountId));
+  if (!row) return null;
+  return num(row.StartDate) === num(stub.StartDate) ? row : null;
 }
 
 export function payment(value: unknown): BillingPaymentStandard {
@@ -351,7 +377,6 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
   const agency = rec(v.AgencyInformation);
   return {
     category,
-    detailLoaded: !isStubRow(v),
     StartDateDisplay: textOrNull(v.StartDateDisplay),
     DateRangeDisplay: textOrNull(v.DateRangeDisplay),
     Description: textOrNull(v.Description),
@@ -400,6 +425,27 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
 }
 
 /**
+ * MyChart paged a guarantor account's charges out and the scraper could not
+ * load them all back in. Thrown rather than returned, because the only thing
+ * left to return for those rows is the fabricated `"$0.00"` MyChart fills a
+ * stub with, and that is indistinguishable from a settled visit — a caller
+ * summing the charge column would undercount silently. A read that cannot
+ * show the charges says so.
+ */
+export class BillingNotFullyLoadedError extends Error {
+  constructor(guarantorNumber: string, unloaded: number, total: number) {
+    super(
+      `MyChart paged out ${unloaded} of ${total} charge rows on guarantor account ${guarantorNumber} ` +
+        'and GetMoreVisits did not return them. Those rows carry no amounts — MyChart fills them with a ' +
+        'placeholder "$0.00" that reads exactly like a settled visit — so this read would undercount the ' +
+        'account rather than visibly fail. Nothing here is an empty or zero balance. Retry later; if it ' +
+        'keeps failing the instance may be rejecting the GetMoreVisits request shape.',
+    );
+    this.name = 'BillingNotFullyLoadedError';
+  }
+}
+
+/**
  * The nine `GetVisits` lists as one, most specific category first,
  * de-duplicated — with every stub replaced by the row `GetMoreVisits`
  * returned for it.
@@ -407,23 +453,30 @@ export function visit(value: unknown, category: BillingVisitCategory): BillingVi
  * The swap happens before de-duplication because a stub and its hydrated self
  * do not look alike: the identity includes `Description` and
  * `SelfAmountDueRaw`, which are exactly the fields hydration fills in.
+ *
+ * Every row is hydrated or the read fails: a caller never receives a stub, so
+ * it never has to ask whether an amount is real.
  */
 export function mergeVisitLists(
   data: Record<string, unknown>,
   hydrated: Map<string, Record<string, unknown>> = new Map(),
+  guarantorNumber = '',
 ): BillingVisitStandard[] {
   const seen = new Set<string>();
   const visits: BillingVisitStandard[] = [];
+  let unloaded = 0;
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
       let r = rec(row);
-      if (isStubRow(r)) r = hydrated.get(text(r.HospitalAccountId)) ?? r;
+      if (isStubRow(r)) r = hydratedFor(r, hydrated) ?? r;
       const identity = `${text(r.HospitalAccountId)}|${num(r.StartDate) ?? ''}|${text(r.Description)}|${num(r.SelfAmountDueRaw) ?? ''}`;
       if (seen.has(identity)) continue;
       seen.add(identity);
+      if (isStubRow(r)) unloaded += 1;
       visits.push(visit(r, category));
     }
   }
+  if (unloaded > 0) throw new BillingNotFullyLoadedError(guarantorNumber, unloaded, visits.length);
   return visits;
 }
 
@@ -468,7 +521,7 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
 
 function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string, Record<string, unknown>>): BillingAccountStandard {
   const data = rec(rec(accountRequest(raw, source, 'GetVisits')?.body).Data);
-  const visits = mergeVisitLists(data, hydrated);
+  const visits = mergeVisitLists(data, hydrated, source.guarantorNumber);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
@@ -489,7 +542,6 @@ function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string,
     amountDueNumber: source.amountDue ?? null,
     paymentUrl: paymentPathFor(raw, source),
     visits,
-    unhydratedVisits: visits.filter((v) => !v.detailLoaded).length,
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
     PaymentPlanVisitListAmount: textOrNull(data.PaymentPlanVisitListAmount),
@@ -545,9 +597,7 @@ export const billingProcessor: Processor<BillingStandard> = {
         guarantorNumber: a.guarantorNumber,
         patientName: a.patientName,
         amountDueNumber: a.amountDueNumber,
-        unhydratedVisits: a.unhydratedVisits,
         visits: a.visits.map((v) => ({
-          detailLoaded: v.detailLoaded,
           StartDateDisplay: v.StartDateDisplay,
           DateRangeDisplay: v.DateRangeDisplay,
           Description: v.Description,

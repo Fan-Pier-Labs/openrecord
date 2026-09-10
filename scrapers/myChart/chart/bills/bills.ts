@@ -24,7 +24,7 @@ export type {
   BillingProcedureGroupStandard,
   BillingCoverageInfoStandard,
 } from './bills.processor';
-export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from './bills.processor';
+export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES, BillingNotFullyLoadedError } from './bills.processor';
 
 // Two jobs live here: the `get_billing` read (fetchBillingRaw + the
 // processor) and the `download_billing_statement` file download, which
@@ -98,11 +98,17 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
  * rather than assuming one round trip, and stops making progress rather than
  * spinning if a batch comes back with nothing new.
  *
- * Best-effort by design: the charge list already loaded is worth returning
- * even if hydration fails. What makes that safe is the processor marking any
- * row that is still a stub — `detailLoaded: false`, counted per account as
- * `unhydratedVisits` — so a failure here can never pass a placeholder
- * `"$0.00"` off as a settled balance.
+ * The answer pairs with the request POSITIONALLY, and cannot be joined on
+ * anything else: a stub's `HospitalAccountId` is an encrypted handle, its
+ * hydrated row's is the plain account number, and no field on the hydrated
+ * row carries the handle back. Epic's own client relies on the same
+ * correspondence, advancing its cursor by however many rows came back — which
+ * is why a capped batch has to be re-asked for by trimming from the front,
+ * not by looking up what is missing.
+ *
+ * Best-effort here, but not silently: the processor throws if any row is
+ * still a stub once the answers are merged, because a stub's fabricated
+ * `"$0.00"` is indistinguishable from a settled visit.
  */
 async function hydrateStubs(
   collector: RawCollector,
@@ -111,24 +117,24 @@ async function hydrateStubs(
   token: string | undefined,
 ): Promise<void> {
   const data = rec(rec(visitsBody).Data);
-  const pending = new Map<string, HydrateKey>();
+  const byHandle = new Map<string, HydrateKey>();
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
       if (!isStubRow(row)) continue;
       const key = hydrateKey(rec(row));
-      if (key) pending.set(key.EncAccountID, key);
+      if (key) byHandle.set(key.EncAccountID, key);
     }
   }
-  if (pending.size === 0) return;
+  let pending = [...byHandle.values()];
+  if (pending.length === 0) return;
   if (!token) {
-    logger.debug(`Billing: ${pending.size} unhydrated charge rows but no antiforgery token; leaving them.`);
+    logger.debug(`Billing: ${pending.length} unhydrated charge rows but no antiforgery token; leaving them.`);
     return;
   }
 
-  // A stub list can only shrink; the guard is against a batch that returns
+  // The list can only shrink; the guard is against a batch that returns
   // nothing, which would otherwise loop forever.
-  while (pending.size > 0) {
-    const batch = [...pending.values()];
+  while (pending.length > 0) {
     const { body, failure } = await collector.send(
       {
         path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
@@ -138,7 +144,7 @@ async function hydrateStubs(
           'X-Requested-With': 'XMLHttpRequest',
           __RequestVerificationToken: token,
         },
-        body: moreVisitsBody(account, batch),
+        body: moreVisitsBody(account, pending),
       },
       { tolerateFailure: true },
     );
@@ -146,15 +152,15 @@ async function hydrateStubs(
       logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
       return;
     }
-    let hydrated = 0;
-    for (const row of list(rec(rec(body).Data).UnifiedVisitList)) {
-      const har = text(rec(row).HospitalAccountId);
-      if (pending.delete(har)) hydrated += 1;
-    }
+    // Only rows that actually came back hydrated count as progress; a server
+    // that echoes the stubs would otherwise look like a full answer.
+    const rows = list(rec(rec(body).Data).UnifiedVisitList);
+    const hydrated = rows.filter((row) => !isStubRow(row)).length;
     if (hydrated === 0) {
-      logger.debug(`Billing: GetMoreVisits returned no new rows; ${pending.size} left unhydrated.`);
+      logger.debug(`Billing: GetMoreVisits returned no hydrated rows; ${pending.length} left unhydrated.`);
       return;
     }
+    pending = pending.slice(rows.length);
   }
 }
 
