@@ -353,7 +353,8 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         if (busy) {
           return errorResult(
             `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient cannot ` +
-              `change yet. Wait for it with ${CHECK_TOOL} (abandoning does not stop it), then switch.`,
+              `change yet. Wait for it with ${CHECK_TOOL} on that id (abandoning does not stop it), then switch. ` +
+              `${CHECK_TOOL} with no id lists everything pending.`,
           );
         }
         const session = isPublicCapability(capability) ? null : await resolveSession(account);
@@ -619,10 +620,12 @@ function registerCheckPendingCall(server: McpServer): void {
       description:
         `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked under an id, exactly as ` +
         `the original tool would have returned it. Waits up to ${DEADLINE_LABEL} for it (wait: false reports at ` +
-        'once). abandon: true stops waiting and discards the result — it does not stop the work, and anything ' +
-        'already sent still lands. A parked call is given up on 10 minutes after it started.',
+        'once). Omit `id` to list every pending call, which is what a refusal naming an id is talking about. ' +
+        'abandon: true stops waiting and discards the result — it does not stop the work, and anything already ' +
+        'sent still lands, so an abandoned call is still waitable here until its read finishes. A parked call ' +
+        'is given up on 10 minutes after it started, releasing everything it held.',
       inputSchema: {
-        id: z.string().describe('The id from the parking note.'),
+        id: z.string().optional().describe('The id from the parking note. Omit to list every pending call.'),
         wait: z.boolean().optional().describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true).`),
         abandon: z.boolean().optional().describe('Stop waiting and discard the result. Does not stop the work.'),
       } satisfies ZodRawShape,
@@ -630,7 +633,11 @@ function registerCheckPendingCall(server: McpServer): void {
       ...toolMeta('Check a pending tool call', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
     },
     ({ id, wait, abandon }) =>
-      checkPendingCall({ id, ...(wait !== undefined ? { wait } : {}), ...(abandon !== undefined ? { abandon } : {}) }),
+      checkPendingCall({
+        ...(id !== undefined ? { id } : {}),
+        ...(wait !== undefined ? { wait } : {}),
+        ...(abandon !== undefined ? { abandon } : {}),
+      }),
   );
 }
 

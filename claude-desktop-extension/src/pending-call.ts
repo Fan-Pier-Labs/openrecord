@@ -27,7 +27,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 export const CHECK_TOOL = 'check_pending_call';
 export const DEADLINE_MS = 150_000;
 export const DEADLINE_LABEL = '2.5 minutes';
-/** From a call's start, after which it counts as abandoned; also how long an unread result is kept. */
+/** From a call's start, after which it is dropped: result given up on, chart lock released. Also how long an unread result is kept. */
 export const MAX_RUN_MS = 10 * 60_000;
 
 interface Parked {
@@ -39,7 +39,7 @@ interface Parked {
   promise: Promise<CallToolResult>;
   result?: CallToolResult;
   settledAt?: number;
-  /** Nobody is waiting any more. The entry stays until settled so the proxy guard still sees the scrape. */
+  /** The caller stopped waiting, so the result is no longer theirs. The entry stays until the scrape settles, or the cap, so the proxy guard still sees it. */
   abandoned?: boolean;
 }
 
@@ -84,11 +84,29 @@ function settleWithin(promise: Promise<CallToolResult>, ms: number): Promise<Cal
 function sweep(now: number): void {
   for (const [id, p] of parked) {
     if (p.settledAt === undefined) {
-      if (now - p.startedAt >= MAX_RUN_MS) p.abandoned = true;
+      // Past the cap the result is given up on, and the chart lock with it.
+      // A scrape can fail to settle at all, and an entry kept for one would
+      // block switch_proxy_target for the life of the process with no call
+      // able to clear it.
+      if (now - p.startedAt >= MAX_RUN_MS) parked.delete(id);
     } else if (p.abandoned || now - p.settledAt >= MAX_RUN_MS) {
       parked.delete(id);
     }
   }
+}
+
+function describe(p: Parked, now: number): string {
+  const state =
+    p.settledAt !== undefined ? 'finished, result unread'
+      : p.abandoned ? `abandoned, but still reading after ${elapsed(p.startedAt, now)}`
+        : `running for ${elapsed(p.startedAt, now)}`;
+  return `${p.tool} (id "${p.id}", ${state}${p.account ? `, on ${p.account}` : ''})`;
+}
+
+/** Every parked call, oldest first — what blocks a repeat or a proxy switch. */
+function listing(now: number): string {
+  const all = [...parked.values()].sort((a, b) => a.startedAt - b.startedAt);
+  return all.length ? all.map((p) => describe(p, now)).join('; ') : 'nothing is pending';
 }
 
 /** Run a tool's handler under the deadline. `deadlineMs` is the test seam. */
@@ -136,21 +154,40 @@ export function unsettledCallOnAccount(account: string): { tool: string; id: str
 
 /** The `check_pending_call` handler. `deadlineMs` is the test seam. */
 export async function checkPendingCall(
-  { id, wait, abandon }: { id: string; wait?: boolean; abandon?: boolean },
+  { id, wait, abandon }: { id?: string; wait?: boolean; abandon?: boolean },
   deadlineMs = DEADLINE_MS,
 ): Promise<CallToolResult> {
   const now = Date.now();
   sweep(now);
+  // The listing is read through the same sweep as every guard, so what it says
+  // is pending is exactly what can be blocking a repeat or a proxy switch.
+  if (id === undefined) return text(`Pending calls: ${listing(now)}.`);
   const p = parked.get(id);
-  if (!p) return text(`No pending call has id "${id}": it was already read, abandoned, or given up on after 10 minutes.`, true);
+  if (!p) {
+    return text(
+      `No pending call has id "${id}": it was already read, abandoned, or given up on after 10 minutes, ` +
+        `and it is holding nothing. Pending calls: ${listing(now)}.`,
+      true,
+    );
+  }
 
   if (abandon) {
-    if (p.settledAt === undefined) p.abandoned = true;
-    else parked.delete(id);
-    const guard = p.abandoned && p.account ? ` switch_proxy_target on ${p.account} refuses until it finishes.` : '';
+    if (p.settledAt !== undefined) {
+      parked.delete(id);
+      return text(`Abandoned ${p.tool}: its finished result was discarded unread.`);
+    }
+    p.abandoned = true;
+    const guard = p.account
+      ? ` switch_proxy_target on ${p.account} refuses until the read finishes; call ${CHECK_TOOL} with this id again to wait for that.`
+      : '';
     return text(`Abandoned ${p.tool}. ${ABANDON_MEANS}${guard}`);
   }
-  if (p.abandoned) return text(`${p.tool} was abandoned, or ran past 10 minutes; its result is discarded. ${ABANDON_MEANS}`, true);
+
+  // An abandoned call's result is not the caller's any more, but its scrape is
+  // still reading the chart, so waiting here is how they see the account come
+  // free — which is exactly what switch_proxy_target's refusal tells them to
+  // do. Short-circuiting here instead left that instruction unfollowable.
+  const discarded = p.abandoned === true;
 
   // A wait that would run past the cap is cut to the cap, and running that
   // out means the cap is reached even if the test clock never moved.
@@ -159,16 +196,18 @@ export async function checkPendingCall(
   const result = p.result ?? (wait === false ? undefined : await settleWithin(p.promise, clipped ? remaining : deadlineMs));
   if (result) {
     parked.delete(id);
-    return result;
+    if (!discarded) return result;
+    const freed = p.account ? ` switch_proxy_target on ${p.account} is free again.` : '';
+    return text(`${p.tool} has finished, and its result was discarded because the call was abandoned.${freed}`);
   }
   if (wait !== false && clipped) {
-    p.abandoned = true;
-    return text(`Gave up on ${p.tool} after 10 minutes; its result is discarded. ${ABANDON_MEANS}`, true);
+    parked.delete(id);
+    return text(`Gave up on ${p.tool} after 10 minutes. Its result is discarded and this account is no longer held. ${ABANDON_MEANS}`, true);
   }
-  return text(
-    `${p.tool} (id "${id}") is still running (${elapsed(p.startedAt, Date.now())} so far, of at most 10 minutes). ` +
-      `Call ${CHECK_TOOL} again to keep waiting, or with abandon: true to stop waiting. ${ABANDON_MEANS}`,
-  );
+  const how = discarded
+    ? `Its result will be discarded, because it was abandoned. Call ${CHECK_TOOL} again to wait for the account to come free.`
+    : `Call ${CHECK_TOOL} again to keep waiting, or with abandon: true to stop waiting. ${ABANDON_MEANS}`;
+  return text(`${p.tool} (id "${id}") is still running (${elapsed(p.startedAt, Date.now())} so far, of at most 10 minutes). ${how}`);
 }
 
 /** Test seam. */
