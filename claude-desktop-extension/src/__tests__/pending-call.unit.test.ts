@@ -124,6 +124,44 @@ describe('checkPendingCall', () => {
     expect((await checkPendingCall({ id })).isError).toBe(true);
   });
 
+  it('lists every pending call when no id is given, and when an id is unknown', async () => {
+    expect(text(await checkPendingCall({}))).toContain('nothing is pending');
+    const d = deferred();
+    const id = idOf(await runGuarded('get_billing', ACCOUNT, d.fn, 5));
+    expect(text(await checkPendingCall({}))).toContain(`get_billing (id "${id}", running for`);
+    const unknown = await checkPendingCall({ id: 'no-such-id' });
+    expect([unknown.isError, text(unknown)]).toEqual([true, expect.stringContaining(`id "${id}"`)]);
+    d.resolve(ok('bills'));
+  });
+
+  it('lets an abandoned call be waited out, so the account coming free is observable', async () => {
+    const d = deferred();
+    const id = idOf(await runGuarded('get_lab_results', ACCOUNT, d.fn, 5));
+    await checkPendingCall({ id, abandon: true });
+    // The refusal tells the caller to wait here; that must be followable.
+    expect(text(await checkPendingCall({ id, wait: false }))).toContain('is still running');
+
+    const waiting = checkPendingCall({ id }, 1000);
+    d.resolve(ok('labs'));
+    const done = await waiting;
+    expect(text(done)).not.toContain('labs');
+    expect(text(done)).toContain(`switch_proxy_target on ${ACCOUNT.account} is free again`);
+    expect(unsettledCallOnAccount(ACCOUNT.account)).toBeUndefined();
+  });
+
+  it('releases the chart lock at the cap even when the scrape never settles', async () => {
+    // A scrape that never resolves used to hold switch_proxy_target for the
+    // life of the process, with check_pending_call calling the same id gone.
+    const id = idOf(await runGuarded('get_lab_results', ACCOUNT, () => new Promise<CallToolResult>(() => {}), 5));
+    await checkPendingCall({ id, abandon: true });
+    expect(unsettledCallOnAccount(ACCOUNT.account)?.id).toBe(id);
+
+    setSystemTime(new Date(Date.now() + MAX_RUN_MS + 1000));
+    // The one invariant: if check says it is gone, nothing is still held by it.
+    expect((await checkPendingCall({ id, wait: false })).isError).toBe(true);
+    expect(unsettledCallOnAccount(ACCOUNT.account)).toBeUndefined();
+  });
+
   it('gives up at the 10-minute cap, and never waits past it', async () => {
     const d = deferred();
     const id = idOf(await runGuarded('get_billing', ACCOUNT, d.fn, 5));

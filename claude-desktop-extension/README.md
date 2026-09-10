@@ -186,7 +186,17 @@ whichever patient is active on MyChart's server.
 `abandon: true` stops waiting and discards the result. **Abandon means abandon,
 not cancel** — nothing in the scraper core takes an abort signal, so the work
 runs on, a message already sent still lands, and the proxy-switch guard holds
-until it finishes. The parked calls live in memory (`src/pending-call.ts`).
+until it finishes. An abandoned call stays waitable here, so the account coming
+free is observable, which is what that guard's refusal tells you to do.
+
+`check_pending_call` with **no `id` lists every pending call**, which is what a
+refusal naming an id is talking about. The listing, the duplicate guard and the
+proxy guard all read the same map through the same sweep, so they cannot
+disagree: if the listing says a call is gone, it is holding nothing. At the
+10-minute cap an entry is dropped outright — result given up on, chart lock
+released — because a scrape that never settles would otherwise block
+`switch_proxy_target` for the life of the server process with no call able to
+clear it. The parked calls live in memory (`src/pending-call.ts`).
 
 ### Output modes
 

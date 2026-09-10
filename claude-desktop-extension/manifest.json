@@ -31,7 +31,7 @@
     }
   },
   "tools": [
-    { "name": "check_pending_call", "description": "Collect, by id, the result of a tool call that ran past 2.5 minutes and was parked; wait for it, or abandon it (the work itself is not stopped). A parked call refuses only a repeat of itself with the same arguments." },
+    { "name": "check_pending_call", "description": "Collect, by id, the result of a tool call that ran past 2.5 minutes and was parked; wait for it, or abandon it (the work itself is not stopped). Omit the id to list every pending call. A parked call refuses only a repeat of itself with the same arguments." },
     { "name": "list_accounts", "description": "List configured MyChart accounts and their connection status. Returns the hostname for each — pass that as `account` to any other tool." },
     { "name": "search_mycharts", "description": "Search the directory of known MyChart instances by name." },
     { "name": "get_hospital_info", "description": "Public profile of the health system behind a MyChart hostname — support phone lines, bookable providers, clinic addresses, billing entities. No account needed." },
