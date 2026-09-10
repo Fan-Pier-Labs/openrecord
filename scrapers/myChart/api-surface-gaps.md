@@ -3,6 +3,8 @@
 Findings from a live probe of a real Epic MyChart instance (passkey login, a non-root deployment
 mount) on 2026-08-13, re-sorted on 2026-09-03 against what the product already ships. Everything
 below was actually called against that account. No PII from those responses is reproduced here.
+[The legacy sweep](#the-legacy-sweep) (2026-09-10) adds the non-React surface, which is read off
+static script bundles rather than probed.
 
 **This file is a ranking, not an inventory.** The 700 endpoints the sweep found are mostly worthless
 to us, and the original version of this doc buried that: it sorted by *"does this account return
@@ -262,9 +264,131 @@ what they are sent. So a React endpoint that 500s is as likely to mean "this dep
 that activity" as "this patient has no data" — and the legacy activity behind it may be serving the
 same data the whole time.
 
-That is the strongest argument in this file for a second sweep. The React sweep found 700 endpoints of
-which maybe five are worth building; two hand-reads of legacy scripts produced two shipped
-capabilities. **A pass over `/areas/**` has a better hit rate than anything left in Tier 3.**
+That was the strongest argument in this file for a second sweep. That sweep has now been done —
+see the next section.
+
+---
+
+# The legacy sweep
+
+The `/areas/**` pass the section above asked for, run September 2026. It answers what the React
+sweep structurally could not see.
+
+## How to redo it
+
+The legacy scripts are **plain static assets**, so most of this needs no account at all:
+
+1. **Get the bundle names from a legacy activity page.** A legacy page lists them as
+   `<script src>`: `/<mount>/bundles/<name>`. Guessing the names does not work — the areas are
+   named per feature (`insurance-controllers`, `homepage-models`, `complete-scheduling-templates`),
+   not per URL segment, and a wrong name is a 302, not a 404.
+2. **Fetch each bundle.** A handful serve unauthenticated on any instance
+   (`core-1-post`, `core-2-en-US` … `core-5-en-US`, `clinical-common`, `insurance-controllers`);
+   the rest need a session. `core-3-en-US` alone is ~1.9 MB.
+3. **Grep for endpoints**: `makeLink("Area/Controller/Action")` is the legacy call convention,
+   alongside bare `"Area/Controller/Action"` strings and `/api/*` paths.
+
+Per-activity scripts still live at `areas/<area>/<activity>/scripts/<activity>.min.js` and are
+fetchable without a login — that is how Care Team was found — but only a few activities are still
+legacy, so the bundles are the better index.
+
+## What it found
+
+**One instance** (November 2025 release), 29 bundles, 6.8 MB of script: **212 endpoints
+referenced, 204 of them not called by any scraper here.** About a third is analytics, keepalive and
+error-page plumbing worth nothing. What is left clusters, and the clusters are the finding — this
+is a much larger legacy surface than "a few stragglers".
+
+**Two caveats before building on any row below.** An endpoint named in a bundle is not proof the
+instance serves it or that it returns data, so probe first, exactly as the top of this file says.
+And the bundle set depends on which activities *that* instance still runs on legacy; another
+deployment ships a different set.
+
+### A. Care Everywhere / `Community/*` — the biggest gap in this file
+
+**29 endpoints, and `get_linked_accounts` touches exactly one of them** (`/Community/Manage`).
+
+| Endpoint | What it looks like |
+| --- | --- |
+| `Community/Shared/GetLoadingAndErrorOrgNames` | The organizations whose data **failed to load**, by name |
+| `Community/Shared/GetCurrentLoadingOrgList` | The ones still loading |
+| `Loading/GetFhirLoadStatus` | Async status of that cross-organization load |
+| `Community/Shared/QueryCommunityLinks`, `GetUpdatedCommunityLink` | Link state per organization |
+| `Community/Shared/SearchOrganizations`, `LoadChildrenOrganizations` | The organization directory behind linking |
+| `Community/External/IsCommunityActive`, `RefreshCommunityLink` | Whether outside data is live, and a way to refresh it |
+| `Community/Shared/UserHasLinkWithPayer` | Whether the patient is linked to their payer |
+| `Community/Shared/AcceptOrganizationConsent`, `AcceptFHIRConsent`, `DeclineOrganizationConsent`, `ConfirmOrganizationLink`, `InitiateCELink`, `DismissOrganization`, `InvalidateOrganizationLink` | The consent and linking **writes** |
+
+Why this ranks first: several capabilities here already report outside data as missing without being
+able to say why. `get_care_team` sets `externalProvidersUnavailable` as a bare boolean;
+`GetLoadingAndErrorOrgNames` would turn that into named organizations and a reason. A partial record
+presented as the whole one is the failure this codebase most cares about, and this cluster is the
+instrumentation for it.
+
+### B. Feature enumeration — fixes a trap this file documents
+
+`Menu/Header/GetFeatures` · `api/search/LoadMenuInfo` · `SearchMenu/LoadSearchBarInfo`
+
+The trap above ("a React activity that isn't served answers 200 with Home, and its API 500s
+whatever you send it") is currently worked around by inference. These endpoints are the instance
+answering the question directly: which activities it actually runs. Cheap, read-only, and it would
+firm up `RawCollector`'s "not served here" reporting.
+
+### C. Personal information — richer than `get_profile`, and writes
+
+`PersonalInformation/GetContactInformation` · `GetOtherInformation` · `GetAddressConfiguration` ·
+`GetAddressFilter` · `Personal/PersonalInformation/GetInsuranceConfiguration` ·
+`UpdateContactInformation` · `UpdateOtherInformation` · `VerifyPatientInformation`
+
+Note this is the **legacy** sibling of Tier 2.3's `/api/personalInformation/GetContextIds`, which
+that entry says to probe before building. Probe both together.
+
+### D. Questionnaires — depth beyond the flat list
+
+`Questionnaire/MyChartQuestionnaire/SeriesList` · `MessageList` · `VisitDetails` ·
+`GetQuestionnaireList` · `PrintQuestionnaire` · `AskFromSeries` / `AskFromMessage` /
+`AskFromContact` / `AskFromResearch` / `AskFromPatientInitiated`
+
+`get_questionnaires` reads the React `/api/questionnaire/GetQuestionnaireList`. The legacy area
+splits questionnaires by where they came from (a series, a message, a visit, a research study),
+which the flat list does not express.
+
+### E. Document content
+
+`Documents/ViewDocument/Load` · `Documents/ViewDocument/GetTiff` ·
+`Documents/ESignatures/LoadESignDocContent`
+
+`download_document` already fetches a Document Center file. `GetTiff` and the e-signature content
+endpoint are separate renderings worth a look before assuming overlap.
+
+### F. The upload subsystem — four controllers, one shape
+
+`DocumentUpload/UploadFile` · `Questions/QuestionUpload/UploadFile` ·
+`Insurance/UploadCoverage/UploadFile` · `ProxySwitch/ProxyPhotoUpload/UploadFile`
+
+Each pairs with `GetFileUploadConfiguration`, `DeleteFile` and `EditFileName`, so one client would
+serve all four. Also here: `Insurance/Coverages/PerformFormRecognition`, which is server-side OCR of
+an insurance card, and `ProxySwitch/ProxyPhotoUpload/ConvertToJpegRemoveExif`. All writes.
+
+### G. Everything else worth a line
+
+- **Telemedicine lifecycle** — `TelemedicineHome/IsPatientInActiveVideoVisit`, `EnqueuePatient`,
+  `StartTelemedSession`, `GetOnDemandCallToAction`, `GetOrganizationAndVerifyVisit`.
+- **Scheduling depth** — `Scheduling/GetOneClickTicketSlots`, `SetTicketWaitListPreferences`,
+  `CancelSchedulingAppointment`, `RequestAppointment`, `DetermineProxyWorkflow`, plus the
+  `Scheduling/Anonymous/*` set (`GetAnonymousSchedulingSettings`, `GetQuickScheduleSlots`) that the
+  pre-login work already partly covers.
+- **Self-triage** — `SymptomChecker/SelfTriage/StoreSelfTriageSession`, `SymptomChecker/ActionNode/*`,
+  and the `DecisionTrees/DecisionTree/*` engine (`SaveStep`, `PreviousStep`, `DiscardWorkflow`) that
+  drives it.
+- **Singles** — `Alerts/ExternalAlerts/Load`, `AdvancedCarePlanning/CareDecision/Index` (advance
+  directives), `Research/ResearchStudies/Index`, `Clinical/Allergies/LoadListData` and
+  `SubmitUpdate` (the legacy allergy list, and a patient-reported update),
+  `Clinical/CareTeam/UpdateProviderCareTeamStatus` (hide/unhide a care team provider).
+- **Auth-adjacent, listed for completeness, not as a suggestion** —
+  `Widget/GetWidgetAuthCode`, `Widget/RefreshAuthCode`, `Widget/SetupWidgetSession`, and
+  `Authentication/SecondaryValidation/*`. Anything touching 2FA or an auth code needs a reason
+  beyond curiosity, and `SendCode` can text a real person.
 
 ---
 
@@ -394,11 +518,15 @@ POST /Insurance/Coverages/GetPayors            form-encoded: encounterCsn=&encou
 2. **Access logs** (Tier 1.1) — the headline read, and the one nothing else in the product answers.
 3. **`GetContextIds` probe** (Tier 2.3) — cheapest probe, highest information: it either hardens the
    active-patient invariant or drops to Tier 5, and one response decides which.
-4. **A second sweep over `/areas/**`** — moved up. It is now two-for-two: both capabilities this
-   document has produced came from hand-reading a legacy script, against five candidates from 700
-   React endpoints. Re-check the tier 4 500s against their legacy activities while you are in there.
-5. **Implants, then To Do** (Tier 1.2, 1.3) — two self-contained reads with no overlap.
-6. Tier 2 leftovers, opportunistically, whenever a probe session is already open.
+4. **The Care Everywhere cluster** ([The legacy sweep](#the-legacy-sweep), A) — the sweep over
+   `/areas/**` is done, and this is what it found. Start with
+   `Community/Shared/GetLoadingAndErrorOrgNames`: several shipped capabilities report outside data
+   as missing without being able to say which organization or why. Re-check the tier 4 500s against
+   their legacy activities while you are in there.
+5. **`Menu/Header/GetFeatures`** ([The legacy sweep](#the-legacy-sweep), B) — one read that replaces
+   the "is this activity served here" inference the React trap forces today.
+6. **Implants, then To Do** (Tier 1.2, 1.3) — two self-contained reads with no overlap.
+7. Tier 2 leftovers, opportunistically, whenever a probe session is already open.
 
 Anything added lands in `shared/capabilities/` with a matching fake-mychart route and a `realShapes.ts`
 skeleton generated from a live capture, per the fake's faithful-stand-in rule.
