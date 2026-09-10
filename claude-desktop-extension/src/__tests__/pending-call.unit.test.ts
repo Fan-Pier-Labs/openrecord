@@ -131,7 +131,21 @@ describe('checkPendingCall', () => {
     expect(text(await checkPendingCall({}))).toContain(`get_billing (id "${id}", running for`);
     const unknown = await checkPendingCall({ id: 'no-such-id' });
     expect([unknown.isError, text(unknown)]).toEqual([true, expect.stringContaining(`id "${id}"`)]);
+    expect(text(unknown)).toContain('no call with that id was parked here');
     d.resolve(ok('bills'));
+  });
+
+  it('says what became of an id that is gone, so the reasons are distinguishable', async () => {
+    const d = deferred();
+    const collected = idOf(await runGuarded('get_profile', ACCOUNT, d.fn, 5));
+    d.resolve(ok('profile'));
+    await tick();
+    expect(await checkPendingCall({ id: collected })).toEqual(ok('profile'));
+    expect(text(await checkPendingCall({ id: collected }))).toContain('get_profile was collected');
+
+    const hung = idOf(await runGuarded('get_lab_results', ACCOUNT, () => new Promise<CallToolResult>(() => {}), 5));
+    setSystemTime(new Date(Date.now() + MAX_RUN_MS + 1000));
+    expect(text(await checkPendingCall({ id: hung }))).toContain('get_lab_results was given up on after running 10 minutes');
   });
 
   it('lets an abandoned call be waited out, so the account coming free is observable', async () => {
