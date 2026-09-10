@@ -90,7 +90,7 @@ import {
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
-import { CHECK_TOOL, checkPendingCall, runGuarded } from './pending-call';
+import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
@@ -288,6 +288,9 @@ function contextFor(ref: string): CapabilityContext {
   };
 }
 
+/** The one capability that changes which patient every other read sees. */
+const SWITCH_PROXY_TOOL = 'switch_proxy_target';
+
 /**
  * Register one capability as an MCP tool. `kind` controls the annotations
  * Claude Desktop uses for grouping:
@@ -347,6 +350,19 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // A public capability has no account to resolve and no credentials to
         // read: `executeCapability` runs it with a null session.
         const account = isPublicCapability(capability) ? '' : readAccountArg(args) ?? '';
+        // A parked read is still reading whichever patient is active, and the
+        // active patient is server-side state; switching under it would hand
+        // the read the wrong chart. Abandoning the read does not stop it, so
+        // the guard answers for an abandoned call too.
+        if (capability.id === SWITCH_PROXY_TOOL) {
+          const busy = unsettledCallOnAccount(account);
+          if (busy) {
+            return errorResult(
+              `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient ` +
+                `cannot change yet. Wait for it with ${CHECK_TOOL} — abandoning it does not stop it — and switch afterwards.`,
+            );
+          }
+        }
         const session = isPublicCapability(capability) ? null : await resolveSession(account);
         // executeCapability, not capability.run, for EVERY capability: the
         // active-patient assertion lives there. Branching to a direct
@@ -590,14 +606,17 @@ async function connectWithPassword(hostname: string, username: string, password:
 // ── The pending-call slot ──────────────────────────────────────────────────
 
 /**
- * A server whose every registration runs under `runGuarded`: the 3.5-minute
- * deadline, and the one-at-a-time slot behind check_pending_call. Only the
- * `registerTool` this file calls is wrapped; the declared type is kept so the
- * handlers' argument types still come from their zod shapes.
+ * A server whose every registration runs under `runGuarded`: the deadline,
+ * and the parking behind check_pending_call. Only the `registerTool` this
+ * file calls is wrapped; the declared type is kept so the handlers' argument
+ * types still come from their zod shapes. Every tool here declares an
+ * inputSchema, so the SDK's first callback argument is always the arguments.
  */
 function guarded(server: McpServer): McpServer {
   const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
-    server.registerTool(name, config as never, (...a: unknown[]) => runGuarded(name, () => handler(...a)));
+    server.registerTool(name, config as never, (...a: unknown[]) =>
+      runGuarded(name, (a[0] ?? {}) as Record<string, unknown>, () => handler(...a)),
+    );
   return { registerTool } as unknown as McpServer;
 }
 
@@ -606,39 +625,47 @@ function registerCheckPendingCall(server: McpServer): void {
     CHECK_TOOL,
     {
       description:
-        'Collect the result of a tool call that ran past 3.5 minutes, or find out how it is doing. Only one ' +
-        'tool call runs at a time; while one is running, or has finished and not been read, every other tool ' +
-        'refuses and says to call this one. Returns the finished result exactly as the original tool would ' +
-        'have, and clears the way for other tools. Otherwise, with `wait` (the default) it waits up to 3.5 ' +
-        'minutes for the result before reporting that the call is still running and for how long; with ' +
-        '`wait: false` it reports at once. A call is given up on 10 minutes after it started. ' +
-        '`abandon: true` stops waiting for the call and discards its result. Abandon means abandon, not ' +
-        'cancel: the work runs on in the background until it finishes on its own, and a message or ' +
-        'request it already sent still lands.',
+        `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked with an id, or find ` +
+        'out how it is doing. Returns the finished result exactly as the original tool would have. Otherwise, ' +
+        `with \`wait\` (the default) it waits up to ${DEADLINE_LABEL} for the result before reporting that the ` +
+        'call is still running and for how long; with `wait: false` it reports at once. Pass the `id` from the ' +
+        'parking note; it can be omitted while only one call is parked, and with several and no id the ' +
+        'result lists them. A parked call blocks only a repeat of the same call with the same arguments; ' +
+        'it is given up on 10 minutes after it started. `abandon: true` stops waiting for the call and ' +
+        'discards its result. Abandon means abandon, not cancel: the work runs on in the background until ' +
+        'it finishes on its own, a message or request it already sent still lands, and switch_proxy_target ' +
+        'on that account refuses until it has finished.',
       inputSchema: {
+        id: z.string().optional().describe('The id from the parking note. Optional while only one call is parked.'),
         wait: z
           .boolean()
           .optional()
-          .describe('Wait up to 3.5 minutes for the call to finish (default true). false reports its state at once.'),
+          .describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true). false reports its state at once.`),
         abandon: z
           .boolean()
           .optional()
           .describe(
-            'Stop waiting for the pending call and discard its result, freeing the other tools. This does not ' +
-              'stop the work: it runs on in the background, and anything it already sent still lands.',
+            'Stop waiting for the pending call and discard its result. This does not stop the work: it runs on ' +
+              'in the background, and anything it already sent still lands.',
           ),
       } satisfies ZodRawShape,
-      ...toolMeta('Check the pending tool call', { readOnlyHint: true, openWorldHint: false }),
+      // Not read-only: abandon discards a result.
+      ...toolMeta('Check a pending tool call', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
     },
-    ({ wait, abandon }) => checkPendingCall({ ...(wait !== undefined ? { wait } : {}), ...(abandon !== undefined ? { abandon } : {}) }),
+    ({ id, wait, abandon }) =>
+      checkPendingCall({
+        ...(id !== undefined ? { id } : {}),
+        ...(wait !== undefined ? { wait } : {}),
+        ...(abandon !== undefined ? { abandon } : {}),
+      }),
   );
 }
 
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(rawServer: McpServer): void {
-  // check_pending_call is the one tool that must answer while the slot is
-  // held, so it goes on the raw server; everything below runs guarded.
+  // check_pending_call collects parked results, so it is never itself parked:
+  // it goes on the raw server, and everything below runs guarded.
   registerCheckPendingCall(rawServer);
   const server = guarded(rawServer);
 

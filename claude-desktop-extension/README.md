@@ -168,32 +168,43 @@ different family member's record than the one the call is about.
 
 ### Long tool calls: `check_pending_call`
 
-Claude Desktop drops a tool call that has not answered in about four minutes,
-and a read that pages through years of billing or pulls a large imaging study
-can take longer. So every tool runs under a 3.5-minute deadline. A call that
-answers in time returns as usual. One that does not keeps running in the
-background and returns a note instead; the result is collected with
-**`check_pending_call`**, which returns it exactly as the original tool would
-have.
+Claude Desktop cancels a tool call it has waited too long on. The one
+measurement on record is in its own client log (`~/Library/Logs/Claude/mcp.log`):
+a `notifications/cancelled` with "MCP error -32001: Request timed out" sent 197 s
+after the request, on the June 2026 build; the figure usually quoted is four
+minutes. A read that pages through years of billing or pulls a large imaging
+study can take longer than either. So every tool runs under a 2.5-minute
+deadline, under both figures and above the scrapers' 2-minute per-request cap.
+A call that answers in time returns as usual. One that does not keeps running
+in the background and returns a note carrying an id; the result is collected
+with **`check_pending_call`**, which returns it exactly as the original tool
+would have.
 
-There is one slot, not a queue. While a call is running, or has finished and
-not yet been read, **every other tool refuses** and points at
-`check_pending_call`. That is deliberate: a `switch_proxy_target` that ran in
-the middle of a background read would hand that read the wrong family
-member's chart, and a model that retries the timed-out tool gets the refusal
-instead of doing the work twice (for `send_message`, a second message to the
-doctor).
+Nothing is serialized. Claude Desktop dispatches the tool calls of one turn as
+they stream, without waiting for earlier ones to answer (its log shows a second
+call issued 5.5 s after a first that had not answered), so several calls can
+run at once and more than one can park. A parked call blocks exactly one thing:
+**a repeat of itself with the same arguments** while it is running or its
+result is unread. That is the retry, and a retried `send_message` is a second
+message to the doctor. Everything else runs, with one exception:
+`switch_proxy_target` on that account refuses until the parked read has
+actually finished, because the read is still reading whichever patient is
+active on MyChart's server.
 
-- `check_pending_call()` waits up to 3.5 minutes for the result, then either
-  returns it or says the call is still running and for how long.
-- `check_pending_call(wait: false)` reports at once.
-- `check_pending_call(abandon: true)` stops waiting and discards the result.
+- `check_pending_call(id)` waits up to 2.5 minutes for the result, then either
+  returns it or says the call is still running and for how long. The id can be
+  omitted while only one call is parked; with several and no id, it lists them.
+- `check_pending_call(id, wait: false)` reports at once.
+- `check_pending_call(id, abandon: true)` stops waiting and discards the result.
   **Abandon means abandon, not cancel** — nothing in the scraper core takes an
   abort signal, so the work runs on in the background until it finishes on its
-  own, and a message or request it already sent still lands.
-- A call is given up on 10 minutes after it started, the same way.
+  own, a message or request it already sent still lands, and the proxy-switch
+  guard above keeps refusing until it does finish.
+- A call is given up on 10 minutes after it started, the same way. An unread
+  result is kept 10 minutes after it lands.
 
-The slot is in-memory (`src/pending-call.ts`) and dies with the server process.
+The parked calls live in memory (`src/pending-call.ts`) and die with the server
+process.
 
 ### Output modes
 

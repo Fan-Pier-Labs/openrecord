@@ -26,7 +26,7 @@
  * stays quick. Keep it under the scrapers' 2-minute per-request deadline
  * (`scrapers/http.ts`) or every request simply fails; a chart read makes at
  * least two gated requests, so 110 s is enough to push any data tool past the
- * extension's 3.5-minute deadline.
+ * extension's 2.5-minute deadline.
  */
 
 const outageState: { failingEndpoints: Set<string>; responseDelaySeconds: number } = {

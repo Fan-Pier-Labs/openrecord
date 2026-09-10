@@ -76,14 +76,15 @@ async function main(): Promise<void> {
         '\n  5. Use the data tools (get_medications, get_lab_results, send_message, etc.) with the ' +
         '     `account` from the previous step.' +
         '\n\n' +
-        'Long tool calls: only one tool call runs at a time. A call that has not answered after 3.5 ' +
-        'minutes keeps running in the background and returns a note instead of its result; every other ' +
-        'tool then refuses until that result is read. Call check_pending_call to wait for and receive the ' +
-        'result (it is returned exactly as the original tool would have returned it). Never call the ' +
-        'original tool again while it is pending: it is already running, and for a tool that sends ' +
-        'something a second call would send it twice. check_pending_call with abandon: true stops waiting ' +
-        'for the call and discards its result, but does not stop the work — anything it already sent ' +
-        'still lands. A call is given up on 10 minutes after it started.' +
+        'Long tool calls: a call that has not answered after 2.5 minutes keeps running in the background ' +
+        'and returns a note carrying an id instead of its result. Call check_pending_call with that id to ' +
+        'wait for and receive the result (it is returned exactly as the original tool would have returned ' +
+        'it). Never repeat the original call with the same arguments while it is pending: it is already ' +
+        'running, it would be refused, and for a tool that sends something a second call would send it ' +
+        'twice. Other tools are not affected, except switch_proxy_target on that account, which waits for ' +
+        'the read to finish. check_pending_call with abandon: true stops waiting for the call and discards ' +
+        'its result, but does not stop the work — anything it already sent still lands. A call is given ' +
+        'up on 10 minutes after it started.' +
         '\n\n' +
         'Public information (no account): get_hospital_info(hostname) returns what a MyChart ' +
         'instance publishes about its health system to anyone — support phone lines, the bookable ' +
