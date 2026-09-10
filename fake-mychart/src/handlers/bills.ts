@@ -15,13 +15,34 @@ import { prefix, type ExactRoutes, type PatternRoute } from './types';
  * Serving this is what stops a scraper from reporting a stub's fabricated
  * `"$0.00"` as a settled balance — the fixture's stubs exist to be hydrated,
  * so the fake has to hydrate them.
+ *
+ * The answer is POSITIONAL, and deliberately gives a client nothing to join
+ * on: the returned rows carry the plain account number where the stub carried
+ * the encrypted handle, so row `i` answers posted key `i` and nothing else
+ * identifies it. That is what a live instance does (verified against a
+ * 25-stub capture), and reproducing it is the whole point — the earlier
+ * fixture echoed the handle back, which let a key-based join pass every test
+ * here while returning `"$0.00"` for 25 of 45 real visits.
  */
-function hydrateRequested(body: string, hydrated: readonly Record<string, unknown>[]) {
-  const params = new URLSearchParams(body);
-  const asked = new Set(
-    [...params.entries()].filter(([k]) => k.endsWith('.EncAccountID')).map(([, v]) => v),
-  );
-  return hydrated.filter((r) => asked.has(String(r.HospitalAccountId ?? '')));
+function hydrateRequested(
+  body: string,
+  visits: unknown,
+  hydrated: readonly Record<string, unknown>[],
+) {
+  const asked = [...new URLSearchParams(body)]
+    .filter(([k]) => /^listOfAccounts\[\d+\]\.EncAccountID$/.test(k))
+    .map(([, v]) => v);
+  // `billingHydratedVisits[i]` is the answer for the i-th stub in the fixture,
+  // so the handle a request posts is resolved through the stub list rather
+  // than through anything on the hydrated row itself.
+  const data = (visits as { Data?: { UnifiedVisitList?: Record<string, unknown>[] } })?.Data;
+  const stubHandles = (data?.UnifiedVisitList ?? [])
+    .filter((r) => r.LevelOfDetailLoaded === 0)
+    .map((r) => String(r.HospitalAccountId ?? ''));
+  return asked
+    .map((handle) => hydrated[stubHandles.indexOf(handle)])
+    .filter((r): r is Record<string, unknown> => r !== undefined)
+    .map((row, i) => ({ ...row, Index: i }));
 }
 
 export const billsGet: ExactRoutes = {
@@ -75,7 +96,7 @@ export const billsPost: ExactRoutes = {
 
 export const billsPostPatterns: readonly PatternRoute[] = [
   prefix('billing/details/getmorevisits', async ({ request, ds }) => {
-    const rows = hydrateRequested(await request.text(), ds.billingHydratedVisits ?? []);
+    const rows = hydrateRequested(await request.text(), ds.billingVisits, ds.billingHydratedVisits ?? []);
     return json(conformToShape(shapes.billingGetVisits, { Success: true, Data: { UnifiedVisitList: rows } }));
   }),
 ];

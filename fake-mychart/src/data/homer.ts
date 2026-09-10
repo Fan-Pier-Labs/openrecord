@@ -1929,13 +1929,19 @@ export const billingVisits = {
  * and the line items with the procedure code MyChart buries in markup
  * (`<span class='subtlecolor'>`), exactly as a live instance sends it.
  *
- * Matched to the stub by `HospitalAccountId`, which is the encrypted handle
- * the hydrate request posts back.
+ * A hydrated row does NOT carry the encrypted handle back. Its
+ * `HospitalAccountId` is the plain account number, the same value the
+ * populated rows in `billingVisits` carry, and `Index` restarts at 0 for the
+ * returned list — both checked against a live capture (25 stubs, 25 rows
+ * back, zero overlap on `HospitalAccountId`). There is nothing to join on, so
+ * the answer pairs with the request positionally; the fake must reproduce
+ * that or a scraper that only works against a key-based join looks correct
+ * here and silently returns `"$0.00"` against the real thing.
  */
 export const billingHydratedVisits = [
   {
     GroupType: 0,
-    Index: 1,
+    Index: 0,
     BillingSystem: 2,
     IsSBO: false,
     BillingSystemDisplay: 'Hospital Services',
@@ -1951,7 +1957,7 @@ export const billingHydratedVisits = [
     Provider: 'Provider: Julius Hibbert, MD',
     ProviderId: '',
     HospitalAccountDisplay: 'Account #HS-742-002',
-    HospitalAccountId: 'WP-24aG9kR2wQ7pL4xNvB8sT1cE-3D-3D-24hM5jY0uZ3fD6nK9rW2qX7bV4tP1gS8cA5eH0iL3oJ6-3D',
+    HospitalAccountId: 'HS-742-002',
     PrimaryPayer: 'Primary Payer: Springfield Nuclear Power Plant Employee Health Plan',
     ChargeAmount: '$450.00',
     InsuranceAmountDue: '$0.00',
@@ -2015,7 +2021,7 @@ export const billingHydratedVisits = [
   },
   {
     GroupType: 0,
-    Index: 2,
+    Index: 1,
     BillingSystem: 2,
     IsSBO: false,
     BillingSystemDisplay: 'Hospital Services',
@@ -2031,7 +2037,7 @@ export const billingHydratedVisits = [
     Provider: null,
     ProviderId: '',
     HospitalAccountDisplay: 'Account #HS-742-003',
-    HospitalAccountId: 'WP-24bH1mS4xR8qN5yPwC9uV2dF-3D-3D-24kQ7lZ3vA6gE9pM0sX5tY8cB1nR4wJ7fD2hK6oI9-3D',
+    HospitalAccountId: 'HS-742-003',
     PrimaryPayer: 'Primary Payer: Springfield Nuclear Power Plant Employee Health Plan',
     ChargeAmount: '$325.00',
     InsuranceAmountDue: '$0.00',
