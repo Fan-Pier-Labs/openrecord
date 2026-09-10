@@ -32,12 +32,15 @@ function mockRequest(replies: Reply[]) {
 
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok" />'
 
+/** What `NationalProviderID` actually held on all 7 providers of the instance probed for it. */
+const ENCRYPTED_NPI = 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D'
+
 /** One `ProvidersList` element as four live instances return it. */
 const HIBBERT = {
   ID: 'PROV-1',
   Name: 'Julius Hibbert, MD',
   Photo: '/photos/1.jpg',
-  NationalProviderID: '1000000001',
+  NationalProviderID: ENCRYPTED_NPI,
   WebPageUrl: '/Clinical/Provider/PROV-1',
   InfoBlurbUrl: '',
   // An array on every live instance (always empty), so it must not be read as text.
@@ -67,7 +70,7 @@ const HIBBERT_STANDARD = {
   IsExternal: false,
   fromExternalList: false,
   ID: 'PROV-1',
-  NationalProviderID: '1000000001',
+  encryptedNationalProviderID: ENCRYPTED_NPI,
   DepartmentID: 'DEP-1',
   CanMessage: true,
 }
@@ -180,7 +183,7 @@ describe('careTeamProcessor', () => {
           IsExternal: true,
           fromExternalList: true,
           ID: 'PROV-EXT',
-          NationalProviderID: null,
+          encryptedNationalProviderID: null,
           DepartmentID: null,
           CanMessage: null,
         },
@@ -188,6 +191,15 @@ describe('careTeamProcessor', () => {
     })
     expect(standard.ProvidersList[0]).not.toHaveProperty('Photo')
     expect(standard.ProvidersList[0]).not.toHaveProperty('AboutMeBlurb')
+  })
+
+  // MyChart's field is named like an NPI but holds an encrypted token, so the
+  // name that promised an NPI is raw-only and the value is carried under one
+  // that does not.
+  it('carries NationalProviderID under a name that does not promise an NPI', () => {
+    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
+    expect(standard.ProvidersList[0]).not.toHaveProperty('NationalProviderID')
+    expect(standard.ProvidersList[0]?.encryptedNationalProviderID).toBe(ENCRYPTED_NPI)
   })
 
   it('keeps IsExternal on an internal-list provider distinct from fromExternalList', () => {

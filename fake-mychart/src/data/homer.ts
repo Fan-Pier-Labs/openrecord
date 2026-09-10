@@ -254,6 +254,10 @@ export const vitalsReadings = {
 // PascalCase because /Clinical/CareTeam/Load is a legacy MVC activity, not one
 // of the React /api/* endpoints. `Relation` carries the role (the PCP
 // designation lives there); `Specialty` the department specialty. The fields
+// `NationalProviderID` is NOT a number here, and that is the point: on the one
+// instance probed for it, every provider carried an Epic-encrypted `WP-$…$…`
+// blob in that field, never a 10-digit NPI. A fixture with digits taught
+// readers of this repo a contract real MyChart does not offer. The fields
 // left out here are filled from the shape template: on both captured instances
 // `AboutMeBlurb` was an empty array and `Organizations` /
 // `SchedulableVisitTypes` were null on every provider. `TabColorClass` and
@@ -265,7 +269,7 @@ export const careTeam = {
     {
       ID: 'PROV-HIBBERT',
       Name: 'Julius Hibbert, MD',
-      NationalProviderID: '1000000001',
+      NationalProviderID: 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D',
       Specialty: 'Internal Medicine',
       Relation: 'Primary Care Provider',
       DepartmentID: 'DEP-IM-1',
@@ -278,7 +282,7 @@ export const careTeam = {
       // provider id works here the way it does on a real instance.
       ID: 'PROV-NICK',
       Name: 'Nick Riviera, MD',
-      NationalProviderID: '1000000002',
+      NationalProviderID: 'WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D',
       Specialty: 'General Surgery',
       Relation: 'Surgeon',
       DepartmentID: 'DEP-SURG-1',
@@ -300,7 +304,7 @@ export const careTeam = {
       // anything reading this field meets that case here too.
       ID: 'PROV-VELIMIROVIC',
       Name: 'Dr. Velimirovic, MD',
-      NationalProviderID: '1000000004',
+      NationalProviderID: 'WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D',
       Specialty: 'Cardiothoracic Surgery',
       Relation: null,
       DepartmentID: 'DEP-SURG-2',
@@ -319,7 +323,7 @@ export const careTeamExternal = {
     {
       ID: 'PROV-EXT-MONROE',
       Name: 'Marvin Monroe, MD',
-      NationalProviderID: '1000000003',
+      NationalProviderID: 'WP-24mUpHqqyLs5yjYBPrhq8rtA-3D-3D-243tFy77AtwOZ1x9-2B6aX3mBcYajWMOxHXT7EKn2veRtOo-3D',
       Specialty: 'Psychiatry',
       Relation: 'Outside Provider',
       IsExternal: true,

@@ -248,7 +248,7 @@ for (const mode of MOUNT_MODES) {
       // patient's insurance payer, with no NPI and no specialty.
       const payer = result.ProvidersList.find(m => m.Relation === 'Payer')
       expect(payer?.Name).toBeTruthy()
-      expect(payer?.NationalProviderID).toBe('')
+      expect(payer?.encryptedNationalProviderID).toBe('')
       expect(payer?.Specialty).toBe('')
     }, 10_000)
 

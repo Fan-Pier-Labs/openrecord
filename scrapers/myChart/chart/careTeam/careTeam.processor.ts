@@ -21,6 +21,14 @@
  * `AboutMeBlurb` (`[]` on every provider of four instances) and
  * `Organizations` / `SchedulableVisitTypes` (`null` on all four) are not
  * surfaced: their shapes are unknown.
+ *
+ * `NationalProviderID` is a trap rather than an unknown: it is named like an
+ * NPI but holds an Epic-encrypted `WP-$…$…` blob, so a caller who passed it to
+ * `lookup_npi` — as that capability's own docs told them to — always failed the
+ * check digit. MyChart's name for it stays in `raw`; `standard` carries the
+ * same value as the derived `encryptedNationalProviderID`, which says what it
+ * is. It is not an NPI and cannot be turned into one: `search_npi_registry` by
+ * provider name is the way to that.
  */
 
 import { findRequest, type RawResponse } from '../../core/rawResponse';
@@ -37,7 +45,12 @@ export interface CareTeamProviderStandard {
   fromExternalList: boolean;
   /** Opaque provider id (an 86–88 character token, not a number). */
   ID: string | null;
-  NationalProviderID: string | null;
+  /**
+   * Derived: `NationalProviderID` under a name that does not promise an NPI.
+   * The value is an Epic-encrypted token, decodable only by the server, so it
+   * identifies the provider to MyChart and to nothing else.
+   */
+  encryptedNationalProviderID: string | null;
   DepartmentID: string | null;
   CanMessage: boolean | null;
 }
@@ -58,7 +71,7 @@ function provider(value: unknown, fromExternalList: boolean): CareTeamProviderSt
     IsExternal: boolOrNull(p.IsExternal),
     fromExternalList,
     ID: textOrNull(p.ID),
-    NationalProviderID: textOrNull(p.NationalProviderID),
+    encryptedNationalProviderID: textOrNull(p.NationalProviderID),
     DepartmentID: textOrNull(p.DepartmentID),
     CanMessage: boolOrNull(p.CanMessage),
   };
