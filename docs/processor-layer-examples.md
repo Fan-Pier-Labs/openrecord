@@ -1954,6 +1954,111 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
       "method": "POST",
       "requestBody": {
         "episodeId": "EP-VITALS",
+        "endInstantIso": "2025-01-20T08:15:00",
+        "numReadings": 1000
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "flowsheet": {
+          "episodeId": "EP-VITALS",
+          "templateId": "EP-VITALS",
+          "name": "Vitals Trending",
+          "entryType": "",
+          "entryMode": "",
+          "status": "",
+          "startDateIso": "2025-01-20",
+          "endDateIso": "",
+          "instructions": "",
+          "hasMoreData": false,
+          "hasEpisodeData": false,
+          "rowGroups": [
+            {
+              "id": "-1",
+              "name": "",
+              "rowIds": [
+                "row-bp",
+                "row-hr",
+                "row-wt",
+                "row-ht"
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "id": "row-bp",
+              "name": "Blood Pressure",
+              "rowType": "1",
+              "valueType": "4",
+              "decimalPlaces": 0,
+              "unitsDisplayName": "mmHg"
+            },
+            {
+              "id": "row-hr",
+              "name": "Pulse",
+              "rowType": "1",
+              "valueType": "1",
+              "decimalPlaces": 0
+            },
+            {
+              "id": "row-wt",
+              "name": "Weight",
+              "rowType": "1",
+              "valueType": "5",
+              "decimalPlaces": 0,
+              "units": "6",
+              "unitsDisplayName": "lbs"
+            },
+            {
+              "id": "row-ht",
+              "name": "Height",
+              "rowType": "1",
+              "valueType": "6",
+              "decimalPlaces": 0,
+              "units": "7",
+              "unitsDisplayName": "ft"
+            }
+          ],
+          "readings": [
+            {
+              "id": "rd-bp-3",
+              "fsdId": "fsd-3",
+              "rowId": "row-bp",
+              "valueType": "4",
+              "entryType": "clinical",
+              "instantTakenIso": "2025-01-20T08:15:00",
+              "isAbnormal": false,
+              "documentationSource": "34002",
+              "stringValue": "142/92",
+              "dataType": "32105",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": ""
+            }
+          ]
+        },
+        "userSettings": {
+          "isAdmitted": false,
+          "isH2GSession": false,
+          "isMOContext": false,
+          "isDataTileContext": false,
+          "isProxyContext": false,
+          "myChartPatientId": "",
+          "myChartPatientName": "",
+          "myChartUserId": "",
+          "myChartUserName": "",
+          "devicePlatform": "",
+          "healthConnectAvailable": "",
+          "moVersionSupportsBluetooth": false
+        }
+      }
+    },
+    {
+      "path": "/api/track-my-health/GetFlowsheetReadings",
+      "method": "POST",
+      "requestBody": {
+        "episodeId": "EP-VITALS",
         "endInstantIso": "2026-02-02T23:59:59",
         "numReadings": 1000
       },
@@ -2105,111 +2210,6 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "timeZone": "America/New_York",
               "sourceRowId": ""
             },
-            {
-              "id": "rd-bp-3",
-              "fsdId": "fsd-3",
-              "rowId": "row-bp",
-              "valueType": "4",
-              "entryType": "clinical",
-              "instantTakenIso": "2025-01-20T08:15:00",
-              "isAbnormal": false,
-              "documentationSource": "34002",
-              "stringValue": "142/92",
-              "dataType": "32105",
-              "line": 0,
-              "decimalPlaces": 0,
-              "timeZone": "America/New_York",
-              "sourceRowId": ""
-            }
-          ]
-        },
-        "userSettings": {
-          "isAdmitted": false,
-          "isH2GSession": false,
-          "isMOContext": false,
-          "isDataTileContext": false,
-          "isProxyContext": false,
-          "myChartPatientId": "",
-          "myChartPatientName": "",
-          "myChartUserId": "",
-          "myChartUserName": "",
-          "devicePlatform": "",
-          "healthConnectAvailable": "",
-          "moVersionSupportsBluetooth": false
-        }
-      }
-    },
-    {
-      "path": "/api/track-my-health/GetFlowsheetReadings",
-      "method": "POST",
-      "requestBody": {
-        "episodeId": "EP-VITALS",
-        "endInstantIso": "2025-01-20T08:15:00",
-        "numReadings": 1000
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "flowsheet": {
-          "episodeId": "EP-VITALS",
-          "templateId": "EP-VITALS",
-          "name": "Vitals Trending",
-          "entryType": "",
-          "entryMode": "",
-          "status": "",
-          "startDateIso": "2025-01-20",
-          "endDateIso": "",
-          "instructions": "",
-          "hasMoreData": false,
-          "hasEpisodeData": false,
-          "rowGroups": [
-            {
-              "id": "-1",
-              "name": "",
-              "rowIds": [
-                "row-bp",
-                "row-hr",
-                "row-wt",
-                "row-ht"
-              ]
-            }
-          ],
-          "rows": [
-            {
-              "id": "row-bp",
-              "name": "Blood Pressure",
-              "rowType": "1",
-              "valueType": "4",
-              "decimalPlaces": 0,
-              "unitsDisplayName": "mmHg"
-            },
-            {
-              "id": "row-hr",
-              "name": "Pulse",
-              "rowType": "1",
-              "valueType": "1",
-              "decimalPlaces": 0
-            },
-            {
-              "id": "row-wt",
-              "name": "Weight",
-              "rowType": "1",
-              "valueType": "5",
-              "decimalPlaces": 0,
-              "units": "6",
-              "unitsDisplayName": "lbs"
-            },
-            {
-              "id": "row-ht",
-              "name": "Height",
-              "rowType": "1",
-              "valueType": "6",
-              "decimalPlaces": 0,
-              "units": "7",
-              "unitsDisplayName": "ft"
-            }
-          ],
-          "readings": [
             {
               "id": "rd-bp-3",
               "fsdId": "fsd-3",
@@ -8237,7 +8237,51 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
+        "orderID": "GRP-CBC",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
         "orderID": "GRP-CMP",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CT",
         "selectedComponentIDs": [],
         "isInitialLoad": true,
         "startTime": "",
@@ -8403,28 +8447,6 @@ Lab results with reference ranges and prior values for trending.
       "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
-        "orderID": "GRP-CBC",
-        "selectedComponentIDs": [],
-        "isInitialLoad": true,
-        "startTime": "",
-        "endTime": "",
-        "organizationID": "",
-        "isCustomFilterEnabled": false,
-        "PageNonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "historicalResults": {},
-        "orderedComponentIDs": [],
-        "reportID": "",
-        "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
-      "method": "POST",
-      "requestBody": {
         "orderID": "GRP-XRAY",
         "selectedComponentIDs": [],
         "isInitialLoad": true,
@@ -8441,50 +8463,6 @@ Lab results with reference ranges and prior values for trending.
         "orderedComponentIDs": [],
         "reportID": "",
         "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
-      "method": "POST",
-      "requestBody": {
-        "orderID": "GRP-CT",
-        "selectedComponentIDs": [],
-        "isInitialLoad": true,
-        "startTime": "",
-        "endTime": "",
-        "organizationID": "",
-        "isCustomFilterEnabled": false,
-        "PageNonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "historicalResults": {},
-        "orderedComponentIDs": [],
-        "reportID": "",
-        "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/report-content/LoadReportContent",
-      "method": "POST",
-      "requestBody": {
-        "reportID": "RPT-IMAGING-001",
-        "assumedVariables": {
-          "ordId": "ORD-XRAY-001",
-          "ordDat": "ORD-XRAY-001-DAT"
-        },
-        "isFullReportPage": false,
-        "uniqueClass": "EID-4",
-        "nonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
-        "reportCss": "",
-        "baseFontSize": 0,
-        "stylesheets": []
       }
     },
     {
@@ -8510,25 +8488,47 @@ Lab results with reference ranges and prior values for trending.
       }
     },
     {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-IMAGING-001",
+        "assumedVariables": {
+          "ordId": "ORD-XRAY-001",
+          "ordDat": "ORD-XRAY-001-DAT"
+        },
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
+      }
+    },
+    {
       "path": "/api/test-results/GetDetails",
       "method": "POST",
       "requestBody": {
-        "orderKey": "GRP-CMP",
+        "orderKey": "GRP-CBC",
         "organizationID": "",
         "PageNonce": ""
       },
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "orderName": "Comprehensive Metabolic Panel",
-        "key": "RES-CMP",
+        "orderName": "Complete Blood Count",
+        "key": "RES-CBC",
         "results": [
           {
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "Comprehensive Metabolic Panel",
-            "key": "RES-CMP",
+            "name": "Complete Blood Count",
+            "key": "RES-CBC",
             "showName": false,
             "showDetails": true,
             "orderMetadata": {
@@ -8559,23 +8559,23 @@ Lab results with reference ranges and prior values for trending.
             "resultComponents": [
               {
                 "componentInfo": {
-                  "componentID": "COMP-GLU",
-                  "name": "Glucose",
-                  "commonName": "Glucose",
-                  "units": "mg/dL"
+                  "componentID": "COMP-WBC",
+                  "name": "White Blood Cell Count",
+                  "commonName": "WBC",
+                  "units": "K/uL"
                 },
                 "componentResultInfo": {
-                  "value": "92",
+                  "value": "6.8",
                   "isValueRtf": false,
-                  "numericValue": 92,
+                  "numericValue": 6.8,
                   "referenceRange": {
-                    "low": 65,
-                    "high": 99,
-                    "displayLow": "65",
-                    "displayHigh": "99",
+                    "low": 4,
+                    "high": 11,
+                    "displayLow": "4.0",
+                    "displayHigh": "11.0",
                     "lowerBoundExclusive": false,
                     "upperBoundExclusive": false,
-                    "formattedReferenceRange": "65 - 99 mg/dL"
+                    "formattedReferenceRange": "4.0 - 11.0 K/uL"
                   },
                   "abnormalFlagCategoryValue": "Unknown"
                 },
@@ -8588,8 +8588,8 @@ Lab results with reference ranges and prior values for trending.
               },
               {
                 "componentInfo": {
-                  "componentID": "COMP-NA",
-                  "n
+                  "componentID": "COMP-RBC",
+                  "na
 … (truncated; 59451 more characters)
 ```
 
@@ -10170,7 +10170,51 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
+        "orderID": "GRP-CBC",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
         "orderID": "GRP-CMP",
+        "selectedComponentIDs": [],
+        "isInitialLoad": true,
+        "startTime": "",
+        "endTime": "",
+        "organizationID": "",
+        "isCustomFilterEnabled": false,
+        "PageNonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "historicalResults": {},
+        "orderedComponentIDs": [],
+        "reportID": "",
+        "shouldShowBedsideActiveView": false
+      }
+    },
+    {
+      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
+      "method": "POST",
+      "requestBody": {
+        "orderID": "GRP-CT",
         "selectedComponentIDs": [],
         "isInitialLoad": true,
         "startTime": "",
@@ -10336,28 +10380,6 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       "path": "/api/past-results/GetMultipleHistoricalResultComponents",
       "method": "POST",
       "requestBody": {
-        "orderID": "GRP-CBC",
-        "selectedComponentIDs": [],
-        "isInitialLoad": true,
-        "startTime": "",
-        "endTime": "",
-        "organizationID": "",
-        "isCustomFilterEnabled": false,
-        "PageNonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "historicalResults": {},
-        "orderedComponentIDs": [],
-        "reportID": "",
-        "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
-      "method": "POST",
-      "requestBody": {
         "orderID": "GRP-XRAY",
         "selectedComponentIDs": [],
         "isInitialLoad": true,
@@ -10374,50 +10396,6 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
         "orderedComponentIDs": [],
         "reportID": "",
         "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/past-results/GetMultipleHistoricalResultComponents",
-      "method": "POST",
-      "requestBody": {
-        "orderID": "GRP-CT",
-        "selectedComponentIDs": [],
-        "isInitialLoad": true,
-        "startTime": "",
-        "endTime": "",
-        "organizationID": "",
-        "isCustomFilterEnabled": false,
-        "PageNonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "historicalResults": {},
-        "orderedComponentIDs": [],
-        "reportID": "",
-        "shouldShowBedsideActiveView": false
-      }
-    },
-    {
-      "path": "/api/report-content/LoadReportContent",
-      "method": "POST",
-      "requestBody": {
-        "reportID": "RPT-IMAGING-001",
-        "assumedVariables": {
-          "ordId": "ORD-XRAY-001",
-          "ordDat": "ORD-XRAY-001-DAT"
-        },
-        "isFullReportPage": false,
-        "uniqueClass": "EID-4",
-        "nonce": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
-        "reportCss": "",
-        "baseFontSize": 0,
-        "stylesheets": []
       }
     },
     {
@@ -10443,25 +10421,47 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
       }
     },
     {
+      "path": "/api/report-content/LoadReportContent",
+      "method": "POST",
+      "requestBody": {
+        "reportID": "RPT-IMAGING-001",
+        "assumedVariables": {
+          "ordId": "ORD-XRAY-001",
+          "ordDat": "ORD-XRAY-001-DAT"
+        },
+        "isFullReportPage": false,
+        "uniqueClass": "EID-4",
+        "nonce": ""
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "reportContent": "<div class=\"report-content\"><h3>XR Skull 2 Views</h3><p>FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent with crayons.</p><div data-fdi-context='{\"fdi\":\"FDI-XRAY-001\",\"ord\":\"ORD-XRAY-001\"}'><a href=\"#\">View Images</a></div></div>",
+        "reportCss": "",
+        "baseFontSize": 0,
+        "stylesheets": []
+      }
+    },
+    {
       "path": "/api/test-results/GetDetails",
       "method": "POST",
       "requestBody": {
-        "orderKey": "GRP-CMP",
+        "orderKey": "GRP-CBC",
         "organizationID": "",
         "PageNonce": ""
       },
       "status": 200,
       "contentType": "application/json;charset=utf-8",
       "body": {
-        "orderName": "Comprehensive Metabolic Panel",
-        "key": "RES-CMP",
+        "orderName": "Complete Blood Count",
+        "key": "RES-CBC",
         "results": [
           {
             "canGenerateLLMSummary": false,
             "feedbackSubmitted": false,
             "isBedsideTablet": false,
-            "name": "Comprehensive Metabolic Panel",
-            "key": "RES-CMP",
+            "name": "Complete Blood Count",
+            "key": "RES-CBC",
             "showName": false,
             "showDetails": true,
             "orderMetadata": {
@@ -10492,23 +10492,23 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
             "resultComponents": [
               {
                 "componentInfo": {
-                  "componentID": "COMP-GLU",
-                  "name": "Glucose",
-                  "commonName": "Glucose",
-                  "units": "mg/dL"
+                  "componentID": "COMP-WBC",
+                  "name": "White Blood Cell Count",
+                  "commonName": "WBC",
+                  "units": "K/uL"
                 },
                 "componentResultInfo": {
-                  "value": "92",
+                  "value": "6.8",
                   "isValueRtf": false,
-                  "numericValue": 92,
+                  "numericValue": 6.8,
                   "referenceRange": {
-                    "low": 65,
-                    "high": 99,
-                    "displayLow": "65",
-                    "displayHigh": "99",
+                    "low": 4,
+                    "high": 11,
+                    "displayLow": "4.0",
+                    "displayHigh": "11.0",
                     "lowerBoundExclusive": false,
                     "upperBoundExclusive": false,
-                    "formattedReferenceRange": "65 - 99 mg/dL"
+                    "formattedReferenceRange": "4.0 - 11.0 K/uL"
                   },
                   "abnormalFlagCategoryValue": "Unknown"
                 },
@@ -10521,8 +10521,8 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
               },
               {
                 "componentInfo": {
-                  "componentID": "COMP-NA",
-                  "n
+                  "componentID": "COMP-RBC",
+                  "na
 … (truncated; 60365 more characters)
 ```
 
@@ -17246,6 +17246,57 @@ Clinical documents and visit records.
       "path": "/api/documents/viewer/LoadOtherDocuments",
       "method": "POST",
       "requestBody": {
+        "isInitialLoad": false
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "documents": [
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGHTsdDTcwk3oIvkIczRBATfUv7ZqYqJgAvyeSt3hwp5OtrLwIC1cEzo0uP7rytjyzjJakCjauJ-2BTsdD-3D-3D",
+            "docID": "WP-247bWvX8fxtcaIvASba4cPXp0RBQpVzyMcJcKvSyOnRBEZX0tLZi2QLg8bcC891pkvRMHHFSawtqeFyME3HReh72DN78Es-2BX8fx-3D-3D",
+            "date": "8/15/2023",
+            "dateRaw": "66701",
+            "dat": "WP-247DXY4hsrxIqIOx12J0GdfTt6gxy9XUgcQhnUfKKLNlpMQZ6jLyaG6hvY1kqrVHVm09Alf4SK4X-2B4hsr-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          },
+          {
+            "blobCat": "20",
+            "dcsID": "WP-247lGHibqmKgWK7yX6HPr1x10z6DuOcke0DO1mXxd5zPyVeP8uogyQLoZ259553zclEdoysO0gXUNI-2Bibqm-3D-3D",
+            "docID": "WP-247bWvmr8G46eS9OB2DrnhpjmNizAEoWy4fKBGB3V91puZS12eKUGYDYRmdvPRjn4JO7wYAMyiDMfCHFJF73IRczUQKoCQ-2Bmr8G-3D-3D",
+            "date": "7/15/2023",
+            "dateRaw": "66670",
+            "dat": "WP-247DXYpyXqYccaSlinkjLXnrvqLGv2owWuIXGN6h3RPd7CzqRCsquIYHMnwlXBBJ9MzoDmeYYSmN-2BpyXq-3D-3D",
+            "docExt": "PDF",
+            "docDesc": "",
+            "docType": "Visit Summary",
+            "pendingApprovalStatus": 0,
+            "rejectionReasonFreetext": "",
+            "wasESigned": false,
+            "downloadOnly": false,
+            "new": false,
+            "isExpired": false,
+            "pendingRequiredSignatures": false,
+            "onlyAllowedPreview": false
+          }
+        ]
+      }
+    },
+    {
+      "path": "/api/documents/viewer/LoadOtherDocuments",
+      "method": "POST",
+      "requestBody": {
         "isInitialLoad": true
       },
       "status": 200,
@@ -17458,51 +17509,7 @@ Clinical documents and visit records.
             "downloadOnly": false,
             "new": false,
             "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-247lGWUXcwhQ8czPhW5jyHL7YQEZUCTaeWh3BARjqNF3gASfuOl8SWrP7W3lQVZHsi8bq096QyBLVa-2BUXcw-3D-3D",
-            "docID": "WP-247bWAUb8aHKyO3vpydfWzJFiy0NuShm86NPZax5IlVBqk4BMyfCSAnh5YfTwNpbKiOhqY1gQaV5rWBfGzd1EK6Dy27Gyi-2BUb8a-3D-3D",
-            "date": "10/15/2024",
-            "dateRaw": "67128",
-            "dat": "WP-247DXJxIJGNW6YgwMt8XQLV11j9gpiRkGEKMCdUt257VVxHCxezEEIOII3w9oN1dJ5HE5EbswQ6U-2BxIJG-3D-3D",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-247lGWFwtjmaW0pBMlEiP31zcAluTNyuOQvX8b4YvdNH6ArwbJGqoAhjaJ8oTPZ3c8Nq5lgui0r1cj-2BFwtj-3D-3D",
-            "docID": "WP-247bWAFOfvO8iU3HABEEjnZ1giRIltkmscDHEp8eTlXPsaZYhnAQk29BETI0fT9xakPgtBWG8QNFuzSk7h1xIuVklhaSsi-2BFOfv-3D-3D",
-            "date": "9/15/2024",
-            "dateRaw": "67098",
-            "dat": "WP-247DXJCVmdC20cWIla16F7pTl5upInW86OmSp2TcrdHFTtWVwxwGe2663oFEvd1vlDYDiDwSmYYq-2BCVmd-3D-3D",
-            "docExt": "PDF",
-            "docDesc": "",
-            "docType": "Visit Summary",
-            "pendingApprovalStatus": 0,
-            "rejectionReasonFreetext": "",
-            "wasESigned": false,
-            "downloadOnly": false,
-            "new": false,
-            "isExpired": false,
-            "pendingRequiredSignatures": false,
-            "onlyAllowedPreview": false
-          },
-          {
-            "blobCat": "20",
-            "dcsID": "WP-247lGWwFGoxawgZZLgHHUt9xGOoN2W1KGIJ9nuZHMP5Xua250UriIErNJMdxcvXJA4a780juy2l5Bs-2BwFGo-3D-3D",
-            "docID": "WP-247bWA0ZIorw2CntR2rDiNJ5MkK7kcf6qoJjHoJfmp7xEEkfS
+            "pendingRequiredSignatures": false
 … (truncated; 27860 more characters)
 ```
 
