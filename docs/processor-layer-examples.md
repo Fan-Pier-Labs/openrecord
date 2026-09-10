@@ -40,7 +40,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_benefits` | 34406 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19590 | 1572 | 1880 | 532 |
+| `get_care_team` | 24613 | 1144 | 855 | 599 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
@@ -16540,114 +16540,347 @@ The insurance payers this organization's MyChart offers when adding a coverage �
 
 ### `get_care_team`
 
-Providers on the care team, including outside providers, each with their role and specialty.
+Providers on the care team, including outside providers, each with their role, specialty and NPI.
 
 <details>
-<summary><code>mode: raw</code> (19590 chars)</summary>
+<summary><code>mode: raw</code> (24613 chars)</summary>
 
 ```json
 {
   "requests": [
     {
+      "path": "/api/Providers/GetProviderBioPrivate",
+      "method": "POST",
+      "requestBody": {
+        "id": "PROV-HIBBERT"
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "name": "Julius Hibbert, MD",
+        "photoUrl": "/MyChart/Content/Photos/julius-hibbert.jpg",
+        "staticPhotoUrl": "",
+        "bioPath": "/MyChart/app/providers/details?id=PROV-HIBBERT",
+        "bioSlug": "julius-hibbert",
+        "bioId": "PROV-HIBBERT-BIO",
+        "nameLastFirst": "Hibbert, Julius, MD",
+        "providerPatientRelation": 1,
+        "gender": "Male",
+        "race": [],
+        "ethnicity": [],
+        "credentials": "MD",
+        "languages": [],
+        "clinicalInterests": [],
+        "specialtyIds": [
+          "17"
+        ],
+        "locations": [
+          {
+            "id": "LOC-IM-1",
+            "recordType": 1,
+            "name": "Springfield General Hospital Internal Medicine",
+            "address": [
+              "742 Evergreen Terrace",
+              "Springfield, IL 62701"
+            ],
+            "discreteAddress": {
+              "streetAddress": [
+                "742 Evergreen Terrace"
+              ],
+              "city": "Springfield",
+              "state": "IL",
+              "stateName": "Illinois",
+              "zip": "62701",
+              "country": "USA"
+            },
+            "coordinates": {
+              "latitude": 39.7817,
+              "longitude": -89.6501
+            },
+            "phoneNumber": "555-555-0110",
+            "accessRestrictions": [],
+            "telehealthStyles": [],
+            "isInNetwork": true,
+            "seesNewPatients": "",
+            "bioSlug": "",
+            "bioId": ""
+          }
+        ],
+        "aboutMe": "",
+        "videos": [],
+        "webPageUrl": "",
+        "npi": "1000000004",
+        "patientGroupsSeen": [],
+        "seesNewPatients": "",
+        "specialties": [
+          "Internal Medicine"
+        ],
+        "standardFilterNames": [],
+        "nrxFilterNames": [],
+        "managedCareFilterName": "",
+        "rating": {
+          "ratingValue": 0,
+          "ratingMaxValue": 0,
+          "ratingCount": 0
+        },
+        "reviews": [],
+        "educationEntries": [],
+        "publications": [],
+        "allPublicationsUrl": "",
+        "affiliations": [],
+        "keywords": [],
+        "boardCertifications": [],
+        "licenses": [
+          {
+            "state": "Illinois",
+            "licenseNumber": "036-118220"
+          }
+        ],
+        "hospitalAffiliations": [],
+        "isInternal": true,
+        "completedCulturalTraining": "",
+        "specialtySearchTerms": [],
+        "id": "PROV-HIBBERT-DETAILS"
+      }
+    },
+    {
+      "path": "/api/Providers/GetProviderBioPrivate",
+      "method": "POST",
+      "requestBody": {
+        "id": "PROV-NICK"
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "name": "Nick Riviera, MD",
+        "photoUrl": "/MyChart/Content/Photos/nick-riviera.jpg",
+        "staticPhotoUrl": "",
+        "bioPath": "/MyChart/app/providers/details?id=PROV-NICK",
+        "bioSlug": "nick-riviera",
+        "bioId": "PROV-NICK-BIO",
+        "nameLastFirst": "Riviera, Nick, MD",
+        "providerPatientRelation": 1,
+        "gender": "Male",
+        "race": [],
+        "ethnicity": [],
+        "credentials": "MD",
+        "languages": [],
+        "clinicalInterests": [],
+        "specialtyIds": [
+          "41"
+        ],
+        "locations": [
+          {
+            "id": "LOC-SURG-1",
+            "recordType": 1,
+            "name": "Springfield General Hospital Surgery",
+            "address": [
+              "742 Evergreen Terrace",
+              "Springfield, IL 62701"
+            ],
+            "discreteAddress": {
+              "streetAddress": [
+                "742 Evergreen Terrace"
+              ],
+              "city": "Springfield",
+              "state": "IL",
+              "stateName": "Illinois",
+              "zip": "62701",
+              "country": "USA"
+            },
+            "coordinates": {
+              "latitude": 39.7817,
+              "longitude": -89.6501
+            },
+            "phoneNumber": "555-555-0120",
+            "accessRestrictions": [],
+            "telehealthStyles": [],
+            "isInNetwork": true,
+            "seesNewPatients": "",
+            "bioSlug": "",
+            "bioId": ""
+          }
+        ],
+        "aboutMe": "",
+        "videos": [],
+        "webPageUrl": "",
+        "npi": "1000000012",
+        "patientGroupsSeen": [],
+        "seesNewPatients": "",
+        "specialties": [
+          "General Surgery"
+        ],
+        "standardFilterNames": [],
+        "nrxFilterNames": [],
+        "managedCareFilterName": "",
+        "rating": {
+          "ratingValue": 0,
+          "ratingMaxValue": 0,
+          "ratingCount": 0
+        },
+        "reviews": [],
+        "educationEntries": [],
+        "publications": [],
+        "allPublicationsUrl": "",
+        "affiliations": [],
+        "keywords": [],
+        "boardCertifications": [],
+        "licenses": [
+          {
+            "state": "Illinois",
+            "licenseNumber": "036-004010"
+          }
+        ],
+        "hospitalAffiliations": [],
+        "isInternal": true,
+        "completedCulturalTraining": "",
+        "specialtySearchTerms": [],
+        "id": "PROV-NICK-DETAILS"
+      }
+    },
+    {
+      "path": "/api/Providers/GetProviderBioPrivate",
+      "method": "POST",
+      "requestBody": {
+        "id": "PROV-VELIMIROVIC"
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "name": "Dr. Velimirovic, MD",
+        "photoUrl": "/MyChart/Content/Photos/velimirovic.jpg",
+        "staticPhotoUrl": "",
+        "bioPath": "/MyChart/app/providers/details?id=PROV-VELIMIROVIC",
+        "bioSlug": "velimirovic",
+        "bioId": "PROV-VELIMIROVIC-BIO",
+        "nameLastFirst": "Velimirovic, MD",
+        "providerPatientRelation": 1,
+        "gender": "Male",
+        "race": [],
+        "ethnicity": [],
+        "credentials": "MD",
+        "languages": [],
+        "clinicalInterests": [],
+        "specialtyIds": [
+          "44"
+        ],
+        "locations": [
+          {
+            "id": "LOC-SURG-2",
+            "recordType": 1,
+            "name": "Springfield General Hospital Cardiothoracic Surgery",
+            "address": [
+              "742 Evergreen Terrace",
+              "Springfield, IL 62701"
+            ],
+            "discreteAddress": {
+              "streetAddress": [
+                "742 Evergreen Terrace"
+              ],
+              "city": "Springfield",
+              "state": "IL",
+              "stateName": "Illinois",
+              "zip": "62701",
+              "country": "USA"
+            },
+            "coordinates": {
+              "latitude": 39.7817,
+              "longitude": -89.6501
+            },
+            "phoneNumber": "555-555-0130",
+            "accessRestrictions": [],
+            "telehealthStyles": [],
+            "isInNetwork": true,
+            "seesNewPatients": "",
+            "bioSlug": "",
+            "bioId": ""
+          }
+        ],
+        "aboutMe": "",
+        "videos": [],
+        "webPageUrl": "",
+        "npi": "1000000020",
+        "patientGroupsSeen": [],
+        "seesNewPatients": "",
+        "specialties": [
+          "Cardiothoracic Surgery"
+        ],
+        "standardFilterNames": [],
+        "nrxFilterNames": [],
+        "managedCareFilterName": "",
+        "rating": {
+          "ratingValue": 0,
+          "ratingMaxValue": 0,
+          "ratingCount": 0
+        },
+        "reviews": [],
+        "educationEntries": [],
+        "publications": [],
+        "allPublicationsUrl": "",
+        "affiliations": [],
+        "keywords": [],
+        "boardCertifications": [],
+        "licenses": [
+          {
+            "state": "Illinois",
+            "licenseNumber": "036-077311"
+          }
+        ],
+        "hospitalAffiliations": [],
+        "isInternal": true,
+        "completedCulturalTraining": "",
+        "specialtySearchTerms": [],
+        "id": "PROV-VELIMIROVIC-DETAILS"
+      }
+    },
+    {
       "path": "/Clinical/CareTeam",
       "method": "GET",
       "status": 200,
       "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <span class=\"nav-icon\">🧪</span>Test Results\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Medications\" class=\"\">\n          <span class=\"nav-icon\">💊</span>Medications\n        </a>\n      \n        <a href=\"/MyChart/Clinical/Allergies\" class=\"\">\n          <span class=\"nav-icon\">⚠️</span>Allergies\n        </a>\n      \n        <a href=\"/MyChart/Clinical/HealthIssues\" class=\"\">\n          <span class=\"nav-icon\">🩺</span>Health Issues\n        </a>\n      \n      
-… (truncated; 9624 more characters)
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Care Team</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; b
+… (truncated; 17851 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1880 chars)</summary>
+<summary><code>mode: standard</code> (855 chars)</summary>
 
 - **DescriptiveTitle**: Your Care Team
 - **externalProvidersUnavailable**: false
 
 ## ProvidersList (5)
 
-### ProvidersList 1
-
-- **Name**: Julius Hibbert, MD
-- **Relation**: Primary Care Provider
-- **Specialty**: Internal Medicine
-- **IsExternal**: false
-- **fromExternalList**: false
-- **ID**: PROV-HIBBERT
-- **encryptedNationalProviderID**: WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D
-- **DepartmentID**: DEP-IM-1
-- **CanMessage**: true
-
-### ProvidersList 2
-
-- **Name**: Nick Riviera, MD
-- **Relation**: Surgeon
-- **Specialty**: General Surgery
-- **IsExternal**: false
-- **fromExternalList**: false
-- **ID**: PROV-NICK
-- **encryptedNationalProviderID**: WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D
-- **DepartmentID**: DEP-SURG-1
-- **CanMessage**: false
-
-### ProvidersList 3
-
-- **Name**: Springfield Nuclear Power Plant Employee Health Plan
-- **Relation**: Payer
-- **Specialty**: (empty)
-- **IsExternal**: false
-- **fromExternalList**: false
-- **ID**: PAYER-SNPP
-- **encryptedNationalProviderID**: (empty)
-- **DepartmentID**: (empty)
-- **CanMessage**: false
-
-### ProvidersList 4
-
-- **Name**: Dr. Velimirovic, MD
-- **Relation**: (none)
-- **Specialty**: Cardiothoracic Surgery
-- **IsExternal**: false
-- **fromExternalList**: false
-- **ID**: PROV-VELIMIROVIC
-- **encryptedNationalProviderID**: WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D
-- **DepartmentID**: DEP-SURG-2
-- **CanMessage**: true
-
-### ProvidersList 5
-
-- **Name**: Marvin Monroe, MD
-- **Relation**: Outside Provider
-- **Specialty**: Psychiatry
-- **IsExternal**: true
-- **fromExternalList**: true
-- **ID**: PROV-EXT-MONROE
-- **encryptedNationalProviderID**: WP-24mUpHqqyLs5yjYBPrhq8rtA-3D-3D-243tFy77AtwOZ1x9-2B6aX3mBcYajWMOxHXT7EKn2veRtOo-3D
-- **DepartmentID**: (empty)
-- **CanMessage**: false
+| Name | Relation | Specialty | IsExternal | fromExternalList | npi | ID | DepartmentID | CanMessage |
+| - | - | - | - | - | - | - | - | - |
+| Julius Hibbert, MD | Primary Care Provider | Internal Medicine | false | false | 1000000004 | PROV-HIBBERT | DEP-IM-1 | true |
+| Nick Riviera, MD | Surgeon | General Surgery | false | false | 1000000012 | PROV-NICK | DEP-SURG-1 | false |
+| Springfield Nuclear Power Plant Employee Health Plan | Payer | (empty) | false | false | (none) | PAYER-SNPP | (empty) | false |
+| Dr. Velimirovic, MD | (none) | Cardiothoracic Surgery | false | false | 1000000020 | PROV-VELIMIROVIC | DEP-SURG-2 | true |
+| Marvin Monroe, MD | Outside Provider | Psychiatry | true | true | (none) | PROV-EXT-MONROE | (empty) | false |
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (532 chars)</summary>
+<summary><code>mode: concise</code> (599 chars)</summary>
 
 - **externalProvidersUnavailable**: false
 
 ## ProvidersList (5)
 
-| Name | Relation | Specialty | IsExternal | fromExternalList |
-| - | - | - | - | - |
-| Julius Hibbert, MD | Primary Care Provider | Internal Medicine | false | false |
-| Nick Riviera, MD | Surgeon | General Surgery | false | false |
-| Springfield Nuclear Power Plant Employee Health Plan | Payer | (empty) | false | false |
-| Dr. Velimirovic, MD | (none) | Cardiothoracic Surgery | false | false |
-| Marvin Monroe, MD | Outside Provider | Psychiatry | true | true |
+| Name | Relation | Specialty | IsExternal | fromExternalList | npi |
+| - | - | - | - | - | - |
+| Julius Hibbert, MD | Primary Care Provider | Internal Medicine | false | false | 1000000004 |
+| Nick Riviera, MD | Surgeon | General Surgery | false | false | 1000000012 |
+| Springfield Nuclear Power Plant Employee Health Plan | Payer | (empty) | false | false | (none) |
+| Dr. Velimirovic, MD | (none) | Cardiothoracic Surgery | false | false | 1000000020 |
+| Marvin Monroe, MD | Outside Provider | Psychiatry | true | true | (none) |
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (1572 chars)</summary>
+<summary><code>mode: json</code> (1144 chars)</summary>
 
 ```json
 {
@@ -16660,8 +16893,8 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "Internal Medicine",
       "IsExternal": false,
       "fromExternalList": false,
+      "npi": "1000000004",
       "ID": "PROV-HIBBERT",
-      "encryptedNationalProviderID": "WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D",
       "DepartmentID": "DEP-IM-1",
       "CanMessage": true
     },
@@ -16671,8 +16904,8 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "General Surgery",
       "IsExternal": false,
       "fromExternalList": false,
+      "npi": "1000000012",
       "ID": "PROV-NICK",
-      "encryptedNationalProviderID": "WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D",
       "DepartmentID": "DEP-SURG-1",
       "CanMessage": false
     },
@@ -16682,8 +16915,8 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "",
       "IsExternal": false,
       "fromExternalList": false,
+      "npi": null,
       "ID": "PAYER-SNPP",
-      "encryptedNationalProviderID": "",
       "DepartmentID": "",
       "CanMessage": false
     },
@@ -16693,8 +16926,8 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "Cardiothoracic Surgery",
       "IsExternal": false,
       "fromExternalList": false,
+      "npi": "1000000020",
       "ID": "PROV-VELIMIROVIC",
-      "encryptedNationalProviderID": "WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D",
       "DepartmentID": "DEP-SURG-2",
       "CanMessage": true
     },
@@ -16704,8 +16937,8 @@ Providers on the care team, including outside providers, each with their role an
       "Specialty": "Psychiatry",
       "IsExternal": true,
       "fromExternalList": true,
+      "npi": null,
       "ID": "PROV-EXT-MONROE",
-      "encryptedNationalProviderID": "WP-24mUpHqqyLs5yjYBPrhq8rtA-3D-3D-243tFy77AtwOZ1x9-2B6aX3mBcYajWMOxHXT7EKn2veRtOo-3D",
       "DepartmentID": "",
       "CanMessage": false
     }
