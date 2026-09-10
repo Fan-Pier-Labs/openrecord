@@ -189,6 +189,13 @@ runs on, a message already sent still lands, and the proxy-switch guard holds
 until it finishes. An abandoned call stays waitable here, so the account coming
 free is observable, which is what that guard's refusal tells you to do.
 
+Collecting is not peeking. A result that is ready is handed over on the next
+`check_pending_call` for that id and removed, `wait: false` included, so a
+caller polling for status gets the data itself the moment it lands. There are
+two clocks, not one: a call that has not finished is given up on 10 minutes
+after it started, and a finished result then waits 10 more minutes to be
+collected.
+
 `check_pending_call` with **no `id` lists every pending call**, which is what a
 refusal naming an id is talking about. The listing, the duplicate guard and the
 proxy guard all read the same map through the same sweep, so they cannot

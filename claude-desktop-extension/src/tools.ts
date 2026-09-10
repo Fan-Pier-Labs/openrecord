@@ -619,14 +619,23 @@ function registerCheckPendingCall(server: McpServer): void {
     {
       description:
         `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked under an id, exactly as ` +
-        `the original tool would have returned it. Waits up to ${DEADLINE_LABEL} for it (wait: false reports at ` +
-        'once). Omit `id` to list every pending call, which is what a refusal naming an id is talking about. ' +
-        'abandon: true stops waiting and discards the result — it does not stop the work, and anything already ' +
-        'sent still lands, so an abandoned call is still waitable here until its read finishes. A parked call ' +
-        'is given up on 10 minutes after it started, releasing everything it held.',
+        'the original tool would have returned it. A result that is ready is always handed over, and handed ' +
+        'over once — including under `wait: false`, so this is a collection, never a peek. When the call is ' +
+        `still running it waits up to ${DEADLINE_LABEL} for it, or with \`wait: false\` says so at once. Omit ` +
+        '`id` to list every pending call, which is what a refusal naming an id is talking about. `abandon: ' +
+        'true` stops waiting and discards the result — it does not stop the work, and anything already sent ' +
+        'still lands, so an abandoned call is still waitable here until its read finishes. Two clocks: a call ' +
+        'that has not finished is given up on 10 minutes after it started, releasing everything it held, and ' +
+        'a finished result then waits 10 more minutes to be collected.',
       inputSchema: {
         id: z.string().optional().describe('The id from the parking note. Omit to list every pending call.'),
-        wait: z.boolean().optional().describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true).`),
+        wait: z
+          .boolean()
+          .optional()
+          .describe(
+            `Wait up to ${DEADLINE_LABEL} for the call to finish (default true). false reports at once instead — ` +
+              'but a result that is already ready is handed over, and consumed, either way.',
+          ),
         abandon: z.boolean().optional().describe('Stop waiting and discard the result. Does not stop the work.'),
       } satisfies ZodRawShape,
       // Not read-only: abandon discards a result.

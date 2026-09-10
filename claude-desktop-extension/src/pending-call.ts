@@ -45,6 +45,22 @@ interface Parked {
 
 const parked = new Map<string, Parked>();
 
+/**
+ * Why a call that is no longer parked went away, kept for the last few, so a
+ * stale id gets an answer instead of one message covering "you collected it",
+ * "you abandoned it" and "it ran too long" alike. Live testing could not tell
+ * those apart, and they call for different next moves.
+ */
+const gone = new Map<string, string>();
+const GONE_KEEP = 50;
+
+/** Drop a parked call, remembering what became of it. */
+function forget(p: Parked, why: string): void {
+  parked.delete(p.id);
+  gone.set(p.id, `${p.tool} was ${why}`);
+  if (gone.size > GONE_KEEP) gone.delete(gone.keys().next().value!);
+}
+
 const ABANDON_MEANS =
   'Abandoning only stops waiting: the work runs on in the background until it finishes, and a message or request it already sent still lands.';
 
@@ -82,15 +98,17 @@ function settleWithin(promise: Promise<CallToolResult>, ms: number): Promise<Cal
 }
 
 function sweep(now: number): void {
-  for (const [id, p] of parked) {
+  for (const p of parked.values()) {
     if (p.settledAt === undefined) {
       // Past the cap the result is given up on, and the chart lock with it.
       // A scrape can fail to settle at all, and an entry kept for one would
       // block switch_proxy_target for the life of the process with no call
       // able to clear it.
-      if (now - p.startedAt >= MAX_RUN_MS) parked.delete(id);
-    } else if (p.abandoned || now - p.settledAt >= MAX_RUN_MS) {
-      parked.delete(id);
+      if (now - p.startedAt >= MAX_RUN_MS) forget(p, 'given up on after running 10 minutes');
+    } else if (p.abandoned) {
+      forget(p, 'abandoned, and its result discarded when it finished');
+    } else if (now - p.settledAt >= MAX_RUN_MS) {
+      forget(p, 'left uncollected for 10 minutes after it finished, and dropped');
     }
   }
 }
@@ -164,16 +182,13 @@ export async function checkPendingCall(
   if (id === undefined) return text(`Pending calls: ${listing(now)}.`);
   const p = parked.get(id);
   if (!p) {
-    return text(
-      `No pending call has id "${id}": it was already read, abandoned, or given up on after 10 minutes, ` +
-        `and it is holding nothing. Pending calls: ${listing(now)}.`,
-      true,
-    );
+    const why = gone.get(id) ?? 'no call with that id was parked here';
+    return text(`No pending call has id "${id}": ${why}, and it is holding nothing. Pending calls: ${listing(now)}.`, true);
   }
 
   if (abandon) {
     if (p.settledAt !== undefined) {
-      parked.delete(id);
+      forget(p, 'abandoned, and its finished result discarded unread');
       return text(`Abandoned ${p.tool}: its finished result was discarded unread.`);
     }
     p.abandoned = true;
@@ -195,13 +210,13 @@ export async function checkPendingCall(
   const clipped = remaining <= deadlineMs;
   const result = p.result ?? (wait === false ? undefined : await settleWithin(p.promise, clipped ? remaining : deadlineMs));
   if (result) {
-    parked.delete(id);
+    forget(p, discarded ? 'abandoned, and its result discarded when it finished' : 'collected');
     if (!discarded) return result;
     const freed = p.account ? ` switch_proxy_target on ${p.account} is free again.` : '';
     return text(`${p.tool} has finished, and its result was discarded because the call was abandoned.${freed}`);
   }
   if (wait !== false && clipped) {
-    parked.delete(id);
+    forget(p, 'given up on after running 10 minutes');
     return text(`Gave up on ${p.tool} after 10 minutes. Its result is discarded and this account is no longer held. ${ABANDON_MEANS}`, true);
   }
   const how = discarded
@@ -213,4 +228,5 @@ export async function checkPendingCall(
 /** Test seam. */
 export function resetPendingCalls(): void {
   parked.clear();
+  gone.clear();
 }
