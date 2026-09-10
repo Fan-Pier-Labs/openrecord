@@ -23,16 +23,16 @@
  * surfaced: their shapes are unknown.
  *
  * `NationalProviderID` is a trap rather than an unknown: it is named like an
- * NPI but holds an Epic-encrypted `WP-$…$…` blob, so a caller who passed it to
- * `lookup_npi` — as that capability's own docs told them to — always failed the
- * check digit. MyChart's name for it stays in `raw`; `standard` carries the
- * same value as the derived `encryptedNationalProviderID`, which says what it
- * is. The real NPI comes from the scraper's third call: the row's `ID` sent to
+ * NPI but holds that NPI Epic-encrypted (a `WP-$…$…` blob, empty when the
+ * provider has none), so a caller who passed it to `lookup_npi` — as that
+ * capability's own docs once told them to — always failed the check digit. It
+ * is raw-only: nothing takes it as input, and it says nothing `npi` does not.
+ * The NPI itself comes from the scraper's third call: the row's `ID` sent to
  * `/api/Providers/GetProviderBioPrivate` (the page's own "provider details"
  * request) answers with the bio, `npi` in plain digits included. The derived
  * `npi` is that value, matched back to its row by the request body's `id`, and
- * `null` where the bio was not fetched (the page would not link it either) or
- * did not answer.
+ * `null` where the bio was not fetched (the page would not link it either),
+ * did not answer, or carried an empty `npi` (nurses and medical assistants).
  */
 
 import { findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
@@ -53,14 +53,8 @@ export interface CareTeamProviderStandard {
    * "no NPI exists".
    */
   npi: string | null;
-  /** Opaque provider id (an 86–88 character token, not a number). */
+  /** Opaque provider id (an 86–88 character token, not a number): the handle the bio call takes. */
   ID: string | null;
-  /**
-   * Derived: `NationalProviderID` under a name that does not promise an NPI.
-   * The value is an Epic-encrypted token, decodable only by the server, so it
-   * identifies the provider to MyChart and to nothing else.
-   */
-  encryptedNationalProviderID: string | null;
   DepartmentID: string | null;
   CanMessage: boolean | null;
 }
@@ -83,7 +77,6 @@ function provider(value: unknown, fromExternalList: boolean, bios: RawRequestRec
     fromExternalList,
     npi: npiOf(ID, bios),
     ID,
-    encryptedNationalProviderID: textOrNull(p.NationalProviderID),
     DepartmentID: textOrNull(p.DepartmentID),
     CanMessage: boolOrNull(p.CanMessage),
   };
