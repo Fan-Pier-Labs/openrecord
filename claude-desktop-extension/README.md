@@ -166,6 +166,28 @@ different family member's record than the one the call is about.
 > Switch to Bart's record and show his immunizations.
 > Switch back to my own record.
 
+### Long tool calls: `check_pending_call`
+
+Claude Desktop cancels a tool call it has waited too long on (its own log
+records one cancel 197 s after the request; four minutes is the figure usually
+quoted), and a paged billing read or an imaging study can take longer. So every
+tool runs under a 2.5-minute deadline. A call that answers in time returns as
+usual. One that does not keeps running in the background and returns a note
+with an id; `check_pending_call(id)` waits up to 2.5 minutes more and returns
+the result exactly as the original tool would have (`wait: false` reports at
+once). A call is given up on 10 minutes after it started.
+
+Calls still run concurrently. A parked call blocks exactly one thing, a repeat
+of itself with the same arguments, because that retry is how `send_message`
+would send twice. The one other effect: `switch_proxy_target` on that account
+refuses until the parked read has finished, since the read is still reading
+whichever patient is active on MyChart's server.
+
+`abandon: true` stops waiting and discards the result. **Abandon means abandon,
+not cancel** — nothing in the scraper core takes an abort signal, so the work
+runs on, a message already sent still lands, and the proxy-switch guard holds
+until it finishes. The parked calls live in memory (`src/pending-call.ts`).
+
 ### Output modes
 
 Every read tool takes an optional `mode`:

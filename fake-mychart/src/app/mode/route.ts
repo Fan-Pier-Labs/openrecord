@@ -12,7 +12,7 @@ import {
 } from '@/lib/proxy';
 import { getRequireTerms, setRequireTerms } from '@/lib/terms';
 import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from '@/lib/epicVersion';
-import { getFailingEndpoints, setFailingEndpoints } from '@/lib/outage';
+import { getFailingEndpoints, setFailingEndpoints, getResponseDelaySeconds, setResponseDelaySeconds } from '@/lib/outage';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
@@ -44,6 +44,9 @@ import { getFailingEndpoints, setFailingEndpoints } from '@/lib/outage';
  *     release's server-error surface instead of their data, for proving a
  *     scraper reports an outage rather than an empty chart. See
  *     `src/lib/outage.ts`.
+ *   - `responseDelaySeconds` — how long every post-login request is held
+ *     before it is answered, for exercising a client's handling of a call
+ *     that outruns its host's tool-call limit. Same file.
  *
  *   GET  /mode                              → every knob's current value
  *   POST /mode {"mode":"root"}              → root-mounted, still announced by redirect
@@ -51,6 +54,7 @@ import { getFailingEndpoints, setFailingEndpoints } from '@/lib/outage';
  *   POST /mode {"proxyDiscovery":"script"}  → proxy records only in the script payload
  *   POST /mode {"requireTerms":true}        → login lands on the T&C page first
  *   POST /mode {"failingEndpoints":["api/allergies/LoadAllergies"]}  → that endpoint 500s; [] restores it
+ *   POST /mode {"responseDelaySeconds":110}  → every post-login request takes 110 s; 0 restores it
  *   POST /mode {"mode":"root","discovery":"meta-refresh"}  → several at once
  *
  * Whatever a request omits is left alone, so a caller that only cares about one
@@ -78,6 +82,7 @@ function currentSettings() {
     requireTerms: getRequireTerms(),
     epicVersion: getEpicVersion(),
     failingEndpoints: getFailingEndpoints(),
+    responseDelaySeconds: getResponseDelaySeconds(),
   };
 }
 
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints } = body ?? {};
+  const { mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints, responseDelaySeconds } = body ?? {};
 
   if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode as MountMode))) {
     return NextResponse.json(
@@ -156,6 +161,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    responseDelaySeconds !== undefined
+    && (typeof responseDelaySeconds !== 'number' || !Number.isFinite(responseDelaySeconds) || responseDelaySeconds < 0)
+  ) {
+    return NextResponse.json(
+      { error: 'responseDelaySeconds must be a number of seconds >= 0; 0 clears it', received: responseDelaySeconds },
+      { status: 400 },
+    );
+  }
+
   // `moved-host` with nowhere to move to would answer every request with a 500,
   // which is a confusing way to find out the call was incomplete.
   const effectiveMovedHost = movedHost !== undefined ? movedHost : getMovedHost();
@@ -169,10 +184,10 @@ export async function POST(request: NextRequest) {
   if (
     mode === undefined && discovery === undefined && movedHost === undefined
     && proxyDiscovery === undefined && requireTerms === undefined && epicVersion === undefined
-    && failingEndpoints === undefined
+    && failingEndpoints === undefined && responseDelaySeconds === undefined
   ) {
     return NextResponse.json(
-      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints' },
+      { error: 'Provide at least one of mode, discovery, movedHost, proxyDiscovery, requireTerms, epicVersion, failingEndpoints, responseDelaySeconds' },
       { status: 400 },
     );
   }
@@ -184,6 +199,7 @@ export async function POST(request: NextRequest) {
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
   if (epicVersion !== undefined) setEpicVersion(epicVersion as EpicVersion);
   if (failingEndpoints !== undefined) setFailingEndpoints(failingEndpoints as string[]);
+  if (responseDelaySeconds !== undefined) setResponseDelaySeconds(responseDelaySeconds);
 
   return NextResponse.json({ ok: true, ...currentSettings() });
 }

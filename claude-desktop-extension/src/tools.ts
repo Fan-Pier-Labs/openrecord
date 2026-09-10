@@ -5,11 +5,12 @@
  *   1. Meta tools — list_accounts, get_setup_widget, get_hospital_info,
  *                   setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
- *                   disconnect_account. These are MCPB-specific: all but one
- *                   manage the credentials stored on this machine, which is
- *                   not something the other clients share, and get_setup_widget
- *                   returns a Claude Desktop UI resource no other client can
- *                   render. `search_mycharts` used to be one of them and is now
+ *                   disconnect_account, check_pending_call. These are
+ *                   MCPB-specific: most manage the credentials stored on this
+ *                   machine, get_setup_widget returns a Claude Desktop UI
+ *                   resource, and check_pending_call collects a result that
+ *                   outran Claude Desktop's request timeout (pending-call.ts).
+ *                   `search_mycharts` used to be one of them and is now
  *                   a `public` capability in the shared registry, so every
  *                   client has it; `get_hospital_info` is account-free in the
  *                   same way and is the obvious next one to move.
@@ -87,6 +88,7 @@ import {
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
+import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
@@ -284,6 +286,8 @@ function contextFor(ref: string): CapabilityContext {
   };
 }
 
+const SWITCH_PROXY_TOOL = 'switch_proxy_target';
+
 /**
  * Register one capability as an MCP tool. `kind` controls the annotations
  * Claude Desktop uses for grouping:
@@ -343,6 +347,15 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // A public capability has no account to resolve and no credentials to
         // read: `executeCapability` runs it with a null session.
         const account = isPublicCapability(capability) ? '' : readAccountArg(args) ?? '';
+        // A parked read is still reading whichever patient is active; switching
+        // under it would hand the read the wrong chart.
+        const busy = capability.id === SWITCH_PROXY_TOOL ? unsettledCallOnAccount(account) : undefined;
+        if (busy) {
+          return errorResult(
+            `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient cannot ` +
+              `change yet. Wait for it with ${CHECK_TOOL} (abandoning does not stop it), then switch.`,
+          );
+        }
         const session = isPublicCapability(capability) ? null : await resolveSession(account);
         // executeCapability, not capability.run, for EVERY capability: the
         // active-patient assertion lives there. Branching to a direct
@@ -583,9 +596,51 @@ async function connectWithPassword(hostname: string, username: string, password:
   }
 }
 
+// ── Parking long calls ─────────────────────────────────────────────────────
+
+/**
+ * A server whose every registration runs under `runGuarded`. The declared
+ * type is kept so handlers' argument types still come from their zod shapes;
+ * every tool declares an inputSchema, so the first callback argument is the
+ * arguments.
+ */
+function guarded(server: McpServer): McpServer {
+  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
+    server.registerTool(name, config as never, (...a: unknown[]) =>
+      runGuarded(name, (a[0] ?? {}) as Record<string, unknown>, () => handler(...a)),
+    );
+  return { registerTool } as unknown as McpServer;
+}
+
+function registerCheckPendingCall(server: McpServer): void {
+  server.registerTool(
+    CHECK_TOOL,
+    {
+      description:
+        `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked under an id, exactly as ` +
+        `the original tool would have returned it. Waits up to ${DEADLINE_LABEL} for it (wait: false reports at ` +
+        'once). abandon: true stops waiting and discards the result — it does not stop the work, and anything ' +
+        'already sent still lands. A parked call is given up on 10 minutes after it started.',
+      inputSchema: {
+        id: z.string().describe('The id from the parking note.'),
+        wait: z.boolean().optional().describe(`Wait up to ${DEADLINE_LABEL} for the call to finish (default true).`),
+        abandon: z.boolean().optional().describe('Stop waiting and discard the result. Does not stop the work.'),
+      } satisfies ZodRawShape,
+      // Not read-only: abandon discards a result.
+      ...toolMeta('Check a pending tool call', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
+    },
+    ({ id, wait, abandon }) =>
+      checkPendingCall({ id, ...(wait !== undefined ? { wait } : {}), ...(abandon !== undefined ? { abandon } : {}) }),
+  );
+}
+
 // ── Public: register everything on the server ──────────────────────────────
 
-export function registerAllTools(server: McpServer): void {
+export function registerAllTools(rawServer: McpServer): void {
+  // check_pending_call collects parked results, so it is never itself parked.
+  registerCheckPendingCall(rawServer);
+  const server = guarded(rawServer);
+
   // ── Meta tools ────────────────────────────────────────────────────────────
 
   server.registerTool(

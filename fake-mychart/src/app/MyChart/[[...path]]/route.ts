@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isRootMount } from '@/lib/mount';
-import { isFailingEndpoint } from '@/lib/outage';
+import { isFailingEndpoint, responseDelay } from '@/lib/outage';
 import { PROXY_SELECTOR_PLACEHOLDER, renderProxySelector } from '@/lib/html';
 import {
   GET_PRIVATE, GET_PRIVATE_PATTERNS, GET_PUBLIC, GET_PUBLIC_PATTERNS,
@@ -59,6 +59,8 @@ async function renderGet(request: NextRequest, { params }: RouteParams) {
 
   // An endpoint the `/mode` knob is failing answers the way a real action that
   // threw does — after the gates, since the exception happens inside the action.
+  // A slow instance (`responseDelaySeconds`) is slow at the same point.
+  await responseDelay();
   if (isFailingEndpoint(ctx.lower)) return aspNetFailure(request, 'fivehundred', ctx.path);
 
   const handler = resolve(ctx.lower, GET_PRIVATE, GET_PRIVATE_PATTERNS);
@@ -103,6 +105,7 @@ async function renderPost(request: NextRequest, { params }: RouteParams) {
     if (redirect) return redirect;
   }
 
+  await responseDelay();
   if (isFailingEndpoint(ctx.lower)) return aspNetFailure(request, 'fivehundred', ctx.path);
 
   const handler = resolve(ctx.lower, POST_ROUTES, POST_PATTERNS);

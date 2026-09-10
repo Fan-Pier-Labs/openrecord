@@ -76,6 +76,12 @@ async function main(): Promise<void> {
         '\n  5. Use the data tools (get_medications, get_lab_results, send_message, etc.) with the ' +
         '     `account` from the previous step.' +
         '\n\n' +
+        'Long tool calls: a call that has not answered after 2.5 minutes keeps running in the background ' +
+        'and returns a note carrying an id instead of its result; collect the result with ' +
+        'check_pending_call(id). Never repeat that call with the same arguments while it is pending — it ' +
+        'is already running and would be refused, and a tool that sends something would send it twice. ' +
+        'Other tools are unaffected, except switch_proxy_target on that account, which waits for the read.' +
+        '\n\n' +
         'Public information (no account): get_hospital_info(hostname) returns what a MyChart ' +
         'instance publishes about its health system to anyone — support phone lines, the bookable ' +
         'provider directory with clinic addresses, and billing entities. Use search_mycharts to find ' +
