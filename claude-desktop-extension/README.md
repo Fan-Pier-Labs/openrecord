@@ -166,6 +166,35 @@ different family member's record than the one the call is about.
 > Switch to Bart's record and show his immunizations.
 > Switch back to my own record.
 
+### Long tool calls: `check_pending_call`
+
+Claude Desktop drops a tool call that has not answered in about four minutes,
+and a read that pages through years of billing or pulls a large imaging study
+can take longer. So every tool runs under a 3.5-minute deadline. A call that
+answers in time returns as usual. One that does not keeps running in the
+background and returns a note instead; the result is collected with
+**`check_pending_call`**, which returns it exactly as the original tool would
+have.
+
+There is one slot, not a queue. While a call is running, or has finished and
+not yet been read, **every other tool refuses** and points at
+`check_pending_call`. That is deliberate: a `switch_proxy_target` that ran in
+the middle of a background read would hand that read the wrong family
+member's chart, and a model that retries the timed-out tool gets the refusal
+instead of doing the work twice (for `send_message`, a second message to the
+doctor).
+
+- `check_pending_call()` waits up to 3.5 minutes for the result, then either
+  returns it or says the call is still running and for how long.
+- `check_pending_call(wait: false)` reports at once.
+- `check_pending_call(abandon: true)` stops waiting and discards the result.
+  **Abandon means abandon, not cancel** — nothing in the scraper core takes an
+  abort signal, so the work runs on in the background until it finishes on its
+  own, and a message or request it already sent still lands.
+- A call is given up on 10 minutes after it started, the same way.
+
+The slot is in-memory (`src/pending-call.ts`) and dies with the server process.
+
 ### Output modes
 
 Every read tool takes an optional `mode`:

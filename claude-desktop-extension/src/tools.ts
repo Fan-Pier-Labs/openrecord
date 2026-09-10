@@ -5,11 +5,14 @@
  *   1. Meta tools — list_accounts, get_setup_widget, get_hospital_info,
  *                   setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
- *                   disconnect_account. These are MCPB-specific: all but one
+ *                   disconnect_account, check_pending_call. These are
+ *                   MCPB-specific: all but two
  *                   manage the credentials stored on this machine, which is
  *                   not something the other clients share, and get_setup_widget
  *                   returns a Claude Desktop UI resource no other client can
- *                   render. `search_mycharts` used to be one of them and is now
+ *                   render, and check_pending_call collects a result that
+ *                   outran Claude Desktop's tool-call limit (pending-call.ts).
+ *                   `search_mycharts` used to be one of them and is now
  *                   a `public` capability in the shared registry, so every
  *                   client has it; `get_hospital_info` is account-free in the
  *                   same way and is the obvious next one to move.
@@ -87,6 +90,7 @@ import {
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
+import { CHECK_TOOL, checkPendingCall, runGuarded } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
@@ -583,9 +587,61 @@ async function connectWithPassword(hostname: string, username: string, password:
   }
 }
 
+// ── The pending-call slot ──────────────────────────────────────────────────
+
+/**
+ * A server whose every registration runs under `runGuarded`: the 3.5-minute
+ * deadline, and the one-at-a-time slot behind check_pending_call. Only the
+ * `registerTool` this file calls is wrapped; the declared type is kept so the
+ * handlers' argument types still come from their zod shapes.
+ */
+function guarded(server: McpServer): McpServer {
+  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
+    server.registerTool(name, config as never, (...a: unknown[]) => runGuarded(name, () => handler(...a)));
+  return { registerTool } as unknown as McpServer;
+}
+
+function registerCheckPendingCall(server: McpServer): void {
+  server.registerTool(
+    CHECK_TOOL,
+    {
+      description:
+        'Collect the result of a tool call that ran past 3.5 minutes, or find out how it is doing. Only one ' +
+        'tool call runs at a time; while one is running, or has finished and not been read, every other tool ' +
+        'refuses and says to call this one. Returns the finished result exactly as the original tool would ' +
+        'have, and clears the way for other tools. Otherwise, with `wait` (the default) it waits up to 3.5 ' +
+        'minutes for the result before reporting that the call is still running and for how long; with ' +
+        '`wait: false` it reports at once. A call is given up on 10 minutes after it started. ' +
+        '`abandon: true` stops waiting for the call and discards its result. Abandon means abandon, not ' +
+        'cancel: the work runs on in the background until it finishes on its own, and a message or ' +
+        'request it already sent still lands.',
+      inputSchema: {
+        wait: z
+          .boolean()
+          .optional()
+          .describe('Wait up to 3.5 minutes for the call to finish (default true). false reports its state at once.'),
+        abandon: z
+          .boolean()
+          .optional()
+          .describe(
+            'Stop waiting for the pending call and discard its result, freeing the other tools. This does not ' +
+              'stop the work: it runs on in the background, and anything it already sent still lands.',
+          ),
+      } satisfies ZodRawShape,
+      ...toolMeta('Check the pending tool call', { readOnlyHint: true, openWorldHint: false }),
+    },
+    ({ wait, abandon }) => checkPendingCall({ ...(wait !== undefined ? { wait } : {}), ...(abandon !== undefined ? { abandon } : {}) }),
+  );
+}
+
 // ── Public: register everything on the server ──────────────────────────────
 
-export function registerAllTools(server: McpServer): void {
+export function registerAllTools(rawServer: McpServer): void {
+  // check_pending_call is the one tool that must answer while the slot is
+  // held, so it goes on the raw server; everything below runs guarded.
+  registerCheckPendingCall(rawServer);
+  const server = guarded(rawServer);
+
   // ── Meta tools ────────────────────────────────────────────────────────────
 
   server.registerTool(

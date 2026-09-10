@@ -75,6 +75,7 @@ describe('tool metadata', () => {
       'connect_imported_account',
       'complete_2fa',
       'disconnect_account',
+      'check_pending_call',
     ]) {
       expect(tools.get(name)?.title).toBeTruthy();
     }

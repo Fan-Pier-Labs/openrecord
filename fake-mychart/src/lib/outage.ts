@@ -17,11 +17,39 @@
  * Paths are below the mount prefix and matched the way routes are: whole path,
  * case-insensitively, query string ignored. Global to the process, like every
  * other knob; `/reset` clears it.
+ *
+ * The other bad day is a slow one. `responseDelaySeconds` holds every gated
+ * (post-login) request for that long before it is answered, so a client's
+ * handling of a call that outruns its host's patience — the Claude Desktop
+ * extension's `check_pending_call` — can be exercised against this server.
+ * Applied at the same point as the outage, after the gates, so login itself
+ * stays quick. Keep it under the scrapers' 2-minute per-request deadline
+ * (`scrapers/http.ts`) or every request simply fails; a chart read makes at
+ * least two gated requests, so 110 s is enough to push any data tool past the
+ * extension's 3.5-minute deadline.
  */
 
-const outageState: { failingEndpoints: Set<string> } = {
+const outageState: { failingEndpoints: Set<string>; responseDelaySeconds: number } = {
   failingEndpoints: new Set(),
+  responseDelaySeconds: 0,
 };
+
+export function getResponseDelaySeconds(): number {
+  return outageState.responseDelaySeconds;
+}
+
+export function setResponseDelaySeconds(seconds: number): void {
+  outageState.responseDelaySeconds = Math.max(0, seconds);
+}
+
+/** Resolves after the configured delay; at once when there is none. */
+export function responseDelay(): Promise<void> {
+  const ms = outageState.responseDelaySeconds * 1000;
+  if (ms <= 0) return Promise.resolve();
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
 
 /** A path the way the route tables key it: no leading slash, lowercased, no query. */
 export function normalizeEndpointPath(path: string): string {
@@ -43,4 +71,5 @@ export function isFailingEndpoint(lower: string): boolean {
 
 export function resetFailingEndpoints(): void {
   outageState.failingEndpoints = new Set();
+  outageState.responseDelaySeconds = 0;
 }
