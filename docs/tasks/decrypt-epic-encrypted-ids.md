@@ -1,8 +1,8 @@
 # Task: turn an Epic-encrypted `WP-…` id back into what it names
 
 **Status:** open, unassigned. Nothing in the repo depends on this succeeding — `get_care_team`
-already ships the honest answer (`npi: null`) where the value is encrypted. This is about
-whether we can do better than null.
+ships the token under an honest name (`encryptedNationalProviderID`) and claims nothing about
+it. This is about whether it can be turned into the NPI it is named after.
 
 ## The problem
 
@@ -63,9 +63,9 @@ In rough order of expected value:
 
 Three things change, in one PR:
 
-- `scrapers/myChart/chart/careTeam/careTeam.processor.ts` — `npi` stops being "the value when
-  it happens to be an NPI" and starts being the decrypted/looked-up one. The derived-field
-  rules are in [`../processor-layer-proposal.md`](../processor-layer-proposal.md).
+- `scrapers/myChart/chart/careTeam/careTeam.processor.ts` — a real `npi` joins
+  `encryptedNationalProviderID` in the standard object. The derived-field rules are in
+  [`../processor-layer-proposal.md`](../processor-layer-proposal.md).
 - `scrapers/myChart/chart/careTeam/README.md` and `scrapers/npi/README.md` — both currently
   state, as fact, that MyChart is not a source for an NPI.
 - `fake-mychart` — it serves the encrypted shape because that is the only shape observed. If

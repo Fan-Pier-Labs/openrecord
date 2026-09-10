@@ -40,7 +40,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_benefits` | 34406 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
-| `get_care_team` | 19590 | 1120 | 843 | 532 |
+| `get_care_team` | 19590 | 1572 | 1880 | 532 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
 | `get_letters` | 637 | 577 | 503 | 424 |
 | `get_letter_details` | 483 | 460 | 475 | 475 |
@@ -16572,20 +16572,72 @@ Providers on the care team, including outside providers, each with their role an
 </details>
 
 <details>
-<summary><code>mode: standard</code> (843 chars)</summary>
+<summary><code>mode: standard</code> (1880 chars)</summary>
 
 - **DescriptiveTitle**: Your Care Team
 - **externalProvidersUnavailable**: false
 
 ## ProvidersList (5)
 
-| Name | Relation | Specialty | IsExternal | fromExternalList | ID | npi | DepartmentID | CanMessage |
-| - | - | - | - | - | - | - | - | - |
-| Julius Hibbert, MD | Primary Care Provider | Internal Medicine | false | false | PROV-HIBBERT | (none) | DEP-IM-1 | true |
-| Nick Riviera, MD | Surgeon | General Surgery | false | false | PROV-NICK | (none) | DEP-SURG-1 | false |
-| Springfield Nuclear Power Plant Employee Health Plan | Payer | (empty) | false | false | PAYER-SNPP | (none) | (empty) | false |
-| Dr. Velimirovic, MD | (none) | Cardiothoracic Surgery | false | false | PROV-VELIMIROVIC | (none) | DEP-SURG-2 | true |
-| Marvin Monroe, MD | Outside Provider | Psychiatry | true | true | PROV-EXT-MONROE | (none) | (empty) | false |
+### ProvidersList 1
+
+- **Name**: Julius Hibbert, MD
+- **Relation**: Primary Care Provider
+- **Specialty**: Internal Medicine
+- **IsExternal**: false
+- **fromExternalList**: false
+- **ID**: PROV-HIBBERT
+- **encryptedNationalProviderID**: WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D
+- **DepartmentID**: DEP-IM-1
+- **CanMessage**: true
+
+### ProvidersList 2
+
+- **Name**: Nick Riviera, MD
+- **Relation**: Surgeon
+- **Specialty**: General Surgery
+- **IsExternal**: false
+- **fromExternalList**: false
+- **ID**: PROV-NICK
+- **encryptedNationalProviderID**: WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D
+- **DepartmentID**: DEP-SURG-1
+- **CanMessage**: false
+
+### ProvidersList 3
+
+- **Name**: Springfield Nuclear Power Plant Employee Health Plan
+- **Relation**: Payer
+- **Specialty**: (empty)
+- **IsExternal**: false
+- **fromExternalList**: false
+- **ID**: PAYER-SNPP
+- **encryptedNationalProviderID**: (empty)
+- **DepartmentID**: (empty)
+- **CanMessage**: false
+
+### ProvidersList 4
+
+- **Name**: Dr. Velimirovic, MD
+- **Relation**: (none)
+- **Specialty**: Cardiothoracic Surgery
+- **IsExternal**: false
+- **fromExternalList**: false
+- **ID**: PROV-VELIMIROVIC
+- **encryptedNationalProviderID**: WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D
+- **DepartmentID**: DEP-SURG-2
+- **CanMessage**: true
+
+### ProvidersList 5
+
+- **Name**: Marvin Monroe, MD
+- **Relation**: Outside Provider
+- **Specialty**: Psychiatry
+- **IsExternal**: true
+- **fromExternalList**: true
+- **ID**: PROV-EXT-MONROE
+- **encryptedNationalProviderID**: WP-24mUpHqqyLs5yjYBPrhq8rtA-3D-3D-243tFy77AtwOZ1x9-2B6aX3mBcYajWMOxHXT7EKn2veRtOo-3D
+- **DepartmentID**: (empty)
+- **CanMessage**: false
 
 </details>
 
@@ -16607,7 +16659,7 @@ Providers on the care team, including outside providers, each with their role an
 </details>
 
 <details>
-<summary><code>mode: json</code> (1120 chars)</summary>
+<summary><code>mode: json</code> (1572 chars)</summary>
 
 ```json
 {
@@ -16621,7 +16673,7 @@ Providers on the care team, including outside providers, each with their role an
       "IsExternal": false,
       "fromExternalList": false,
       "ID": "PROV-HIBBERT",
-      "npi": null,
+      "encryptedNationalProviderID": "WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D",
       "DepartmentID": "DEP-IM-1",
       "CanMessage": true
     },
@@ -16632,7 +16684,7 @@ Providers on the care team, including outside providers, each with their role an
       "IsExternal": false,
       "fromExternalList": false,
       "ID": "PROV-NICK",
-      "npi": null,
+      "encryptedNationalProviderID": "WP-24a5g0qfgNW7oYCqByEHsIpA-3D-3D-242rJiA-2BJDPvCTSAeFY3lC1Lzrjrr7OEsmYhSXzEracZQ-3D",
       "DepartmentID": "DEP-SURG-1",
       "CanMessage": false
     },
@@ -16643,7 +16695,7 @@ Providers on the care team, including outside providers, each with their role an
       "IsExternal": false,
       "fromExternalList": false,
       "ID": "PAYER-SNPP",
-      "npi": null,
+      "encryptedNationalProviderID": "",
       "DepartmentID": "",
       "CanMessage": false
     },
@@ -16654,7 +16706,7 @@ Providers on the care team, including outside providers, each with their role an
       "IsExternal": false,
       "fromExternalList": false,
       "ID": "PROV-VELIMIROVIC",
-      "npi": null,
+      "encryptedNationalProviderID": "WP-24350uiUqT66FgdVxZtxSzpA-3D-3D-24QH-2BnlL-2FtQnF5szURVYtLKnTcNmpwG1NxYt7URyab3Yo-3D",
       "DepartmentID": "DEP-SURG-2",
       "CanMessage": true
     },
@@ -16665,7 +16717,7 @@ Providers on the care team, including outside providers, each with their role an
       "IsExternal": true,
       "fromExternalList": true,
       "ID": "PROV-EXT-MONROE",
-      "npi": null,
+      "encryptedNationalProviderID": "WP-24mUpHqqyLs5yjYBPrhq8rtA-3D-3D-243tFy77AtwOZ1x9-2B6aX3mBcYajWMOxHXT7EKn2veRtOo-3D",
       "DepartmentID": "",
       "CanMessage": false
     }

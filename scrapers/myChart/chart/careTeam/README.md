@@ -41,15 +41,16 @@ provider fields were identical on both.
 
 Five field facts that are not what they look like, each pinned by a test:
 
-- **`NationalProviderID` is not an NPI.** On the one instance probed for it, all 7 providers
-  carried an Epic-encrypted `WP-$…$…` blob there — the same envelope as `ID` and
-  `DepartmentID`: a 16-byte prefix and 32 bytes of ciphertext under a key that never leaves
-  the server, so nothing client-side turns it into digits. The field is raw-only for that
-  reason, and `standard` carries the derived `npi`, which is the value only when it really
-  is an NPI. Where `npi` is `null`, `search_npi_registry` by provider name is the way to
-  one (verified: one care-team name → one exact registry match). Sample size is **one real
-  instance**; an instance that does send digits is unobserved, which is why the derivation
-  is a check-digit test rather than a rename.
+- **`NationalProviderID` is not an NPI.** It holds an Epic-encrypted `WP-$…$…` token — the
+  same envelope as `ID` and `DepartmentID`: a 16-byte prefix and 32 bytes of ciphertext
+  under a key that never leaves the server, so nothing client-side turns it into digits
+  (all 7 providers of the instance probed, and see
+  [`../../../../docs/tasks/decrypt-epic-encrypted-ids.md`](../../../../docs/tasks/decrypt-epic-encrypted-ids.md)).
+  MyChart's name for it is raw-only, because a field called "NationalProviderID" in
+  `standard` sent callers straight into `lookup_npi`, which rejects it on the check digit.
+  The value is still there under the derived `encryptedNationalProviderID`. The way from a
+  care-team row to a real NPI is `search_npi_registry` on the provider's name (verified:
+  one care-team name → one exact registry match).
 
 - **`AboutMeBlurb` is an array, not a string.** It is empty on every provider of both
   instances, so its element shape is unknown — reading it as text yields an empty string
@@ -97,11 +98,11 @@ instances across both releases).
 | `fromExternalList` | Came from `LoadExternal` | ✓ | ✓ | ✓ | Derived. Distinct from `IsExternal`, which the internal list can also set. |
 | `externalProvidersUnavailable` | `LoadExternal` failed | ✓ | ✓ | ✓ | Derived. A partial care team presented as the whole one is the failure the scraper exists to prevent. |
 | `ProvidersList[].ID` | Opaque provider id | — | ✓ | — | Identifier; detail. |
-| `npi` | The provider's NPI | ✓ | ✓ | — | Derived from `NationalProviderID`, and only when that value is a well-formed NPI (Luhn). `null` says this instance does not hand NPIs out — not that the provider has none. |
+| `encryptedNationalProviderID` | `NationalProviderID`'s value, named for what it is | ✓ | ✓ | — | Derived. Identifies the provider to MyChart and to nothing else; it is not an NPI and `lookup_npi` will not take it. |
 | `ProvidersList[].DepartmentID` | Department id | — | ✓ | — | Identifier; detail. |
 | `ProvidersList[].CanMessage` | Reachable through `send_message` | — | ✓ | — | Tells a consumer whether a follow-up write is possible; detail. |
 | `DescriptiveTitle` | Page title ("Your Care Team") | — | ✓ | — | Harmless; detail. |
-| `ProvidersList[].NationalProviderID` | Named like an NPI; an Epic-encrypted `WP-$…$…` blob on all 7 providers of the one instance probed | — | — | — | **internal** (blob key). Surfacing it under a name that says "NPI" sent callers straight into `lookup_npi`, which rejects it on the check digit. The value is still in `raw`. |
+| `ProvidersList[].NationalProviderID` | Named like an NPI; an Epic-encrypted `WP-$…$…` token | — | — | — | The name is the problem, not the value: it sent callers into `lookup_npi`, which rejects it on the check digit. The value rides in `standard` as `encryptedNationalProviderID`, and MyChart's own name for it stays in `raw`. |
 | `ProvidersList[].AboutMeBlurb` | Provider bio | — | — | — | Always empty: `[]` on every provider of four instances. |
 | `ProvidersList[].Organizations`, `.SchedulableVisitTypes` | Organizations and visit types | — | — | — | Always empty: `null` on all four. |
 | `ProvidersList[].CareTeamStatus` | Status code | — | — | — | Always empty: `0` on all four. |

@@ -70,7 +70,7 @@ const HIBBERT_STANDARD = {
   IsExternal: false,
   fromExternalList: false,
   ID: 'PROV-1',
-  npi: null,
+  encryptedNationalProviderID: ENCRYPTED_NPI,
   DepartmentID: 'DEP-1',
   CanMessage: true,
 }
@@ -183,7 +183,7 @@ describe('careTeamProcessor', () => {
           IsExternal: true,
           fromExternalList: true,
           ID: 'PROV-EXT',
-          npi: null,
+          encryptedNationalProviderID: null,
           DepartmentID: null,
           CanMessage: null,
         },
@@ -193,27 +193,13 @@ describe('careTeamProcessor', () => {
     expect(standard.ProvidersList[0]).not.toHaveProperty('AboutMeBlurb')
   })
 
-  // MyChart's own field is named like an NPI but carried an encrypted token on
-  // every provider of the instance probed, so it is raw-only and `npi` is
-  // derived: the value when it really is an NPI, null when it is the token.
-  it('drops the encrypted NationalProviderID and derives npi from it', () => {
+  // MyChart's field is named like an NPI but holds an encrypted token, so the
+  // name that promised an NPI is raw-only and the value is carried under one
+  // that does not.
+  it('carries NationalProviderID under a name that does not promise an NPI', () => {
     const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
     expect(standard.ProvidersList[0]).not.toHaveProperty('NationalProviderID')
-    expect(standard.ProvidersList[0]?.npi).toBeNull()
-  })
-
-  it('passes through a NationalProviderID that is a real NPI', () => {
-    const standard = careTeamProcessor.standard(
-      envelope({ body: { ProvidersList: [{ ...HIBBERT, NationalProviderID: '1234567893' }] } }, { body: { ProvidersList: [] } }),
-    )
-    expect(standard.ProvidersList[0]?.npi).toBe('1234567893')
-  })
-
-  it('reports a NationalProviderID that is ten digits with a bad check digit as no npi', () => {
-    const standard = careTeamProcessor.standard(
-      envelope({ body: { ProvidersList: [{ ...HIBBERT, NationalProviderID: '1234567890' }] } }, { body: { ProvidersList: [] } }),
-    )
-    expect(standard.ProvidersList[0]?.npi).toBeNull()
+    expect(standard.ProvidersList[0]?.encryptedNationalProviderID).toBe(ENCRYPTED_NPI)
   })
 
   it('keeps IsExternal on an internal-list provider distinct from fromExternalList', () => {

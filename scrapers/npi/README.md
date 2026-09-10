@@ -10,8 +10,8 @@ source is not MyChart**, and the only one that needs no account at all.
 
 A National Provider Identifier is the 10-digit number Medicare, insurers and MyChart itself
 use to name a clinician or an organization. **MyChart is not a source for one.** The care
-team's `NationalProviderID` is named like an NPI but held an Epic-encrypted token on the one
-instance probed for it, and every other provider MyChart names (visits, notes, letters,
+team's `NationalProviderID` is named like an NPI but holds an Epic-encrypted token, and
+every other provider MyChart names (visits, notes, letters,
 message senders) carries no NPI field at all. So the way from a chart to an NPI is
 `search_npi_registry` by provider name, and `lookup_npi` is for a number you already have.
 
