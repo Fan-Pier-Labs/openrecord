@@ -308,7 +308,10 @@ POST /Clinical/CareTeam/LoadExternal  → 200, outside/Care Everywhere providers
   DescriptiveTitle, TabColorClass, IsCustomApptReqEnabled, CustomRequestAppointmentLink }`
 - `Relation` carries the role (the PCP designation appears here); `Specialty` the department specialty.
   **Not every entry is a clinician** — one instance listed the patient's insurance payer with
-  `Relation: "Payer"`, no NPI and no specialty. `NationalProviderID`, `Specialty`, `Photo`,
+  `Relation: "Payer"`, no NPI and no specialty. **`NationalProviderID` is not an NPI**: on the one
+  instance probed for it, all 7 providers held an Epic-encrypted `WP-$…$…` blob there, so the
+  scraper keeps it raw-only and derives `npi` from it only when it passes the check digit.
+  `NationalProviderID`, `Specialty`, `Photo`,
   `WebPageUrl`, `InfoBlurbUrl` and `CommCenterMessageUrl` are all empty strings on some real entries,
   so only `ID` and `Name` can be relied on. `LoadExternal` returns the same envelope with its own
   `ProvidersList`; it was empty on all four accounts.

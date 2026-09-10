@@ -32,12 +32,15 @@ function mockRequest(replies: Reply[]) {
 
 const TOKEN_PAGE = '<input name="__RequestVerificationToken" value="tok" />'
 
+/** What `NationalProviderID` actually held on all 7 providers of the instance probed for it. */
+const ENCRYPTED_NPI = 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D'
+
 /** One `ProvidersList` element as four live instances return it. */
 const HIBBERT = {
   ID: 'PROV-1',
   Name: 'Julius Hibbert, MD',
   Photo: '/photos/1.jpg',
-  NationalProviderID: '1000000001',
+  NationalProviderID: ENCRYPTED_NPI,
   WebPageUrl: '/Clinical/Provider/PROV-1',
   InfoBlurbUrl: '',
   // An array on every live instance (always empty), so it must not be read as text.
@@ -67,7 +70,7 @@ const HIBBERT_STANDARD = {
   IsExternal: false,
   fromExternalList: false,
   ID: 'PROV-1',
-  NationalProviderID: '1000000001',
+  npi: null,
   DepartmentID: 'DEP-1',
   CanMessage: true,
 }
@@ -180,7 +183,7 @@ describe('careTeamProcessor', () => {
           IsExternal: true,
           fromExternalList: true,
           ID: 'PROV-EXT',
-          NationalProviderID: null,
+          npi: null,
           DepartmentID: null,
           CanMessage: null,
         },
@@ -188,6 +191,29 @@ describe('careTeamProcessor', () => {
     })
     expect(standard.ProvidersList[0]).not.toHaveProperty('Photo')
     expect(standard.ProvidersList[0]).not.toHaveProperty('AboutMeBlurb')
+  })
+
+  // MyChart's own field is named like an NPI but carried an encrypted token on
+  // every provider of the instance probed, so it is raw-only and `npi` is
+  // derived: the value when it really is an NPI, null when it is the token.
+  it('drops the encrypted NationalProviderID and derives npi from it', () => {
+    const standard = careTeamProcessor.standard(envelope({ body: { ProvidersList: [HIBBERT] } }, { body: { ProvidersList: [] } }))
+    expect(standard.ProvidersList[0]).not.toHaveProperty('NationalProviderID')
+    expect(standard.ProvidersList[0]?.npi).toBeNull()
+  })
+
+  it('passes through a NationalProviderID that is a real NPI', () => {
+    const standard = careTeamProcessor.standard(
+      envelope({ body: { ProvidersList: [{ ...HIBBERT, NationalProviderID: '1234567893' }] } }, { body: { ProvidersList: [] } }),
+    )
+    expect(standard.ProvidersList[0]?.npi).toBe('1234567893')
+  })
+
+  it('reports a NationalProviderID that is ten digits with a bad check digit as no npi', () => {
+    const standard = careTeamProcessor.standard(
+      envelope({ body: { ProvidersList: [{ ...HIBBERT, NationalProviderID: '1234567890' }] } }, { body: { ProvidersList: [] } }),
+    )
+    expect(standard.ProvidersList[0]?.npi).toBeNull()
   })
 
   it('keeps IsExternal on an internal-list provider distinct from fromExternalList', () => {

@@ -21,8 +21,17 @@
  * `AboutMeBlurb` (`[]` on every provider of four instances) and
  * `Organizations` / `SchedulableVisitTypes` (`null` on all four) are not
  * surfaced: their shapes are unknown.
+ *
+ * `NationalProviderID` is not surfaced either, and that one is a trap rather
+ * than an unknown: it is named like an NPI but held an Epic-encrypted
+ * `WP-$…$…` blob on all 7 providers of the one instance probed for it, so a
+ * caller who passed it to `lookup_npi` — as that capability's own docs told
+ * them to — always failed the check digit. It stays in `raw` (the `internal` /
+ * blob-key class), and the derived `npi` carries the value only when the
+ * instance really did put an NPI there.
  */
 
+import { isValidNpi } from '../../../npi/npiRegistry';
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
@@ -37,7 +46,13 @@ export interface CareTeamProviderStandard {
   fromExternalList: boolean;
   /** Opaque provider id (an 86–88 character token, not a number). */
   ID: string | null;
-  NationalProviderID: string | null;
+  /**
+   * Derived from `NationalProviderID`: the NPI when the instance sent one,
+   * `null` when it sent an encrypted token instead (or nothing). A `null` here
+   * means this instance does not hand out NPIs, not that the provider has no
+   * NPI — `search_npi_registry` by name is the way to one.
+   */
+  npi: string | null;
   DepartmentID: string | null;
   CanMessage: boolean | null;
 }
@@ -49,6 +64,12 @@ export interface CareTeamStandard {
   ProvidersList: CareTeamProviderStandard[];
 }
 
+/** A `NationalProviderID` that is a well-formed NPI, or null for the encrypted token an instance may send there instead. */
+function npiOrNull(value: unknown): string | null {
+  const text = textOrNull(value);
+  return text !== null && isValidNpi(text) ? text : null;
+}
+
 function provider(value: unknown, fromExternalList: boolean): CareTeamProviderStandard {
   const p = rec(value);
   return {
@@ -58,7 +79,7 @@ function provider(value: unknown, fromExternalList: boolean): CareTeamProviderSt
     IsExternal: boolOrNull(p.IsExternal),
     fromExternalList,
     ID: textOrNull(p.ID),
-    NationalProviderID: textOrNull(p.NationalProviderID),
+    npi: npiOrNull(p.NationalProviderID),
     DepartmentID: textOrNull(p.DepartmentID),
     CanMessage: boolOrNull(p.CanMessage),
   };

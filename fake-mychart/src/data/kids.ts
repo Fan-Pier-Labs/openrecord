@@ -38,7 +38,7 @@ const PEDIATRICIAN_SHORT = 'Julius Hibbert, MD';
 const PEDIATRICIAN_PROVIDER = {
   ID: 'PROV-HIBBERT',
   Name: PEDIATRICIAN_SHORT,
-  NationalProviderID: '1000000001',
+  NationalProviderID: 'WP-24addk7JhW5D2Y7furM-2Fsq6g-3D-3D-24wkEbOpgwj-2BI6yU-2BjOXcb8vmpbfc9gRrDFP8lSGOXeVQ-3D',
   Relation: 'Primary Care Provider',
   Specialty: 'Pediatrics',
   DepartmentID: 'DEP-PEDS-1',
@@ -168,7 +168,7 @@ const bart: KidRecord = {
     careTeam: {
       ProvidersList: [
         PEDIATRICIAN_PROVIDER,
-        { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: '1000000004', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
+        { ID: 'PROV-RAMIREZ', Name: 'Dr. Corazon Ramirez, MD', NationalProviderID: 'WP-246DHYQLwhRyQx9gZAs5-2FyvQ-3D-3D-24wKxMOx-2FmIgC-2BR5fTiLE4h-2B-2BOmsqsBlDWiHviWKHD5zQ-3D', Relation: 'Specialist', Specialty: 'Pediatric Pulmonology', DepartmentID: 'DEP-PULM-1', CanMessage: true },
       ],
       DescriptiveTitle: 'Your Care Team',
       TabColorClass: 'tab-01',
