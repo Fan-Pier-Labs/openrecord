@@ -1,3 +1,5 @@
+import type { ReportContent } from '../../eunity/imagingViewer';
+
 export interface LabTestResult {
   orderName: string
   key: string
