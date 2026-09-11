@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { MyChartRequest } from '../myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError } from '../makeAuthenticatedRequest';
-import { looksLikeSignedOutPage } from '../../auth/login';
+import { looksLikeSignedOutPage } from '../signedOutPage';
 import { sessionStore } from '../sessionStore';
 
 const LOGIN_PAGE_HTML = `<!DOCTYPE html><html><head><title>MyChart - Login Page</title></head>

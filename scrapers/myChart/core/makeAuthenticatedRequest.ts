@@ -28,7 +28,7 @@
 
 import type { MyChartRequest } from './myChartRequest';
 import type { RequestConfig } from './types';
-import { looksLikeSignedOutPage } from '../auth/login';
+import { looksLikeSignedOutPage } from './signedOutPage';
 import { sessionStore } from './sessionStore';
 import { renewMyChartSession } from './sessionRenewal';
 
