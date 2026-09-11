@@ -182,12 +182,6 @@ export interface ResultNote {
   signingInstantTimestamp: string
 }
 
-// This comes from a different API.
-export type ReportContent = {
-  reportContent: string;
-  reportCss: string;
-}
-
 export interface ReportDetails {
   isDownloadablePDFReport: boolean
   reportID: string

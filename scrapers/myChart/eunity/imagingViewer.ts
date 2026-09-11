@@ -5,7 +5,6 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import type { RawCollector } from '../core/rawResponse';
 import type { RequestConfig } from '../core/types';
 import { fetchSessionCsrfToken } from '../core/csrf';
-import type { ReportContent } from '../chart/labs/labtestresulttype';
 import { scraperFetch } from '../../http';
 import { logger } from '../../../shared/logger';
 
@@ -291,6 +290,12 @@ export async function followSamlChain(
     logger.debug('Error following SAML chain:', (err as Error).message);
     return null;
   }
+}
+
+/** What `/api/report-content/LoadReportContent` answers. */
+export type ReportContent = {
+  reportContent: string;
+  reportCss: string;
 }
 
 /**
