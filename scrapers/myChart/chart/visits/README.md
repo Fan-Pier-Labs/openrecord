@@ -6,7 +6,7 @@ notes, After Visit Summary — is keyed on the **CSN** this scraper returns.
 | | |
 | --- | --- |
 | **Capabilities** | `get_past_visits` (read) · `get_upcoming_visits` (read) |
-| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) · [`types.ts`](types.ts) |
+| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) |
 | **Activity** | Legacy `/Visits/VisitsList` |
 
 ## Endpoints
