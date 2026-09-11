@@ -10,9 +10,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { groupByHost, type HostEntry } from './probe-mount-discovery';
-import { setLogSink, silenceLogger } from '../../shared/logger';
+import { setLogSink, silenceLogger } from '../../../shared/logger';
 
-const INSTANCES_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
+const INSTANCES_FILE = path.join(path.dirname(import.meta.path), '..', 'mychart-instances.json');
 
 export type ProbeArgs = {
   entries: HostEntry[];
