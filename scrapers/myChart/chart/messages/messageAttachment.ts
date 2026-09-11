@@ -26,7 +26,7 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector } from '../../core/rawResponse';
 import { DcsDocumentError, fetchDcsFile } from '../../core/dcsDocument';
 import { safeFileName } from '../../core/safeFileName';
-import type { FilePayload } from '../../../../shared/capabilities/types';
+import type { FilePayload } from '../../core/filePayload';
 import { list, rec, text } from '../../processors/read';
 import { fetchConversationThreadRaw } from './messageThreads';
 
