@@ -20,18 +20,18 @@
  * entries go stale, so disagreement is a hint rather than a failure.
  *
  * Usage:
- *   bun scrapers/list-all-mycharts/probe-mount-discovery.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
- *   bun scrapers/list-all-mycharts/probe-mount-discovery.ts --hosts mychart.foo.org,bar.org --verbose
+ *   bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
+ *   bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts --hosts mychart.foo.org,bar.org --verbose
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { determineFirstPathPart, looksLikeLoginPage } from '../myChart/auth/login';
-import { MyChartRequest } from '../myChart/core/myChartRequest';
-import { platformFetch } from '../http';
-import { logger, setLogSink, silenceLogger } from '../../shared/logger';
+import { determineFirstPathPart, looksLikeLoginPage } from '../../myChart/auth/login';
+import { MyChartRequest } from '../../myChart/core/myChartRequest';
+import { platformFetch } from '../../http';
+import { logger, setLogSink, silenceLogger } from '../../../shared/logger';
 
-const INSTANCES_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
+const INSTANCES_FILE = path.join(path.dirname(import.meta.path), '..', 'mychart-instances.json');
 const REQUEST_TIMEOUT_MS = 20_000;
 const HOST_TIMEOUT_MS = 90_000;
 const MYCHART_LOGIN_ROUTE = '/authentication/';
