@@ -95,7 +95,7 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
-| `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
+| `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
 
 All five packages are on TypeScript 6 — `moduleResolution: "Node"`, `baseUrl`, and paths without a
 leading `./` no longer parse, so don't reintroduce them.

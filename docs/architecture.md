@@ -334,7 +334,7 @@ scripted `window.location`, cross-host moves), since MyChart's canonical bounce 
 on its last hop. Guesses — a link off a landing page, a host it was redirected to — are checked for
 a real login page before being trusted.
 
-Verify changes with `bun scrapers/list-all-mycharts/probe-mount-discovery.ts` (all ~750 directory
+Verify changes with `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` (all ~750 directory
 hosts, sends no credentials).
 
 ## Proxy (multi-patient) support
