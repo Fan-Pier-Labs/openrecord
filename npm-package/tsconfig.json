@@ -29,12 +29,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "../../shared/telemetry": ["./src/shims/telemetry.ts"],
-      "../../shared/blockedInstances": ["./src/shims/blockedInstances.ts"],
-      "../../../shared/env": ["./src/shims/env.ts"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "src/**/*",
