@@ -5,7 +5,7 @@ import {
   unwrapAmf3,
   isAmf3Externalizable,
   type Amf3Object,
-} from '../amf3Reader';
+} from '../../../../shared/amf3Reader';
 import { parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';
 import { Amf3Writer } from '../../../../shared/amf3Writer';
 

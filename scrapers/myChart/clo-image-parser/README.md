@@ -81,7 +81,7 @@ known. The matching `CLOHEADERZ01` wrapper is written by
 uses to synthesize wrappers at runtime**, so a fixture and a served wrapper can never
 disagree about the format.
 
-The AMF3 reader is [`../eunity/amf3Reader.ts`](../eunity/amf3Reader.ts), the repo's only
+The AMF3 reader is [`shared/amf3Reader.ts`](../../../shared/amf3Reader.ts), the repo's only
 one, and it is strict. Here a throw is not fatal: wrapper parsing falls back to text-based
 photometric detection and slice sorting falls back to the server's order, so the image still
 renders and only windowing or slice order degrades — and the fallback logs itself.

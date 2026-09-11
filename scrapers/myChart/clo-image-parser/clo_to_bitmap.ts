@@ -56,7 +56,7 @@
 import { readFileSync, existsSync } from "fs";
 import { inflateSync } from "zlib";
 import { decompress as zstdDecompress } from "fzstd";
-import { Amf3Reader } from '../eunity/amf3Reader';
+import { Amf3Reader } from '../../../shared/amf3Reader';
 import { logger } from '../../../shared/logger';
 
 const CLOCLHAAR_MAGIC = Buffer.from("CLOCLHAAR###");
@@ -109,7 +109,7 @@ export function parseWrapper(input: string | Buffer): CloMetadata {
 
   const metadata: CloMetadata = {};
 
-  // Decoded strictly (eunity/amf3Reader.ts — the repo's one AMF3 reader): a
+  // Decoded strictly (shared/amf3Reader.ts — the repo's one AMF3 reader): a
   // wrapper this decoder can't fully parse costs the windowing metadata, and
   // the text-based fallback below still recovers the photometric so the image
   // renders.
