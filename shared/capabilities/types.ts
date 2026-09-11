@@ -139,6 +139,8 @@ export interface Capability {
 }
 
 // The scrapers that produce a file extend this, so it lives below them in core.
+// This re-export is for clients only; a scraper imports it from core directly,
+// because importing it from here would recreate the scrapers -> registry edge.
 export type { FilePayload } from '../../scrapers/myChart/core/filePayload';
 
 /**
