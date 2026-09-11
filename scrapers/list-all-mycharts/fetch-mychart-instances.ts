@@ -3,7 +3,7 @@
  *
  * The file is the offline seed: it is what the mobile app shows on a first
  * launch with no network, what the Claude Desktop extension bundles, and what
- * `probe-mount-discovery.ts` iterates. Clients that can reach the network
+ * `probes/probe-mount-discovery.ts` iterates. Clients that can reach the network
  * refresh themselves from {@link fetchMyChartDirectory} — this script only
  * exists so the seed doesn't rot.
  *
