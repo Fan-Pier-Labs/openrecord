@@ -60,6 +60,9 @@ run-on line; `null` renders as `(none)`.
 
 ## `read.ts` — readers that never throw
 
+The implementation is [`../core/read.ts`](../core/read.ts), re-exported here: core's own
+`dcsDocument.ts` reads untyped payloads too, and core must not import this layer.
+
 Processors run against **whatever an Epic release actually sent**, not against what a type
 says it sent. A field an instance omits has to come out as an empty value rather than
 crashing mid-scrape, so `rec` / `list` / `text` / `bool` / `num` coerce and never throw.
