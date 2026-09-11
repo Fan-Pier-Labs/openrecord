@@ -14,13 +14,13 @@
  * the question is whether the search is accepted at all.
  *
  * Usage:
- *   bun scrapers/list-all-mycharts/probe-open-slots.ts [--hosts a,b] [--limit 50] [--concurrency 12] [--out r.jsonl]
+ *   bun scrapers/list-all-mycharts/probes/probe-open-slots.ts [--hosts a,b] [--limit 50] [--concurrency 12] [--out r.jsonl]
  */
 
-import { determineFirstPathPart } from '../myChart/auth/login';
-import { fetchOpenSlots } from '../myChart/prelogin/openSlots';
-import { PreloginEndpointError } from '../myChart/prelogin/preloginSession';
-import { NoSchedulingSelectionError } from '../myChart/prelogin/schedulingContext';
+import { determineFirstPathPart } from '../../myChart/auth/login';
+import { fetchOpenSlots } from '../../myChart/prelogin/openSlots';
+import { PreloginEndpointError } from '../../myChart/prelogin/preloginSession';
+import { NoSchedulingSelectionError } from '../../myChart/prelogin/schedulingContext';
 import { timeBoundedRequest, type HostEntry } from './probe-mount-discovery';
 import { parseProbeArgs, runProbe } from './probeRunner';
 

@@ -31,7 +31,7 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 # ── Not product code ─────────────────────────────────────────────────────────
 #
 #   mock_data/         — test fixtures
-#   list-all-mycharts/probe*.ts + fetch-mychart-instances.ts — run-it-yourself
+#   list-all-mycharts/probes/ + fetch-mychart-instances.ts — run-it-yourself
 #                        sweeps of every real host, and the seed refresher.
 #                        `directory.ts` beside them is NOT ignored: it ships in
 #                        the app and the extension.
@@ -85,11 +85,7 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 # `--action` dispatch grew tests of its own.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
-  "scrapers/list-all-mycharts/probe-mount-discovery.ts",
-  "scrapers/list-all-mycharts/probe-open-scheduling.ts",
-  "scrapers/list-all-mycharts/probe-open-slots.ts",
-  "scrapers/list-all-mycharts/probe-epic-version.ts",
-  "scrapers/list-all-mycharts/probeRunner.ts",
+  "scrapers/list-all-mycharts/probes/**",
   "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
   "fake-mychart/**",
   "**/__tests__/**",

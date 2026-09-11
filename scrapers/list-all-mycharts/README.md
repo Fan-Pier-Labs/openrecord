@@ -8,7 +8,7 @@ against all ~750 hosts at once.
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
 | **Source** | [`directory.ts`](directory.ts) (fetch + logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the seed) |
-| **Probes** | [`probe-mount-discovery.ts`](probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probe-open-scheduling.ts) · [`probe-open-slots.ts`](probe-open-slots.ts) · [`probe-epic-version.ts`](probe-epic-version.ts) · [`probeRunner.ts`](probeRunner.ts) |
+| **Probes** | [`probes/`](probes/) — [`probe-mount-discovery.ts`](probes/probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probes/probe-open-scheduling.ts) · [`probe-open-slots.ts`](probes/probe-open-slots.ts) · [`probe-epic-version.ts`](probes/probe-epic-version.ts) · [`probeRunner.ts`](probes/probeRunner.ts) |
 | **Seed** | `mychart-instances.json` — the checked-in offline snapshot |
 
 ## Endpoints
@@ -62,7 +62,7 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
 MyChart's deployment shapes vary far more than any fixture set captures. These harnesses
 answer "does this still work everywhere?" by asking every host in the directory.
 **Nothing here submits a credential** — every request is one an unauthenticated browser
-makes by opening the portal's front door. [`probeRunner.ts`](probeRunner.ts) holds the parts
+makes by opening the portal's front door. [`probeRunner.ts`](probes/probeRunner.ts) holds the parts
 they share: argument parsing, a bounded worker pool, JSONL output and progress.
 
 | Probe | Question it answers |
@@ -73,7 +73,7 @@ they share: argument parsing, a bounded worker pool, JSONL output and progress.
 | `probe-epic-version.ts` | Which Epic release is each instance running? |
 
 ```bash
-bun scrapers/list-all-mycharts/probe-mount-discovery.ts
+bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts
 ```
 
 Run the mount probe after touching discovery. Deployment shapes vary far more than any

@@ -16,16 +16,16 @@
  * is in it, and 750 hosts × 20 specialties would be tens of gigabytes.
  *
  * Usage:
- *   bun scrapers/list-all-mycharts/probe-open-scheduling.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
- *   bun scrapers/list-all-mycharts/probe-open-scheduling.ts --hosts mychart.foo.org --verbose
+ *   bun scrapers/list-all-mycharts/probes/probe-open-scheduling.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
+ *   bun scrapers/list-all-mycharts/probes/probe-open-scheduling.ts --hosts mychart.foo.org --verbose
  */
 
-import { determineFirstPathPart } from '../myChart/auth/login';
-import { fetchSchedulingWorkflow, parseFeatures, parseSpecialties } from '../myChart/prelogin/providerDirectory';
-import { PreloginEndpointError } from '../myChart/prelogin/preloginSession';
+import { determineFirstPathPart } from '../../myChart/auth/login';
+import { fetchSchedulingWorkflow, parseFeatures, parseSpecialties } from '../../myChart/prelogin/providerDirectory';
+import { PreloginEndpointError } from '../../myChart/prelogin/preloginSession';
 import { timeBoundedRequest, type HostEntry } from './probe-mount-discovery';
 import { parseProbeArgs, runProbe } from './probeRunner';
-import { logger } from '../../shared/logger';
+import { logger } from '../../../shared/logger';
 
 const HOST_TIMEOUT_MS = 90_000;
 

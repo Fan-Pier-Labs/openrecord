@@ -30,19 +30,19 @@
  * stale table would answer confidently and wrongly.
  *
  * Usage:
- *   bun scrapers/list-all-mycharts/probe-epic-version.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
- *   bun scrapers/list-all-mycharts/probe-epic-version.ts --hosts mychart.foo.org --verbose
+ *   bun scrapers/list-all-mycharts/probes/probe-epic-version.ts [--out results.jsonl] [--concurrency 24] [--limit 50]
+ *   bun scrapers/list-all-mycharts/probes/probe-epic-version.ts --hosts mychart.foo.org --verbose
  *
  * `--out` receives each host's raw row as it arrives, so a long sweep is
  * resumable; the release columns are derived once the sweep has finished and
  * appear in the printed summary.
  */
 
-import { determineFirstPathPart } from '../myChart/auth/login';
-import { platformFetch } from '../http';
+import { determineFirstPathPart } from '../../myChart/auth/login';
+import { platformFetch } from '../../http';
 import { timeBoundedRequest, type HostEntry } from './probe-mount-discovery';
 import { parseProbeArgs, runProbe } from './probeRunner';
-import { logger } from '../../shared/logger';
+import { logger } from '../../../shared/logger';
 
 const HOST_TIMEOUT_MS = 90_000;
 const FHIR_TIMEOUT_MS = 25_000;
