@@ -31,7 +31,6 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "../../shared/util": ["./src/shims/util.ts"],
       "../../shared/telemetry": ["./src/shims/telemetry.ts"],
       "../../shared/blockedInstances": ["./src/shims/blockedInstances.ts"],
       "../../../shared/env": ["./src/shims/env.ts"]
