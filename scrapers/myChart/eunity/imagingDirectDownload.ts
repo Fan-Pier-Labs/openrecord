@@ -21,7 +21,7 @@ import { type FdiContext, followSamlChain, getImageViewerSamlUrl } from './imagi
 import { scraperFetch } from '../../http';
 import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPosition';
 import { logger } from '../../../shared/logger';
-import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from './amf3Reader';
+import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from '../../../shared/amf3Reader';
 import { Amf3Writer } from '../../../shared/amf3Writer';
 
 // ─── AMF3 Request Construction ───

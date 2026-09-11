@@ -206,7 +206,7 @@ parameters = [
 
 #### getStudyListMeta Response Structure (verified on a real instance, 2026-08)
 
-The response is one AMF3 value, decodable with `../amf3Reader.ts`:
+The response is one AMF3 value, decodable with `shared/amf3Reader.ts`:
 
 ```
 AmfServicesMessage { messageType: "response", messageID, body }        // Sealed (3)

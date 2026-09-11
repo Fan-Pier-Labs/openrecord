@@ -17,8 +17,8 @@
  * `com.clientoutlook.data.ImageDescription`. Nothing failed, because every
  * reader in the repo matches on member names and never on the class name.
  *
- * The counterpart reader lives at `scrapers/myChart/eunity/amf3Reader.ts` — it
- * stays scraper-side because nothing else decodes AMF3. That the two are not
+ * The counterpart reader is `amf3Reader.ts` beside this file, shared by the
+ * eUnity client and the CLO decoder. That the two are not
  * mirror images of one shared misreading is pinned by `GOLDEN_FRAME_HEX` in
  * `scrapers/myChart/eunity/__tests__/imagingDirectDownload.unit.test.ts`: the
  * exact bytes of a request frame a real eUnity server accepted.

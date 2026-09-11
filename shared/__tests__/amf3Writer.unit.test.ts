@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'bun:test';
 import { Amf3Writer, amf3ArrayCollection, amf3Double } from '../amf3Writer';
-import { Amf3Reader } from '../../scrapers/myChart/eunity/amf3Reader';
+import { Amf3Reader } from '../amf3Reader';
 
 describe('Amf3Writer — value style', () => {
   it('writes and reads back integer', () => {

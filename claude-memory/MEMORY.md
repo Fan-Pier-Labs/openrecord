@@ -54,7 +54,7 @@ scraper.
 - **`fake-mychart/src/lib/amf3.ts` stays a separate AMF3 implementation** — it
   can't import from `scrapers/` because fake-mychart's Docker build context is
   that directory only. (The scrapers themselves now share one strict reader,
-  `eunity/amf3Reader.ts`; resilience lives at each call site.)
+  `shared/amf3Reader.ts`; resilience lives at each call site.)
 - **fake-mychart's knob modules (`mount`/`proxy`/`terms`/`epicVersion`) stay
   separate files** — they're mostly documentation of observed real-instance
   behavior; a generic knob factory would scatter it.

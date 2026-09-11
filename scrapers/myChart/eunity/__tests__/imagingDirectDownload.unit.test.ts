@@ -6,7 +6,7 @@ import {
   extractServiceInstanceFromAmf,
   buildGetStudyListMetaRequest,
 } from '../imagingDirectDownload';
-import { Amf3Reader } from '../amf3Reader';
+import { Amf3Reader } from '../../../../shared/amf3Reader';
 
 // ─── Helper: build a fake AMF binary with UIDs laid out like a real response ───
 
