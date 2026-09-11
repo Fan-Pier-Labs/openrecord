@@ -1,3 +1,5 @@
+import type { ReportContent } from '../../eunity/imagingViewer';
+
 export interface LabTestResult {
   orderName: string
   key: string
@@ -180,12 +182,6 @@ export interface ResultNote {
   contentAsString: string
   contentAsHtml: string
   signingInstantTimestamp: string
-}
-
-// This comes from a different API.
-export type ReportContent = {
-  reportContent: string;
-  reportCss: string;
 }
 
 export interface ReportDetails {
