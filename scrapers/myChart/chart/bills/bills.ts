@@ -7,7 +7,7 @@ import { subYears, addYears } from 'date-fns';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
 import { logger } from '../../../../shared/logger';
 import { toEpicDteLocal } from '../../../../shared/epicDate';
-import type { FilePayload } from '../../../../shared/capabilities/types';
+import type { FilePayload } from '../../core/filePayload';
 import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
 import { VISIT_LIST_CATEGORIES, billingProcessor, isStubRow, statementDateISO, type BillingStandard } from './bills.processor';
