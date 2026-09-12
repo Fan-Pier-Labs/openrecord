@@ -1,12 +1,12 @@
 # `messages`
 
 The communication center: the inbox, a whole thread, who can be written to and about what,
-and the write side — new messages, replies, drafts and deletes.
+and the write side — new messages, replies and deletes.
 
 | | |
 | --- | --- |
 | **Capabilities** | `get_messages` · `get_message_thread` · `get_message_attachment` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
-| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
+| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
 | **Activity** | React `/app/communication-center` |
 
 ## Endpoints
@@ -31,7 +31,6 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | `POST /api/conversations/SendReply` | `{ conversationId, organizationId, viewers, messageBody, documentIds, includeOtherViewers, composeId }` | reply |
 | `POST /api/conversations/RemoveComposeId` | `{ composeId }` | cleanup after a send |
 | `POST /api/conversations/DeleteConversation` | `{ conversationId }` | delete |
-| `POST /api/medicaladvicerequests/SaveMedicalAdviceRequestDraft` · `POST /api/conversations/SaveReplyDraft` · `POST /api/conversations/DeleteDraft` | — | drafts |
 
 The send body:
 
