@@ -138,21 +138,10 @@ export interface Capability {
   returnsFile?: boolean;
 }
 
-/**
- * What a {@link Capability.returnsFile} capability's `run` returns. A
- * capability extends it with what it knows about the file (a message
- * attachment carries its conversation and `dcsId`); clients pass those extra
- * fields through in the summary they show beside the saved path.
- */
-export interface FilePayload {
-  /**
-   * A basename safe to create under any directory, with its extension —
-   * `safeFileName` in `scrapers/myChart/core/safeFileName.ts` makes one.
-   */
-  fileName: string;
-  mimeType: string;
-  bytes: Uint8Array;
-}
+// The scrapers that produce a file extend this, so it lives below them in core.
+// This re-export is for clients only; a scraper imports it from core directly,
+// because importing it from here would recreate the scrapers -> registry edge.
+export type { FilePayload } from '../../scrapers/myChart/core/filePayload';
 
 /**
  * A capability that runs against a MyChart session, plus its implementation.
