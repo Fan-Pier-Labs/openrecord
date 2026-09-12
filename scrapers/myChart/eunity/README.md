@@ -8,7 +8,7 @@ gets the bytes; [`../clo-image-parser/`](../clo-image-parser/) turns them into i
 | | |
 | --- | --- |
 | **Capabilities** | `download_imaging_study` (read, media) — the discovery half is [`../chart/labs/`](../chart/labs/) |
-| **Source** | [`imagingViewer.ts`](imagingViewer.ts) (FDI context, SAML chain) · [`imagingDirectDownload.ts`](imagingDirectDownload.ts) (AMF session, downloads) · [`amf3Reader.ts`](amf3Reader.ts) (strict AMF3 decoder) |
+| **Source** | [`imagingViewer.ts`](imagingViewer.ts) (FDI context, SAML chain) · [`imagingDirectDownload.ts`](imagingDirectDownload.ts) (AMF session, downloads) · [`shared/amf3Reader.ts`](../../../shared/amf3Reader.ts) (strict AMF3 decoder) |
 | **Protocol reference** | [`docs/EUNITY_PROTOCOL.md`](docs/EUNITY_PROTOCOL.md) — the byte-level notes |
 
 The AMF3 **writer** is [`shared/amf3Writer.ts`](../../../shared/amf3Writer.ts), shared with
@@ -67,7 +67,7 @@ different object UIDs returns a ~217-byte error. The `level` parameter also vari
 (0, 3, 4), not just per progressive refinement step. So each entry's own UID pair is used
 as-is; nothing is grouped by series UID.
 
-This is why [`amf3Reader.ts`](amf3Reader.ts) exists and why it is **strict**. The response is
+This is why [`shared/amf3Reader.ts`](../../../shared/amf3Reader.ts) exists and why it is **strict**. The response is
 parsed *structurally* — Study → Series → Image — rather than by scanning the binary for
 UID-shaped strings and guessing. The guessing broke on Mass General Brigham multi-slice
 studies, where a series' `frameOfReferenceUID` was mistaken for the series UID and every
