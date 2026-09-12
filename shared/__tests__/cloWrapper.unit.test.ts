@@ -17,7 +17,7 @@ import {
   encodeCloWrapper,
   linearVoiLutTable,
 } from '../cloWrapper';
-import { Amf3Reader } from '../../scrapers/myChart/eunity/amf3Reader';
+import { Amf3Reader } from '../amf3Reader';
 import { parseWrapper } from '../../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { readPatientPosition } from '../../scrapers/myChart/clo-image-parser/sortByPatientPosition';
 
