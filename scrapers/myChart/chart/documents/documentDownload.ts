@@ -23,7 +23,7 @@
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector } from '../../core/rawResponse';
 import { DcsDocumentError, fetchDcsFile } from '../../core/dcsDocument';
-import type { FilePayload } from '../../../../shared/capabilities/types';
+import type { FilePayload } from '../../core/filePayload';
 
 /** A downloaded document: the file, and what MyChart said about it. */
 export interface DocumentFile extends FilePayload {
