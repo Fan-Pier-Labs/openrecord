@@ -25,12 +25,7 @@ export function changeDirToPackageRoot(): void {
   process.chdir(currentDir);
 }
 
-// Merged in from what used to be `dev-scripts/package-root.ts`: run this file
-// directly to see where the walk lands from wherever it is invoked.
-//
-//   bun shared/util.ts
-if (import.meta.main) {
-  logger.debug('Current directory before change:', process.cwd());
-  changeDirToPackageRoot();
-  logger.debug('Changed directory to:', process.cwd());
-}
+// Merged in from what used to be `dev-scripts/package-root.ts`.
+logger.debug('Current directory before change:', process.cwd());
+changeDirToPackageRoot();
+logger.debug('Changed directory to:', process.cwd());
