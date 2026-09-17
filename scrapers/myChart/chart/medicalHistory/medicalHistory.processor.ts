@@ -8,55 +8,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, strings, textOrNull } from '../../processors/read';
+import type { LoadHistoriesViewModel } from './mychart.types';
+import type { MedicalHistoryStandard } from './standardized.types';
 
-export interface DiagnosisStandard {
-  diagnosisName: string | null;
-  diagnosisDate: string | null;
-}
-
-export interface SurgeryStandard {
-  surgeryName: string | null;
-  surgeryDate: string | null;
-}
-
-export interface FamilyMemberStandard {
-  relationshipToPatientName: string | null;
-  conditions: string[];
-  statusName: string | null;
-  nameOrAlias: string | null;
-  sexName: string | null;
-  relativeAge: string | null;
-  relativeAgeEnd: string | null;
-}
-
-export interface MedicalHistoryStandard {
-  medicalHistory: { diagnoses: DiagnosisStandard[]; medicalHistoryNotes: string | null };
-  surgicalHistory: { surgeries: SurgeryStandard[]; surgicalHistoryNotes: string | null };
-  familyHistoryAndStatus: {
-    familyMembers: FamilyMemberStandard[];
-    familyHistoryNotes: string | null;
-    familyStatusNotes: string | null;
-  };
-  socialHistory: {
-    smokingHistory: {
-      smokingTobaccoStatus: string | null;
-      tobaccoUse: string | null;
-      smokingTobaccoTypes: string[];
-      smokingTobaccoQuitDate: string | null;
-    };
-    smokelessHistory: {
-      smokelessTobaccoStatus: string | null;
-      smokelessTobaccoTypes: string[];
-      smokelessQuitDate: string | null;
-    };
-    alcoholHistory: { alcoholUse: string | null; alcoholAmount: string | null; alcoholUnit: string | null };
-    socialHistoryNotes: string | null;
-  };
-}
+export type { DiagnosisStandard, FamilyMemberStandard, MedicalHistoryStandard, SurgeryStandard } from './standardized.types';
 
 export const medicalHistoryProcessor: Processor<MedicalHistoryStandard> = {
   standard(raw: RawResponse): MedicalHistoryStandard {
-    const body = rec(bodyOf(raw, 'LoadHistoriesViewModel'));
+    const body = rec<LoadHistoriesViewModel>(bodyOf(raw, 'LoadHistoriesViewModel'));
     const medical = rec(body.medicalHistory);
     const surgical = rec(body.surgicalHistory);
     const family = rec(body.familyHistoryAndStatus);
