@@ -12,32 +12,10 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, num, rec, textOrNull } from '../../processors/read';
+import type { GetSubTopics } from './mychart.types';
+import type { MessageRecipientsStandard, MessageTopicsStandard } from './standardized.types';
 
-export interface MessageRecipientStandard {
-  displayName: string | null;
-  specialty: string | null;
-  pcpTypeDisplayName: string | null;
-  recipientType: number | null;
-  /** Out-of-contact context; absent on most instances. */
-  oocContext: number | null;
-  userId: string | null;
-  departmentId: string | null;
-  poolId: string | null;
-  providerId: string | null;
-}
-
-export interface MessageRecipientsStandard {
-  recipients: MessageRecipientStandard[];
-}
-
-export interface MessageTopicStandard {
-  displayName: string | null;
-  value: string | null;
-}
-
-export interface MessageTopicsStandard {
-  topicList: MessageTopicStandard[];
-}
+export type { MessageRecipientStandard, MessageRecipientsStandard, MessageTopicStandard, MessageTopicsStandard } from './standardized.types';
 
 const WRAPPER_KEYS = ['recipients', 'recipientList', 'Providers', 'providers', 'ProviderList', 'providerList'];
 
@@ -83,7 +61,7 @@ export const messageRecipientsProcessor: Processor<MessageRecipientsStandard> = 
 
 export const messageTopicsProcessor: Processor<MessageTopicsStandard> = {
   standard(raw: RawResponse): MessageTopicsStandard {
-    const body = rec(bodyOf(raw, 'GetSubtopics'));
+    const body = rec<GetSubTopics>(bodyOf(raw, 'GetSubtopics'));
     return {
       topicList: list(body.topicList).map((value) => ({
         displayName: textOrNull(rec(value).displayName),
