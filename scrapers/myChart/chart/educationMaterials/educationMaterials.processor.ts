@@ -10,20 +10,9 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
+import type { EducationMaterialsStandard } from './standardized.types';
 
-export interface EducationMaterialStandard {
-  displayName: string | null;
-  assignedDate: string | null;
-  elementId: string | null;
-  eduKey: string | null;
-  numTopics: number | null;
-  wasAssignedThisVisit: boolean | null;
-  numPagesReviewed: number | null;
-  numPagesUnderstood: number | null;
-  numPagesQuestions: number | null;
-}
-
-export type EducationMaterialsStandard = EducationMaterialStandard[];
+export type { EducationMaterialStandard, EducationMaterialsStandard } from './standardized.types';
 
 export const educationMaterialsProcessor: Processor<EducationMaterialsStandard> = {
   standard(raw: RawResponse): EducationMaterialsStandard {
