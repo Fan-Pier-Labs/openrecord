@@ -5,6 +5,7 @@
   "scripts": {
     "fix": "eslint --fix",
     "knip": "knip",
+    "wire-types": "bun dev-scripts/generate-wire-types.ts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "cli": "bun npm-package/cli/entry.ts",

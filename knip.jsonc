@@ -19,7 +19,10 @@
         // settle #484 before deleting them.
         "scrapers/myChart/chart/labs/labtestresulttype.ts",
         "scrapers/myChart/chart/labs/labtypes.ts",
-        "scrapers/myChart/chart/visits/types.ts"
+        "scrapers/myChart/chart/visits/types.ts",
+        // Generated: one type per captured endpoint, whether or not a scraper
+        // has been converted to read through it yet. `bun run wire-types`.
+        "scrapers/myChart/wire/shapes.generated.ts"
       ],
       "project": [
         "scrapers/**/*.ts",
@@ -72,10 +75,7 @@
       "ignore": [
         // Page CSS and inline page scripts, read off disk by `lib/html/assets.ts`
         // so Next never rewrites them — see the comment at the top of that file.
-        "src/lib/html/assets/**",
-        // Generated from live captures. A skeleton no handler conforms to yet is
-        // still the record of what a real instance answered, so it stays.
-        "src/data/realShapes.ts"
+        "src/lib/html/assets/**"
       ],
       // Invoked as a python module by `bun run deploy`, not imported.
       "ignoreDependencies": ["deploy"]

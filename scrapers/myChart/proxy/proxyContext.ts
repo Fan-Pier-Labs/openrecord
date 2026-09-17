@@ -4,6 +4,8 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from '../core/makeAuthenticatedRequest';
 import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
+import { rec, type Wire } from '../processors/read';
+import type { ProxySwitch } from '../wire/shapes.generated';
 
 export type ProxyTarget = {
   /**
@@ -32,17 +34,6 @@ export type ProxyTarget = {
   source: 'proxy-switch-json' | 'home-html';
 };
 
-type ProxySwitchSubject = {
-  Id?: string;
-  DisplayName?: string;
-  LinkUrl?: string;
-  IsSelected?: boolean;
-  IsSelf?: boolean;
-};
-
-type ProxySwitchResponse = {
-  ProxySubjectList?: ProxySwitchSubject[];
-};
 
 /**
  * How to name the record you want. Exactly one of these is needed.
@@ -135,7 +126,7 @@ function dedupeTargets(targets: ProxyTarget[]): ProxyTarget[] {
   return deduped;
 }
 
-function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: ProxySwitchResponse): ProxyTarget[] {
+function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: Wire<ProxySwitch>): ProxyTarget[] {
   return dedupeTargets(
     (json.ProxySubjectList ?? [])
       .map((entry) => ({
@@ -362,7 +353,7 @@ export async function discoverProxyTargets(
     }, options);
 
     if (resp.ok) {
-      const json = await resp.json() as ProxySwitchResponse;
+      const json = rec<ProxySwitch>(await resp.json());
       const targets = parseProxyTargetsFromJson(mychartRequest, json);
       if (targets.length > 0) {
         debugLog(`discovered targets source=proxy-switch-json count=${targets.length} [${summarizeTargets(targets)}]`);
