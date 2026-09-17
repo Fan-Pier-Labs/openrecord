@@ -107,7 +107,9 @@ export async function fetchPastVisitsRaw(myChartRequest: MyChartRequest): Promis
     // happened to be JSON) cannot be paged; it is in the envelope as-is.
     if (!page.List) break;
 
-    const orgs = Object.values(rec(page.List)).map(rec);
+    // Called rather than passed by reference: `rec` is overloaded, and a bare
+    // reference resolves to the typed overload with nothing to infer from.
+    const orgs = Object.values(rec(page.List)).map((org) => rec(org));
     if (!orgs.some((org) => bool(org.HasMoreData))) break;
 
     const next = text(page.SerializedIndex);

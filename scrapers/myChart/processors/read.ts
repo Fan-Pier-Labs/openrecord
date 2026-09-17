@@ -6,10 +6,22 @@
  * empty value rather than a crash mid-scrape. These never throw.
  */
 
-export function rec(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+/** A payload with no response type: a bare record. */
+export function rec(value: unknown): Record<string, unknown>;
+/**
+ * A payload we have a response type for: `rec<LoadAllergies>(body)`.
+ *
+ * Those types live in each scraper's `mychart.types.ts` and record what real
+ * instances answered, with every field optional — three instances out of ~750,
+ * and the next one is free to omit any of it. So this checks the field *names*
+ * (a typo, or a field no instance ever sent, does not compile) without
+ * promising a value is there: it still has to come out through `text()` /
+ * `num()` / `list()`. `as LoadAllergies` would check the same names and then
+ * claim the values too, which is the crash these readers exist to prevent.
+ */
+export function rec<T>(value: unknown): T;
+export function rec(value: unknown): unknown {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
 export function list(value: unknown): unknown[] {
