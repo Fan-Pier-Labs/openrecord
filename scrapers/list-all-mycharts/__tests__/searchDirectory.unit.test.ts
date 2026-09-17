@@ -14,16 +14,22 @@ import {
   DEFAULT_DIRECTORY_SEARCH_LIMIT,
   MAX_DIRECTORY_SEARCH_LIMIT,
   SANDBOX_INSTANCE,
+  SANDBOX_UNAVAILABLE_NOTE,
   clearDirectoryCache,
+  clearSandboxAvailabilityCache,
   rankDirectoryMatches,
   searchMyChartDirectory,
 } from '../searchDirectory';
 import fixture from './fixtures/directory-response.json';
 
-beforeEach(() => clearDirectoryCache());
+beforeEach(() => {
+  clearDirectoryCache();
+  clearSandboxAvailabilityCache();
+});
 afterEach(() => {
   setTestTransport(null);
   clearDirectoryCache();
+  clearSandboxAvailabilityCache();
 });
 
 const liveTransport = (onRequest?: () => void) => () => {
@@ -119,6 +125,51 @@ describe('searchMyChartDirectory', () => {
       const byAlias = await searchMyChartDirectory(query);
       expect(byAlias.matches.some((m) => m.hostname === 'fake-mychart.fanpierlabs.com')).toBe(true);
     }
+  });
+
+  it('marks the sandbox unavailable when it is not serving, instead of hiding it', async () => {
+    // The sandbox is a single deployment that gets torn down when it isn't
+    // worth its bill. Dropping the entry would look like a bug; offering it
+    // sends someone through the whole connect flow to a login that can't
+    // succeed, which is how it was reported.
+    setTestTransport((url) =>
+      url.includes('fake-mychart')
+        ? Promise.reject(new Error('getaddrinfo ENOTFOUND'))
+        : Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
+    );
+    const result = await searchMyChartDirectory('springfield');
+    const sandbox = result.matches.find((m) => m.hostname === 'fake-mychart.fanpierlabs.com');
+    expect(sandbox?.unavailable).toBe(SANDBOX_UNAVAILABLE_NOTE);
+    expect(sandbox?.unavailable).toContain('ryan@fanpierlabs.com');
+  });
+
+  it('leaves the sandbox connectable while it answers, and probes it once', async () => {
+    let sandboxProbes = 0;
+    setTestTransport((url) => {
+      if (url.includes('fake-mychart')) sandboxProbes++;
+      // A redirect to the login page is what a live instance actually answers.
+      return Promise.resolve(
+        url.includes('fake-mychart')
+          ? new Response(null, { status: 302 })
+          : new Response(JSON.stringify(fixture), { status: 200 }),
+      );
+    });
+    for (const query of ['springfield', 'sandbox']) {
+      const result = await searchMyChartDirectory(query);
+      expect(result.matches.find((m) => m.slgId === 'fake-mychart')?.unavailable).toBeUndefined();
+    }
+    // Cached — a picker searching on every keystroke must not probe per stroke.
+    expect(sandboxProbes).toBe(1);
+  });
+
+  it('does not probe the sandbox for a search that did not turn it up', async () => {
+    let sandboxProbes = 0;
+    setTestTransport((url) => {
+      if (url.includes('fake-mychart')) sandboxProbes++;
+      return Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 }));
+    });
+    await searchMyChartDirectory('AACI');
+    expect(sandboxProbes).toBe(0);
   });
 
   it('renders the sandbox logo without Buffer, so it works in every client', () => {

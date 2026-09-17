@@ -68,6 +68,24 @@ describe('buildSetupUiHtml', () => {
     expect(buildSetupUiHtml()).toContain('var deliveryLabel = function twoFaDeliveryLabel');
   });
 
+  test('greys out an entry search_mycharts marked unavailable rather than dropping it', () => {
+    // The test sandbox gets torn down when it isn't worth its bill, and the
+    // live MCPB kept offering it — people picked it and hit a login that could
+    // never succeed. The row stays visible, carrying the reason, but nothing
+    // in the picker can select it.
+    const html = buildSetupUiHtml();
+    expect(html).toContain("li.className = 'unavailable'");
+    expect(html).toContain("li.setAttribute('aria-disabled', 'true')");
+    expect(html).toContain('.results li.unavailable {');
+    // The reason replaces the hostname line, so the row explains itself.
+    expect(html).toContain("note.className = 'row-unavailable'");
+    expect(html).toContain('note.innerText = r.unavailable;');
+    // Neither click nor Enter can pick it, and arrows step over it.
+    expect(html).toContain('!currentRows[idx].unavailable) selectInstance(');
+    expect(html).toContain('function nextSelectable(from, step)');
+    expect(html).toContain('if (!currentRows[idx].unavailable) return idx;');
+  });
+
   test('does not show default picker suggestions (no featured list)', () => {
     const html = buildSetupUiHtml();
     expect(html).not.toContain('__FEATURED_JSON__');
