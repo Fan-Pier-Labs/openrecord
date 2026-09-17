@@ -20,40 +20,17 @@ import type { RawResponse } from '../../core/rawResponse';
 import { extractFdiContext, extractFdiContextFromFdiLink, type FdiContext } from '../../eunity/imagingViewer';
 import type { Processor } from '../../processors/processor';
 import { rec, textOrNull } from '../../processors/read';
+import type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard } from './standardized.types';
+
+export type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard } from './standardized.types';
 import {
   conciseLabOrder,
   labResultsProcessor,
   rawResultsForOrder,
   reportHtmlByReport,
   reportHtmlForResult,
-  type ImageStudyStandard,
-  type LabOrderConcise,
   type LabOrderStandard,
 } from './labResults.processor';
-
-export interface ImagingOrderStandard extends LabOrderStandard {
-  /** Derived handle: position in this list, the fallback when a model garbles `image_id`. */
-  index: number;
-  /** Derived handle: base64url of `{ fdi, ord }`; what `download_imaging_study` takes. */
-  image_id: string | null;
-  /** Derived: an `image_id` could be extracted — pictures, not just a report. */
-  hasViewableImages: boolean;
-  /** Derived: the order name matched an imaging keyword. */
-  isImagingByName: boolean;
-  /** Derived: a result carried imaging-shaped content. */
-  isImagingByContent: boolean;
-}
-
-export interface ImagingResultsStandard {
-  orders: ImagingOrderStandard[];
-}
-
-export interface ImagingOrderConcise extends LabOrderConcise {
-  index: number;
-  image_id: string | null;
-  hasViewableImages: boolean;
-  results: Array<LabOrderConcise['results'][number] & { imageStudies: ImageStudyStandard[] }>;
-}
 
 const IMAGING_KEYWORDS = [
   'x-ray', 'xray', 'xr ', 'mri', 'ct ', 'ct,', 'imaging', 'radiology', 'ultrasound',
