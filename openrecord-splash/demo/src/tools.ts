@@ -463,7 +463,7 @@ export function resolveToolName(name: string): string {
  * and a tool declared without it is a plain read. There is no second list to
  * forget to update.
  */
-export const WRITE_TOOL_SPECS: ToolSpec[] = TOOL_SPECS.filter((t) => t.write);
+const WRITE_TOOL_SPECS: ToolSpec[] = TOOL_SPECS.filter((t) => t.write);
 
 export const WRITE_TOOL_NAMES: string[] = WRITE_TOOL_SPECS.map((t) => t.name);
 

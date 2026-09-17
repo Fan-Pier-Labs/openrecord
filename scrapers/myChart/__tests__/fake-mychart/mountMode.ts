@@ -81,14 +81,6 @@ export async function setDiscoveryMode(
   }
 }
 
-export async function getMountMode(host: string): Promise<MountMode> {
-  const res = await fetch(`http://${host}/mode`);
-  if (!res.ok) {
-    throw new Error(`Failed to read mount mode from ${host}: ${res.status}`);
-  }
-  return (await res.json()).mode;
-}
-
 /**
  * Whether the instance makes patients accept Terms & Conditions before it lets
  * them into the chart.

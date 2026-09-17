@@ -27,7 +27,7 @@ import { openPreloginPage } from './preloginSession';
 import { fetchProviderDirectory, type ProviderDirectoryOptions } from './providerDirectory';
 import type { HospitalNetworkProfile } from './types';
 
-export const LOGIN_PAGE_PATH = '/Authentication/Login';
+const LOGIN_PAGE_PATH = '/Authentication/Login';
 
 export const INSURANCE_GATE_REASON =
   'The accepted-insurance list is the last step of the guest price-estimate flow, behind a ' +

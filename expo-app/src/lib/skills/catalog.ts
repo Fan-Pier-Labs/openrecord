@@ -95,7 +95,3 @@ export const SKILLS: Skill[] = [
   ANALYZE_HISTORY,
   RECOMMEND_INSURANCE,
 ];
-
-export function getSkillById(id: string): Skill | undefined {
-  return SKILLS.find((s) => s.id === id);
-}

@@ -24,7 +24,7 @@
  */
 export type ProxyDiscoveryMode = 'json' | 'html' | 'script';
 
-export const DEFAULT_PROXY_DISCOVERY_MODE: ProxyDiscoveryMode = 'json';
+const DEFAULT_PROXY_DISCOVERY_MODE: ProxyDiscoveryMode = 'json';
 
 export const PROXY_DISCOVERY_MODES: ProxyDiscoveryMode[] = ['json', 'html', 'script'];
 
