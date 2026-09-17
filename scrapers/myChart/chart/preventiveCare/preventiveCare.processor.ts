@@ -29,27 +29,12 @@
 import { answered, findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, text } from '../../processors/read';
+import type { PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
+
+export type { PreventiveCareItemStandard, PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
 
 export const ADVISORIES_PAGE_PATH = '/HealthAdvisories';
 export const GET_TOPICS_PATH = '/HealthAdvisories/GetTopics';
-
-/**
- * `StatusCode` normalized. The nine codes are the client's own switch; the
- * four marked below are the ones seen on the wire, and an unrecognized or
- * custom code (Epic's `<code>^<display text>` form) comes out `unknown` rather
- * than being guessed at.
- */
-export type PreventiveCareStatus =
-  | 'overdue' // 100_OVERDUE — observed
-  | 'due'
-  | 'due_soon'
-  | 'postponed'
-  | 'not_due' // 500_NOTDUE — observed
-  | 'addressed'
-  | 'satisfied' // 700_SATISFIED — observed
-  | 'aged_out' // 800_AGED_OUT — observed
-  | 'excluded'
-  | 'unknown';
 
 const STATUS_BY_CODE: Record<string, PreventiveCareStatus> = {
   '100_OVERDUE': 'overdue',
@@ -62,21 +47,6 @@ const STATUS_BY_CODE: Record<string, PreventiveCareStatus> = {
   '800_AGED_OUT': 'aged_out',
   '900_EXCLUDED': 'excluded',
 };
-
-/** A topic as MyChart sent it, plus the one field this processor computes. */
-export type PreventiveCareItemStandard = Record<string, unknown> & { dueStatus: PreventiveCareStatus };
-
-export interface PreventiveCareStandard {
-  /** `HealthAdvisoryViewModelList`, pass-through, each with a derived `dueStatus`. */
-  items: PreventiveCareItemStandard[];
-  /** `HealthAdvisorySettings`, pass-through. */
-  settings: Record<string, unknown>;
-  /**
-   * Derived: what did not answer, by path. Non-empty means the item list is
-   * "not known", not "empty" — see the note above.
-   */
-  unavailable: string[];
-}
 
 /** `StatusCode` → {@link PreventiveCareStatus}. Epic's custom `<code>^<text>` form has no known meaning. */
 export function statusFromCode(code: unknown): PreventiveCareStatus {
