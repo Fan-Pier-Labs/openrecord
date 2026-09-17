@@ -31,8 +31,28 @@ import type * as captures from '../../../fake-mychart/src/data/realShapes';
 import type { ObservedVisit, ObservedBillingVisit } from './observed';
 
 /**
- * A captured skeleton as the type it records: `''` stands for a string, `0` for
- * a number, and a leaf that was always `null` for something we have never seen.
+ * Decode a captured skeleton into the types it records.
+ *
+ * The skeletons are data, not types, and their values are placeholders: the
+ * harness normalises every real value to a neutral default so the file records
+ * structure and never a patient's data. So `''` means "a string was here", not
+ * the empty string. Read literally — which is what `as const` gives you —
+ * `PrimaryDate` has type `''`, and a real date is not assignable to it,
+ * comparing it to one is rejected as having no overlap, `LaterVisitsList` is a
+ * one-element tuple with no `[1]`, and every field is `readonly`. Four ways of
+ * being confidently wrong.
+ *
+ * So: literals become the type they stand for, the one-element array becomes an
+ * array of that element shape (the harness writes the shape, not a list of
+ * one), and `readonly` comes off.
+ *
+ * The last two cases are not widening but the same decode — they carry what the
+ * captures could *not* record:
+ *
+ * - `null` everywhere becomes `unknown`. We saw no value, so we know no type;
+ *   `null` would read as settled when it is an open question.
+ * - an always-empty array becomes `unknown[]`. We have never seen an element,
+ *   and `never[]` would make reading one a compile error rather than a decision.
  */
 type Widen<T> =
   T extends readonly (infer E)[] ? ([E] extends [never] ? unknown[] : Widen<E>[])
