@@ -11,47 +11,10 @@
 import { findRequest, okBodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { rec, strings, text, textOrNull } from '../../processors/read';
+import type { AddressStandard, ProfileStandard } from './standardized.types';
+
+export type { AddressStandard, ProfileStandard, TemporaryAddressStandard } from './standardized.types';
 import { parseProfileHtml } from './profileHtml';
-
-export interface AddressStandard {
-  FormattedValues: string[];
-  Street: string | null;
-  City: string | null;
-  State: { Title: string | null };
-  Zip: string | null;
-  Country: { Title: string | null };
-  HouseNumber: string | null;
-  Building: string | null;
-  Floor: string | null;
-  Unit: string | null;
-  PhoneNumber: string | null;
-}
-
-export interface TemporaryAddressStandard extends AddressStandard {
-  StartDateDisplay: string | null;
-  EndDateDisplay: string | null;
-  StartDateISO: string | null;
-  EndDateISO: string | null;
-}
-
-export interface ProfileStandard {
-  /** Derived from the `/Home` print header. */
-  name: string;
-  dob: string;
-  mrn: string;
-  pcp: string;
-  SecureCommunicationInfo: { EmailAddress: string | null; MobilePhone: string | null };
-  HomePhone: string | null;
-  WorkPhone: string | null;
-  PreferredDevice: string | null;
-  PermanentAddress: AddressStandard;
-  TemporaryAddress: TemporaryAddressStandard;
-  /**
-   * Derived: `GetContactInformation` did not answer (the instance lacks it,
-   * or it failed), so every field above from it is unknown, not empty.
-   */
-  contactInformationUnavailable: boolean;
-}
 
 function address(value: unknown): AddressStandard {
   const a = rec(value);
