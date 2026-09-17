@@ -9,18 +9,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, num, rec, textOrNull } from '../../processors/read';
+import type { LoadAllergies } from './mychart.types';
+import type { AllergiesStandard } from './standardized.types';
 
-export interface AllergiesStandard {
-  /** One allergy per element, as MyChart sent it (shape uncaptured). */
-  dataList: unknown[];
-  /** Status code of the allergy list: reviewed vs unreviewed. */
-  allergiesStatus: number | null;
-  dateOfBirth: string | null;
-}
+export type { AllergiesStandard } from './standardized.types';
 
 export const allergiesProcessor: Processor<AllergiesStandard> = {
   standard(raw: RawResponse): AllergiesStandard {
-    const body = rec(bodyOf(raw, 'LoadAllergies'));
+    const body = rec<LoadAllergies>(bodyOf(raw, 'LoadAllergies'));
     return {
       dataList: list(body.dataList),
       allergiesStatus: num(body.allergiesStatus),
