@@ -11,41 +11,10 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, textOrNull } from '../../processors/read';
+import type { LoadCommunityLinks } from './mychart.types';
+import type { LastEncounterDetailStandard, LinkedAccountsStandard } from './standardized.types';
 
-export interface LastEncounterDetailStandard {
-  Patient: string | null;
-  Physician: string | null;
-  Department: string | null;
-  Date: string | null;
-  Time: string | null;
-}
-
-export interface LinkedOrganizationStandard {
-  OrganizationName: string | null;
-  LastEncounterDetail: LastEncounterDetailStandard | null;
-  OrganizationId: string | null;
-  LinkType: number | null;
-  UserActionStatus: number | null;
-  UserMyChartStatus: number | null;
-  DisplayAddress: string[];
-  /** When the link last refreshed; says how stale the linked data is. */
-  LastAccessTokenDateTime: string | null;
-  IsDisabled: boolean | null;
-  IsInvalidCeLink: boolean | null;
-  InvalidLinkReason: number | null;
-  InvalidLinkRetryDate: string | null;
-  ErrorMessage: string | null;
-  NeedCeAuth: boolean | null;
-  LinkErrorCode: string | null;
-}
-
-export interface LinkedAccountsStandard {
-  HomeOrgName: string | null;
-  CEOptOut: boolean | null;
-  /** Uncaptured element shape (`[]` on every capture); passed through whole. */
-  ForwardedLinks: unknown[];
-  OrgList: LinkedOrganizationStandard[];
-}
+export type { LastEncounterDetailStandard, LinkedAccountsStandard, LinkedOrganizationStandard } from './standardized.types';
 
 function lastEncounterDetail(value: unknown): LastEncounterDetailStandard | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -61,7 +30,7 @@ function lastEncounterDetail(value: unknown): LastEncounterDetailStandard | null
 
 export const linkedAccountsProcessor: Processor<LinkedAccountsStandard> = {
   standard(raw: RawResponse): LinkedAccountsStandard {
-    const body = rec(bodyOf(raw, 'LoadCommunityLinks'));
+    const body = rec<LoadCommunityLinks>(bodyOf(raw, 'LoadCommunityLinks'));
     return {
       HomeOrgName: textOrNull(body.HomeOrgName),
       CEOptOut: boolOrNull(body.CEOptOut),
