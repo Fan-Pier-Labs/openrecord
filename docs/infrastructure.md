@@ -14,8 +14,14 @@ relative `Dockerfile` path resolves to `fake-mychart/Dockerfile`:
 cd fake-mychart && bun install && bun run deploy
 ```
 
-Domain: `fake-mychart.fanpierlabs.com` (its own ALB + ECS service `fake-mychart-service` in cluster
-`fake-mychart-cluster`). Uses its own `deploy` dev dependency and `deploy.yaml`.
+Domain: `fake-mychart.fanpierlabs.com` — CloudFront → ALB → Fargate service `fake-mychart-service`
+in cluster `fake-mychart-cluster`. Uses its own `deploy` dev dependency and `deploy.yaml`.
+
+The `deploy` script sets `DOCKER_DEFAULT_PLATFORM=linux/amd64`: the deploy tool passes no
+`--platform` and registers no `runtimePlatform`, so Fargate defaults to X86_64 — building on an
+Apple Silicon Mac without this pushes an arm64 image and every task crashloops on `exec format
+error`. Don't drop it, and don't pin the platform in the `Dockerfile` instead: that file is also
+what `docker-compose.ci.yaml` builds for the integration suite, which should stay native.
 
 ## Static splash page + interactive demo (`openrecord-splash/`)
 
