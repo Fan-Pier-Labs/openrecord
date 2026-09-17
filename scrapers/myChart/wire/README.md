@@ -1,30 +1,37 @@
 # `wire`
 
-What MyChart **answers**, as TypeScript. The sibling of `../processors/`, which
-is about what a caller **gets**.
+Response shapes MyChart repeats across **more than one** scraper — `shared.ts`,
+and nothing else.
 
-`shapes.ts` is one plain type per endpoint, written from the captures in
-`fake-mychart/src/data/realShapes.ts` — the harness's record of three real
-instances. Ordinary TypeScript: no codegen, no build step, greppable.
+A scraper's own raw response types live beside the scraper, as
+`<folder>/<folder>.wire.ts`: `chart/visits/visits.wire.ts` sits next to
+`visits.ts` and `visits.processor.ts`, the same way the scraper's README does.
+Only a shape two folders both need ends up here.
 
-## What a type here claims
+## What a type claims
 
 *These fields, with these types, are what three instances sent.* Not that Epic
 owes us any of it — three instances out of ~750, two Epic releases, and
 per-organization configuration on top.
 
-Two markers carry what the captures could not tell us:
-
 | Type | What was observed |
 | --- | --- |
 | `unknown` | the field was `null` on every captured instance — we saw no value, so we know no type |
 | `unknown[]` | the array was empty everywhere — we have never seen an element |
+| `string \| null` | seen as a string at one site and `null` at another |
 
-17% of leaves are one of those. `null` and `never[]` would both read as settled;
-`unknown` makes reaching in a decision. A few containers were never captured
-populated at all, and their shapes come from the scraper's original hand-written
-response types (first commit, read off live responses in a browser) — those are
-marked at the site and are weaker evidence than a capture.
+`null` and `never[]` would both read as settled; `unknown` makes reaching in a
+decision. A few containers were never captured populated at all, and their
+shapes come from the scraper's original hand-written response types (first
+commit, read off live responses in a browser) — marked at the site, and weaker
+evidence than a capture.
+
+**`string | null` is the one thing a single capture cannot give you.** Where the
+same shape appears at several sites, they are merged, so a field one site saw as
+a string and another saw as `null` comes out as both instead of `unknown` at one
+and `string` at the other. That is also why repeated shapes are named rather
+than inlined: `Organization` is one type, not twelve copies that quietly
+disagree.
 
 ## Reading a payload
 
@@ -44,9 +51,9 @@ as it did — this is additive.
 
 ## Keeping it honest
 
-When the captures are refreshed, update `shapes.ts` to match.
-`__tests__/wireShapes.unit.test.ts` walks the captures and fails the build if
-the types miss a field or invent one, so it cannot go stale quietly.
+When the captures are refreshed, update the `*.wire.ts` files to match.
+`../__tests__/wireShapes.unit.test.ts` walks the captures and fails the build if
+the types miss a field or invent one.
 
 Where a type and existing code disagree, **the disagreement is the finding**:
 the code may be reading a field no capture recorded, or the capture may be

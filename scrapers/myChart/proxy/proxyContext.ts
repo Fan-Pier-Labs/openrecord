@@ -5,7 +5,7 @@ import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedReques
 import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
 import { rec, type Wire } from '../processors/read';
-import type { ProxySwitch } from '../wire/shapes';
+import type { ProxySwitch } from './proxy.wire';
 
 export type ProxyTarget = {
   /**

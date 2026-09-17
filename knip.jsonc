@@ -12,10 +12,12 @@
         "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
-        // One type per captured endpoint. They describe the responses whether or
-        // not a scraper has been converted to read through them yet — the set is
-        // the deliverable, so it is a root rather than dead code (#484).
-        "scrapers/myChart/wire/shapes.ts"
+        // A scraper's raw response types, beside the scraper. They describe the
+        // responses whether or not that scraper has been converted to read
+        // through them yet — the set is the deliverable, so they are roots
+        // rather than dead code (#484).
+        "scrapers/**/*.wire.ts",
+        "scrapers/myChart/wire/shared.ts"
       ],
       "project": [
         "scrapers/**/*.ts",
