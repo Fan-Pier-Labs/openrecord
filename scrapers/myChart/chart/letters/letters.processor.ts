@@ -17,32 +17,14 @@ import { parseMyChartDate, sortNewestFirstByDate } from '../../core/util';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, text, textOrNull } from '../../processors/read';
+import type { GetLettersList } from './mychart.types';
+import type { LetterDetailsStandard, LetterStandard, LettersStandard } from './standardized.types';
 
-export interface LetterStandard {
-  hnoId: string | null;
-  csn: string | null;
-  dateISO: string | null;
-  reason: string | null;
-  viewed: boolean | null;
-  empId: string | null;
-  /** Derived: `users[empId].name`. */
-  providerName: string | null;
-}
-
-export interface LettersStandard {
-  letters: LetterStandard[];
-  /** Uncaptured (empty on every capture); passed through whole. */
-  departments: Record<string, unknown>;
-}
-
-export interface LetterDetailsStandard {
-  /** Derived: `bodyHTML` as plain text. */
-  bodyHTMLText: string;
-}
+export type { LetterDetailsStandard, LetterStandard, LettersStandard } from './standardized.types';
 
 export const lettersProcessor: Processor<LettersStandard> = {
   standard(raw: RawResponse): LettersStandard {
-    const body = rec(bodyOf(raw, 'GetLettersList'));
+    const body = rec<GetLettersList>(bodyOf(raw, 'GetLettersList'));
     const users = rec(body.users);
     const letters: LetterStandard[] = list(body.letters).map((entry) => {
       const l = rec(entry);
