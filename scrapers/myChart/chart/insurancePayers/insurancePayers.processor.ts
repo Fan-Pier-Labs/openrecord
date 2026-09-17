@@ -27,28 +27,11 @@
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, num, rec, textOrNull } from '../../processors/read';
+import type { InsurancePayerStandard, InsurancePayersStandard } from './standardized.types';
+
+export type { InsurancePayerStandard, InsurancePayersStandard } from './standardized.types';
 
 export const GET_PAYORS_PATH = '/Insurance/Coverages/GetPayors';
-
-export interface InsurancePayerStandard {
-  /** Opaque `WP-` catalogue id, unique to this organization. Not parseable. */
-  ID: string | null;
-  Name: string | null;
-  /** Coverage-form field name → 1 (shown, optional) or 2 (shown, required), as MyChart sent it. */
-  Fields: Record<string, number>;
-  /** Derived from `Fields`: the fields MyChart requires for this payer (level 2). */
-  requiredFields: string[];
-  /** Derived from `Fields`: the fields MyChart shows but does not require (level 1). */
-  optionalFields: string[];
-  /** Whether MyChart accepts an insurance-card image for this payer. */
-  CanUpload: boolean | null;
-  /** A free-text payer the organization has not configured. False on every captured entry. */
-  IsNonConfiguredPayer: boolean | null;
-}
-
-export interface InsurancePayersStandard {
-  Payors: InsurancePayerStandard[];
-}
 
 /** `Fields` with non-numeric and level-0 entries dropped: 0 means MyChart does not show the field. */
 function fieldLevels(value: unknown): Record<string, number> {
