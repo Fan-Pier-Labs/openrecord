@@ -31,21 +31,12 @@
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, text } from '../../processors/read';
+import type { GoalsStandard } from './standardized.types';
 
-export type GoalSource = 'care_team' | 'patient';
+export type { GoalSource, GoalsStandard } from './standardized.types';
 
 export const LOAD_CARE_TEAM_GOALS_PATH = '/api/goals/LoadCareTeamGoals';
 export const LOAD_PATIENT_GOALS_PATH = '/api/goals/LoadPatientGoals';
-
-export interface GoalsStandard {
-  careTeamGoals: Array<Record<string, unknown> & { source: 'care_team' }>;
-  patientGoals: Array<Record<string, unknown> & { source: 'patient' }>;
-  /**
-   * Derived: the endpoints that did not answer, by path. Non-empty means the
-   * matching list is "not known", not "empty" — see the note above.
-   */
-  unavailable: string[];
-}
 
 /**
  * The empty editable slot MyChart returns for a patient with no goals: no
