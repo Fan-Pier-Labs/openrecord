@@ -21,42 +21,15 @@
 import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { bool, boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
+import type { ConversationThreadConcise, ConversationThreadStandard } from './standardized.types';
+
+export type { ConversationThreadConcise, ConversationThreadStandard } from './standardized.types';
 import {
   messageConcise,
   messageDirectory,
   messageStandard,
-  type MessageConcise,
   type MessageStandard,
 } from './conversations.processor';
-
-export interface ConversationThreadStandard {
-  hthId: string | null;
-  subject: string | null;
-  audience: Array<{ name: string | null }>;
-  totalMessages: number | null;
-  numUnread: number | null;
-  /** Derived: paging stopped at the cap with `hasMoreMessages` still true. */
-  truncated: boolean;
-  /** Every page merged, oldest first. */
-  messages: MessageStandard[];
-  replyFlags: { canReply: boolean | null; cannotReplyReason: number | null };
-  hasPreviouslyViewed: boolean | null;
-  hasAttachments: boolean | null;
-  hasUrgentMsgs: boolean | null;
-  hasTasks: boolean | null;
-  messageType: string | null;
-  previewText: string | null;
-}
-
-export interface ConversationThreadConcise {
-  hthId: string | null;
-  subject: string | null;
-  audience: Array<{ name: string | null }>;
-  totalMessages: number | null;
-  numUnread: number | null;
-  truncated: boolean;
-  messages: MessageConcise[];
-}
 
 export const conversationThreadProcessor: Processor<ConversationThreadStandard | null> = {
   standard(raw: RawResponse): ConversationThreadStandard | null {
