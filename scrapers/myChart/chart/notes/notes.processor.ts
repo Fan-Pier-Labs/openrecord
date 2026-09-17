@@ -15,32 +15,9 @@ import { findRequest, type RawResponse } from '../../core/rawResponse';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, text, textOrNull } from '../../processors/read';
+import type { NoteContentStandard, VisitNotesStandard } from './standardized.types';
 
-export interface VisitNoteStandard {
-  hnoID: string | null;
-  hnoDAT: string | null;
-  displayName: string | null;
-  iso: string | null;
-  provider: { name: string | null; magicID: string | null };
-  isAddendum: boolean | null;
-  isNoteSensitive: boolean | null;
-  /** Uncaptured element shape; passed through whole. */
-  attachments: unknown[];
-}
-
-export interface VisitNotesStandard {
-  /** Derived: the CSN the request asked about. */
-  csn: string;
-  lrpID: string | null;
-  depPhoneNumber: string | null;
-  isAtLeastOneNoteSensitive: boolean | null;
-  noteList: VisitNoteStandard[];
-}
-
-export interface NoteContentStandard {
-  /** Derived: `reportContent` as plain text. */
-  reportContentText: string;
-}
+export type { NoteContentStandard, VisitNoteStandard, VisitNotesStandard } from './standardized.types';
 
 export const visitNotesProcessor: Processor<VisitNotesStandard | null> = {
   standard(raw: RawResponse): VisitNotesStandard | null {
