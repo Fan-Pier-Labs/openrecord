@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "cd .. && python3 fake-mychart/node_modules/deploy/main.py --config fake-mychart/deploy.yaml"
+    "deploy": "cd .. && DOCKER_DEFAULT_PLATFORM=linux/amd64 python3 fake-mychart/node_modules/deploy/main.py --config fake-mychart/deploy.yaml"
   },
   "dependencies": {
     "next": "^16.3.0",
