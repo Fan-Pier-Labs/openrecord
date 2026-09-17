@@ -31,8 +31,15 @@
  * real Epic account. It is never a default suggestion — it only appears when
  * the query matches it — and its "(test)" suffix is there so nobody mistakes
  * it for a health system.
+ *
+ * The sandbox is a single small deployment that gets torn down whenever its
+ * bill outweighs its use, so a search that matches it probes it first and
+ * carries {@link SANDBOX_UNAVAILABLE_NOTE} on the match when it is down. A
+ * client offering a dead sandbox sends someone through the whole connect flow
+ * to a login that can never succeed, which is exactly how it was reported.
  */
 
+import { scraperFetch } from '../http';
 import {
   fetchMyChartDirectory,
   type MyChartInstance,
@@ -76,6 +83,59 @@ export const SANDBOX_INSTANCE: MyChartInstanceSeed = {
   aliases: ['test', 'demo', 'sandbox', 'fake-mychart'],
 };
 
+/** What a client shows in place of the sandbox entry when it isn't serving. */
+export const SANDBOX_UNAVAILABLE_NOTE =
+  'The test sandbox is currently down, so it cannot be used to connect an account. Email ryan@fanpierlabs.com to ask for it to be brought back up.';
+
+/** How long one reachability answer is reused before the next probe. */
+const SANDBOX_PROBE_TTL_MS = 60_000;
+
+/** A probe that hasn't answered in this long counts as down. */
+const SANDBOX_PROBE_TIMEOUT_MS = 4_000;
+
+let sandboxProbe: { at: number; up: Promise<boolean> } | null = null;
+
+/** Drop the cached reachability answer. For tests. */
+export function clearSandboxAvailabilityCache(): void {
+  sandboxProbe = null;
+}
+
+async function probeSandbox(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // `scraperFetch` owns its own two-minute deadline and won't take a shorter
+    // one, so race it instead: nobody typing into a picker waits two minutes
+    // to be told the sandbox is gone.
+    const answered = await Promise.race([
+      scraperFetch(SANDBOX_INSTANCE.url, { redirect: 'manual' }, { cookieJar: null }),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), SANDBOX_PROBE_TIMEOUT_MS);
+      }),
+    ]);
+    // Any answer below 500 means something is serving MyChart there — the URL
+    // redirects to the login page rather than returning it. A 5xx, a DNS
+    // failure (what a torn-down deployment gives) or no answer at all is down.
+    return answered !== null && answered.status < 500;
+  } catch {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Whether the fake-mychart sandbox is serving right now.
+ *
+ * Cached for {@link SANDBOX_PROBE_TTL_MS} and shared between concurrent
+ * callers, so a picker firing a search per keystroke probes it about once.
+ */
+export function isSandboxAvailable(): Promise<boolean> {
+  if (sandboxProbe && Date.now() - sandboxProbe.at < SANDBOX_PROBE_TTL_MS) return sandboxProbe.up;
+  const probe = { at: Date.now(), up: probeSandbox() };
+  sandboxProbe = probe;
+  return probe.up;
+}
+
 /** One search hit, in the shape a picker or a model consumes. */
 export interface MyChartDirectoryMatch {
   /** The portal's hostname — what every client keys an account on. */
@@ -90,6 +150,13 @@ export interface MyChartDirectoryMatch {
   slgId: string;
   /** Other names the same organization is searched by. */
   aliases: string[];
+  /**
+   * Why this entry can't be connected right now, when it can't. Only the
+   * sandbox entry ever carries it; a client shows the entry disabled with this
+   * text rather than dropping it, so "where did the test hospital go?" has an
+   * answer.
+   */
+  unavailable?: string;
 }
 
 /** Which list answered a search. */
@@ -221,6 +288,8 @@ export function rankDirectoryMatches(
  *
  * The {@link SANDBOX_INSTANCE} is searched alongside the real ones, and is
  * listed first so a query naming it outranks any real "Springfield…" match.
+ * When a search turns it up, its reachability is probed and a match that
+ * isn't serving comes back carrying {@link SANDBOX_UNAVAILABLE_NOTE}.
  */
 export async function searchMyChartDirectory(
   query: string,
@@ -247,5 +316,11 @@ export async function searchMyChartDirectory(
   }
 
   const matches = rankDirectoryMatches([SANDBOX_INSTANCE, ...instances], text, limit);
+
+  // Only pay for the probe when the query actually turned up the sandbox,
+  // which almost no real search does.
+  const sandbox = matches.find((match) => match.slgId === SANDBOX_INSTANCE.slgId);
+  if (sandbox && !(await isSandboxAvailable())) sandbox.unavailable = SANDBOX_UNAVAILABLE_NOTE;
+
   return { query: text, source, count: matches.length, matches };
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  FAKE_MYCHART_DEMO,
+  SANDBOX_UNAVAILABLE_NOTE,
   hostnameFromInstance,
+  isSandboxAvailable,
   searchInstances,
   type MyChartInstance,
 } from "@/lib/mychart-instances";
@@ -24,6 +27,20 @@ type Props = {
 export function PickerStep({ onPick, onManualEntry }: Props) {
   const [query, setQuery] = useState("");
   const instances = useInstances();
+
+  // The demo entry points at a single deployment that gets torn down when it
+  // isn't worth its bill. Assume it's up until the probe says otherwise, so a
+  // slow network doesn't grey out a working sandbox.
+  const [sandboxDown, setSandboxDown] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void isSandboxAvailable().then((up) => {
+      if (live) setSandboxDown(!up);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const filteredInstances = useMemo(
     () => searchInstances(query, instances),
@@ -74,34 +91,44 @@ export function PickerStep({ onPick, onManualEntry }: Props) {
             </Pressable>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            testID={`picker-item-${item.name}`}
-            style={({ pressed }) => [
-              styles.pickerRow,
-              pressed && styles.pickerRowPressed,
-            ]}
-            onPress={() => onPick(item)}
-          >
-            <InstanceLogo
-              testID={`picker-logo-${item.slgId}`}
-              logoUrl={item.logoUrl}
-              style={styles.pickerLogo}
-              placeholderStyle={styles.pickerLogoFallback}
-            />
-            <View style={styles.pickerRowText}>
-              <Text style={styles.pickerRowName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              {item.url ? (
-                <Text style={styles.pickerRowHost} numberOfLines={1}>
-                  {hostnameFromInstance(item)}
+        renderItem={({ item }) => {
+          const down = sandboxDown && item.slgId === FAKE_MYCHART_DEMO.slgId;
+          return (
+            <Pressable
+              testID={`picker-item-${item.name}`}
+              disabled={down}
+              accessibilityState={{ disabled: down }}
+              style={({ pressed }) => [
+                styles.pickerRow,
+                down && styles.pickerRowDisabled,
+                pressed && !down && styles.pickerRowPressed,
+              ]}
+              onPress={() => onPick(item)}
+            >
+              <InstanceLogo
+                testID={`picker-logo-${item.slgId}`}
+                logoUrl={item.logoUrl}
+                style={styles.pickerLogo}
+                placeholderStyle={styles.pickerLogoFallback}
+              />
+              <View style={styles.pickerRowText}>
+                <Text style={styles.pickerRowName} numberOfLines={1}>
+                  {item.name}
                 </Text>
-              ) : null}
-            </View>
-            <Text style={styles.pickerChevron}>›</Text>
-          </Pressable>
-        )}
+                {down ? (
+                  <Text testID="picker-item-unavailable" style={styles.pickerRowNote}>
+                    {SANDBOX_UNAVAILABLE_NOTE}
+                  </Text>
+                ) : item.url ? (
+                  <Text style={styles.pickerRowHost} numberOfLines={1}>
+                    {hostnameFromInstance(item)}
+                  </Text>
+                ) : null}
+              </View>
+              {down ? null : <Text style={styles.pickerChevron}>›</Text>}
+            </Pressable>
+          );
+        }}
       />
       <View style={styles.pickerFooter}>
         <Pressable

@@ -225,6 +225,24 @@ const SETUP_UI_TEMPLATE = `
     .results li.empty:hover {
       background: transparent;
     }
+    /* An entry that exists but can't be connected right now (the test sandbox
+       while it's torn down). Shown rather than hidden, so it doesn't look like
+       the entry disappeared — greyed out, unselectable, with the reason under
+       the name. */
+    .results li.unavailable {
+      cursor: default;
+      opacity: 0.55;
+    }
+    .results li.unavailable:hover,
+    .results li.unavailable.active {
+      background: transparent;
+    }
+    .results .row-unavailable {
+      font-size: 11px;
+      font-style: italic;
+      opacity: 0.9;
+      white-space: normal;
+    }
     .results .row-text {
       display: flex;
       flex-direction: column;
@@ -651,6 +669,17 @@ const SETUP_UI_TEMPLATE = `
       activeIndex = -1;
     }
 
+    // Arrow keys step over rows that can't be picked, so an unavailable entry
+    // is never the thing Enter lands on. Returns -1 when nothing is pickable.
+    function nextSelectable(from, step) {
+      var n = currentRows.length;
+      for (var k = 1; k <= n; k++) {
+        var idx = ((from + step * k) % n + n) % n;
+        if (!currentRows[idx].unavailable) return idx;
+      }
+      return -1;
+    }
+
     function setActive(i) {
       activeIndex = i;
       var items = resultsList.children;
@@ -696,16 +725,32 @@ const SETUP_UI_TEMPLATE = `
         var name = document.createElement('span');
         name.className = 'row-name';
         name.innerText = r.name || r.hostname;
-        var host = document.createElement('span');
-        host.className = 'row-host';
-        host.innerText = r.hostname;
         text.appendChild(name);
-        text.appendChild(host);
+        if (r.unavailable) {
+          var note = document.createElement('span');
+          note.className = 'row-unavailable';
+          note.innerText = r.unavailable;
+          text.appendChild(note);
+        } else {
+          var host = document.createElement('span');
+          host.className = 'row-host';
+          host.innerText = r.hostname;
+          text.appendChild(host);
+        }
         li.appendChild(text);
 
-        // mousedown beats the input's blur so selection lands before hide.
-        li.addEventListener('mousedown', function (e) { e.preventDefault(); selectInstance(r); });
-        li.addEventListener('mousemove', function () { setActive(i); });
+        if (r.unavailable) {
+          li.className = 'unavailable';
+          li.setAttribute('aria-disabled', 'true');
+          // Swallow the click rather than leaving it inert: without this the
+          // row falls through to the document handler, which just closes the
+          // list and looks like the pick was accepted.
+          li.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        } else {
+          // mousedown beats the input's blur so selection lands before hide.
+          li.addEventListener('mousedown', function (e) { e.preventDefault(); selectInstance(r); });
+          li.addEventListener('mousemove', function () { setActive(i); });
+        }
         resultsList.appendChild(li);
       });
       resultsList.hidden = false;
@@ -761,14 +806,14 @@ const SETUP_UI_TEMPLATE = `
       if (resultsList.hidden) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (currentRows.length) setActive((activeIndex + 1) % currentRows.length);
+        setActive(nextSelectable(activeIndex, 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (currentRows.length) setActive((activeIndex - 1 + currentRows.length) % currentRows.length);
+        setActive(nextSelectable(activeIndex, -1));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        var idx = activeIndex >= 0 ? activeIndex : 0;
-        if (currentRows[idx]) selectInstance(currentRows[idx]);
+        var idx = activeIndex >= 0 ? activeIndex : nextSelectable(-1, 1);
+        if (currentRows[idx] && !currentRows[idx].unavailable) selectInstance(currentRows[idx]);
       } else if (e.key === 'Escape') {
         hideResults();
       }
