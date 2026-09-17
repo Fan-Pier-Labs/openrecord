@@ -9,22 +9,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, strings, textOrNull } from '../../processors/read';
+import type { LoadImmunizations } from './mychart.types';
+import type { ImmunizationStandard, ImmunizationsStandard } from './standardized.types';
 
-export interface ImmunizationStandard {
-  name: string | null;
-  formattedAdministeredDates: string[];
-  id: string | null;
-  /** Derived: `organization.organizationName` of the enclosing group. */
-  organizationName: string | null;
-}
-
-export interface ImmunizationsStandard {
-  immunizations: ImmunizationStandard[];
-}
+export type { ImmunizationStandard, ImmunizationsStandard } from './standardized.types';
 
 export const immunizationsProcessor: Processor<ImmunizationsStandard> = {
   standard(raw: RawResponse): ImmunizationsStandard {
-    const body = rec(bodyOf(raw, 'LoadImmunizations'));
+    const body = rec<LoadImmunizations>(bodyOf(raw, 'LoadImmunizations'));
     const immunizations: ImmunizationStandard[] = [];
     for (const group of list(body.organizationImmunizationList)) {
       const g = rec(group);
