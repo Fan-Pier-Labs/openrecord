@@ -3,17 +3,23 @@
 What MyChart **answered**, as TypeScript. The sibling of `../processors/`, which
 is about what a caller **gets**.
 
-`shapes.generated.ts` is generated — `bun run wire-types` — from two sources:
+`shapes.ts` derives one type per endpoint from two sources:
 
 1. `fake-mychart/src/data/realShapes.ts`, the capture harness's record of three
    real instances. This is the evidence.
-2. `observed.ts`, hand-written fragments for containers the captures only ever
-   saw as `null` or `[]`. Weaker evidence, flagged as such, and the generator
-   refuses an entry whose key the captures no longer carry.
+2. `observed.ts`, shapes for containers the captures only ever saw as `null` or
+   `[]`, recovered from the scraper's original hand-written response types.
+   Weaker evidence, flagged as such.
 
-Do not edit `shapes.generated.ts` by hand;
-`dev-scripts/__tests__/generate-wire-types.unit.test.ts` fails the build if it
-drifts from either source.
+**Nothing is generated.** The skeletons are `as const`, so `Widen` reads them
+directly and the types cannot drift from the captures — they *are* the captures.
+A capture refresh updates every type with no build step. The import is
+`import type`, erased by `verbatimModuleSyntax`, so no client bundles the fake
+and the published package inlines these into its `.d.ts`.
+
+`__tests__/wireShapes.unit.test.ts` holds the assertions that fail the build if
+the derivation quietly stops working — in particular if an `observed.ts` shape
+stops reaching the field it is meant to fill.
 
 ## What a type here does and does not claim
 

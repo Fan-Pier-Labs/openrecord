@@ -12,9 +12,10 @@
         "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
-        // Generated: one type per captured endpoint, whether or not a scraper
-        // has been converted to read through it yet. `bun run wire-types`.
-        "scrapers/myChart/wire/shapes.generated.ts"
+        // One type per captured endpoint. They describe the responses whether or
+        // not a scraper has been converted to read through them yet — the set is
+        // the deliverable, so it is a root rather than dead code (#484).
+        "scrapers/myChart/wire/shapes.ts"
       ],
       "project": [
         "scrapers/**/*.ts",
