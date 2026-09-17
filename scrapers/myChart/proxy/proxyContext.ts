@@ -4,8 +4,8 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from '../core/makeAuthenticatedRequest';
 import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
-import { rec, type Wire } from '../processors/read';
-import type { ProxySwitch } from './proxy.wire';
+import { rec } from '../processors/read';
+import type { ProxySwitch } from './types';
 
 export type ProxyTarget = {
   /**
@@ -126,7 +126,7 @@ function dedupeTargets(targets: ProxyTarget[]): ProxyTarget[] {
   return deduped;
 }
 
-function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: Wire<ProxySwitch>): ProxyTarget[] {
+function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: ProxySwitch): ProxyTarget[] {
   return dedupeTargets(
     (json.ProxySubjectList ?? [])
       .map((entry) => ({

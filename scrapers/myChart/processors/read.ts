@@ -6,25 +6,17 @@
  * empty value rather than a crash mid-scrape. These never throw.
  */
 
-/**
- * A captured shape (`../wire/shapes.generated.ts`) as it has to be *read*.
- *
- * Every leaf becomes optional, because the generated types record what three
- * instances answered and the next instance is free to omit any of it. That is
- * the whole difference between this and `as SomeShape`: the field *names* are
- * checked, so a typo or a field no instance ever sent is a compile error, while
- * the *values* stay as untrusted as they were — you still have to go through
- * `text()` / `num()` / `list()` to get one out.
- */
-export type Wire<T> =
-  T extends readonly (infer E)[] ? Wire<E>[]
-  : T extends object ? { [K in keyof T]?: Wire<T[K]> | undefined }
-  : T | undefined;
-
-/** A payload with no captured shape: a bare record, exactly as before. */
+/** A payload with no response type: a bare record. */
 export function rec(value: unknown): Record<string, unknown>;
-/** A payload we have a captured shape for: `rec<LoadAllergies>(body)`. */
-export function rec<T>(value: unknown): Wire<T>;
+/**
+ * A payload we have a response type for: `rec<LoadAllergies>(body)`.
+ *
+ * Every field on those types is optional, so this checks the field *names* —
+ * a typo, or a field no instance ever sent, does not compile — without
+ * promising any value is there. `as LoadAllergies` would check the same names
+ * and then claim the values too.
+ */
+export function rec<T>(value: unknown): T;
 export function rec(value: unknown): unknown {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }

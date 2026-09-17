@@ -16,8 +16,7 @@
         // responses whether or not that scraper has been converted to read
         // through them yet — the set is the deliverable, so they are roots
         // rather than dead code (#484).
-        "scrapers/**/*.wire.ts",
-        "scrapers/myChart/wire/shared.ts"
+        "scrapers/**/types.ts"
       ],
       "project": [
         "scrapers/**/*.ts",
@@ -70,7 +69,12 @@
       "ignore": [
         // Page CSS and inline page scripts, read off disk by `lib/html/assets.ts`
         // so Next never rewrites them — see the comment at the top of that file.
-        "src/lib/html/assets/**"
+        "src/lib/html/assets/**",
+        // Generated from live captures, and now read by people rather than by
+        // code — the scrapers' `types.ts` files are written from it by hand. A
+        // skeleton no handler conforms to yet is still the record of what a real
+        // instance answered, so it stays.
+        "src/data/realShapes.ts"
       ],
       // Invoked as a python module by `bun run deploy`, not imported.
       "ignoreDependencies": ["deploy"]
