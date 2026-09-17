@@ -11,50 +11,10 @@
 import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
+import type { GetFlowsheets } from './mychart.types';
+import type { FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
 
-export interface FlowsheetRowStandard {
-  id: string | null;
-  name: string | null;
-  unitsDisplayName: string | null;
-  rowType: string | null;
-  valueType: string | null;
-  decimalPlaces: number | null;
-}
-
-export interface FlowsheetRowGroupStandard {
-  id: string | null;
-  name: string | null;
-  rowIds: string[];
-}
-
-export interface VitalReadingStandard {
-  rowId: string | null;
-  instantTakenIso: string | null;
-  timeZone: string | null;
-  stringValue: string | null;
-  /** As MyChart sent it: Epic's base unit (weight in ounces, height in inches), NOT the row's display unit. */
-  numericValue: number | null;
-  /** Derived: the reading in the row's `unitsDisplayName` — `stringValue` as is, or `numericValue` converted. */
-  value: string;
-  isAbnormal: boolean | null;
-  entryType: string | null;
-  documentationSource: string | null;
-}
-
-export interface FlowsheetStandard {
-  name: string | null;
-  status: string | null;
-  startDateIso: string | null;
-  endDateIso: string | null;
-  instructions: string | null;
-  rows: FlowsheetRowStandard[];
-  rowGroups: FlowsheetRowGroupStandard[];
-  readings: VitalReadingStandard[];
-}
-
-export interface VitalsStandard {
-  flowsheets: FlowsheetStandard[];
-}
+export type { FlowsheetRowGroupStandard, FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
 
 /** At most one decimal, no trailing zero: 155.6 stays, 150.0 becomes 150. */
 function oneDecimal(n: number): string {
@@ -128,7 +88,7 @@ function readingStandard(value: unknown, unitsDisplayName: string | null | undef
 
 export const vitalsProcessor: Processor<VitalsStandard> = {
   standard(raw: RawResponse): VitalsStandard {
-    const listBody = rec(findRequest(raw, 'GetFlowsheets')?.body);
+    const listBody = rec<GetFlowsheets>(findRequest(raw, 'GetFlowsheets')?.body);
     const pages = findRequests(raw, 'GetFlowsheetReadings');
     const flowsheets: FlowsheetStandard[] = [];
 
