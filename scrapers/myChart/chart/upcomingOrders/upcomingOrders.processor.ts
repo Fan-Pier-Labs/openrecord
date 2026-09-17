@@ -18,17 +18,10 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { rec, text } from '../../processors/read';
+import type { GetUpcomingOrders } from './mychart.types';
+import type { UpcomingOrdersStandard } from './standardized.types';
 
-export type UpcomingOrderStandard = Record<string, unknown> & {
-  /** Derived: who ordered it, resolved from `providerList`. */
-  providerName: string | null;
-};
-
-export interface UpcomingOrdersStandard {
-  orderList: UpcomingOrderStandard[];
-  /** Uncaptured; passed through whole. */
-  orderGroupList: Record<string, unknown>;
-}
+export type { UpcomingOrderStandard, UpcomingOrdersStandard } from './standardized.types';
 
 export function resolveProviderName(order: Record<string, unknown>, providerList: Record<string, unknown>): string | null {
   for (const value of Object.values(order)) {
@@ -43,7 +36,7 @@ export function resolveProviderName(order: Record<string, unknown>, providerList
 
 export const upcomingOrdersProcessor: Processor<UpcomingOrdersStandard> = {
   standard(raw: RawResponse): UpcomingOrdersStandard {
-    const body = rec(bodyOf(raw, 'GetUpcomingOrders'));
+    const body = rec<GetUpcomingOrders>(bodyOf(raw, 'GetUpcomingOrders'));
     const providerList = rec(body.providerList);
     return {
       orderList: Object.values(rec(body.orderList)).map((value) => {
