@@ -12,14 +12,6 @@
         "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
-        // Raw MyChart response shapes for the labs and visits endpoints. Nothing
-        // imports them — those payloads are read through the defensive readers in
-        // `scrapers/myChart/processors/read.ts` — but whether a read scraper should
-        // type its response body at all is open in #484. Roots, not dead code:
-        // settle #484 before deleting them.
-        "scrapers/myChart/chart/labs/labtestresulttype.ts",
-        "scrapers/myChart/chart/labs/labtypes.ts",
-        "scrapers/myChart/chart/visits/types.ts",
         // Generated: one type per captured endpoint, whether or not a scraper
         // has been converted to read through it yet. `bun run wire-types`.
         "scrapers/myChart/wire/shapes.generated.ts"

@@ -32,6 +32,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import * as shapes from '../fake-mychart/src/data/realShapes';
+import { OBSERVED } from '../scrapers/myChart/wire/observed';
 
 const OUT = path.join(__dirname, '..', 'scrapers', 'myChart', 'wire', 'shapes.generated.ts');
 
@@ -86,6 +87,30 @@ function endpointComments(): Map<string, string> {
   return found;
 }
 
+/**
+ * Splice the hand-observed fragments in `../scrapers/myChart/wire/observed.ts`
+ * into a capture, replacing every occurrence of each key.
+ *
+ * Returns the number of sites replaced so a stale entry — one whose key the
+ * captures no longer carry — fails loudly instead of quietly describing
+ * nothing.
+ */
+function applyObserved(value: unknown, fragments: Record<string, unknown>, hits: Map<string, number>): unknown {
+  if (Array.isArray(value)) return value.map((v) => applyObserved(v, fragments, hits));
+  if (value === null || typeof value !== 'object') return value;
+
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (k in fragments) {
+      hits.set(k, (hits.get(k) ?? 0) + 1);
+      out[k] = fragments[k];
+    } else {
+      out[k] = applyObserved(v, fragments, hits);
+    }
+  }
+  return out;
+}
+
 export function generate(): string {
   const endpoints = endpointComments();
   const names = Object.keys(shapes).sort((a, b) => a.localeCompare(b));
@@ -94,11 +119,26 @@ export function generate(): string {
     .map((name) => {
       const endpoint = endpoints.get(name);
       const header = endpoint ? `/** \`${endpoint}\` */\n` : '';
-      return `${header}export type ${interfaceName(name)} = ${render(shapes[name as keyof typeof shapes], '')};\n`;
+      const captured = shapes[name as keyof typeof shapes];
+      const fragments = OBSERVED[interfaceName(name)];
+      let shape: unknown = captured;
+      if (fragments) {
+        const hits = new Map<string, number>();
+        shape = applyObserved(captured, fragments, hits);
+        const missed = Object.keys(fragments).filter((k) => !hits.has(k));
+        if (missed.length > 0) {
+          throw new Error(
+            `observed.ts: ${interfaceName(name)} has no field ${missed.join(', ')} — ` +
+              'the captures changed, so the entry is stale. Reconcile it rather than deleting it blind.',
+          );
+        }
+      }
+      return `${header}export type ${interfaceName(name)} = ${render(shape, '')};\n`;
     })
     .join('\n');
 
-  return `// GENERATED from fake-mychart/src/data/realShapes.ts — do not edit by hand.
+  return `// GENERATED from fake-mychart/src/data/realShapes.ts, merged with the
+// hand-observed fragments in ./observed.ts — do not edit by hand.
 // Regenerate with \`bun run wire-types\`; \`bun run wire-types --check\` fails on drift.
 //
 // What MyChart answered on the instances we captured, as TypeScript. A leaf

@@ -3,11 +3,17 @@
 What MyChart **answered**, as TypeScript. The sibling of `../processors/`, which
 is about what a caller **gets**.
 
-`shapes.generated.ts` is generated — `bun run wire-types`, from
-`fake-mychart/src/data/realShapes.ts`, the capture harness's record of three
-real instances. Do not edit it by hand;
+`shapes.generated.ts` is generated — `bun run wire-types` — from two sources:
+
+1. `fake-mychart/src/data/realShapes.ts`, the capture harness's record of three
+   real instances. This is the evidence.
+2. `observed.ts`, hand-written fragments for containers the captures only ever
+   saw as `null` or `[]`. Weaker evidence, flagged as such, and the generator
+   refuses an entry whose key the captures no longer carry.
+
+Do not edit `shapes.generated.ts` by hand;
 `dev-scripts/__tests__/generate-wire-types.unit.test.ts` fails the build if it
-drifts from the captures.
+drifts from either source.
 
 ## What a type here does and does not claim
 
@@ -40,6 +46,7 @@ exactly as it always did — this is additive.
 
 Where a generated type and existing code disagree, **the disagreement is the
 finding**: the code may be reading a field the captures never recorded, or the
-capture may be incomplete. Take it to
-[#484](https://github.com/Fan-Pier-Labs/openrecord/issues/484) rather than
-editing the generated file or deleting the read.
+capture may be incomplete. If the field is genuinely observed, it belongs in
+`observed.ts` with its provenance; otherwise take it to
+[#484](https://github.com/Fan-Pier-Labs/openrecord/issues/484). Never edit the
+generated file, and never delete the read to make the type win.

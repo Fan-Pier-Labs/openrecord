@@ -1,4 +1,5 @@
-// GENERATED from fake-mychart/src/data/realShapes.ts — do not edit by hand.
+// GENERATED from fake-mychart/src/data/realShapes.ts, merged with the
+// hand-observed fragments in ./observed.ts — do not edit by hand.
 // Regenerate with `bun run wire-types`; `bun run wire-types --check` fails on drift.
 //
 // What MyChart answered on the instances we captured, as TypeScript. A leaf
@@ -667,7 +668,10 @@ export type BillingGetVisits = {
       NotOnPlanAmount: unknown;
       NotOnPlanAmountRaw: number;
       EmptyVisitEstimateID: unknown;
-      EstimateInfo: unknown;
+      EstimateInfo: {
+        EstimateAmount: string;
+        EstimateStatus: number;
+      };
       PatFriendlyAccountStatus: number;
       VisitBadDebtScenario: number;
       IsUnpayableHAR: boolean;
@@ -3926,7 +3930,10 @@ export type VisitsLoadPast = {
       PastVisitBucket: string;
       IsClinicalInformationAvailable: boolean;
       OwnedBy: number;
-      AdmissionDateRange: unknown;
+      AdmissionDateRange: {
+        Start: string;
+        End: string;
+      };
       IsApptDetailsEnabled: boolean;
       IsRequestCancelEnabled: boolean;
       IsDirectCancelEnabled: boolean;
@@ -4002,8 +4009,14 @@ export type VisitsLoadPast = {
       IsLocal: boolean;
       IsNonEpic: boolean;
       IsSingleProvider: boolean;
-      Telemedicine: unknown;
-      EVisit: unknown;
+      Telemedicine: {
+        IsTelemedicine: boolean;
+        TelemedicineUrl: unknown;
+        TelemedicineMode: number;
+      };
+      EVisit: {
+        IsEVisit: boolean;
+      };
       CanShowTelemedicine: boolean;
       Dat: string;
       Date: string;
@@ -4018,7 +4031,10 @@ export type VisitsLoadPast = {
       EarlyArrivalReason: unknown;
       DurationInMinutes: unknown;
       HasDuration: boolean;
-      Copay: unknown;
+      Copay: {
+        Amount: string;
+        IsPaid: boolean;
+      };
       CanShowPayments: boolean;
       ShortDate: string;
       IsTimeToBeDetermined: boolean;
@@ -4164,12 +4180,19 @@ export type VisitsLoadPast = {
       IsPreadmission: boolean;
       SurgeryTimeOfDay: number;
       PreadmissionLocation: unknown;
-      Cases: unknown;
+      Cases: Array<{
+        CaseId: string;
+        Description: string;
+      }>;
       IsHovPreadmission: boolean;
       HasProcedures: boolean;
       NumberOfProcedures: number;
       SurgicalProcedures: unknown;
-      ComponentVisits: unknown;
+      ComponentVisits: Array<{
+        Csn: string;
+        VisitTypeName: string;
+        PrimaryDate: string;
+      }>;
       HasComponentVisits: boolean;
       HasPaymentInfo: boolean;
       IsFullyPaid: boolean;
@@ -4258,7 +4281,10 @@ export type VisitsLoadUpcoming = {
     PastVisitBucket: unknown;
     IsClinicalInformationAvailable: boolean;
     OwnedBy: number;
-    AdmissionDateRange: unknown;
+    AdmissionDateRange: {
+      Start: string;
+      End: string;
+    };
     IsApptDetailsEnabled: boolean;
     IsRequestCancelEnabled: boolean;
     IsDirectCancelEnabled: boolean;
@@ -4325,8 +4351,14 @@ export type VisitsLoadUpcoming = {
     IsLocal: boolean;
     IsNonEpic: boolean;
     IsSingleProvider: boolean;
-    Telemedicine: unknown;
-    EVisit: unknown;
+    Telemedicine: {
+      IsTelemedicine: boolean;
+      TelemedicineUrl: unknown;
+      TelemedicineMode: number;
+    };
+    EVisit: {
+      IsEVisit: boolean;
+    };
     CanShowTelemedicine: boolean;
     Dat: string;
     Date: string;
@@ -4342,7 +4374,10 @@ export type VisitsLoadUpcoming = {
     EarlyArrivalReason: unknown;
     DurationInMinutes: unknown;
     HasDuration: boolean;
-    Copay: unknown;
+    Copay: {
+      Amount: string;
+      IsPaid: boolean;
+    };
     CanShowPayments: boolean;
     ShortDate: string;
     IsTimeToBeDetermined: boolean;
@@ -4513,12 +4548,19 @@ export type VisitsLoadUpcoming = {
     IsPreadmission: boolean;
     SurgeryTimeOfDay: unknown;
     PreadmissionLocation: unknown;
-    Cases: unknown;
+    Cases: Array<{
+      CaseId: string;
+      Description: string;
+    }>;
     IsHovPreadmission: boolean;
     HasProcedures: boolean;
     NumberOfProcedures: number;
     SurgicalProcedures: unknown;
-    ComponentVisits: unknown;
+    ComponentVisits: Array<{
+      Csn: string;
+      VisitTypeName: string;
+      PrimaryDate: string;
+    }>;
     HasComponentVisits: boolean;
     HasPaymentInfo: boolean;
     IsFullyPaid: boolean;

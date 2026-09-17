@@ -6,7 +6,7 @@ notes, After Visit Summary — is keyed on the **CSN** this scraper returns.
 | | |
 | --- | --- |
 | **Capabilities** | `get_past_visits` (read) · `get_upcoming_visits` (read) |
-| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) · [`types.ts`](types.ts) |
+| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) |
 | **Activity** | Legacy `/Visits/VisitsList` |
 
 ## Endpoints
@@ -68,6 +68,13 @@ lower-case `__requestverificationtoken` header.
   which is why `TimeZone` rides beside it.
 - `requireJsonBody` (shared with [`../notes/`](../notes/)) guards the F5 WAF's
   200-with-HTML rejection on both calls.
+- **`Telemedicine`, `EVisit`, `Copay`, `Cases`, `ComponentVisits` and
+  `AdmissionDateRange` were `null` or `[]` on every captured instance**, so
+  `realShapes.ts` records the containers with no element shape. The shapes the
+  processor reads out of them come from the original hand-written response types
+  and now live in [`../../wire/observed.ts`](../../wire/observed.ts) — weaker
+  evidence than a capture, and flagged as such. Every read here is guarded with
+  `isObject`, which is why they cost nothing when an instance sends null.
 
 ## Modes: what each mode carries
 
