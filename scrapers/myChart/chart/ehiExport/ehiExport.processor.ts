@@ -8,23 +8,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { GetEhiETemplates } from './mychart.types';
+import type { EhiExportStandard } from './standardized.types';
 
-export interface EhiTemplateStandard {
-  name: string | null;
-  description: string | null;
-  /** Identifier a future export capability would take. */
-  id: string | null;
-}
-
-export interface EhiExportStandard {
-  existingEHIE: boolean | null;
-  isNoBuildEhie: boolean | null;
-  ehieTemplates: EhiTemplateStandard[];
-}
+export type { EhiExportStandard, EhiTemplateStandard } from './standardized.types';
 
 export const ehiExportProcessor: Processor<EhiExportStandard> = {
   standard(raw: RawResponse): EhiExportStandard {
-    const body = rec(bodyOf(raw, 'GetEHIETemplates'));
+    const body = rec<GetEhiETemplates>(bodyOf(raw, 'GetEHIETemplates'));
     return {
       existingEHIE: boolOrNull(body.existingEHIE),
       isNoBuildEhie: boolOrNull(body.isNoBuildEhie),
