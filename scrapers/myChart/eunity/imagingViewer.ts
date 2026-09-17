@@ -65,6 +65,12 @@ export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | 
   return { fdi, ord };
 }
 
+/** What `/api/report-content/LoadReportContent` answers. */
+export type ReportContent = {
+  reportContent: string;
+  reportCss: string;
+}
+
 /**
  * Call the FdiData API to get the SAML URL that leads to the eUnity image viewer.
  *

@@ -6,7 +6,7 @@ notes, After Visit Summary — is keyed on the **CSN** this scraper returns.
 | | |
 | --- | --- |
 | **Capabilities** | `get_past_visits` (read) · `get_upcoming_visits` (read) |
-| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) |
+| **Source** | [`visits.ts`](visits.ts) · [`visits.processor.ts`](visits.processor.ts) · [`types.ts`](types.ts) |
 | **Activity** | Legacy `/Visits/VisitsList` |
 
 ## Endpoints
@@ -68,17 +68,6 @@ lower-case `__requestverificationtoken` header.
   which is why `TimeZone` rides beside it.
 - `requireJsonBody` (shared with [`../notes/`](../notes/)) guards the F5 WAF's
   200-with-HTML rejection on both calls.
-- **Four nested objects have never been seen populated.** `SelfArrivalBannerViewModel`,
-  `ContactInformation` and `LastEncounterInfo` came back `null`, and
-  `ArrivalAdditionalActions` and `ClinicSteps` came back `[]`, on every instance captured
-  into `realShapes.ts` — so the skeletons record the containers but no element shape, and
-  the processor reads none of them. A now-deleted hand-written type file
-  (`types.ts`, orphaned by the processor layer in #388 and never imported by anything)
-  claimed their members were `ArrivalAction { ActionType, Label }`,
-  `ContactInformation { PhoneNumber, FaxNumber, Email }`,
-  `LastEncounterInfo { Date, ProviderName }` and
-  `CheckInStep { StepName, StepStatus, IsComplete }`. **Unverified** — nothing in this repo
-  confirms them. Probe a real instance before believing them or modelling them in the fake.
 
 ## Modes: what each mode carries
 
