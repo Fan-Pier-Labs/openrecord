@@ -66,16 +66,6 @@ export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | 
 }
 
 /**
- * Extract `data-copy-context` from report content HTML.
- * Format: "|||| Z15696837|54254.98||" - contains internal order/study IDs.
- */
-export function extractCopyContext(reportContentHtml: string): string | null {
-  const $ = cheerio.load(reportContentHtml);
-  const el = $('[data-copy-context]');
-  return el.attr('data-copy-context') ?? null;
-}
-
-/**
  * Call the FdiData API to get the SAML URL that leads to the eUnity image viewer.
  *
  * Flow: MyChart → FdiData → SAML STS URL → (browser follows SAML chain) → eUnity viewer
@@ -288,49 +278,6 @@ export async function followSamlChain(
     return null;
   } catch (err) {
     logger.debug('Error following SAML chain:', (err as Error).message);
-    return null;
-  }
-}
-
-/** What `/api/report-content/LoadReportContent` answers. */
-export type ReportContent = {
-  reportContent: string;
-  reportCss: string;
-}
-
-/**
- * Get report content from MyChart's LoadReportContent API.
- * Returns the report HTML which may contain data-fdi-context for image viewer access.
- */
-export async function getReportContentForImaging(
-  mychartRequest: MyChartRequest,
-  reportID: string,
-  reportVars: { ordId: string; ordDat: string },
-  requestVerificationToken: string
-): Promise<ReportContent | null> {
-  try {
-    const res = await makeAuthenticatedRequest(mychartRequest, {
-      path: '/api/report-content/LoadReportContent',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        __requestverificationtoken: requestVerificationToken,
-      },
-      body: JSON.stringify({
-        reportID,
-        assumedVariables: {
-          ordId: reportVars.ordId,
-          ordDat: reportVars.ordDat,
-        },
-        isFullReportPage: false,
-        uniqueClass: 'EID-4',
-        nonce: '',
-      }),
-      method: 'POST',
-    });
-
-    if (!res.ok) return null;
-    return await res.json() as ReportContent;
-  } catch {
     return null;
   }
 }

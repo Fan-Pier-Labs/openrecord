@@ -1,0 +1,99 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // One workspace per package. The four clients bundle the shared scraper core
+  // (`scrapers/`, `shared/`) rather than depending on it as a package, so each
+  // one declares dependencies whose only importers live in the root workspace —
+  // knip scopes dependency use per workspace, hence the `ignoreDependencies`
+  // lists below.
+  "workspaces": {
+    ".": {
+      "entry": [
+        "dev-scripts/*.ts",
+        "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
+        "scrapers/list-all-mycharts/probes/*.ts",
+        "**/*.test.ts"
+      ],
+      "project": [
+        "scrapers/**/*.ts",
+        "shared/**/*.ts",
+        "read-local-passwords/**/*.ts",
+        "dev-scripts/**/*.ts",
+        "openrecord-splash/*.ts",
+        "openrecord-splash/__tests__/**/*.ts",
+        "tests/**/*.ts"
+      ],
+      // Loaded through `require('expo/fetch')` inside a try/catch: present in
+      // the Expo app, absent (and expected to throw) under Node and Bun.
+      "ignoreDependencies": ["expo"]
+    },
+    "claude-desktop-extension": {
+      "entry": ["dev/*.mjs", "scripts/*.mjs"],
+      "ignoreDependencies": [
+        "cheerio",
+        "compare-versions",
+        "fetch-cookie",
+        "html-to-text",
+        "@types/html-to-text",
+        "js-base64",
+        "markdown-table",
+        "node-sqlite3-wasm",
+        "totp-generator",
+        "tough-cookie"
+      ]
+    },
+    "expo-app": {
+      // Referenced by path from metro.config.js / app.config.ts, never imported.
+      "entry": ["shims/*.{ts,js}", "plugins/*.js"],
+      "ignoreDependencies": [
+        "cheerio",
+        "compare-versions",
+        "fzstd",
+        "html-to-text",
+        "@types/html-to-text",
+        "jpeg-js",
+        "js-base64",
+        "markdown-table",
+        "tough-cookie",
+        // Knip's Expo plugin assumes these ship with every Expo app; this one
+        // uses neither.
+        "expo-updates",
+        "expo-system-ui"
+      ]
+    },
+    "fake-mychart": {
+      "ignore": [
+        // Page CSS and inline page scripts, read off disk by `lib/html/assets.ts`
+        // so Next never rewrites them — see the comment at the top of that file.
+        "src/lib/html/assets/**",
+        // Generated from live captures. A skeleton no handler conforms to yet is
+        // still the record of what a real instance answered, so it stays.
+        "src/data/realShapes.ts"
+      ],
+      // Invoked as a python module by `bun run deploy`, not imported.
+      "ignoreDependencies": ["deploy"]
+    },
+    "npm-package": {
+      "entry": ["examples/*.ts"],
+      "ignoreDependencies": [
+        "cheerio",
+        "compare-versions",
+        "date-fns",
+        "fzstd",
+        "html-to-text",
+        "@types/html-to-text",
+        "jpeg-js",
+        "js-base64",
+        "markdown-table",
+        "totp-generator"
+      ]
+    },
+    "openrecord-demo-lambda": {
+      "entry": ["src/*.mjs"],
+      // Provided by the AWS Lambda Node runtime, imported lazily.
+      "ignoreDependencies": ["@aws-sdk/client-dynamodb"]
+    },
+    "openrecord-splash/demo": {
+      "entry": ["src/main.tsx"]
+    }
+  }
+}

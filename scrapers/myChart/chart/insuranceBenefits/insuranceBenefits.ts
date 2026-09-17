@@ -14,12 +14,9 @@ export type {
   InsuranceBenefitsAccountStandard,
   BenefitLimitStandard,
   BenefitBucketStandard,
-  BenefitLimitName,
 } from './insuranceBenefits.processor';
 export {
   insuranceBenefitsProcessor,
-  benefitsRequestFor,
-  BENEFIT_LIMITS,
   GET_BENEFITS_SUMMARY_PATH,
 } from './insuranceBenefits.processor';
 
