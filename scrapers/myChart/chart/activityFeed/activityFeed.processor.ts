@@ -16,34 +16,10 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { isoFromMs, list, num, rec, textOrNull } from '../../processors/read';
+import type { FetchItemFeed } from './mychart.types';
+import type { ActivityFeedStandard, FeedItemStandard } from './standardized.types';
 
-export interface FeedItemStandard {
-  identifier: string | null;
-  displayText: string | null;
-  titleDisplayText: string | null;
-  announcementBody: string | null;
-  type: string | null;
-  defaultType: string | null;
-  topicId: number | null;
-  priority: number | null;
-  priorityInstant: number | null;
-  /** Derived: `priorityInstant` as ISO-8601; `null` when there is no instant. */
-  priorityInstantISO: string | null;
-  groupCount: number | null;
-  primaryAction: { uriDisplayText: string | null };
-}
-
-export interface FeedViewModelStandard {
-  displayName: string | null;
-  eptId: string | null;
-  feedItems: FeedItemStandard[];
-  todayItems: FeedItemStandard[];
-  forYouItems: FeedItemStandard[];
-}
-
-export interface ActivityFeedStandard {
-  singleItemFeedViewModels: FeedViewModelStandard[];
-}
+export type { ActivityFeedStandard, FeedItemStandard, FeedViewModelStandard } from './standardized.types';
 
 function feedItem(value: unknown): FeedItemStandard {
   const item = rec(value);
@@ -66,7 +42,7 @@ function feedItem(value: unknown): FeedItemStandard {
 
 export const activityFeedProcessor: Processor<ActivityFeedStandard> = {
   standard(raw: RawResponse): ActivityFeedStandard {
-    const body = rec(bodyOf(raw, 'FetchItemFeed'));
+    const body = rec<FetchItemFeed>(bodyOf(raw, 'FetchItemFeed'));
     return {
       singleItemFeedViewModels: list(body.singleItemFeedViewModels).map((value) => {
         const vm = rec(value);
