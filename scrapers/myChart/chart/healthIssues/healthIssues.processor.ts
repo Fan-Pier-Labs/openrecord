@@ -5,27 +5,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { LoadHealthIssuesData } from './mychart.types';
+import type { HealthIssuesStandard } from './standardized.types';
 
-export interface HealthIssueStandard {
-  healthIssueItem: {
-    name: string | null;
-    formattedDateNoted: string | null;
-    id: string | null;
-    isReadOnly: boolean | null;
-  };
-  /** Other organizations' versions of the same problem (shape uncaptured). */
-  externalItems: unknown[];
-  externalOrgs: unknown[];
-  hasLocalInstance: boolean | null;
-}
-
-export interface HealthIssuesStandard {
-  dataList: HealthIssueStandard[];
-}
+export type { HealthIssueStandard, HealthIssuesStandard } from './standardized.types';
 
 export const healthIssuesProcessor: Processor<HealthIssuesStandard> = {
   standard(raw: RawResponse): HealthIssuesStandard {
-    const body = rec(bodyOf(raw, 'LoadHealthIssuesData'));
+    const body = rec<LoadHealthIssuesData>(bodyOf(raw, 'LoadHealthIssuesData'));
     return {
       dataList: list(body.dataList).map((entry) => {
         const e = rec(entry);
