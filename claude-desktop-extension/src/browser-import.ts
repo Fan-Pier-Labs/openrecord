@@ -30,7 +30,7 @@ function evictExpired(now = Date.now()): void {
 }
 
 /** What the model is allowed to see about one candidate. */
-export interface ImportedAccountSummary {
+interface ImportedAccountSummary {
   import_id: string;
   hostname: string;
   username: string | null;

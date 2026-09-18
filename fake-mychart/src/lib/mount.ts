@@ -58,8 +58,8 @@ export type DiscoveryMode = 'redirect' | 'meta-refresh' | 'default-asp' | 'scrip
 
 export const DISCOVERY_MODES: DiscoveryMode[] = ['redirect', 'meta-refresh', 'default-asp', 'script', 'landing-page', 'moved-host'];
 
-export const DEFAULT_MOUNT_MODE: MountMode = 'prefixed';
-export const DEFAULT_DISCOVERY_MODE: DiscoveryMode = 'redirect';
+const DEFAULT_MOUNT_MODE: MountMode = 'prefixed';
+const DEFAULT_DISCOVERY_MODE: DiscoveryMode = 'redirect';
 
 const mountState: { mode: MountMode; discovery: DiscoveryMode; movedHost: string | null } = {
   mode: DEFAULT_MOUNT_MODE,

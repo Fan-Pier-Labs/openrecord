@@ -31,8 +31,7 @@ import { logger } from '../../../shared/logger';
 import { openPreloginPage } from './preloginSession';
 import type { BillingEntity } from './types';
 
-export const GUEST_ESTIMATES_PATH = '/GuestEstimates';
-const SERVICE_AREA_PATH = '/GuestEstimates/SelectServiceArea';
+const GUEST_ESTIMATES_PATH = '/GuestEstimates';
 
 export type RawServiceArea = {
   Id: string;
@@ -96,7 +95,7 @@ export function parseLocationModel(html: string): RawLocationModel | null {
   return model && typeof model === 'object' ? model : null;
 }
 
-export function toBillingEntity(area: RawServiceArea, facilities: { id: string; name: string }[]): BillingEntity {
+function toBillingEntity(area: RawServiceArea, facilities: { id: string; name: string }[]): BillingEntity {
   return {
     id: area.Id,
     name: area.Title.trim(),
@@ -135,5 +134,3 @@ export async function fetchBillingEntities(request: MyChartRequest): Promise<Bil
   return entities;
 }
 
-// Exported for the fake and the tests: the page the flow starts on.
-export { SERVICE_AREA_PATH };

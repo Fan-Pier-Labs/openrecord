@@ -334,7 +334,7 @@ export function unwrapRaw(raw: RawResponse): unknown {
  * because parallel requests land in the envelope in whatever order they
  * resolved.
  */
-export function isRequestFor(record: RawRequestRecord, name: string): boolean {
+function isRequestFor(record: RawRequestRecord, name: string): boolean {
   const pathname = record.path.split('?')[0]!.toLowerCase();
   const needle = name.toLowerCase().replace(/^\/+/, '');
   return pathname === `/${needle}` || pathname === needle || pathname.endsWith(`/${needle}`);

@@ -66,7 +66,7 @@ export function isImagingByName(orderName: string | null): boolean {
 }
 
 /** Structured images, a narrative or impression, or a report: the shapes only an imaging (or pathology) result has. */
-export function isImagingByContent(order: LabOrderStandard): boolean {
+function isImagingByContent(order: LabOrderStandard): boolean {
   return order.results.some(
     (r) =>
       r.imageStudies.length > 0 ||

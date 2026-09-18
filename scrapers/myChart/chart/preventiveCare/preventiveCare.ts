@@ -11,7 +11,6 @@ export type { PreventiveCareStandard, PreventiveCareItemStandard, PreventiveCare
 export {
   preventiveCareProcessor,
   statusFromCode,
-  ADVISORIES_PAGE_PATH,
   GET_TOPICS_PATH,
 } from './preventiveCare.processor';
 

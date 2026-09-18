@@ -27,7 +27,7 @@ export type BillingAccount = {
 /**
  * Represents the top-level structure of the JSON.
  */
-export interface BillingDetails {
+interface BillingDetails {
   Success: boolean;
   Data: {
     UnifiedVisitList: BillingVisit[];
@@ -51,22 +51,22 @@ export interface BillingDetails {
 /**
  * Break down any nested structures accordingly:
  */
-export interface Filters {
+interface Filters {
   FilterClass: string;
   Options: FilterOption[];
 }
 
-export interface FilterOption {
+interface FilterOption {
   OptionClass: string;
   OptionLabel: string;
 }
 
-export interface PartialPaymentPlanAlert {
+interface PartialPaymentPlanAlert {
   Code: number;
   Banner: Banner;
 }
 
-export interface Banner {
+interface Banner {
   HeaderText: string;
   DetailText: string;
   AssistiveText: string;
@@ -90,7 +90,7 @@ export interface Banner {
   IconAltTextOverride: string | null;
   FontSize: number;
 }
-export interface BillingVisit {
+interface BillingVisit {
   GroupType: number;
   Index: number;
   BillingSystem: number;
@@ -159,7 +159,7 @@ export interface BillingVisit {
 }
 
 
-export interface Procedure {
+interface Procedure {
   BillingSystem: number;
   Description: string;
   Amount: string;
@@ -173,7 +173,7 @@ export interface Procedure {
   IsContested: boolean;
 }
 
-export interface ProcedureGroup {
+interface ProcedureGroup {
   VisitIndex: number;
   VisitGroupType: number;
   Description: string | null;
@@ -188,7 +188,7 @@ export interface ProcedureGroup {
   IsExpanded: boolean;
 }
 
-export interface CoverageInfo {
+interface CoverageInfo {
   CoverageName: string;
   Billed: string;
   Covered: string;
@@ -202,7 +202,7 @@ export interface CoverageInfo {
 }
 
 
-export interface Benefit {
+interface Benefit {
   Name: string;
   Amount: string;
 }
@@ -219,7 +219,7 @@ export interface StatementListResponse {
 /**
  * Interface for detail-bill data
  */
-export interface DataDetailBill {
+interface DataDetailBill {
   StatementList: StatementItem[];
   HasUnread: boolean;
   HasRead: boolean;
@@ -237,34 +237,34 @@ export interface DataDetailBill {
 }
 
 
-export interface VisitAutoPayInfo {
+interface VisitAutoPayInfo {
   IsEnrolled: boolean;
   CanEnroll: boolean;
   PaymentMethodDisplay: string | null;
 }
 
-export interface EstimateInfo {
+interface EstimateInfo {
   EstimateID: string;
   EstimateAmount: string | null;
   EstimateStatus: number;
 }
 
-export interface EditPaymentOptions {
+interface EditPaymentOptions {
   PaymentID: string;
   CanEdit: boolean;
 }
 
-export interface CancelCommandOptions {
+interface CancelCommandOptions {
   PaymentID: string;
   CanCancel: boolean;
 }
 
-export interface ViewConsentOptions {
+interface ViewConsentOptions {
   ConsentDocumentID: string;
   CanView: boolean;
 }
 
-export interface Payment {
+interface Payment {
   ID: string | null;
   ElementID: string | null;
   Index: number | null;

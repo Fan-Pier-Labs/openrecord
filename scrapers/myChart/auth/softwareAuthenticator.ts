@@ -67,17 +67,6 @@ export interface MyChartCreationOptions {
   excludeCredentials: Array<{ id: string; type: string }>;
 }
 
-/**
- * WebAuthn get options as returned by MyChart's GetPasskeyGetParams API.
- */
-export interface MyChartGetOptions {
-  Challenge: string; // base64
-  Attestation: string;
-  Timeout: number;
-  UserVerification: string;
-  RpId: string;
-}
-
 // ─── Minimal CBOR encoder ───
 // Only handles the types needed for WebAuthn: maps, text strings, byte strings, integers.
 // Uses compact encoding (1-byte lengths for small values).
