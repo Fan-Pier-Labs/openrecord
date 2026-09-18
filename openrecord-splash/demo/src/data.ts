@@ -29,7 +29,6 @@ import type {
 
 export const DEMO_HOSTNAME = 'mychart.springfieldmed.example.org';
 export const DEMO_USERNAME = 'homersimpson742';
-export const DEMO_ORG = 'Springfield General Hospital';
 
 export const profile = {
   name: 'Homer J. Simpson',
@@ -43,7 +42,7 @@ export const profile = {
   email: 'homer.simpson@example.com',
 };
 
-export const healthSummary = {
+const healthSummary = {
   bloodType: 'O+',
   height: '6\'0" (182.9 cm)',
   weight: '260 lbs (117.9 kg)',
@@ -88,12 +87,12 @@ export const medications: Medication[] = [
   },
 ];
 
-export const allergies = [
+const allergies = [
   { allergen: 'Penicillin', reaction: 'Hives, rash', severity: 'Moderate', type: 'Medication' },
   { allergen: 'Shrimp', reaction: 'Facial swelling', severity: 'Severe', type: 'Food' },
 ];
 
-export const healthIssues = [
+const healthIssues = [
   { condition: 'Obesity', status: 'Active', onsetDate: '2000-01-15', provider: 'Dr. Julius Hibbert' },
   { condition: 'High blood pressure', status: 'Active', onsetDate: '2010-03-20', provider: 'Dr. Julius Hibbert' },
   { condition: 'High cholesterol', status: 'Active', onsetDate: '2010-03-20', provider: 'Dr. Julius Hibbert' },
@@ -102,7 +101,7 @@ export const healthIssues = [
   { condition: 'Crayon lodged in brain (frontal lobe, since childhood)', status: 'Resolved', onsetDate: '1972-05-09', provider: 'Dr. Nick Riviera' },
 ];
 
-export const upcomingVisits: Visit[] = [
+const upcomingVisits: Visit[] = [
   {
     type: 'Office Visit',
     provider: 'Dr. Julius Hibbert',
@@ -399,13 +398,13 @@ export const billing: BillingCharge[] = [
   },
 ];
 
-export const careTeam = [
+const careTeam = [
   { name: 'Dr. Julius Hibbert, MD', role: 'Primary Care Provider', specialty: 'Internal Medicine', phone: '(555) 234-5678' },
   { name: 'Dr. Nick Riviera, MD', role: 'Specialist', specialty: 'General Surgery', phone: '(555) 345-6789' },
   { name: 'Nurse Ruth Powers, RN', role: 'Care Coordinator', specialty: 'Nursing', phone: '(555) 234-5680' },
 ];
 
-export const insurance = [
+const insurance = [
   {
     plan: 'Springfield Nuclear Power Plant — PPO',
     memberId: 'SNPP-7704201',
@@ -423,7 +422,7 @@ export const insurance = [
  * keyed by billing guarantor account, with the account-wide and patient-only
  * tallies kept apart because they are different numbers.
  */
-export const insuranceBenefits = [
+const insuranceBenefits = [
   {
     guarantorNumber: '7704201',
     patientName: 'Homer J. Simpson',
@@ -495,14 +494,14 @@ export const insurancePayers = {
   ],
 };
 
-export const immunizations = [
+const immunizations = [
   { vaccine: 'Influenza (Flu)', date: '2025-10-15', site: 'Left arm', provider: 'Springfield General Hospital' },
   { vaccine: 'COVID-19 Booster (Pfizer)', date: '2025-09-20', site: 'Left arm', provider: 'Springfield General Hospital' },
   { vaccine: 'Tdap', date: '2022-06-10', site: 'Right arm', provider: 'Dr. Julius Hibbert' },
   { vaccine: 'Hepatitis B — Dose 3', date: '2015-03-01', site: 'Left arm', provider: 'Springfield General Hospital' },
 ];
 
-export const preventiveCare = [
+const preventiveCare = [
   { item: 'Annual Physical Exam', status: 'Completed', dueDate: '2027-01-10', lastCompleted: '2026-01-10' },
   { item: 'Flu Vaccine', status: 'Completed', dueDate: '2026-10-01', lastCompleted: '2025-10-15' },
   { item: 'Colonoscopy', status: 'Overdue', dueDate: '2025-05-12', lastCompleted: '2015-05-12' },
@@ -510,7 +509,7 @@ export const preventiveCare = [
   { item: 'Diabetes Eye Exam', status: 'Due', dueDate: '2026-06-01', lastCompleted: '2024-11-20' },
 ];
 
-export const referrals = [
+const referrals = [
   {
     referralTo: 'Dr. Nick Riviera, MD — Cardiology',
     reason: 'Cardiac risk assessment',
@@ -521,7 +520,7 @@ export const referrals = [
   },
 ];
 
-export const medicalHistory = {
+const medicalHistory = {
   pastConditions: [
     { condition: 'Crayon Lodged in Brain', year: '2024', status: 'Resolved' },
     { condition: 'Myocardial Infarction (mild)', year: '2020', status: 'Resolved' },
@@ -539,7 +538,7 @@ export const medicalHistory = {
   ],
 };
 
-export const visitNotes = {
+const visitNotes = {
   csn: 'WP-demo-csn-er-visit-2025-09-14',
   lrpId: 'WP-demo-lrp-er-visit-2025-09-14',
   depPhoneNumber: '555-555-0142',
@@ -568,7 +567,7 @@ export const visitNotes = {
   ],
 };
 
-export const noteContentByHnoId: Record<string, { contentHtml: string; contentCss: string }> = {
+const noteContentByHnoId: Record<string, { contentHtml: string; contentCss: string }> = {
   'WP-demo-hno-ed-attending': {
     contentHtml:
       '<div class="fmtConv1"><h3>ED Attending Note</h3><p><strong>Chief Complaint:</strong> Chest pain after dinner.</p><p><strong>HPI:</strong> Male presents with substernal chest discomfort beginning ~45 minutes after a large meal. Pain reproducible with palpation. No diaphoresis, no radiation, no shortness of breath.</p><p><strong>Workup:</strong> EKG sinus rhythm, no ST changes. Troponin x2 negative.</p><p><strong>Assessment:</strong> Musculoskeletal chest pain + GERD exacerbation.</p><p><strong>Plan:</strong> Discharge with omeprazole 20mg daily x14 days. Follow up with PCP. Counseled on portion sizes.</p></div>',
@@ -581,13 +580,13 @@ export const noteContentByHnoId: Record<string, { contentHtml: string; contentCs
   },
 };
 
-export const visitAVS = {
+const visitAVS = {
   contentHtml:
     '<div class="avs"><header><h2>After Visit Summary</h2><p>Springfield General Hospital &mdash; Emergency Department</p><p>Visit Date: September 14, 2025</p></header><section><h3>Reason for Visit</h3><p>Chest pain &mdash; ruled out cardiac event.</p></section><section><h3>Diagnoses</h3><ul><li>GERD exacerbation</li><li>Musculoskeletal chest pain</li></ul></section><section><h3>Discharge Instructions</h3><ul><li>Take omeprazole 20mg by mouth daily for 14 days.</li><li>Avoid lying down for 2 hours after eating.</li><li>Reduce portion sizes; consider smaller, more frequent meals.</li><li>Return to ER for: worsening chest pain, shortness of breath, sweating, pain radiating to arm or jaw.</li></ul></section><section><h3>Follow-up</h3><p>Schedule a visit with Dr. Julius Hibbert (Internal Medicine) within 1-2 weeks.</p></section></div>',
   contentCss: '.avs { font-family: Georgia, serif; max-width: 720px; }',
 };
 
-export const letters: Letter[] = [
+const letters: Letter[] = [
   {
     title: 'After Visit Summary — Annual Physical',
     date: '2026-01-10',
@@ -625,7 +624,7 @@ export const letters: Letter[] = [
  * The real `get_letter_details` returns one field — `bodyHTML` — and answers an
  * unknown hnoId with an empty one, so the demo does the same.
  */
-export const letterDetailsByHnoId: Record<string, LetterDetail> = {
+const letterDetailsByHnoId: Record<string, LetterDetail> = {
   'WP-demo-hno-letter-physical': {
     bodyHTML:
       '<div class="letter"><p>Springfield General Hospital &mdash; Internal Medicine</p><p>January 10, 2026</p><p>Dear Mr. Simpson,</p><p>Thank you for coming in for your annual physical. Your blood pressure was 148/92, which is above the goal of 130/80. Your hemoglobin A1c is 7.2%, up from 6.8% in July, and your LDL cholesterol is 172 mg/dL.</p><p>I have increased your atorvastatin to 40mg nightly. Please continue lisinopril and metformin as prescribed. I would like to see you again in three months with a repeat A1c and metabolic panel drawn beforehand.</p><p>In the meantime: a 20-minute daily walk and smaller portions at dinner will move all three of these numbers.</p><p>Sincerely,<br />Julius Hibbert, MD</p></div>',
@@ -640,7 +639,7 @@ export const letterDetailsByHnoId: Record<string, LetterDetail> = {
   },
 };
 
-export const vitals = [
+const vitals = [
   {
     date: '2026-01-10',
     measurements: [
@@ -673,23 +672,23 @@ export const vitals = [
   },
 ];
 
-export const emergencyContacts: EmergencyContact[] = [
+const emergencyContacts: EmergencyContact[] = [
   { id: 'ec-001', name: 'Marge Simpson', relationship: 'Spouse', phone: '(555) 636-7664' },
   { id: 'ec-002', name: 'Bart Simpson', relationship: 'Son', phone: '(555) 636-7665' },
 ];
 
-export const documents = [
+const documents = [
   { title: 'Annual Physical Results 2026', date: '2026-01-10', type: 'Clinical Document', provider: 'Dr. Julius Hibbert' },
   { title: 'ER Visit — Chest Pain Workup', date: '2025-09-14', type: 'Clinical Document', provider: 'Dr. Nick Riviera' },
 ];
 
-export const goals = [
+const goals = [
   { goal: 'Lose 30 lbs — target weight 230 lbs', setBy: 'Dr. Julius Hibbert', status: 'Not Started', targetDate: '2026-07-01' },
   { goal: 'Lower A1c below 6.5%', setBy: 'Dr. Julius Hibbert', status: 'In Progress', targetDate: '2026-06-01' },
   { goal: 'Walk 20 minutes daily', setBy: 'Homer Simpson', status: 'Off Track', targetDate: 'Ongoing' },
 ];
 
-export const upcomingOrders = [
+const upcomingOrders = [
   {
     orderType: 'Lab',
     testName: 'Hemoglobin A1c',
@@ -706,7 +705,7 @@ export const upcomingOrders = [
   },
 ];
 
-export const questionnaires = [
+const questionnaires = [
   {
     name: 'Pre-Visit Questionnaire',
     assignedDate: '2026-03-18',
@@ -716,7 +715,7 @@ export const questionnaires = [
   },
 ];
 
-export const careJourneys = [
+const careJourneys = [
   {
     name: 'Diabetes Management',
     status: 'Active',
@@ -733,7 +732,7 @@ export const careJourneys = [
   },
 ];
 
-export const activityFeed = [
+const activityFeed = [
   { date: '2026-03-18', type: 'Questionnaire', description: 'Pre-Visit Questionnaire assigned for upcoming appointment' },
   { date: '2026-01-12', type: 'Message', description: 'New message from Dr. Julius Hibbert regarding lab results' },
   { date: '2026-01-10', type: 'Lab Results', description: 'Lab results available: CMP, CBC, Lipid Panel, HbA1c' },
@@ -741,13 +740,13 @@ export const activityFeed = [
   { date: '2025-10-15', type: 'Immunization', description: 'Flu vaccine administered at Springfield General Hospital' },
 ];
 
-export const educationMaterials = [
+const educationMaterials = [
   { title: 'Managing Type 2 Diabetes', assignedBy: 'Dr. Julius Hibbert', date: '2023-11-15', category: 'Diabetes' },
   { title: 'Heart-Healthy Diet Guidelines', assignedBy: 'Dr. Julius Hibbert', date: '2020-06-01', category: 'Heart Health' },
   { title: 'Understanding Your Cholesterol Numbers', assignedBy: 'Dr. Julius Hibbert', date: '2019-01-22', category: 'Heart Health' },
 ];
 
-export const ehiExport = {
+const ehiExport = {
   availableFormats: ['FHIR R4 (JSON)', 'C-CDA (XML)'],
   lastExport: '2025-11-01',
   note: 'Electronic Health Information export available per 21st Century Cures Act.',
@@ -790,12 +789,12 @@ export const imagingResults: ImagingStudy[] = [
   },
 ];
 
-export const linkedAccounts = [
+const linkedAccounts = [
   { organization: 'Springfield General Hospital', hostname: DEMO_HOSTNAME, status: 'Active' },
   { organization: 'Shelbyville Regional Medical', hostname: 'mychart.shelbyvillemed.example.org', status: 'Available to link' },
 ];
 
-export const messageRecipients: MessageRecipient[] = [
+const messageRecipients: MessageRecipient[] = [
   { displayName: 'Dr. Julius Hibbert', specialty: 'Internal Medicine', department: 'Primary Care' },
   { displayName: 'Dr. Nick Riviera', specialty: 'General Surgery', department: 'Surgery' },
   { displayName: 'Nurse Ruth Powers', specialty: 'Nursing', department: 'Care Coordination' },
@@ -816,7 +815,7 @@ export const messageTopics: MessageTopic[] = [
   { displayName: 'Other', value: 'TOPIC-006' },
 ];
 
-export const availableAppointments: AppointmentOffer[] = [
+const availableAppointments: AppointmentOffer[] = [
   {
     provider: 'Dr. Julius Hibbert',
     department: 'Internal Medicine',

@@ -53,7 +53,7 @@ export async function deleteChat(id: string): Promise<void> {
   await getDb().runAsync("DELETE FROM chats WHERE id = ?", id);
 }
 
-export async function touchChat(id: string): Promise<void> {
+async function touchChat(id: string): Promise<void> {
   const now = new Date().toISOString();
   await getDb().runAsync("UPDATE chats SET updated_at = ? WHERE id = ?", now, id);
 }
@@ -96,8 +96,8 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 
 // ─── Alerts ───
 
-export type AlertType = "bill" | "refill" | "message" | "lab" | "appointment";
-export type AlertActionKind = "open_url" | "request_refill" | "ai_chat";
+type AlertType = "bill" | "refill" | "message" | "lab" | "appointment";
+type AlertActionKind = "open_url" | "request_refill" | "ai_chat";
 
 export type Alert = {
   id: string;
@@ -309,16 +309,6 @@ export type SyncStateRow = {
   last_seen_at: string | null;
   last_synced_at: string;
 };
-
-export async function getSyncState(
-  accountId: string,
-  category: string,
-): Promise<SyncStateRow | null> {
-  return getDb().getFirstAsync<SyncStateRow>(
-    "SELECT * FROM memory_sync_state WHERE account_id = ? AND category = ?",
-    accountId, category,
-  );
-}
 
 export async function getAllSyncStates(accountId: string): Promise<SyncStateRow[]> {
   return getDb().getAllAsync<SyncStateRow>(

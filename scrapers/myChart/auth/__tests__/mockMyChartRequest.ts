@@ -14,7 +14,7 @@
 
 import { MyChartRequest } from '../../core/myChartRequest'
 
-export interface RecordedCall {
+interface RecordedCall {
   /** Full URL the scraper built. */
   url: string
   /** Just the pathname, for convenient assertions. */

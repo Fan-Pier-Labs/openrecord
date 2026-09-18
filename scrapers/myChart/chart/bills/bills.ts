@@ -53,7 +53,7 @@ function detailsPagePath(account: BillingAccount): string {
   return `/Billing/Details?ID=${account.id}&Context=${account.context}`;
 }
 
-export const GET_MORE_VISITS_PATH = '/Billing/Details/GetMoreVisits';
+const GET_MORE_VISITS_PATH = '/Billing/Details/GetMoreVisits';
 
 /**
  * The hydrate key for one stub, in the three shapes Epic's own client builds

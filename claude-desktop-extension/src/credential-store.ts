@@ -196,7 +196,7 @@ export function readAccounts(): AccountConfig[] {
   }));
 }
 
-export function accountsForHostname(hostname: string): AccountConfig[] {
+function accountsForHostname(hostname: string): AccountConfig[] {
   const normalized = normalizeHostname(hostname);
   return readAccounts().filter(a => normalizeHostname(a.hostname) === normalized);
 }

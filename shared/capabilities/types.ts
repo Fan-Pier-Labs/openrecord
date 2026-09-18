@@ -39,7 +39,7 @@ export type CapabilityKind =
    */
   | 'public';
 
-export type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
+type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
 
 export interface CapabilityParam {
   name: string;
@@ -165,7 +165,7 @@ export type { FilePayload } from '../../scrapers/myChart/core/filePayload';
  * The last of those was live: `downloadStudyJpegs` reached `run` through
  * `getCapability`, in a file the regex never scanned.
  */
-export interface AccountCapabilityImpl extends Capability {
+interface AccountCapabilityImpl extends Capability {
   kind: 'read' | 'write' | 'account';
   /** Discriminates this from {@link UnimplementedCapabilityImpl}: it has a `run`. */
   notImplemented?: never;
@@ -193,7 +193,7 @@ export interface AccountCapabilityImpl extends Capability {
  * like every other one, and its `processor` gives it the same `raw` /
  * `standard` / `concise` / `json` modes.
  */
-export interface PublicCapabilityImpl extends Capability {
+interface PublicCapabilityImpl extends Capability {
   kind: 'public';
   /** As on {@link AccountCapabilityImpl}. */
   notImplemented?: never;
@@ -212,7 +212,7 @@ export interface PublicCapabilityImpl extends Capability {
  * tool saying "not implemented" are very different for a caller trying to find
  * out whether OpenRecord can do a thing.
  */
-export interface UnimplementedCapabilityImpl extends Capability {
+interface UnimplementedCapabilityImpl extends Capability {
   kind: 'read' | 'write';
   notImplemented: string;
   run?: never;
