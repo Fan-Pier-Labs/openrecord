@@ -703,12 +703,6 @@ served as the login shell with the activity's data inlined, the way real instanc
   groups by location; an area that doesn't bounces to `AcceptDisclaimer`, which — like the real
   reCAPTCHA-gated step — is not implemented.
 
-## What's NOT Implemented
-
-### Draft Persistence
-
-Message draft endpoints (`savereplydraft`, `savemedicaladvicerequestdraft`) return success but don't actually persist — drafts are discarded. This doesn't affect normal message sending.
-
 ## CI Integration
 
 The GitHub Actions workflow (`.github/workflows/checks.yml`) has a `fake-mychart` job that:
