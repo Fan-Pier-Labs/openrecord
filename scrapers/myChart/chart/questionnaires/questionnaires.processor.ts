@@ -39,7 +39,7 @@ export interface QuestionnaireStandard {
 }
 
 /** An assigned entry's questionnaire carries one field an optional one does not. */
-export interface AssignedQuestionnaireDetailStandard extends QuestionnaireStandard {
+interface AssignedQuestionnaireDetailStandard extends QuestionnaireStandard {
   filterType: string | null;
 }
 

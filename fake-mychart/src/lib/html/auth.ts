@@ -91,7 +91,7 @@ export function doLoginFailed(): string {
  *   - "sms"       → only SMS/phone
  *   - "email,sms" → both (default)
  */
-export function get2faMethods(): { email: boolean; sms: boolean } {
+function get2faMethods(): { email: boolean; sms: boolean } {
   const methods = (process.env.FAKE_MYCHART_2FA_METHODS || 'email,sms').toLowerCase();
   return {
     email: methods.includes('email'),

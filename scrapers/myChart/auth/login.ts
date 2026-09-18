@@ -43,7 +43,7 @@ export function landsOnMyChartRoute(path: string): boolean {
  *
  * null means "no prefix": nothing at all goes in front of MyChart's routes.
  */
-export function firstPathPartFromPathname(pathname: string): string | null {
+function firstPathPartFromPathname(pathname: string): string | null {
   const routeStart = pathname.toLowerCase().indexOf(MYCHART_LOGIN_ROUTE);
   // Path went straight to a MyChart route — take whatever precedes it.
   if (routeStart >= 0) return pathname.slice(1, routeStart) || null;
@@ -286,7 +286,7 @@ export async function probeFirstPathPartByTryingCommonLoginPaths(mychartRequest:
  * Does this URL serve a MyChart login page? Used to sanity-check a mount we
  * only guessed at — a link on a landing page, or a host a redirect handed us.
  */
-export async function verifyMount(mychartRequest: MyChartRequest, mount: MountLocation): Promise<boolean> {
+async function verifyMount(mychartRequest: MyChartRequest, mount: MountLocation): Promise<boolean> {
   const url = `${mychartRequest.protocol}://${mount.hostname}${mount.firstPathPart ? '/' + mount.firstPathPart : ''}/Authentication/Login`;
   try {
     const resp = await mychartRequest.makeRequest({ url });
@@ -331,7 +331,7 @@ function mountFromUrl(url: URL): MountLocation {
  * Returns the mount if the chain found one, plus the last page fetched so the
  * caller can mine a landing page for links when it didn't.
  */
-export async function followChainToMyChartRoute(
+async function followChainToMyChartRoute(
   mychartRequest: MyChartRequest,
   startUrl: string,
 ): Promise<{ mount: MountLocation | null; finalUrl: string; html: string | null }> {

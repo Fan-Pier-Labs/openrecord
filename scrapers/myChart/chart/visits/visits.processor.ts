@@ -378,7 +378,7 @@ export function visitStandard(value: unknown, isPast: boolean, containerOrganiza
 }
 
 /** The concise field list, shared by both capabilities. */
-export function visitConcise(visit: VisitStandard): VisitConcise {
+function visitConcise(visit: VisitStandard): VisitConcise {
   return {
     Csn: visit.Csn,
     PrimaryDate: visit.PrimaryDate,

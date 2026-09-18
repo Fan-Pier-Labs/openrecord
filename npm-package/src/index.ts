@@ -73,6 +73,8 @@ export {
   getEmail,
   type ProfileData,
   type ProfileStandard,
+  type AddressStandard,
+  type TemporaryAddressStandard,
 } from '../../scrapers/myChart/chart/profile/profile';
 export {
   discoverProxyTargets,
@@ -88,6 +90,8 @@ export {
   fetchHealthSummaryRaw,
   healthSummaryProcessor,
   type HealthSummaryStandard,
+  type MeasurementStandard,
+  type VisitPointerStandard,
 } from '../../scrapers/myChart/chart/healthSummary/healthSummary';
 export {
   getVitals,
@@ -96,6 +100,8 @@ export {
   type VitalsStandard,
   type FlowsheetStandard,
   type VitalReadingStandard,
+  type FlowsheetRowStandard,
+  type FlowsheetRowGroupStandard,
 } from '../../scrapers/myChart/chart/vitals/vitals';
 
 // ─── Medications ──────────────────────────────────────────────────────────
@@ -107,6 +113,9 @@ export {
   type PrescriptionStandard,
   type RefillDetailsStandard,
   type OwningPharmacyStandard,
+  type PrescriptionListStandard,
+  type LastDispenseStandard,
+  type CostDetailsStandard,
 } from '../../scrapers/myChart/chart/medications/medications';
 // ─── Allergies / health issues / history / immunizations ──────────────────
 export {
@@ -151,6 +160,17 @@ export {
   type LabOrderStandard,
   type ImagingResultsStandard,
   type ImagingOrderStandard,
+  type LabResultStandard,
+  type ReferenceRangeStandard,
+  type SignedTextStandard,
+  type StudyResultStandard,
+  type ResultingLabStandard,
+  type OrderMetadataStandard,
+  type ProviderCommentStandard,
+  type ImageStudyStandard,
+  type ScanStandard,
+  type HistoricalPointStandard,
+  type HistoricalComponentStandard,
 } from '../../scrapers/myChart/chart/labs/labResults';
 export {
   downloadImagingStudyDirect,
@@ -220,6 +240,14 @@ export {
   type PastVisitsStandard,
   type VisitStandard,
   type VisitStatus,
+  type VisitConcise,
+  type VisitBucket,
+  type UpcomingVisitStandard,
+  type VisitDiagnosisStandard,
+  type VisitProcedureStandard,
+  type VisitProviderStandard,
+  type VisitDepartmentStandard,
+  type VisitPreadmissionLocationStandard,
 } from '../../scrapers/myChart/chart/visits/visits';
 
 // ─── Messages ─────────────────────────────────────────────────────────────
@@ -230,12 +258,17 @@ export {
   type ConversationsStandard,
   type ConversationStandard,
   type MessageStandard,
+  type MessageConcise,
+  type MessageAttachmentStandard,
+  type MessageAttachmentConcise,
+  type MessageDirectory,
 } from '../../scrapers/myChart/chart/messages/conversations';
 export {
   getConversationMessages,
   fetchConversationThreadRaw,
   conversationThreadProcessor,
   type ConversationThreadStandard,
+  type ConversationThreadConcise,
 } from '../../scrapers/myChart/chart/messages/messageThreads';
 export { downloadMessageAttachment } from '../../scrapers/myChart/chart/messages/messageAttachment';
 export {
@@ -257,6 +290,8 @@ export {
   messageTopicsProcessor,
   type MessageRecipientsStandard,
   type MessageTopicsStandard,
+  type MessageRecipientStandard,
+  type MessageTopicStandard,
 } from '../../scrapers/myChart/chart/messages/recipients';
 export {
   sendReply,
@@ -278,6 +313,13 @@ export {
   type BillingStandard,
   type BillingAccountStandard,
   type BillingVisitStandard,
+  BillingNotFullyLoadedError,
+  type BillingVisitCategory,
+  type BillingStatementStandard,
+  type BillingPaymentStandard,
+  type BillingProcedureStandard,
+  type BillingProcedureGroupStandard,
+  type BillingCoverageInfoStandard,
 } from '../../scrapers/myChart/chart/bills/bills';
 
 // ─── Care coordination ───────────────────────────────────────────────────
@@ -301,6 +343,7 @@ export {
   insuranceProcessor,
   type InsuranceStandard,
   type InsuranceCoverageStandard,
+  type CoverageBucket,
 } from '../../scrapers/myChart/chart/insurance/insurance';
 export {
   getInsuranceBenefits,
@@ -323,12 +366,14 @@ export {
   fetchDocumentsRaw,
   documentsProcessor,
   type DocumentsStandard,
+  type DocumentStandard,
 } from '../../scrapers/myChart/chart/documents/documents';
 export {
   getGoals,
   fetchGoalsRaw,
   goalsProcessor,
   type GoalsStandard,
+  type GoalSource,
 } from '../../scrapers/myChart/chart/goals/goals';
 export {
   getCareJourneys,
@@ -349,6 +394,7 @@ export {
   preventiveCareProcessor,
   type PreventiveCareStandard,
   type PreventiveCareItemStandard,
+  type PreventiveCareStatus,
 } from '../../scrapers/myChart/chart/preventiveCare/preventiveCare';
 export {
   getEducationMaterials,
@@ -362,6 +408,10 @@ export {
   fetchQuestionnairesRaw,
   questionnairesProcessor,
   type QuestionnairesStandard,
+  type QuestionnaireStandard,
+  type AssignedQuestionnaireStandard,
+  type OptionalQuestionnaireStandard,
+  type QuestionnaireContextListStandard,
 } from '../../scrapers/myChart/chart/questionnaires/questionnaires';
 export {
   getActivityFeed,
@@ -369,6 +419,7 @@ export {
   activityFeedProcessor,
   type ActivityFeedStandard,
   type FeedItemStandard,
+  type FeedViewModelStandard,
 } from '../../scrapers/myChart/chart/activityFeed/activityFeed';
 export {
   getLetters,
@@ -395,6 +446,7 @@ export {
   type EmergencyContactInput,
   type EmergencyContactUpdateInput,
   type EmergencyContactResult,
+  type PhoneNumberStandard,
 } from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 // ─── Linked accounts / EHI export ────────────────────────────────────────
@@ -404,6 +456,7 @@ export {
   linkedAccountsProcessor,
   type LinkedAccountsStandard,
   type LinkedOrganizationStandard,
+  type LastEncounterDetailStandard,
 } from '../../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
 export {
   getEhiExportTemplates,

@@ -81,10 +81,6 @@ export const SKILLS: Skill[] = [
   },
 ];
 
-export function getSkillById(id: string): Skill | undefined {
-  return SKILLS.find((s) => s.id === id);
-}
-
 /**
  * The "things to review" cards on the app's home screen.
  *
