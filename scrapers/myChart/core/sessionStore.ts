@@ -20,7 +20,7 @@ import { logger } from '../../../shared/logger';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 1000; // 30 seconds, matches MyChart's own JS interval
 
-export interface SessionEntry {
+interface SessionEntry {
   request: MyChartRequest;
   hostname: string;
   status: 'logged_in' | 'need_2fa' | 'expired' | 'error';

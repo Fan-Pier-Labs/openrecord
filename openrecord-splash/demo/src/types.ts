@@ -11,7 +11,7 @@ export type Medication = {
   lastFilled: string;
 };
 
-export type LabComponent = {
+type LabComponent = {
   component: string;
   value: string;
   units: string;
@@ -27,7 +27,7 @@ export type LabPanel = {
   results: LabComponent[];
 };
 
-export type Profile = {
+type Profile = {
   name: string;
   preferredName: string;
   dateOfBirth: string;
@@ -39,7 +39,7 @@ export type Profile = {
   email: string;
 };
 
-export type HealthSummary = {
+type HealthSummary = {
   bloodType: string;
   height: string;
   weight: string;
@@ -49,28 +49,28 @@ export type HealthSummary = {
   lastUpdated: string;
 };
 
-export type Allergy = { allergen: string; reaction: string; severity: string; type: string };
+type Allergy = { allergen: string; reaction: string; severity: string; type: string };
 
-export type HealthIssue = { condition: string; status: string; onsetDate: string; provider: string };
+type HealthIssue = { condition: string; status: string; onsetDate: string; provider: string };
 
-export type MedicalHistory = {
+type MedicalHistory = {
   pastConditions: { condition: string; year: string; status: string }[];
   surgicalHistory: { procedure: string; year: string; provider: string }[];
   familyHistory: { relation: string; conditions: string[] }[];
 };
 
-export type VitalsEntry = { date: string; measurements: { name: string; value: string; units: string }[] };
+type VitalsEntry = { date: string; measurements: { name: string; value: string; units: string }[] };
 
-export type Immunization = { vaccine: string; date: string; site: string; provider: string };
+type Immunization = { vaccine: string; date: string; site: string; provider: string };
 
-export type CareTeamMember = { name: string; role: string; specialty: string; phone: string };
+type CareTeamMember = { name: string; role: string; specialty: string; phone: string };
 
-export type Goal = { goal: string; setBy: string; status: string; targetDate: string };
+type Goal = { goal: string; setBy: string; status: string; targetDate: string };
 
-export type PreventiveCareItem = { item: string; status: string; dueDate: string; lastCompleted: string };
+type PreventiveCareItem = { item: string; status: string; dueDate: string; lastCompleted: string };
 
 /** One series within an imaging study — what download_imaging_study enumerates. */
-export type ImagingSeries = { seriesUID: string; seriesDescription: string; imageCount: number };
+type ImagingSeries = { seriesUID: string; seriesDescription: string; imageCount: number };
 
 export type ImagingStudy = {
   study: string;
@@ -91,7 +91,7 @@ export type ImagingStudy = {
   series: ImagingSeries[];
 };
 
-export type UpcomingOrder = {
+type UpcomingOrder = {
   orderType: string;
   testName: string;
   orderedBy: string;
@@ -99,7 +99,7 @@ export type UpcomingOrder = {
   instructions: string;
 };
 
-export type PastVisit = {
+type PastVisit = {
   csn: string;
   type: string;
   provider: string;
@@ -109,7 +109,7 @@ export type PastVisit = {
   diagnoses: string[];
 };
 
-export type VisitNote = {
+type VisitNote = {
   hnoId: string;
   hnoDat: string;
   displayName: string;
@@ -120,7 +120,7 @@ export type VisitNote = {
   providerMagicId: string;
 };
 
-export type VisitNotes = {
+type VisitNotes = {
   csn: string;
   lrpId: string;
   depPhoneNumber: string;
@@ -129,11 +129,11 @@ export type VisitNotes = {
 };
 
 /** Rendered HTML + its stylesheet, the shape MyChart returns for notes and letters. */
-export type RenderedDocument = { contentHtml: string; contentCss: string };
+type RenderedDocument = { contentHtml: string; contentCss: string };
 
-export type CareJourney = { name: string; status: string; startDate: string; provider: string; nextStep: string };
+type CareJourney = { name: string; status: string; startDate: string; provider: string; nextStep: string };
 
-export type Referral = {
+type Referral = {
   referralTo: string;
   reason: string;
   referredBy: string;
@@ -156,9 +156,9 @@ export type Letter = {
 /** get_letter_details' payload — the real scraper returns exactly this one field. */
 export type LetterDetail = { bodyHTML: string };
 
-export type ClinicalDocument = { title: string; date: string; type: string; provider: string };
+type ClinicalDocument = { title: string; date: string; type: string; provider: string };
 
-export type Questionnaire = {
+type Questionnaire = {
   name: string;
   assignedDate: string;
   dueDate: string;
@@ -166,19 +166,19 @@ export type Questionnaire = {
   appointment: string;
 };
 
-export type EducationMaterial = { title: string; assignedBy: string; date: string; category: string };
+type EducationMaterial = { title: string; assignedBy: string; date: string; category: string };
 
-export type ActivityFeedEntry = { date: string; type: string; description: string };
+type ActivityFeedEntry = { date: string; type: string; description: string };
 
-export type EhiExport = { availableFormats: string[]; lastExport: string; note: string };
+type EhiExport = { availableFormats: string[]; lastExport: string; note: string };
 
-export type LinkedAccount = { organization: string; hostname: string; status: string };
+type LinkedAccount = { organization: string; hostname: string; status: string };
 
 export type MessageRecipient = { displayName: string; specialty: string; department: string };
 
 export type MessageTopic = { displayName: string; value: string };
 
-export type InsurancePlan = {
+type InsurancePlan = {
   plan: string;
   memberId: string;
   groupNumber: string;
@@ -194,7 +194,7 @@ export type InsurancePlan = {
  * MyChart keys these to a billing guarantor account rather than to a coverage,
  * and returns the account-wide and the patient-only tallies separately.
  */
-export type BenefitBucket = {
+type BenefitBucket = {
   type: string;
   totalAmount: string;
   usedAmount: string;
@@ -202,9 +202,9 @@ export type BenefitBucket = {
   rollPeriodEndDate: string;
 };
 
-export type BenefitLimit = { name: string; network: string; accountBucket: BenefitBucket; patientBucket: BenefitBucket };
+type BenefitLimit = { name: string; network: string; accountBucket: BenefitBucket; patientBucket: BenefitBucket };
 
-export type InsuranceBenefits = {
+type InsuranceBenefits = {
   guarantorNumber: string;
   patientName: string;
   payerName: string;
@@ -214,9 +214,9 @@ export type InsuranceBenefits = {
   moop: BenefitLimit;
 };
 
-export type MessageAttachment = { attachmentId: string; name: string; mimeType: string; sizeBytes: number };
+type MessageAttachment = { attachmentId: string; name: string; mimeType: string; sizeBytes: number };
 
-export type MessageEntry = { from: string; date: string; body: string; attachments?: MessageAttachment[] };
+type MessageEntry = { from: string; date: string; body: string; attachments?: MessageAttachment[] };
 
 export type Conversation = {
   id: string;
@@ -259,7 +259,7 @@ export type Visit = {
   bookedThisSession?: boolean;
 };
 
-export type AppointmentSlot = { date: string; time: string; slotId: string };
+type AppointmentSlot = { date: string; time: string; slotId: string };
 
 export type AppointmentOffer = {
   provider: string;
@@ -416,7 +416,7 @@ export type ToolGroup =
  * and the type is what enforces that. The real iOS client derives the same
  * three fields from `kind: 'write'` in `shared/capabilities/`.
  */
-export type WriteMeta = {
+type WriteMeta = {
   /** Dialog title — the action, not the function name. "Send Message". */
   title: string;
   /** One line on what approving will do. */
@@ -453,13 +453,9 @@ export type ToolRecord = {
   ms: number;
 };
 
-export function isToolError(result: ToolResult): result is ToolError {
-  return typeof result === 'object' && result !== null && 'error' in result;
-}
-
 /* ── Agent ──────────────────────────────────────────────────────────── */
 
-export type ChatRole = 'user' | 'assistant';
+type ChatRole = 'user' | 'assistant';
 
 export type ChatMessage = { role: ChatRole; content: string };
 

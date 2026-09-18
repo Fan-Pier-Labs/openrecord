@@ -313,7 +313,7 @@ function hydratedFor(
   return num(row.StartDate) === num(stub.StartDate) ? row : null;
 }
 
-export function payment(value: unknown): BillingPaymentStandard {
+function payment(value: unknown): BillingPaymentStandard {
   const p = rec(value);
   const receipt = p.Receipt === null || p.Receipt === undefined ? null : rec(p.Receipt);
   return {
@@ -371,7 +371,7 @@ function coverageInfo(value: unknown): BillingCoverageInfoStandard {
   };
 }
 
-export function visit(value: unknown, category: BillingVisitCategory): BillingVisitStandard {
+function visit(value: unknown, category: BillingVisitCategory): BillingVisitStandard {
   const v = rec(value);
   const estimate = v.EstimateInfo === null || v.EstimateInfo === undefined ? null : rec(v.EstimateInfo);
   const agency = rec(v.AgencyInformation);

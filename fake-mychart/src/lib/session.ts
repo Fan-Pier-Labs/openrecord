@@ -121,5 +121,3 @@ export function deleteAllSessions(): number {
 export function resetSessions(): number {
   return deleteAllSessions();
 }
-
-export { SESSION_COOKIE_NAME };

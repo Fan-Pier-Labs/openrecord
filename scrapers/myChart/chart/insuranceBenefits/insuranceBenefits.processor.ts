@@ -33,10 +33,6 @@ import type { BillingAccount } from '../bills/types';
 
 export const GET_BENEFITS_SUMMARY_PATH = '/api/billing-details/GetBenefitsSummary';
 
-/** The three accumulators the card carries, in MyChart's own order. */
-export const BENEFIT_LIMITS = ['deductible', 'moop', 'insuranceLimit'] as const;
-
-export type BenefitLimitName = (typeof BENEFIT_LIMITS)[number];
 
 /**
  * One side of an accumulator — what the whole family has used, or what this
@@ -161,7 +157,7 @@ function limit(value: unknown): BenefitLimitStandard | null {
  * so the request body is the only discriminator, which is why the collector
  * records it.
  */
-export function benefitsRequestFor(raw: RawResponse, source: BillingAccount): RawRequestRecord | undefined {
+function benefitsRequestFor(raw: RawResponse, source: BillingAccount): RawRequestRecord | undefined {
   return findRequests(raw, GET_BENEFITS_SUMMARY_PATH).find(
     (r) => rec(r.requestBody).guarantorId === source.id,
   );
