@@ -33,11 +33,3 @@ export interface MyChartCandidate extends PasswordStoreEntryWithKey {
   /** Display name from the directory, when the host is a known instance. */
   instanceName?: string;
 }
-
-export interface IPasswordExtractor {
-  extractPasswords(): Promise<PasswordStoreEntry[]>;
-}
-
-export interface IBrowserExtractor {
-  getLogins(): Promise<PasswordStoreEntry[]>;
-}

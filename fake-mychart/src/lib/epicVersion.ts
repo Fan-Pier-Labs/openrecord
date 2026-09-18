@@ -39,7 +39,7 @@
 export const EPIC_VERSIONS = ['November 2025', 'August 2025'] as const;
 export type EpicVersion = (typeof EPIC_VERSIONS)[number];
 
-export const DEFAULT_EPIC_VERSION: EpicVersion = 'November 2025';
+const DEFAULT_EPIC_VERSION: EpicVersion = 'November 2025';
 
 const versionState: { epicVersion: EpicVersion } = {
   epicVersion: DEFAULT_EPIC_VERSION,

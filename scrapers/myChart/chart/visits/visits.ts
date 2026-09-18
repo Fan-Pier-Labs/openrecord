@@ -28,7 +28,6 @@ export {
   upcomingVisitsProcessor,
   pastVisitsProcessor,
   visitStandard,
-  visitConcise,
   visitStatus,
   visitInstantMs,
 } from './visits.processor';
