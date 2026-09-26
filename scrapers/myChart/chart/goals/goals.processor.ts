@@ -31,21 +31,13 @@
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, text } from '../../processors/read';
+import type { LoadCareTeamGoals, LoadPatientGoals } from './mychart.types';
+import type { GoalsStandard } from './standardized.types';
 
-export type GoalSource = 'care_team' | 'patient';
+export type { GoalSource, GoalsStandard } from './standardized.types';
 
 export const LOAD_CARE_TEAM_GOALS_PATH = '/api/goals/LoadCareTeamGoals';
 export const LOAD_PATIENT_GOALS_PATH = '/api/goals/LoadPatientGoals';
-
-export interface GoalsStandard {
-  careTeamGoals: Array<Record<string, unknown> & { source: 'care_team' }>;
-  patientGoals: Array<Record<string, unknown> & { source: 'patient' }>;
-  /**
-   * Derived: the endpoints that did not answer, by path. Non-empty means the
-   * matching list is "not known", not "empty" — see the note above.
-   */
-  unavailable: string[];
-}
 
 /**
  * The empty editable slot MyChart returns for a patient with no goals: no
@@ -59,17 +51,17 @@ export const goalsProcessor: Processor<GoalsStandard> = {
   standard(raw: RawResponse): GoalsStandard {
     const unavailable: string[] = [];
 
-    function envelope(path: string): Record<string, unknown> {
+    function envelope(path: string): unknown {
       const record = findRequest(raw, path);
       if (!record || record.failure || record.status < 200 || record.status >= 300) {
         unavailable.push(path);
         return {};
       }
-      return rec(record.body);
+      return record.body;
     }
 
-    const careTeam = envelope(LOAD_CARE_TEAM_GOALS_PATH);
-    const patient = envelope(LOAD_PATIENT_GOALS_PATH);
+    const careTeam = rec<LoadCareTeamGoals>(envelope(LOAD_CARE_TEAM_GOALS_PATH));
+    const patient = rec<LoadPatientGoals>(envelope(LOAD_PATIENT_GOALS_PATH));
 
     return {
       careTeamGoals: list(careTeam.careTeamGoals).map((g) => ({ ...rec(g), source: 'care_team' as const })),
