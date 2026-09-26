@@ -7,13 +7,16 @@
  * 3. GetMedicalAdviceRequestRecipients - get list of providers
  * 4. GetViewers - get patient viewer info (wprId)
  * 5. GetComposeId - get unique compose ID
- * 6. SendMedicalAdviceRequest - send the message
- * 7. RemoveComposeId - cleanup
+ * 6. With attachments: GetComposeSettings, then DocumentUpload/UploadFile
+ * 7. SendMedicalAdviceRequest - send the message
+ * 8. RemoveComposeId - cleanup
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
+import type { FilePayload } from '../../core/filePayload';
 import { getVerificationToken } from './communicationCenterToken';
+import { prepareAttachments } from './messageUpload';
 import { logger } from '../../../../shared/logger';
 
 export type MessageRecipient = {
@@ -47,6 +50,8 @@ export type SendNewMessageParams = {
   messageBody: string;
   /** Organization ID (usually empty string for default org) */
   organizationId?: string;
+  /** Files to attach; uploaded before the send. */
+  attachments?: readonly FilePayload[];
 };
 
 export type SendNewMessageResult = {
@@ -188,7 +193,7 @@ const SEND_PATH = '/api/medicaladvicerequests/SendMedicalAdviceRequest';
  */
 export function buildSendPayload(
   params: SendNewMessageParams,
-  session: { wprId: string; composeId: string },
+  session: { wprId: string; composeId: string; documentIds?: string[] },
 ): Record<string, unknown> {
   return {
     recipient: {
@@ -209,7 +214,7 @@ export function buildSendPayload(
     viewers: [{ wprId: session.wprId }],
     messageBody: [params.messageBody],
     messageSubject: params.subject,
-    documentIds: [],
+    documentIds: session.documentIds ?? [],
     includeOtherViewers: false,
     composeId: session.composeId,
   };
@@ -266,11 +271,17 @@ export async function sendNewMessage(
     return { success: false, error: 'Could not get compose ID' };
   }
 
+  const prepared = await prepareAttachments(mychartRequest, token, params.attachments ?? [], organizationId);
+  if ('error' in prepared) {
+    await removeComposeId(mychartRequest, token, composeId);
+    return { success: false, error: prepared.error };
+  }
+
   // Step 4: Send the message
   const result = await makeApiRequest(
     mychartRequest,
     SEND_PATH,
-    buildSendPayload(params, { wprId, composeId }),
+    buildSendPayload(params, { wprId, composeId, documentIds: prepared.documentIds }),
     token,
   );
 
