@@ -57,39 +57,20 @@ export type VisitOrganization = {
   ProxyTermsAndConditionsUrl?: unknown;
   Address?: string[];
   DisplayAddress?: unknown;
-  DiscreteAddress?: {
-    StreetAddress?: string[];
-    City?: string;
-    State?: string;
-    StateName?: string;
-    Zip?: string;
-    Country?: string;
-  };
+  DiscreteAddress?: DiscreteAddress;
   ContactInformation?: unknown;
   UrlList?: unknown;
   IsSSO?: boolean;
   IncompleteH2GSetup?: boolean;
   LastEncounterInfo?: unknown;
   IsGeneric?: boolean;
-  PayerOrgDetails?: {
-    OrganizationId?: unknown;
-    IsPayerOnly?: boolean;
-    IsPayvider?: boolean;
-    IsPayer?: boolean;
-    IsPayerLicensedForMyChart?: boolean;
-    PayerChildWebsiteName?: unknown;
-    PayerDXO?: unknown;
-    PayerCvgLogo?: unknown;
-    PayerCvgLogoMagicId?: unknown;
-    PayerCvgToken?: unknown;
-    PayerCvgName?: unknown;
-  };
+  PayerOrgDetails?: PayerOrgDetail;
   IsMyChartCentral?: boolean;
   IsSameOrganization?: boolean;
 };
 
 /** Repeated shape. Appears in: chart/visits. */
-export type PayerOrgDetail = {
+type PayerOrgDetail = {
   OrganizationId?: unknown;
   IsPayerOnly?: boolean;
   IsPayvider?: boolean;
@@ -145,7 +126,7 @@ export type Specialty = {
 };
 
 /** Repeated shape. Appears in: chart/visits. */
-export type DiscreteAddress = {
+type DiscreteAddress = {
   StreetAddress?: string[];
   City?: string;
   State?: string;
