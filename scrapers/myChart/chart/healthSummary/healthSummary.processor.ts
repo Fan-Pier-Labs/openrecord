@@ -5,33 +5,10 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { FetchH2GHeader, FetchHealthSummary } from './mychart.types';
+import type { HealthSummaryStandard, MeasurementStandard, VisitPointerStandard } from './standardized.types';
 
-export interface MeasurementStandard {
-  value: string | null;
-  dateRecorded: string | null;
-}
-
-export interface VisitPointerStandard {
-  date: string | null;
-  visitType: string | null;
-}
-
-export interface HealthSummaryStandard {
-  header: {
-    patientAge: string | null;
-    bloodType: string | null;
-    height: MeasurementStandard;
-    weight: MeasurementStandard;
-  };
-  patientFirstName: string | null;
-  isPatientAdmitted: boolean | null;
-  /** Uncaptured element shapes; passed through. */
-  conditionList: unknown[];
-  journeyList: unknown[];
-  actionPlans: unknown[];
-  lastVisit: VisitPointerStandard;
-  nextVisit: VisitPointerStandard;
-}
+export type { HealthSummaryStandard, MeasurementStandard, VisitPointerStandard } from './standardized.types';
 
 function measurement(value: unknown): MeasurementStandard {
   const m = rec(value);
@@ -45,8 +22,8 @@ function visitPointer(value: unknown): VisitPointerStandard {
 
 export const healthSummaryProcessor: Processor<HealthSummaryStandard> = {
   standard(raw: RawResponse): HealthSummaryStandard {
-    const summary = rec(bodyOf(raw, 'FetchHealthSummary'));
-    const h2g = rec(bodyOf(raw, 'FetchH2GHeader'));
+    const summary = rec<FetchHealthSummary>(bodyOf(raw, 'FetchHealthSummary'));
+    const h2g = rec<FetchH2GHeader>(bodyOf(raw, 'FetchH2GHeader'));
     const header = rec(summary.header);
     return {
       header: {
