@@ -13,35 +13,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, strings, textOrNull } from '../../processors/read';
+import type { GetRelationships } from './mychart.types';
+import type { EmergencyContactsStandard } from './standardized.types';
 
-export interface PhoneNumberStandard {
-  phoneNumber: string | null;
-  type: string | null;
-}
-
-export interface EmergencyContactStandard {
-  /** Handle: `update_emergency_contact` and `remove_emergency_contact` take it. */
-  id: string | null;
-  formattedName: string | null;
-  relationToPatient: { name: string | null };
-  contactInformation: {
-    phoneNumbers: PhoneNumberStandard[];
-    emailAddress: string | null;
-    address: { formattedValues: string[] };
-  };
-  isPrimaryContact: boolean | null;
-  isEmergencyContact: boolean | null;
-}
-
-export interface EmergencyContactsStandard {
-  /** The instance hides the section; explains an empty list. */
-  hideEmergencyContacts: boolean | null;
-  contacts: EmergencyContactStandard[];
-}
+export type { EmergencyContactStandard, EmergencyContactsStandard, PhoneNumberStandard } from './standardized.types';
 
 export const emergencyContactsProcessor: Processor<EmergencyContactsStandard> = {
   standard(raw: RawResponse): EmergencyContactsStandard {
-    const body = rec(bodyOf(raw, 'GetRelationships'));
+    const body = rec<GetRelationships>(bodyOf(raw, 'GetRelationships'));
     return {
       hideEmergencyContacts: boolOrNull(body.hideEmergencyContacts),
       contacts: list(body.contacts).map((value) => {
