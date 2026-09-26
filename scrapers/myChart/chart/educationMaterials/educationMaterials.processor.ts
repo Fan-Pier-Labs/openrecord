@@ -10,6 +10,7 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
+import type { GetPatEducationTitles } from './mychart.types';
 import type { EducationMaterialsStandard } from './standardized.types';
 
 export type { EducationMaterialStandard, EducationMaterialsStandard } from './standardized.types';
@@ -17,7 +18,7 @@ export type { EducationMaterialStandard, EducationMaterialsStandard } from './st
 export const educationMaterialsProcessor: Processor<EducationMaterialsStandard> = {
   standard(raw: RawResponse): EducationMaterialsStandard {
     return list(bodyOf(raw, 'GetPatEducationTitles')).map((value) => {
-      const m = rec(value);
+      const m = rec<GetPatEducationTitles[number]>(value);
       return {
         displayName: textOrNull(m.displayName),
         assignedDate: textOrNull(m.assignedDate),
