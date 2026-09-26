@@ -7,7 +7,7 @@ eUnity viewer.
 | | |
 | --- | --- |
 | **Capabilities** | `get_lab_results` (read) · `get_imaging_results` (read) · `download_imaging_study` (read, media) |
-| **Source** | [`labResults.ts`](labResults.ts) · [`labResults.processor.ts`](labResults.processor.ts) · [`imagingResults.processor.ts`](imagingResults.processor.ts) · [`labtestresulttype.ts`](labtestresulttype.ts) · [`labtypes.ts`](labtypes.ts) |
+| **Source** | [`labResults.ts`](labResults.ts) · [`labResults.processor.ts`](labResults.processor.ts) · [`imagingResults.processor.ts`](imagingResults.processor.ts) · [`labtestresulttype.ts`](labtestresulttype.ts) |
 | **Activity** | React `/app/test-results` |
 
 Downloading the pixels is [`../../eunity/`](../../eunity/); decoding them is
