@@ -163,8 +163,17 @@ export async function sendReply(
   // Step 5: Cleanup compose ID
   await removeComposeId(mychartRequest, token, composeId);
 
-  if (result.status === 200 && typeof result.json === 'string') {
+  if (result.status === 200 && typeof result.json === 'string' && result.json.length > 0) {
     return { success: true, conversationId: result.json };
+  }
+  // A thread with `replyFlags.canReply: false` gets 200 and an empty string,
+  // and nothing is filed — seen live on a closed customer-service thread.
+  if (result.status === 200 && result.json === '') {
+    return {
+      success: false,
+      error: 'MyChart accepted the reply but filed nothing (HTTP 200, empty conversation id). ' +
+        'This thread most likely does not accept replies — get_message_thread shows replyFlags.canReply.',
+    };
   }
 
   return {

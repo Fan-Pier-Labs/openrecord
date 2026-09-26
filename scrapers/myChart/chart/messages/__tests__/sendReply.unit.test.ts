@@ -66,6 +66,19 @@ describe('sendReply', () => {
     expect(result.error).toContain('compose ID')
   })
 
+  it('reports a reply MyChart filed nothing for as a failure', async () => {
+    const req = mockRequest([
+      { body: TOKEN_HTML },
+      { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
+      { body: JSON.stringify('WP-compose123') },
+      { body: '""' },
+      { body: '""' },
+    ])
+    const result = await sendReply(req, { conversationId: 'WP-convo1', messageBody: 'hi' })
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/filed nothing.*canReply/)
+  })
+
   it('sends reply successfully and returns conversation ID', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },                                                         // getVerificationToken

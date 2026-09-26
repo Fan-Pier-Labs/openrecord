@@ -105,9 +105,15 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   has appeared on any instance there are credentials for, so the scraper refuses them with the
   reason rather than modelling unobserved behaviour.
 
+- **`SendReply` to a thread that can't take replies answers 200 with `""` and files
+  nothing.** Seen on one instance, on a customer-service thread (`messageType` `14`) whose
+  `replyFlags` were `{ canReply: false, cannotReplyReason: 3 }`. `sendReply` reports that
+  as a failure; it used to report success.
 - **Attachments on the way out are uploaded first, then named by id in the send.** Read
   from one live instance's composer bundles (`epic.px.client.message-composer`,
-  `epic.px.client.file-upload`); **no upload has been sent to a live instance yet**. The
+  `epic.px.client.file-upload`); the upload was then accepted by one live instance (a PNG,
+  answered with a `DocumentId`), but the send it rode on was dropped (below), so a message
+  landing with an attachment is still unobserved. The
   upload is mount-relative (not `/api/`), carries the antiforgery token as a
   `__RequestVerificationToken` header with `Accept: application/json`, and is multipart:
   one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
