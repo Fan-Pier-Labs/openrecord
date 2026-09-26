@@ -1,8 +1,9 @@
 /**
  * Raw MyChart responses for the `careTeam` scraper.
  *
- * Observed by the capture harness behind `fake-mychart/src/data/realShapes.ts`
- * on three real instances — what we have seen, never a contract Epic owes us.
+ * Transcribed by hand into `fake-mychart/src/data/realShapes.ts` from live
+ * responses (two instances for `Load`, one for the bio) — what we have seen,
+ * never a contract Epic owes us.
  *
  * `unknown` means the field was `null` on every instance captured: we saw no
  * value, so we know no type. `unknown[]` means the array was always empty, so
@@ -13,12 +14,13 @@
  * field names and leaves every value to `text()` / `num()` / `list()`. Never
  * `as`: that checks the same names and then lies about the values.
  *
- * Endpoints: /
+ * Endpoints: /Clinical/CareTeam/Load, /Clinical/CareTeam/LoadExternal,
+ * /api/Providers/GetProviderBioPrivate
  *
  * Keep in step with `realShapes.ts` when the captures are refreshed.
  */
 
-/** `/ `SchedulableVisitTypes` are null on both instances.` */
+/** `/Clinical/CareTeam/Load` and `/Clinical/CareTeam/LoadExternal` — the same envelope. */
 export type CareTeamLoad = {
   ProvidersList?: Array<{
     ID?: string;
@@ -51,7 +53,7 @@ export type CareTeamLoad = {
   CustomRequestAppointmentLink?: string;
 };
 
-/** `because their element shape has never been seen.` */
+/** `/api/Providers/GetProviderBioPrivate` */
 export type GetProviderBioPrivate = {
   name?: string;
   photoUrl?: string;

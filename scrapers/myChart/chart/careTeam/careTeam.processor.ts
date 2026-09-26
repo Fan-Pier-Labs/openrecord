@@ -38,6 +38,7 @@
 import { findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { CareTeamLoad, GetProviderBioPrivate } from './mychart.types';
 import type { CareTeamProviderStandard, CareTeamStandard } from './standardized.types';
 
 export type { CareTeamProviderStandard, CareTeamStandard } from './standardized.types';
@@ -63,13 +64,13 @@ function npiOf(ID: string | null, bios: RawRequestRecord[]): string | null {
   if (ID === null) return null;
   const bio = bios.find((r) => rec(r.requestBody).id === ID);
   if (!bio || bio.failure !== undefined || bio.status < 200 || bio.status >= 300) return null;
-  const npi = textOrNull(rec(bio.body).npi);
+  const npi = textOrNull(rec<GetProviderBioPrivate>(bio.body).npi);
   return npi === '' ? null : npi;
 }
 
 /** The `ProvidersList` array of a recorded response, or null when the response is not a recognizable envelope. */
 function providersListOf(body: unknown): unknown[] | null {
-  const envelope = rec(body);
+  const envelope = rec<CareTeamLoad>(body);
   return Array.isArray(envelope.ProvidersList) ? envelope.ProvidersList : null;
 }
 
@@ -97,7 +98,7 @@ export const careTeamProcessor: Processor<CareTeamStandard> = {
     const bios = findRequests(raw, 'Providers/GetProviderBioPrivate');
 
     return {
-      DescriptiveTitle: textOrNull(rec(load.body).DescriptiveTitle),
+      DescriptiveTitle: textOrNull(rec<CareTeamLoad>(load.body).DescriptiveTitle),
       externalProvidersUnavailable: external === null,
       ProvidersList: [
         ...internal.map((p) => provider(p, false, bios)),
