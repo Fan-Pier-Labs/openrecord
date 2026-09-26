@@ -11,6 +11,7 @@
 import { findRequest, okBodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { rec, strings, text, textOrNull } from '../../processors/read';
+import type { GetContactInformation } from './mychart.types';
 import type { AddressStandard, ProfileStandard } from './standardized.types';
 
 export type { AddressStandard, ProfileStandard, TemporaryAddressStandard } from './standardized.types';
@@ -38,7 +39,7 @@ export const profileProcessor: Processor<ProfileStandard> = {
     const home = text(findRequest(raw, '/Home')?.body);
     const header = parseProfileHtml(home) ?? { name: '', dob: '', mrn: '', pcp: '' };
     const contactBody = okBodyOf(raw, 'GetContactInformation');
-    const contact = rec(contactBody);
+    const contact = rec<GetContactInformation>(contactBody);
     const secure = rec(contact.SecureCommunicationInfo);
     const temporary = rec(contact.TemporaryAddress);
     return {
