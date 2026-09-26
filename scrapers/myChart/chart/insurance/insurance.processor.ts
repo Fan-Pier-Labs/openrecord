@@ -34,6 +34,7 @@
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, num, rec, textOrNull } from '../../processors/read';
+import type { ActiveCoverage, InsuranceGetCoverages } from './mychart.types';
 import type { CoverageBucket, InsuranceCoverageStandard, InsuranceStandard } from './standardized.types';
 
 export type { CoverageBucket, InsuranceCoverageStandard, InsuranceStandard } from './standardized.types';
@@ -58,7 +59,7 @@ export const COVERAGE_BUCKETS: readonly CoverageBucket[] = [
  * dropped.
  */
 function coverage(value: unknown, bucket: CoverageBucket): InsuranceCoverageStandard {
-  const c = rec(value);
+  const c = rec<ActiveCoverage>(value);
   return {
     ...c,
     CoverageId: textOrNull(c.CoverageId),
@@ -104,7 +105,7 @@ export const insuranceProcessor: Processor<InsuranceStandard> = {
       );
     }
 
-    const envelope = rec(record.body);
+    const envelope = rec<InsuranceGetCoverages>(record.body);
     // Every bucket is an array on a real response, including on the captured
     // account with no coverage at all. None of them being an array means the
     // session expired into the login page, or this instance does not serve the
