@@ -477,6 +477,13 @@ describe('CLI', () => {
     expect(coerceCapabilityArgs(npi, { limit: '5' })).toEqual({ limit: 5 });
   });
 
+  it('splits a list argument on commas', async () => {
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
+    const reply = CAPABILITIES.find((c) => c.id === 'send_reply')!;
+    expect(coerceCapabilityArgs(reply, { conversation_id: 'c', message: 'm', attachments: 'a.pdf, b.png,' }))
+      .toEqual({ conversation_id: 'c', message: 'm', attachments: ['a.pdf', 'b.png'] });
+  });
+
   it('rejects a typo instead of silently ignoring it', async () => {
     const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const notes = CAPABILITIES.find((c) => c.id === 'get_visit_notes')!;

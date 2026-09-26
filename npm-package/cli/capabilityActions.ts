@@ -36,6 +36,7 @@ import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
+import { readLocalFile } from '../../shared/readLocalFile';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 /**
@@ -176,6 +177,7 @@ export async function capabilityContext(
     savePasskey: async (serialized: string) => {
       await savePasskeyCredential(hostname, JSON.parse(serialized) as PasskeyCredential);
     },
+    readFile: readLocalFile,
   };
 }
 
@@ -208,6 +210,8 @@ export function coerceCapabilityArgs(
       out[name] = n;
     } else if (param.type === 'boolean') {
       out[name] = raw !== 'false' && raw !== '0';
+    } else if (param.type === 'string[]') {
+      out[name] = raw.split(',').map((item) => item.trim()).filter(Boolean);
     } else {
       out[name] = raw;
     }
