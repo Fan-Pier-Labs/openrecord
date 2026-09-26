@@ -12,7 +12,8 @@ export type RequestConfig = {
   path?: string;
 
 
-  body?: string;
+  /** Bytes for a multipart upload; set Content-Type yourself, or it goes out as JSON. */
+  body?: string | Uint8Array<ArrayBuffer>;
   headers?: Record<string, string>;
   cookies?: Record<string, string>;
   followRedirects?: boolean;

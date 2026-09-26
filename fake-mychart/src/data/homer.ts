@@ -1524,7 +1524,7 @@ export type FakeConversationMessage = {
  * paging a large inbox needs, and a client that read only the first page
  * would pass against the fake and drop a patient's older threads in
  * production. One reminder a week, older than every seeded thread — 48, so the
- * three seeded threads make 51: one more than a page, and no more than that,
+ * four seeded threads make 52: just past a page, and no more than that,
  * because every one of them is rendered into the processor examples doc.
  */
 const FILLER_THREADS: FakeConversationThread[] = Array.from({ length: 48 }, (_, i) => {
@@ -1555,6 +1555,9 @@ export type FakeConversationThread = {
   /** Per-thread display names that win over the shared `users` map. */
   userOverrideNames: Record<string, string>;
   messages: FakeConversationMessage[];
+  messageType?: string;
+  /** Served by `GetConversationDetails` only; a thread without one takes replies. */
+  replyFlags?: { canReply: boolean; cannotReplyReason: number };
 };
 
 type FakeConversations = {
@@ -1703,6 +1706,32 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
         },
       ],
     },
+    {
+      // A customer-service thread closed to replies, as captured on one live
+      // instance: `messageType` 14 and `cannotReplyReason` 3. SendReply to it
+      // answers 200 with "" and files nothing.
+      hthId: 'CONV-004',
+      subject: 'Question about my bill',
+      previewText: 'Thank you for contacting Patient Services...',
+      audience: [{ name: 'Springfield General Patient Services' }],
+      userOverrideNames: {},
+      messageType: '14',
+      replyFlags: { canReply: false, cannotReplyReason: 3 },
+      messages: [
+        {
+          wmgId: 'MSG-020',
+          author: { wprKey: 'WPR-HOMER', displayName: '' },
+          deliveryInstantISO: '2025-11-20T10:00:00Z',
+          body: 'Why was I charged twice for the same visit?',
+        },
+        {
+          wmgId: 'MSG-021',
+          author: { empKey: 'PROV-CUSTSVC', displayName: '' },
+          deliveryInstantISO: '2025-11-21T14:00:00Z',
+          body: 'Thank you for contacting Patient Services. The duplicate charge has been removed from your account.',
+        },
+      ],
+    },
     ...FILLER_THREADS,
   ],
   users: {
@@ -1710,6 +1739,7 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
     'PROV-NICK': { name: 'Nick Riviera, MD' },
     'PROV-MONROE': { name: 'Marvin Monroe, MD' },
     'PROV-FRONTDESK': { name: 'Springfield General Front Desk' },
+    'PROV-CUSTSVC': { name: 'Springfield General Patient Services' },
   },
   viewers: {
     'WPR-HOMER': { name: 'Homer Simpson', isSelf: true },
