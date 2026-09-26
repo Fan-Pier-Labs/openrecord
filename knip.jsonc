@@ -1,5 +1,20 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Baseline: unused exported types that were already on main when knip
+  // started running in CI. To be cleared later — delete an entry once its file
+  // is clean, and don't add new ones.
+  "ignoreIssues": {
+    "scrapers/myChart/chart/activityFeed/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/healthSummary/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/medications/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/messages/conversations.processor.ts": ["types"],
+    "scrapers/myChart/chart/messages/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/messages/standardized.types.ts": ["types"],
+    "scrapers/myChart/chart/otherMyCharts/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/questionnaires/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/questionnaires/standardized.types.ts": ["types"],
+    "scrapers/myChart/chart/vitals/mychart.types.ts": ["types"]
+  },
   // One workspace per package. The four clients bundle the shared scraper core
   // (`scrapers/`, `shared/`) rather than depending on it as a package, so each
   // one declares dependencies whose only importers live in the root workspace —
@@ -12,14 +27,14 @@
         "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
-        // Raw MyChart response shapes for the labs and visits endpoints. Nothing
-        // imports them — those payloads are read through the defensive readers in
+        // Claude Code's worktrees are gitignored, but knip still globs into them.
+        "!.claude/**",
+        // Raw MyChart response shape for the labs endpoint. Nothing imports it —
+        // those payloads are read through the defensive readers in
         // `scrapers/myChart/processors/read.ts` — but whether a read scraper should
-        // type its response body at all is open in #484. Roots, not dead code:
-        // settle #484 before deleting them.
-        "scrapers/myChart/chart/labs/labtestresulttype.ts",
-        "scrapers/myChart/chart/labs/labtypes.ts",
-        "scrapers/myChart/chart/visits/types.ts"
+        // type its response body at all is open in #484. A root, not dead code:
+        // settle #484 before deleting it.
+        "scrapers/myChart/chart/labs/labtestresulttype.ts"
       ],
       "project": [
         "scrapers/**/*.ts",
@@ -92,7 +107,8 @@
         "jpeg-js",
         "js-base64",
         "markdown-table",
-        "totp-generator"
+        "totp-generator",
+        "tough-cookie"
       ]
     },
     "openrecord-demo-lambda": {
