@@ -26,7 +26,7 @@ function activeRecord(request: NextRequest) {
  * The id every piece of mutable per-record state below is keyed by: the active
  * proxy record, falling back to the account holder's own.
  */
-function activeRecordId(request: NextRequest): string {
+export function activeRecordId(request: NextRequest): string {
   const user = currentUser(request);
   return activeRecord(request)?.id ?? user?.selfProxyId ?? '';
 }

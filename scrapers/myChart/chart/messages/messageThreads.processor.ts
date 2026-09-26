@@ -55,6 +55,7 @@ export interface ConversationThreadConcise {
   totalMessages: number | null;
   numUnread: number | null;
   truncated: boolean;
+  replyFlags: { canReply: boolean | null; cannotReplyReason: number | null };
   messages: MessageConcise[];
 }
 
@@ -114,6 +115,7 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
       totalMessages: standard.totalMessages,
       numUnread: standard.numUnread,
       truncated: standard.truncated,
+      replyFlags: standard.replyFlags,
       messages: standard.messages.map(messageConcise),
     };
   },

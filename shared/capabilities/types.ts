@@ -11,6 +11,7 @@
 
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import type { Processor } from '../../scrapers/myChart/processors/processor';
+import type { FilePayload } from '../../scrapers/myChart/core/filePayload';
 
 export type CapabilityKind =
   /** Reads chart data. Safe to batch and to run without confirmation. */
@@ -39,7 +40,7 @@ export type CapabilityKind =
    */
   | 'public';
 
-type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
+type CapabilityParamType = 'string' | 'string[]' | 'number' | 'boolean' | 'object';
 
 export interface CapabilityParam {
   name: string;
@@ -72,6 +73,11 @@ export interface CapabilityContext {
   saveTotpSecret?: (secret: string) => Promise<void> | void;
   /** Persist a newly-registered passkey credential (already serialized). */
   savePasskey?: (serializedCredential: string) => Promise<void> | void;
+  /**
+   * Resolve a file reference a caller passed (the CLI and the extension take a
+   * local path) to its bytes. A client without one can't send attachments.
+   */
+  readFile?: (ref: string) => Promise<FilePayload>;
 }
 
 export type CapabilityArgs = Record<string, unknown>;
