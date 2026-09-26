@@ -21,7 +21,7 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: { loadStartInstantISO, loadEndInstantISO: '', pagingInfo }, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox, 50 threads per page |
 | `POST /api/documents/viewer/GetDocumentDetailsLegacy` | `{ dcsId, fileExtension, organizationId, useOldMobileLink: false }` | where an attachment's file is — `downloadUrl`, `mimeType`, `allowPreview` |
 | `GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…` | — | the attachment's bytes (the `downloadUrl` above, mount-relative) |
-| `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps |
+| `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps. Also `sendReply`'s pre-send check of `replyFlags` |
 | `POST /api/conversations/GetConversationMessages` | `{ id, startInstantISO?, maxReadMessages, PageNonce }` | older pages of that thread |
 | `POST /api/medicaladvicerequests/GetMedicalAdviceRequestRecipients` | `{ organizationId }` | who can be written to |
 | `POST /api/medicaladvicerequests/GetSubtopics` | `{ organizationId }` | what about (`topicList[]`) |
@@ -52,7 +52,8 @@ The send body:
 `sendNewMessage` is **five requests**: token → `GetViewers` (for the patient's `wprId`) →
 `GetComposeId` → `SendMedicalAdviceRequest` → `RemoveComposeId`. The recipient and topic it
 posts come from `GetMedicalAdviceRequestRecipients` and `GetSubtopics`, which the capability
-resolves by name first. `sendReply` is the same five without a recipient or topic.
+resolves by name first. `sendReply` is the same five without a recipient or topic, plus a
+`GetConversationDetails` right after the token that refuses a thread closed to replies (below).
 
 Ids throughout are Epic's `WP-`-prefixed opaque strings.
 
@@ -101,6 +102,16 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   has appeared on any instance there are credentials for, so the scraper refuses them with the
   reason rather than modelling unobserved behaviour.
 
+- **`SendReply` to a thread that can't take replies answers 200 with `""` and files
+  nothing.** Seen on one instance, on a customer-service thread (`messageType` `14`) whose
+  `replyFlags` were `{ canReply: false, cannotReplyReason: 3 }`. So `sendReply` reads the
+  thread first — `GetConversationDetails { id, maxReadMessages: 1, PageNonce }`, keyed on
+  `id` like every read — and on `canReply: false` returns `{ success: false, error }` saying
+  the thread takes no replies, before `GetViewers`, `GetComposeId` or the send. A literal
+  `null` (no such conversation on the active record) and a non-200 refuse too.
+- **Only `GetConversationDetails` carries `replyFlags`.** The captured
+  `GetConversationList` and `GetConversationMessages` shapes have no reply flags, so
+  `get_messages` cannot say which threads are closed; `get_message_thread` can.
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500
   `{"Message":"An error has occurred."}` for every conversation and every body variant** —
@@ -190,7 +201,9 @@ and flattening the who / when of each thread become processor work.
 
 Concise is the list of threads and nothing more: one flat row per thread with
 the `hthId` that `get_message_thread` takes. The newest five messages the
-listing inlines stay in `standard` / `json`.
+listing inlines stay in `standard` / `json`. The listing has no `replyFlags`
+(not in the captured shape), so whether a thread takes replies is only in
+`get_message_thread`.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
@@ -252,7 +265,7 @@ The first table is the message element, shared with the inlined messages of
 | `totalMessages`, `numUnread` | Counts | — | ✓ | ✓ | Cheap and useful. |
 | `messages[]` (merged, ascending), as above | The thread | — | ✓ | ✓ | A thread has no shorter faithful form; concise is every message. |
 | `truncated` | Paging stopped at the cap with `hasMoreMessages` still true | ✓ | ✓ | ✓ | Derived. A partial thread must never be presented as the whole exchange. |
-| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work | — | ✓ | — | Tells a consumer whether a follow-up write is possible; detail. |
+| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work, and MyChart's code when it won't | — | ✓ | ✓ | A closed thread answers `SendReply` with 200 and files nothing, so a reader deciding whether to reply needs it. The code is passed through, not named: its meaning has only been read from one instance's bundle. |
 | `hasPreviouslyViewed`, `hasAttachments`, `hasUrgentMsgs`, `hasTasks`, `messageType`, `previewText` | Thread flags | — | ✓ | — | Detail. |
 | `lastViewedByStaffMsgId` / `firstUnreadMsgId`, `lastViewedByStaffInstantISO` | Which message staff last saw | — | — | — | Not a shape all instances share: three captured instances send the first pair, one sends the other. |
 | `replyUrl` | Portal reply link | — | — | — | Portal link. |

@@ -3,10 +3,11 @@
  *
  * Flow:
  * 1. Get request verification token from /app/communication-center
- * 2. GetViewers - get patient viewer info (wprId)
- * 3. GetComposeId - get unique compose ID
- * 4. SendReply - send the reply
- * 5. RemoveComposeId - cleanup
+ * 2. GetConversationDetails - refuse a thread whose replyFlags.canReply is false
+ * 3. GetViewers - get patient viewer info (wprId)
+ * 4. GetComposeId - get unique compose ID
+ * 5. SendReply - send the reply
+ * 6. RemoveComposeId - cleanup
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
@@ -52,6 +53,36 @@ async function makeApiRequest(
     // not JSON
   }
   return { status: res.status, json };
+}
+
+/**
+ * Why the thread can't take a reply, or `undefined` when it can. MyChart
+ * answers SendReply to a closed thread with 200 and an empty id and files
+ * nothing, so the check has to happen before the send.
+ */
+async function replyRefusal(
+  mychartRequest: MyChartRequest,
+  token: string,
+  conversationId: string,
+): Promise<string | undefined> {
+  // The read endpoints key the thread on `id`, not `conversationId`.
+  const result = await makeApiRequest(
+    mychartRequest,
+    '/api/conversations/GetConversationDetails',
+    { id: conversationId, maxReadMessages: 1, PageNonce: '' },
+    token,
+  );
+  if (result.status !== 200) {
+    return `Could not read conversation ${conversationId} to check it accepts replies (status ${result.status})`;
+  }
+  // A literal `null` is MyChart saying the active patient has no such conversation.
+  if (result.json === null || typeof result.json !== 'object') {
+    return `MyChart has no conversation ${conversationId} on the active patient record — take the id from get_messages`;
+  }
+  const flags = (result.json as { replyFlags?: { canReply?: unknown } }).replyFlags;
+  if (flags?.canReply !== false) return undefined;
+  return `MyChart does not accept replies on conversation ${conversationId}. ` +
+    'Nothing was sent; send_message starts a new conversation instead.';
 }
 
 /** Get the viewer (patient) wprId needed for sending */
@@ -119,19 +150,25 @@ export async function sendReply(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  // Step 2: Get viewer wprId
+  // Step 2: Refuse a thread that does not take replies
+  const refusal = await replyRefusal(mychartRequest, token, params.conversationId);
+  if (refusal) {
+    return { success: false, error: refusal };
+  }
+
+  // Step 3: Get viewer wprId
   const wprId = await getViewerWprId(mychartRequest, token, organizationId);
   if (!wprId) {
     return { success: false, error: 'Could not get viewer wprId' };
   }
 
-  // Step 3: Get compose ID
+  // Step 4: Get compose ID
   const composeId = await getComposeId(mychartRequest, token);
   if (!composeId) {
     return { success: false, error: 'Could not get compose ID' };
   }
 
-  // Step 4: Send the reply
+  // Step 5: Send the reply
   const sendBody = {
     conversationId: params.conversationId,
     organizationId,
@@ -149,7 +186,7 @@ export async function sendReply(
     token,
   );
 
-  // Step 5: Cleanup compose ID
+  // Step 6: Cleanup compose ID
   await removeComposeId(mychartRequest, token, composeId);
 
   if (result.status === 200 && typeof result.json === 'string') {
