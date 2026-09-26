@@ -6,7 +6,7 @@ import { epicMessageBody } from '@/lib/messageBody';
 import { state, type ConversationStore } from '@/lib/state';
 import * as homer from '@/data/homer';
 import { html, json } from './respond';
-import { activeConversations } from './records';
+import { activeConversations, activeRecordId } from './records';
 import type { ExactRoutes, HandlerContext } from './types';
 
 /**
@@ -167,6 +167,43 @@ export function findAttachment(request: NextRequest, dcsId: string) {
   return undefined;
 }
 
+/**
+ * `GetComposeSettings`' `attachmentSettings`, the limits the composer checks a
+ * file against before uploading it (sizes in KB). Captured from one live
+ * instance; `.txt` really is refused there.
+ */
+const ATTACHMENT_SETTINGS = {
+  canAttach: true,
+  maxNumberOfAttachments: 3,
+  docAndImageSettings: {
+    maxFileSize: 10240,
+    allowedFileExtensions: ['BMP', 'GIF', 'JPEG', 'JPG', 'PDF', 'PNG', 'TIF', 'TIFF'],
+  },
+  videoSettings: {
+    maxFileSize: 65536,
+    allowedFileExtensions: ['3GP', '3GPP', 'AVI', 'MOV', 'MP4', 'MPEG', 'MPG', 'WMV'],
+  },
+};
+
+/**
+ * The message attachments for a send's `documentIds`: each one this record
+ * uploaded, as a thread lists an attachment (see `homer.ts`). An id this
+ * record never uploaded is dropped — a guess; what real MyChart does with one
+ * is unobserved.
+ */
+function attachmentsFor(request: NextRequest, documentIds: unknown) {
+  const recordId = activeRecordId(request);
+  return (Array.isArray(documentIds) ? documentIds : [])
+    .map(id => ({ id: asString(id), file: state.uploadedFiles[asString(id)] }))
+    .filter(({ file }) => file?.recordId === recordId)
+    .map(({ id, file }) => ({
+      type: 2, dcsId: id, etxId: '', name: file!.name, fileExtension: file!.fileExtension,
+      legacyUrlForCommunityJump: '', organizationId: '',
+    }));
+}
+
+const RUNTIME_ERROR_HTML = '<!DOCTYPE html>\r\n<html>\r\n    <head>\r\n        <title>Runtime Error</title>\r\n    </head>\r\n    <body>\r\n        <h1>Server Error in \'/\' Application.</h1>\r\n    </body>\r\n</html>';
+
 export const messagesGet: ExactRoutes = {
   'messaging': () => html(messagesPage()),
 };
@@ -183,7 +220,8 @@ export const messagesPost: ExactRoutes = {
       ...store,
       // The listing inlines only the newest page of each thread; everything
       // older is behind GetConversationMessages.
-      conversations: page.conversations.map(conv => ({
+      // replyFlags is a details-only field; the captured listing has none.
+      conversations: page.conversations.map(({ replyFlags: _replyFlags, ...conv }) => ({
         ...conv,
         hasAttachments: hasAttachments(conv),
         ...conversationPage(conv, '', CONVERSATION_PAGE_SIZE),
@@ -199,6 +237,7 @@ export const messagesPost: ExactRoutes = {
     if (!conv) return conversationMessagesFailure();
     return json(conformToShape(shapes.getConversationMessages, {
       hthId: conv.hthId,
+      messageType: conv.messageType,
       userOverrideNames: conv.userOverrideNames,
       ...participantKeys(conv),
       ...conversationPage(conv, asString(body.startInstantISO), pageSize(body.maxReadMessages)),
@@ -222,7 +261,8 @@ export const messagesPost: ExactRoutes = {
       // lets a client turn an author's empKey / wprKey into a display name.
       users: store.users,
       viewers: store.viewers,
-      replyFlags: { canReply: true, cannotReplyReason: 0 },
+      messageType: conv.messageType,
+      replyFlags: conv.replyFlags ?? { canReply: true, cannotReplyReason: 0 },
       ...participantKeys(conv),
       // Always the newest page. Real MyChart also accepts a `messageId` to
       // centre the page on one message, but that variant was never captured,
@@ -236,6 +276,44 @@ export const messagesPost: ExactRoutes = {
     return json(`COMPOSE-${state.composeIdCounter}`);
   },
   'api/conversations/removecomposeid': () => json({ success: true }),
+  // maxMessageLength is the 500 this fake enforces, measured on a different
+  // instance from the attachment settings (which answered 1000).
+  'api/conversations/getcomposesettings': () => json({
+    maxSubjectLength: 254,
+    maxMessageLength: MAX_MESSAGE_BODY_LENGTH,
+    isConfidentialMessagingOn: true,
+    isUnicodeMessagingOn: true,
+    showIndividualViewers: true,
+    attachmentSettings: ATTACHMENT_SETTINGS,
+  }),
+
+  // Mount-relative, not under `/api/`: the composer posts the files as
+  // multipart, one `__file__[]` part each, and sends their `DocumentId`s as
+  // the send's `documentIds`.
+  // Both refusals captured on one instance: no token is a bare 500 error page
+  // (not the FiveHundred redirect /api/ gives), and no file is `{"Success":false}`.
+  'documentupload/uploadfile': async ({ request }) => {
+    if (!request.headers.get('__requestverificationtoken')) return html(RUNTIME_ERROR_HTML, 500);
+    const form = await request.formData().catch(() => null);
+    const files = (form?.getAll('__file__[]') ?? []).filter((f): f is File => typeof f !== 'string');
+    if (files.length === 0) return json({ Success: false });
+    const recordId = activeRecordId(request);
+    const data = [];
+    for (const file of files) {
+      const dot = file.name.lastIndexOf('.');
+      const fileExtension = dot === -1 ? '' : file.name.slice(dot + 1).toUpperCase();
+      const documentId = `WP-DCS-UPLOAD-${++state.uploadIdCounter}`;
+      state.uploadedFiles[documentId] = {
+        recordId,
+        name: file.name,
+        fileExtension,
+        mimeType: file.type || 'application/octet-stream',
+        base64: Buffer.from(await file.arrayBuffer()).toString('base64'),
+      };
+      data.push({ DocumentId: documentId, FileExtension: fileExtension, FileDisplayName: file.name });
+    }
+    return json({ Success: true, Data: data });
+  },
   'api/conversations/savereplydraft': () => json({ success: true }),
   'api/conversations/deletedraft': () => json({ success: true }),
 
@@ -258,6 +336,9 @@ export const messagesPost: ExactRoutes = {
       const conv = activeConversations(request).conversations.find(
         (c: { hthId: string }) => c.hthId === convId
       );
+      // A thread closed to replies still answers 200, with an empty id, and
+      // files nothing — observed live on one instance.
+      if (conv?.replyFlags?.canReply === false) return json('');
       if (conv) {
         const replyBody = Array.isArray(body.messageBody) ? body.messageBody[0] : (body.messageBody || body.body || '');
         conv.messages.push({
@@ -267,6 +348,7 @@ export const messagesPost: ExactRoutes = {
           // Sent as text, stored and served as markup — Epic formats on the way
           // in, so a body never reads back the way it was posted.
           body: epicMessageBody(replyBody),
+          attachments: attachmentsFor(request, body.documentIds),
         });
       }
       // Real MyChart returns the conversation ID as a plain JSON string
@@ -308,6 +390,7 @@ export const messagesPost: ExactRoutes = {
             author: { wprKey: 'WPR-HOMER', displayName: '' },
             deliveryInstantISO: new Date().toISOString(),
             body: epicMessageBody(msgBody),
+            attachments: attachmentsFor(request, body.documentIds),
           },
         ],
       });
