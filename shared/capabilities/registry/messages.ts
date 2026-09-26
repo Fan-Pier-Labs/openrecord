@@ -18,14 +18,31 @@ import {
 import { sendReply } from '../../../scrapers/myChart/chart/messages/sendReply';
 import { deleteMessage } from '../../../scrapers/myChart/chart/messages/deleteMessage';
 import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
-import { optStr, requireStr } from '../args';
+import type { FilePayload } from '../../../scrapers/myChart/core/filePayload';
+import { optStr, requireStr, strList } from '../args';
 import { resolveRecipient, resolveTopic } from '../resolve';
-import type { CapabilityImpl } from '../types';
+import type { CapabilityArgs, CapabilityContext, CapabilityImpl, CapabilityParam } from '../types';
 
 async function messagingToken(request: MyChartRequest): Promise<string> {
   const token = await getVerificationToken(request);
   if (!token) throw new Error('Could not get a MyChart verification token for messaging.');
   return token;
+}
+
+const ATTACHMENTS_PARAM: CapabilityParam = {
+  name: 'attachments',
+  type: 'string[]',
+  description:
+    'Files to attach: local file paths, e.g. a path a download tool returned (from the CLI, comma-separated). ' +
+    'Allowed types, sizes and count are whatever this MyChart permits; a file it would refuse is an error before anything is sent.',
+};
+
+async function readAttachments(args: CapabilityArgs, ctx: CapabilityContext | undefined): Promise<FilePayload[]> {
+  const refs = strList(args, ATTACHMENTS_PARAM.name);
+  if (refs.length === 0) return [];
+  const readFile = ctx?.readFile;
+  if (!readFile) throw new Error('This client cannot attach files to messages yet.');
+  return Promise.all(refs.map((ref) => readFile(ref)));
 }
 
 export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
@@ -114,8 +131,10 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
       { name: 'topic', type: 'string', description: 'Topic name, e.g. "Medical Question". Defaults to the first available topic.' },
       { name: 'subject', type: 'string', description: 'Subject line.', required: true },
       { name: 'message', type: 'string', description: 'Body of the message.', required: true },
+      ATTACHMENTS_PARAM,
     ],
-    run: async (request, args) => {
+    run: async (request, args, ctx) => {
+      const attachments = await readAttachments(args, ctx);
       const token = await messagingToken(request);
       const [recipients, topics] = await Promise.all([
         getMessageRecipients(request, token),
@@ -128,6 +147,7 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
         topic,
         subject: requireStr(args, 'subject'),
         messageBody: requireStr(args, 'message'),
+        attachments,
       });
       // Say who it went to and under which topic. The topic can be a
       // substitution when the requested one doesn't exist on this instance,
@@ -151,11 +171,13 @@ export const MESSAGE_CAPABILITIES: readonly CapabilityImpl[] = [
     params: [
       { name: 'conversation_id', type: 'string', description: 'Conversation id from get_messages.', required: true },
       { name: 'message', type: 'string', description: 'Reply text.', required: true },
+      ATTACHMENTS_PARAM,
     ],
-    run: (request, args) =>
+    run: async (request, args, ctx) =>
       sendReply(request, {
         conversationId: requireStr(args, 'conversation_id'),
         messageBody: requireStr(args, 'message'),
+        attachments: await readAttachments(args, ctx),
       }),
   },
   {
