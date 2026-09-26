@@ -5,6 +5,7 @@ import { getRequestVerificationTokenFromBody } from '../../core/util';
 import { list, rec, text } from '../../processors/read';
 import { subYears, addYears } from 'date-fns';
 import type { BillingAccount, PaymentListResponse, StatementItem, StatementListResponse } from './types';
+import type { BillingGetVisits } from './mychart.types';
 import { logger } from '../../../../shared/logger';
 import { toEpicDteLocal } from '../../../../shared/epicDate';
 import type { FilePayload } from '../../core/filePayload';
@@ -110,7 +111,7 @@ async function hydrateStubs(
   visitsBody: unknown,
   token: string | undefined,
 ): Promise<void> {
-  const data = rec(rec(visitsBody).Data);
+  const data = rec(rec<BillingGetVisits>(visitsBody).Data);
   const byHandle = new Map<string, HydrateKey>();
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
