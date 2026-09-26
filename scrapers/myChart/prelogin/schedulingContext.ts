@@ -20,8 +20,8 @@ import {
   parseSpecialties,
   type RawReason,
   type RawVisitType,
-  type RawWorkflowData,
 } from './providerDirectory';
+import type { AnonymousSchedulingWorkflowData } from './mychart.types';
 import type { SchedulingWindow, Specialty } from './types';
 
 /**
@@ -73,7 +73,7 @@ export type SchedulingContext = {
  * fallback. Both are absent on some instances; 0 and 365 are then the sane
  * reading, and `explicit` says which case a caller is looking at.
  */
-export function parseSchedulingWindow(settings: RawWorkflowData['WorkflowSettings']): SchedulingWindow {
+export function parseSchedulingWindow(settings: AnonymousSchedulingWorkflowData['WorkflowSettings'] | null): SchedulingWindow {
   const s = settings ?? {};
   const from = s.NewProvFromDaysOffset ?? s.FromDaysOffset;
   const to = s.NewProvToDaysOffset ?? s.ToDaysOffset;
