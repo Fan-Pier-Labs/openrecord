@@ -103,7 +103,7 @@ describe('the registry itself', () => {
       for (const param of capability.params) {
         expect(param.name).toMatch(/^[a-z][a-z0-9_]*$/);
         expect(param.description.length).toBeGreaterThan(5);
-        expect(['string', 'number', 'boolean', 'object']).toContain(param.type);
+        expect(['string', 'string[]', 'number', 'boolean', 'object']).toContain(param.type);
       }
       const names = capability.params.map((p) => p.name);
       expect(new Set(names).size).toBe(names.length);
@@ -301,5 +301,15 @@ describe('topic resolution', () => {
 
   it('throws when the instance offers no topics at all', () => {
     expect(() => resolveTopic([], 'anything')).toThrow(/No message topics/);
+  });
+});
+
+describe('strList', () => {
+  it('reads an array, and a lone string as one item even with a comma in it', async () => {
+    const { strList } = await import('../capabilities/args');
+    expect(strList({ a: [' x.pdf ', ''] }, 'a')).toEqual(['x.pdf']);
+    expect(strList({ a: '/scans/left, right.pdf' }, 'a')).toEqual(['/scans/left, right.pdf']);
+    expect(strList({}, 'a')).toEqual([]);
+    expect(() => strList({ a: [{ path: 'x' }] }, 'a')).toThrow(/must be a string/);
   });
 });
