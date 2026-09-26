@@ -29,27 +29,13 @@
 import { answered, findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, text } from '../../processors/read';
+import type { HealthAdvisoriesGetTopics } from './mychart.types';
+import type { PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
+
+export type { PreventiveCareItemStandard, PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
 
 export const ADVISORIES_PAGE_PATH = '/HealthAdvisories';
 export const GET_TOPICS_PATH = '/HealthAdvisories/GetTopics';
-
-/**
- * `StatusCode` normalized. The nine codes are the client's own switch; the
- * four marked below are the ones seen on the wire, and an unrecognized or
- * custom code (Epic's `<code>^<display text>` form) comes out `unknown` rather
- * than being guessed at.
- */
-export type PreventiveCareStatus =
-  | 'overdue' // 100_OVERDUE — observed
-  | 'due'
-  | 'due_soon'
-  | 'postponed'
-  | 'not_due' // 500_NOTDUE — observed
-  | 'addressed'
-  | 'satisfied' // 700_SATISFIED — observed
-  | 'aged_out' // 800_AGED_OUT — observed
-  | 'excluded'
-  | 'unknown';
 
 const STATUS_BY_CODE: Record<string, PreventiveCareStatus> = {
   '100_OVERDUE': 'overdue',
@@ -63,21 +49,6 @@ const STATUS_BY_CODE: Record<string, PreventiveCareStatus> = {
   '900_EXCLUDED': 'excluded',
 };
 
-/** A topic as MyChart sent it, plus the one field this processor computes. */
-export type PreventiveCareItemStandard = Record<string, unknown> & { dueStatus: PreventiveCareStatus };
-
-export interface PreventiveCareStandard {
-  /** `HealthAdvisoryViewModelList`, pass-through, each with a derived `dueStatus`. */
-  items: PreventiveCareItemStandard[];
-  /** `HealthAdvisorySettings`, pass-through. */
-  settings: Record<string, unknown>;
-  /**
-   * Derived: what did not answer, by path. Non-empty means the item list is
-   * "not known", not "empty" — see the note above.
-   */
-  unavailable: string[];
-}
-
 /** `StatusCode` → {@link PreventiveCareStatus}. Epic's custom `<code>^<text>` form has no known meaning. */
 export function statusFromCode(code: unknown): PreventiveCareStatus {
   return STATUS_BY_CODE[text(code).trim().toUpperCase()] ?? 'unknown';
@@ -89,12 +60,13 @@ const CONCISE_FIELDS = ['Name', 'dueStatus', 'Status', 'FormattedDueDate', 'Form
 export const preventiveCareProcessor: Processor<PreventiveCareStandard> = {
   standard(raw: RawResponse): PreventiveCareStandard {
     const topics = findRequest(raw, GET_TOPICS_PATH);
-    const envelope = answered(topics) ? rec(topics.body) : {};
+    const envelope = answered(topics) ? rec<HealthAdvisoriesGetTopics>(topics.body) : {};
 
     // The controller's own test for the error surface: a non-empty `Text`.
-    // A successful response carries no `Text` key at all.
+    // A successful response carries no `Text` key at all, so no capture has it
+    // and it is read off the untyped body.
     const known =
-      answered(topics) && text(envelope.Text).length === 0 && 'HealthAdvisoryViewModelList' in envelope;
+      answered(topics) && text(rec(topics.body).Text).length === 0 && 'HealthAdvisoryViewModelList' in envelope;
 
     if (!known) return { items: [], settings: {}, unavailable: [GET_TOPICS_PATH] };
 
