@@ -187,7 +187,9 @@ const ATTACHMENT_SETTINGS = {
 
 /**
  * The message attachments for a send's `documentIds`: each one this record
- * uploaded, as a thread lists an attachment (see `homer.ts`).
+ * uploaded, as a thread lists an attachment (see `homer.ts`). An id this
+ * record never uploaded is dropped — a guess; what real MyChart does with one
+ * is unobserved.
  */
 function attachmentsFor(request: NextRequest, documentIds: unknown) {
   const recordId = activeRecordId(request);
@@ -199,6 +201,8 @@ function attachmentsFor(request: NextRequest, documentIds: unknown) {
       legacyUrlForCommunityJump: '', organizationId: '',
     }));
 }
+
+const RUNTIME_ERROR_HTML = '<!DOCTYPE html>\r\n<html>\r\n    <head>\r\n        <title>Runtime Error</title>\r\n    </head>\r\n    <body>\r\n        <h1>Server Error in \'/\' Application.</h1>\r\n    </body>\r\n</html>';
 
 export const messagesGet: ExactRoutes = {
   'messaging': () => html(messagesPage()),
@@ -272,8 +276,8 @@ export const messagesPost: ExactRoutes = {
     return json(`COMPOSE-${state.composeIdCounter}`);
   },
   'api/conversations/removecomposeid': () => json({ success: true }),
-  // The captured instance answered maxMessageLength 1000; this one reports
-  // the limit it enforces, so the two halves of the fake agree.
+  // maxMessageLength is the 500 this fake enforces, measured on a different
+  // instance from the attachment settings (which answered 1000).
   'api/conversations/getcomposesettings': () => json({
     maxSubjectLength: 254,
     maxMessageLength: MAX_MESSAGE_BODY_LENGTH,
@@ -286,10 +290,13 @@ export const messagesPost: ExactRoutes = {
   // Mount-relative, not under `/api/`: the composer posts the files as
   // multipart, one `__file__[]` part each, and sends their `DocumentId`s as
   // the send's `documentIds`.
+  // Both refusals captured on one instance: no token is a bare 500 error page
+  // (not the FiveHundred redirect /api/ gives), and no file is `{"Success":false}`.
   'documentupload/uploadfile': async ({ request }) => {
+    if (!request.headers.get('__requestverificationtoken')) return html(RUNTIME_ERROR_HTML, 500);
     const form = await request.formData().catch(() => null);
     const files = (form?.getAll('__file__[]') ?? []).filter((f): f is File => typeof f !== 'string');
-    if (files.length === 0) return json({ Success: false, Data: null });
+    if (files.length === 0) return json({ Success: false });
     const recordId = activeRecordId(request);
     const data = [];
     for (const file of files) {

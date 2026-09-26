@@ -210,6 +210,8 @@ export function coerceCapabilityArgs(
       out[name] = n;
     } else if (param.type === 'boolean') {
       out[name] = raw !== 'false' && raw !== '0';
+    } else if (param.type === 'string[]') {
+      out[name] = raw.split(',').map((item) => item.trim()).filter(Boolean);
     } else {
       out[name] = raw;
     }

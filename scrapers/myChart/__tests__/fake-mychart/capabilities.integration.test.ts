@@ -20,6 +20,8 @@ import { describe, it, expect, beforeAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin } from '../../auth/login'
 import { setMountMode, resetFakeMyChart } from './mountMode'
+import { buildUploadBody } from '../../chart/messages/messageUpload'
+import { getVerificationToken } from '../../chart/messages/communicationCenterToken'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -451,6 +453,23 @@ describe('capability registry against fake-mychart', () => {
     expect(refused.success).toBe(false)
     expect(refused.error).toMatch(/accepts only .*PDF/)
   }, 60_000)
+
+  // As captured on a live instance: the upload enforces the antiforgery token
+  // with a bare 500 page, and answers a token-carrying post with no file
+  // `{"Success":false}`.
+  it('refuses an upload without the token, or without a file', async () => {
+    const { body, contentType } = buildUploadBody([], '')
+    const post = (headers: Record<string, string>) =>
+      session.makeRequest({ path: '/DocumentUpload/UploadFile', method: 'POST', headers: { 'Content-Type': contentType, ...headers }, body })
+
+    const tokenless = await post({})
+    expect(tokenless.status).toBe(500)
+    expect(await tokenless.text()).toContain('Runtime Error')
+
+    const empty = await post({ __RequestVerificationToken: (await getVerificationToken(session))! })
+    expect(empty.status).toBe(200)
+    expect(await empty.json()).toEqual({ Success: false })
+  }, 30_000)
 
   // The fixture's closed customer-service thread: real MyChart answers
   // SendReply to one with 200 and an empty id, and files nothing.

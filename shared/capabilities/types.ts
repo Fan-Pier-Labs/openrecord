@@ -40,7 +40,7 @@ export type CapabilityKind =
    */
   | 'public';
 
-type CapabilityParamType = 'string' | 'number' | 'boolean' | 'object';
+type CapabilityParamType = 'string' | 'string[]' | 'number' | 'boolean' | 'object';
 
 export interface CapabilityParam {
   name: string;

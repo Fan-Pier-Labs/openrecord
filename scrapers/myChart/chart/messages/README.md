@@ -112,7 +112,9 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   thread first — `GetConversationDetails { id, maxReadMessages: 1, PageNonce }`, keyed on
   `id` like every read — and on `canReply: false` returns `{ success: false, error }` saying
   the thread takes no replies, before `GetViewers`, `GetComposeId`, any upload or the send. A literal
-  `null` (no such conversation on the active record) and a non-200 refuse too.
+  `null` (no such conversation on the active record) and a non-200 refuse too. A 200 with
+  `""` from `SendReply` itself is still reported as a failure, in case a flag ever says
+  open when the thread is not.
 - **Only `GetConversationDetails` carries `replyFlags`.** The captured
   `GetConversationList` and `GetConversationMessages` shapes have no reply flags, so
   `get_messages` cannot say which threads are closed; `get_message_thread` can.
@@ -122,10 +124,12 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   upload (its reply was dropped, above), and on the other a new message landed with the
   PNG attached, listed as a `type: 2` attachment, and `get_message_attachment` downloaded
   the identical bytes. The upload response was `Success` with one `Data[].DocumentId` per
-  file, as the bundle reads it. The
-  upload is mount-relative (not `/api/`), carries the antiforgery token as a
-  `__RequestVerificationToken` header with `Accept: application/json`, and is multipart:
-  one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
+  file, as the bundle reads it. Every file goes in one request, per the bundle; live sends
+  have carried one file only. The upload is mount-relative (not `/api/`) and needs the
+  antiforgery token as a `__RequestVerificationToken` header — without it, a bare **500
+  "Runtime Error" HTML page** (not the `FiveHundred` redirect `/api/` gives); with it and no
+  file, `200 {"Success":false}` (both captured on one instance). It sends
+  `Accept: application/json` and is multipart: one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
   `DCSSource=820`, `TargetPatientID=` and `OrganizationId=` — the composer's own values.
   Before uploading, the composer checks each file against `GetComposeSettings`'
   `attachmentSettings`: `canAttach`, `maxNumberOfAttachments`, and for
@@ -134,8 +138,10 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   `checkAttachments` applies exactly those rules, so what a MyChart accepts is whatever
   that MyChart says — nothing is hardcoded. The composer strips a leading `.` from an
   answered `FileExtension`, which suggests some instances send one. The capabilities take
-  `attachments` as file references a client resolves through `CapabilityContext.readFile`
-  (a local path in the CLI and the extension; the mobile app has none yet).
+  `attachments` (a `string[]` param; the CLI splits `--arg attachments=a,b` on commas) as
+  file references a client resolves through `CapabilityContext.readFile` (a local path in
+  the CLI and the extension; the mobile app has none yet). An uploaded file's
+  `GetDocumentDetailsLegacy` `displayName` is its own name minus the extension.
   `GetComposeSettings` captured on five instances — every one had `canAttach: true`,
   and **none accepts `.txt`**:
 

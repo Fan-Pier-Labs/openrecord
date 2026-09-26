@@ -31,9 +31,9 @@ async function messagingToken(request: MyChartRequest): Promise<string> {
 
 const ATTACHMENTS_PARAM: CapabilityParam = {
   name: 'attachments',
-  type: 'object',
+  type: 'string[]',
   description:
-    'Files to attach: an array of local file paths, e.g. a path a download tool returned. ' +
+    'Files to attach: local file paths, e.g. a path a download tool returned (from the CLI, comma-separated). ' +
     'Allowed types, sizes and count are whatever this MyChart permits; a file it would refuse is an error before anything is sent.',
 };
 

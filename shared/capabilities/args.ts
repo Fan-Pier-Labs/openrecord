@@ -53,12 +53,12 @@ export function num(args: CapabilityArgs, name: string, fallback: number): numbe
 }
 
 /**
- * Read a list of strings: an array from a model, or one comma-separated
- * string from the CLI's `--arg name=a,b`.
+ * Read a `'string[]'` argument. A lone string is one item, never split: a
+ * path may contain a comma. (The CLI splits `--arg name=a,b` itself.)
  */
 export function strList(args: CapabilityArgs, name: string): string[] {
   const v = args[name];
   if (v === undefined || v === null || v === '') return [];
-  const items = Array.isArray(v) ? v.map((item) => argString(item, name)) : argString(v, name).split(',');
+  const items = Array.isArray(v) ? v.map((item) => argString(item, name)) : [argString(v, name)];
   return items.map((item) => item.trim()).filter(Boolean);
 }

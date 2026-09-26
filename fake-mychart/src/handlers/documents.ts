@@ -85,7 +85,8 @@ function findDcsFile(request: NextRequest, ds: HandlerContext['ds'], dcsId: stri
   const uploaded = state.uploadedFiles[dcsId];
   const file = !attachment ? undefined
     : homer.messageAttachmentFiles[attachment.dcsId]
-      ?? (uploaded ? { mimeType: uploaded.mimeType, displayName: `MyChart_Upload_${dcsId}`, base64: uploaded.base64 } : undefined);
+      // An uploaded file's system name is its own name minus the extension (captured once).
+      ?? (uploaded ? { mimeType: uploaded.mimeType, displayName: uploaded.name.replace(/\.[^.]*$/, ''), base64: uploaded.base64 } : undefined);
   if (!attachment || !file) return undefined;
   return {
     dcsId,
