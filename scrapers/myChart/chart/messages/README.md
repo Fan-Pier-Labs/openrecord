@@ -111,9 +111,11 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   as a failure; it used to report success.
 - **Attachments on the way out are uploaded first, then named by id in the send.** Read
   from one live instance's composer bundles (`epic.px.client.message-composer`,
-  `epic.px.client.file-upload`); the upload was then accepted by one live instance (a PNG,
-  answered with a `DocumentId`), but the send it rode on was dropped (below), so a message
-  landing with an attachment is still unobserved. The
+  `epic.px.client.file-upload`), then verified live on two instances: one accepted the
+  upload (its reply was dropped, below), and on the other a new message landed with the
+  PNG attached, listed as a `type: 2` attachment, and `get_message_attachment` downloaded
+  the identical bytes. The upload response was `Success` with one `Data[].DocumentId` per
+  file, as the bundle reads it. The
   upload is mount-relative (not `/api/`), carries the antiforgery token as a
   `__RequestVerificationToken` header with `Accept: application/json`, and is multipart:
   one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
