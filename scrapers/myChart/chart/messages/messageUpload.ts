@@ -21,7 +21,7 @@ export interface AttachmentSettings {
   videoSettings: { maxFileSize: number; allowedFileExtensions: string[] };
 }
 
-export async function getAttachmentSettings(
+async function getAttachmentSettings(
   mychartRequest: MyChartRequest,
   token: string,
   organizationId = '',
@@ -132,7 +132,7 @@ function parseUploadResponse(text: string): UploadResponse | null {
 }
 
 /** Upload files for a message, returning their `DocumentId`s in order. Throws on any failure. */
-export async function uploadAttachments(
+async function uploadAttachments(
   mychartRequest: MyChartRequest,
   token: string,
   files: readonly FilePayload[],
