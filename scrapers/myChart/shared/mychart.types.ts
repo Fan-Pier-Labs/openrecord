@@ -27,3 +27,17 @@ export type Organization = {
   disclaimerOverride?: boolean;
   isMyChartCentral?: boolean;
 };
+
+/** Repeated shape. Appears in: prelogin, chart/profile. */
+export type County = {
+  Value?: string | null;
+  Number?: string;
+  Title?: string | null;
+  Abbreviation?: string | null;
+  Abbr?: string | null;
+  Comment?: string | null;
+  IsInactive?: boolean;
+  TitleUtf8?: string | null;
+  AbbreviationUtf8?: string | null;
+  IsFallbackUsed?: boolean;
+};
