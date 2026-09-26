@@ -13,26 +13,12 @@
  * field names and leaves every value to `text()` / `num()` / `list()`. Never
  * `as`: that checks the same names and then lies about the values.
  *
- * Endpoints: /api/documents/viewer/getdocumentdetailslegacy, /api/documents/viewer/loadotherdocuments
+ * Endpoints: /api/documents/viewer/loadotherdocuments. `GetDocumentDetailsLegacy`,
+ * the DCS exchange both documents and message attachments go through, is in
+ * `../../core/mychart.types.ts` beside `dcsDocument.ts`, which sends it.
  *
  * Keep in step with `realShapes.ts` when the captures are refreshed.
  */
-
-/** `/api/documents/viewer/getdocumentdetailslegacy (and getdocumentdetails: same field set)` */
-export type GetDocumentDetailsLegacy = {
-  dcsId?: string;
-  token?: string;
-  orgId?: string;
-  displayName?: string;
-  userFriendlyDisplayName?: string;
-  legacyEncryption?: boolean;
-  isMobile?: boolean;
-  fileDescription?: string;
-  allowPreview?: boolean;
-  downloadUrl?: string;
-  previewUrl?: string;
-  mimeType?: string;
-};
 
 /** `/api/documents/viewer/loadotherdocuments` */
 export type LoadOtherDocuments = {
