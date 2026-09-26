@@ -121,10 +121,18 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   answered `FileExtension`, which suggests some instances send one. The capabilities take
   `attachments` as file references a client resolves through `CapabilityContext.readFile`
   (a local path in the CLI and the extension; the mobile app has none yet).
-  `GetComposeSettings` captured on one instance: 3 attachments; BMP, GIF, JPEG, JPG, PDF,
-  PNG, TIF, TIFF up to 10240 KB; 3GP, 3GPP, AVI, MOV, MP4, MPEG, MPG, WMV up to 65536 KB —
-  **no `.txt`**. The same response carries `maxSubjectLength` (254) and `maxMessageLength`
-  (**1000** there, against the 500 measured elsewhere), so the body limit is per-instance.
+  `GetComposeSettings` captured on five instances — every one had `canAttach: true`,
+  and **none accepts `.txt`**:
+
+  | Instance | Max files | Documents & images (KB) | Video (KB) |
+  | --- | --- | --- | --- |
+  | A | 3 | BMP GIF JPEG JPG PDF PNG TIF TIFF (10240) | 3GP 3GPP AVI MOV MP4 MPEG MPG WMV (65536) |
+  | B | 2 | BMP DOC DOCX JPEG JPG PDF PNG TIF TIFF (30720) | same eight (30720) |
+  | C | 2 | BMP JPEG JPG PDF PNG TIF TIFF (10240) | same eight (65536) |
+  | D | 3 | BMP JPEG JPG PDF PNG TIF TIFF (10400) | same eight (20480) |
+  | E | 3 | JPEG JPG PDF PNG TIF TIFF (10240) | **none** — `[]`, `maxFileSize: 1` |
+
+  fake-mychart serves instance A's.
 
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500
