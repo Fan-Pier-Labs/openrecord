@@ -3,15 +3,19 @@
  *
  * Flow:
  * 1. Get request verification token from /app/communication-center
- * 2. GetViewers - get patient viewer info (wprId)
- * 3. GetComposeId - get unique compose ID
- * 4. SendReply - send the reply
- * 5. RemoveComposeId - cleanup
+ * 2. GetConversationDetails - refuse a thread whose replyFlags.canReply is false
+ * 3. GetViewers - get patient viewer info (wprId)
+ * 4. GetComposeId - get unique compose ID
+ * 5. With attachments: GetComposeSettings, then DocumentUpload/UploadFile
+ * 6. SendReply - send the reply
+ * 7. RemoveComposeId - cleanup
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
+import type { FilePayload } from '../../core/filePayload';
 import { getVerificationToken } from './communicationCenterToken';
+import { prepareAttachments } from './messageUpload';
 
 export type SendReplyParams = {
   /** The conversation ID (hthId) to reply to */
@@ -20,6 +24,8 @@ export type SendReplyParams = {
   messageBody: string;
   /** Organization ID (usually empty string for default org) */
   organizationId?: string;
+  /** Files to attach; uploaded before the send. */
+  attachments?: readonly FilePayload[];
 };
 
 export type SendReplyResult = {
@@ -52,6 +58,36 @@ async function makeApiRequest(
     // not JSON
   }
   return { status: res.status, json };
+}
+
+/**
+ * Why the thread can't take a reply, or `undefined` when it can. MyChart
+ * answers SendReply to a closed thread with 200 and an empty id and files
+ * nothing, so the check has to happen before the send.
+ */
+async function replyRefusal(
+  mychartRequest: MyChartRequest,
+  token: string,
+  conversationId: string,
+): Promise<string | undefined> {
+  // The read endpoints key the thread on `id`, not `conversationId`.
+  const result = await makeApiRequest(
+    mychartRequest,
+    '/api/conversations/GetConversationDetails',
+    { id: conversationId, maxReadMessages: 1, PageNonce: '' },
+    token,
+  );
+  if (result.status !== 200) {
+    return `Could not read conversation ${conversationId} to check it accepts replies (status ${result.status})`;
+  }
+  // A literal `null` is MyChart saying the active patient has no such conversation.
+  if (result.json === null || typeof result.json !== 'object') {
+    return `MyChart has no conversation ${conversationId} on the active patient record — take the id from get_messages`;
+  }
+  const flags = (result.json as { replyFlags?: { canReply?: unknown } }).replyFlags;
+  if (flags?.canReply !== false) return undefined;
+  return `MyChart does not accept replies on conversation ${conversationId}. ` +
+    'Nothing was sent; send_message starts a new conversation instead.';
 }
 
 /** Get the viewer (patient) wprId needed for sending */
@@ -119,25 +155,38 @@ export async function sendReply(
     return { success: false, error: 'Could not get verification token' };
   }
 
-  // Step 2: Get viewer wprId
+  // Step 2: Refuse a thread that does not take replies
+  const refusal = await replyRefusal(mychartRequest, token, params.conversationId);
+  if (refusal) {
+    return { success: false, error: refusal };
+  }
+
+  // Step 3: Get viewer wprId
   const wprId = await getViewerWprId(mychartRequest, token, organizationId);
   if (!wprId) {
     return { success: false, error: 'Could not get viewer wprId' };
   }
 
-  // Step 3: Get compose ID
+  // Step 4: Get compose ID
   const composeId = await getComposeId(mychartRequest, token);
   if (!composeId) {
     return { success: false, error: 'Could not get compose ID' };
   }
 
-  // Step 4: Send the reply
+  // Step 5: Upload attachments
+  const prepared = await prepareAttachments(mychartRequest, token, params.attachments ?? [], organizationId);
+  if ('error' in prepared) {
+    await removeComposeId(mychartRequest, token, composeId);
+    return { success: false, error: prepared.error };
+  }
+
+  // Step 6: Send the reply
   const sendBody = {
     conversationId: params.conversationId,
     organizationId,
     viewers: [{ wprId }],
     messageBody: [params.messageBody],
-    documentIds: [],
+    documentIds: prepared.documentIds,
     includeOtherViewers: false,
     composeId,
   };
@@ -149,11 +198,20 @@ export async function sendReply(
     token,
   );
 
-  // Step 5: Cleanup compose ID
+  // Step 7: Cleanup compose ID
   await removeComposeId(mychartRequest, token, composeId);
 
-  if (result.status === 200 && typeof result.json === 'string') {
+  if (result.status === 200 && typeof result.json === 'string' && result.json.length > 0) {
     return { success: true, conversationId: result.json };
+  }
+  // What a closed thread answers (200, empty string, nothing filed). The
+  // canReply check above should stop that first; this keeps a silent drop from
+  // ever reading as success.
+  if (result.status === 200 && result.json === '') {
+    return {
+      success: false,
+      error: 'MyChart accepted the reply but filed nothing (HTTP 200, empty conversation id).',
+    };
   }
 
   return {
