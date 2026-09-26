@@ -34,6 +34,8 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
+import { rec } from '../processors/read';
+import type { AnonymousSchedulingWorkflowData, AnonymousSpecialtyData } from './mychart.types';
 import { openPreloginPage, postForm } from './preloginSession';
 import type { Clinic, PortalFeatures, Provider, ProviderDirectory, Specialty } from './types';
 
@@ -42,31 +44,10 @@ const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
 const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
 
 // ── Raw shapes, as the instance sends them ───────────────────────────────────
-// Only the keys the scraper reads. Everything else passes through untyped.
+// The two payloads are read as their captured types (`mychart.types.ts`); the
+// provider and department elements are still cast to the keys the crawl reads.
 
 type RawSpecialty = { Id: string; Name: string };
-
-type RawWorkflowSettings = {
-  /** How far out the instance will search, in days. The `NewProv` pair wins. */
-  FromDaysOffset?: number | null;
-  ToDaysOffset?: number | null;
-  NewProvFromDaysOffset?: number | null;
-  NewProvToDaysOffset?: number | null;
-  AllowSelfSignup?: boolean;
-  IsLoginEnabled?: boolean;
-  IsWorkflowTurnedOn?: boolean;
-  DisableScheduleAsGuest?: boolean;
-  AllowOnMyWay?: boolean;
-  HasOnDemandVideoVisitSecurity?: boolean;
-  /** Newer build only. Not surfaced; listed so the drift is written down. */
-  UseLegacyQuestionnaires?: boolean;
-};
-
-export type RawWorkflowData = {
-  WorkflowSettings: RawWorkflowSettings | null;
-  Specialties: RawSpecialty[];
-  HomeOrganizationName?: string | null;
-};
 
 type RawSpecialtyRef = { Title?: string | null };
 
@@ -95,32 +76,14 @@ type RawDepartment = {
   TimeZone?: { CacheTimeZone?: { Title?: string | null } | null } | null;
 };
 
-type RawPair = { ProviderId: string; DepartmentId: string };
+/**
+ * `DirectProviderDepartmentPairIDs` are `"<ProviderId>^<DepartmentId>"`
+ * composites — not indices into `ProviderDepartmentPairs`. Some instances
+ * refuse a search carrying a pair outside this set.
+ */
+export type RawReason = NonNullable<AnonymousSpecialtyData['ReasonsForVisit']>[number] & { Id: string };
 
-export type RawSpecialtyData = {
-  Providers: RawProvider[];
-  Departments: RawDepartment[];
-  ProviderDepartmentPairs: RawPair[];
-  /** Read by the slot search; the directory crawl ignores them. */
-  ReasonsForVisit?: RawReason[] | null;
-  VisitTypes?: RawVisitType[] | null;
-};
-
-export type RawReason = {
-  Id: string;
-  Title?: string | null;
-  CategoryValue?: string | null;
-  CanDirectSchedule?: boolean;
-  DefaultVisitTypeId?: string | null;
-  /**
-   * The pairs bookable under this reason, as `"<ProviderId>^<DepartmentId>"`
-   * composites — not indices into `ProviderDepartmentPairs`. Some instances
-   * refuse a search carrying a pair outside this set.
-   */
-  DirectProviderDepartmentPairIDs?: string[] | null;
-};
-
-export type RawVisitType = { ID: string; AnonymousSchedulingDecisionTreeId?: string | null };
+export type RawVisitType = NonNullable<AnonymousSpecialtyData['VisitTypes']>[number];
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
@@ -131,13 +94,13 @@ function requireArray<T>(value: unknown, what: string): T[] {
   return value as T[];
 }
 
-export function parseSpecialties(data: RawWorkflowData): Specialty[] {
+export function parseSpecialties(data: AnonymousSchedulingWorkflowData): Specialty[] {
   return requireArray<RawSpecialty>(data.Specialties, 'Specialties')
     .filter((s) => typeof s?.Id === 'string' && typeof s?.Name === 'string')
     .map((s) => ({ id: s.Id, name: s.Name }));
 }
 
-export function parseFeatures(data: RawWorkflowData): PortalFeatures {
+export function parseFeatures(data: AnonymousSchedulingWorkflowData): PortalFeatures {
   const s = data.WorkflowSettings ?? {};
   return {
     selfSignup: s.AllowSelfSignup === true,
@@ -179,7 +142,7 @@ function parseClinic(d: RawDepartment): Clinic {
  * the merge keeps one record and unions the clinics and finder specialties.
  */
 export function mergeSpecialtyData(
-  data: RawSpecialtyData,
+  data: AnonymousSpecialtyData,
   specialty: Specialty,
   providers: Map<string, Provider>,
   clinics: Map<string, Clinic>,
@@ -243,16 +206,16 @@ export type ProviderDirectoryOptions = {
 /** Open the workflow page and read the specialty list and feature flags. */
 export async function fetchSchedulingWorkflow(
   request: MyChartRequest,
-): Promise<{ token: string | null; data: RawWorkflowData }> {
+): Promise<{ token: string | null; data: AnonymousSchedulingWorkflowData }> {
   const page = await openPreloginPage(request, OPEN_SCHEDULING_PATH);
-  const data = await postForm<RawWorkflowData>(
+  const data = await postForm(
     request,
     WORKFLOW_DATA_PATH,
     page.token,
     { schedulingParameters: { workflow: 'NewProvider' }, isFirstLoad: true },
     OPEN_SCHEDULING_PATH,
   );
-  return { token: page.token, data };
+  return { token: page.token, data: rec<AnonymousSchedulingWorkflowData>(data) };
 }
 
 /**
@@ -265,8 +228,10 @@ export async function fetchSpecialtyData(
   request: MyChartRequest,
   token: string | null,
   specialtyId: string,
-): Promise<RawSpecialtyData> {
-  return postForm<RawSpecialtyData>(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialtyId }, OPEN_SCHEDULING_PATH);
+): Promise<AnonymousSpecialtyData> {
+  return rec<AnonymousSpecialtyData>(
+    await postForm(request, SPECIALTY_DATA_PATH, token, { SpecialtyId: specialtyId }, OPEN_SCHEDULING_PATH),
+  );
 }
 
 export function selectSpecialties(all: Specialty[], options: ProviderDirectoryOptions): Specialty[] {

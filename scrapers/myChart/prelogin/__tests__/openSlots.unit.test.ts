@@ -18,7 +18,7 @@ import {
   parseSlotsResponse,
   type RawSlotsResponse,
 } from '../openSlots';
-import type { RawWorkflowData } from '../providerDirectory';
+import type { AnonymousSchedulingWorkflowData } from '../mychart.types';
 
 const workflow = {
   WorkflowSettings: {},
@@ -26,7 +26,7 @@ const workflow = {
     { Id: 'SPEC-1', Name: 'Primary Care' },
     { Id: 'SPEC-2', Name: 'Cardiology' },
   ],
-} as unknown as RawWorkflowData;
+} as unknown as AnonymousSchedulingWorkflowData;
 
 const specialtyData = {
   ProviderDepartmentPairs: [

@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { createMockRequest, htmlResponse, jsonResponse, pageWithCsrfToken } from '../../auth/__tests__/mockMyChartRequest';
+import { rec } from '../../processors/read';
 import { PreloginEndpointError } from '../preloginSession';
 import {
   fetchProviderDirectory,
@@ -13,15 +14,14 @@ import {
   parseFeatures,
   parseSpecialties,
   selectSpecialties,
-  type RawSpecialtyData,
-  type RawWorkflowData,
 } from '../providerDirectory';
+import type { AnonymousSchedulingWorkflowData, AnonymousSpecialtyData } from '../mychart.types';
 import type { Clinic, Provider } from '../types';
 import workflowFixture from './fixtures/GetSchedulingWorkflowData.json';
 import specialtyFixture from './fixtures/GetSpecialtyData.json';
 
-const workflow = workflowFixture as unknown as RawWorkflowData;
-const specialtyData = specialtyFixture as unknown as RawSpecialtyData;
+const workflow = workflowFixture;
+const specialtyData = specialtyFixture;
 
 function mockScheduling(specialtyHandler = () => jsonResponse(specialtyData)) {
   return createMockRequest(
@@ -40,7 +40,7 @@ describe('parseSpecialties / parseFeatures', () => {
   });
 
   it('throws rather than reporting no specialties when the shape changes', () => {
-    expect(() => parseSpecialties({ WorkflowSettings: null } as unknown as RawWorkflowData)).toThrow(/Specialties/);
+    expect(() => parseSpecialties({ WorkflowSettings: null } as unknown as AnonymousSchedulingWorkflowData)).toThrow(/Specialties/);
   });
 
   it('reads the feature flags with conservative defaults', () => {
@@ -52,7 +52,7 @@ describe('parseSpecialties / parseFeatures', () => {
       onMyWay: true,
       onDemandVideoVisits: false,
     });
-    expect(parseFeatures({ WorkflowSettings: null, Specialties: [] })).toMatchObject({ loginEnabled: true, openScheduling: true });
+    expect(parseFeatures(rec<AnonymousSchedulingWorkflowData>({ WorkflowSettings: null, Specialties: [] }))).toMatchObject({ loginEnabled: true, openScheduling: true });
   });
 });
 
@@ -60,7 +60,7 @@ describe('mergeSpecialtyData', () => {
   it('maps providers and clinics, joining them through the pairs', () => {
     const providers = new Map<string, Provider>();
     const clinics = new Map<string, Clinic>();
-    mergeSpecialtyData(specialtyData, { id: 'S1', name: 'Primary Care' }, providers, clinics);
+    mergeSpecialtyData(rec<AnonymousSpecialtyData>(specialtyData), { id: 'S1', name: 'Primary Care' }, providers, clinics);
 
     expect(providers.size).toBe(3);
     expect(clinics.size).toBe(2);
@@ -94,7 +94,7 @@ describe('mergeSpecialtyData', () => {
   it('dedupes a provider listed under two specialties and unions their clinics', () => {
     const providers = new Map<string, Provider>();
     const clinics = new Map<string, Clinic>();
-    mergeSpecialtyData(specialtyData, { id: 'S1', name: 'Primary Care' }, providers, clinics);
+    mergeSpecialtyData(rec<AnonymousSpecialtyData>(specialtyData), { id: 'S1', name: 'Primary Care' }, providers, clinics);
     const second = {
       ...specialtyData,
       ProviderDepartmentPairs: specialtyData.ProviderDepartmentPairs.map((p) => ({
@@ -102,7 +102,7 @@ describe('mergeSpecialtyData', () => {
         DepartmentId: specialtyData.Departments[1]!.ID,
       })),
     };
-    mergeSpecialtyData(second, { id: 'S2', name: 'Cardiology' }, providers, clinics);
+    mergeSpecialtyData(rec<AnonymousSpecialtyData>(second), { id: 'S2', name: 'Cardiology' }, providers, clinics);
 
     expect(providers.size).toBe(3);
     const homer = [...providers.values()].find((p) => p.name === 'Homer Simpson, MD')!;
@@ -116,7 +116,7 @@ describe('mergeSpecialtyData', () => {
       ...specialtyData,
       Providers: specialtyData.Providers.map(({ SpecialtySearchTerms: _drop, ...p }) => p),
     };
-    mergeSpecialtyData(older, { id: 'S1', name: 'Primary Care' }, providers, new Map());
+    mergeSpecialtyData(rec<AnonymousSpecialtyData>(older), { id: 'S1', name: 'Primary Care' }, providers, new Map());
     expect([...providers.values()].every((p) => !('searchTerms' in p))).toBe(true);
   });
 
@@ -126,13 +126,13 @@ describe('mergeSpecialtyData', () => {
       ...specialtyData,
       Departments: [{ ...specialtyData.Departments[0]!, OverridePhoneNumber: '555-010-0999', IsUsingOverridePhoneNumber: true }],
     };
-    mergeSpecialtyData(overridden, { id: 'S1', name: 'Primary Care' }, new Map(), clinics);
+    mergeSpecialtyData(rec<AnonymousSpecialtyData>(overridden), { id: 'S1', name: 'Primary Care' }, new Map(), clinics);
     expect([...clinics.values()][0]!.phone).toBe('555-010-0999');
   });
 
   it('throws rather than reporting an empty directory when the shape changes', () => {
     expect(() =>
-      mergeSpecialtyData({ Departments: [] } as unknown as RawSpecialtyData, { id: 'S1', name: 'x' }, new Map(), new Map()),
+      mergeSpecialtyData({ Departments: [] }, { id: 'S1', name: 'x' }, new Map(), new Map()),
     ).toThrow(/Providers/);
   });
 });
