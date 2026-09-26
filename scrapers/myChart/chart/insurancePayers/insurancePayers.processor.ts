@@ -27,6 +27,7 @@
 import { findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, num, rec, textOrNull } from '../../processors/read';
+import type { InsuranceGetPayors } from './mychart.types';
 import type { InsurancePayerStandard, InsurancePayersStandard } from './standardized.types';
 
 export type { InsurancePayerStandard, InsurancePayersStandard } from './standardized.types';
@@ -74,7 +75,7 @@ export const insurancePayersProcessor: Processor<InsurancePayersStandard> = {
       );
     }
 
-    const payors = rec(record.body).Payors;
+    const payors = rec<InsuranceGetPayors>(record.body).Payors;
     if (!Array.isArray(payors)) {
       throw new Error(
         `${GET_PAYORS_PATH} returned no Payors array. Refusing to report an empty payer ` +
