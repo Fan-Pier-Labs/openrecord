@@ -66,6 +66,7 @@ import {
   type StudyImagePayload,
   type FilePayload,
 } from '../../shared/capabilities';
+import { readLocalFile } from '../../shared/readLocalFile';
 
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { BACKEND_DESCRIPTION } from './secret-store';
@@ -259,6 +260,9 @@ function zodForParam(param: CapabilityParam): z.ZodType {
     case 'boolean':
       schema = z.boolean();
       break;
+    case 'string[]':
+      schema = z.array(z.string());
+      break;
     case 'object':
       schema = z.unknown();
       break;
@@ -283,6 +287,7 @@ function contextFor(ref: string): CapabilityContext {
     totpSecret: account.totpSecret,
     saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
     savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
+    readFile: readLocalFile,
   };
 }
 
