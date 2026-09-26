@@ -3,6 +3,7 @@ import * as shapes from '@/data/realShapes';
 import { documentsPage } from '@/lib/html';
 import { conformToShape } from '@/lib/shape';
 import { nextDocumentsPage } from '@/lib/session';
+import { state } from '@/lib/state';
 import { NextResponse, type NextRequest } from 'next/server';
 import { findAttachment, readJsonBody, asString } from './messages';
 import { html, json } from './respond';
@@ -81,7 +82,11 @@ function findDcsFile(request: NextRequest, ds: HandlerContext['ds'], dcsId: stri
   }
 
   const attachment = findAttachment(request, dcsId);
-  const file = attachment ? homer.messageAttachmentFiles[attachment.dcsId] : undefined;
+  const uploaded = state.uploadedFiles[dcsId];
+  const file = !attachment ? undefined
+    : homer.messageAttachmentFiles[attachment.dcsId]
+      // An uploaded file's system name is its own name minus the extension (captured once).
+      ?? (uploaded ? { mimeType: uploaded.mimeType, displayName: uploaded.name.replace(/\.[^.]*$/, ''), base64: uploaded.base64 } : undefined);
   if (!attachment || !file) return undefined;
   return {
     dcsId,
