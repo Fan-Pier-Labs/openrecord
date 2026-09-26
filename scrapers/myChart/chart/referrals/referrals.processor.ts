@@ -9,29 +9,14 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { ListReferrals } from './mychart.types';
+import type { ReferralsStandard } from './standardized.types';
 
-export interface ReferralStandard {
-  statusString: string | null;
-  status: string | null;
-  referredToProviderName: string | null;
-  referredToFacility: string | null;
-  referredByProviderName: string | null;
-  start: string | null;
-  end: string | null;
-  creationDate: string | null;
-  internalId: string | null;
-  externalId: string | null;
-}
-
-export interface ReferralsStandard {
-  /** Whether this instance shows authorization detail; explains why authorization fields may be missing. */
-  canSeeAuthorizations: boolean | null;
-  referralList: ReferralStandard[];
-}
+export type { ReferralStandard, ReferralsStandard } from './standardized.types';
 
 export const referralsProcessor: Processor<ReferralsStandard> = {
   standard(raw: RawResponse): ReferralsStandard {
-    const body = rec(bodyOf(raw, 'listReferrals'));
+    const body = rec<ListReferrals>(bodyOf(raw, 'listReferrals'));
     return {
       canSeeAuthorizations: boolOrNull(body.canSeeAuthorizations),
       referralList: list(body.referralList).map((value) => {
