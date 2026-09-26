@@ -25,6 +25,7 @@ import { answered, findRequest, findRequests, type RawRequestRecord, type RawRes
 import type { Processor } from '../../processors/processor';
 import { htmlToText } from '../../processors/htmlText';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
+import type { BillingGetVisits, DataStatement, GetStatementList, LoadPaymentList } from './mychart.types';
 import type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
 
 export type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
@@ -333,22 +334,22 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
 }
 
 function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string, Record<string, unknown>>): BillingAccountStandard {
-  const data = rec(rec(accountRequest(raw, source, 'GetVisits')?.body).Data);
+  const data = rec(rec<BillingGetVisits>(accountRequest(raw, source, 'GetVisits')?.body).Data);
   const visits = mergeVisitLists(data, hydrated, source.guarantorNumber);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
   const unavailable: string[] = [];
-  function tolerated(fragment: string): Record<string, unknown> {
+  function tolerated(fragment: string): unknown {
     const record = accountRequest(raw, source, fragment);
     if (!answered(record)) {
       unavailable.push(fragment);
       return {};
     }
-    return rec(record.body);
+    return record.body;
   }
-  const statementsBody = tolerated('GetStatementList');
-  const paymentsBody = tolerated('LoadPaymentList');
+  const statementsBody = rec<GetStatementList>(tolerated('GetStatementList'));
+  const paymentsBody = rec<LoadPaymentList>(tolerated('LoadPaymentList'));
   return {
     guarantorNumber: source.guarantorNumber,
     patientName: source.patientName,
@@ -378,8 +379,8 @@ function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string,
     UndistributedPayments: list(data.UndistributedPayments),
     SharedAgencyInformation: { Name: textOrNull(agency.Name), PhoneNumber: textOrNull(agency.PhoneNumber) },
     statements: [
-      ...list(rec(statementsBody.DataStatement).StatementList),
-      ...list(rec(statementsBody.DataDetailBill).StatementList),
+      ...list(rec<DataStatement>(statementsBody.DataStatement).StatementList),
+      ...list(rec<DataStatement>(statementsBody.DataDetailBill).StatementList),
     ].map(statement),
     payments: list(rec(paymentsBody.Data).PaymentList).map(payment),
     unavailable,
