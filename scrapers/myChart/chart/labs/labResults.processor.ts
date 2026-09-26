@@ -19,6 +19,7 @@ import { findRequests, type RawResponse } from '../../core/rawResponse';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
+import type { GetMultipleHistoricalResultComponents, Narrative, ReferenceRange, TestResultDetails, TestResultList } from './mychart.types';
 import type { HistoricalComponentStandard, HistoricalPointStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ReferenceRangeStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
 
 export type { HistoricalComponentStandard, HistoricalPointStandard, ImageStudyStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ProviderCommentStandard, ReferenceRangeStandard, ResultingLabStandard, ScanStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
@@ -31,7 +32,7 @@ function scalarOrNull(value: unknown): string | number | null {
 }
 
 function referenceRange(value: unknown): ReferenceRangeStandard {
-  const r = rec(value);
+  const r = rec<ReferenceRange>(value);
   return {
     formattedReferenceRange: textOrNull(r.formattedReferenceRange),
     low: num(r.low),
@@ -44,7 +45,7 @@ function referenceRange(value: unknown): ReferenceRangeStandard {
 }
 
 function signedText(value: unknown): SignedTextStandard {
-  const s = rec(value);
+  const s = rec<Narrative>(value);
   return { contentAsString: textOrNull(s.contentAsString), signingInstantTimestamp: textOrNull(s.signingInstantTimestamp) };
 }
 
@@ -205,16 +206,16 @@ export function rawResultsForOrder(raw: RawResponse, key: string | null): unknow
   if (!key) return [];
   // Mirrors `standard()`'s `key: textOrNull(body.key) ?? orderKey`.
   const details = findRequests(raw, 'test-results/GetDetails').find(
-    (d) => text(rec(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
+    (d) => text(rec<TestResultDetails>(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
   );
-  return list(rec(details?.body).results);
+  return list(rec<TestResultDetails>(details?.body).results);
 }
 
 /** The `GetList` groups across every recorded page, keyed by order key (first wins). */
 function resultGroupsByKey(raw: RawResponse): Map<string, Record<string, unknown>> {
   const groups = new Map<string, Record<string, unknown>>();
   for (const page of findRequests(raw, 'test-results/GetList')) {
-    for (const group of list(rec(page.body).newResultGroups)) {
+    for (const group of list(rec<TestResultList>(page.body).newResultGroups)) {
       const g = rec(group);
       const key = text(g.key);
       if (key && !groups.has(key)) groups.set(key, g);
@@ -275,11 +276,11 @@ export const labResultsProcessor: Processor<LabResultsStandard> = {
       // A body that is not the order (a WAF page, a literal null for an
       // unknown key) projects to an all-null order under the key we asked
       // for; the body itself is in `raw`.
-      const body = rec(details.body);
+      const body = rec<TestResultDetails>(details.body);
       const group = groups.get(orderKey) ?? {};
       const trend = trends.find((t) => text(rec(t.requestBody).orderID) === orderKey);
       const historicalResults: Record<string, HistoricalComponentStandard> = {};
-      for (const [componentID, h] of Object.entries(rec(rec(trend?.body).historicalResults))) {
+      for (const [componentID, h] of Object.entries(rec(rec<GetMultipleHistoricalResultComponents>(trend?.body).historicalResults))) {
         historicalResults[componentID] = historicalComponent(h);
       }
       orders.push({
