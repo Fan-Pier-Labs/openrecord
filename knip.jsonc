@@ -1,5 +1,20 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Baseline: unused exported types that were already on main when knip
+  // started running in CI. To be cleared later — delete an entry once its file
+  // is clean, and don't add new ones.
+  "ignoreIssues": {
+    "scrapers/myChart/chart/activityFeed/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/healthSummary/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/medications/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/messages/conversations.processor.ts": ["types"],
+    "scrapers/myChart/chart/messages/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/messages/standardized.types.ts": ["types"],
+    "scrapers/myChart/chart/otherMyCharts/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/questionnaires/mychart.types.ts": ["types"],
+    "scrapers/myChart/chart/questionnaires/standardized.types.ts": ["types"],
+    "scrapers/myChart/chart/vitals/mychart.types.ts": ["types"]
+  },
   // One workspace per package. The four clients bundle the shared scraper core
   // (`scrapers/`, `shared/`) rather than depending on it as a package, so each
   // one declares dependencies whose only importers live in the root workspace —
