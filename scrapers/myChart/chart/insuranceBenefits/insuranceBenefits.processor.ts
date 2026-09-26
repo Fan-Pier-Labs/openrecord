@@ -28,6 +28,7 @@
 import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, num, rec, text, textOrNull } from '../../processors/read';
+import type { AccountBucket, Deductible, GetBenefitsSummary } from './mychart.types';
 import type { BenefitBucketStandard, BenefitLimitStandard, InsuranceBenefitsAccountStandard, InsuranceBenefitsStandard } from './standardized.types';
 
 export type { BenefitBucketStandard, BenefitLimitStandard, InsuranceBenefitsAccountStandard, InsuranceBenefitsStandard } from './standardized.types';
@@ -41,7 +42,7 @@ function amount(value: unknown): number | null {
 }
 
 function bucket(value: unknown): BenefitBucketStandard {
-  const b = rec(value);
+  const b = rec<AccountBucket>(value);
   return {
     isLimit: boolOrNull(b.isLimit),
     type: textOrNull(b.type),
@@ -62,7 +63,7 @@ function bucket(value: unknown): BenefitBucketStandard {
 
 function limit(value: unknown): BenefitLimitStandard | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const l = rec(value);
+  const l = rec<Deductible>(value);
   return {
     type: textOrNull(l.type),
     network: textOrNull(l.network),
@@ -85,7 +86,7 @@ function benefitsRequestFor(raw: RawResponse, source: BillingAccount): RawReques
 }
 
 function account(body: unknown, source: BillingAccount): InsuranceBenefitsAccountStandard {
-  const b = rec(body);
+  const b = rec<GetBenefitsSummary>(body);
   return {
     guarantorNumber: source.guarantorNumber,
     patientName: source.patientName,
