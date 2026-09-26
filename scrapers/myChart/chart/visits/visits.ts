@@ -3,6 +3,7 @@ import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { logger } from '../../../../shared/logger';
 import { bool, rec, text } from '../../processors/read';
 import { requireJsonBody } from '../notes/notes';
+import type { VisitsLoadPast } from './mychart.types';
 import {
   pastVisitsProcessor,
   upcomingVisitsProcessor,
@@ -102,7 +103,7 @@ export async function fetchPastVisitsRaw(myChartRequest: MyChartRequest): Promis
     requireJsonBody(result, '/Visits/VisitsList/LoadPast');
     pagesFetched++;
 
-    const page = rec(result.body);
+    const page = rec<VisitsLoadPast>(result.body);
     // A non-container response (a literal null, a login interstitial that
     // happened to be JSON) cannot be paged; it is in the envelope as-is.
     if (!page.List) break;

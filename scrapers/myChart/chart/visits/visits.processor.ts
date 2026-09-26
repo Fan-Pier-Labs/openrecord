@@ -17,6 +17,7 @@
 import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { bool, boolOrNull, epicInstantMs, isoFromMs, list, num, rec, strings, text, textOrNull } from '../../processors/read';
+import type { Specialty, VisitDepartment, VisitOrganization, VisitProvider, VisitsLoadPast, VisitsLoadUpcoming } from './mychart.types';
 import type { PastVisitsStandard, UpcomingVisitStandard, UpcomingVisitsStandard, VisitBucket, VisitConcise, VisitDepartmentStandard, VisitProviderStandard, VisitStandard, VisitStatus } from './standardized.types';
 
 export type { PastVisitsStandard, UpcomingVisitStandard, UpcomingVisitsStandard, VisitBucket, VisitConcise, VisitDepartmentStandard, VisitDiagnosisStandard, VisitPreadmissionLocationStandard, VisitProcedureStandard, VisitProviderStandard, VisitStandard, VisitStatus } from './standardized.types';
@@ -67,12 +68,12 @@ function instructions(value: unknown): Array<{ Text: string | null }> {
 }
 
 function department(value: unknown): VisitDepartmentStandard {
-  const d = rec(value);
+  const d = rec<VisitDepartment>(value);
   return {
     Name: textOrNull(d.Name),
     Address: strings(d.Address),
     PhoneNumber: textOrNull(d.PhoneNumber),
-    Specialty: { Title: textOrNull(rec(d.Specialty).Title) },
+    Specialty: { Title: textOrNull(rec<Specialty>(d.Specialty).Title) },
     Instructions: instructions(d.Instructions),
     ArrivalLocation: textOrNull(d.ArrivalLocation),
     TimeZone: textOrNull(d.TimeZone),
@@ -80,7 +81,7 @@ function department(value: unknown): VisitDepartmentStandard {
 }
 
 function provider(value: unknown): VisitProviderStandard {
-  const p = rec(value);
+  const p = rec<VisitProvider>(value);
   const d = p.Department;
   return {
     Name: textOrNull(p.Name),
@@ -250,7 +251,7 @@ function sortByInstant<T extends VisitStandard>(visits: T[], direction: 1 | -1):
     .map((entry) => entry.visit);
 }
 
-const UPCOMING_BUCKETS: ReadonlyArray<[key: string, bucket: VisitBucket]> = [
+const UPCOMING_BUCKETS: ReadonlyArray<[key: keyof VisitsLoadUpcoming, bucket: VisitBucket]> = [
   ['InProgressVisits', 'in_progress'],
   ['NextNDaysVisits', 'soon'],
   ['LaterVisitsList', 'later'],
@@ -261,7 +262,7 @@ export const upcomingVisitsProcessor: Processor<UpcomingVisitsStandard | null> =
     const body = findRequest(raw, 'LoadUpcoming')?.body;
     // Errors pass through (rule 7): a literal null is returned as null.
     if (body === null || body === undefined) return null;
-    const container = rec(body);
+    const container = rec<VisitsLoadUpcoming>(body);
     const visits: UpcomingVisitStandard[] = [];
     for (const [key, bucket] of UPCOMING_BUCKETS) {
       for (const row of list(container[key])) visits.push({ ...visitStandard(row, false), bucket });
@@ -303,10 +304,10 @@ export const pastVisitsProcessor: Processor<PastVisitsStandard | null> = {
     const hasMoreByOrg = new Map<string, boolean>();
 
     for (const page of pages) {
-      const orgs = rec(rec(page.body).List);
+      const orgs = rec(rec<VisitsLoadPast>(page.body).List);
       for (const [orgId, orgPage] of Object.entries(orgs)) {
         const org = rec(orgPage);
-        const orgName = textOrNull(rec(org.Organization).OrganizationName);
+        const orgName = textOrNull(rec<VisitOrganization>(org.Organization).OrganizationName);
         hasMoreByOrg.set(orgId, bool(org.HasMoreData));
         for (const row of list(org.List)) {
           const key = visitKey(orgId, rec(row));
