@@ -9,6 +9,25 @@
  * Keep in step with `realShapes.ts` when the captures are refreshed.
  */
 
+/** Repeated shape. Appears in: chart/immunizations, chart/medications. */
+export type Organization = {
+  organizationId?: string;
+  organizationName?: string;
+  logoUrl?: string;
+  isLocal?: boolean;
+  isSSO?: boolean;
+  incompleteH2GSetup?: boolean;
+  address?: string[];
+  linkType?: number;
+  currentlyLoadingData?: boolean;
+  errorLoadingData?: boolean;
+  hasValidRefreshToken?: boolean;
+  shouldRemindForUpdate?: boolean;
+  showInRefreshBanner?: boolean;
+  disclaimerOverride?: boolean;
+  isMyChartCentral?: boolean;
+};
+
 /** Repeated shape. Appears in: prelogin, chart/profile. */
 export type County = {
   Value?: string | null;
