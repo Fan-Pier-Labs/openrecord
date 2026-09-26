@@ -3,6 +3,7 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { followSamlChain, getImageViewerSamlUrl } from '../../eunity/imagingViewer';
 import { list, rec, text } from '../../processors/read';
+import type { TestResultDetails, TestResultList } from './mychart.types';
 import { logger } from '../../../../shared/logger';
 import { labResultsProcessor, type LabResultsStandard } from './labResults.processor';
 import { fdiContextForOrder, imagingResultsProcessor, isImagingOrder, type ImagingResultsStandard } from './imagingResults.processor';
@@ -127,12 +128,12 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
     // Outside the swallow: these are results the instance says exist, so a
     // failure here would return a short list indistinguishable from a
     // complete one — "you have 39 results" when you have 60.
-    for (const group of list(rec(page).newResultGroups)) {
+    for (const group of list(rec<TestResultList>(page).newResultGroups)) {
       const key = text(rec(group).key);
       if (!key || seenKeys.has(key)) continue;
       seenKeys.add(key);
 
-      const details = rec(await collector.postJson('/api/test-results/GetDetails', token, { orderKey: key, organizationID: '', PageNonce: '' }));
+      const details = rec<TestResultDetails>(await collector.postJson('/api/test-results/GetDetails', token, { orderKey: key, organizationID: '', PageNonce: '' }));
       logger.debug('got detail back:', details.orderName);
 
       for (const result of list(details.results)) {
