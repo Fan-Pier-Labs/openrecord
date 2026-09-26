@@ -38,33 +38,10 @@
 import { findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
+import type { CareTeamLoad, GetProviderBioPrivate } from './mychart.types';
+import type { CareTeamProviderStandard, CareTeamStandard } from './standardized.types';
 
-export interface CareTeamProviderStandard {
-  Name: string | null;
-  /** Role on the team; `null` for no stated role, which most of one account's were. An entry can be the insurance payer. */
-  Relation: string | null;
-  Specialty: string | null;
-  IsExternal: boolean | null;
-  /** Derived: the row came from `LoadExternal`. */
-  fromExternalList: boolean;
-  /**
-   * Derived: the provider's NPI, from `GetProviderBioPrivate`'s `npi` for this
-   * row's `ID`. `null` when that bio was not fetched or did not answer — not
-   * "no NPI exists".
-   */
-  npi: string | null;
-  /** Opaque provider id (an 86–88 character token, not a number): the handle the bio call takes. */
-  ID: string | null;
-  DepartmentID: string | null;
-  CanMessage: boolean | null;
-}
-
-export interface CareTeamStandard {
-  DescriptiveTitle: string | null;
-  /** Derived: `LoadExternal` could not be read, so `ProvidersList` covers only this organization's providers. */
-  externalProvidersUnavailable: boolean;
-  ProvidersList: CareTeamProviderStandard[];
-}
+export type { CareTeamProviderStandard, CareTeamStandard } from './standardized.types';
 
 function provider(value: unknown, fromExternalList: boolean, bios: RawRequestRecord[]): CareTeamProviderStandard {
   const p = rec(value);
@@ -87,13 +64,13 @@ function npiOf(ID: string | null, bios: RawRequestRecord[]): string | null {
   if (ID === null) return null;
   const bio = bios.find((r) => rec(r.requestBody).id === ID);
   if (!bio || bio.failure !== undefined || bio.status < 200 || bio.status >= 300) return null;
-  const npi = textOrNull(rec(bio.body).npi);
+  const npi = textOrNull(rec<GetProviderBioPrivate>(bio.body).npi);
   return npi === '' ? null : npi;
 }
 
 /** The `ProvidersList` array of a recorded response, or null when the response is not a recognizable envelope. */
 function providersListOf(body: unknown): unknown[] | null {
-  const envelope = rec(body);
+  const envelope = rec<CareTeamLoad>(body);
   return Array.isArray(envelope.ProvidersList) ? envelope.ProvidersList : null;
 }
 
@@ -121,7 +98,7 @@ export const careTeamProcessor: Processor<CareTeamStandard> = {
     const bios = findRequests(raw, 'Providers/GetProviderBioPrivate');
 
     return {
-      DescriptiveTitle: textOrNull(rec(load.body).DescriptiveTitle),
+      DescriptiveTitle: textOrNull(rec<CareTeamLoad>(load.body).DescriptiveTitle),
       externalProvidersUnavailable: external === null,
       ProvidersList: [
         ...internal.map((p) => provider(p, false, bios)),
