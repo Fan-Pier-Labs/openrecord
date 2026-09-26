@@ -202,6 +202,12 @@ type State = {
   emergencyContactsByRecord: Record<string, typeof homer.emergencyContacts>;
   ecIdCounter: number;
   composeIdCounter: number;
+  /**
+   * Files posted to `DocumentUpload/UploadFile`, by the `DocumentId` it
+   * answered. A send whose `documentIds` names one files it on the message.
+   */
+  uploadedFiles: Record<string, { recordId: string; name: string; fileExtension: string; mimeType: string; base64: string }>;
+  uploadIdCounter: number;
   passkeyIdCounter: number;
   bookedAppointments: Array<{
     confirmationNumber: string;
@@ -234,6 +240,8 @@ function freshState(): State {
     },
     ecIdCounter: 100,
     composeIdCounter: 1000,
+    uploadedFiles: {},
+    uploadIdCounter: 0,
     passkeyIdCounter: 0,
     bookedAppointments: [],
   };
@@ -248,6 +256,8 @@ export function resetState(): void {
   state.emergencyContactsByRecord = next.emergencyContactsByRecord;
   state.ecIdCounter = next.ecIdCounter;
   state.composeIdCounter = next.composeIdCounter;
+  state.uploadedFiles = next.uploadedFiles;
+  state.uploadIdCounter = next.uploadIdCounter;
   state.passkeyIdCounter = next.passkeyIdCounter;
   state.bookedAppointments.length = 0;
   resetSessions();
