@@ -4,6 +4,8 @@ import type { MyChartRequest } from '../core/myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from '../core/makeAuthenticatedRequest';
 import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
+import { bool, list, rec, text } from '../processors/read';
+import type { ProxySwitch } from './mychart.types';
 
 export type ProxyTarget = {
   /**
@@ -30,18 +32,6 @@ export type ProxyTarget = {
   selectionKnown: boolean;
   linkUrl: string;
   source: 'proxy-switch-json' | 'home-html';
-};
-
-type ProxySwitchSubject = {
-  Id?: string;
-  DisplayName?: string;
-  LinkUrl?: string;
-  IsSelected?: boolean;
-  IsSelf?: boolean;
-};
-
-type ProxySwitchResponse = {
-  ProxySubjectList?: ProxySwitchSubject[];
 };
 
 /**
@@ -135,18 +125,23 @@ function dedupeTargets(targets: ProxyTarget[]): ProxyTarget[] {
   return deduped;
 }
 
-function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: ProxySwitchResponse): ProxyTarget[] {
+function parseProxyTargetsFromJson(mychartRequest: MyChartRequest, json: ProxySwitch): ProxyTarget[] {
   return dedupeTargets(
-    (json.ProxySubjectList ?? [])
-      .map((entry) => ({
-        id: entry.Id || '',
-        displayName: entry.DisplayName || '',
-        isSelf: !!entry.IsSelf,
-        isSelected: !!entry.IsSelected,
-        selectionKnown: true,
-        linkUrl: normalizeLinkUrl(mychartRequest, entry.LinkUrl || '', entry.Id || '', !!entry.IsSelf),
-        source: 'proxy-switch-json' as const,
-      }))
+    list(json.ProxySubjectList)
+      .map((value) => {
+        const entry = rec(value);
+        const id = text(entry.Id);
+        const isSelf = bool(entry.IsSelf);
+        return {
+          id,
+          displayName: text(entry.DisplayName),
+          isSelf,
+          isSelected: bool(entry.IsSelected),
+          selectionKnown: true,
+          linkUrl: normalizeLinkUrl(mychartRequest, text(entry.LinkUrl), id, isSelf),
+          source: 'proxy-switch-json' as const,
+        };
+      })
       .filter((entry) => entry.displayName)
   );
 }
@@ -362,7 +357,7 @@ export async function discoverProxyTargets(
     }, options);
 
     if (resp.ok) {
-      const json = await resp.json() as ProxySwitchResponse;
+      const json = rec<ProxySwitch>(await resp.json());
       const targets = parseProxyTargetsFromJson(mychartRequest, json);
       if (targets.length > 0) {
         debugLog(`discovered targets source=proxy-switch-json count=${targets.length} [${summarizeTargets(targets)}]`);
