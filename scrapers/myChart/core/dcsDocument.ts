@@ -40,6 +40,7 @@ import type { RequestConfig } from './types';
 import { describeResponseFailure, type RawCollector } from './rawResponse';
 import { safeFileName } from './safeFileName';
 import { rec, text } from '../processors/read';
+import type { GetDocumentDetailsLegacy } from '../chart/documents/mychart.types';
 
 /** Why a `dcsId` produced no file. Callers word the refusal in their own terms. */
 export type DcsFailure =
@@ -120,7 +121,7 @@ export async function fetchDcsFile(
     throw new DcsDocumentError({ reason: 'no_such_document' }, `MyChart has no document ${request.dcsId} on the active patient record.`);
   }
 
-  const body = rec(details);
+  const body = rec<GetDocumentDetailsLegacy>(details);
   const displayName = text(body.displayName) || text(body.fileDescription);
   const downloadUrl = text(body.downloadUrl);
   if (!downloadUrl) {

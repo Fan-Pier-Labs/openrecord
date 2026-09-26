@@ -14,6 +14,7 @@
 import { findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
+import type { LoadOtherDocuments } from './mychart.types';
 import type { DocumentsStandard } from './standardized.types';
 
 export type { DocumentStandard, DocumentsStandard } from './standardized.types';
@@ -28,7 +29,7 @@ function dateISO(dateRaw: string | null): string | null {
 export const documentsProcessor: Processor<DocumentsStandard> = {
   standard(raw: RawResponse): DocumentsStandard {
     const documents = findRequests(raw, 'LoadOtherDocuments')
-      .flatMap((page) => list(rec(page.body).documents))
+      .flatMap((page) => list(rec<LoadOtherDocuments>(page.body).documents))
       .map((entry) => {
         const d = rec(entry);
         const dateRaw = textOrNull(d.dateRaw);
