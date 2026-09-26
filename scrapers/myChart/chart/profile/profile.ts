@@ -4,6 +4,7 @@ import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { getRequestVerificationTokenFromBody } from '../../core/util';
 import { logger } from '../../../../shared/logger';
 import { rec, textOrNull } from '../../processors/read';
+import type { GetContactInformation } from './mychart.types';
 import { parseProfileHtml, type ProfileData } from './profileHtml';
 import { profileProcessor, type ProfileStandard } from './profile.processor';
 
@@ -112,5 +113,5 @@ export async function getProfile(mychartRequest: MyChartRequest): Promise<Profil
 export async function getEmail(mychartRequest: MyChartRequest): Promise<string | null> {
   const collector = new RawCollector(mychartRequest);
   const body = await fetchContactInformation(collector);
-  return textOrNull(rec(rec(body).SecureCommunicationInfo).EmailAddress);
+  return textOrNull(rec(rec<GetContactInformation>(body).SecureCommunicationInfo).EmailAddress);
 }
