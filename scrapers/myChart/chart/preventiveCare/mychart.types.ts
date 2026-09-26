@@ -16,7 +16,7 @@
  * Keep in step with `realShapes.ts` when the captures are refreshed.
  */
 
-/** `a bare string.` */
+/** `/HealthAdvisories/GetTopics` */
 export type HealthAdvisoriesGetTopics = {
   HealthAdvisoryViewModelList?: Array<{
     TopicId?: string;

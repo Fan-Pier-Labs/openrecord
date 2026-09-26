@@ -29,6 +29,7 @@
 import { answered, findRequest, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, rec, text } from '../../processors/read';
+import type { HealthAdvisoriesGetTopics } from './mychart.types';
 import type { PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
 
 export type { PreventiveCareItemStandard, PreventiveCareStandard, PreventiveCareStatus } from './standardized.types';
@@ -59,12 +60,13 @@ const CONCISE_FIELDS = ['Name', 'dueStatus', 'Status', 'FormattedDueDate', 'Form
 export const preventiveCareProcessor: Processor<PreventiveCareStandard> = {
   standard(raw: RawResponse): PreventiveCareStandard {
     const topics = findRequest(raw, GET_TOPICS_PATH);
-    const envelope = answered(topics) ? rec(topics.body) : {};
+    const envelope = answered(topics) ? rec<HealthAdvisoriesGetTopics>(topics.body) : {};
 
     // The controller's own test for the error surface: a non-empty `Text`.
-    // A successful response carries no `Text` key at all.
+    // A successful response carries no `Text` key at all, so no capture has it
+    // and it is read off the untyped body.
     const known =
-      answered(topics) && text(envelope.Text).length === 0 && 'HealthAdvisoryViewModelList' in envelope;
+      answered(topics) && text(rec(topics.body).Text).length === 0 && 'HealthAdvisoryViewModelList' in envelope;
 
     if (!known) return { items: [], settings: {}, unavailable: [GET_TOPICS_PATH] };
 
