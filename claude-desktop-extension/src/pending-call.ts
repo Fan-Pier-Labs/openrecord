@@ -25,7 +25,7 @@ import { randomUUID } from 'crypto';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 export const CHECK_TOOL = 'check_pending_call';
-export const DEADLINE_MS = 150_000;
+const DEADLINE_MS = 150_000;
 export const DEADLINE_LABEL = '2.5 minutes';
 /** From a call's start, after which it is dropped: result given up on, chart lock released. Also how long an unread result is kept. */
 export const MAX_RUN_MS = 10 * 60_000;

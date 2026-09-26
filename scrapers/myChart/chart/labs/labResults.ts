@@ -24,14 +24,11 @@ export type {
   HistoricalPointStandard,
   HistoricalComponentStandard,
 } from './labResults.processor';
-export { labResultsProcessor, conciseLabOrder, recentTrendPoints, CONCISE_TREND_POINTS } from './labResults.processor';
+export { labResultsProcessor, recentTrendPoints, CONCISE_TREND_POINTS } from './labResults.processor';
 export type { ImagingResultsStandard, ImagingOrderStandard, ImagingOrderConcise } from './imagingResults.processor';
 export {
   imagingResultsProcessor,
   isImagingByName,
-  isImagingByContent,
-  isImagingOrder,
-  fdiContextForOrder,
   imageIdFor,
 } from './imagingResults.processor';
 

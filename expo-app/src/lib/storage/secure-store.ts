@@ -70,7 +70,7 @@ export async function getMyChartAccounts(): Promise<StoredMyChartAccount[]> {
   }
 }
 
-export async function saveMyChartAccounts(accounts: StoredMyChartAccount[]): Promise<void> {
+async function saveMyChartAccounts(accounts: StoredMyChartAccount[]): Promise<void> {
   return setSecureValue(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
@@ -101,14 +101,6 @@ export async function removeMyChartAccount(id: string): Promise<void> {
 }
 
 // ─── Settings ───
-
-export async function getSelectedModel(): Promise<string> {
-  return (await getSecureValue("selected_model")) || "gemini-2.5-flash";
-}
-
-export async function setSelectedModel(model: string): Promise<void> {
-  return setSecureValue("selected_model", model);
-}
 
 export type AiProvider = "free" | "openai" | "anthropic" | "gemini";
 

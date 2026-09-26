@@ -94,7 +94,7 @@ export interface ConversationStandard {
   messages: MessageStandard[];
 }
 
-export interface ConversationConcise {
+interface ConversationConcise {
   hthId: string | null;
   subject: string | null;
   audienceNames: string[];
@@ -113,7 +113,7 @@ export interface ConversationsStandard {
   localSummary: { hasMoreConversations: boolean | null; oldestLoadedInstantISO: string | null };
 }
 
-export interface ConversationsConcise {
+interface ConversationsConcise {
   legacyXUnreadCount: number | null;
   truncated: boolean;
   conversations: ConversationConcise[];

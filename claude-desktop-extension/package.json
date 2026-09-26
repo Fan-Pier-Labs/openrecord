@@ -34,7 +34,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@modelcontextprotocol/inspector": "^2.1.0",
     "@types/bun": "^1.3.14",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^26.2.0",

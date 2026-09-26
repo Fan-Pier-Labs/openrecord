@@ -476,7 +476,7 @@ export function buildSystemPrompt({
  * ------------------------------------------------------------------ */
 
 /** Raised when the demo proxy answers with anything other than a clean 200. */
-export class ProxyError extends Error {
+class ProxyError extends Error {
   readonly status: number;
 
   constructor(message: string, status: number) {
@@ -553,7 +553,7 @@ export type RunTurnOptions = {
 };
 
 /** Runs a batch of parsed calls against the local record, in parallel. */
-export type BatchRunner = (calls: ParsedToolCall[]) => Promise<ToolRecord[]>;
+type BatchRunner = (calls: ParsedToolCall[]) => Promise<ToolRecord[]>;
 
 /** Run one user turn to completion. */
 export async function runTurn({

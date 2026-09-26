@@ -15,7 +15,7 @@ import { getFirefoxLogins } from './firefox';
 import { classifyMyChartEntries } from './myChartFilter';
 import type { MyChartCandidate, PasswordStoreEntry, PasswordStoreEntryWithKey } from './types';
 
-export type { MyChartCandidate, MyChartConfidence, PasswordStoreEntry, PasswordStoreEntryWithKey } from './types';
+export type { MyChartCandidate, PasswordStoreEntry, PasswordStoreEntryWithKey } from './types';
 
 /** True when this platform has a password store we know how to read. */
 export function isSupportedPlatform(): boolean {

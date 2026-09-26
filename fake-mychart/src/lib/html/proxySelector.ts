@@ -4,7 +4,7 @@ import { rendersProxyAnchors } from '@/lib/proxy';
 const MP = mountPrefix;
 
 // ─── Proxy (multi-patient) selector ───────────────────────────────────
-export type ProxySelectorEntry = { id: string; displayName: string };
+type ProxySelectorEntry = { id: string; displayName: string };
 
 export type ProxySelectorModel = {
   /**

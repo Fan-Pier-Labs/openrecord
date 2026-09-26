@@ -121,7 +121,7 @@ export function parseQuestion(raw: RawQuestion | null | undefined): SchedulingQu
 }
 
 /** Raised for a question shape this scraper cannot answer yet. */
-export class WorkInProgressError extends Error {
+class WorkInProgressError extends Error {
   constructor(what: string) {
     super(`${what}: work in progress`);
     this.name = 'WorkInProgressError';

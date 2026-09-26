@@ -28,7 +28,7 @@ import type { ExactRoutes } from './types';
  * in `withModernResultFields`, they ride on the epicVersion knob rather than
  * living in the shape templates, so both shapes get exercised.
  */
-export function withNewerSchedulingFields(payload: unknown): unknown {
+function withNewerSchedulingFields(payload: unknown): unknown {
   if (isLegacyEpicVersion()) return payload;
   const p = payload as Record<string, unknown>;
   if (p?.WorkflowSettings && typeof p.WorkflowSettings === 'object') {

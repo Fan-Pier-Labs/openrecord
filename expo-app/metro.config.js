@@ -31,7 +31,6 @@ config.resolver.extraNodeModules = {
   os: require.resolve("os-browserify/browser"),
   string_decoder: require.resolve("string_decoder/lib/string_decoder.js"),
   querystring: require.resolve("querystring-es3"),
-  mkdirp: emptyShim,
   fs: emptyShim,
   net: emptyShim,
   tls: emptyShim,
@@ -57,11 +56,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // shared/telemetry is server-only (os, crypto, child_process). RN gets a noop.
   if (moduleName.endsWith("/shared/telemetry") || moduleName === "../../shared/telemetry") {
     return { type: "sourceFile", filePath: telemetryNoop };
-  }
-  // mkdirp is a node-only fs wrapper the scrapers use to cache pdfs on disk.
-  // RN never touches the relevant code paths; stub it out.
-  if (moduleName === "mkdirp") {
-    return { type: "sourceFile", filePath: emptyShim };
   }
   if (moduleName.startsWith("node:")) {
     try {

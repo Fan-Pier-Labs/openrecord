@@ -48,7 +48,7 @@ export type SchedulingSelector = {
   reasonForVisit?: string;
 };
 
-export type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
+type RawPair = { ProviderId: string; DepartmentId: string; IsTeamMember?: boolean };
 
 export type SchedulingContext = {
   token: string | null;

@@ -10,13 +10,13 @@ export type AiMemoryResponse = {
   insights: AiInsight[];
 };
 
-export type AiFact = {
+type AiFact = {
   category: string;
   text: string;
   source?: "mychart" | "user" | "derived";
 };
 
-export type AiInsight = {
+type AiInsight = {
   title: string;
   body_md: string;
   severity: "info" | "discuss" | "discuss_soon";

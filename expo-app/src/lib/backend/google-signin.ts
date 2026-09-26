@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import {
   getBackendSession,
   setBackendSession,
@@ -119,5 +119,3 @@ export async function signOutFromGoogle(): Promise<void> {
   }
   await clearBackendSession();
 }
-
-export { statusCodes as googleStatusCodes };

@@ -14,7 +14,7 @@ export const MP = mountPrefix;
 // real instances do. Real MyChart's own page JS attaches the token to its API
 // calls; `csrf-fetch.js` does the same for every fetch these pages issue, so
 // each page script doesn't have to repeat the header plumbing.
-export function csrfFetchSnippet(): string {
+function csrfFetchSnippet(): string {
   return inlineScript('csrf-fetch.js');
 }
 

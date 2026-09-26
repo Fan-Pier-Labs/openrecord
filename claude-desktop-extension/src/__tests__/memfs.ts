@@ -38,7 +38,7 @@ import path from 'node:path'
 process.env.OPENRECORD_SECRET_BACKEND = 'file'
 
 /** Same derivation credential-store.ts uses, so interception lines up exactly. */
-export const ROOT = path.join(os.homedir(), '.openrecord-mcpb')
+const ROOT = path.join(os.homedir(), '.openrecord-mcpb')
 
 // Captured before mock.module swaps the module out.
 const realReadFileSync = nodeFs.readFileSync

@@ -87,7 +87,7 @@ const CUSTOM_LOGOS: Readonly<Record<string, string>> = {
 };
 
 /** An organization's image record, as the directory publishes it. */
-export interface DirectoryLogo {
+interface DirectoryLogo {
   imageId: string;
   fileName: string;
   subAreaName: string;

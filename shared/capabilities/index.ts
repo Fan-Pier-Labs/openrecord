@@ -68,7 +68,6 @@ export type {
   CapabilityContext,
   CapabilityKind,
   CapabilityParam,
-  CapabilityParamType,
   FilePayload,
 } from './types';
 export { encodeImageId, decodeImageId, type StudyImagePayload } from './imaging';

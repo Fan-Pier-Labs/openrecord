@@ -10,13 +10,13 @@
  */
 export {
   loginPage, loginPageControllerJs, doLoginSuccess, doLoginNeed2FA, doLoginFailed,
-  get2faMethods, secondaryValidationPage, termsConditionsPage,
+  secondaryValidationPage, termsConditionsPage,
   csrfTokenPage, genericTokenPage,
 } from './auth';
 
 export {
   PROXY_SELECTOR_PLACEHOLDER, renderProxySelector,
-  type ProxySelectorEntry, type ProxySelectorModel,
+  type ProxySelectorModel,
 } from './proxySelector';
 
 export { homePage, messagesPage, visitsPage } from './overview';

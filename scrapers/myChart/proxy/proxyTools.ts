@@ -26,7 +26,7 @@ import {
   type ProxyContextCheck,
 } from './proxyContext';
 
-export type PatientRecordSummary = {
+type PatientRecordSummary = {
   /** Opaque organization-specific record id. Never parse or construct one. */
   id: string;
   name: string;

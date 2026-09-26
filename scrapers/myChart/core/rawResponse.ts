@@ -191,6 +191,7 @@ export function displayPath(path: string): string {
 
 function parseRequestBody(config: RequestConfig): unknown {
   if (config.body === undefined) return undefined;
+  if (typeof config.body !== 'string') return `<${config.body.length} bytes>`;
   const contentType = config.headers?.['Content-Type'] ?? config.headers?.['content-type'] ?? '';
   if (contentType.includes('json')) {
     try {
@@ -334,7 +335,7 @@ export function unwrapRaw(raw: RawResponse): unknown {
  * because parallel requests land in the envelope in whatever order they
  * resolved.
  */
-export function isRequestFor(record: RawRequestRecord, name: string): boolean {
+function isRequestFor(record: RawRequestRecord, name: string): boolean {
   const pathname = record.path.split('?')[0]!.toLowerCase();
   const needle = name.toLowerCase().replace(/^\/+/, '');
   return pathname === `/${needle}` || pathname === needle || pathname.endsWith(`/${needle}`);

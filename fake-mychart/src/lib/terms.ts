@@ -18,7 +18,7 @@
  * `/reset`, so a suite that turns it on is responsible for turning it back off.
  */
 
-export const DEFAULT_REQUIRE_TERMS = false;
+const DEFAULT_REQUIRE_TERMS = false;
 
 const termsState: { requireTerms: boolean } = {
   requireTerms: DEFAULT_REQUIRE_TERMS,

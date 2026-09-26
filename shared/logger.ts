@@ -20,7 +20,7 @@
  * Tests can silence the chatter with `silenceLogger()`.
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export type LogSink = (level: LogLevel, args: unknown[]) => void;
 
@@ -56,9 +56,4 @@ export function resetLogSink(): void {
 /** Drop every log message. Useful in tests. */
 export function silenceLogger(): void {
   activeSink = () => { /* no-op */ };
-}
-
-/** Inspect the active sink (for testing). */
-export function getLogSink(): LogSink {
-  return activeSink;
 }

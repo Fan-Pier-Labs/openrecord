@@ -38,8 +38,8 @@ import { openPreloginPage, postForm } from './preloginSession';
 import type { Clinic, PortalFeatures, Provider, ProviderDirectory, Specialty } from './types';
 
 export const OPEN_SCHEDULING_PATH = '/OpenScheduling';
-export const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
-export const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
+const WORKFLOW_DATA_PATH = '/Scheduling/Anonymous/GetSchedulingWorkflowData';
+const SPECIALTY_DATA_PATH = '/Scheduling/Anonymous/GetSpecialtyData';
 
 // ── Raw shapes, as the instance sends them ───────────────────────────────────
 // Only the keys the scraper reads. Everything else passes through untyped.
@@ -159,7 +159,7 @@ function departmentPhone(d: RawDepartment): string | null {
   return phone?.trim() || null;
 }
 
-export function parseClinic(d: RawDepartment): Clinic {
+function parseClinic(d: RawDepartment): Clinic {
   const lat = d.Coordinates?.Latitude;
   const lng = d.Coordinates?.Longitude;
   return {

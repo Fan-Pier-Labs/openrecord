@@ -19,7 +19,7 @@ import type { CapabilityArgs } from './types';
  * `String()` used to send the literal "[object Object]"; JSON-stringifying it
  * instead would just be a tidier way to send the wrong thing.
  */
-export function argString(v: unknown, name: string): string {
+function argString(v: unknown, name: string): string {
   if (typeof v === 'string') return v;
   if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
   throw new Error(
@@ -27,7 +27,7 @@ export function argString(v: unknown, name: string): string {
   );
 }
 
-export function str(args: CapabilityArgs, name: string, fallback = ''): string {
+function str(args: CapabilityArgs, name: string, fallback = ''): string {
   const v = args[name];
   if (v === undefined || v === null) return fallback;
   return argString(v, name);
@@ -50,4 +50,15 @@ export function num(args: CapabilityArgs, name: string, fallback: number): numbe
   if (v === undefined || v === null || v === '') return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Read a `'string[]'` argument. A lone string is one item, never split: a
+ * path may contain a comma. (The CLI splits `--arg name=a,b` itself.)
+ */
+export function strList(args: CapabilityArgs, name: string): string[] {
+  const v = args[name];
+  if (v === undefined || v === null || v === '') return [];
+  const items = Array.isArray(v) ? v.map((item) => argString(item, name)) : [argString(v, name)];
+  return items.map((item) => item.trim()).filter(Boolean);
 }

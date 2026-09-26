@@ -245,7 +245,7 @@ function addressLine(address: NpiAddressStandard | undefined): string {
   return [street, address.city, region].filter((p) => p !== '').join(', ');
 }
 
-export function toProviderStandard(value: unknown): NpiProviderStandard {
+function toProviderStandard(value: unknown): NpiProviderStandard {
   const r = rec(value);
   const basic = toBasic(r.basic);
   const enumerationType = textOrNull(r.enumeration_type);

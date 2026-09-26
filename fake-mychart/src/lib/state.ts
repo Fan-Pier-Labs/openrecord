@@ -19,14 +19,14 @@ import { resetFailingEndpoints } from './outage';
  * Homer's own patient record id. Real instances give the account holder a real
  * opaque id just like a proxy record — see `FakeUser.selfProxyId`.
  */
-export const HOMER_SELF_PROXY_ID =
+const HOMER_SELF_PROXY_ID =
   'WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C';
 
 /** Marge's own record id. She has no proxy access, but she still has a record. */
-export const MARGE_SELF_PROXY_ID =
+const MARGE_SELF_PROXY_ID =
   'WP-8HRTVN3QZ5XKMW2JBC7LFD9PYGA4SEU6KQMWJ1RXTV5NZBHFC3LPD8YSGA2EK7UNQXWRJ6MVTZ4HC9';
 
-export type Passkey = {
+type Passkey = {
   rawId: string;
   name: string;
   createdOnDevice: string;
@@ -69,7 +69,7 @@ export type FakeUserProfile = {
  * non-empty opaque `WP-…` id; "self" is signalled by `IsSelf`, never by the id
  * being blank. See the note on `FakeUser.selfProxyId`.
  */
-export type ProxySubject = {
+type ProxySubject = {
   id: string;
   displayName: string;
   profile: FakeUserProfile;
@@ -202,6 +202,12 @@ type State = {
   emergencyContactsByRecord: Record<string, typeof homer.emergencyContacts>;
   ecIdCounter: number;
   composeIdCounter: number;
+  /**
+   * Files posted to `DocumentUpload/UploadFile`, by the `DocumentId` it
+   * answered. A send whose `documentIds` names one files it on the message.
+   */
+  uploadedFiles: Record<string, { recordId: string; name: string; fileExtension: string; mimeType: string; base64: string }>;
+  uploadIdCounter: number;
   passkeyIdCounter: number;
   bookedAppointments: Array<{
     confirmationNumber: string;
@@ -234,6 +240,8 @@ function freshState(): State {
     },
     ecIdCounter: 100,
     composeIdCounter: 1000,
+    uploadedFiles: {},
+    uploadIdCounter: 0,
     passkeyIdCounter: 0,
     bookedAppointments: [],
   };
@@ -248,6 +256,8 @@ export function resetState(): void {
   state.emergencyContactsByRecord = next.emergencyContactsByRecord;
   state.ecIdCounter = next.ecIdCounter;
   state.composeIdCounter = next.composeIdCounter;
+  state.uploadedFiles = next.uploadedFiles;
+  state.uploadIdCounter = next.uploadIdCounter;
   state.passkeyIdCounter = next.passkeyIdCounter;
   state.bookedAppointments.length = 0;
   resetSessions();
