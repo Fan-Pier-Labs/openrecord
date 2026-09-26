@@ -459,7 +459,6 @@ describe('capability registry against fake-mychart', () => {
       conversation_id: 'CONV-004', mode: 'concise',
     })) as string
     expect(concise).toMatch(/canReply\W+false/)
-    expect(concise).toContain('Expired')
 
     const before = (await executeCapability(session, 'get_message_thread', {
       conversation_id: 'CONV-004', mode: 'json',

@@ -33,7 +33,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
 | `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
 | `get_messages` | 67450 | 45421 | 55469 | 6390 |
-| `get_message_thread` | 3828 | 1518 | 1843 | 1176 |
+| `get_message_thread` | 3828 | 1489 | 1807 | 1140 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
 | `get_billing` | 54524 | 7494 | 8723 | 2126 |
@@ -14369,7 +14369,7 @@ Arguments: ```json
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1843 chars)</summary>
+<summary><code>mode: standard</code> (1807 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -14444,7 +14444,6 @@ Your cholesterol levels are concerning.
 
 - **canReply**: true
 - **cannotReplyReason**: 0
-- **cannotReplyReasonName**: (none)
 - **hasPreviouslyViewed**: false
 - **hasAttachments**: false
 - **hasUrgentMsgs**: false
@@ -14455,7 +14454,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1176 chars)</summary>
+<summary><code>mode: concise</code> (1140 chars)</summary>
 
 - **hthId**: CONV-001
 - **subject**: Weight Management Follow-up
@@ -14473,7 +14472,6 @@ Your cholesterol levels are concerning.
 
 - **canReply**: true
 - **cannotReplyReason**: 0
-- **cannotReplyReasonName**: (none)
 
 ## messages (3)
 
@@ -14509,7 +14507,7 @@ Your cholesterol levels are concerning.
 </details>
 
 <details>
-<summary><code>mode: json</code> (1518 chars)</summary>
+<summary><code>mode: json</code> (1489 chars)</summary>
 
 ```json
 {
@@ -14574,7 +14572,6 @@ Your cholesterol levels are concerning.
     "canReply": true,
     "cannotReplyReason": 0
   },
-  "cannotReplyReasonName": null,
   "hasPreviouslyViewed": false,
   "hasAttachments": false,
   "hasUrgentMsgs": false,

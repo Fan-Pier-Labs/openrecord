@@ -110,18 +110,10 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   nothing.** Seen on one instance, on a customer-service thread (`messageType` `14`) whose
   `replyFlags` were `{ canReply: false, cannotReplyReason: 3 }`. So `sendReply` reads the
   thread first — `GetConversationDetails { id, maxReadMessages: 1, PageNonce }`, keyed on
-  `id` like every read — and on `canReply: false` returns `{ success: false, error }` naming
-  the reason, before `GetViewers`, `GetComposeId`, any upload or the send. A literal `null`
+  `id` like every read — and on `canReply: false` returns `{ success: false, error }` saying
+  the thread takes no replies, before `GetViewers`, `GetComposeId`, any upload or the send. A literal `null`
   (no such conversation on the active record) and a non-200 refuse too. A 200 with `""` from
   the send itself is still reported as a failure, in case a thread closes between the two.
-- **`cannotReplyReason` is the portal's `CannotReplyReason` enum**, read from
-  `epic.px.client.communication-center.js` (public, no login), which switches on it to pick
-  the banner a closed thread shows: `0` Unknown, `1` SystemConversation, `2`
-  SetByHyperspaceUser, `3` Expired (banner string `CannotReplyConversationAge`), `4`
-  TransferredFromExternalOrganization, `5` Discharged, `6` TransferredToUnit, `7`
-  NotSupportedByLocalOrganization, `8` OnLoA, `9` ReleaseIsFulfilled, `10`
-  ReleaseIsComplete, `11` ReleaseIsCanceled. Only `3` has been seen live. The processor's
-  `cannotReplyReasonName` and `sendReply`'s refusal use these names.
 - **Only `GetConversationDetails` carries `replyFlags`.** The captured
   `GetConversationList` and `GetConversationMessages` shapes have no reply flags, so
   `get_messages` cannot say which threads are closed; `get_message_thread` can.
@@ -309,8 +301,7 @@ The first table is the message element, shared with the inlined messages of
 | `totalMessages`, `numUnread` | Counts | — | ✓ | ✓ | Cheap and useful. |
 | `messages[]` (merged, ascending), as above | The thread | — | ✓ | ✓ | A thread has no shorter faithful form; concise is every message. |
 | `truncated` | Paging stopped at the cap with `hasMoreMessages` still true | ✓ | ✓ | ✓ | Derived. A partial thread must never be presented as the whole exchange. |
-| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work, and the enum code when it won't | — | ✓ | ✓ | A closed thread answers `SendReply` with 200 and files nothing, so a reader deciding whether to reply needs it. |
-| `cannotReplyReasonName` | `cannotReplyReason` named from the portal's enum (`Expired`, …); `null` while `canReply` isn't `false` or for a code the enum lacks | ✓ | ✓ | ✓ | Derived. The bare number means nothing to a reader. |
+| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work, and MyChart's code when it won't | — | ✓ | ✓ | A closed thread answers `SendReply` with 200 and files nothing, so a reader deciding whether to reply needs it. The code is passed through, not named: its meaning has only been read from one instance's bundle. |
 | `hasPreviouslyViewed`, `hasAttachments`, `hasUrgentMsgs`, `hasTasks`, `messageType`, `previewText` | Thread flags | — | ✓ | — | Detail. |
 | `lastViewedByStaffMsgId` / `firstUnreadMsgId`, `lastViewedByStaffInstantISO` | Which message staff last saw | — | — | — | Not a shape all instances share: three captured instances send the first pair, one sends the other. |
 | `replyUrl` | Portal reply link | — | — | — | Portal link. |

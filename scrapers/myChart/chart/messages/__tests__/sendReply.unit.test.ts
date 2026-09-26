@@ -83,23 +83,12 @@ describe('sendReply', () => {
     })
     expect(result.success).toBe(false)
     expect(result.error).toContain('does not accept replies')
-    expect(result.error).toContain('cannotReplyReason 3: Expired')
     expect(calls).toHaveLength(2)
     expect(calls[1]!.url).toContain('/api/conversations/GetConversationDetails')
     expect(JSON.parse(calls[1]!.init!.body as string)).toMatchObject({ id: 'WP-convo1', PageNonce: '' })
     for (const path of ['GetViewers', 'GetComposeId', 'UploadFile', 'SendReply']) {
       expect(calls.some((c) => c.url.includes(path))).toBe(false)
     }
-  })
-
-  it('reports the number when the reason is not one the portal names', async () => {
-    const req = mockRequest([
-      { body: TOKEN_HTML },
-      { body: JSON.stringify({ replyFlags: { canReply: false, cannotReplyReason: 99 } }) },
-    ])
-    const result = await sendReply(req, { conversationId: 'WP-convo1', messageBody: 'hi' })
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('cannotReplyReason 99)')
   })
 
   it('refuses a conversation MyChart does not have', async () => {

@@ -1708,8 +1708,8 @@ const SEEDED_CONVERSATIONS: FakeConversations = {
     },
     {
       // A customer-service thread closed to replies, as captured on one live
-      // instance: `messageType` 14 and `cannotReplyReason` 3 (`Expired` in the
-      // portal's enum). SendReply to it answers 200 with "" and files nothing.
+      // instance: `messageType` 14 and `cannotReplyReason` 3. SendReply to it
+      // answers 200 with "" and files nothing.
       hthId: 'CONV-004',
       subject: 'Question about my bill',
       previewText: 'Thank you for contacting Patient Services...',

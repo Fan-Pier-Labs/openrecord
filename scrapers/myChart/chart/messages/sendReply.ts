@@ -16,7 +16,6 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import type { FilePayload } from '../../core/filePayload';
 import { getVerificationToken } from './communicationCenterToken';
 import { prepareAttachments } from './messageUpload';
-import { cannotReplyReasonName } from './messageThreads.processor';
 
 export type SendReplyParams = {
   /** The conversation ID (hthId) to reply to */
@@ -85,12 +84,9 @@ async function replyRefusal(
   if (result.json === null || typeof result.json !== 'object') {
     return `MyChart has no conversation ${conversationId} on the active patient record — take the id from get_messages`;
   }
-  const flags = (result.json as { replyFlags?: { canReply?: unknown; cannotReplyReason?: unknown } }).replyFlags;
+  const flags = (result.json as { replyFlags?: { canReply?: unknown } }).replyFlags;
   if (flags?.canReply !== false) return undefined;
-  const code = typeof flags.cannotReplyReason === 'number' ? flags.cannotReplyReason : null;
-  const name = cannotReplyReasonName(code);
-  return `MyChart does not accept replies on conversation ${conversationId} ` +
-    `(replyFlags.cannotReplyReason ${code ?? 'missing'}${name ? `: ${name}` : ''}). ` +
+  return `MyChart does not accept replies on conversation ${conversationId}. ` +
     'Nothing was sent; send_message starts a new conversation instead.';
 }
 
