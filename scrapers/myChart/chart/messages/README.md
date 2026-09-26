@@ -6,7 +6,7 @@ and the write side — new messages, replies and deletes.
 | | |
 | --- | --- |
 | **Capabilities** | `get_messages` · `get_message_thread` · `get_message_attachment` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
-| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
+| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageUpload.ts`](messageUpload.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
 | **Activity** | React `/app/communication-center` |
 
 ## Endpoints
@@ -21,12 +21,14 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | `POST /api/conversations/GetConversationList` | `{ tag: 1, localLoadParams: { loadStartInstantISO, loadEndInstantISO: '', pagingInfo }, externalLoadParams: {}, searchQuery: '', PageNonce: '' }` | the inbox, 50 threads per page |
 | `POST /api/documents/viewer/GetDocumentDetailsLegacy` | `{ dcsId, fileExtension, organizationId, useOldMobileLink: false }` | where an attachment's file is — `downloadUrl`, `mimeType`, `allowPreview` |
 | `GET /Documents/ViewDocument/Download?dcsid=…&displayName=…&dcsExt=…` | — | the attachment's bytes (the `downloadUrl` above, mount-relative) |
-| `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps |
+| `POST /api/conversations/GetConversationDetails` | `{ id, maxReadMessages, PageNonce }` | one thread — the seed page, plus subject and name maps. Also `sendReply`'s pre-send check of `replyFlags` |
 | `POST /api/conversations/GetConversationMessages` | `{ id, startInstantISO?, maxReadMessages, PageNonce }` | older pages of that thread |
 | `POST /api/medicaladvicerequests/GetMedicalAdviceRequestRecipients` | `{ organizationId }` | who can be written to |
 | `POST /api/medicaladvicerequests/GetSubtopics` | `{ organizationId }` | what about (`topicList[]`) |
 | `POST /api/medicaladvicerequests/GetViewers` | `{ organizationId }` | the patient's own `wprId` |
 | `POST /api/conversations/GetComposeId` | `{}` | a compose id (a bare JSON string) |
+| `POST /api/conversations/GetComposeSettings` | `{ organizationId }` | `attachmentSettings` (and length limits) — only fetched when attaching |
+| `POST /DocumentUpload/UploadFile` | multipart, see below | upload attachments → `{ Success, Data: [{ DocumentId, FileExtension, FileDisplayName }] }` |
 | `POST /api/medicaladvicerequests/SendMedicalAdviceRequest` | see below | send a new message |
 | `POST /api/conversations/SendReply` | `{ conversationId, organizationId, viewers, messageBody, documentIds, includeOtherViewers, composeId }` | reply |
 | `POST /api/conversations/RemoveComposeId` | `{ composeId }` | cleanup after a send |
@@ -51,7 +53,10 @@ The send body:
 `sendNewMessage` is **five requests**: token → `GetViewers` (for the patient's `wprId`) →
 `GetComposeId` → `SendMedicalAdviceRequest` → `RemoveComposeId`. The recipient and topic it
 posts come from `GetMedicalAdviceRequestRecipients` and `GetSubtopics`, which the capability
-resolves by name first. `sendReply` is the same five without a recipient or topic.
+resolves by name first. `sendReply` is the same five without a recipient or topic, plus a
+`GetConversationDetails` right after the token that refuses a thread closed to replies (below).
+With attachments, both add two requests before the send: `GetComposeSettings`, then one
+`UploadFile` carrying every file, whose `DocumentId`s become `documentIds`.
 
 Ids throughout are Epic's `WP-`-prefixed opaque strings.
 
@@ -100,6 +105,54 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   has appeared on any instance there are credentials for, so the scraper refuses them with the
   reason rather than modelling unobserved behaviour.
 
+- **`SendReply` to a thread that can't take replies answers 200 with `""` and files
+  nothing.** Seen on one instance, on a customer-service thread (`messageType` `14`) whose
+  `replyFlags` were `{ canReply: false, cannotReplyReason: 3 }`. So `sendReply` reads the
+  thread first — `GetConversationDetails { id, maxReadMessages: 1, PageNonce }`, keyed on
+  `id` like every read — and on `canReply: false` returns `{ success: false, error }` saying
+  the thread takes no replies, before `GetViewers`, `GetComposeId`, any upload or the send. A literal
+  `null` (no such conversation on the active record) and a non-200 refuse too. A 200 with
+  `""` from `SendReply` itself is still reported as a failure, in case a flag ever says
+  open when the thread is not.
+- **Only `GetConversationDetails` carries `replyFlags`.** The captured
+  `GetConversationList` and `GetConversationMessages` shapes have no reply flags, so
+  `get_messages` cannot say which threads are closed; `get_message_thread` can.
+- **Attachments on the way out are uploaded first, then named by id in the send.** Read
+  from one live instance's composer bundles (`epic.px.client.message-composer`,
+  `epic.px.client.file-upload`), then verified live on two instances: one accepted the
+  upload (its reply was dropped, above), and on the other a new message landed with the
+  PNG attached, listed as a `type: 2` attachment, and `get_message_attachment` downloaded
+  the identical bytes. The upload response was `Success` with one `Data[].DocumentId` per
+  file, as the bundle reads it. Every file goes in one request, per the bundle; live sends
+  have carried one file only. The upload is mount-relative (not `/api/`) and needs the
+  antiforgery token as a `__RequestVerificationToken` header — without it, a bare **500
+  "Runtime Error" HTML page** (not the `FiveHundred` redirect `/api/` gives); with it and no
+  file, `200 {"Success":false}` (both captured on one instance). It sends
+  `Accept: application/json` and is multipart: one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
+  `DCSSource=820`, `TargetPatientID=` and `OrganizationId=` — the composer's own values.
+  Before uploading, the composer checks each file against `GetComposeSettings`'
+  `attachmentSettings`: `canAttach`, `maxNumberOfAttachments`, and for
+  `docAndImageSettings` and `videoSettings` a `maxFileSize` **in KB** and
+  `allowedFileExtensions`; a name needs an extension and none of `/ \ : * ? " < > |`.
+  `checkAttachments` applies exactly those rules, so what a MyChart accepts is whatever
+  that MyChart says — nothing is hardcoded. The composer strips a leading `.` from an
+  answered `FileExtension`, which suggests some instances send one. The capabilities take
+  `attachments` (a `string[]` param; the CLI splits `--arg attachments=a,b` on commas) as
+  file references a client resolves through `CapabilityContext.readFile` (a local path in
+  the CLI and the extension; the mobile app has none yet). An uploaded file's
+  `GetDocumentDetailsLegacy` `displayName` is its own name minus the extension.
+  `GetComposeSettings` captured on five instances — every one had `canAttach: true`,
+  and **none accepts `.txt`**:
+
+  | Instance | Max files | Documents & images (KB) | Video (KB) |
+  | --- | --- | --- | --- |
+  | A | 3 | BMP GIF JPEG JPG PDF PNG TIF TIFF (10240) | 3GP 3GPP AVI MOV MP4 MPEG MPG WMV (65536) |
+  | B | 2 | BMP DOC DOCX JPEG JPG PDF PNG TIF TIFF (30720) | same eight (30720) |
+  | C | 2 | BMP JPEG JPG PDF PNG TIF TIFF (10240) | same eight (65536) |
+  | D | 3 | BMP JPEG JPG PDF PNG TIF TIFF (10400) | same eight (20480) |
+  | E | 3 | JPEG JPG PDF PNG TIF TIFF (10240) | **none** — `[]`, `maxFileSize: 1` |
+
+  fake-mychart serves instance A's.
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500
   `{"Message":"An error has occurred."}` for every conversation and every body variant** —
@@ -189,7 +242,9 @@ and flattening the who / when of each thread become processor work.
 
 Concise is the list of threads and nothing more: one flat row per thread with
 the `hthId` that `get_message_thread` takes. The newest five messages the
-listing inlines stay in `standard` / `json`.
+listing inlines stay in `standard` / `json`. The listing has no `replyFlags`
+(not in the captured shape), so whether a thread takes replies is only in
+`get_message_thread`.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
@@ -251,7 +306,7 @@ The first table is the message element, shared with the inlined messages of
 | `totalMessages`, `numUnread` | Counts | — | ✓ | ✓ | Cheap and useful. |
 | `messages[]` (merged, ascending), as above | The thread | — | ✓ | ✓ | A thread has no shorter faithful form; concise is every message. |
 | `truncated` | Paging stopped at the cap with `hasMoreMessages` still true | ✓ | ✓ | ✓ | Derived. A partial thread must never be presented as the whole exchange. |
-| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work | — | ✓ | — | Tells a consumer whether a follow-up write is possible; detail. |
+| `replyFlags.canReply`, `.cannotReplyReason` | Whether `send_reply` will work, and MyChart's code when it won't | — | ✓ | ✓ | A closed thread answers `SendReply` with 200 and files nothing, so a reader deciding whether to reply needs it. The code is passed through, not named: its meaning has only been read from one instance's bundle. |
 | `hasPreviouslyViewed`, `hasAttachments`, `hasUrgentMsgs`, `hasTasks`, `messageType`, `previewText` | Thread flags | — | ✓ | — | Detail. |
 | `lastViewedByStaffMsgId` / `firstUnreadMsgId`, `lastViewedByStaffInstantISO` | Which message staff last saw | — | — | — | Not a shape all instances share: three captured instances send the first pair, one sends the other. |
 | `replyUrl` | Portal reply link | — | — | — | Portal link. |
