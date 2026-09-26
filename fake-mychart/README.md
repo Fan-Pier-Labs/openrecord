@@ -263,6 +263,12 @@ Behavioral contract, all verified against the same captures and enforced by
   up front and never reports success without a conversation id — a caller that
   reads "200 means sent" tells a patient their message reached their doctor
   when nothing was filed.
+- **`SendReply` to a thread closed to replies answers 200 with `""` and files
+  nothing.** Observed on one live instance, on a customer-service thread
+  (`messageType` `14`) whose `GetConversationDetails` said `replyFlags:
+  { canReply: false, cannotReplyReason: 3 }`. Homer's `CONV-004` is that thread;
+  every other thread takes replies. The listing carries no reply flags — only
+  details does.
 
 ## Resetting In-Memory State
 
@@ -420,7 +426,7 @@ Messages are fully interactive. You can:
 - **Read conversation threads** — `getconversationdetails` for the subject, the name maps and the newest page, then `getconversationmessages` to page backwards through anything older
 - **Download an attachment** — `getdocumentdetailslegacy` for the link, then the `Documents/ViewDocument/Download` GET for the bytes (see *Attachments* below)
 - **Send a new message** — goes through the full compose flow (get topics → get recipients → get compose ID → send). The new conversation appears in subsequent list calls — unless the body is over 500 characters, which is silently dropped (see the behavioral contract above).
-- **Reply to a message** — appends to an existing conversation thread
+- **Reply to a message** — appends to an existing conversation thread, except `CONV-004`, which is closed to replies (see the behavioral contract above)
 - **Delete a conversation** — removes it from the in-memory list
 
 All mutations persist in RAM until the server restarts.
