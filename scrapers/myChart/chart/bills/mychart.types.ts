@@ -51,33 +51,7 @@ export type Statement = {
 
 /** Repeated shape. Appears in: chart/bills. */
 export type DataStatement = {
-  StatementList?: Array<{
-    Show?: boolean;
-    Date?: number;
-    DayOfMonth?: number;
-    Month?: number;
-    Year?: number;
-    DateDisplay?: string;
-    Description?: string;
-    SubText?: string;
-    LinkText?: string;
-    LinkDescription?: string;
-    IsRead?: boolean;
-    ImagePath?: string;
-    Token?: string;
-    IsPaperless?: boolean;
-    PrintID?: string;
-    StatementAmountDisplay?: string;
-    IsEB?: boolean;
-    Format?: number;
-    IsDetailBill?: boolean;
-    BillingSystem?: number;
-    EncBillingSystem?: string;
-    RecordID?: string;
-    ServiceDateStart?: unknown;
-    ServiceDateEnd?: unknown;
-    URLStatement?: unknown;
-  }>;
+  StatementList?: Array<Statement>;
   HasUnread?: boolean;
   HasRead?: boolean;
   ShowAll?: boolean;

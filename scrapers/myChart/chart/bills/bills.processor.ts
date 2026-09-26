@@ -25,7 +25,7 @@ import { answered, findRequest, findRequests, type RawRequestRecord, type RawRes
 import type { Processor } from '../../processors/processor';
 import { htmlToText } from '../../processors/htmlText';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
-import type { BillingGetVisits, DataStatement, GetStatementList, LoadPaymentList } from './mychart.types';
+import type { BillingGetVisits, DataStatement, GetStatementList, LoadPaymentList, Statement } from './mychart.types';
 import type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
 
 export type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
@@ -301,10 +301,11 @@ export function statementDateISO(dateDisplay: unknown): string | null {
 }
 
 export function statement(value: unknown): BillingStatementStandard {
-  const s = rec(value);
+  const s = rec<Statement>(value);
   return {
     dateISO: statementDateISO(s.DateDisplay),
-    FormattedDateDisplay: textOrNull(s.FormattedDateDisplay),
+    // No live capture has this field; only the hand-written fixture does.
+    FormattedDateDisplay: textOrNull(rec(value).FormattedDateDisplay),
     DateDisplay: textOrNull(s.DateDisplay),
     Description: textOrNull(s.Description),
     SubText: textOrNull(s.SubText),
