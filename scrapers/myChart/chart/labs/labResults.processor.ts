@@ -19,185 +19,10 @@ import { findRequests, type RawResponse } from '../../core/rawResponse';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
+import type { GetMultipleHistoricalResultComponents, Narrative, ReferenceRange, TestResultDetails, TestResultList } from './mychart.types';
+import type { HistoricalComponentStandard, HistoricalPointStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ReferenceRangeStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
 
-export interface ReferenceRangeStandard {
-  formattedReferenceRange: string | null;
-  low: number | null;
-  high: number | null;
-  displayLow: string | null;
-  displayHigh: string | null;
-  lowerBoundExclusive: boolean | null;
-  upperBoundExclusive: boolean | null;
-}
-
-export interface LabComponentStandard {
-  componentInfo: {
-    /** Key into `historicalResults`. */
-    componentID: string | null;
-    name: string | null;
-    commonName: string | null;
-    units: string | null;
-  };
-  componentResultInfo: {
-    /**
-     * Derived: the value as plain text. Today this is `value` itself — no RTF
-     * value has ever been captured (`isValueRtf` exists only in the skeleton),
-     * so there is nothing to convert against. TODO(docs/processor-layer-todo.md
-     * §1): when a capture shows what MyChart's RTF looks like, strip it here
-     * with a real converter; until then an RTF value passes through as-is.
-     */
-    valueText: string | null;
-    numericValue: number | null;
-    isValueRtf: boolean | null;
-    referenceRange: ReferenceRangeStandard;
-  };
-  componentComments: { contentAsString: string | null };
-}
-
-/** A signed block of text: narrative, impression, addendum, note, letter. */
-export interface SignedTextStandard {
-  contentAsString: string | null;
-  signingInstantTimestamp: string | null;
-}
-
-export interface StudyResultStandard {
-  narrative: SignedTextStandard;
-  impression: SignedTextStandard;
-  addenda: SignedTextStandard[];
-  /** Uncaptured; passed through whole. */
-  transcriptions: unknown[];
-  /** Uncaptured; passed through whole. */
-  ecgDiagnosis: unknown[];
-  hasStudyContent: boolean | null;
-  isFullResultText: boolean | null;
-  isCupidAddendum: boolean | null;
-}
-
-export interface ResultingLabStandard {
-  name: string | null;
-  address: string[];
-  phoneNumber: string | null;
-  labDirector: string | null;
-  cliaNumber: string | null;
-  accreditationType: string | null;
-}
-
-export interface OrderMetadataStandard {
-  prioritizedInstantISO: string | null;
-  prioritizedInstantDisplay: string | null;
-  resultTimestampDisplay: string | null;
-  latestUpdateInstantISO: string | null;
-  collectionTimestampsDisplay: string | null;
-  specimensDisplay: string | null;
-  resultStatus: string | null;
-  orderProviderName: string | null;
-  authorizingProviderName: string | null;
-  readingProviderName: string | null;
-  resultType: string | number | null;
-  associatedDiagnoses: string[];
-  resultingLab: ResultingLabStandard;
-}
-
-export interface ProviderCommentStandard {
-  commentText: string | null;
-  providerName: string | null;
-  commentDate: string | null;
-}
-
-export interface ImageStudyStandard {
-  studyDescription: string | null;
-  modality: string | null;
-  studyDate: string | null;
-  numberOfImages: number | null;
-}
-
-export interface ScanStandard {
-  scanType: string | null;
-  scanDate: string | null;
-}
-
-export interface LabResultStandard {
-  name: string | null;
-  key: string | null;
-  isAbnormal: boolean | null;
-  hasComment: boolean | null;
-  warningType: string | null;
-  warningMessage: string | null;
-  orderMetadata: OrderMetadataStandard;
-  resultComponents: LabComponentStandard[];
-  studyResult: StudyResultStandard;
-  resultNote: SignedTextStandard;
-  resultLetter: SignedTextStandard;
-  providerComments: ProviderCommentStandard[];
-  reportDetails: { reportID: string | null; isDownloadablePDFReport: boolean | null };
-  /**
-   * Derived: plain text of the joined `LoadReportContent.reportContent`.
-   * `null` when the result named no report or none was fetched.
-   */
-  reportContentText: string | null;
-  imageStudies: ImageStudyStandard[];
-  scans: ScanStandard[];
-  fdiLink: { redirectUrl: string | null };
-}
-
-export interface HistoricalPointStandard {
-  dateISO: string | null;
-  value: string | null;
-  numericValue: number | null;
-  isValueRtf: boolean | null;
-  referenceRange: ReferenceRangeStandard;
-}
-
-export interface HistoricalComponentStandard {
-  name: string | null;
-  commonName: string | null;
-  units: string | null;
-  oldestResultISO: string | null;
-  historicalResultData: HistoricalPointStandard[];
-}
-
-export interface LabOrderStandard {
-  orderName: string | null;
-  key: string | null;
-  /** Lifted from the matching `GetList` group: the encounter the order belongs to. */
-  isInpatient: boolean | null;
-  isEDVisit: boolean | null;
-  formattedAdmitDate: string | null;
-  formattedDischargeDate: string | null;
-  results: LabResultStandard[];
-  /** The joined trend body, keyed by `componentID`. */
-  historicalResults: Record<string, HistoricalComponentStandard>;
-}
-
-export interface LabResultsStandard {
-  orders: LabOrderStandard[];
-}
-
-/** The concise projection of one order, shared with the imaging processor. */
-export interface LabOrderConcise {
-  orderName: string | null;
-  results: Array<{
-    name: string | null;
-    prioritizedInstantISO: string | null;
-    resultStatus: string | null;
-    orderProviderName: string | null;
-    resultComponents: Array<{
-      name: string | null;
-      commonName: string | null;
-      units: string | null;
-      valueText: string | null;
-      formattedReferenceRange: string | null;
-      contentAsString: string | null;
-    }>;
-    narrative: string | null;
-    impression: string | null;
-    addenda: Array<string | null>;
-    resultNote: string | null;
-    resultLetter: string | null;
-    reportContentText: string | null;
-  }>;
-  historicalResults: Record<string, { name: string | null; historicalResultData: Array<{ dateISO: string | null; value: string | null }> }>;
-}
+export type { HistoricalComponentStandard, HistoricalPointStandard, ImageStudyStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ProviderCommentStandard, ReferenceRangeStandard, ResultingLabStandard, ScanStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
 
 /** How many trend points the concise view keeps per component. */
 export const CONCISE_TREND_POINTS = 8;
@@ -207,7 +32,7 @@ function scalarOrNull(value: unknown): string | number | null {
 }
 
 function referenceRange(value: unknown): ReferenceRangeStandard {
-  const r = rec(value);
+  const r = rec<ReferenceRange>(value);
   return {
     formattedReferenceRange: textOrNull(r.formattedReferenceRange),
     low: num(r.low),
@@ -220,7 +45,7 @@ function referenceRange(value: unknown): ReferenceRangeStandard {
 }
 
 function signedText(value: unknown): SignedTextStandard {
-  const s = rec(value);
+  const s = rec<Narrative>(value);
   return { contentAsString: textOrNull(s.contentAsString), signingInstantTimestamp: textOrNull(s.signingInstantTimestamp) };
 }
 
@@ -381,16 +206,16 @@ export function rawResultsForOrder(raw: RawResponse, key: string | null): unknow
   if (!key) return [];
   // Mirrors `standard()`'s `key: textOrNull(body.key) ?? orderKey`.
   const details = findRequests(raw, 'test-results/GetDetails').find(
-    (d) => text(rec(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
+    (d) => text(rec<TestResultDetails>(d.body).key) === key || text(rec(d.requestBody).orderKey) === key,
   );
-  return list(rec(details?.body).results);
+  return list(rec<TestResultDetails>(details?.body).results);
 }
 
 /** The `GetList` groups across every recorded page, keyed by order key (first wins). */
 function resultGroupsByKey(raw: RawResponse): Map<string, Record<string, unknown>> {
   const groups = new Map<string, Record<string, unknown>>();
   for (const page of findRequests(raw, 'test-results/GetList')) {
-    for (const group of list(rec(page.body).newResultGroups)) {
+    for (const group of list(rec<TestResultList>(page.body).newResultGroups)) {
       const g = rec(group);
       const key = text(g.key);
       if (key && !groups.has(key)) groups.set(key, g);
@@ -451,11 +276,11 @@ export const labResultsProcessor: Processor<LabResultsStandard> = {
       // A body that is not the order (a WAF page, a literal null for an
       // unknown key) projects to an all-null order under the key we asked
       // for; the body itself is in `raw`.
-      const body = rec(details.body);
+      const body = rec<TestResultDetails>(details.body);
       const group = groups.get(orderKey) ?? {};
       const trend = trends.find((t) => text(rec(t.requestBody).orderID) === orderKey);
       const historicalResults: Record<string, HistoricalComponentStandard> = {};
-      for (const [componentID, h] of Object.entries(rec(rec(trend?.body).historicalResults))) {
+      for (const [componentID, h] of Object.entries(rec(rec<GetMultipleHistoricalResultComponents>(trend?.body).historicalResults))) {
         historicalResults[componentID] = historicalComponent(h);
       }
       orders.push({
