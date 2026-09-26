@@ -57,6 +57,7 @@
     "check:publish": "publint --strict && attw --pack ."
   },
   "dependencies": {
+    "@clack/prompts": "^1.8.1",
     "cheerio": "^1.2.0",
     "compare-versions": "^6.1.1",
     "date-fns": "^4.4.0",
