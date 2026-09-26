@@ -45,6 +45,13 @@ jobs:
         run: cd expo-app && bun install
       - name: Install npm-package deps
         run: cd npm-package && bun install
+      # Knip loads each workspace's config through its framework plugins
+      # (Expo's app.config.ts, Next's for fake-mychart), so a workspace without
+      # its node_modules reports its whole tree as unused files and deps.
+      - name: Unused files, exports and dependencies (knip)
+        run: |
+          cd fake-mychart && bun install && cd ..
+          bun run knip
       # Built before eslint on purpose: npm-package's bundle test imports
       # dist/index.js, and without it the import degrades to `any` — the
       # type-aware rules then misjudge that file (e.g. flagging non-null
