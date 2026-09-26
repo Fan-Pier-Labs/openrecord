@@ -213,6 +213,7 @@ describe('conversationThreadProcessor', () => {
         },
       ],
       replyFlags: { canReply: true, cannotReplyReason: 0 },
+      cannotReplyReasonName: null,
       hasPreviouslyViewed: true,
       hasAttachments: false,
       hasUrgentMsgs: false,
@@ -288,13 +289,14 @@ describe('conversationThreadProcessor', () => {
       numUnread: null,
       truncated: false,
       replyFlags: { canReply: null, cannotReplyReason: null },
+      cannotReplyReasonName: null,
       hasPreviouslyViewed: null,
       previewText: null,
     })
     expect(standard.messages[0]).toMatchObject({ wmgId: null, senderName: '', isFromPatient: false, bodyText: '' })
   })
 
-  it('projects concise to identity, counts, truncation and every message', () => {
+  it('projects concise to identity, counts, truncation, reply flags and every message', () => {
     const concise = conversationThreadProcessor.concise(conversationThreadProcessor.standard(envelope(DETAILS)))
     expect(concise).toEqual({
       hthId: 'conv-1',
@@ -303,11 +305,26 @@ describe('conversationThreadProcessor', () => {
       totalMessages: 2,
       numUnread: 1,
       truncated: false,
+      replyFlags: { canReply: true, cannotReplyReason: 0 },
+      cannotReplyReasonName: null,
       messages: [
         { deliveryInstantISO: '2026-01-10T14:30:00Z', senderName: 'Julius Hibbert, MD', isFromPatient: false, bodyText: 'How are you feeling?', attachments: [] },
         { deliveryInstantISO: '2026-01-10T15:45:00Z', senderName: 'Homer Simpson', isFromPatient: true, bodyText: 'Much better, thanks.', attachments: [] },
       ],
     })
+  })
+
+  // Concise is what the model-facing clients read, and a closed thread answers
+  // SendReply with 200 and files nothing, so the flag has to reach concise.
+  it('names the reason a thread is closed to replies, in concise too', () => {
+    const closed = { ...DETAILS, replyFlags: { canReply: false, cannotReplyReason: 3 } }
+    const concise = conversationThreadProcessor.concise(conversationThreadProcessor.standard(envelope(closed)))
+    expect(concise).toMatchObject({
+      replyFlags: { canReply: false, cannotReplyReason: 3 },
+      cannotReplyReasonName: 'Expired',
+    })
+    const unnamed = { ...DETAILS, replyFlags: { canReply: false, cannotReplyReason: 99 } }
+    expect(conversationThreadProcessor.standard(envelope(unnamed))!.cannotReplyReasonName).toBeNull()
   })
 
   // The dcsId is what get_message_attachment takes, so it survives every mode

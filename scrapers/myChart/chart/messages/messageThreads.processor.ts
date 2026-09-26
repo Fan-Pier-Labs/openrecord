@@ -29,6 +29,30 @@ import {
   type MessageStandard,
 } from './conversations.processor';
 
+/**
+ * The portal's own `cannotReplyReason` enum, read from
+ * `epic.px.client.communication-center.js`, which switches on it to pick the
+ * banner a closed thread shows.
+ */
+const CANNOT_REPLY_REASONS: Record<number, string> = {
+  0: 'Unknown',
+  1: 'SystemConversation',
+  2: 'SetByHyperspaceUser',
+  3: 'Expired',
+  4: 'TransferredFromExternalOrganization',
+  5: 'Discharged',
+  6: 'TransferredToUnit',
+  7: 'NotSupportedByLocalOrganization',
+  8: 'OnLoA',
+  9: 'ReleaseIsFulfilled',
+  10: 'ReleaseIsComplete',
+  11: 'ReleaseIsCanceled',
+};
+
+export function cannotReplyReasonName(code: number | null): string | null {
+  return code === null ? null : CANNOT_REPLY_REASONS[code] ?? null;
+}
+
 export interface ConversationThreadStandard {
   hthId: string | null;
   subject: string | null;
@@ -40,6 +64,8 @@ export interface ConversationThreadStandard {
   /** Every page merged, oldest first. */
   messages: MessageStandard[];
   replyFlags: { canReply: boolean | null; cannotReplyReason: number | null };
+  /** Derived: `replyFlags.cannotReplyReason` named from the portal's enum, when the thread is closed. */
+  cannotReplyReasonName: string | null;
   hasPreviouslyViewed: boolean | null;
   hasAttachments: boolean | null;
   hasUrgentMsgs: boolean | null;
@@ -55,6 +81,8 @@ export interface ConversationThreadConcise {
   totalMessages: number | null;
   numUnread: number | null;
   truncated: boolean;
+  replyFlags: { canReply: boolean | null; cannotReplyReason: number | null };
+  cannotReplyReasonName: string | null;
   messages: MessageConcise[];
 }
 
@@ -87,6 +115,8 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
       last !== null && typeof last === 'object' && bool(lastPage.hasMoreMessages) && list(lastPage.messages).length > 0;
 
     const replyFlags = rec(details.replyFlags);
+    const canReply = boolOrNull(replyFlags.canReply);
+    const cannotReplyReason = num(replyFlags.cannotReplyReason);
     return {
       hthId: textOrNull(details.hthId),
       subject: textOrNull(details.subject),
@@ -95,7 +125,8 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
       numUnread: num(details.numUnread),
       truncated,
       messages: merged,
-      replyFlags: { canReply: boolOrNull(replyFlags.canReply), cannotReplyReason: num(replyFlags.cannotReplyReason) },
+      replyFlags: { canReply, cannotReplyReason },
+      cannotReplyReasonName: canReply === false ? cannotReplyReasonName(cannotReplyReason) : null,
       hasPreviouslyViewed: boolOrNull(details.hasPreviouslyViewed),
       hasAttachments: boolOrNull(details.hasAttachments),
       hasUrgentMsgs: boolOrNull(details.hasUrgentMsgs),
@@ -114,6 +145,8 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
       totalMessages: standard.totalMessages,
       numUnread: standard.numUnread,
       truncated: standard.truncated,
+      replyFlags: standard.replyFlags,
+      cannotReplyReasonName: standard.cannotReplyReasonName,
       messages: standard.messages.map(messageConcise),
     };
   },

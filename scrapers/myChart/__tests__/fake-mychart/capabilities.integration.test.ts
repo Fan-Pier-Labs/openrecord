@@ -452,6 +452,37 @@ describe('capability registry against fake-mychart', () => {
     expect(refused.error).toMatch(/accepts only .*PDF/)
   }, 60_000)
 
+  // The fixture's closed customer-service thread: real MyChart answers
+  // SendReply to one with 200 and an empty id, and files nothing.
+  it('shows a thread is closed to replies and refuses to reply to it', async () => {
+    const concise = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: 'CONV-004', mode: 'concise',
+    })) as string
+    expect(concise).toMatch(/canReply\W+false/)
+    expect(concise).toContain('Expired')
+
+    const before = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: 'CONV-004', mode: 'json',
+    })) as { totalMessages: number }
+    const refused = (await executeCapability(session, 'send_reply', {
+      conversation_id: 'CONV-004',
+      message: 'Is anyone there?',
+    })) as { success: boolean; error?: string }
+    expect(refused.success).toBe(false)
+    expect(refused.error).toContain('does not accept replies')
+    const after = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: 'CONV-004', mode: 'json',
+    })) as { totalMessages: number }
+    expect(after.totalMessages).toBe(before.totalMessages)
+
+    const unknown = (await executeCapability(session, 'send_reply', {
+      conversation_id: 'CONV-NOPE',
+      message: 'Hello?',
+    })) as { success: boolean; error?: string }
+    expect(unknown.success).toBe(false)
+    expect(unknown.error).toContain('no conversation CONV-NOPE')
+  }, 60_000)
+
   it('refuses to guess which provider was meant', async () => {
     const promise = executeCapability(session, 'send_message', {
       recipient_name: 'definitely-not-a-real-provider',

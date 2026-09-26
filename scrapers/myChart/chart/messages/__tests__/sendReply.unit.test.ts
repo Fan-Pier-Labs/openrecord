@@ -3,6 +3,7 @@ import { sendReply } from '../sendReply'
 import { MyChartRequest } from '../../../core/myChartRequest'
 
 const TOKEN_HTML = '<input name="__RequestVerificationToken" value="csrf_tok" />'
+const OPEN_THREAD = JSON.stringify({ hthId: 'WP-convo1', replyFlags: { canReply: true, cannotReplyReason: 0 } })
 
 function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
@@ -42,6 +43,7 @@ describe('sendReply', () => {
   it('returns error when no viewer wprId', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [] }) },
     ])
     const result = await sendReply(req, {
@@ -55,6 +57,7 @@ describe('sendReply', () => {
   it('returns error when no compose ID', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: 'null' },
     ])
@@ -66,9 +69,64 @@ describe('sendReply', () => {
     expect(result.error).toContain('compose ID')
   })
 
+  // MyChart answers SendReply to a closed thread with 200 and an empty id, and
+  // files nothing, so the refusal has to come before anything is prepared.
+  it('refuses a thread that does not take replies before composing, uploading or sending', async () => {
+    const { req, calls } = mockRequestWithCapture([
+      { body: TOKEN_HTML },
+      { body: JSON.stringify({ hthId: 'WP-convo1', replyFlags: { canReply: false, cannotReplyReason: 3 } }) },
+    ])
+    const result = await sendReply(req, {
+      conversationId: 'WP-convo1',
+      messageBody: 'hi',
+      attachments: [{ fileName: 'a.png', mimeType: 'image/png', bytes: new Uint8Array([1]) }],
+    })
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('does not accept replies')
+    expect(result.error).toContain('cannotReplyReason 3: Expired')
+    expect(calls).toHaveLength(2)
+    expect(calls[1]!.url).toContain('/api/conversations/GetConversationDetails')
+    expect(JSON.parse(calls[1]!.init!.body as string)).toMatchObject({ id: 'WP-convo1', PageNonce: '' })
+    for (const path of ['GetViewers', 'GetComposeId', 'UploadFile', 'SendReply']) {
+      expect(calls.some((c) => c.url.includes(path))).toBe(false)
+    }
+  })
+
+  it('reports the number when the reason is not one the portal names', async () => {
+    const req = mockRequest([
+      { body: TOKEN_HTML },
+      { body: JSON.stringify({ replyFlags: { canReply: false, cannotReplyReason: 99 } }) },
+    ])
+    const result = await sendReply(req, { conversationId: 'WP-convo1', messageBody: 'hi' })
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('cannotReplyReason 99)')
+  })
+
+  it('refuses a conversation MyChart does not have', async () => {
+    const { req, calls } = mockRequestWithCapture([
+      { body: TOKEN_HTML },
+      { body: 'null' },
+    ])
+    const result = await sendReply(req, { conversationId: 'WP-nope', messageBody: 'hi' })
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('no conversation WP-nope')
+    expect(calls).toHaveLength(2)
+  })
+
+  it('refuses when the thread cannot be read', async () => {
+    const req = mockRequest([
+      { body: TOKEN_HTML },
+      { body: '{"Message":"An error has occurred."}', status: 500 },
+    ])
+    const result = await sendReply(req, { conversationId: 'WP-convo1', messageBody: 'hi' })
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('status 500')
+  })
+
   it('reports a reply MyChart filed nothing for as a failure', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: JSON.stringify('WP-compose123') },
       { body: '""' },
@@ -82,6 +140,7 @@ describe('sendReply', () => {
   it('sends reply successfully and returns conversation ID', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },                                                         // getVerificationToken
+      { body: OPEN_THREAD },                                                        // GetConversationDetails
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) }, // getViewerWprId
       { body: JSON.stringify('WP-compose123') },                                    // getComposeId
       { body: JSON.stringify('WP-convo1') },                                        // SendReply
@@ -96,8 +155,8 @@ describe('sendReply', () => {
     expect(result.success).toBe(true)
     expect(result.conversationId).toBe('WP-convo1')
 
-    // Verify the send request (4th call, index 3)
-    const sendCall = calls[3]
+    // Verify the send request (5th call, index 4)
+    const sendCall = calls[4]
     expect(sendCall!.url).toContain('/api/conversations/SendReply')
     const sendBody = JSON.parse(sendCall!.init!.body as string)
     expect(sendBody.conversationId).toBe('WP-convo1')
@@ -108,14 +167,15 @@ describe('sendReply', () => {
     expect(sendBody.documentIds).toEqual([])
     expect(sendBody.includeOtherViewers).toBe(false)
 
-    // Verify cleanup (5th call, index 4)
-    const cleanupCall = calls[4]
+    // Verify cleanup (6th call, index 5)
+    const cleanupCall = calls[5]
     expect(cleanupCall!.url).toContain('/api/conversations/RemoveComposeId')
   })
 
   it('returns error on non-200 response', async () => {
     const req = mockRequest([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: JSON.stringify('WP-compose123') },
       { body: JSON.stringify({ error: 'forbidden' }), status: 403 },
@@ -134,6 +194,7 @@ describe('sendReply', () => {
   it('does not include subject or recipient in reply body', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: JSON.stringify('WP-compose123') },
       { body: JSON.stringify('WP-convo1') },
@@ -145,7 +206,7 @@ describe('sendReply', () => {
       messageBody: 'Test reply',
     })
 
-    const sendBody = JSON.parse(calls[3]!.init!.body as string)
+    const sendBody = JSON.parse(calls[4]!.init!.body as string)
     expect(sendBody).not.toHaveProperty('recipient')
     expect(sendBody).not.toHaveProperty('topic')
     expect(sendBody).not.toHaveProperty('messageSubject')
@@ -154,6 +215,7 @@ describe('sendReply', () => {
   it('picks self viewer from multiple viewers', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       {
         body: JSON.stringify({
           viewers: [
@@ -172,13 +234,14 @@ describe('sendReply', () => {
       messageBody: 'Test',
     })
 
-    const sendBody = JSON.parse(calls[3]!.init!.body as string)
+    const sendBody = JSON.parse(calls[4]!.init!.body as string)
     expect(sendBody.viewers).toEqual([{ wprId: 'WP-self' }])
   })
 
   it('passes custom organizationId', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: JSON.stringify('WP-compose123') },
       { body: JSON.stringify('WP-convo1') },
@@ -191,16 +254,17 @@ describe('sendReply', () => {
       organizationId: 'WP-org1',
     })
 
-    const viewersBody = JSON.parse(calls[1]!.init!.body as string)
+    const viewersBody = JSON.parse(calls[2]!.init!.body as string)
     expect(viewersBody.organizationId).toBe('WP-org1')
 
-    const sendBody = JSON.parse(calls[3]!.init!.body as string)
+    const sendBody = JSON.parse(calls[4]!.init!.body as string)
     expect(sendBody.organizationId).toBe('WP-org1')
   })
 
   it('wraps messageBody as array of strings', async () => {
     const { req, calls } = mockRequestWithCapture([
       { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
       { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
       { body: JSON.stringify('WP-compose123') },
       { body: JSON.stringify('WP-convo1') },
@@ -212,7 +276,7 @@ describe('sendReply', () => {
       messageBody: 'plain text message',
     })
 
-    const sendBody = JSON.parse(calls[3]!.init!.body as string)
+    const sendBody = JSON.parse(calls[4]!.init!.body as string)
     expect(Array.isArray(sendBody.messageBody)).toBe(true)
     expect(sendBody.messageBody).toEqual(['plain text message'])
   })
