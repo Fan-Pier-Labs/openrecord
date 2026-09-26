@@ -20,6 +20,8 @@ import { describe, it, expect, beforeAll } from 'bun:test'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { myChartUserPassLogin } from '../../auth/login'
 import { setMountMode, resetFakeMyChart } from './mountMode'
+import { buildUploadBody } from '../../chart/messages/messageUpload'
+import { getVerificationToken } from '../../chart/messages/communicationCenterToken'
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -397,6 +399,76 @@ describe('capability registry against fake-mychart', () => {
 
     expect(result.error).toBeUndefined()
     expect(result.success).toBe(true)
+  }, 30_000)
+
+  // What goes up comes back: the upload's DocumentId is filed on the message,
+  // and get_message_attachment downloads the very bytes that were attached.
+  it('sends a message and a reply with attachments, and reads them back', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34])
+    const files: Record<string, FilePayload> = {
+      'photo.png': { fileName: 'photo.png', mimeType: 'image/png', bytes: png },
+      'letter.pdf': { fileName: 'letter.pdf', mimeType: 'application/pdf', bytes: pdf },
+      'tool.exe': { fileName: 'tool.exe', mimeType: 'application/octet-stream', bytes: pdf },
+    }
+    const ctx = { readFile: async (ref: string) => files[ref]! }
+    const { recipients } = (await executeCapability(session, 'get_message_recipients')) as {
+      recipients: Array<{ displayName: string }>
+    }
+
+    const sent = (await executeCapability(session, 'send_message', {
+      recipient_name: recipients[0]!.displayName,
+      subject: 'Attachment test',
+      message: 'Two files attached.',
+      attachments: ['photo.png', 'letter.pdf'],
+    }, ctx)) as { success: boolean; conversationId: string; error?: string }
+    expect(sent.error).toBeUndefined()
+
+    const replied = (await executeCapability(session, 'send_reply', {
+      conversation_id: sent.conversationId,
+      message: 'And one more.',
+      attachments: 'photo.png',
+    }, ctx)) as { success: boolean; error?: string }
+    expect(replied.error).toBeUndefined()
+
+    const thread = (await executeCapability(session, 'get_message_thread', {
+      conversation_id: sent.conversationId, mode: 'json',
+    })) as { messages: Array<{ attachments: Array<{ name: string; dcsId: string }> }> }
+    const attached = thread.messages.flatMap((m) => m.attachments)
+    expect(attached.map((a) => a.name)).toEqual(['photo.png', 'letter.pdf', 'photo.png'])
+    for (const a of attached) {
+      const file = (await executeCapability(session, 'get_message_attachment', {
+        conversation_id: sent.conversationId,
+        attachment_id: a.dcsId,
+      })) as MessageAttachmentFile
+      expect(Array.from(file.bytes)).toEqual(Array.from(files[a.name]!.bytes))
+    }
+
+    // A type this MyChart does not take is refused before anything is sent.
+    const refused = (await executeCapability(session, 'send_reply', {
+      conversation_id: sent.conversationId,
+      message: 'Not this one.',
+      attachments: ['tool.exe'],
+    }, ctx)) as { success: boolean; error?: string }
+    expect(refused.success).toBe(false)
+    expect(refused.error).toMatch(/accepts only .*PDF/)
+  }, 60_000)
+
+  // As captured on a live instance: the upload enforces the antiforgery token
+  // with a bare 500 page, and answers a token-carrying post with no file
+  // `{"Success":false}`.
+  it('refuses an upload without the token, or without a file', async () => {
+    const { body, contentType } = buildUploadBody([], '')
+    const post = (headers: Record<string, string>) =>
+      session.makeRequest({ path: '/DocumentUpload/UploadFile', method: 'POST', headers: { 'Content-Type': contentType, ...headers }, body })
+
+    const tokenless = await post({})
+    expect(tokenless.status).toBe(500)
+    expect(await tokenless.text()).toContain('Runtime Error')
+
+    const empty = await post({ __RequestVerificationToken: (await getVerificationToken(session))! })
+    expect(empty.status).toBe(200)
+    expect(await empty.json()).toEqual({ Success: false })
   }, 30_000)
 
   // The fixture's closed customer-service thread: real MyChart answers

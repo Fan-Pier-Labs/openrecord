@@ -6,13 +6,16 @@
  * 2. GetConversationDetails - refuse a thread whose replyFlags.canReply is false
  * 3. GetViewers - get patient viewer info (wprId)
  * 4. GetComposeId - get unique compose ID
- * 5. SendReply - send the reply
- * 6. RemoveComposeId - cleanup
+ * 5. With attachments: GetComposeSettings, then DocumentUpload/UploadFile
+ * 6. SendReply - send the reply
+ * 7. RemoveComposeId - cleanup
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
+import type { FilePayload } from '../../core/filePayload';
 import { getVerificationToken } from './communicationCenterToken';
+import { prepareAttachments } from './messageUpload';
 
 export type SendReplyParams = {
   /** The conversation ID (hthId) to reply to */
@@ -21,6 +24,8 @@ export type SendReplyParams = {
   messageBody: string;
   /** Organization ID (usually empty string for default org) */
   organizationId?: string;
+  /** Files to attach; uploaded before the send. */
+  attachments?: readonly FilePayload[];
 };
 
 export type SendReplyResult = {
@@ -168,13 +173,20 @@ export async function sendReply(
     return { success: false, error: 'Could not get compose ID' };
   }
 
-  // Step 5: Send the reply
+  // Step 5: Upload attachments
+  const prepared = await prepareAttachments(mychartRequest, token, params.attachments ?? [], organizationId);
+  if ('error' in prepared) {
+    await removeComposeId(mychartRequest, token, composeId);
+    return { success: false, error: prepared.error };
+  }
+
+  // Step 6: Send the reply
   const sendBody = {
     conversationId: params.conversationId,
     organizationId,
     viewers: [{ wprId }],
     messageBody: [params.messageBody],
-    documentIds: [],
+    documentIds: prepared.documentIds,
     includeOtherViewers: false,
     composeId,
   };
@@ -186,11 +198,20 @@ export async function sendReply(
     token,
   );
 
-  // Step 6: Cleanup compose ID
+  // Step 7: Cleanup compose ID
   await removeComposeId(mychartRequest, token, composeId);
 
-  if (result.status === 200 && typeof result.json === 'string') {
+  if (result.status === 200 && typeof result.json === 'string' && result.json.length > 0) {
     return { success: true, conversationId: result.json };
+  }
+  // What a closed thread answers (200, empty string, nothing filed). The
+  // canReply check above should stop that first; this keeps a silent drop from
+  // ever reading as success.
+  if (result.status === 200 && result.json === '') {
+    return {
+      success: false,
+      error: 'MyChart accepted the reply but filed nothing (HTTP 200, empty conversation id).',
+    };
   }
 
   return {

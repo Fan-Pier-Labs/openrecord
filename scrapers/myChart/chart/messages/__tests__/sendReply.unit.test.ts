@@ -69,6 +69,20 @@ describe('sendReply', () => {
     expect(result.error).toContain('compose ID')
   })
 
+  it('reports a reply MyChart filed nothing for as a failure', async () => {
+    const req = mockRequest([
+      { body: TOKEN_HTML },
+      { body: OPEN_THREAD },
+      { body: JSON.stringify({ viewers: [{ wprId: 'WP-wpr1', isSelf: true }] }) },
+      { body: JSON.stringify('WP-compose123') },
+      { body: '""' },
+      { body: '""' },
+    ])
+    const result = await sendReply(req, { conversationId: 'WP-convo1', messageBody: 'hi' })
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/filed nothing/)
+  })
+
   // MyChart answers SendReply to a closed thread with 200 and an empty id, and
   // files nothing, so the refusal has to come before anything is prepared.
   it('refuses a thread that does not take replies before composing or sending', async () => {
