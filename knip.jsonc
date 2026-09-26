@@ -12,6 +12,8 @@
         "scrapers/list-all-mycharts/fetch-mychart-instances.ts",
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
+        // Claude Code's worktrees are gitignored, but knip still globs into them.
+        "!.claude/**",
         // Raw MyChart response shape for the labs endpoint. Nothing imports it —
         // those payloads are read through the defensive readers in
         // `scrapers/myChart/processors/read.ts` — but whether a read scraper should
