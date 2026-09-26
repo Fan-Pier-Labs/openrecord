@@ -120,8 +120,11 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   that MyChart says — nothing is hardcoded. The composer strips a leading `.` from an
   answered `FileExtension`, which suggests some instances send one. The capabilities take
   `attachments` as file references a client resolves through `CapabilityContext.readFile`
-  (a local path in the CLI and the extension; the mobile app has none yet). fake-mychart's
-  `attachmentSettings` values are placeholders until one is captured.
+  (a local path in the CLI and the extension; the mobile app has none yet).
+  `GetComposeSettings` captured on one instance: 3 attachments; BMP, GIF, JPEG, JPG, PDF,
+  PNG, TIF, TIFF up to 10240 KB; 3GP, 3GPP, AVI, MOV, MP4, MPEG, MPG, WMV up to 65536 KB —
+  **no `.txt`**. The same response carries `maxSubjectLength` (254) and `maxMessageLength`
+  (**1000** there, against the 500 measured elsewhere), so the body limit is per-instance.
 
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500

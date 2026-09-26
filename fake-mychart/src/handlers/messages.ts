@@ -169,18 +169,20 @@ export function findAttachment(request: NextRequest, dcsId: string) {
 
 /**
  * `GetComposeSettings`' `attachmentSettings`, the limits the composer checks a
- * file against before uploading it. Field names are the composer bundle's own
- * (`epic.px.client.message-composer`); the values are not yet captured from a
- * live instance.
+ * file against before uploading it (sizes in KB). Captured from one live
+ * instance; `.txt` really is refused there.
  */
 const ATTACHMENT_SETTINGS = {
   canAttach: true,
   maxNumberOfAttachments: 3,
   docAndImageSettings: {
     maxFileSize: 10240,
-    allowedFileExtensions: ['JPG', 'JPEG', 'PNG', 'GIF', 'BMP', 'TIF', 'TIFF', 'PDF', 'DOC', 'DOCX', 'TXT', 'RTF'],
+    allowedFileExtensions: ['BMP', 'GIF', 'JPEG', 'JPG', 'PDF', 'PNG', 'TIF', 'TIFF'],
   },
-  videoSettings: { maxFileSize: 102400, allowedFileExtensions: ['MP4', 'MOV'] },
+  videoSettings: {
+    maxFileSize: 65536,
+    allowedFileExtensions: ['3GP', '3GPP', 'AVI', 'MOV', 'MP4', 'MPEG', 'MPG', 'WMV'],
+  },
 };
 
 /**
@@ -267,12 +269,14 @@ export const messagesPost: ExactRoutes = {
     return json(`COMPOSE-${state.composeIdCounter}`);
   },
   'api/conversations/removecomposeid': () => json({ success: true }),
+  // The captured instance answered maxMessageLength 1000; this one reports
+  // the limit it enforces, so the two halves of the fake agree.
   'api/conversations/getcomposesettings': () => json({
-    isConfidentialMessagingOn: false,
-    isUnicodeMessagingOn: false,
-    maxSubjectLength: 100,
+    maxSubjectLength: 254,
     maxMessageLength: MAX_MESSAGE_BODY_LENGTH,
-    showIndividualViewers: false,
+    isConfidentialMessagingOn: true,
+    isUnicodeMessagingOn: true,
+    showIndividualViewers: true,
     attachmentSettings: ATTACHMENT_SETTINGS,
   }),
 
