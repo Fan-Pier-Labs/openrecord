@@ -19,7 +19,7 @@
  */
 
 /** Repeated shape. Appears in: chart/goals. */
-export type QuickLinkDictionary = {
+type QuickLinkDictionary = {
   HealthSummary?: string;
   HealthIssues?: string;
   Allergies?: string;
