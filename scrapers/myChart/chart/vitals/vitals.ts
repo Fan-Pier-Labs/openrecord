@@ -2,6 +2,7 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { logger } from '../../../../shared/logger';
 import { list, rec, text } from '../../processors/read';
+import type { GetFlowsheetReadings, GetFlowsheets } from './mychart.types';
 import { vitalsProcessor, type VitalsStandard } from './vitals.processor';
 
 export type {
@@ -42,7 +43,7 @@ export async function fetchVitalsRaw(mychartRequest: MyChartRequest): Promise<Ra
   const collector = new RawCollector(mychartRequest);
   const token = await collector.pageToken('/app/track-my-health');
 
-  const listBody = rec(await collector.postJson('/api/track-my-health/GetFlowsheets', token, { organizationId: '' }));
+  const listBody = rec<GetFlowsheets>(await collector.postJson('/api/track-my-health/GetFlowsheets', token, { organizationId: '' }));
 
   for (const fs of list(listBody.flowsheets)) {
     const episodeId = text(rec(fs).episodeId);
@@ -50,7 +51,7 @@ export async function fetchVitalsRaw(mychartRequest: MyChartRequest): Promise<Ra
 
     let endInstantIso = defaultEndInstantIso();
     for (let page = 0; page < MAX_PAGES; page++) {
-      const body = rec(
+      const body = rec<GetFlowsheetReadings>(
         await collector.postJson('/api/track-my-health/GetFlowsheetReadings', token, {
           episodeId,
           endInstantIso,
