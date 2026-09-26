@@ -183,7 +183,8 @@ export const messagesPost: ExactRoutes = {
       ...store,
       // The listing inlines only the newest page of each thread; everything
       // older is behind GetConversationMessages.
-      conversations: page.conversations.map(conv => ({
+      // replyFlags is a details-only field; the captured listing has none.
+      conversations: page.conversations.map(({ replyFlags: _replyFlags, ...conv }) => ({
         ...conv,
         hasAttachments: hasAttachments(conv),
         ...conversationPage(conv, '', CONVERSATION_PAGE_SIZE),
@@ -199,6 +200,7 @@ export const messagesPost: ExactRoutes = {
     if (!conv) return conversationMessagesFailure();
     return json(conformToShape(shapes.getConversationMessages, {
       hthId: conv.hthId,
+      messageType: conv.messageType,
       userOverrideNames: conv.userOverrideNames,
       ...participantKeys(conv),
       ...conversationPage(conv, asString(body.startInstantISO), pageSize(body.maxReadMessages)),
@@ -222,7 +224,8 @@ export const messagesPost: ExactRoutes = {
       // lets a client turn an author's empKey / wprKey into a display name.
       users: store.users,
       viewers: store.viewers,
-      replyFlags: { canReply: true, cannotReplyReason: 0 },
+      messageType: conv.messageType,
+      replyFlags: conv.replyFlags ?? { canReply: true, cannotReplyReason: 0 },
       ...participantKeys(conv),
       // Always the newest page. Real MyChart also accepts a `messageId` to
       // centre the page on one message, but that variant was never captured,
@@ -258,6 +261,9 @@ export const messagesPost: ExactRoutes = {
       const conv = activeConversations(request).conversations.find(
         (c: { hthId: string }) => c.hthId === convId
       );
+      // A thread closed to replies still answers 200, with an empty id, and
+      // files nothing — observed live on one instance.
+      if (conv?.replyFlags?.canReply === false) return json('');
       if (conv) {
         const replyBody = Array.isArray(body.messageBody) ? body.messageBody[0] : (body.messageBody || body.body || '');
         conv.messages.push({

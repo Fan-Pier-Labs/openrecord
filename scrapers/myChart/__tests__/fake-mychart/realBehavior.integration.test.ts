@@ -525,6 +525,33 @@ describe('the conversation-read endpoints that only accept `id`', () => {
       expect(name).toBeTruthy()
     }
   })
+
+  // Observed on one live instance, on a customer-service thread.
+  it('answers SendReply to a thread closed to replies with 200 and "", filing nothing', async () => {
+    const details = async () => await (await api('/api/conversations/GetConversationDetails', { id: 'CONV-004', PageNonce: '' })).json() as {
+      replyFlags: { canReply: boolean; cannotReplyReason: number }
+      messageType: string
+      totalMessages: number
+    }
+    const before = await details()
+    expect(before.replyFlags).toEqual({ canReply: false, cannotReplyReason: 3 })
+    expect(before.messageType).toBe('14')
+
+    const res = await api('/api/conversations/SendReply', {
+      conversationId: 'CONV-004', organizationId: '', viewers: [], messageBody: ['hello'], documentIds: [], includeOtherViewers: false, composeId: '',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toBe('')
+    expect((await details()).totalMessages).toBe(before.totalMessages)
+
+    const listing = await (await api('/api/conversations/GetConversationList', {
+      tag: 1, localLoadParams: { loadStartInstantISO: '', loadEndInstantISO: '', pagingInfo: 1 }, externalLoadParams: {}, searchQuery: '', PageNonce: '',
+    })).json() as { conversations: Array<Record<string, unknown>> }
+    const listed = listing.conversations.find(c => c.hthId === 'CONV-004')
+    expect(listed).toBeDefined()
+    // The captured listing carries no reply flags; only details does.
+    expect(listed).not.toHaveProperty('replyFlags')
+  })
 })
 
 /**
