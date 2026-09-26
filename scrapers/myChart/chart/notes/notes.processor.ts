@@ -15,6 +15,7 @@ import { findRequest, type RawResponse } from '../../core/rawResponse';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, text, textOrNull } from '../../processors/read';
+import type { GetVisitNotes } from './mychart.types';
 import type { NoteContentStandard, VisitNotesStandard } from './standardized.types';
 
 export type { NoteContentStandard, VisitNoteStandard, VisitNotesStandard } from './standardized.types';
@@ -24,7 +25,7 @@ export const visitNotesProcessor: Processor<VisitNotesStandard | null> = {
     const request = findRequest(raw, 'GetVisitNotes');
     const body = request?.body;
     if (body === null || body === undefined) return null;
-    const b = rec(body);
+    const b = rec<GetVisitNotes>(body);
     return {
       csn: text(rec(request?.requestBody).CSN),
       lrpID: textOrNull(b.lrpID),
