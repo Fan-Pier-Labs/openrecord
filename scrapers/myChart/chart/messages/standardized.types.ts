@@ -122,6 +122,7 @@ export interface ConversationThreadConcise {
   totalMessages: number | null;
   numUnread: number | null;
   truncated: boolean;
+  replyFlags: { canReply: boolean | null; cannotReplyReason: number | null };
   messages: MessageConcise[];
 }
 

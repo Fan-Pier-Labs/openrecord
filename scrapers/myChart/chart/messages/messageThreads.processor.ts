@@ -87,6 +87,7 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
       totalMessages: standard.totalMessages,
       numUnread: standard.numUnread,
       truncated: standard.truncated,
+      replyFlags: standard.replyFlags,
       messages: standard.messages.map(messageConcise),
     };
   },
