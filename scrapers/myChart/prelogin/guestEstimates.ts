@@ -28,24 +28,14 @@
 
 import type { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
+import { rec } from '../processors/read';
+import type { GuestEstimatesLocationModel, GuestEstimatesServiceArea, Location } from './mychart.types';
 import { openPreloginPage } from './preloginSession';
 import type { BillingEntity } from './types';
 
 const GUEST_ESTIMATES_PATH = '/GuestEstimates';
 
-export type RawServiceArea = {
-  Id: string;
-  Title: string;
-  Phone?: string | null;
-  PhoneText?: string | null;
-  LogoURL?: string | null;
-  SelectLocations?: boolean;
-};
-
-type RawLocationModel = {
-  Locations?: RawServiceArea[] | null;
-  HasCompletedCaptcha?: boolean;
-};
+export type RawServiceArea = GuestEstimatesServiceArea & { Id: string; Title: string };
 
 /**
  * The JSON value that starts at `start`: the shortest prefix `JSON.parse`
@@ -81,18 +71,20 @@ export function parseServiceAreas(html: string): RawServiceArea[] | null {
   const recent = readAssignment(html, 'RecentSAs');
   const other = readAssignment(html, 'OtherSAs');
   if (!Array.isArray(recent) && !Array.isArray(other)) return null;
-  const all = [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(other) ? other : [])] as RawServiceArea[];
-  return all.filter((a) => typeof a?.Id === 'string' && typeof a?.Title === 'string');
+  const all = [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(other) ? other : [])];
+  return all
+    .map((a) => rec<GuestEstimatesServiceArea>(a))
+    .filter((a): a is RawServiceArea => typeof a.Id === 'string' && typeof a.Title === 'string');
 }
 
 /** The `var model = {...}` on the location page, or null if it isn't one. */
-export function parseLocationModel(html: string): RawLocationModel | null {
+export function parseLocationModel(html: string): GuestEstimatesLocationModel | null {
   // Not a `$$WP.` assignment: the page wraps it in `$(function () { … })`,
   // with more statements after it on the same line.
   const m = /var\s+model\s*=\s*/.exec(html);
   if (!m) return null;
   const model = valueAt(html, m.index + m[0].length);
-  return model && typeof model === 'object' ? model : null;
+  return model && typeof model === 'object' ? rec<GuestEstimatesLocationModel>(model) : null;
 }
 
 function toBillingEntity(area: RawServiceArea, facilities: { id: string; name: string }[]): BillingEntity {
@@ -126,7 +118,7 @@ export async function fetchBillingEntities(request: MyChartRequest): Promise<Bil
       const location = await openPreloginPage(request, `/GuestEstimates/SelectLocation?svcArea=${svcArea}&isMultiSA=true`);
       const model = parseLocationModel(location.html);
       const facilities = (model?.Locations ?? [])
-        .filter((l) => typeof l?.Id === 'string' && typeof l?.Title === 'string')
+        .filter((l): l is Location & { Id: string; Title: string } => typeof l?.Id === 'string' && typeof l?.Title === 'string')
         .map((l) => ({ id: l.Id, name: l.Title.trim() }));
       return toBillingEntity(area, facilities);
     }),
