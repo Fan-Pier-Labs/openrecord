@@ -6,7 +6,7 @@ and the write side — new messages, replies, drafts and deletes.
 | | |
 | --- | --- |
 | **Capabilities** | `get_messages` · `get_message_thread` · `get_message_attachment` · `get_message_recipients` · `get_message_topics` (reads) · `send_message` · `send_reply` · `delete_message` (writes) |
-| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
+| **Source** | [`conversations.ts`](conversations.ts) · [`messageThreads.ts`](messageThreads.ts) · [`messageAttachment.ts`](messageAttachment.ts) · [`recipients.ts`](recipients.ts) · [`sendMessage.ts`](sendMessage.ts) · [`sendReply.ts`](sendReply.ts) · [`messageUpload.ts`](messageUpload.ts) · [`messageDrafts.ts`](messageDrafts.ts) · [`deleteMessage.ts`](deleteMessage.ts) · [`communicationCenterToken.ts`](communicationCenterToken.ts) |
 | **Activity** | React `/app/communication-center` |
 
 ## Endpoints
@@ -27,6 +27,8 @@ Two areas, and **they are not interchangeable**: reading and replying live under
 | `POST /api/medicaladvicerequests/GetSubtopics` | `{ organizationId }` | what about (`topicList[]`) |
 | `POST /api/medicaladvicerequests/GetViewers` | `{ organizationId }` | the patient's own `wprId` |
 | `POST /api/conversations/GetComposeId` | `{}` | a compose id (a bare JSON string) |
+| `POST /api/conversations/GetComposeSettings` | `{ organizationId }` | `attachmentSettings` (and length limits) — only fetched when attaching |
+| `POST /DocumentUpload/UploadFile` | multipart, see below | upload attachments → `{ Success, Data: [{ DocumentId, FileExtension, FileDisplayName }] }` |
 | `POST /api/medicaladvicerequests/SendMedicalAdviceRequest` | see below | send a new message |
 | `POST /api/conversations/SendReply` | `{ conversationId, organizationId, viewers, messageBody, documentIds, includeOtherViewers, composeId }` | reply |
 | `POST /api/conversations/RemoveComposeId` | `{ composeId }` | cleanup after a send |
@@ -53,6 +55,8 @@ The send body:
 `GetComposeId` → `SendMedicalAdviceRequest` → `RemoveComposeId`. The recipient and topic it
 posts come from `GetMedicalAdviceRequestRecipients` and `GetSubtopics`, which the capability
 resolves by name first. `sendReply` is the same five without a recipient or topic.
+With attachments, both add two requests before the send: `GetComposeSettings`, then one
+`UploadFile` carrying every file, whose `DocumentId`s become `documentIds`.
 
 Ids throughout are Epic's `WP-`-prefixed opaque strings.
 
@@ -100,6 +104,24 @@ attachment's bytes, by the thread's `hthId` and the attachment's `dcsId`.
   and opens a `legacyUrlForCommunityJump` attachment in another organization's portal. Neither
   has appeared on any instance there are credentials for, so the scraper refuses them with the
   reason rather than modelling unobserved behaviour.
+
+- **Attachments on the way out are uploaded first, then named by id in the send.** Read
+  from one live instance's composer bundles (`epic.px.client.message-composer`,
+  `epic.px.client.file-upload`); **no upload has been sent to a live instance yet**. The
+  upload is mount-relative (not `/api/`), carries the antiforgery token as a
+  `__RequestVerificationToken` header with `Accept: application/json`, and is multipart:
+  one `__file__[]` part per file, then `AddDCSToCache=true`, `IsPending=true`,
+  `DCSSource=820`, `TargetPatientID=` and `OrganizationId=` — the composer's own values.
+  Before uploading, the composer checks each file against `GetComposeSettings`'
+  `attachmentSettings`: `canAttach`, `maxNumberOfAttachments`, and for
+  `docAndImageSettings` and `videoSettings` a `maxFileSize` **in KB** and
+  `allowedFileExtensions`; a name needs an extension and none of `/ \ : * ? " < > |`.
+  `checkAttachments` applies exactly those rules, so what a MyChart accepts is whatever
+  that MyChart says — nothing is hardcoded. The composer strips a leading `.` from an
+  answered `FileExtension`, which suggests some instances send one. The capabilities take
+  `attachments` as file references a client resolves through `CapabilityContext.readFile`
+  (a local path in the CLI and the extension; the mobile app has none yet). fake-mychart's
+  `attachmentSettings` values are placeholders until one is captured.
 
 - **`GetConversationMessages` keys the thread on `id`, not `conversationId`.** This is the
   single most expensive lesson in this folder. Sending `conversationId` gets **500

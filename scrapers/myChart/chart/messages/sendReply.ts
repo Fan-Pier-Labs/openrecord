@@ -5,13 +5,16 @@
  * 1. Get request verification token from /app/communication-center
  * 2. GetViewers - get patient viewer info (wprId)
  * 3. GetComposeId - get unique compose ID
- * 4. SendReply - send the reply
- * 5. RemoveComposeId - cleanup
+ * 4. With attachments: GetComposeSettings, then DocumentUpload/UploadFile
+ * 5. SendReply - send the reply
+ * 6. RemoveComposeId - cleanup
  */
 
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
+import type { FilePayload } from '../../core/filePayload';
 import { getVerificationToken } from './communicationCenterToken';
+import { prepareAttachments } from './messageUpload';
 
 export type SendReplyParams = {
   /** The conversation ID (hthId) to reply to */
@@ -20,6 +23,8 @@ export type SendReplyParams = {
   messageBody: string;
   /** Organization ID (usually empty string for default org) */
   organizationId?: string;
+  /** Files to attach; uploaded before the send. */
+  attachments?: readonly FilePayload[];
 };
 
 export type SendReplyResult = {
@@ -131,13 +136,19 @@ export async function sendReply(
     return { success: false, error: 'Could not get compose ID' };
   }
 
+  const prepared = await prepareAttachments(mychartRequest, token, params.attachments ?? [], organizationId);
+  if ('error' in prepared) {
+    await removeComposeId(mychartRequest, token, composeId);
+    return { success: false, error: prepared.error };
+  }
+
   // Step 4: Send the reply
   const sendBody = {
     conversationId: params.conversationId,
     organizationId,
     viewers: [{ wprId }],
     messageBody: [params.messageBody],
-    documentIds: [],
+    documentIds: prepared.documentIds,
     includeOtherViewers: false,
     composeId,
   };

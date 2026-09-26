@@ -66,6 +66,7 @@ import {
   type StudyImagePayload,
   type FilePayload,
 } from '../../shared/capabilities';
+import { readLocalFile } from '../../shared/readLocalFile';
 
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { BACKEND_DESCRIPTION } from './secret-store';
@@ -283,6 +284,7 @@ function contextFor(ref: string): CapabilityContext {
     totpSecret: account.totpSecret,
     saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
     savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
+    readFile: readLocalFile,
   };
 }
 

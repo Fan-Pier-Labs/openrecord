@@ -6,7 +6,7 @@ import { epicMessageBody } from '@/lib/messageBody';
 import { state, type ConversationStore } from '@/lib/state';
 import * as homer from '@/data/homer';
 import { html, json } from './respond';
-import { activeConversations } from './records';
+import { activeConversations, activeRecordId } from './records';
 import type { ExactRoutes, HandlerContext } from './types';
 
 /**
@@ -167,6 +167,37 @@ export function findAttachment(request: NextRequest, dcsId: string) {
   return undefined;
 }
 
+/**
+ * `GetComposeSettings`' `attachmentSettings`, the limits the composer checks a
+ * file against before uploading it. Field names are the composer bundle's own
+ * (`epic.px.client.message-composer`); the values are not yet captured from a
+ * live instance.
+ */
+const ATTACHMENT_SETTINGS = {
+  canAttach: true,
+  maxNumberOfAttachments: 3,
+  docAndImageSettings: {
+    maxFileSize: 10240,
+    allowedFileExtensions: ['JPG', 'JPEG', 'PNG', 'GIF', 'BMP', 'TIF', 'TIFF', 'PDF', 'DOC', 'DOCX', 'TXT', 'RTF'],
+  },
+  videoSettings: { maxFileSize: 102400, allowedFileExtensions: ['MP4', 'MOV'] },
+};
+
+/**
+ * The message attachments for a send's `documentIds`: each one this record
+ * uploaded, as a thread lists an attachment (see `homer.ts`).
+ */
+function attachmentsFor(request: NextRequest, documentIds: unknown) {
+  const recordId = activeRecordId(request);
+  return (Array.isArray(documentIds) ? documentIds : [])
+    .map(id => ({ id: asString(id), file: state.uploadedFiles[asString(id)] }))
+    .filter(({ file }) => file?.recordId === recordId)
+    .map(({ id, file }) => ({
+      type: 2, dcsId: id, etxId: '', name: file!.name, fileExtension: file!.fileExtension,
+      legacyUrlForCommunityJump: '', organizationId: '',
+    }));
+}
+
 export const messagesGet: ExactRoutes = {
   'messaging': () => html(messagesPage()),
 };
@@ -236,6 +267,39 @@ export const messagesPost: ExactRoutes = {
     return json(`COMPOSE-${state.composeIdCounter}`);
   },
   'api/conversations/removecomposeid': () => json({ success: true }),
+  'api/conversations/getcomposesettings': () => json({
+    isConfidentialMessagingOn: false,
+    isUnicodeMessagingOn: false,
+    maxSubjectLength: 100,
+    maxMessageLength: MAX_MESSAGE_BODY_LENGTH,
+    showIndividualViewers: false,
+    attachmentSettings: ATTACHMENT_SETTINGS,
+  }),
+
+  // Mount-relative, not under `/api/`: the composer posts the files as
+  // multipart, one `__file__[]` part each, and sends their `DocumentId`s as
+  // the send's `documentIds`.
+  'documentupload/uploadfile': async ({ request }) => {
+    const form = await request.formData().catch(() => null);
+    const files = (form?.getAll('__file__[]') ?? []).filter((f): f is File => typeof f !== 'string');
+    if (files.length === 0) return json({ Success: false, Data: null });
+    const recordId = activeRecordId(request);
+    const data = [];
+    for (const file of files) {
+      const dot = file.name.lastIndexOf('.');
+      const fileExtension = dot === -1 ? '' : file.name.slice(dot + 1).toUpperCase();
+      const documentId = `WP-DCS-UPLOAD-${++state.uploadIdCounter}`;
+      state.uploadedFiles[documentId] = {
+        recordId,
+        name: file.name,
+        fileExtension,
+        mimeType: file.type || 'application/octet-stream',
+        base64: Buffer.from(await file.arrayBuffer()).toString('base64'),
+      };
+      data.push({ DocumentId: documentId, FileExtension: fileExtension, FileDisplayName: file.name });
+    }
+    return json({ Success: true, Data: data });
+  },
   'api/conversations/savereplydraft': () => json({ success: true }),
   'api/conversations/deletedraft': () => json({ success: true }),
 
@@ -267,6 +331,7 @@ export const messagesPost: ExactRoutes = {
           // Sent as text, stored and served as markup — Epic formats on the way
           // in, so a body never reads back the way it was posted.
           body: epicMessageBody(replyBody),
+          attachments: attachmentsFor(request, body.documentIds),
         });
       }
       // Real MyChart returns the conversation ID as a plain JSON string
@@ -308,6 +373,7 @@ export const messagesPost: ExactRoutes = {
             author: { wprKey: 'WPR-HOMER', displayName: '' },
             deliveryInstantISO: new Date().toISOString(),
             body: epicMessageBody(msgBody),
+            attachments: attachmentsFor(request, body.documentIds),
           },
         ],
       });
