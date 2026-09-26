@@ -191,6 +191,7 @@ export function displayPath(path: string): string {
 
 function parseRequestBody(config: RequestConfig): unknown {
   if (config.body === undefined) return undefined;
+  if (typeof config.body !== 'string') return `<${config.body.length} bytes>`;
   const contentType = config.headers?.['Content-Type'] ?? config.headers?.['content-type'] ?? '';
   if (contentType.includes('json')) {
     try {
