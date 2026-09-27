@@ -1,5 +1,7 @@
 # OpenRecord
 
+**[Homepage](https://openrecord.fanpierlabs.com/)** · **[Download the Claude Desktop extension](https://openrecord.fanpierlabs.com/openrecord.mcpb)**
+
 **Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to Epic MyChart patient portals and exposes 35+ tools for reading and managing your health data, with full write support — send messages, request refills, and update your insurance information, not just view it.
 
 OpenRecord ships as three clients, all built on the same scraper core:
@@ -41,6 +43,8 @@ Sessions are kept alive automatically and re-established on expiry. Credentials 
 ## Getting Started
 
 ### 1. Claude Desktop extension
+
+**[Download openrecord.mcpb](https://openrecord.fanpierlabs.com/openrecord.mcpb)**, or build it from a checkout:
 
 ```bash
 cd claude-desktop-extension
