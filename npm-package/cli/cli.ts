@@ -1,8 +1,9 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as p from '@clack/prompts';
 import { version as CLI_VERSION } from '../package.json';
-import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/auth/login';
+import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid, type LoginResult, type TwoFaResult } from '../../scrapers/myChart/auth/login';
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
 import type { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
@@ -203,9 +204,24 @@ function closeRL() {
 }
 
 function ask(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    getRL().question(question, (answer) => resolve(answer.trim()));
-  });
+  const { promise, resolve } = Promise.withResolvers<string>();
+  getRL().question(question, (answer) => resolve(answer.trim()));
+  return promise;
+}
+
+// Clack prompts need a real terminal; scripts pipe stdin and pass flags instead.
+function isInteractive(): boolean {
+  return !!process.stdin.isTTY;
+}
+
+// Resolve a sign-in prompt result; Ctrl+C/Esc exits the CLI cleanly.
+function unwrap<T>(value: T | symbol): T {
+  if (p.isCancel(value)) {
+    p.cancel('Cancelled.');
+    closeRL();
+    process.exit(0);
+  }
+  return value;
 }
 
 function header(title: string) {
@@ -221,92 +237,65 @@ function subheader(title: string) {
 
 // ─── Step 1: Discover or manually enter credentials ───
 
-async function discoverAccounts(): Promise<PasswordStoreEntryWithKey[]> {
-  header('Discovering MyChart Accounts');
-  console.log('  Scanning your browsers for saved MyChart passwords...');
-  console.log('  (Chrome, Arc, Firefox)\n');
-
-  try {
-    const accounts = await getMyChartAccounts();
-    if (accounts.length === 0) {
-      console.log('  No MyChart accounts found in your browsers.');
-    } else {
-      console.log(`  Found ${accounts.length} MyChart account(s):\n`);
-      for (let i = 0; i < accounts.length; i++) {
-        const a = accounts[i]!; // loop condition guarantees i < accounts.length
-        const hostname = new URL(a.url).hostname;
-        console.log(`    [${i + 1}] ${hostname} - ${a.user || '(no username)'}`);
-      }
-    }
-    return accounts;
-  } catch (err) {
-    console.log('  Could not scan browsers:', (err as Error).message);
-    console.log('  You can still enter credentials manually.\n');
-    return [];
-  }
-}
-
 async function getCredentials(): Promise<{ hostname: string; username: string; password: string }[]> {
-  const choice = await ask('\n  How would you like to proceed?\n    [1] Scan browsers for saved MyChart passwords (Recommended)\n    [2] Enter credentials manually\n  Choice (1 or 2): ');
+  const how = unwrap(await p.select({
+    message: 'How would you like to sign in?',
+    options: [
+      { value: 'browser', label: 'Scan browsers for saved MyChart passwords', hint: 'recommended' },
+      { value: 'manual', label: 'Enter credentials manually' },
+    ],
+  }));
 
-  if (choice === '1') {
-    const accounts = await discoverAccounts();
+  if (how === 'manual') return [await getManualCredentials()];
 
-    if (accounts.length === 0) {
-      console.log('\n  No accounts found. Falling back to manual entry.\n');
-      return [await getManualCredentials()];
-    }
-
-    const selection = await ask(`\n  Which accounts to scrape?\n    [a] All of them\n    [#] Enter number (e.g. "1" or "1,3")\n    [m] Enter credentials manually instead\n  Choice: `);
-
-    if (selection.toLowerCase() === 'm') {
-      return [await getManualCredentials()];
-    }
-
-    let selectedAccounts: PasswordStoreEntryWithKey[];
-
-    if (selection.toLowerCase() === 'a') {
-      selectedAccounts = accounts;
-    } else {
-      const indices = selection.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(i => i >= 0 && i < accounts.length);
-      if (indices.length === 0) {
-        console.log('  Invalid selection. Using all accounts.');
-        selectedAccounts = accounts;
-      } else {
-        selectedAccounts = indices.map(i => accounts[i]!); // indices were filtered to be in range
-      }
-    }
-
-    return selectedAccounts.map(a => {
-      const hostname = new URL(a.url).hostname;
-      return {
-        hostname,
-        username: a.user || '',
-        password: a.pass || '',
-      };
-    });
+  const spinner = p.spinner();
+  spinner.start('Scanning your browsers for saved MyChart passwords (Chrome, Arc, Firefox)…');
+  let accounts: PasswordStoreEntryWithKey[] = [];
+  try {
+    accounts = await getMyChartAccounts();
+    spinner.stop(`Found ${accounts.length} MyChart account(s).`);
+  } catch (err) {
+    spinner.stop(`Could not scan browsers: ${(err as Error).message}`);
   }
 
-  return [await getManualCredentials()];
+  if (accounts.length === 0) {
+    console.log('  No accounts found. Falling back to manual entry.');
+    return [await getManualCredentials()];
+  }
+
+  const picked = unwrap(await p.multiselect({
+    message: 'Which accounts to scrape? (space to toggle, enter to confirm)',
+    options: accounts.map((a) => ({
+      value: a,
+      label: new URL(a.url).hostname,
+      hint: a.user || '(no username)',
+    })),
+    required: false,
+  }));
+
+  if (picked.length === 0) {
+    console.log('  Nothing selected. Falling back to manual entry.');
+    return [await getManualCredentials()];
+  }
+
+  return picked.map((a) => ({
+    hostname: new URL(a.url).hostname,
+    username: a.user || '',
+    password: a.pass || '',
+  }));
 }
 
 async function getManualCredentials(): Promise<{ hostname: string; username: string; password: string }> {
-  console.log('\n  Example hostnames:');
-  console.log('    - mychart.example.org');
-  console.log('    - mychart.ochsner.org');
-  console.log('    - mychart.geisinger.org\n');
+  p.note('Example hostnames: mychart.example.org · mychart.ochsner.org · mychart.geisinger.org');
+  const required = (v: string | undefined) => (v?.trim() ? undefined : 'This field is required');
 
-  const hostname = await ask('  MyChart hostname: ');
-  const username = await ask('  Username: ');
-  const password = await ask('  Password: ');
+  const hostname = unwrap(await p.text({ message: 'MyChart hostname', placeholder: 'mychart.example.org', validate: required }));
+  const username = unwrap(await p.text({ message: 'Username', validate: required }));
+  // Unlike the other fields the password is used verbatim — trimming it would
+  // silently change what the user typed.
+  const password = unwrap(await p.password({ message: 'Password', validate: required }));
 
-  if (!hostname || !username || !password) {
-    console.log('\n  All fields are required. Exiting.');
-    rl.close();
-    process.exit(1);
-  }
-
-  return { hostname, username, password };
+  return { hostname: hostname.trim(), username: username.trim(), password };
 }
 
 // ─── Types ───
@@ -391,18 +380,34 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
       return null;
     }
 
-    // When using TOTP, skip the SendCode call (no email needed)
-    const loginResult = await myChartUserPassLogin({
-      hostname: creds.hostname,
-      user: creds.username,
-      pass: creds.password,
-      skipSendCode: !!useTotpSecret,
-      protocol: cliArgs.local ? 'http' : undefined,
-    });
-
-    if (loginResult.state === 'invalid_login') {
-      console.log('  Login failed: Invalid username or password.');
-      return null;
+    // When using TOTP, skip the SendCode call (no email needed).
+    // A rejected password re-prompts instead of aborting the run — 3 attempts
+    // max, since real portals lock accounts on repeated failures. The
+    // corrected password is written back into `creds` so silent session
+    // renewal and the account-security capabilities reuse it.
+    const MAX_LOGIN_ATTEMPTS = 3;
+    let loginResult: LoginResult;
+    for (let attempt = 1; ; attempt++) {
+      loginResult = await myChartUserPassLogin({
+        hostname: creds.hostname,
+        user: creds.username,
+        pass: creds.password,
+        skipSendCode: !!useTotpSecret,
+        protocol: cliArgs.local ? 'http' : undefined,
+      });
+      if (loginResult.state !== 'invalid_login') break;
+      if (attempt >= MAX_LOGIN_ATTEMPTS || !isInteractive()) {
+        console.log('  Login failed: Invalid username or password.');
+        return null;
+      }
+      const retry = await p.password({
+        message: `Invalid username or password for ${creds.username}. Re-enter the password (attempt ${attempt + 1} of ${MAX_LOGIN_ATTEMPTS})`,
+      });
+      if (p.isCancel(retry) || !retry) {
+        console.log('  Login failed: Invalid username or password.');
+        return null;
+      }
+      creds.password = retry;
     }
 
     if (loginResult.state === 'error') {
@@ -413,8 +418,6 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     let mychartRequest = loginResult.mychartRequest;
 
     if (loginResult.state === 'need_2fa') {
-      let twofaCodeArray: { code: string; score: number }[];
-
       // Show where the code was sent (helpful for any path).
       if (loginResult.twoFaDelivery) {
         const { method, contact } = loginResult.twoFaDelivery;
@@ -425,40 +428,63 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         }
       }
 
-      if (useTotpSecret) {
-        // Generate TOTP code locally — no email, no waiting
-        const totpCode = await generateTotpCode(useTotpSecret);
-        // The code is submitted programmatically — printing it only puts a
-        // live credential in the terminal scrollback.
-        console.log('  Generated TOTP code locally.');
-        twofaCodeArray = [{ code: totpCode, score: 1 }];
-      } else if (cliArgs.twofa) {
-        console.log('  Using 2FA code from --2fa arg');
-        twofaCodeArray = [{ code: cliArgs.twofa, score: 1 }];
-      } else {
-        // Default: prompt the user for the code from their phone / email.
-        const code = (await ask('  Enter 2FA code: ')).trim();
-        if (!code) {
-          console.log('  No 2FA code entered. Skipping this account.');
+      // A rejected code re-prompts instead of aborting the run — 3 submissions
+      // max. The session stays on the 2FA page and complete2faFlow re-reads a
+      // fresh CSRF token for every attempt, and no attempt ever re-sends a
+      // code (that would text or email the user again).
+      const MAX_2FA_ATTEMPTS = 3;
+      let twoFaResult: TwoFaResult;
+      let previousAttemptFailed = false;
+      for (let attempt = 1; ; attempt++) {
+        let code: string | undefined;
+        if (useTotpSecret) {
+          // Generate TOTP code locally — no email, no waiting. The code is
+          // submitted programmatically — printing it only puts a live
+          // credential in the terminal scrollback. A rejection means the
+          // stored secret is wrong; resubmitting can't help.
+          code = await generateTotpCode(useTotpSecret);
+          console.log('  Generated TOTP code locally.');
+        } else if (cliArgs.twofa && attempt === 1) {
+          console.log('  Using 2FA code from --2fa arg');
+          code = cliArgs.twofa;
+        } else if (isInteractive()) {
+          // Prompt the user for the code from their phone / email. Typed
+          // input stays visible — the code is single-use and eye-checkable,
+          // unlike the password.
+          const answer = await p.text({
+            message: previousAttemptFailed
+              ? `Invalid 2FA code. Try again (attempt ${attempt} of ${MAX_2FA_ATTEMPTS})`
+              : 'Enter the 2FA code',
+            placeholder: '123456',
+          });
+          code = p.isCancel(answer) ? undefined : answer;
+        }
+
+        if (!code?.trim()) {
+          console.log(previousAttemptFailed ? '  Invalid 2FA code.' : '  No 2FA code entered. Skipping this account.');
           return null;
         }
-        twofaCodeArray = [{ code, score: 1 }];
-      }
 
-      const twoFaResult = await complete2faFlow({
-        mychartRequest,
-        twofaCodeArray,
-        isTOTP: !!useTotpSecret,
-      });
+        twoFaResult = await complete2faFlow({
+          mychartRequest,
+          twofaCodeArray: [{ code: code.trim(), score: 1 }],
+          isTOTP: !!useTotpSecret,
+        });
 
-      if (twoFaResult.state === 'invalid_2fa') {
-        console.log('  Invalid 2FA code.');
-        return null;
-      }
+        if (twoFaResult.state === 'logged_in') break;
+        if (twoFaResult.state === 'error') {
+          console.log('  Error completing 2FA.');
+          return null;
+        }
 
-      if (twoFaResult.state === 'error') {
-        console.log('  Error completing 2FA.');
-        return null;
+        previousAttemptFailed = true;
+        if (attempt >= MAX_2FA_ATTEMPTS || useTotpSecret || !isInteractive()) {
+          console.log('  Invalid 2FA code.');
+          if (useTotpSecret) {
+            console.log('  The code came from the saved TOTP secret — re-run --set-up-totp if it keeps failing.');
+          }
+          return null;
+        }
       }
 
       mychartRequest = twoFaResult.mychartRequest;
@@ -469,8 +495,10 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         if (!existingSecret) {
           console.log('\n  To let the CLI sign in automatically in the future, we can set up');
           console.log('  a TOTP authenticator on your MyChart account (no email codes needed).');
-          const setupChoice = await ask('  Set up automatic sign-in? (y/n): ');
-          if (setupChoice.trim().toLowerCase() === 'y') {
+          const setupChoice = isInteractive()
+            ? await p.confirm({ message: 'Set up automatic sign-in now?' })
+            : false;
+          if (!p.isCancel(setupChoice) && setupChoice) {
             console.log('  Setting up TOTP authenticator...');
             const result = await setupTotp(mychartRequest, creds.password);
             if (result.secret) {
@@ -820,6 +848,12 @@ async function main() {
       credentialsList = [{ hostname: cliArgs.host!, username: cliArgs.user!, password: cliArgs.pass! }];
     }
   } else {
+    if (!isInteractive()) {
+      console.error('\n  No terminal for interactive sign-in. Pass credentials explicitly:');
+      console.error('    mychart-cli --host <hostname> --user <u> --pass <p> [--2fa <code>]');
+      closeRL();
+      process.exit(1);
+    }
     console.log('\n  This tool logs into your MyChart account(s) and scrapes');
     console.log('  your medical data (profile, bills, visits, labs, messages).');
     credentialsList = await getCredentials();
@@ -1044,7 +1078,7 @@ async function main() {
     if (
       cliArgs.conversationId !== undefined &&
       capabilityArgs.conversation_id === undefined &&
-      capability.params.some(p => p.name === 'conversation_id')
+      capability.params.some(param => param.name === 'conversation_id')
     ) {
       capabilityArgs.conversation_id = cliArgs.conversationId;
     }

@@ -29,6 +29,8 @@ else is dropped rather than guessed at — pass `--user`/`--pass` for those. See
 [`read-local-passwords/README.md`](../read-local-passwords/README.md).
 - `--2fa <code>` — provides a 2FA code for non-interactive use; otherwise the CLI prompts interactively for the 6-digit code
 
+Interactive sign-in is a clack-style TUI: the credential menu, manual entry (password masked, never echoed) and the 2FA prompt. A rejected password or a wrong 2FA code re-prompts instead of aborting the run — up to 3 attempts, and a 2FA retry never re-sends the code. Retry prompts need a real terminal; with piped stdin the CLI fails exactly as before.
+
 ## Subcommands
 
 The CLI supports subcommands for different health portals:
