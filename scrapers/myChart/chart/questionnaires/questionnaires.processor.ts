@@ -23,12 +23,12 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
-import type { GetQuestionnaireList } from './mychart.types';
-import type { AssignedQuestionnaireStandard, OptionalQuestionnaireStandard, QuestionnaireStandard, QuestionnairesStandard } from './standardized.types';
+import type { AssignedQuestionnaire, GetQuestionnaireList, Questionnaire } from './mychart.types';
+import type { AssignedQuestionnaireDetailStandard, AssignedQuestionnaireStandard, OptionalQuestionnaireStandard, QuestionnaireStandard, QuestionnairesStandard } from './standardized.types';
 
 export type { AssignedQuestionnaireStandard, OptionalQuestionnaireStandard, QuestionnaireContextListStandard, QuestionnaireStandard, QuestionnairesStandard } from './standardized.types';
 
-function questionnaireOf(q: Record<string, unknown>): QuestionnaireStandard {
+function questionnaireOf(q: Questionnaire): QuestionnaireStandard {
   return {
     type: num(q.type),
     isContextSpecific: boolOrNull(q.isContextSpecific),
@@ -44,7 +44,7 @@ function questionnaireOf(q: Record<string, unknown>): QuestionnaireStandard {
 }
 
 function assignedOf(value: unknown): AssignedQuestionnaireStandard {
-  const entry = rec(value);
+  const entry = rec<AssignedQuestionnaire>(value);
   return {
     dueDateISO: textOrNull(entry.dueDateISO),
     apptDateISO: textOrNull(entry.apptDateISO),
@@ -54,11 +54,11 @@ function assignedOf(value: unknown): AssignedQuestionnaireStandard {
     displayNameOverride: textOrNull(entry.displayNameOverride),
     isTravelScreening: boolOrNull(entry.isTravelScreening),
     context: rec(entry.context),
-    questionnaire: assignedQuestionnaireOf(rec(entry.questionnaire)),
+    questionnaire: assignedQuestionnaireOf(rec<Questionnaire>(entry.questionnaire)),
   };
 }
 
-function assignedQuestionnaireOf(q: Record<string, unknown>) {
+function assignedQuestionnaireOf(q: Questionnaire): AssignedQuestionnaireDetailStandard {
   return { ...questionnaireOf(q), filterType: textOrNull(q.filterType) };
 }
 function optionalOf(value: unknown): OptionalQuestionnaireStandard {
@@ -66,7 +66,7 @@ function optionalOf(value: unknown): OptionalQuestionnaireStandard {
   return {
     description: textOrNull(entry.description),
     context: rec(entry.context),
-    questionnaire: questionnaireOf(rec(entry.questionnaire)),
+    questionnaire: questionnaireOf(rec<Questionnaire>(entry.questionnaire)),
   };
 }
 

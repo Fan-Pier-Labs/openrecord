@@ -122,6 +122,14 @@ export const styles = StyleSheet.create({
   pickerRowPressed: {
     backgroundColor: "#f7f7f7",
   },
+  pickerRowDisabled: {
+    opacity: 0.45,
+  },
+  pickerRowNote: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 2,
+  },
   pickerLogo: {
     width: 36,
     height: 36,

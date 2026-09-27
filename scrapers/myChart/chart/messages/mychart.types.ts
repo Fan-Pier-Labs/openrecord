@@ -13,7 +13,7 @@
  * field names and leaves every value to `text()` / `num()` / `list()`. Never
  * `as`: that checks the same names and then lies about the values.
  *
- * Endpoints: /api/conversations/getconversationlist, /api/medicaladvicerequests/getmedicaladvicerequestrecipients, /api/medicaladvicerequests/getsubtopics
+ * Endpoints: /api/conversations/getconversationdetails, /api/conversations/getconversationlist, /api/conversations/getconversationmessages, /api/medicaladvicerequests/getmedicaladvicerequestrecipients, /api/medicaladvicerequests/getsubtopics
  *
  * Keep in step with `realShapes.ts` when the captures are refreshed.
  */
@@ -74,7 +74,7 @@ export type Viewer = {
   organizationId?: string;
 };
 
-/** ``firstUnreadMsgId` instead, so neither is a shape all of them share.` */
+/** `/api/conversations/getconversationdetails` */
 export type GetConversationDetails = {
   contexts?: unknown[];
   lastViewedByStaffMsgId?: string;
@@ -172,7 +172,7 @@ export type GetConversationList = {
   externalSummaries?: Record<string, unknown>;
 };
 
-/** `come from getconversationdetails or the listing).` */
+/** `/api/conversations/getconversationmessages` */
 export type GetConversationMessages = {
   contexts?: unknown[];
   hthId?: string;

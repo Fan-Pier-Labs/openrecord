@@ -24,7 +24,7 @@ export const DIRECTORY_CAPABILITIES: readonly CapabilityImpl[] = [
     id: 'search_mycharts',
     title: 'Search the MyChart directory',
     description:
-      "Look up a MyChart hostname for setup. Type a few letters of the user's health system name (e.g. \"uchealth\", \"mass general\"). Returns matching entries with their hostname, display name, login URL and logo. Pass the chosen `hostname` on to whatever this client uses to connect an account.",
+      "Look up a MyChart hostname for setup. Type a few letters of the user's health system name (e.g. \"uchealth\", \"mass general\"). Returns matching entries with their hostname, display name, login URL and logo. Pass the chosen `hostname` on to whatever this client uses to connect an account — except for an entry carrying `unavailable`, which cannot be connected right now: show the user that message instead of attempting setup.",
     kind: 'public',
     group: 'Directory',
     params: [
