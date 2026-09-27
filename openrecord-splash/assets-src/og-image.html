@@ -130,7 +130,7 @@
   <script>
     // ?domain=0 renders the card without the marketing domain — used for the
     // web app's own og-image.png, which is served from whatever host a
-    // deployment (Fargate, Railway, self-hosted) happens to run on.
+    // deployment (Fargate, self-hosted) happens to run on.
     if (new URLSearchParams(location.search).get('domain') === '0') {
       document.querySelector('.domain').remove();
     }
