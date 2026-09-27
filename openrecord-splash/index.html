@@ -129,26 +129,64 @@
     .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9999px; font-size: 11px; font-weight: 500; letter-spacing: .02em; box-shadow: 0 1px 2px rgba(0,0,0,.04); backdrop-filter: blur(8px); }
     .badge.amber { background: rgba(255,251,235,0.8); border: 1px solid rgba(253,230,138,0.8); color: #b45309; }
     .badge.blue { background: rgba(239,246,255,0.8); border: 1px solid rgba(191,219,254,0.8); color: var(--blue-600); }
-    .badge.slate { background: rgba(248,250,252,0.8); border: 1px solid rgba(226,232,240,0.8); color: var(--slate-600); }
     h1.hero-title { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 600; letter-spacing: -0.04em; line-height: 1.05; color: var(--ink); margin-bottom: 24px; white-space: nowrap; }
     h1.hero-title .swap { display: inline-block; vertical-align: middle; color: var(--slate-300); margin: 0 4px; }
     .hero-sub { font-size: clamp(1.1rem, 1.5vw, 1.25rem); font-weight: 300; color: #5a5a6a; max-width: 540px; margin-bottom: 40px; }
 
-    /* ---- Waitlist ---- */
-    .waitlist { width: 100%; max-width: 520px; }
-    .waitlist p.lead { font-size: 14px; color: var(--slate-500); font-weight: 300; margin-bottom: 12px; }
+    /* ---- Primary CTA: one Download button, which opens the download modal ---- */
+    .btn-download {
+      height: 56px; padding: 0 40px; border: none; border-radius: 9999px; background: var(--slate-900); color: #fff;
+      font-family: inherit; font-size: 17px; font-weight: 500; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      transition: all .3s; box-shadow: 0 15px 35px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.1);
+    }
+    .btn-download:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 25px 45px rgba(0,0,0,0.12); }
+
+    /* ---- Download modal ---- */
+    body:has(dialog[open]) { overflow: hidden; }
+    .dl-modal {
+      margin: auto; border: none; padding: 0; border-radius: 24px; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+      background: #fff; color: var(--slate-900); box-shadow: 0 40px 80px rgba(15,23,42,0.25);
+    }
+    .dl-modal::backdrop { background: rgba(15,23,42,0.45); backdrop-filter: blur(4px); }
+    .dl-view { padding: 24px; }
+    .dl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .dl-head h2 { flex: 1; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .dl-icon-btn {
+      width: 36px; height: 36px; border: none; border-radius: 9999px; background: var(--slate-100); color: var(--slate-600);
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background .2s, color .2s;
+    }
+    .dl-icon-btn:hover { background: var(--slate-200); color: var(--slate-900); }
+    .choices { display: flex; flex-direction: column; gap: 10px; }
+    .choice {
+      display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: 1px solid var(--slate-200); border-radius: 16px;
+      background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: all .2s;
+    }
+    .choice:hover { border-color: var(--slate-300); background: var(--slate-50); transform: translateY(-1px); }
+    .choice .ico { width: 40px; height: 40px; border-radius: 10px; background: var(--slate-900); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .choice .ico.claude { background: #da7756; font-family: Georgia, 'Times New Roman', serif; font-weight: 600; font-size: 19px; }
+    .choice .txt { flex: 1; min-width: 0; }
+    .choice .t { display: block; font-size: 15px; font-weight: 600; line-height: 1.3; }
+    .choice .d { display: block; font-size: 13px; color: var(--slate-500); font-weight: 300; }
+    .choice .go { color: var(--slate-400); flex-shrink: 0; }
+    /* Not shipped yet: greyed out, but still clickable — it leads to the notify form. */
+    .choice.soon { background: var(--slate-50); }
+    .choice.soon .ico, .choice.soon .t { opacity: .45; }
+    .pill-soon { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; padding: 3px 8px; border-radius: 9999px; background: var(--slate-200); color: var(--slate-600); white-space: nowrap; flex-shrink: 0; }
+    .dl-lead { font-size: 14px; color: var(--slate-500); font-weight: 300; margin-bottom: 16px; }
+
+    /* ---- Notify form (inside the modal) ---- */
     .field-row { display: flex; flex-direction: column; gap: 12px; }
-    @media (min-width: 560px) { .field-row { flex-direction: row; } }
     .input {
-      flex: 1; height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(203,213,225,0.7);
-      background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); font-size: 15px; color: var(--slate-900); font-family: inherit;
+      height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--slate-300);
+      background: #fff; font-size: 15px; color: var(--slate-900); font-family: inherit;
       transition: border-color .15s, box-shadow .15s; width: 100%;
     }
     .input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
     .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
     .btn-submit {
       margin-top: 12px; width: 100%; height: 48px; border-radius: 9999px; background: var(--slate-900); color: #fff; font-size: 16px; font-weight: 500;
-      border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
       transition: all .3s; box-shadow: 0 15px 35px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(255,255,255,0.1);
     }
     .btn-submit:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 25px 45px rgba(0,0,0,0.09); }
@@ -164,20 +202,6 @@
     .waitlist-success h3 { font-size: 18px; font-weight: 500; color: #064e3b; margin-bottom: 4px; }
     .waitlist-success p { color: var(--emerald-600); font-size: 14px; }
     .form-error { color: #dc2626; font-size: 13px; margin-top: 10px; min-height: 1em; }
-
-    /* ---- Download buttons (scaffold — real store links go here later) ---- */
-    .downloads { margin-top: 24px; }
-    .downloads .coming { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--slate-400); font-weight: 500; margin-bottom: 10px; }
-    .store-row { display: flex; flex-wrap: wrap; gap: 12px; }
-    .store-badge {
-      display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 12px; background: var(--slate-900); color: #fff;
-      opacity: .55; cursor: not-allowed; transition: opacity .2s, transform .2s;
-    }
-    .store-badge[href]:not([href="#"]) { opacity: 1; cursor: pointer; }
-    .store-badge:hover { transform: translateY(-1px); }
-    .store-badge .store-sub { font-size: 10px; line-height: 1; opacity: .8; text-transform: uppercase; letter-spacing: .06em; }
-    .store-badge .store-name { font-size: 15px; font-weight: 600; line-height: 1.1; }
-    .store-badge .claude-mark { width: 22px; height: 22px; border-radius: 6px; background: #da7756; color: #fff; font-family: Georgia, 'Times New Roman', serif; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
     /* ---- Phone mockup ---- */
     .phone-col { display: flex; position: relative; align-items: center; justify-content: center; }
@@ -332,7 +356,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.05 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.74 0 3.92-2.34 4.78-4.57 5.04.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.59.69.48A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
           GitHub
         </a>
-        <button class="btn-dark" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">Get Notified</button>
+        <button class="btn-dark" type="button" data-open-download>Download</button>
       </div>
     </div>
   </header>
@@ -350,54 +374,16 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             Open-source
           </span>
-          <span class="badge slate">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
-            2 minute setup
-          </span>
         </div>
         <h1 class="hero-title">Claude<span class="swap">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
         </span>MyChart.</h1>
-        <p class="hero-sub">Manage your health data with Claude AI. Connect your MyChart portal to Claude (or other AI assistants). Manage your health records, send messages, book appointments, request refills, and more—all with AI.</p>
+        <p class="hero-sub">Manage your medical records, doctor’s appointments, bills and more by connecting Claude to MyChart.</p>
 
-        <!-- Waitlist -->
-        <div class="waitlist" id="waitlist">
-          <div id="waitlist-form-container">
-            <p class="lead">OpenRecord is still a work in progress. Drop your email to get notified when it's ready.</p>
-            <form id="waitlist-form" novalidate>
-              <div class="field-row">
-                <input class="input" type="text" id="wl-name" name="name" placeholder="Your Name" autocomplete="name" required />
-                <input class="input" type="email" id="wl-email" name="email" placeholder="Email Address" autocomplete="email" required />
-              </div>
-              <!-- Honeypot: hidden from humans, bots fill it. Dropped client-side. -->
-              <input class="honeypot" type="text" id="wl-company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
-              <button class="btn-submit" type="submit" id="wl-submit">
-                <span id="wl-submit-label">Notify me</span>
-                <svg class="arrow" id="wl-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </button>
-              <p class="form-error" id="wl-error" role="alert"></p>
-            </form>
-          </div>
-
-          <!-- Download buttons — placeholders; swap href="#" for real store / extension URLs when they ship. -->
-          <div class="downloads">
-            <p class="coming">Coming soon to iOS, Android &amp; Claude Desktop</p>
-            <div class="store-row">
-              <a class="store-badge" href="#" aria-label="Download on the App Store (coming soon)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.75 2.28-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.35 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.24.87-1.28 1.23-2.53 1.25-2.59-.03-.01-2.4-.92-2.42-3.66zM14.77 5.6c.64-.77 1.07-1.85.95-2.92-.92.04-2.03.61-2.69 1.38-.59.68-1.11 1.77-.97 2.82 1.02.08 2.07-.52 2.71-1.28z"/></svg>
-                <span><span class="store-sub">Download on the</span><br><span class="store-name">App Store</span></span>
-              </a>
-              <a class="store-badge" href="#" aria-label="Get it on Google Play (coming soon)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.8 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2zM16.3 16.1l-3.2-3.2-9.3 9.3c.4.3 1 .4 1.6.1l10.9-6.2zM4.9 1.9c-.6-.3-1.2-.2-1.6.1l9.3 9.3 3.2-3.2L4.9 1.9z"/></svg>
-                <span><span class="store-sub">Get it on</span><br><span class="store-name">Google Play</span></span>
-              </a>
-              <a class="store-badge" href="#" aria-label="Claude Desktop extension (coming soon)">
-                <span class="claude-mark">C</span>
-                <span><span class="store-sub">Extension for</span><br><span class="store-name">Claude Desktop</span></span>
-              </a>
-            </div>
-          </div>
-        </div>
+        <button class="btn-download" type="button" data-open-download>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download
+        </button>
       </div>
 
       <!-- Phone mockup -->
@@ -554,7 +540,6 @@
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Your MyChart username, password and any passkey are saved on your device and nowhere else</li>
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Every request to your health system comes from your machine, not from ours</li>
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> We operate no server that holds your medical records, and there is no OpenRecord account holding a copy of them</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> The iPhone app reports no usage data at all; the desktop tools report anonymous usage, which you can switch off</li>
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Disconnecting an account deletes the stored credentials, passkey and session from your device</li>
           </ul>
         </div>
@@ -566,7 +551,6 @@
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> In the Claude Desktop extension, that is Anthropic, under your own Claude account and its terms</li>
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> In the iPhone app's included free tier, it goes to an OpenRecord proxy and on to Google's Gemini API</li>
             <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Bring your own API key and it goes to that provider instead, never through us</li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Our proxy does not store your prompts — it logs the model name and token counts, never the contents — but the model provider's own retention terms then apply</li>
           </ul>
         </div>
       </div>
@@ -580,28 +564,28 @@
       <div style="max-width:1000px;margin:0 auto;padding:0 24px;text-align:center;">
         <span class="badge-qs"><span style="width:6px;height:6px;border-radius:9999px;background:#60a5fa;display:inline-block;"></span> Quick Start</span>
         <h2 style="margin-top:24px;font-size:clamp(2rem,4vw,3rem);font-weight:500;letter-spacing:-0.02em;color:var(--slate-900);">Up and running in 3 steps</h2>
-        <p style="margin-top:16px;font-size:18px;color:var(--slate-500);font-weight:300;">Connect your MyChart account and start exploring your health data with Claude in minutes.</p>
+        <p style="margin-top:16px;font-size:18px;color:var(--slate-500);font-weight:300;">Install the Claude Desktop extension and start exploring your health data with Claude in minutes.</p>
       </div>
       <div class="steps">
         <div class="step">
           <div class="step-body">
             <div class="step-num">Step 1</div>
-            <h3>Create an account</h3>
-            <p>Sign up with email or Google. Your app account is separate from your MyChart login to maintain privacy boundaries.</p>
+            <h3>Download the extension</h3>
+            <p>Grab <a href="/openrecord.mcpb" download style="text-decoration:underline;">openrecord.mcpb</a> and open it — Claude Desktop installs it. No account to create.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-body">
             <div class="step-num">Step 2</div>
-            <h3>Add your MyChart accounts</h3>
-            <p>Enter your MyChart hostname and credentials. We encrypt everything at rest and establish a secure connection to your portal.</p>
+            <h3>Connect your MyChart</h3>
+            <p>Say “Set up my MyChart” in a new chat. Claude walks you through finding your health system, signing in, and 2FA. Your credentials stay on your computer.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-body">
             <div class="step-num">Step 3</div>
             <h3>Talk to your health data</h3>
-            <p>Generate an MCP URL and ask your AI about medications, labs, appointments, billing — anything in your health record.</p>
+            <p>Ask Claude about medications, labs, appointments, billing — anything in your health record.</p>
           </div>
         </div>
       </div>
@@ -611,8 +595,8 @@
     <section class="cta">
       <h2>Ready to explore your health data?</h2>
       <p>Get up and running in minutes. Connect your MyChart portal and start using Claude to manage your health records.</p>
-      <button class="btn-cta" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">
-        Get notified
+      <button class="btn-cta" type="button" data-open-download>
+        Download
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
     </section>
@@ -633,6 +617,63 @@
     </footer>
   </main>
 
+  <!-- Download modal. The iPhone / Android rows lead to the notify form until the apps ship;
+       then make them links like the first two. -->
+  <dialog class="dl-modal" id="dl-modal" aria-labelledby="dl-title">
+    <div class="dl-view" id="dl-choices">
+      <div class="dl-head">
+        <h2 id="dl-title">Download OpenRecord</h2>
+        <button class="dl-icon-btn" type="button" data-close-download aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="choices">
+        <a class="choice" href="/openrecord.mcpb" download data-close-download>
+          <span class="ico claude">C</span>
+          <span class="txt"><span class="t">Claude Desktop</span><span class="d">Most common · Easiest to set up and use</span></span>
+          <svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <a class="choice" href="https://www.npmjs.com/package/mychart-cli#ai-agent-prompt" target="_blank" rel="noopener noreferrer">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg></span>
+          <span class="txt"><span class="t">Command line</span><span class="d">For engineers — use the CLI with any AI</span></span>
+          <svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <button class="choice soon" type="button" data-notify="iPhone">
+          <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.75 2.28-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.35 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.24.87-1.28 1.23-2.53 1.25-2.59-.03-.01-2.4-.92-2.42-3.66zM14.77 5.6c.64-.77 1.07-1.85.95-2.92-.92.04-2.03.61-2.69 1.38-.59.68-1.11 1.77-.97 2.82 1.02.08 2.07-.52 2.71-1.28z"/></svg></span>
+          <span class="txt"><span class="t">iPhone</span><span class="d">App Store</span></span>
+          <span class="pill-soon">Coming soon</span>
+        </button>
+        <button class="choice soon" type="button" data-notify="Android">
+          <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.8 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2zM16.3 16.1l-3.2-3.2-9.3 9.3c.4.3 1 .4 1.6.1l10.9-6.2zM4.9 1.9c-.6-.3-1.2-.2-1.6.1l9.3 9.3 3.2-3.2L4.9 1.9z"/></svg></span>
+          <span class="txt"><span class="t">Android</span><span class="d">Google Play</span></span>
+          <span class="pill-soon">Coming soon</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="dl-view" id="dl-notify" hidden>
+      <div class="dl-head">
+        <button class="dl-icon-btn" type="button" id="dl-back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <h2>Get notified</h2>
+        <button class="dl-icon-btn" type="button" data-close-download aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div id="waitlist-form-container">
+        <p class="dl-lead">The <span id="dl-platform">iPhone</span> app is coming soon. Leave your email and we'll tell you when it launches.</p>
+              <form id="waitlist-form" novalidate>
+                <div class="field-row">
+                  <input class="input" type="text" id="wl-name" name="name" placeholder="Your Name" autocomplete="name" required />
+                  <input class="input" type="email" id="wl-email" name="email" placeholder="Email Address" autocomplete="email" required />
+                </div>
+                <!-- Honeypot: hidden from humans, bots fill it. Dropped client-side. -->
+                <input class="honeypot" type="text" id="wl-company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
+                <button class="btn-submit" type="submit" id="wl-submit">
+                  <span id="wl-submit-label">Notify me</span>
+                  <svg class="arrow" id="wl-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+                <p class="form-error" id="wl-error" role="alert"></p>
+              </form>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     // Waitlist endpoint — shared fanpierlabs-forms Lambda (emails ryan@fanpierlabs.com + logs to CloudWatch).
     var WAITLIST_ENDPOINT = "https://ns8remz3t7.execute-api.us-east-2.amazonaws.com";
@@ -648,6 +689,36 @@
         span.textContent = c;
         track.appendChild(span);
       });
+    })();
+
+    // ---- Download modal ----
+    (function () {
+      var modal = document.getElementById("dl-modal");
+      var choices = document.getElementById("dl-choices");
+      var notify = document.getElementById("dl-notify");
+
+      function show(view) {
+        choices.hidden = view !== choices;
+        notify.hidden = view !== notify;
+      }
+
+      document.querySelectorAll("[data-open-download]").forEach(function (b) {
+        b.addEventListener("click", function () { show(choices); modal.showModal(); });
+      });
+      document.querySelectorAll("[data-close-download]").forEach(function (b) {
+        b.addEventListener("click", function () { modal.close(); });
+      });
+      document.querySelectorAll("[data-notify]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          document.getElementById("dl-platform").textContent = b.getAttribute("data-notify");
+          show(notify);
+          var name = document.getElementById("wl-name");
+          if (name) name.focus();
+        });
+      });
+      document.getElementById("dl-back").addEventListener("click", function () { show(choices); });
+      // A click on the backdrop lands on the <dialog> itself, not on its content.
+      modal.addEventListener("click", function (e) { if (e.target === modal) modal.close(); });
     })();
 
     // ---- Waitlist form ----
@@ -710,7 +781,7 @@
           '<div class="waitlist-success">' +
             '<div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>' +
             '<h3>Thanks for subscribing!</h3>' +
-            "<p>We'll let you know the moment new features and providers go live.</p>" +
+            "<p>We'll let you know when the iPhone and Android apps launch.</p>" +
           "</div>";
       }
     })();
