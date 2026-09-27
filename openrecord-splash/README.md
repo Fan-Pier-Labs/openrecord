@@ -31,14 +31,15 @@ dist/           build output — gitignored, produced by deploy.sh
   every deploy but is unadvertised, so it is reached by sharing the URL directly. Adding a CTA
   here is a product decision on a hold that is deliberate, not a missing link — the bar it has
   to clear first is in [`docs/demo.md`](../docs/demo.md).
-- **Waitlist form** posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
+- **Notify form** (in the download modal) posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
   and logs to CloudWatch). Endpoint: `https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`,
   payload `{ site: "openrecord", name, email }`. A hidden `company` honeypot drops bots client-side.
 - **No auth** — sign in / sign up were removed.
-- **The primary CTA is the Claude Desktop download** (hero, nav, quick start, and bottom CTA all
-  link `/openrecord.mcpb`), which is uploaded separately from `deploy.sh` — see the extension's
-  README, "Publishing a release". Below it, the waitlist is for the mobile apps; its App Store /
-  Google Play badges are `href="#"` placeholders — swap in real store URLs when the apps ship.
+- **One Download button** (hero, nav, and bottom CTA) opens a modal with four choices: the
+  Claude Desktop extension (`/openrecord.mcpb`, uploaded separately from `deploy.sh` — see the
+  extension's README, "Publishing a release"), the CLI's npm page for engineers,
+  and iPhone / Android, greyed out, which lead to the notify form. When the apps ship, make those
+  two rows links like the first two.
 - **Link previews + PWA install** — Open Graph / Twitter card tags, favicons, an apple-touch-icon,
   and `manifest.json`. See "Assets" below.
 
