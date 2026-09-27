@@ -25,6 +25,10 @@ import { fetchMyChartDirectory, fetchMyChartIcon } from "../../../scrapers/list-
 import type { MyChartInstanceSeed } from "../../../scrapers/list-all-mycharts/directory";
 import bundledInstances from "../../../scrapers/list-all-mycharts/mychart-instances.json";
 import {
+  SANDBOX_UNAVAILABLE_NOTE,
+  isSandboxAvailable,
+} from "../../../scrapers/list-all-mycharts/searchDirectory";
+import {
   getCachedDirectory,
   getCachedLogo,
   setCachedDirectory,
@@ -38,8 +42,11 @@ const REFRESH_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Demo/test entry pointing at the deployed fake-mychart sandbox. Lets
 // users (and developers) try the full flow with Homer Simpson fake data
-// without needing real Epic credentials.
-const FAKE_MYCHART_DEMO: MyChartInstance = {
+// without needing real Epic credentials. It is one small deployment that gets
+// torn down when it isn't worth its bill, so the picker probes it
+// (`isSandboxAvailable`) and greys the row out rather than sending someone to
+// a login that can't succeed.
+export const FAKE_MYCHART_DEMO: MyChartInstance = {
   name: "Springfield Medical Center (Demo)",
   url: "https://fake-mychart.fanpierlabs.com/MyChart/",
   logoUrl: "",
@@ -208,3 +215,7 @@ export function searchInstances(
     }
   });
 }
+
+// Re-exported so a screen showing the demo row gets the entry and its
+// reachability from the same module, rather than reaching into `scrapers/`.
+export { SANDBOX_UNAVAILABLE_NOTE, isSandboxAvailable };

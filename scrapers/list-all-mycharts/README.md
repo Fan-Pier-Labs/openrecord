@@ -53,6 +53,12 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
   mistakes it for a health system.
+- **A search that turns up the sandbox probes it first.** It is one small deployment that
+  gets torn down whenever its bill outweighs its use, and clients went on offering it —
+  people picked it and hit a login that could never succeed. A sandbox that isn't serving
+  comes back with `unavailable` set to `SANDBOX_UNAVAILABLE_NOTE`; clients show the row
+  greyed out and unselectable, carrying that text, rather than dropping it. The answer is
+  cached for a minute, and no other query pays for the probe.
 - fake-mychart serves **both halves** (`/cached-api/help/organizations/` and the mirrored
   media path), so neither the tests nor the mobile app's first-boot refresh has to reach
   Epic.

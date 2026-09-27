@@ -11,7 +11,7 @@
 import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
-import type { GetFlowsheets } from './mychart.types';
+import type { GetFlowsheetReadings, GetFlowsheets } from './mychart.types';
 import type { FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
 
 export type { FlowsheetRowGroupStandard, FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
@@ -107,12 +107,12 @@ export const vitalsProcessor: Processor<VitalsStandard> = {
         }
       };
       addRows(definition.rows);
-      for (const page of ownPages) addRows(rec(rec(page.body).flowsheet).rows);
+      for (const page of ownPages) addRows(rec(rec<GetFlowsheetReadings>(page.body).flowsheet).rows);
 
       const seen = new Set<string>();
       const readings: VitalReadingStandard[] = [];
       for (const page of ownPages) {
-        for (const r of list(rec(rec(page.body).flowsheet).readings)) {
+        for (const r of list(rec(rec<GetFlowsheetReadings>(page.body).flowsheet).readings)) {
           const parsed = readingStandard(r, rows.get(text(rec(r).rowId))?.unitsDisplayName);
           const key = `${parsed.rowId ?? ''}\u0000${parsed.instantTakenIso ?? ''}`;
           if (seen.has(key)) continue;

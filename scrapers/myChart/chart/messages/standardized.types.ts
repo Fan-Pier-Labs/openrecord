@@ -71,7 +71,7 @@ export interface ConversationStandard {
   messages: MessageStandard[];
 }
 
-export interface ConversationConcise {
+interface ConversationConcise {
   hthId: string | null;
   subject: string | null;
   audienceNames: string[];
