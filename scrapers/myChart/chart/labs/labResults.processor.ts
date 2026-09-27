@@ -16,10 +16,11 @@
  */
 
 import { findRequests, type RawResponse } from '../../core/rawResponse';
+import type { ReportContent } from '../../eunity/imagingViewer';
 import { htmlToText } from '../../processors/htmlText';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
-import type { GetMultipleHistoricalResultComponents, Narrative, ReferenceRange, TestResultDetails, TestResultList } from './mychart.types';
+import type { DetailsResult, FdiLink, GetMultipleHistoricalResultComponents, ImageStudy, Narrative, ReferenceRange, Scan, TestResultDetails, TestResultList } from './mychart.types';
 import type { HistoricalComponentStandard, HistoricalPointStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ReferenceRangeStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
 
 export type { HistoricalComponentStandard, HistoricalPointStandard, ImageStudyStandard, LabComponentStandard, LabOrderConcise, LabOrderStandard, LabResultStandard, LabResultsStandard, OrderMetadataStandard, ProviderCommentStandard, ReferenceRangeStandard, ResultingLabStandard, ScanStandard, SignedTextStandard, StudyResultStandard } from './standardized.types';
@@ -72,7 +73,7 @@ function component(value: unknown): LabComponentStandard {
 }
 
 function orderMetadata(value: unknown): OrderMetadataStandard {
-  const m = rec(value);
+  const m = rec<NonNullable<DetailsResult['orderMetadata']>>(value);
   const lab = rec(m.resultingLab);
   return {
     prioritizedInstantISO: textOrNull(m.prioritizedInstantISO),
@@ -99,7 +100,7 @@ function orderMetadata(value: unknown): OrderMetadataStandard {
 }
 
 function studyResult(value: unknown): StudyResultStandard {
-  const s = rec(value);
+  const s = rec<NonNullable<DetailsResult['studyResult']>>(value);
   return {
     narrative: signedText(s.narrative),
     impression: signedText(s.impression),
@@ -113,7 +114,7 @@ function studyResult(value: unknown): StudyResultStandard {
 }
 
 function result(value: unknown, reports: Map<string, string>): LabResultStandard {
-  const r = rec(value);
+  const r = rec<DetailsResult>(value);
   const report = rec(r.reportDetails);
   const reportID = textOrNull(report.reportID);
   const reportHtml = reportHtmlForResult(reports, r);
@@ -136,14 +137,20 @@ function result(value: unknown, reports: Map<string, string>): LabResultStandard
     })),
     reportDetails: { reportID, isDownloadablePDFReport: boolOrNull(report.isDownloadablePDFReport) },
     reportContentText: reportHtml === null ? null : htmlToText(reportHtml),
-    imageStudies: list(r.imageStudies).map((s) => ({
-      studyDescription: textOrNull(rec(s).studyDescription),
-      modality: textOrNull(rec(s).modality),
-      studyDate: textOrNull(rec(s).studyDate),
-      numberOfImages: num(rec(s).numberOfImages),
-    })),
-    scans: list(r.scans).map((s) => ({ scanType: textOrNull(rec(s).scanType), scanDate: textOrNull(rec(s).scanDate) })),
-    fdiLink: { redirectUrl: textOrNull(rec(r.fdiLink).redirectUrl) },
+    imageStudies: list(r.imageStudies).map((study) => {
+      const s = rec<ImageStudy>(study);
+      return {
+        studyDescription: textOrNull(s.studyDescription),
+        modality: textOrNull(s.modality),
+        studyDate: textOrNull(s.studyDate),
+        numberOfImages: num(s.numberOfImages),
+      };
+    }),
+    scans: list(r.scans).map((scan) => {
+      const s = rec<Scan>(scan);
+      return { scanType: textOrNull(s.scanType), scanDate: textOrNull(s.scanDate) };
+    }),
+    fdiLink: { redirectUrl: textOrNull(rec<FdiLink>(r.fdiLink).redirectUrl) },
   };
 }
 
@@ -185,7 +192,7 @@ export function reportHtmlByReport(raw: RawResponse): Map<string, string> {
   for (const request of findRequests(raw, 'LoadReportContent')) {
     const body = rec(request.requestBody);
     const reportID = text(body.reportID);
-    const html = textOrNull(rec(request.body).reportContent);
+    const html = textOrNull(rec<ReportContent>(request.body).reportContent);
     if (!reportID || html === null) continue;
     const key = reportKey(reportID, rec(body.assumedVariables));
     if (!reports.has(key)) reports.set(key, html);

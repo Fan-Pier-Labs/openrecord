@@ -13,13 +13,7 @@
         "scrapers/list-all-mycharts/probes/*.ts",
         "**/*.test.ts",
         // Claude Code's worktrees are gitignored, but knip still globs into them.
-        "!.claude/**",
-        // Raw MyChart response shape for the labs endpoint. Nothing imports it —
-        // those payloads are read through the defensive readers in
-        // `scrapers/myChart/processors/read.ts` — but whether a read scraper should
-        // type its response body at all is open in #484. A root, not dead code:
-        // settle #484 before deleting it.
-        "scrapers/myChart/chart/labs/labtestresulttype.ts"
+        "!.claude/**"
       ],
       "project": [
         "scrapers/**/*.ts",
