@@ -20,6 +20,7 @@ import type { RawResponse } from '../../core/rawResponse';
 import { extractFdiContext, extractFdiContextFromFdiLink, type FdiContext } from '../../eunity/imagingViewer';
 import type { Processor } from '../../processors/processor';
 import { rec, textOrNull } from '../../processors/read';
+import type { DetailsResult, FdiLink } from './mychart.types';
 import type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard } from './standardized.types';
 
 export type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard } from './standardized.types';
@@ -69,7 +70,7 @@ export function fdiContextForOrder(raw: RawResponse, order: LabOrderStandard): F
   // nothing here depends on `standard()` keeping `results` 1:1 with the envelope.
   for (const rawResult of rawResultsForOrder(raw, order.key)) {
     const html = reportHtmlForResult(reports, rawResult);
-    const redirectUrl = textOrNull(rec(rec(rawResult).fdiLink).redirectUrl);
+    const redirectUrl = textOrNull(rec<FdiLink>(rec<DetailsResult>(rawResult).fdiLink).redirectUrl);
     const fdi = (html ? extractFdiContext(html) : null) ?? (redirectUrl ? extractFdiContextFromFdiLink(redirectUrl) : null);
     if (fdi) return fdi;
   }
