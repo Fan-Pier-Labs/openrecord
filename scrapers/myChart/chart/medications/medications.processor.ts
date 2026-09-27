@@ -15,13 +15,13 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, textOrNull } from '../../processors/read';
-import type { LoadMedicationsPage } from './mychart.types';
+import type { CostDetail, LoadMedicationsPage } from './mychart.types';
 import type { CostDetailsStandard, MedicationsStandard, PrescriptionListStandard, PrescriptionStandard, RefillDetailsStandard } from './standardized.types';
 
 export type { CostDetailsStandard, LastDispenseStandard, MedicationsStandard, OwningPharmacyStandard, PrescriptionListStandard, PrescriptionStandard, RefillDetailsStandard } from './standardized.types';
 
 function costDetails(value: unknown): CostDetailsStandard {
-  const c = rec(value);
+  const c = rec<CostDetail>(value);
   return { formattedCopay: textOrNull(c.formattedCopay), copay: num(c.copay), isCopayPending: boolOrNull(c.isCopayPending) };
 }
 

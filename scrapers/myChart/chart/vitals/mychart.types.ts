@@ -19,7 +19,7 @@
  */
 
 /** Repeated shape. Appears in: chart/vitals. */
-export type UserSetting = {
+type UserSetting = {
   isAdmitted?: boolean;
   isH2GSession?: boolean;
   isMOContext?: boolean;

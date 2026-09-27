@@ -26,9 +26,10 @@ import { findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { htmlToText } from '../../processors/htmlText';
 import { bool, boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
+import type { Attachment, GetConversationList, Message, User, Viewer } from './mychart.types';
 import type { ConversationStandard, ConversationsConcise, ConversationsStandard, MessageConcise, MessageDirectory, MessageStandard } from './standardized.types';
 
-export type { ConversationConcise, ConversationStandard, ConversationsConcise, ConversationsStandard, MessageAttachmentConcise, MessageAttachmentStandard, MessageConcise, MessageDirectory, MessageStandard } from './standardized.types';
+export type { ConversationStandard, ConversationsStandard, MessageAttachmentConcise, MessageAttachmentStandard, MessageConcise, MessageDirectory, MessageStandard } from './standardized.types';
 
 /** Read the three name maps off a conversation payload (or the listing that carries it). */
 export function messageDirectory(...sources: unknown[]): MessageDirectory {
@@ -57,15 +58,15 @@ export function senderName(author: unknown, directory: MessageDirectory): string
   const wprKey = text(a.wprKey);
   const empKey = text(a.empKey);
   const displayName = text(a.displayName);
-  if (wprKey) return text(rec(directory.viewers[wprKey]).name) || displayName;
+  if (wprKey) return text(rec<Viewer>(directory.viewers[wprKey]).name) || displayName;
   if (empKey) {
-    return text(directory.userOverrideNames[empKey]) || text(rec(directory.users[empKey]).name) || displayName;
+    return text(directory.userOverrideNames[empKey]) || text(rec<User>(directory.users[empKey]).name) || displayName;
   }
   return displayName;
 }
 
 export function messageStandard(value: unknown, directory: MessageDirectory): MessageStandard {
-  const m = rec(value);
+  const m = rec<Message>(value);
   const author = rec(m.author);
   return {
     wmgId: textOrNull(m.wmgId),
@@ -75,12 +76,10 @@ export function messageStandard(value: unknown, directory: MessageDirectory): Me
     isUnread: boolOrNull(m.isUnread),
     bodyText: htmlToText(text(m.body)),
     author: { empKey: textOrNull(author.empKey), wprKey: textOrNull(author.wprKey) },
-    attachments: list(m.attachments).map((a) => ({
-      name: textOrNull(rec(a).name),
-      fileExtension: textOrNull(rec(a).fileExtension),
-      dcsId: textOrNull(rec(a).dcsId),
-      type: num(rec(a).type),
-    })),
+    attachments: list(m.attachments).map((attachment) => {
+      const a = rec<Attachment>(attachment);
+      return { name: textOrNull(a.name), fileExtension: textOrNull(a.fileExtension), dcsId: textOrNull(a.dcsId), type: num(a.type) };
+    }),
     tasks: list(m.tasks),
     suggestedActions: list(m.suggestedActions),
   };
@@ -96,7 +95,7 @@ export function messageConcise(m: MessageStandard): MessageConcise {
   };
 }
 
-function conversationStandard(value: unknown, listing: Record<string, unknown>): ConversationStandard {
+function conversationStandard(value: unknown, listing: GetConversationList): ConversationStandard {
   const c = rec(value);
   // The listing's `users` / `viewers` are shared; `userOverrideNames` is per conversation.
   const directory = messageDirectory({ users: listing.users, viewers: listing.viewers }, { userOverrideNames: c.userOverrideNames });
@@ -129,7 +128,7 @@ function conversationStandard(value: unknown, listing: Record<string, unknown>):
 export const conversationsProcessor: Processor<ConversationsStandard> = {
   standard(raw: RawResponse): ConversationsStandard {
     const requests = findRequests(raw, 'GetConversationList');
-    const pages = requests.map((r) => rec(r.body));
+    const pages = requests.map((r) => rec<GetConversationList>(r.body));
     const first = pages[0] ?? {};
     const last = pages[pages.length - 1] ?? {};
 
