@@ -19,16 +19,6 @@
  */
 
 /** Repeated shape. Appears in: chart/questionnaires. */
-export type ExtraContextInfo = {
-  ltkID?: string;
-  ltkInstant?: string;
-  larID?: string;
-  cjnID?: string;
-  isPreadmission?: boolean;
-  rshID?: string;
-};
-
-/** Repeated shape. Appears in: chart/questionnaires. */
 export type Questionnaire = {
   type?: number;
   filterType?: string;
@@ -105,43 +95,7 @@ export type AssignedQuestionnaire = {
 };
 
 /** Repeated shape. Appears in: chart/questionnaires. */
-export type PastResponse = {
-  filedDateISO?: string;
-  filedTimeISO?: string;
-  timeSinceFiled?: number;
-  filedDateFormatted?: string;
-  filedTimeFormatted?: string;
-  rootHqaID?: string;
-  answeringUser?: string;
-  viewingPastResponsesNotAllowed?: boolean;
-};
-
-/** Repeated shape. Appears in: chart/questionnaires. */
-export type SeriesData = {
-  seriesName?: string;
-  pastResponses?: Array<{
-    filedDateISO?: string;
-    filedTimeISO?: string;
-    timeSinceFiled?: number;
-    filedDateFormatted?: string;
-    filedTimeFormatted?: string;
-    rootHqaID?: string;
-    answeringUser?: string;
-    viewingPastResponsesNotAllowed?: boolean;
-  }>;
-  isSeriesForSurgery?: boolean;
-  surgeryData?: {
-    provider?: string;
-    procedureName?: string;
-    procedureDateISO?: string;
-    laterality?: string;
-  };
-  assigningEncounterIdentifier?: string;
-  isSeriesForToDo?: boolean;
-};
-
-/** Repeated shape. Appears in: chart/questionnaires. */
-export type Context = {
+type Context = {
   contextType?: number;
   contextIdentifier?: string;
   extraContextInfo?: {
