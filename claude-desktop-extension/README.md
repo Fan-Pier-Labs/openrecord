@@ -430,7 +430,8 @@ aws --profile fanpierlabs --region us-east-2 s3 cp openrecord.mcpb s3://openreco
 ```
 
 The short TTL means a re-upload is live within five minutes without a CloudFront invalidation.
-Bump the version in `manifest.json` first, or `mcpb_version.json` won't tell installed copies to update.
+Bump the version first, in both `manifest.json` (what `mcpb_version.json` is generated from, so
+installed copies learn about the update) and `package.json` (a test holds the two equal).
 
 ### Signing a release
 
