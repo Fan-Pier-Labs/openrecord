@@ -105,6 +105,8 @@ export type TestResultDetails = {
       orderProviderName?: string;
       /** Never captured on this endpoint (only on getlist); shape from the original hand-written types. */
       authorizingProviderName?: string;
+      /** Not in the captures; shape from the original hand-written types. */
+      unreadCommentingProviderName?: string;
       readingProviderName?: string;
       resultTimestampDisplay?: string;
       prioritizedInstantISO?: string;
