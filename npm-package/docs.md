@@ -78,8 +78,8 @@ type ConnectResult =
 
 | Method | Returns |
 | --- | --- |
-| `client.listLabResults()` | `Promise<LabTestResultWithHistory[]>` — every lab test result + historical components |
-| `client.getImagingResults({ followSaml? })` | `Promise<ImagingResult[]>` — imaging studies. With `followSaml: true` resolves the eUnity SAML chain to populate `fdiContext`. |
+| `client.listLabResults()` | `Promise<LabResultsStandard>` — every lab order (`orders[]`) with its historical components |
+| `client.getImagingResults({ followSaml? })` | `Promise<ImagingResultsStandard>` — imaging orders (`orders[]`), each with its `image_id`. |
 | `client.downloadImagingStudy(fdiContext, studyName, outputDir, opts?)` | `Promise<DirectDownloadResult>` — downloads CLO image bytes via eUnity. Pass `{ skipFileWrite: true }` to keep results in-memory. |
 
 The CLO bytes returned by `downloadImagingStudy` can be turned into JPEGs
