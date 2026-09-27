@@ -418,6 +418,21 @@ manifest launches `node dist/server.cjs` directly — don't ship `mcpmon`). Keep
 2. Drag the resulting `openrecord.mcpb` into Claude Desktop → Settings → Extensions.
 3. Open a new chat and ask Claude to "set up MyChart".
 
+### Publishing a release
+
+The splash page's Claude Desktop button downloads
+`https://openrecord.fanpierlabs.com/openrecord.mcpb`. Pack (or `pack:signed`) from `main`, then:
+
+```bash
+aws --profile fanpierlabs --region us-east-2 s3 cp openrecord.mcpb s3://openrecord-fanpierlabs-com/openrecord.mcpb \
+  --content-type application/octet-stream --content-disposition 'attachment; filename="openrecord.mcpb"' \
+  --cache-control "public, max-age=300"
+```
+
+The short TTL means a re-upload is live within five minutes without a CloudFront invalidation.
+Bump the version first, in both `manifest.json` (what `mcpb_version.json` is generated from, so
+installed copies learn about the update) and `package.json` (a test holds the two equal).
+
 ### Signing a release
 
 ```bash
