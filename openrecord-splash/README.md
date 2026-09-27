@@ -37,7 +37,7 @@ dist/           build output — gitignored, produced by deploy.sh
 - **No auth** — sign in / sign up were removed.
 - **One Download button** (hero, nav, and bottom CTA) opens a modal with four choices: the
   Claude Desktop extension (`/openrecord.mcpb`, uploaded separately from `deploy.sh` — see the
-  extension's README, "Publishing a release"), the CLI's "AI agent prompt" on npm for engineers,
+  extension's README, "Publishing a release"), the CLI's npm page for engineers,
   and iPhone / Android, greyed out, which lead to the notify form. When the apps ship, make those
   two rows links like the first two.
 - **Link previews + PWA install** — Open Graph / Twitter card tags, favicons, an apple-touch-icon,
