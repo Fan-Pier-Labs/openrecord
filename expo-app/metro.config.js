@@ -15,8 +15,6 @@ const emptyShim = path.resolve(__dirname, "shims/fs-empty.js");
 //    in RN — we only need them to bundle because scraper source imports them.
 config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
-  // Let scrapers/ resolve expo/fetch (for redirect:"manual" support).
-  expo: path.resolve(__dirname, "node_modules/expo"),
   zlib: path.resolve(__dirname, "shims/zlib-pako.js"),
   crypto: require.resolve("react-native-quick-crypto"),
   buffer: require.resolve("buffer/index.js"),
@@ -50,6 +48,8 @@ config.resolver.extraNodeModules = {
 // Strip the `node:` prefix so specifiers like `node:stream` fall through to
 // whatever the regular resolver would pick (RN's built-ins / browser shims).
 const telemetryNoop = path.resolve(__dirname, "shims/telemetry-noop.ts");
+const expoTransportStub = path.resolve(__dirname, "../scrapers/expoTransport.ts");
+const expoTransportShim = path.resolve(__dirname, "shims/expo-transport.ts");
 
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
@@ -64,10 +64,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       return { type: "sourceFile", filePath: emptyShim };
     }
   }
-  if (originalResolveRequest) {
-    return originalResolveRequest(context, moduleName, platform);
+  const resolved = originalResolveRequest
+    ? originalResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
+  // scrapers/expoTransport.ts is the Node/Bun stub; the app gets expo/fetch.
+  // Matched on the resolved file, not the specifier, so no importer can miss it.
+  if (resolved.type === "sourceFile" && resolved.filePath === expoTransportStub) {
+    return { type: "sourceFile", filePath: expoTransportShim };
   }
-  return context.resolveRequest(context, moduleName, platform);
+  return resolved;
 };
 
 // Watch the parent repo so shared scrapers resolve from the worktree.

@@ -29,10 +29,7 @@
         "openrecord-splash/*.ts",
         "openrecord-splash/__tests__/**/*.ts",
         "tests/**/*.ts"
-      ],
-      // Loaded through `require('expo/fetch')` inside a try/catch: present in
-      // the Expo app, absent (and expected to throw) under Node and Bun.
-      "ignoreDependencies": ["expo"]
+      ]
     },
     "claude-desktop-extension": {
       "entry": ["dev/*.mjs", "scripts/*.mjs"],

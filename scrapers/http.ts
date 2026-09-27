@@ -25,6 +25,7 @@
 import type { CookieJar } from 'tough-cookie';
 import { cookieHeaderFor, storeSetCookies } from './cookies';
 import { withHostLimit } from '../shared/hostConcurrency';
+import { expoTransport } from './expoTransport';
 
 /**
  * Pretend to be Google Chrome on macOS. Sent on every request; a call site that
@@ -55,20 +56,6 @@ export const BROWSER_HEADERS: Readonly<Record<string, string>> = {
  */
 export type Transport = (url: string, init: RequestInit) => Promise<Response>;
 
-// expo/fetch when running inside an Expo app — its Swift-side
-// URLSessionDelegate honors redirect:"manual". Under Node/Bun the require
-// throws (the module isn't resolvable outside the app) and this stays
-// undefined, which doubles as a runtime signal for where we're running.
-const expoFetch: Transport | undefined = (() => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const m = require('expo/fetch') as { fetch?: Transport };
-    return m?.fetch;
-  } catch {
-    return undefined;
-  }
-})();
-
 /**
  * Whether the platform keeps its own cookie store.
  *
@@ -79,11 +66,11 @@ const expoFetch: Transport | undefined = (() => {
  *
  * Two signals, because getting this wrong on device is a silently broken
  * session rather than a crash: React Native's own `navigator` marker, and the
- * fact that `expo/fetch` resolved at all. Both hold in the app, neither holds
- * under Node or Bun.
+ * app's Metro config having swapped in `expo/fetch`. Both hold in the app,
+ * neither holds under Node or Bun.
  */
 export const PLATFORM_OWNS_COOKIES: boolean =
-  expoFetch !== undefined ||
+  expoTransport !== undefined ||
   (typeof navigator !== 'undefined' &&
     (navigator as { product?: string }).product === 'ReactNative');
 
@@ -124,7 +111,7 @@ export function setTestTransport(fn: Transport | null): void {
 function resolveTransport(override: Transport | undefined, cookieJar: CookieJar | null | undefined): Transport {
   if (testTransport) return testTransport;
   if (override) return override;
-  if (cookieJar && expoFetch) return expoFetch;
+  if (cookieJar && expoTransport) return expoTransport;
   return (url, init) => globalThis.fetch(url, init);
 }
 

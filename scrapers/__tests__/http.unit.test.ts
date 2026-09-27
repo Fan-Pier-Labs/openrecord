@@ -360,7 +360,7 @@ describe('scrapers have exactly one outbound path', () => {
     // `foo.fetch(` out; `prefetch(` and `scraperFetch(` don't match anyway.
     /(^|[^.\w$])fetch\s*\(/,
     /globalThis\.fetch/,
-    /require\(['"]expo\/fetch['"]\)/,
+    /['"]expo\/fetch['"]/,
     /from\s+['"]node-fetch['"]/,
   ]
 

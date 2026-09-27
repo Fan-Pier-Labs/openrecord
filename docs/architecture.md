@@ -262,7 +262,8 @@ runtime, not about the caller. `resolveTransport` answers it in three branches:
    session.
 
 `PLATFORM_OWNS_COOKIES` is the React Native check, and reads two signals (`navigator.product` and
-whether `expo/fetch` resolved) because getting it wrong on device is a silently broken session, not
+whether the app's Metro config swapped `scrapers/expoTransport.ts` for the shim that imports
+`expo/fetch`) because getting it wrong on device is a silently broken session, not
 a crash. `globalThis.fetch` is read per call, never captured at import.
 
 ### Test seams, in place of injection
