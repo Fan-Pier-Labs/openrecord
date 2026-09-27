@@ -148,12 +148,13 @@
     .waitlist { width: 100%; max-width: 520px; margin-top: 40px; padding-top: 28px; border-top: 1px solid rgba(203,213,225,0.6); }
     .waitlist p.lead { font-size: 14px; color: var(--slate-500); font-weight: 300; margin-bottom: 12px; }
     .field-row { display: flex; flex-direction: column; gap: 12px; }
-    @media (min-width: 560px) { .field-row { flex-direction: row; } }
     .input {
-      flex: 1; height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(203,213,225,0.7);
+      height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(203,213,225,0.7);
       background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); font-size: 15px; color: var(--slate-900); font-family: inherit;
       transition: border-color .15s, box-shadow .15s; width: 100%;
     }
+    /* flex: 1 only side by side — in the stacked column its flex-basis would override the height. */
+    @media (min-width: 560px) { .field-row { flex-direction: row; } .field-row .input { flex: 1; } }
     .input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
     .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
     .btn-submit {
