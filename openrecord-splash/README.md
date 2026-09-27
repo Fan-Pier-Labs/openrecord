@@ -34,10 +34,11 @@ dist/           build output — gitignored, produced by deploy.sh
 - **Waitlist form** posts to the shared `fanpierlabs-forms` Lambda (emails `ryan@fanpierlabs.com`
   and logs to CloudWatch). Endpoint: `https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`,
   payload `{ site: "openrecord", name, email }`. A hidden `company` honeypot drops bots client-side.
-- **No auth** — sign in / sign up were removed. "Get Notified" scrolls to the waitlist.
-- **Download buttons** — the Claude Desktop badge downloads `/openrecord.mcpb`, which is uploaded
-  separately from `deploy.sh` (see the extension's README, "Publishing a release"). The iOS &
-  Android badges are `href="#"` placeholders — swap in real store URLs when the apps ship.
+- **No auth** — sign in / sign up were removed.
+- **The primary CTA is the Claude Desktop download** (hero, nav, quick start, and bottom CTA all
+  link `/openrecord.mcpb`), which is uploaded separately from `deploy.sh` — see the extension's
+  README, "Publishing a release". Below it, the waitlist is for the mobile apps; its App Store /
+  Google Play badges are `href="#"` placeholders — swap in real store URLs when the apps ship.
 - **Link previews + PWA install** — Open Graph / Twitter card tags, favicons, an apple-touch-icon,
   and `manifest.json`. See "Assets" below.
 
