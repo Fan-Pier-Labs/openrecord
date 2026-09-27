@@ -38,6 +38,36 @@ export type ReferenceRange = {
   formattedReferenceRange?: string;
 };
 
+/** Never captured populated; shape from the original hand-written types. */
+export type Scan = {
+  scanId?: string;
+  scanType?: string;
+  scanDate?: string;
+  viewerUrl?: string;
+};
+
+/** Never captured populated; shape from the original hand-written types. */
+export type ImageStudy = {
+  studyId?: string;
+  studyDescription?: string;
+  studyDate?: string;
+  modality?: string;
+  viewerUrl?: string;
+  numberOfImages?: number;
+};
+
+/**
+ * Link to the external image viewer, which some instances (Mass General
+ * Brigham) serve instead of a `data-fdi-context` attribute in the report HTML.
+ * `redirectUrl` is a relative MyChart path of the form
+ * `/Extensibility/Redirection/FdiRedirection?fdi=…&ord=…` — the same fdi/ord
+ * pair the FdiData API takes. Not in the captures; shape from the original
+ * hand-written types.
+ */
+export type FdiLink = {
+  redirectUrl?: string;
+};
+
 /** `/api/past-results/getmultiplehistoricalresultcomponents` */
 export type GetMultipleHistoricalResultComponents = {
   historicalResults?: Record<string, {
@@ -73,6 +103,8 @@ export type TestResultDetails = {
     showDetails?: boolean;
     orderMetadata?: {
       orderProviderName?: string;
+      /** Never captured on this endpoint (only on getlist); shape from the original hand-written types. */
+      authorizingProviderName?: string;
       readingProviderName?: string;
       resultTimestampDisplay?: string;
       prioritizedInstantISO?: string;
@@ -118,8 +150,11 @@ export type TestResultDetails = {
       narrative?: Narrative;
       impression?: Narrative;
       combinedRTFNarrativeImpression?: Narrative;
-      addenda?: unknown[];
+      /** Never captured populated; shape from the original hand-written types. */
+      addenda?: Narrative[];
       isFullResultText?: boolean;
+      /** Never captured populated; shape from the original hand-written types. */
+      isCupidAddendum?: boolean;
       transcriptions?: unknown[];
       ecgDiagnosis?: unknown[];
       hasStudyContent?: boolean;
@@ -137,8 +172,12 @@ export type TestResultDetails = {
         ordDat?: string;
       };
     };
-    scans?: unknown[];
-    imageStudies?: unknown[];
+    /** Never captured populated; shape from the original hand-written types. */
+    scans?: Scan[];
+    /** Never captured populated; shape from the original hand-written types. */
+    imageStudies?: ImageStudy[];
+    /** Never captured populated; shape from the original hand-written types. */
+    fdiLink?: FdiLink;
     indicators?: unknown[];
     geneticProfileLink?: string;
     shareEverywhereLogin?: boolean;
@@ -161,6 +200,9 @@ export type TestResultDetails = {
   isEnhancedAskAQuestionActive?: boolean;
   hideEncInfo?: boolean;
 };
+
+/** One entry of a `/api/test-results/getdetails` body's `results`. */
+export type DetailsResult = NonNullable<TestResultDetails['results']>[number];
 
 /** `/api/test-results/getlist` */
 export type TestResultList = {

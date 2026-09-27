@@ -65,10 +65,12 @@ export function extractFdiContextFromFdiLink(redirectUrl: string): FdiContext | 
   return { fdi, ord };
 }
 
-/** What `/api/report-content/LoadReportContent` answers. */
+/** What `/api/report-content/LoadReportContent` answers. Read it through `rec<ReportContent>()`. */
 export type ReportContent = {
-  reportContent: string;
-  reportCss: string;
+  reportContent?: string;
+  reportCss?: string;
+  baseFontSize?: number;
+  stylesheets?: string[];
 }
 
 /**
