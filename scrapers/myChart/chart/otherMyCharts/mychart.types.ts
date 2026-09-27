@@ -19,7 +19,7 @@
  */
 
 /** Repeated shape. Appears in: chart/otherMyCharts. */
-export type OtherMyChartPayerOrgDetail = {
+type OtherMyChartPayerOrgDetail = {
   IsPayerOnly?: boolean;
   IsPayvider?: boolean;
   IsPayer?: boolean;

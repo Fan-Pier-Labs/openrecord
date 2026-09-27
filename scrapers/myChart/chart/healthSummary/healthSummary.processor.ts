@@ -5,7 +5,7 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, rec, textOrNull } from '../../processors/read';
-import type { FetchH2GHeader, FetchHealthSummary } from './mychart.types';
+import type { FetchH2GHeader, FetchHealthSummary, LastVisit } from './mychart.types';
 import type { HealthSummaryStandard, MeasurementStandard, VisitPointerStandard } from './standardized.types';
 
 export type { HealthSummaryStandard, MeasurementStandard, VisitPointerStandard } from './standardized.types';
@@ -16,7 +16,7 @@ function measurement(value: unknown): MeasurementStandard {
 }
 
 function visitPointer(value: unknown): VisitPointerStandard {
-  const v = rec(value);
+  const v = rec<LastVisit>(value);
   return { date: textOrNull(v.date), visitType: textOrNull(v.visitType) };
 }
 

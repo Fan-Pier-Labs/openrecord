@@ -16,7 +16,7 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { isoFromMs, list, num, rec, textOrNull } from '../../processors/read';
-import type { FetchItemFeed } from './mychart.types';
+import type { FetchItemFeed, PrimaryAction } from './mychart.types';
 import type { ActivityFeedStandard, FeedItemStandard } from './standardized.types';
 
 export type { ActivityFeedStandard, FeedItemStandard, FeedViewModelStandard } from './standardized.types';
@@ -36,7 +36,7 @@ function feedItem(value: unknown): FeedItemStandard {
     priorityInstant,
     priorityInstantISO: priorityInstant !== null && priorityInstant > 0 ? isoFromMs(priorityInstant) : null,
     groupCount: num(item.groupCount),
-    primaryAction: { uriDisplayText: textOrNull(rec(item.primaryAction).uriDisplayText) },
+    primaryAction: { uriDisplayText: textOrNull(rec<PrimaryAction>(item.primaryAction).uriDisplayText) },
   };
 }
 

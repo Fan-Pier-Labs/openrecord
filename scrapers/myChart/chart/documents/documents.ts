@@ -1,6 +1,7 @@
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';
 import { list, rec } from '../../processors/read';
+import type { LoadOtherDocuments } from './mychart.types';
 import { logger } from '../../../../shared/logger';
 import { documentsProcessor, type DocumentsStandard } from './documents.processor';
 
@@ -42,7 +43,7 @@ export async function fetchDocumentsRaw(mychartRequest: MyChartRequest): Promise
   let count = PAGE_SIZE;
   while (count === PAGE_SIZE && pages < MAX_PAGES) {
     const body = await collector.postJson(LOAD_OTHER_DOCUMENTS, token, { isInitialLoad: pages === 0 });
-    count = list(rec(body).documents).length;
+    count = list(rec<LoadOtherDocuments>(body).documents).length;
     pages++;
   }
   if (count === PAGE_SIZE) {

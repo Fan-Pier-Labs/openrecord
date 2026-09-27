@@ -12,7 +12,7 @@
 import { bodyOf, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { list, num, rec, textOrNull } from '../../processors/read';
-import type { GetSubTopics } from './mychart.types';
+import type { GetMedicalAdviceRequestRecipients, GetSubTopics } from './mychart.types';
 import type { MessageRecipientsStandard, MessageTopicsStandard } from './standardized.types';
 
 export type { MessageRecipientStandard, MessageRecipientsStandard, MessageTopicStandard, MessageTopicsStandard } from './standardized.types';
@@ -33,7 +33,7 @@ export const messageRecipientsProcessor: Processor<MessageRecipientsStandard> = 
   standard(raw: RawResponse): MessageRecipientsStandard {
     return {
       recipients: recipientList(bodyOf(raw, 'GetMedicalAdviceRequestRecipients')).map((value) => {
-        const r = rec(value);
+        const r = rec<GetMedicalAdviceRequestRecipients[number]>(value);
         return {
           displayName: textOrNull(r.displayName),
           specialty: textOrNull(r.specialty),

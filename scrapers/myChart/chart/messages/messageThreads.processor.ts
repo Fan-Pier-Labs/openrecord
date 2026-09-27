@@ -21,6 +21,7 @@
 import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { bool, boolOrNull, list, num, rec, textOrNull } from '../../processors/read';
+import type { GetConversationDetails, GetConversationMessages } from './mychart.types';
 import type { ConversationThreadConcise, ConversationThreadStandard } from './standardized.types';
 
 export type { ConversationThreadConcise, ConversationThreadStandard } from './standardized.types';
@@ -36,14 +37,14 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
     const detailsRequest = findRequest(raw, 'GetConversationDetails');
     const detailsBody = detailsRequest?.body;
     if (detailsBody === null || typeof detailsBody !== 'object' || Array.isArray(detailsBody)) return null;
-    const details = rec(detailsBody);
+    const details = rec<GetConversationDetails>(detailsBody);
     const pages = findRequests(raw, 'GetConversationMessages');
 
     const directory = messageDirectory(details, ...pages.map((p) => p.body));
 
     const seen = new Set<string>();
     const merged: MessageStandard[] = [];
-    for (const source of [details, ...pages.map((p) => rec(p.body))]) {
+    for (const source of [details, ...pages.map((p) => rec<GetConversationMessages>(p.body))]) {
       for (const m of list(source.messages)) {
         const parsed = messageStandard(m, directory);
         const key = parsed.wmgId ?? '';
@@ -55,7 +56,7 @@ export const conversationThreadProcessor: Processor<ConversationThreadStandard |
     merged.sort((a, b) => (a.deliveryInstantISO ?? '').localeCompare(b.deliveryInstantISO ?? ''));
 
     const last = pages.length > 0 ? pages[pages.length - 1]!.body : details;
-    const lastPage = rec(last);
+    const lastPage = rec<GetConversationMessages>(last);
     const truncated =
       last !== null && typeof last === 'object' && bool(lastPage.hasMoreMessages) && list(lastPage.messages).length > 0;
 
