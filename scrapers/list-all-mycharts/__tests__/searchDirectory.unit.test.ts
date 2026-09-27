@@ -147,10 +147,10 @@ describe('searchMyChartDirectory', () => {
     let sandboxProbes = 0;
     setTestTransport((url) => {
       if (url.includes('fake-mychart')) sandboxProbes++;
-      // A redirect to the login page is what a live instance actually answers.
+      // What the live sandbox answers at its URL: a redirect under the mount.
       return Promise.resolve(
         url.includes('fake-mychart')
-          ? new Response(null, { status: 302 })
+          ? new Response(null, { status: 308, headers: { Location: '/MyChart' } })
           : new Response(JSON.stringify(fixture), { status: 200 }),
       );
     });
@@ -160,6 +160,20 @@ describe('searchMyChartDirectory', () => {
     }
     // Cached — a picker searching on every keystroke must not probe per stroke.
     expect(sandboxProbes).toBe(1);
+  });
+
+  it('treats a parked domain or a redirect elsewhere as down, not as serving', async () => {
+    for (const parked of [
+      () => new Response('<html>This domain is for sale</html>', { status: 200 }),
+      () => new Response(null, { status: 302, headers: { Location: 'https://parking.example.com/' } }),
+    ]) {
+      clearSandboxAvailabilityCache();
+      setTestTransport((url) =>
+        Promise.resolve(url.includes('fake-mychart') ? parked() : new Response(JSON.stringify(fixture), { status: 200 })),
+      );
+      const result = await searchMyChartDirectory('springfield');
+      expect(result.matches.find((m) => m.slgId === 'fake-mychart')?.unavailable).toBe(SANDBOX_UNAVAILABLE_NOTE);
+    }
   });
 
   it('does not probe the sandbox for a search that did not turn it up', async () => {

@@ -100,22 +100,36 @@ export function clearSandboxAvailabilityCache(): void {
   sandboxProbe = null;
 }
 
+function isMyChartRedirect(response: Response): boolean {
+  if (response.status < 300 || response.status >= 400) return false;
+  const location = response.headers.get('Location');
+  if (!location) return false;
+  try {
+    return new URL(location, SANDBOX_INSTANCE.url).pathname.toLowerCase().startsWith('/mychart');
+  } catch {
+    return false;
+  }
+}
+
 async function probeSandbox(): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // `scraperFetch` owns its own two-minute deadline and won't take a shorter
     // one, so race it instead: nobody typing into a picker waits two minutes
-    // to be told the sandbox is gone.
+    // to be told the sandbox is gone. The losing fetch keeps running and holds
+    // one of this host's permits until it settles — harmless for a host nothing
+    // else talks to, so don't copy this for a real one.
     const answered = await Promise.race([
       scraperFetch(SANDBOX_INSTANCE.url, { redirect: 'manual' }, { cookieJar: null }),
       new Promise<null>((resolve) => {
         timer = setTimeout(() => resolve(null), SANDBOX_PROBE_TIMEOUT_MS);
       }),
     ]);
-    // Any answer below 500 means something is serving MyChart there — the URL
-    // redirects to the login page rather than returning it. A 5xx, a DNS
-    // failure (what a torn-down deployment gives) or no answer at all is down.
-    return answered !== null && answered.status < 500;
+    // Serving means answering the way MyChart does: a redirect that stays under
+    // the mount (`/MyChart/` → `/MyChart` → the login page). A parked domain
+    // answering 200, a redirect elsewhere, a 5xx, a DNS failure (what a
+    // torn-down deployment gives) or no answer at all is down.
+    return answered !== null && isMyChartRedirect(answered);
   } catch {
     return false;
   } finally {
