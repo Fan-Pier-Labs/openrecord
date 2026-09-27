@@ -37,7 +37,8 @@ dist/           build output — gitignored, produced by deploy.sh
 - **No auth** — sign in / sign up were removed.
 - **The primary CTA is the Claude Desktop download** (hero, nav, quick start, and bottom CTA all
   link `/openrecord.mcpb`), which is uploaded separately from `deploy.sh` — see the extension's
-  README, "Publishing a release". Below it, the waitlist is for the mobile apps; its App Store /
+  README, "Publishing a release". Under it, a secondary button sends engineers to the CLI's
+  "AI agent prompt" on npm, for driving `mychart-cli` from any AI. Below that, the waitlist is for the mobile apps; its App Store /
   Google Play badges are `href="#"` placeholders — swap in real store URLs when the apps ship.
 - **Link previews + PWA install** — Open Graph / Twitter card tags, favicons, an apple-touch-icon,
   and `manifest.json`. See "Assets" below.
