@@ -19,7 +19,7 @@
  */
 
 /** Repeated shape. Appears in: chart/healthSummary. */
-export type Department = {
+type Department = {
   id?: string;
   name?: string;
   address?: string[];
@@ -39,7 +39,7 @@ export type Department = {
 };
 
 /** Repeated shape. Appears in: chart/healthSummary. */
-export type Provider = {
+type Provider = {
   encryptedId?: string;
   name?: string;
   type?: number;
@@ -71,14 +71,14 @@ export type Provider = {
 };
 
 /** Repeated shape. Appears in: chart/healthSummary. */
-export type HealthSummarySpecialty = {
+type HealthSummarySpecialty = {
   value?: string;
   title?: string;
   abbreviation?: string;
 };
 
 /** Repeated shape. Appears in: chart/healthSummary. */
-export type HealthSummaryOrganization = {
+type HealthSummaryOrganization = {
   organizationId?: string;
   hasChildOrgs?: boolean;
   organizationName?: string;
