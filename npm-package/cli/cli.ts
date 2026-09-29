@@ -465,7 +465,8 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         }
 
         // A rejected TOTP code means the stored secret is wrong; resubmitting can't help.
-        if (attempt >= MAX_2FA_ATTEMPTS || useTotpSecret) {
+        // Without a TTY nobody can answer a re-prompt — ask() on EOF'd stdin never settles.
+        if (attempt >= MAX_2FA_ATTEMPTS || useTotpSecret || !process.stdin.isTTY) {
           console.log('  Invalid 2FA code.');
           return null;
         }

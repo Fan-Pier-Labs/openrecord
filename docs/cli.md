@@ -27,7 +27,7 @@ prompt, which is the consent gate. Only **confirmed** matches are used: a hostna
 bundled MyChart directory, or one whose redirect chain lands on an Epic login page. Anything
 else is dropped rather than guessed at — pass `--user`/`--pass` for those. See
 [`read-local-passwords/README.md`](../read-local-passwords/README.md).
-- `--2fa <code>` — provides a 2FA code for non-interactive use; otherwise the CLI prompts interactively for the 6-digit code. A rejected code re-prompts (up to 3 attempts in total) and never re-sends the code
+- `--2fa <code>` — provides a 2FA code for non-interactive use; otherwise the CLI prompts interactively for the 6-digit code. When interactive, a rejected code re-prompts (up to 3 attempts in total) and never re-sends the code; without a TTY it fails as before
 
 ## Subcommands
 
