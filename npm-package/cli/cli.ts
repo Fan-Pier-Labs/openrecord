@@ -2,7 +2,7 @@ import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
 import { version as CLI_VERSION } from '../package.json';
-import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid } from '../../scrapers/myChart/auth/login';
+import { myChartUserPassLogin, myChartPasskeyLogin, complete2faFlow, areCookiesValid, type TwoFaResult } from '../../scrapers/myChart/auth/login';
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { getMyChartAccounts } from '../../read-local-passwords/index';
 import type { PasswordStoreEntryWithKey } from '../../read-local-passwords/types';
@@ -413,8 +413,6 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     let mychartRequest = loginResult.mychartRequest;
 
     if (loginResult.state === 'need_2fa') {
-      let twofaCodeArray: { code: string; score: number }[];
-
       // Show where the code was sent (helpful for any path).
       if (loginResult.twoFaDelivery) {
         const { method, contact } = loginResult.twoFaDelivery;
@@ -425,40 +423,53 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
         }
       }
 
-      if (useTotpSecret) {
-        // Generate TOTP code locally — no email, no waiting
-        const totpCode = await generateTotpCode(useTotpSecret);
-        // The code is submitted programmatically — printing it only puts a
-        // live credential in the terminal scrollback.
-        console.log('  Generated TOTP code locally.');
-        twofaCodeArray = [{ code: totpCode, score: 1 }];
-      } else if (cliArgs.twofa) {
-        console.log('  Using 2FA code from --2fa arg');
-        twofaCodeArray = [{ code: cliArgs.twofa, score: 1 }];
-      } else {
-        // Default: prompt the user for the code from their phone / email.
-        const code = (await ask('  Enter 2FA code: ')).trim();
-        if (!code) {
-          console.log('  No 2FA code entered. Skipping this account.');
+      // A rejected code re-prompts instead of aborting the run — 3 submissions
+      // max. complete2faFlow re-reads the 2FA page (and a fresh CSRF token) on
+      // every call, and no attempt re-sends a code (that would text or email
+      // the user again).
+      const MAX_2FA_ATTEMPTS = 3;
+      let twoFaResult: TwoFaResult;
+      for (let attempt = 1; ; attempt++) {
+        let code: string;
+        if (useTotpSecret) {
+          // Generate TOTP code locally — no email, no waiting
+          code = await generateTotpCode(useTotpSecret);
+          // The code is submitted programmatically — printing it only puts a
+          // live credential in the terminal scrollback.
+          console.log('  Generated TOTP code locally.');
+        } else if (cliArgs.twofa && attempt === 1) {
+          console.log('  Using 2FA code from --2fa arg');
+          code = cliArgs.twofa;
+        } else {
+          // Default: prompt the user for the code from their phone / email.
+          code = (await ask(attempt === 1
+            ? '  Enter 2FA code: '
+            : `  Invalid 2FA code. Try again (attempt ${attempt} of ${MAX_2FA_ATTEMPTS}): `)).trim();
+          if (!code) {
+            console.log('  No 2FA code entered. Skipping this account.');
+            return null;
+          }
+        }
+
+        twoFaResult = await complete2faFlow({
+          mychartRequest,
+          twofaCodeArray: [{ code, score: 1 }],
+          isTOTP: !!useTotpSecret,
+        });
+
+        if (twoFaResult.state === 'logged_in') break;
+
+        if (twoFaResult.state === 'error') {
+          console.log('  Error completing 2FA.');
           return null;
         }
-        twofaCodeArray = [{ code, score: 1 }];
-      }
 
-      const twoFaResult = await complete2faFlow({
-        mychartRequest,
-        twofaCodeArray,
-        isTOTP: !!useTotpSecret,
-      });
-
-      if (twoFaResult.state === 'invalid_2fa') {
-        console.log('  Invalid 2FA code.');
-        return null;
-      }
-
-      if (twoFaResult.state === 'error') {
-        console.log('  Error completing 2FA.');
-        return null;
+        // A rejected TOTP code means the stored secret is wrong; resubmitting can't help.
+        // Without a TTY nobody can answer a re-prompt — ask() on EOF'd stdin never settles.
+        if (attempt >= MAX_2FA_ATTEMPTS || useTotpSecret || !process.stdin.isTTY) {
+          console.log('  Invalid 2FA code.');
+          return null;
+        }
       }
 
       mychartRequest = twoFaResult.mychartRequest;
