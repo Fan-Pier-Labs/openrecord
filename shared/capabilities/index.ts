@@ -137,6 +137,25 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 );
 
 
+/**
+ * Every chart-reading capability that can run without arguments — what a bare
+ * `mychart-cli --host <hostname>` scrapes, and the per-category data files of
+ * an export. Derived, never hand-listed, so a read added to the registry is
+ * scraped and exported the same day. Excluded by the predicate itself: writes
+ * and account-security operations, the `public` directory lookups (nothing to
+ * do with this chart), reads that require an argument (per-visit notes, single
+ * threads), the media and file capabilities (bytes, not data), and the
+ * `Patients` group (session introspection, not chart data).
+ */
+export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(
+  (capability) =>
+    capability.kind === 'read' &&
+    !capability.rendersMedia &&
+    !capability.returnsFile &&
+    needsPatientAssertion(capability) &&
+    capability.params.every((param) => !param.required),
+);
+
 /** Ids of the capabilities that mutate the patient's MyChart record. */
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 

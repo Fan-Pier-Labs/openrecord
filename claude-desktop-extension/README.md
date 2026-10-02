@@ -156,6 +156,23 @@ on your machine either way: MyChart serves imaging as proprietary CLO, which
 [`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
 turns into pixels.
 
+### Exporting the whole chart
+
+Ask Claude to "export all my records" and `export_everything` writes a new
+`OpenRecord export - <hostname> - <date>` folder in Downloads: every category as
+JSON and Markdown, one file per visit with its notes and After Visit Summary,
+every message thread with its attachments, every document and billing statement,
+and every imaging study as full-resolution JPEGs. It runs on your machine and
+does not pass the chart through the conversation. The layout is in
+[`shared/export/README.md`](../shared/export/README.md).
+
+Ask for it "grouped by health issue" and Claude reads the export's index with
+`list_export_items`, decides which visits, labs, imaging, messages and bills
+belong to each issue, and `organize_export` writes a `By health issue/` folder
+with one dated timeline per issue linking back to the records. Claude is the
+judgement here; the pages themselves are written deterministically from the
+ids it picks, so a group can only point at records that exist.
+
 ### Family records (proxy access)
 
 Accounts with MyChart proxy access (a parent reading a child's chart) can list
@@ -329,6 +346,7 @@ claude-desktop-extension/
 └── src/
     ├── index.ts            # stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
+    ├── export-tools.ts     # export_everything, list_export_items, organize_export
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
     ├── credential-store.ts # ~/.openrecord-mcpb/ persistence

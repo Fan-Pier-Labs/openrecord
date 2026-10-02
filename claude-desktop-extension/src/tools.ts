@@ -96,6 +96,8 @@ import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
 import { saveFilePayload } from './save-file';
+import { toolMeta } from './tool-meta';
+import { registerExportTools } from './export-tools';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -114,26 +116,6 @@ function textResult(text: string): ToolResult {
 
 function errorResult(message: string): ToolResult {
   return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
-}
-
-// ── Tool metadata ───────────────────────────────────────────────────────────
-
-/**
- * The `title` + `annotations` half of a tool's registration.
- *
- * MCP carries a tool's human-readable label in two places: `Tool.title`, and
- * the older `ToolAnnotations.title`. Which one a client reads is up to the
- * client, so a tool that fills in only one shows up under its snake_case id in
- * whichever client reads the other. Every tool here — hand-written or derived
- * from `shared/capabilities/` — goes through this so both are filled from one
- * string and neither can be forgotten. `tool-metadata.unit.test.ts` fails the
- * build if a registration skips it.
- */
-function toolMeta(
-  title: string,
-  hints: { readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean },
-): { title: string; annotations: { title: string; readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean } } {
-  return { title, annotations: { title, ...hints } };
 }
 
 // ── Recommending a passkey after login ─────────────────────────────────────
@@ -947,4 +929,7 @@ export function registerAllTools(rawServer: McpServer): void {
   for (const capability of CAPABILITIES) {
     registerCapabilityTool(server, capability);
   }
+
+  // The whole-chart export: a composite of the capabilities above, not one of them.
+  registerExportTools(server, contextFor);
 }

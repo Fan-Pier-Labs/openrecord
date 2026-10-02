@@ -44,6 +44,9 @@
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
     { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." },
+    { "name": "export_everything", "description": "Export the whole chart — every category, visit notes, messages and attachments, documents, statements, imaging JPEGs — to a folder in Downloads." },
+    { "name": "list_export_items", "description": "List the records in a finished export, one line each, for grouping by health issue." },
+    { "name": "organize_export", "description": "Group an export's records by health issue into dated timeline pages." },
     { "name": "lookup_npi", "description": "Look up a US healthcare provider by National Provider Identifier. Public data; no MyChart account needed." },
     { "name": "search_npi_registry", "description": "Find US healthcare providers by name, specialty and/or place in CMS's public NPI Registry. No MyChart account needed." }
   ],

@@ -63,6 +63,7 @@ inputs:
 
 - `--action send-message` — Send a new message to a care team provider (prompts for topic and recipient; `--subject` / `--message` pre-fill those prompts)
 - `--action send-reply --conversation-id <id> --message <text>` — Reply to an existing conversation (prompts for whatever is omitted)
+- `--action export` — The whole chart to a new `OpenRecord export - <hostname> - <date>/` folder under `--output` (default: the current directory): every category, visit notes and AVS, message threads and attachments, documents, billing statements and imaging JPEGs. Layout: [`shared/export/README.md`](../shared/export/README.md). `--patient` asserts whose chart it is, as for every read
 - `--action keep-alive-test` — Ping KeepAlive every 30s to keep the session alive; runs until Ctrl+C
 
 The older dashed action names still work. Each resolves to the registry
