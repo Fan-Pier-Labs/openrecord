@@ -17,6 +17,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
+import type { ImagingResultsStandard } from '../../scrapers/myChart/chart/labs/labResults';
 import {
   CAPABILITIES,
   acceptsPatientParam,
@@ -445,12 +446,15 @@ export async function downloadAllImagingStudies(
   try {
     const ctx = await capabilityContext(session.hostname, password);
     const patientArg = options.patient !== undefined ? { patient: options.patient } : {};
-    const results = (await executeCapability(
+    // Pinned to `json` because this walks the processor's standard object
+    // (`{ orders }`); the default mode, or a --mode passed through later,
+    // must not hand it markdown or the raw response instead.
+    const { orders } = (await executeCapability(
       session.request,
       'get_imaging_results',
-      { ...patientArg },
+      { ...patientArg, mode: 'json' },
       ctx,
-    )) as Array<{ orderName?: string; image_id?: string }>;
+    )) as ImagingResultsStandard;
 
     const hostDir = path.resolve(
       options.outputDir ?? path.join(process.cwd(), 'imaging-output'),
@@ -458,11 +462,11 @@ export async function downloadAllImagingStudies(
     );
     await fs.promises.mkdir(hostDir, { recursive: true });
     const metadataPath = path.join(hostDir, 'all-imaging.json');
-    await fs.promises.writeFile(metadataPath, JSON.stringify(results, jsonSafeReplacer, 2));
-    console.log(`  ${results.length} imaging result(s); metadata and reports in ${metadataPath}`);
+    await fs.promises.writeFile(metadataPath, JSON.stringify(orders, jsonSafeReplacer, 2));
+    console.log(`  ${orders.length} imaging result(s); metadata and reports in ${metadataPath}`);
 
     let ok = true;
-    for (const study of results) {
+    for (const study of orders) {
       // No image_id means no viewable pictures — the report text is already
       // in all-imaging.json, so there is nothing more to download.
       if (!study.image_id) continue;
