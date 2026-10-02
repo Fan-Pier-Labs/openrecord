@@ -90,7 +90,7 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |
-| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — see [`docs/cli.md`](docs/cli.md) |
+| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](npm-package/docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
@@ -204,7 +204,7 @@ adding, editing, *and deleting*** — it reached 65KB by only ever being appende
 - [Testing](docs/testing.md) — suites, CI integration, the coverage gate
 - [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
 - [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
-- [CLI reference](docs/cli.md) — cookie caching, credential resolution, 2FA, actions, proxy flags
+- [CLI](npm-package/docs/cli.md) and [library API](npm-package/docs/api.md) references
 - [Scrapers](scrapers/README.md) — the map; each scraper's own README is its documentation
 - [Scraping guide](scrapers/SCRAPING.md) — finding the request the web UI sends, and the traps
 - Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,

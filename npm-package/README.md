@@ -1,460 +1,163 @@
 # mychart-cli
 
-Programmatic access to Epic MyChart patient portals from Node.js. Log in,
-fetch every section of a patient's chart, and act on it (request refills,
-send messages, manage emergency contacts) — all running locally in your
-process.
+Read and act on an Epic MyChart patient portal from your terminal or your Node.js code. Sign in
+(password + 2FA, authenticator app, or passkey), pull any part of the chart (labs, medications,
+visits and clinical notes, messages, imaging, bills, insurance, and more), and act on it: message
+your care team, download statements, manage family-member records.
 
-This is the same scraper engine that powers
-[openrecord.fanpierlabs.com](https://openrecord.fanpierlabs.com), packaged
-for you to embed in your own integration.
-
-📖 **Full API reference:** [docs.md](./docs.md) — every `MyChartClient`
-method, raw scraper function, and exported type with signatures and
-return shapes.
-
-## Install
-
-```bash
-npm install mychart-cli
-```
-
-The package installs a CLI binary at `node_modules/.bin/mychart-cli`
-(use it via `npx mychart-cli …`). You only run the CLI once, to set
-up a passkey — see Quick start.
-
-## Quick start
-
-The recommended setup flow is **one-shot interactive**: register a
-passkey via the CLI, save it, and from then on log in from code with no
-prompts.
-
-### 1. Register a passkey
-
-Run the bundled CLI once:
-
-```bash
-npx mychart-cli --set-up-passkey --host mychart.example.org
-```
-
-The CLI walks you through username + password + 2FA, registers a new
-passkey on your MyChart account (the same WebAuthn flow the official
-MyChart app uses), and writes the credential to:
-
-```
-./.passkey-credentials/mychart.example.org.json
-```
-
-### 2. Add the credentials directory to `.gitignore`
-
-```
-echo '.passkey-credentials/' >> .gitignore
-```
-
-The file contains a private key — never commit it.
-
-## CLI examples
-
-The CLI works standalone — you don't need to write any code to fetch
-your chart, send a message, or refill a prescription. Every flag is
-also documented in the [CLI reference](#cli-reference) table below.
-
-```bash
-# Smoke test: log in interactively and dump every scrape category.
-# Prompts for username, password, and 2FA code.
-npx mychart-cli --host mychart.example.org
-
-# Same, fully non-interactive: pass creds + 2FA code on the command line.
-npx mychart-cli --host mychart.example.org \
-  --user alice@example.com --pass 'hunter2' --2fa 123456
-
-# Auto-fill creds from your browser's saved password store
-# (Chrome, Arc, and Firefox are supported). Still prompts for 2FA.
-npx mychart-cli --host mychart.example.org --read-login-from-browser
-
-# Auto-pick the first MyChart account found across all browsers.
-npx mychart-cli --read-login-from-browser
-```
-
-**Passkey workflow** — register once, then log in with no prompts ever
-again:
-
-```bash
-# One-time setup: register a passkey on the account.
-npx mychart-cli --host mychart.example.org --set-up-passkey
-
-# Every subsequent login: zero prompts, no 2FA code needed.
-npx mychart-cli --host mychart.example.org --use-passkey
-
-# Manage passkeys on the account.
-npx mychart-cli --host mychart.example.org --list-passkeys
-npx mychart-cli --host mychart.example.org --delete-passkey
-```
-
-**TOTP workflow** — if you'd rather use an authenticator-app code as
-your second factor:
-
-```bash
-# Register a TOTP authenticator on the account. The CLI writes the
-# secret to ./.totp-secrets/<host>.txt and prints a QR code.
-npx mychart-cli --host mychart.example.org --set-up-totp
-
-# Re-use the saved TOTP secret on every login — no prompt.
-npx mychart-cli --host mychart.example.org --use-saved-totp
-
-# Disable TOTP on the account.
-npx mychart-cli --host mychart.example.org --disable-totp
-```
-
-**One-shot actions** — send a message, request a refill, download an
-imaging study:
-
-```bash
-# Compose a new message to your care team.
-npx mychart-cli --host mychart.example.org --action send-message \
-  --subject "Question about my medication" \
-  --message "Hi — is it okay to take this with food?"
-
-# Reply to an existing message thread.
-npx mychart-cli --host mychart.example.org --action send-reply \
-  --conversation-id <id> --message "Thanks!"
-
-# Request a refill on a current prescription, by name.
-npx mychart-cli --host mychart.example.org --action request-refill \
-  --arg medication_name="Lisinopril"
-
-# Download every imaging study (X-ray, MRI, CT) as JPEGs.
-npx mychart-cli --host mychart.example.org --action get-imaging
-```
-
-## AI agent prompt
-
-Want to give an AI assistant (Claude, ChatGPT, Cursor, etc.) access to
-your chart? Install the CLI globally and copy-paste the block below into
-the assistant's system prompt or first message. The agent can then run
-`mychart-cli` via its shell tool to read and act on your records.
+It's the same scraper engine behind
+[OpenRecord](https://openrecord.fanpierlabs.com)'s Claude Desktop extension and mobile app. It
+runs entirely on your machine, and your credentials and medical data never pass through anyone
+else's server.
 
 ```bash
 npm install -g mychart-cli
 ```
 
-```text
-You have access to `mychart-cli`, a command-line tool that connects to
-Epic MyChart patient portals. It can log in (password+2FA, TOTP, or
-passkey), scrape every section of a patient's chart (medications, lab
-results, imaging, visits, messages, billing, allergies, immunizations,
-preventive care, etc.), and act on it (send messages, reply to threads,
-request prescription refills, manage emergency contacts).
-
-To use it, run shell commands with the bundled `mychart-cli` binary.
-The first positional argument is always `--host <hostname>`, where the
-hostname is the MyChart portal domain (e.g. `mychart.example.org`).
-
-If a passkey has been registered for this host (look for
-`./.passkey-credentials/<host>.json`), prefer `--use-passkey` — it logs
-in with zero prompts. Otherwise you'll need `--user`, `--pass`, and a
-`--2fa` code, or you can use `--read-login-from-browser` to auto-fill
-credentials from the user's saved browser passwords.
-
-Common commands you can run:
-
-  # Everything the tool can do. The default listing is the useful
-  # subset; add --show-all for the rarely-wanted rest (goals,
-  # education materials, emergency-contact edits, sign-in settings),
-  # which run exactly the same way.
-  mychart-cli --help
-  mychart-cli --help --show-all
-
-  # Log in and dump every scrape category to stdout (medications,
-  # labs, imaging, visits, messages, etc.).
-  mychart-cli --host mychart.example.org --use-passkey
-
-  # Non-interactive login with explicit credentials.
-  mychart-cli --host mychart.example.org \
-    --user $USER --pass $PASS --2fa 123456
-
-  # Send a new message to the care team.
-  mychart-cli --host mychart.example.org --use-passkey \
-    --action send-message --subject "..." --message "..."
-
-  # Reply to an existing thread.
-  mychart-cli --host mychart.example.org --use-passkey \
-    --action send-reply --conversation-id <id> --message "..."
-
-  # Request a refill on a current prescription, by name.
-  mychart-cli --host mychart.example.org --use-passkey \
-    --action request-refill --arg medication_name="..."
-
-  # Download every imaging study as JPEGs.
-  mychart-cli --host mychart.example.org --use-passkey \
-    --action get-imaging
-
-For the full flag reference and library API (you can also call
-`MyChartClient` directly from JavaScript or TypeScript), see
-https://www.npmjs.com/package/mychart-cli.
-
-Never print the user's password, 2FA codes, or raw passkey credential
-bytes back to them. Treat scraped medical data as PII — don't log it
-to third-party services without explicit permission.
+```bash
+mychart-cli --host mychart.example.org --action get_lab_results --mode concise
 ```
 
-## Using the passkey from your code
+## Documentation
 
-```ts
-import {
-  MyChartClient,
-  deserializeCredential,
-  serializeCredential,
-} from 'mychart-cli';
-import * as fs from 'node:fs/promises';
-
-const path = './.passkey-credentials/mychart.example.org.json';
-const credential = deserializeCredential(await fs.readFile(path, 'utf8'));
-
-const result = await MyChartClient.connectWithPasskey({
-  hostname: 'mychart.example.org',
-  credential,
-});
-if (result.state !== 'connected') throw new Error('passkey login failed');
-const client = result.client;
-
-const meds = await client.getMedications();
-console.log(meds);
-
-client.close();
-
-// IMPORTANT — see Authentication section below.
-await fs.writeFile(path, serializeCredential(credential));
-```
-
-That's it. No more 2FA codes, no more prompts. Re-run the CLI's
-`--set-up-passkey` only if you want to register a new passkey (e.g.
-because you cleared the stored one).
-
-For the full list of methods on `client`, see [docs.md](./docs.md).
-
-## Authentication
-
-Passkey-based login is the **recommended** auth flow for this package
-because it's the only one that runs end-to-end without a human typing
-in a 2FA code on every login. After the one-shot CLI setup above,
-`MyChartClient.connectWithPasskey` is non-interactive and bypasses 2FA.
-
-### `signCount` — must be persisted after every login
-
-> [!IMPORTANT]
-> A passkey credential is **not a static key**. Its `signCount` increments
-> every time you log in. WebAuthn requires the counter to monotonically
-> increase across logins; if you replay the *same* credential bytes twice,
-> MyChart will reject the second attempt as a possible cloned authenticator.
->
-> After every successful `connectWithPasskey` call you **must** re-serialize
-> the credential and overwrite the file on disk. The Quick-start example
-> above does exactly this.
->
-> Concretely: load → use → re-save. Don't bake the passkey into a Docker
-> image, a `process.env`, or anything else immutable. Treat it like a
-> rotating session token that you persist back after every use.
-
-### Other auth options
-
-If a passkey doesn't fit your use case, the package also exposes:
-
-- **Username + password + 2FA** — `MyChartClient.connect({ hostname, user, pass })`.
-  Returns `{ state: 'connected', client }` for instances without 2FA, or
-  `{ state: 'need_2fa', complete, delivery, sentAt }` when MyChart sent a
-  code. Call `await pending.complete(code)` to finish.
-- **TOTP** — if the user has an authenticator app set up, derive the code
-  with `MyChartClient.totpCode(secret)` and pass `{ isTOTP: true }` to
-  `pending.complete`.
-- **Restored sessions** — `MyChartClient.fromSerialized(json)` rehydrates
-  a previously-`serialize()`d session without re-logging-in. Handy when
-  you want to dispatch from a queue and don't want to keep re-authing.
-
-All of these still ultimately depend on either a human typing a code or
-a saved TOTP secret, so prefer passkeys for unattended automation. See
-[docs.md](./docs.md) for the full signatures.
-
-## CLI reference
-
-```
-npx mychart-cli --host <hostname> [flags]
-```
-
-| Flag | Purpose |
+| Guide | What's in it |
 | --- | --- |
-| `--host <hostname>` | MyChart instance hostname. Required. |
-| `--user <username>` | Skip the username prompt. |
-| `--pass <password>` | Skip the password prompt. |
-| `--2fa <code>` | Skip the 2FA prompt; use this code directly. |
-| `--set-up-passkey` | Register a new passkey on the account, save it under `./.passkey-credentials/<host>.json`. **Run this once.** |
-| `--use-passkey` | Log in with a previously-saved passkey instead of password+2FA. |
-| `--list-passkeys` | After login, print all passkeys registered on the account. |
-| `--delete-passkey` | Interactively delete a passkey by `rawId`. |
-| `--set-up-totp` | Register a TOTP authenticator on the account, save the secret to `./.totp-secrets/<host>.txt`. |
-| `--use-saved-totp` | Use the saved TOTP secret to derive 2FA codes (no prompt). |
-| `--disable-totp` | Disable TOTP on the account. |
-| `--no-cache` | Don't reuse cached cookies; force a fresh login. |
-| `--action <name>` | Run a one-shot action: `send-message`, `send-reply`, `get-imaging`, or any capability id. |
-| `--arg name=value` | An argument for `--action <capability>`. Repeat for each one. |
-| `--help` | Usage, every flag, and the commonly-used capabilities. |
-| `--list-capabilities` | Just the capability listing. |
-| `--show-all` | With `--help` or `--list-capabilities`: include the less-frequently-used capabilities. |
+| **[CLI reference](docs/cli.md)** | Every flag, how sign-in works, output formats, family records, files and exit codes |
+| **[Library API reference](docs/api.md)** | `MyChartClient`, every method and return type, errors, imaging, raw scrapers, the capability registry |
+| **[Capabilities](docs/capabilities.md)** | Every action you can run, with arguments, output modes and how ids chain |
+| **[Authentication](docs/authentication.md)** | Passkeys, TOTP, 2FA codes, sessions, and the `signCount` rule |
+| **[Recipes](docs/recipes.md)** | Export a chart, read clinical notes, download imaging, message a doctor, run unattended, wire up an AI agent |
+| **[Troubleshooting](docs/troubleshooting.md)** | Sign-in failures, refused reads, empty categories |
+| **[Changelog](CHANGELOG.md)** | Breaking changes by version |
 
-`--help` and `--list-capabilities` lead with the capabilities most charts are
-read for and hold back the ones most charts leave empty — goals, education
-materials, care journeys, the emergency-contact writes, the account's own
-sign-in settings. Nothing is disabled by being held back: every id still runs
-as an `--action`. Add `--show-all` to see the rest.
+## Quick start: CLI
 
-The default invocation (no flags besides `--host`) logs in interactively
-and dumps every scrape category to stdout. Useful as a smoke test.
+Find your health system's MyChart hostname. This needs no account:
 
-The CLI stores credentials under `./.passkey-credentials/` and
-`./.totp-secrets/` (both relative to the cwd). Override either with
-`MYCHART_PASSKEY_DIR=/abs/path` or `MYCHART_TOTP_DIR=/abs/path`.
-
-## Output modes
-
-Every read capability renders its payload in one of four modes. The typed
-methods on `MyChartClient` (`getMedications()`, `pastVisits()`, …) return the
-**standard object**: every useful field, under MyChart's own field names, with
-derived fields (`bodyText`, `instantISO`, `organizationName`, …) beside them.
-`runCapability(id, { mode })` picks any of the four:
-
-| Mode | What you get |
-| --- | --- |
-| `json` | The standard object as JSON. **The default** for `runCapability` and for `mychart-cli` |
-| `standard` | The standard object as markdown |
-| `concise` | The interesting subset as markdown — what the desktop extension and the app show a model |
-| `raw` | Exactly what MyChart sent, untouched: the response body, or an envelope of every request the scraper made |
-
-```ts
-const md = await client.runCapability('get_lab_results', { mode: 'concise' });
-const everything = await client.runCapability('get_lab_results', { mode: 'raw' });
+```bash
+mychart-cli --action search_mycharts --arg query="your health system"
 ```
 
-The `fetch…Raw` functions (`fetchMedicationsRaw(request)`, …) and the
-processors (`medicationsProcessor.standard(raw)`, `.concise(standard)`) are
-exported too, so a library consumer can keep the envelope and project it later.
-Field decisions per capability: `docs/processor-layer-proposal.md` in the
-repository; example output in every mode: `docs/processor-layer-examples.md`.
+Sign in and print your whole chart. You'll be prompted for anything missing, including the 2FA
+code:
 
-## Changelog
+```bash
+mychart-cli --host mychart.example.org
+```
 
-### 2.0.0 — withdrawn exports (breaking)
+Run any single capability:
 
-Two functions are gone from the public surface. Both removals are deliberate and neither has a
-drop-in replacement, which is why this is a major rather than a patch.
+```bash
+mychart-cli --host mychart.example.org --action get_past_visits --mode concise
+```
 
-| Removed | Why | What to do |
-| --- | --- | --- |
-| `requestMedicationRefill` | The capability it wrapped is now declared **not implemented**: its request body was never confirmed against a real MyChart, and the field it posted (`medicationKey`) is one only the test server has ever recognised. A refill request that silently never reaches the pharmacy is worse than none. See `scrapers/myChart/chart/medications/REFILL.md`. | Ask the patient to request the refill in MyChart directly. `runCapability('request_refill')` still resolves and returns a notice saying the same. |
-| `base64UrlEncode`, `base64UrlDecode` | The hand-rolled codec they wrapped was replaced by `js-base64`, which does the same job correctly. | Depend on [`js-base64`](https://www.npmjs.com/package/js-base64) directly. |
+Register a passkey once, and later runs need no password and no 2FA:
 
-`RefillRequestResult` goes with the first of those.
+```bash
+mychart-cli --host mychart.example.org --set-up-passkey
+```
 
-### 1.0.0 — the processor layer (breaking)
+See what else it can do:
 
-Every read function returns the **standard object** now: MyChart's own field names and casing,
-derived fields under new names, markup only in `raw`. The projected types the 0.x line exported
-are gone. The renames a 0.x consumer will hit:
+```bash
+mychart-cli --help --show-all
+```
 
-| 0.x | 1.0 |
-| --- | --- |
-| `Medication`, `MedicationsResult` (`medications[]`, `commonName`, `isRefillable`, `medicationKey`) | `PrescriptionStandard`, `MedicationsStandard` (`prescriptions[]`, `patientFriendlyName.text`, `refillDetails.isRefillable`, `id`) |
-| `Flowsheet`, `VitalReading` (`date`, `units`) | `FlowsheetStandard`, `VitalReadingStandard` (`instantTakenIso`, row `unitsDisplayName`) |
-| `MedicalHistoryResult` (`familyHistory`) | `MedicalHistoryStandard` (`familyHistoryAndStatus`, plus `socialHistory`) |
-| `ConversationThread`, `ThreadMessage` (`conversationId`, `messageId`, `sentDate`, `messageBody`) | `ConversationThreadStandard` (`hthId`, `wmgId`, `deliveryInstantISO`, `bodyText`) |
-| `GetVisitNotesResult`, `VisitNote` (`lrpId`, `notes[]`, `hnoId`, `hnoDat`, `providerName`) | `VisitNotesStandard` (`lrpID`, `noteList[]`, `hnoID`, `hnoDAT`, `provider.name`) |
-| `NoteContent` (`contentHtml`) | `NoteContentStandard` (`reportContentText`) |
-| `LetterDetailsResponse` (`bodyHTML`) | `LetterDetailsStandard` (`bodyHTMLText`) |
-| `CareTeam`, `CareTeamMember` (`members[]`, `name`, `relation`) | `CareTeamStandard` (`ProvidersList[]`, `Name`, `Relation`) |
-| `LabTestResultWithHistory[]` | `LabResultsStandard` (`orders[]`), abnormal flag gone (raw only) |
-| `ImagingResult[]` (`fdiContext`, `samlUrl`) | `ImagingResultsStandard` (`orders[]`, `image_id`) |
-| `BillingAccount[]` | `BillingStandard` (`accounts[]`, merged `visits[]`) |
-| `upcomingVisits()` / `pastVisits()` containers (`List`, `InProgressVisits`, …) | `UpcomingVisitsStandard` / `PastVisitsStandard` (`visits[]`, `status`, `instantISO`) |
-| every other `get…()` array | `{ <listName>: [...] }` with MyChart's list name |
+The CLI keeps its session, passkey and TOTP secret in `.cookie-cache/`, `.passkey-credentials/`
+and `.totp-secrets/` under the current directory. **Add them to `.gitignore`.** Full reference:
+**[docs/cli.md](docs/cli.md)**.
 
-A missing verification token throws `MissingVerificationTokenError` instead of returning an empty
-result. `runCapability(id, { mode })` selects `raw`, `standard`, `concise` or `json`.
+## Quick start: library
 
-## Lookups that need no account
-
-Three capabilities read a source no MyChart account owns, so they are **static** — there is no
-session for an instance to supply, and constructing a client means logging in:
+```bash
+npm install mychart-cli
+```
 
 ```ts
 import { MyChartClient } from 'mychart-cli';
 
-// Which MyChart does a health system run? (Epic's live directory, with the
-// list bundled here as the fallback — `source` says which answered.)
-const { matches } = await MyChartClient.searchMyCharts('uchealth');
+const result = await MyChartClient.connect({
+  hostname: 'mychart.example.org',
+  user: process.env.MYCHART_USER!,
+  pass: process.env.MYCHART_PASS!,
+});
 
-// CMS's public NPI Registry, in both directions.
-const provider = await MyChartClient.lookupNpi('1234567893');
-const found = await MyChartClient.searchNpiRegistry({ lastName: 'Doe', state: 'MA', specialty: 'Cardiology' });
+if (result.state === 'invalid_login' || result.state === 'error') throw new Error(result.error ?? result.state);
+const client = result.state === 'connected' ? result.client : await result.complete(await promptForCode());
 
-// …or by id, for a caller dispatching on a name it was handed.
-await MyChartClient.runPublicCapability('lookup_npi', { npi: '1234567893' });
+const { prescriptions } = await client.getMedications();
+const { orders } = await client.listLabResults();
+const visits = await client.pastVisits();
+
+// Or dispatch any capability by id: the same names the CLI and the AI tools use.
+const notes = await client.runCapability('get_visit_notes', { csn: visits!.visits[0]!.Csn });
+
+client.close();
 ```
 
-A refused NPI query comes back as data rather than a throw — `{ Errors: [{ description }] }`, which
-is how CMS answers — so narrow it with the exported `isNpiRegistryErrors` guard. An unheld but
-well-formed NPI is `null`. The underlying scrapers (`lookupNpi`, `searchNpiRegistry`,
-`fetchMyChartDirectory`, `searchMyChartDirectory`) are exported directly too.
+Every method is typed; the `.d.ts` covers both ESM and CommonJS. For anything unattended, sign in
+with a passkey instead of a password. Read
+**[authentication](docs/authentication.md#passkeys)** first, because a passkey must be saved
+back after every login. Full reference: **[docs/api.md](docs/api.md)**.
 
-## Persisting sessions
+## Try it without a real account
 
-Cookie-based sessions are short-lived (MyChart times them out after
-~15 min of idle), but you can still skip a re-login between processes
-by serializing the active session and rehydrating it later:
+`fake-mychart.fanpierlabs.com` is a sandbox that behaves like MyChart and holds made-up data:
 
-```ts
-const json = await client.serialize();
-await fs.writeFile('session.json', json);
-
-// ...later, in another process
-const restored = await MyChartClient.fromSerialized(await fs.readFile('session.json', 'utf8'));
-if (await restored.isSessionValid()) {
-  const meds = await restored.getMedications();
-}
+```bash
+mychart-cli --host fake-mychart.fanpierlabs.com --user homer --pass donuts123 --2fa 123456 --action get_medications
 ```
 
-For longer-lived persistence (across sleep, across days), prefer the
-passkey flow — re-running `connectWithPasskey` is fast and the
-credential survives indefinitely as long as you re-save the mutated
-copy after each login.
+## What it can do
+
+| Area | Capabilities |
+| --- | --- |
+| Health record | profile, health summary, medications, allergies, health issues, vitals, immunizations, preventive care, medical history, goals |
+| Visits | upcoming and past visits, clinical notes, After Visit Summaries |
+| Results | lab results with history, imaging reports, imaging downloads decoded to JPEG/PNG |
+| Messages | inbox, threads, attachments, recipients; send, reply (with attachments), delete |
+| Billing | billing history, statement PDFs, insurance coverage, deductible / out-of-pocket progress |
+| Care | care team (with NPIs), referrals, letters, documents and downloads, upcoming orders, questionnaires, and more |
+| Family records | list and switch between the account holder's and family members' charts, with every read checking whose chart is active |
+| Account | register and remove passkeys; turn authenticator-app 2FA on and off |
+| No account needed | find a MyChart portal, look up providers in the NPI Registry, a health system's public directory |
+
+Each one is a single registry entry, so the CLI, the library, the Claude Desktop extension and the
+mobile app all have exactly the same set. The full list is in **[docs/capabilities.md](docs/capabilities.md)**.
 
 ## Telemetry
 
-This package sends anonymous usage events (think: Next.js / Vercel CLI
-telemetry) so we can see which scrapers are actually exercised in the
-wild and prioritize fixes accordingly.
+The CLI and library send anonymous usage events, which tell us which scrapers are used in the
+wild and which ones break. Each event carries:
 
-What is collected:
+- the event name (e.g. `scraper_login_started`) and the MyChart **portal** hostname it targeted
+- OS platform, architecture and version, and the runtime version (e.g. `node v22.11.0`)
+- a random UUID generated once per project install, cached at
+  `node_modules/.cache/mychart-cli/anonymous-id`, used only to count unique installs
 
-- The event name (e.g. `scraper_login_started`) and the MyChart hostname
-  the call targeted (the portal domain — not your machine's hostname).
-- OS platform, architecture, OS version, and runtime version (e.g.
-  `bun 1.3.9` or `node v22.11.0`).
-- A stable random UUID generated once per project install and cached
-  at `<your-project>/node_modules/.cache/mychart-cli/anonymous-id`
-  (same convention Babel / ESLint / Webpack use). Used purely for
-  dedupe. Never written outside `node_modules`. Cleared whenever you
-  reinstall.
+**Never collected:** your IP address, your machine's hostname, your OS username, git identity, or
+anything read from a chart.
 
-What is **not** collected: your public IP, OS hostname, OS username,
-git config (`user.name` / `user.email`), or any data scraped from your
-chart.
-
-To disable telemetry entirely, set:
+The CLI also fetches a small version manifest from `openrecord.fanpierlabs.com` on start to tell
+you about new releases. That request reveals your IP address to the CDN, and nothing else.
 
 ```bash
 export MYCHART_CLI_TELEMETRY_DISABLED=1
 ```
 
+turns off both.
+
+## Privacy and safety
+
+- Everything runs locally. Requests go straight from your machine to the MyChart portal.
+- Chart data is medical information. Treat output files, `.cookie-cache/`, `.passkey-credentials/`
+  and `.totp-secrets/` like passwords.
+- Capabilities that change something (send, delete, switch the active patient, change sign-in
+  settings) are marked as writes, so you can confirm them before an automated caller runs them.
+- [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html)
+
 ## License
 
-This package is distributed under a proprietary source-available license. See
+Proprietary source-available license. Personal and educational use only; no commercial use,
+redistribution, or SaaS offerings without written permission from Fan Pier Labs. See
 [LICENSE](./LICENSE).
