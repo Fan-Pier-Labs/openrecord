@@ -86,6 +86,17 @@ const CUSTOM_LOGOS: Readonly<Record<string, string>> = {
   '990': 'login/custom/apotti.png',
 };
 
+/**
+ * Login URLs Epic's directory gets wrong, keyed by `slgId`. Each one points at
+ * the organization's marketing site rather than its portal, so search hands
+ * back a hostname no login can succeed on. Verified against the live site;
+ * drop an entry once Epic's own record is fixed.
+ */
+const LOGIN_URL_OVERRIDES: Readonly<Record<string, string>> = {
+  // UCSF: www.ucsfhealth.org/ucsfmychart/ redirects to an information page.
+  '166': 'https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/',
+};
+
 /** An organization's image record, as the directory publishes it. */
 interface DirectoryLogo {
   imageId: string;
@@ -202,8 +213,8 @@ function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
   const org = raw as Record<string, unknown>;
 
   const name = typeof org.name === 'string' ? org.name.trim() : '';
-  const url = typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '';
   const slgId = typeof org.slgId === 'string' ? org.slgId : '';
+  const url = LOGIN_URL_OVERRIDES[slgId] ?? (typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '');
   if (!name || !url) return null;
 
   const logo = org.logo as DirectoryLogo | undefined;

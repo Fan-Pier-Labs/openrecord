@@ -17,6 +17,7 @@ import {
   logoUrlFor,
   parseDirectoryPayload,
 } from '../directory';
+import bundledInstances from '../mychart-instances.json';
 import fixture from './fixtures/directory-response.json';
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -76,6 +77,15 @@ describe('parseDirectoryPayload', () => {
   it('keeps the aliases an organization is also searched by', () => {
     const elCamino = instances.find((i) => i.slgId === '920-1');
     expect(elCamino?.aliases).toEqual(['Silicon Valley Sports Medicine']);
+  });
+
+  it('replaces a login URL Epic publishes for the marketing site with the portal', () => {
+    const [ucsf] = parseDirectoryPayload({
+      organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://www.ucsfhealth.org/ucsfmychart/' }],
+    });
+    expect(ucsf?.url).toBe('https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/');
+    // The offline seed has to agree, or search falls back to the bad host.
+    expect(bundledInstances.find((i) => i.slgId === '166')?.url).toBe(ucsf?.url);
   });
 
   it('throws rather than reporting an empty directory when the shape changes', () => {

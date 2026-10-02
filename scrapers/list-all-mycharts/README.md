@@ -44,6 +44,13 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   show.** Nothing is mirrored, and mirroring them would not help: clients run on other
   people's machines with none of our credentials, so they load logos straight from Epic
   either way.
+- **Some `loginUrl`s are wrong at the source.** UCSF (`166`) publishes
+  `www.ucsfhealth.org/ucsfmychart/`, which redirects to an information page; the portal
+  is `ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/`. `LOGIN_URL_OVERRIDES` in
+  [`directory.ts`](directory.ts) corrects these by `slgId`, in both the live parse and
+  the seed. `faq` is not a usable signal for finding more: 412 of 1,418 entries
+  (October 2026) have a `faq` host that differs from `loginUrl`, nearly all affiliates
+  pointing at a parent system's FAQ.
 - **Live first, seed second.** A search fetches Epic's directory, caches it, and searches
   that — new health systems come online between releases, and a patient whose provider is
   missing from a months-old snapshot has no way to connect. When the fetch fails (offline,
