@@ -24,7 +24,23 @@ After installing, open a new Claude chat and say:
 ### Interactive widget (recommended)
 
 In Claude Desktop, Claude shows an inline **step-based setup widget**
-(`get_setup_widget`):
+(`get_setup_widget`). It opens on a choice between two routes.
+
+**Import from your browser** (the easier one):
+
+1. **Permission** — a screen saying what the scan reads, that passwords stay
+   on this machine, and that macOS will raise its own keychain prompt. Nothing
+   is read until **Allow and search my browsers** is clicked; that runs
+   `import_browser_passwords` (and `list_accounts`, to mark logins already
+   connected).
+2. **Pick logins** — every confirmed MyChart login, ticked by default. One
+   that is already connected, or was saved without a username, is shown but
+   can't be picked. The widget only ever holds import ids, never a password.
+3. **Connect each** — `connect_imported_account` per ticked login, in turn,
+   with "Account 2 of 3" progress. Each goes through the same 2FA and passkey
+   steps as below; on 2FA, **Skip this account** moves on to the next.
+
+**Enter manually**:
 
 1. **Pick a health system** — an autocomplete dropdown over the full MyChart
    directory. Results appear only once you type (no default list); each shows
@@ -46,6 +62,17 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
    refuse registration. **Set up passkey** calls `register_passkey`; **Skip for
    now** finishes without one, and the message handed back to the chat says
    which happened so Claude doesn't offer again.
+
+Both routes end on a **summary** of every account tried. A failed import (say,
+a stale saved password) offers **Enter password**, which opens the sign-in step
+for that portal with the username filled in; **+ Connect another account**
+goes back to the start. **Done** sends one message to the chat naming the
+connected accounts and how each passkey offer went.
+
+A call that outruns Claude Desktop's timeout comes back parked (see
+`pending-call.ts`) — most likely the scan, waiting on the keychain prompt. The
+widget waits it out with `check_pending_call` rather than showing the parking
+note.
 
 > **Logos.** MyChart's only per-instance brand asset is the wide banner logo
 > (`media.epic.com`, ~640×230), so the widget uses it everywhere — a
