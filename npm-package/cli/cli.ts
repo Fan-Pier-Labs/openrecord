@@ -31,6 +31,7 @@ import {
 import {
   FULL_SCRAPE_CAPABILITIES,
   downloadAllImagingStudies,
+  exportAccount,
   renderCapabilityList,
   resolveCliAction,
   runCapabilityAction,
@@ -1010,6 +1011,16 @@ async function main() {
         saveClo: cliArgs.saveClo,
       });
       if (!succeeded) ok = false;
+    }
+    closeRL();
+    process.exit(ok ? 0 : 1);
+  }
+
+  // Everything in the chart, to one folder. Every read inside goes through executeCapability.
+  if (cliArgs.action === 'export') {
+    let ok = true;
+    for (const session of sessions) {
+      if (!(await exportAccount(session, passwordFor(session.hostname), { outputDir: cliArgs.output, patient: cliArgs.patient }))) ok = false;
     }
     closeRL();
     process.exit(ok ? 0 : 1);

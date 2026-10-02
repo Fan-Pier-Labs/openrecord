@@ -57,6 +57,8 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '  The interactive actions, which prompt for whatever is not given as a flag:',
     '    --action send-message [--subject <s>] [--message <m>]',
     '    --action send-reply --conversation-id <id> [--message <m>]',
+    '    --action export            The whole chart — data, notes, messages, documents, bills,',
+    '                               imaging JPEGs — to a new folder under --output (default: here)',
     '    --action keep-alive-test   Hold the session open, pinging KeepAlive until Ctrl+C',
     '',
     '  Older dashed spellings, still accepted — each is an alias for a registry capability:',

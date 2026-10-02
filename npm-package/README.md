@@ -125,6 +125,9 @@ npx mychart-cli --host mychart.example.org --action request-refill \
 
 # Download every imaging study (X-ray, MRI, CT) as JPEGs.
 npx mychart-cli --host mychart.example.org --action get-imaging
+
+# Export the whole chart — data, notes, messages, documents, bills, imaging — to one folder.
+npx mychart-cli --host mychart.example.org --action export --output ~/Documents
 ```
 
 ## AI agent prompt
@@ -295,7 +298,7 @@ npx mychart-cli --host <hostname> [flags]
 | `--use-saved-totp` | Use the saved TOTP secret to derive 2FA codes (no prompt). |
 | `--disable-totp` | Disable TOTP on the account. |
 | `--no-cache` | Don't reuse cached cookies; force a fresh login. |
-| `--action <name>` | Run a one-shot action: `send-message`, `send-reply`, `get-imaging`, or any capability id. |
+| `--action <name>` | Run a one-shot action: `send-message`, `send-reply`, `get-imaging`, `export`, or any capability id. |
 | `--arg name=value` | An argument for `--action <capability>`. Repeat for each one. |
 | `--help` | Usage, every flag, and the commonly-used capabilities. |
 | `--list-capabilities` | Just the capability listing. |

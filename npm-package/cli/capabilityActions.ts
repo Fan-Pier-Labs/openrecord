@@ -18,8 +18,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import {
-  CAPABILITIES,
-  acceptsPatientParam,
   capabilitiesByGroup,
   COMMON_CAPABILITIES,
   LESS_FREQUENTLY_USED_CAPABILITIES,
@@ -27,6 +25,7 @@ import {
   MODE_PARAM,
   acceptsModeParam,
   getCapability,
+  FULL_SCRAPE_CAPABILITIES,
   type Capability,
   type CapabilityContext,
   type StudyImagePayload,
@@ -36,7 +35,11 @@ import { convertCloToBitmap } from '../../scrapers/myChart/clo-image-parser/clo_
 import { convertBitmapToJpg } from '../../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
+
+export { FULL_SCRAPE_CAPABILITIES };
 import { readLocalFile } from '../../shared/readLocalFile';
+import { exportEverything } from '../../shared/export/exportEverything';
+import { createExportDir, exportDirName, nodeExportFolder } from '../../shared/export/nodeExportFolder';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 /**
@@ -57,25 +60,6 @@ export const CLI_ACTION_ALIASES: Readonly<Record<string, string>> = {
 export function resolveCliAction(action: string): Capability | undefined {
   return getCapability(CLI_ACTION_ALIASES[action] ?? action);
 }
-
-/**
- * What a bare `mychart-cli --host <hostname>` scrapes: every chart-reading
- * capability that can run without arguments. Derived from the registry, never
- * hand-listed — a read capability added there is scraped here the same day.
- * Excluded by the predicate itself: writes and account-security operations,
- * the `public` directory lookups (nothing to do with this chart), reads that
- * require an argument (per-visit notes, single threads), the media capability
- * (bytes belong behind an explicit `--action`), and the `Patients` group
- * (session introspection, not chart data).
- */
-export const FULL_SCRAPE_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(
-  (capability) =>
-    capability.kind === 'read' &&
-    !capability.rendersMedia &&
-    !capability.returnsFile &&
-    acceptsPatientParam(capability) &&
-    capability.params.every((param) => !param.required),
-);
 
 /** How much of the registry a listing prints. */
 export interface CapabilityListOptions {
@@ -483,6 +467,38 @@ export async function downloadAllImagingStudies(
       }
     }
     return ok;
+  } catch (err) {
+    console.log(`  ${(err as Error).message}`);
+    return false;
+  }
+}
+
+/**
+ * `--action export` — the whole chart, written to a new
+ * `OpenRecord export - <hostname> - <date>/` folder under `--output`
+ * (default: the current directory). See `shared/export/`. Grouping it by
+ * health issue needs a model, so it is the Claude Desktop extension's
+ * `organize_export`, not a flag here.
+ */
+export async function exportAccount(
+  session: { hostname: string; request: MyChartRequest },
+  password: string | undefined,
+  options: { outputDir?: string | undefined; patient?: string | undefined } = {},
+): Promise<boolean> {
+  console.log(`\n${'='.repeat(60)}\n  Export: ${session.hostname}\n${'='.repeat(60)}`);
+  try {
+    const dir = createExportDir(path.resolve(options.outputDir ?? process.cwd()), exportDirName(session.hostname));
+    console.log(`  Writing to ${dir}`);
+    const index = await exportEverything(session.request, nodeExportFolder(dir), {
+      hostname: session.hostname,
+      patient: options.patient,
+      ctx: await capabilityContext(session.hostname, password),
+      onProgress: (line) => console.log(line),
+    });
+    const files = index.items.reduce((n, item) => n + item.files.length, 0);
+    console.log(`\n  ${index.items.length} records, ${files} files in ${dir}`);
+    if (index.failures.length) console.log(`  ${index.failures.length} item(s) could not be exported; README.md lists them.`);
+    return true;
   } catch (err) {
     console.log(`  ${(err as Error).message}`);
     return false;
