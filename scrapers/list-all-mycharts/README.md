@@ -46,11 +46,8 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   either way.
 - **Some `loginUrl`s are wrong at the source.** UCSF (`166`) publishes
   `www.ucsfhealth.org/ucsfmychart/`, which redirects to an information page; the portal
-  is `ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/`. `LOGIN_URL_OVERRIDES` in
-  [`directory.ts`](directory.ts) corrects these by `slgId`, in both the live parse and
-  the seed. `faq` is not a usable signal for finding more: 412 of 1,418 entries
-  (October 2026) have a `faq` host that differs from `loginUrl`, nearly all affiliates
-  pointing at a parent system's FAQ.
+  is `ucsfmychart.ucsfmedicalcenter.org`. A refresh checks every one — see
+  [Checking login URLs](#checking-login-urls).
 - **Live first, seed second.** A search fetches Epic's directory, caches it, and searches
   that — new health systems come online between releases, and a patient whose provider is
   missing from a months-old snapshot has no way to connect. When the fetch fails (offline,
@@ -69,6 +66,45 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
 - fake-mychart serves **both halves** (`/cached-api/help/organizations/` and the mirrored
   media path), so neither the tests nor the mobile app's first-boot refresh has to reach
   Epic.
+
+## Checking login URLs
+
+[`resolveLoginUrl.ts`](resolveLoginUrl.ts) follows each `loginUrl`. If it lands on a MyChart
+login page it stands. If not, the MyChart links on the page it landed on are tried, and the
+first that itself serves a login page replaces it. Otherwise it keeps the URL it had, and is
+either `down` — broken the same way from anywhere: hostname gone, connection refused, TLS
+failure, 5xx — or `unconfirmed`: a custom sign-in page, a bot wall, a dead link, or a
+connection that just hangs. A hang is deliberately not `down`: from the US, six Dutch
+hospitals and an NHS trust do exactly that, which is what blocking foreign traffic looks
+like, and their own patients reach them fine.
+
+[`refreshDirectory.ts`](refreshDirectory.ts) runs that over the whole directory, retrying
+anything that looked down once at the end. It backs `mychart-cli --action list-mycharts`
+and `fetch-mychart-instances.ts`, which the MCPB's `pack:signed` runs before every release,
+leaving the refreshed seed to commit.
+
+The seed is where the result is recorded:
+
+- **`directoryUrl`** — present only on a corrected entry: Epic's URL, with `url` holding
+  ours. `parseDirectoryPayload` applies the correction to the **live** directory too, or
+  an online search would hand back the very page it exists to avoid — but only while Epic
+  still publishes that `directoryUrl`. Once Epic changes it, Epic's wins.
+- **`down: true`** — the refresh found the portal `down` twice. A snapshot from release
+  time, not a live check; nothing shows it yet.
+
+**The FAQ link is not a fallback.** In October 2026, of 1,159 working entries with a MyChart
+FAQ link, 314 put it on a different host — 56 on a visibly different portal (an affiliate's
+parent: My Sanford Chart, MyLVHN). On the 13 entries that needed a correction it agreed with
+the page's own link 6 times, and pointed at a stale or different system on 5.
+
+**What the first sweep found (October 2026, 1,416 organizations, run from the US).** 1,332
+login URLs are right as published — the same 1,332 an independent scan found. 18 were
+corrected; 17 are confirmed by the page's own sign-in link or the portal's branding, and
+`mychart.bswhealth.com/fa/` (Baylor Scott & White, whose real sign-in is a custom page)
+serves a MyBSWHealth login no one has signed in to. Mount discovery succeeds on every
+corrected host. 8 are `down` (three hostnames gone, three TLS failures, an expired
+certificate, a 503), and 58–77 are `unconfirmed` depending on the run, the swing being
+timeouts.
 
 ## The probes
 

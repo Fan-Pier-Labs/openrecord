@@ -74,13 +74,6 @@
     "aliases": []
   },
   {
-    "name": "Advance Community Health",
-    "url": "https://mychart.ochin.org/mychartAdvanceCH/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/D94797BC-21FB-40F6-AE7B-E2C17B583D26/3b85306254e09d3a04d1130c89e52fa6.png",
-    "slgId": "432-93",
-    "aliases": []
-  },
-  {
     "name": "Advanced Radiology",
     "url": "https://mychartplus.org/AdRad/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E88D994D-C733-48F9-AB68-6D5F3C21DBDD/7dea4929845bd35d4f6f4ca7eff2f7e0.png",
@@ -343,6 +336,13 @@
     "aliases": []
   },
   {
+    "name": "Amplify Health",
+    "url": "https://mychart.ochin.org/mychartAdvanceCH/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7A2280E4-47DC-4828-BA0A-4E5BE5BCCD83/565933f58662ab6210200a395a560526.png",
+    "slgId": "432-93",
+    "aliases": []
+  },
+  {
     "name": "Amsterdam UMC",
     "url": "https://mijndossier.amsterdamumc.nl/MyChart-PRD/Authentication/Login",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/545A6802-0061-41F3-982A-4D2900FD1713/39d15abf00e208d277f1681d90aca3b1.png",
@@ -479,12 +479,13 @@
   },
   {
     "name": "Ashland Medical Center",
-    "url": "https://ashlandmmc.com/mychart/",
+    "url": "https://communityconnect.essentiahealth.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/5028C3F7-FF3B-4FF9-92E5-BB4242985511/aa2d5264cb4c201a6195e72d7359a9e4.png",
     "slgId": "343-7",
     "aliases": [
       "Tamarack Health"
-    ]
+    ],
+    "directoryUrl": "https://ashlandmmc.com/mychart/"
   },
   {
     "name": "Asian Counseling and Referral Service",
@@ -778,10 +779,11 @@
   },
   {
     "name": "Baylor Scott & White Health",
-    "url": "https://my.bswhealth.com/login",
+    "url": "https://mychart.bswhealth.com/fa/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/7326D257-ECB8-42BA-B0B3-7A20B6DEFECA/a3be589781fa99427c15a8429dd6e01c.png",
     "slgId": "856",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://my.bswhealth.com/login"
   },
   {
     "name": "Baywell Health",
@@ -835,7 +837,8 @@
     "aliases": [
       "Green",
       "Iron"
-    ]
+    ],
+    "down": true
   },
   {
     "name": "Beloved Community Family Wellness Center",
@@ -1660,7 +1663,8 @@
     "url": "https://mychart.memorial.org/TN/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/C721898C-9665-4060-B39F-FFA501B4EF49/070e7bc0043a792b063e713b3a3becf9.png",
     "slgId": "845-1",
-    "aliases": []
+    "aliases": [],
+    "down": true
   },
   {
     "name": "CHI St. Alexius Health",
@@ -1749,6 +1753,13 @@
     "aliases": []
   },
   {
+    "name": "Children's Minnesota",
+    "url": "https://mychart.childrensmn.org/MyChart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/50C57D55-0CA0-4F02-B530-244740A13DBF/e70d089254c04421ea51a1f30f6615ba.png",
+    "slgId": "1444",
+    "aliases": []
+  },
+  {
     "name": "Children's Nebraska",
     "url": "https://connect.childrensomaha.org/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/92339AF7-015E-4B0D-A289-0ED1BCEE6B02/f90690d70c0d2a5f1223eb4380013104.png",
@@ -1801,16 +1812,17 @@
   {
     "name": "ChristianaCare",
     "url": "https://mychart.christianacare.org/Mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1E529041-F53E-4014-AD12-5ACCA46FD865/a5396703b7b05aad49596af015b7a501.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/91F9C35F-E073-4521-8BBC-C01E19262FB2/645276ecd757266818e5dbd32e0114f6.png",
     "slgId": "1461",
     "aliases": []
   },
   {
     "name": "Christie Clinic",
-    "url": "https://www.mychristie.com/",
+    "url": "https://www.mychristie.com/Christie/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1B7D5BE1-A97D-4DC2-BD02-0CC39BDFD363/a1f0cab512067455a94fcc53dcfb530a.png",
     "slgId": "316-1",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.mychristie.com/"
   },
   {
     "name": "Christus Health",
@@ -2510,13 +2522,6 @@
     "aliases": []
   },
   {
-    "name": "Credena Health",
-    "url": "https://credenahealthoc.myonlinechart.org/Credenahealth/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B445DE9D-BC94-4AE9-A26B-21CF8445F1F4/ac2278547d47a639fe00bb135c9326a1.png",
-    "slgId": "808-21",
-    "aliases": []
-  },
-  {
     "name": "Credena Health - Alaska",
     "url": "https://credenahealthak.myonlinechart.org/Credenahealth/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/45F91C5D-7E80-4B9C-A2E7-3AE92DBEA7C1/5c6961c45d141555b4dd57ddfb6a3a88.png",
@@ -2528,6 +2533,13 @@
     "url": "https://credenahealthwm.myonlinechart.org/Credenahealth/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F777730A-65B9-494D-B046-71125A475DB8/a67d88ce9660b22ceb626cc14d80d573.png",
     "slgId": "802-28",
+    "aliases": []
+  },
+  {
+    "name": "Credena Health, Pharmacy Home Delivery",
+    "url": "https://credenahealthoc.myonlinechart.org/Credenahealth/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B445DE9D-BC94-4AE9-A26B-21CF8445F1F4/ac2278547d47a639fe00bb135c9326a1.png",
+    "slgId": "808-21",
     "aliases": []
   },
   {
@@ -2726,7 +2738,8 @@
     "url": "https://myadvocateaurora.org/chart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F5A6B613-9F03-4412-95F4-19E9C9DFF9B6/f0b8ad4617fae71e8848c6771a01e6fd.png",
     "slgId": "342",
-    "aliases": []
+    "aliases": [],
+    "down": true
   },
   {
     "name": "Driscoll Children's Hospital",
@@ -2929,10 +2942,11 @@
   },
   {
     "name": "Ely Bloomenson Community Hospital",
-    "url": "https://www.ebch.org/patients-visitor-info/billing-insurance",
+    "url": "https://communityconnect.essentiahealth.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B490D2E7-EE17-4C0C-A60C-A3D22B1C1220/257fcb0e55eee1d55b92d2e3f36d929f.png",
     "slgId": "343-4",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.ebch.org/patients-visitor-info/billing-insurance"
   },
   {
     "name": "Elyussif Orthopedic & Knee Pain Center",
@@ -3074,7 +3088,7 @@
   },
   {
     "name": "Evangelical Community Hospital",
-    "url": "https://www.evanhospital.com/for-patients/mychart?utm_content=mychart",
+    "url": "https://my.wellspan.org/MyWellSpan/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2007ABDB-1202-423E-977B-90E44089FAD1/25c000f5cd160a5c6eb049874b8b0a37.png",
     "slgId": "223-4",
     "aliases": [
@@ -3082,7 +3096,8 @@
       "Evangelical",
       "Evan",
       "ECH"
-    ]
+    ],
+    "directoryUrl": "https://www.evanhospital.com/for-patients/mychart?utm_content=mychart"
   },
   {
     "name": "Evara Health",
@@ -3138,6 +3153,13 @@
       "TheCure",
       "Cirrus"
     ]
+  },
+  {
+    "name": "EverWell Precision Health",
+    "url": "https://mychart-cc-ewp-nchmd.org/MyChart-cc-nchmd/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/89096E9C-B017-4341-9B58-C42FA11A9F7F/1e7960b3ee216528293f9cbedd5bc303.png",
+    "slgId": "1233-9",
+    "aliases": []
   },
   {
     "name": "Exact Sciences",
@@ -3809,7 +3831,8 @@
       "FirstCarolina",
       "FirstMedicare",
       "New Hanover"
-    ]
+    ],
+    "down": true
   },
   {
     "name": "Hamilton Health Sciences",
@@ -3962,14 +3985,15 @@
   },
   {
     "name": "Hayward Medical Center",
-    "url": "https://haywardmemorialhospital.com/mychart/",
+    "url": "https://communityconnect.essentiahealth.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/52960CD8-D9B7-4263-AE92-F6C95EE27C34/42601c4cfa6172b8f47b555f712615e2.png",
     "slgId": "343-5",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://haywardmemorialhospital.com/mychart/"
   },
   {
     "name": "HCA",
-    "url": "https://mychart.mountainstarhealth.com/MyChart/",
+    "url": "https://mychart.hca-west.com/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9B635151-ED5B-4D63-8C16-1D00525659B2/7a18cc16db2df899da02ea382f636a5f.png",
     "slgId": "858",
     "aliases": [
@@ -4618,10 +4642,11 @@
   },
   {
     "name": "Jacksonville Lung Clinic",
-    "url": "https://www.floridalungclinic.com/",
+    "url": "https://my.baptistchart.com/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1BAC3F22-56F9-4095-B86A-F43F1E583F38/ce838180dddb8a2e312dfc16cc82988c.png",
     "slgId": "1206-2",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.floridalungclinic.com/"
   },
   {
     "name": "Jacobson Memorial Hospital",
@@ -4739,7 +4764,7 @@
   {
     "name": "Jordan Valley Community Health Center",
     "url": "https://mychart.ochin.org/jordanvalleymychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F38F63C0-570E-4D03-AA56-2F457D882BEB/65d79b2e3d8bda602866be028538bbfe.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4A98D79C-DA59-4930-938D-3BF29060934E/3e76e33e89a4f3ba182d45f41ad7207d.png",
     "slgId": "432-173",
     "aliases": []
   },
@@ -5741,7 +5766,8 @@
     "slgId": "922-1",
     "aliases": [
       "MCH"
-    ]
+    ],
+    "down": true
   },
   {
     "name": "Medisch Centrum Leeuwarden",
@@ -5989,10 +6015,11 @@
   },
   {
     "name": "Mille Lacs Band of Ojibwe",
-    "url": "https://millelacsband.com/home/mychart/",
+    "url": "https://mychart.centracare.com/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0F6068D5-2168-43F3-A6F5-1991E0BEC684/060194f15779a847328b7b11bd133f97.png",
     "slgId": "515-11",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://millelacsband.com/home/mychart/"
   },
   {
     "name": "Milwaukee Health Services",
@@ -6077,10 +6104,11 @@
   },
   {
     "name": "Mitchell Family Medicine and The Ark Children's Clinic",
-    "url": "https://epicconnect.org/ccprd/CommunityConnect/mychartcc.html",
+    "url": "https://epicconnect.org/ccprd/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6EEC02FD-5902-4F32-9092-1EC2858B6116/a6b47bd92ca3c6e24ced3c6937b96650.png",
     "slgId": "875-2",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://epicconnect.org/ccprd/CommunityConnect/mychartcc.html"
   },
   {
     "name": "Mohawk Valley Health System",
@@ -6202,10 +6230,11 @@
   },
   {
     "name": "Mount Auburn",
-    "url": "https://mychart.mah.org/mychart/",
+    "url": "https://mychart.bilh.org/MyChart-BILH/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/93AE1427-0818-407B-9F4B-81C40EAE5369/c56d8d88f22f081eab988ebf79802ce1.png",
     "slgId": "968",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://mychart.mah.org/mychart/"
   },
   {
     "name": "Mount Nittany Health",
@@ -6402,6 +6431,13 @@
     "url": "https://mychart.uihealthcare.org/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/ACAA61E3-FBCB-4587-9F59-9C4C48A86225/3a2449e908b31a38c3e9c0270227bfe5.png",
     "slgId": "592-4",
+    "aliases": []
+  },
+  {
+    "name": "Naples Concierge Cardiology and Internal Medicine",
+    "url": "https://mychart-cc-ncc-nchmd.org/MyChart-cc-nchmd/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/308F59AA-45E7-4185-A7CB-83AAC5BB1760/504cbc6546a8ea766f09c3a2e4fd304e.png",
+    "slgId": "1233-8",
     "aliases": []
   },
   {
@@ -6603,12 +6639,13 @@
   },
   {
     "name": "North Bend Medical Center",
-    "url": "https://www.nbmchealth.com/mychart/",
+    "url": "https://mychart.stcharleshealthcare.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0F10BD21-79BE-4B81-89FA-92A3730EE1A0/598bea4d6499381b95346594ea3f2430.png",
     "slgId": "1001534",
     "aliases": [
       "NBMC"
-    ]
+    ],
+    "directoryUrl": "https://www.nbmchealth.com/mychart/"
   },
   {
     "name": "North Carolina Department of Health and Human Services",
@@ -6678,6 +6715,13 @@
     "url": "https://mychartepic.c3ctc.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CD2B6BF8-208B-427E-A2B9-DF3323D14C15/ade04e6b876f287324565311b9189cd9.png",
     "slgId": "1290-12",
+    "aliases": []
+  },
+  {
+    "name": "North Sunflower Medical Center",
+    "url": "https://mychart.fmolhs.org/MyChart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1020DB21-5FB1-4F0E-8E39-9A6CE19ACB42/5767d91cb1f3c2fb26e4cbd70299b0f6.png",
+    "slgId": "830-27",
     "aliases": []
   },
   {
@@ -7467,10 +7511,11 @@
   },
   {
     "name": "Parkview Bryan and Montpelier Hospitals",
-    "url": "https://chwc.mychartcc.com/Authentication/Login",
+    "url": "https://mychart.parkview.com/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/343C85BE-0F2B-485A-A3E6-BCE4F40950D6/ae520d1326cf550867fd1e5b304f1a66.png",
     "slgId": "838-5",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://chwc.mychartcc.com/Authentication/Login"
   },
   {
     "name": "Parkview Health",
@@ -8431,15 +8476,6 @@
     "aliases": []
   },
   {
-    "name": "Riverbend Medical Group",
-    "url": "https://mychart.riverbendmedical.com/mychart/default.asp",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/99FA00B8-E7A8-4EFC-8508-E5537BF0DC58/bbf2a551f3c3ac7abcc1f625a1ba856a.png",
-    "slgId": "436",
-    "aliases": [
-      "RMG"
-    ]
-  },
-  {
     "name": "Riverland Community Health",
     "url": "https://mychart.ochin.org/RCHealth",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/10519EF2-250D-4513-BF7B-A059BE9B5A4B/1e67ba4605c1972b6e7535fce4c4cb84.png",
@@ -8880,6 +8916,27 @@
     ]
   },
   {
+    "name": "Sarasota Memorial Health MyChart",
+    "url": "https://mychart.smh.com/Mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/30BBE314-0D63-432F-A713-438E04E652B6/f937ae28c6a71160cb01ce21474e21db.png",
+    "slgId": "1465",
+    "aliases": [
+      "Sarasota Memorial Hospital",
+      "Sarasota Memorial Health Care System",
+      "Sarasota Memorial Healthcare System",
+      "Venice Hospital",
+      "SMH",
+      "First Physicians Group",
+      "FPG",
+      "Newtown Clinic",
+      "Newtown Internal Medicine",
+      "Brian D Jellison Cancer Institute",
+      "Cornell Behavioral Health Pavilion",
+      "Sarasota Memorial Rehab Pavilion",
+      "Sarasota Rehab Pavilion"
+    ]
+  },
+  {
     "name": "Sawtooth Mountain Clinic",
     "url": "https://mychart.ochin.org/smc/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/68CFBE44-6845-4DC6-B1D3-971E63308CB4/3e70b1329bd537f1e92104b55841f66c.png",
@@ -9167,6 +9224,13 @@
     "aliases": []
   },
   {
+    "name": "Siskiyou Community Health Center",
+    "url": "https://mychart.ochin.org/SiskiyouMyChart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4F75B91D-9698-4A14-A96D-985F6C44ABB8/28a6147346c7a62ff00fd03473e67c9b.png",
+    "slgId": "432-254",
+    "aliases": []
+  },
+  {
     "name": "Sixteenth Street",
     "url": "https://mychart.ochin.org/mychartschc/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4208FA0E-52A4-409D-BD2A-CAAD3CCED555/0a0c9b508cfc7be1e43fc285d63c74f1.png",
@@ -9289,7 +9353,7 @@
   },
   {
     "name": "South of Market Health Center",
-    "url": "https://mychart.ochin.org/MyChartSMHC",
+    "url": "https://mychart.ochin.org/MyChartEquityHealth/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/92AC5B00-78FF-4EC5-82D0-0223785BF9DD/c03db45e2b258d256cc02c9c8fc57693.png",
     "slgId": "432-75",
     "aliases": []
@@ -9433,10 +9497,11 @@
   },
   {
     "name": "Spooner Health",
-    "url": "https://www.spoonerhealth.com/mychart/",
+    "url": "https://communityconnect.essentiahealth.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/FE8B684E-5293-4DED-A769-9F052F131D32/2e853f2463ffd4b60ff22ed563e6cd5b.png",
     "slgId": "343-9",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.spoonerhealth.com/mychart/"
   },
   {
     "name": "Spry Health",
@@ -9481,10 +9546,11 @@
   },
   {
     "name": "St Luke's",
-    "url": "https://www.slhn.org/mychart/login",
+    "url": "https://mychart.slhn.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B3C09DF4-55A7-4E4F-B6BE-34FDC97CD330/4f4692c692a7ef4d01dab35e3e799f64.png",
     "slgId": "919",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.slhn.org/mychart/login"
   },
   {
     "name": "St Thomas Community Health Center",
@@ -9587,7 +9653,8 @@
       "Foothills",
       "Saluda",
       "Rosenberg"
-    ]
+    ],
+    "down": true
   },
   {
     "name": "St. Michael's Hospital Avera and Bon Homme Family Practice",
@@ -9773,7 +9840,8 @@
     "url": "https://summitsurgical.virtua.org/SummitSurgical/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EA9B428C-D2A4-441D-9715-A5529FA6F3AE/10e054be50256d0356357694e4e11b29.png",
     "slgId": "1017-2",
-    "aliases": []
+    "aliases": [],
+    "down": true
   },
   {
     "name": "SUNY",
@@ -9819,10 +9887,11 @@
   },
   {
     "name": "SwedishAmerican",
-    "url": "https://swedishamericanmychart.org/mychart/",
+    "url": "https://mychart.uwhealth.org/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F6A0997B-8D9E-4EB1-BE16-7475B0A4665B/977e1c7cc757a902f3604ea8a26b252f.png",
     "slgId": "412-3",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://swedishamericanmychart.org/mychart/"
   },
   {
     "name": "Syracuse Community Health",
@@ -10088,7 +10157,8 @@
     "url": "https://tpcportal.bch.org/MyChartPRD-PEDS/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BADB8061-127B-4DEA-8C40-DD274C7B9C1A/8058faa46ce0fe7be916569803b718f2.png",
     "slgId": "1105-1",
-    "aliases": []
+    "aliases": [],
+    "down": true
   },
   {
     "name": "The Portland Clinic",
@@ -10096,15 +10166,6 @@
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E51A552E-118A-410D-97C4-CF06DD88524F/2f2dbfc19af2a9a8bf7592b0b607a135.png",
     "slgId": "4001-21",
     "aliases": []
-  },
-  {
-    "name": "The Portland Clinic",
-    "url": "https://mychart.tpcllp.com/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/5CC96CDE-19A5-412A-A286-9BCC3C750088/5bc71f1469393b1aa760b256dce945d6.png",
-    "slgId": "821",
-    "aliases": [
-      "TPC"
-    ]
   },
   {
     "name": "The Queen's Health System",
@@ -10346,13 +10407,6 @@
     ]
   },
   {
-    "name": "Trinity Health of New England",
-    "url": "https://mychart.trinity-health.org/MyChart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0D0818B3-AC61-4A27-9A89-69AF61811A17/b6306137f18605082f3e3cb1b7ee2551.png",
-    "slgId": "878",
-    "aliases": []
-  },
-  {
     "name": "True Health",
     "url": "https://mychart.hcnetwork.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8A87ECE2-A66B-4AE5-BDCD-1386B304056C/f29b0fc874315e603cc4f255d29757f9.png",
@@ -10443,12 +10497,13 @@
   },
   {
     "name": "UC Davis",
-    "url": "https://mychart.ucdavis.edu/mychart/",
+    "url": "https://mychart.ucdavis.edu/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4AFE64F4-A4D8-4441-9C05-CD3986E0EB89/7cdf7ba6e2d8bd7a406522ed78bbf53d.png",
     "slgId": "451",
     "aliases": [
       "UCDHS"
-    ]
+    ],
+    "directoryUrl": "https://mychart.ucdavis.edu/mychart/"
   },
   {
     "name": "UC Health",
@@ -10511,12 +10566,13 @@
   },
   {
     "name": "UCHealth",
-    "url": "https://www.uchealth.org/access-my-health-connection/",
+    "url": "https://mychart.uchealth.org/MyChart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/A2A9A284-29D2-45D1-8F3A-153B2D6A58A9/3facfb253594172257a07d169f497ef9.png",
     "slgId": "755",
     "aliases": [
       "University of Colorado Health"
-    ]
+    ],
+    "directoryUrl": "https://www.uchealth.org/access-my-health-connection/"
   },
   {
     "name": "UCHealth Affiliated Clinics and Hospitals MyChart",
@@ -10604,10 +10660,11 @@
   },
   {
     "name": "UCSF",
-    "url": "https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/",
+    "url": "https://ucsfmychart.ucsfmedicalcenter.org/ucsfmychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8611ECA4-D39F-4D60-A57D-29FF1A944F3C/e70c9dc6c844f5958bb5b4f5e907f44f.png",
     "slgId": "166",
-    "aliases": []
+    "aliases": [],
+    "directoryUrl": "https://www.ucsfhealth.org/ucsfmychart/"
   },
   {
     "name": "UHI",
@@ -11211,7 +11268,7 @@
   {
     "name": "Vail Health",
     "url": "https://mychart.portal.vailhealth.org/vail/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9E23FC49-9A6E-4D8E-A6A9-C64CFCCF4C80/886f307b4d424ac6cf2420e8988bf17d.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B4DE327A-01B1-4CAE-87E9-25EABF7F287E/e21bde293699b3852894002f50464709.png",
     "slgId": "755-4",
     "aliases": []
   },
@@ -11700,6 +11757,16 @@
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/C5A446EE-54FD-4986-BE0D-707B5220CC4A/cc3389d0fa62a03decf3eb8fd5c08a91.png",
     "slgId": "279-5",
     "aliases": []
+  },
+  {
+    "name": "William Osler Health Care",
+    "url": "https://mychartportal.williamoslerhs.ca/MYCHARTPRD/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/68E56014-A864-4AF8-A15D-CF60FC44252F/9471abc8cbf0396d03f589d1284b3c34.png",
+    "slgId": "1445",
+    "aliases": [
+      "WOHS",
+      "OSler"
+    ]
   },
   {
     "name": "Wilmington Community Clinic",

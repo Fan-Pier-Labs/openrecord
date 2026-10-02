@@ -38,6 +38,7 @@ import {
 } from './capabilityActions';
 import { renderCliHelp } from './help';
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
+import { fetchResolvedMyChartDirectory } from '../../scrapers/list-all-mycharts/refreshDirectory';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -751,6 +752,33 @@ async function main() {
         includeBilling: args.billing !== 'false',
       });
       console.log(JSON.stringify(profile, null, 2));
+      closeRL();
+      process.exit(0);
+    } catch (err) {
+      console.error(`  ${(err as Error).message}`);
+      closeRL();
+      process.exit(1);
+    }
+  }
+
+  // Every MyChart in Epic's directory, with each login URL checked. Not a
+  // registry capability: it is a minutes-long crawl of ~1,400 sites, which no
+  // client should offer as a tool call.
+  if (cliArgs.action === 'list-mycharts') {
+    try {
+      const { instances, corrected, unconfirmed } = await fetchResolvedMyChartDirectory((done, total) => {
+        if (done % 100 === 0 || done === total) process.stderr.write(`  checked ${done}/${total} login URLs\n`);
+      });
+      instances.sort((a, b) => a.name.localeCompare(b.name) || a.slgId.localeCompare(b.slgId));
+      const json = JSON.stringify(instances, null, 2);
+      if (cliArgs.output) fs.writeFileSync(cliArgs.output, `${json}\n`);
+      else console.log(json);
+      const down = unconfirmed.filter((u) => u.resolution.kind === 'down').length;
+      console.error(
+        `  ${instances.length} MyCharts: ${corrected} login URLs corrected, ${down} down, ` +
+          `${unconfirmed.length - down} unconfirmed (custom sign-in, bot wall, or no answer from here)` +
+          (cliArgs.output ? ` — written to ${cliArgs.output}` : ''),
+      );
       closeRL();
       process.exit(0);
     } catch (err) {

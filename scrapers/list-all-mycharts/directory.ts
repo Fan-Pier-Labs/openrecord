@@ -87,15 +87,21 @@ const CUSTOM_LOGOS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Login URLs Epic's directory gets wrong, keyed by `slgId`. Each one points at
- * the organization's marketing site rather than its portal, so search hands
- * back a hostname no login can succeed on. Verified against the live site;
- * drop an entry once Epic's own record is fixed.
+ * Our corrections to Epic's `loginUrl`, keyed by `slgId`: every bundled entry
+ * whose `url` was resolved away from the one Epic publishes. See
+ * `resolveLoginUrl.ts` for how they are found.
+ *
+ * Applied to the live directory too, or an online search would hand back the
+ * same page the correction exists to avoid — but only while Epic still
+ * publishes the URL we corrected. Once Epic changes it, Epic's new one wins.
  */
-const LOGIN_URL_OVERRIDES: Readonly<Record<string, string>> = {
-  // UCSF: www.ucsfhealth.org/ucsfmychart/ redirects to an information page.
-  '166': 'https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/',
-};
+function bundledCorrections(): Map<string, { directoryUrl: string; url: string }> {
+  const corrections = new Map<string, { directoryUrl: string; url: string }>();
+  for (const entry of bundledInstances as MyChartInstanceSeed[]) {
+    if (entry.directoryUrl) corrections.set(entry.slgId, { directoryUrl: entry.directoryUrl, url: entry.url });
+  }
+  return corrections;
+}
 
 /** An organization's image record, as the directory publishes it. */
 interface DirectoryLogo {
@@ -130,8 +136,14 @@ export interface DirectoryOrganization {
 export interface MyChartInstance {
   /** Display name, e.g. "UCHealth". */
   name: string;
-  /** The portal's login URL. */
+  /** The portal's login URL — what to connect to. */
   url: string;
+  /**
+   * The login URL Epic's directory publishes. Usually the same as `url`; it
+   * differs when Epic's points somewhere that isn't the portal (UCSF's is an
+   * information page) and a refresh found the real one.
+   */
+  directoryUrl: string;
   /** Absolute logo URL, always set — the generic one when unbranded. */
   logoUrl: string;
   /** Epic's directory id, e.g. "432-112". Survives a rename; the name doesn't. */
@@ -144,6 +156,14 @@ export interface MyChartInstance {
   countries: string[];
   /** What the organization calls its portal — "MyChart", "Maisa", "MyUCHealth". */
   brandName: string;
+  /**
+   * True when the last refresh (`fetchResolvedMyChartDirectory`) found the
+   * portal broken in a way that is the same from anywhere — hostname gone,
+   * connection refused, TLS failure, a 5xx — twice. A hang is not counted. A
+   * snapshot from that refresh, not a live check, and never set by a plain
+   * directory fetch.
+   */
+  down?: boolean;
   /** Whether the instance participates in MyChart Central. */
   liveOnCentral: boolean;
   /**
@@ -169,8 +189,11 @@ export interface MyChartInstance {
  */
 export type MyChartInstanceSeed = Pick<
   MyChartInstance,
-  'name' | 'url' | 'logoUrl' | 'slgId' | 'aliases'
->;
+  'name' | 'url' | 'logoUrl' | 'slgId' | 'aliases' | 'down'
+> & {
+  /** Stored only when it differs from `url` — it is how a correction is recorded. */
+  directoryUrl?: string;
+};
 
 /** Narrow a full instance to what the checked-in seed stores. */
 export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
@@ -180,6 +203,8 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
     logoUrl: instance.logoUrl,
     slgId: instance.slgId,
     aliases: instance.aliases,
+    ...(instance.directoryUrl !== instance.url ? { directoryUrl: instance.directoryUrl } : {}),
+    ...(instance.down ? { down: true } : {}),
   };
 }
 
@@ -208,20 +233,27 @@ function asStringArray(value: unknown): string[] {
  * An entry with no `loginUrl` is dropped rather than defaulted: three of them
  * exist, and a picker row that navigates nowhere is worse than a missing row.
  */
-function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
+function toInstance(
+  raw: unknown,
+  mediaBase: string,
+  corrections: Map<string, { directoryUrl: string; url: string }>,
+): MyChartInstance | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const org = raw as Record<string, unknown>;
 
   const name = typeof org.name === 'string' ? org.name.trim() : '';
   const slgId = typeof org.slgId === 'string' ? org.slgId : '';
-  const url = LOGIN_URL_OVERRIDES[slgId] ?? (typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '');
-  if (!name || !url) return null;
+  const directoryUrl = typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '';
+  if (!name || !directoryUrl) return null;
+  const correction = corrections.get(slgId);
+  const url = correction?.directoryUrl === directoryUrl ? correction.url : directoryUrl;
 
   const logo = org.logo as DirectoryLogo | undefined;
   return {
     name,
     url,
-    logoUrl: logoUrlFor({ slgId, name, loginUrl: url, logo }, mediaBase),
+    directoryUrl,
+    logoUrl: logoUrlFor({ slgId, name, loginUrl: directoryUrl, logo }, mediaBase),
     slgId,
     aliases: asStringArray(org.aliases),
     states: asStringArray(org.states),
@@ -257,8 +289,9 @@ export function parseDirectoryPayload(
       'MyChart directory response has no "organizations" array — the endpoint shape changed.',
     );
   }
+  const corrections = bundledCorrections();
   return organizations
-    .map((org) => toInstance(org, mediaBase))
+    .map((org) => toInstance(org, mediaBase, corrections))
     .filter((i): i is MyChartInstance => i !== null);
 }
 

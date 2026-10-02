@@ -16,6 +16,8 @@ import {
   fetchMyChartIcon,
   logoUrlFor,
   parseDirectoryPayload,
+  toSeedEntry,
+  type MyChartInstanceSeed,
 } from '../directory';
 import bundledInstances from '../mychart-instances.json';
 import fixture from './fixtures/directory-response.json';
@@ -37,6 +39,7 @@ describe('parseDirectoryPayload', () => {
     expect(aaci).toEqual({
       name: 'AACI',
       url: 'https://mychart.ochin.org/MyChartAACI/',
+      directoryUrl: 'https://mychart.ochin.org/MyChartAACI/',
       logoUrl:
         'https://media.epic.com/mychartdotorg/directus/organizations/C7785A28-8697-454E-9FFD-23E143F9F672/caba6e8737d0c70cdbfd2f92d373084a.png',
       slgId: '432-112',
@@ -79,13 +82,37 @@ describe('parseDirectoryPayload', () => {
     expect(elCamino?.aliases).toEqual(['Silicon Valley Sports Medicine']);
   });
 
-  it('replaces a login URL Epic publishes for the marketing site with the portal', () => {
-    const [ucsf] = parseDirectoryPayload({
-      organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://www.ucsfhealth.org/ucsfmychart/' }],
+  describe('login-URL corrections recorded in the bundled seed', () => {
+    const ucsfSeed = (bundledInstances as MyChartInstanceSeed[]).find((i) => i.slgId === '166');
+
+    it('applies to the live directory while Epic still publishes the URL we corrected', () => {
+      // The regression in #540: Epic's URL for UCSF is an information page.
+      expect(ucsfSeed?.directoryUrl).toBe('https://www.ucsfhealth.org/ucsfmychart/');
+      const [ucsf] = parseDirectoryPayload({
+        organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://www.ucsfhealth.org/ucsfmychart/' }],
+      });
+      expect(ucsf?.url).toBe(ucsfSeed!.url);
+      expect(new URL(ucsf!.url).host).toBe('ucsfmychart.ucsfmedicalcenter.org');
+      expect(ucsf?.directoryUrl).toBe('https://www.ucsfhealth.org/ucsfmychart/');
     });
-    expect(ucsf?.url).toBe('https://ucsfmychart.ucsfmedicalcenter.org/UCSFMyChart/');
-    // The offline seed has to agree, or search falls back to the bad host.
-    expect(bundledInstances.find((i) => i.slgId === '166')?.url).toBe(ucsf?.url);
+
+    it('gives way once Epic publishes a different URL', () => {
+      const [ucsf] = parseDirectoryPayload({
+        organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://mychart.example.org/UCSF/' }],
+      });
+      expect(ucsf?.url).toBe('https://mychart.example.org/UCSF/');
+    });
+  });
+
+  it('records a correction and a down portal in the seed only when there is one', () => {
+    const [plain] = parseDirectoryPayload({
+      organizations: [{ slgId: '9001', name: 'Springfield', loginUrl: 'https://mychart.example.org/MyChart/' }],
+    });
+    expect(toSeedEntry(plain!)).not.toContainKey('directoryUrl');
+    expect(toSeedEntry(plain!)).not.toContainKey('down');
+    expect(
+      toSeedEntry({ ...plain!, url: 'https://portal.example.org/MyChart/', down: true }),
+    ).toMatchObject({ directoryUrl: 'https://mychart.example.org/MyChart/', down: true });
   });
 
   it('throws rather than reporting an empty directory when the shape changes', () => {

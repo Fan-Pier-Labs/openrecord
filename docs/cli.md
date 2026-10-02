@@ -141,6 +141,17 @@ result's `source` field says which answered. `lookup_npi` and
 `search_npi_registry` read CMS's public NPI Registry and take `--mode` like any
 other read. Passing `--host` alongside one of these is harmless and ignored.
 
+```bash
+mychart-cli --action list-mycharts --output mycharts.json
+```
+
+`list-mycharts` is the whole directory rather than a search, with every login
+URL checked and corrected where Epic's points somewhere other than the portal —
+a crawl of ~1,400 sites that takes a few minutes. Without `--output` the JSON
+goes to stdout; progress and the summary go to stderr. It is not a registry
+capability, so no other client offers it. How the checking works:
+[`scrapers/list-all-mycharts/`](../scrapers/list-all-mycharts/README.md#checking-login-urls).
+
 ### `--show-all`
 
 MyChart's surface is not evenly valuable. Labs, medications, visit notes and
