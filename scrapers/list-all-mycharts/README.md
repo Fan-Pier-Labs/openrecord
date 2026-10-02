@@ -48,6 +48,12 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   `www.ucsfhealth.org/ucsfmychart/`, which redirects to an information page; the portal
   is `ucsfmychart.ucsfmedicalcenter.org`. A refresh checks every one — see
   [Checking login URLs](#checking-login-urls).
+- **A duplicate is the same name *and* the same portal.** Epic lists Cleveland Clinic twice
+  (`320` for the US, `320-1` for Canada) and Ziekenhuis Amstelland twice; `mergeDuplicates`
+  keeps the shortest `slgId` with every entry's aliases, states and countries. Same name
+  alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
+  in different states — and nor is same portal alone: 46 portals are shared by affiliates
+  that patients search for by their own names.
 - **Live first, seed second.** A search fetches Epic's directory, caches it, and searches
   that — new health systems come online between releases, and a patient whose provider is
   missing from a months-old snapshot has no way to connect. When the fetch fails (offline,

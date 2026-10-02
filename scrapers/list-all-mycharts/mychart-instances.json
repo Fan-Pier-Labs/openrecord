@@ -1924,13 +1924,6 @@
     ]
   },
   {
-    "name": "Cleveland Clinic",
-    "url": "https://mychart.clevelandclinic.org/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B01E42DC-5FEB-49EC-8604-0274581B2733/87888f7ff904626bf56126c5bf807f94.png",
-    "slgId": "320-1",
-    "aliases": []
-  },
-  {
     "name": "Cleveland Clinic Abu Dhabi",
     "url": "https://patientportal.clevelandclinicabudhabi.ae/patientportal/Authentication/Login?",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EF2B0CC2-04CC-40B6-9246-BAA5FA1526EF/b55ce44410fcba3ade804a81ecefa7ce.png",
@@ -11936,16 +11929,6 @@
     "url": "https://mijnzha.ziekenhuisamstelland.nl/MyChart-ZHAPRD/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/72622A05-601E-4338-A305-D6B704DFBF49/521fa90a1dbedbd056067e6f1dcf4316.png",
     "slgId": "1236",
-    "aliases": [
-      "amstelland",
-      "ZHA"
-    ]
-  },
-  {
-    "name": "Ziekenhuis Amstelland Directory",
-    "url": "https://mijnzha.ziekenhuisamstelland.nl/MyChart-ZHAPRD/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/72622A05-601E-4338-A305-D6B704DFBF49/521fa90a1dbedbd056067e6f1dcf4316.png",
-    "slgId": "911-2",
     "aliases": [
       "amstelland",
       "ZHA"

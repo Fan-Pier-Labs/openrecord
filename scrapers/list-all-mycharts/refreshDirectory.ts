@@ -7,7 +7,7 @@
  * run on a search; searches apply the corrections a refresh recorded.
  */
 
-import { fetchMyChartDirectory, type MyChartInstance } from './directory';
+import { fetchMyChartDirectory, mergeDuplicates, type MyChartInstance } from './directory';
 import { resolveLoginUrl, type LoginUrlResolution } from './resolveLoginUrl';
 
 /** Organizations resolved at once. `scraperFetch` still caps each host at ten. */
@@ -68,9 +68,11 @@ export async function fetchResolvedMyChartDirectory(
     }
   }
 
+  // Again after resolving: two entries can share a portal only once corrected.
+  const merged = mergeDuplicates(instances);
   return {
-    instances,
-    corrected: instances.filter((i) => i.url !== i.directoryUrl).length,
+    instances: merged,
+    corrected: merged.filter((i) => i.url !== i.directoryUrl).length,
     unconfirmed,
   };
 }

@@ -115,6 +115,37 @@ describe('parseDirectoryPayload', () => {
     ).toMatchObject({ directoryUrl: 'https://mychart.example.org/MyChart/', down: true });
   });
 
+  describe('duplicates', () => {
+    const parse = (organizations: object[]) => parseDirectoryPayload({ organizations });
+
+    it('merges entries with the same name and portal, keeping the parent and every alias, state and country', () => {
+      // Cleveland Clinic's shape: listed for the US and again for Canada.
+      const merged = parse([
+        { slgId: '320', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: ['Martin'], states: ['OH'], countries: ['US'] },
+        { slgId: '320-1', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: [], states: [], countries: ['CA'] },
+      ]);
+      expect(merged).toHaveLength(1);
+      expect(merged[0]).toMatchObject({ slgId: '320', aliases: ['Martin'], states: ['OH'], countries: ['US', 'CA'] });
+    });
+
+    it('treats the login route, case and a trailing slash as the same portal', () => {
+      const merged = parse([
+        { slgId: '9001-1', name: 'Springfield', loginUrl: 'https://mychart.example.org/MyChart/Authentication/Login?' },
+        { slgId: '9001', name: 'springfield', loginUrl: 'https://MyChart.example.org/mychart' },
+      ]);
+      expect(merged.map((i) => i.slgId)).toEqual(['9001']);
+    });
+
+    it('keeps same-named systems on different portals, and affiliates sharing one', () => {
+      const kept = parse([
+        { slgId: '1', name: 'Baptist Health', loginUrl: 'https://mychart.baptist-al.example/Baptist/', states: ['AL'] },
+        { slgId: '2', name: 'Baptist Health', loginUrl: 'https://mychart.baptist-ar.example/mychart/', states: ['AR'] },
+        { slgId: '3', name: 'Shelbyville Clinic', loginUrl: 'https://mychart.baptist-ar.example/mychart/' },
+      ]);
+      expect(kept.map((i) => i.slgId)).toEqual(['1', '2', '3']);
+    });
+  });
+
   it('throws rather than reporting an empty directory when the shape changes', () => {
     expect(() => parseDirectoryPayload({ orgs: [] })).toThrow(/organizations/);
     expect(() => parseDirectoryPayload(null)).toThrow(/organizations/);

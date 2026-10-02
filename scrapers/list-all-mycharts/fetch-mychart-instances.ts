@@ -58,7 +58,12 @@ async function main() {
   console.log(`Wrote ${next.length} instances to ${OUTPUT_FILE}`);
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+// Exit as soon as the file is written: a resolution abandoned at its timeout
+// can still be mid-request for minutes, and `pack:signed` waits on this.
+main().then(
+  () => process.exit(0),
+  (err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  },
+);

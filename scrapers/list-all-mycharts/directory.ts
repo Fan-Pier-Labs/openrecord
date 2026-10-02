@@ -290,9 +290,52 @@ export function parseDirectoryPayload(
     );
   }
   const corrections = bundledCorrections();
-  return organizations
-    .map((org) => toInstance(org, mediaBase, corrections))
-    .filter((i): i is MyChartInstance => i !== null);
+  return mergeDuplicates(
+    organizations
+      .map((org) => toInstance(org, mediaBase, corrections))
+      .filter((i): i is MyChartInstance => i !== null),
+  );
+}
+
+/** A portal's identity for comparison: host and mount, ignoring case and the login route. */
+function portalKey(url: string): string {
+  try {
+    const { host, pathname } = new URL(url);
+    const path = pathname.toLowerCase();
+    const route = path.indexOf('/authentication/');
+    return `${host.toLowerCase()}${(route >= 0 ? path.slice(0, route) : path).replace(/\/+$/, '')}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Collapse entries with the same name **and** the same portal into one, which
+ * a picker would otherwise show twice: Epic lists Cleveland Clinic once for
+ * the US (`320`) and once for Canada (`320-1`). The shortest `slgId` — the
+ * parent's — is kept, with every entry's aliases, states and countries.
+ *
+ * Same name alone is not a duplicate ("Baptist Health" is two systems, in
+ * Alabama and Arkansas), and neither is same portal alone (affiliates sharing
+ * a parent's MyChart are searched by their own names).
+ */
+export function mergeDuplicates(instances: MyChartInstance[]): MyChartInstance[] {
+  const groups = new Map<string, MyChartInstance[]>();
+  for (const instance of instances) {
+    const key = `${instance.name.toLowerCase()}|${portalKey(instance.url)}`;
+    groups.set(key, [...(groups.get(key) ?? []), instance]);
+  }
+  const union = (lists: string[][]) => [...new Set(lists.flat())];
+  return [...groups.values()].map((group) => {
+    if (group.length === 1) return group[0]!;
+    const kept = group.reduce((a, b) => (b.slgId.length < a.slgId.length ? b : a));
+    return {
+      ...kept,
+      aliases: union(group.map((i) => i.aliases)),
+      states: union(group.map((i) => i.states)),
+      countries: union(group.map((i) => i.countries)),
+    };
+  });
 }
 
 /**
