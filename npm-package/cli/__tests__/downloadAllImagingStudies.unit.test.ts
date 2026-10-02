@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { StudyImagePayload } from '../../../shared/capabilities';
+import type { ImagingOrderStandard } from '../../../scrapers/myChart/chart/labs/labResults';
 import { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
 import {
   encodePixelFile,
@@ -74,10 +75,20 @@ function studyPayload(studyName: string): StudyImagePayload {
   };
 }
 
+// What get_imaging_results really returns through executeCapability in `json`
+// mode: the processor's standard object, not a bare array. A bare-array mock
+// is what let `for (const study of results)` ship against `{ orders }`.
+function imagingListing(orders: Array<Pick<ImagingOrderStandard, 'orderName' | 'image_id'>>) {
+  return { orders };
+}
+
 const realLog = console.log;
+let logged: string[] = [];
 beforeAll(() => {
   silenceLogger();
-  console.log = () => {};
+  console.log = (...parts: unknown[]) => {
+    logged.push(parts.join(' '));
+  };
 });
 afterAll(() => {
   console.log = realLog;
@@ -86,16 +97,17 @@ afterAll(() => {
 });
 beforeEach(() => {
   executeCalls = [];
+  logged = [];
 });
 
 describe('downloadAllImagingStudies', () => {
   it('dispatches one download per study with pictures, and writes JPEGs plus the metadata dump', async () => {
     executeImpl = async (id) => {
       if (id === 'get_imaging_results') {
-        return [
+        return imagingListing([
           { orderName: 'XR Skull 2 Views', image_id: 'token-xr' },
-          { orderName: 'Report-only study' }, // no image_id → nothing to download
-        ];
+          { orderName: 'Report-only study', image_id: null }, // no pictures → nothing to download
+        ]);
       }
       return studyPayload('XR Skull 2 Views');
     };
@@ -110,7 +122,8 @@ describe('downloadAllImagingStudies', () => {
     expect(ok).toBe(true);
     // One listing call, then exactly one download — the report-only study is skipped.
     expect(executeCalls.map((c) => c.id)).toEqual(['get_imaging_results', 'download_imaging_study']);
-    expect(executeCalls[0]!.args).toEqual({ patient: 'Bart' }); // asserted non-empty by the toEqual above
+    // `mode` pinned to json, so the listing is always `{ orders }` whatever the default.
+    expect(executeCalls[0]!.args).toEqual({ patient: 'Bart', mode: 'json' }); // asserted non-empty by the toEqual above
     expect(executeCalls[1]!.args).toEqual({
       patient: 'Bart',
       image_id: 'token-xr',
@@ -123,6 +136,8 @@ describe('downloadAllImagingStudies', () => {
       'XR Skull 2 Views',
       'Report-only study',
     ]);
+    // Regression: reading `.length` off `{ orders }` printed "undefined imaging result(s)".
+    expect(logged.some((line) => line.includes('2 imaging result(s)'))).toBe(true);
 
     const jpeg = await fs.promises.readFile(path.join(hostDir, 'XR_Skull_2_Views_000_AXIAL.jpg'));
     expect(jpeg[0]).toBe(0xff);
@@ -135,10 +150,10 @@ describe('downloadAllImagingStudies', () => {
   it('keeps going when one study fails, and reports the run as failed', async () => {
     executeImpl = async (id, args) => {
       if (id === 'get_imaging_results') {
-        return [
+        return imagingListing([
           { orderName: 'Broken study', image_id: 'token-broken' },
           { orderName: 'Good study', image_id: 'token-good' },
-        ];
+        ]);
       }
       if (args.image_id === 'token-broken') throw new Error('viewer is down');
       return studyPayload('Good study');
