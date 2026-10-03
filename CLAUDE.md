@@ -171,11 +171,9 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   is.
 - **Every interactive element in the Expo app needs a `testID`**, added in the same diff — enforced
   by `expo-app/src/__tests__/testids.unit.test.ts`.
-- `gh pr edit` fails on a GitHub Projects Classic deprecation error. Update PRs with the API instead:
-  ```bash
-  gh api repos/Fan-Pier-Labs/openrecord/pulls/<PR_NUMBER> -X PATCH -f title="…" -f body="…"
-  ```
-  `gh pr create` works normally.
+- `gh pr edit` fails (Projects Classic deprecation); use
+  `gh api repos/Fan-Pier-Labs/openrecord/pulls/<N> -X PATCH -f title="…" -f body="…"`.
+- Embed images/videos in a PR comment: `gh pr comment <N> --attach ./demo.mp4` (gh ≥ 2.99).
 
 ### Scope of PRs
 
