@@ -98,6 +98,10 @@ The seed is where the result is recorded:
 - **`down: true`** — the refresh found the portal `down` twice. A snapshot from release
   time, not a live check; nothing shows it yet.
 
+**[`LOGIN-URL-RESEARCH.md`](LOGIN-URL-RESEARCH.md)** is the 66 entries the first sweep couldn't
+confirm, researched by hand — the real portal for each where one exists, and why the rest
+can't be fixed by a URL.
+
 **The FAQ link is not a fallback.** In October 2026, of 1,159 working entries with a MyChart
 FAQ link, 314 put it on a different host — 56 on a visibly different portal (an affiliate's
 parent: My Sanford Chart, MyLVHN). On the 13 entries that needed a correction it agreed with
