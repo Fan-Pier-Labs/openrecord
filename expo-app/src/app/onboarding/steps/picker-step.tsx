@@ -10,12 +10,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   FAKE_MYCHART_DEMO,
   SANDBOX_UNAVAILABLE_NOTE,
+  getInstances,
   hostnameFromInstance,
   isSandboxAvailable,
   searchInstances,
   type MyChartInstance,
 } from "@/lib/mychart-instances";
-import { useInstances } from "@/lib/use-instances";
 import { InstanceLogo } from "@/components/InstanceLogo";
 import { styles } from "../styles";
 
@@ -26,7 +26,7 @@ type Props = {
 
 export function PickerStep({ onPick, onManualEntry }: Props) {
   const [query, setQuery] = useState("");
-  const instances = useInstances();
+  const instances = getInstances();
 
   // The demo entry points at a single deployment that gets torn down when it
   // isn't worth its bill. Assume it's up until the probe says otherwise, so a

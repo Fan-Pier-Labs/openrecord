@@ -1,10 +1,14 @@
 # Login URL research — October 2026
 
+Two questions, researched by hand: what the real portal is for the entries Epic's directory gets wrong, and which MyChart portals the directory doesn't list at all. What was confirmed is in [`mychart-instances-manual.json`](mychart-instances-manual.json), which `listMyCharts()` merges into the generated list.
+
+## Entries the sweep couldn't confirm
+
 The 66 directory entries the first full sweep could not confirm automatically (58 `unconfirmed` plus 8 `down`; see [Checking login URLs](README.md#checking-login-urls)), researched by hand: the organization's own website, news of mergers and portal moves, and an anonymous page load of every candidate URL checked for Epic login markup — the same test `resolveLoginUrl` uses. Nothing here logged in.
 
 A snapshot, not a contract: portals move. The organizations are public; none of this is patient data.
 
-## Summary
+### Summary
 
 | Verdict | Count |
 | --- | --- |
@@ -29,9 +33,9 @@ Two shortcuts were measured and rejected:
 
 Separately, every organization in Epic's FHIR endpoint list (`open.epic.com`, 479) is in the MyChart directory under some name, apart from a few small practices.
 
-## Found: a working MyChart login patients use
+### Found: a working MyChart login patients use
 
-Epic's URL is wrong or out of date, and the right portal was found and confirmed to serve a MyChart login page.
+Epic's URL is wrong or out of date, and the right portal was found and confirmed to serve a MyChart login page. Each of these is a `correction` in the manual file, except Duke (Epic's mount is right; only `?liteMode=true` reaches the form). Three more are corrections too: Summit Surgical and University Health (below, defunct with a successor), and Communitycare PLAN, whose parent portal `mychart.mhs.net/mychart/` works where its own mount refuses non-browser requests. The custom-sign-in organizations are not corrected even where a direct Epic login exists behind the sign-in, because nothing confirms a patient's credentials work there.
 
 | Organization | `slgId` | Epic's URL | Real URL | Confidence | Evidence |
 | --- | --- | --- | --- | --- | --- |
@@ -61,7 +65,7 @@ Epic's URL is wrong or out of date, and the right portal was found and confirmed
 | Welia Health | `465-1` | `https://account.allinahealth.org/dashboard/` | `https://www.mychartweb.com/MyChart/` | high | https://www.weliahealth.org/mychart/ links mychartweb.com/mychart and embeds its widget (Allina affiliate MyChart). |
 | Western Wisconsin Health | `465-11` | `https://account.allinahealth.org/dashboard/` | `https://www.mychartweb.com/MyChart/` | high | https://www.wwhealth.org/mychart/ links www.mychartweb.com/MyChart/default.asp -> Allina affiliate login. |
 
-## Defunct: organization or portal no longer exists
+### Defunct: organization or portal no longer exists
 
 The portal is gone, usually because the organization merged. A successor is given where one exists.
 
@@ -74,7 +78,7 @@ The portal is gone, usually because the organization merged. A successor is give
 | Summit Surgical Center | `1017-2` | `https://summitsurgical.virtua.org/SummitSurgical/` | `https://secure.myvirtua.org/MyChart/` | high | virtua.org/locations/summit-surgical-center: now Virtua Voorhees Ambulatory Surgery; MyChart links to secure.myvirtua.org/MyChart. |
 | University Health | `950` | `https://mychart.uhsystem.com/MyChart/` | `https://my.ochsner.org/PRD/` | medium | Ochsner LSU Health took over University Health Shreveport; uhsystem.com times out; ochsnerlsuhs.org portal link -> my.ochsner.org/PRD. |
 
-## Epic's URL is fine
+### Epic's URL is fine
 
 Our check failed, but the published URL works. Most of these servers leave an intermediate certificate out of their chain: browsers fetch the missing certificate, Bun/Node do not.
 
@@ -90,7 +94,7 @@ Our check failed, but the published URL works. Most of these servers leave an in
 | Spry Health | `292-1` | `https://mychart.myspry.com/MySpry/Authentication/Login` | `https://mychart.myspry.com/MySpry/` | high | Serves a Spry-branded Epic login via curl; server omits its intermediate cert (openssl verify 21), so Node/Bun fail. |
 | SprySenior | `292-3` | `https://mychart.sprysenior.com/SprySenior/Authentication/Login` | `https://mychart.sprysenior.com/SprySenior/` | high | Serves a working Epic login via curl; TLS failure in Bun likely the same missing intermediate. |
 
-## Exists, but blocked from the US
+### Exists, but blocked from the US
 
 The organization's own site links to the portal, but it times out from the US. Almost certainly geo-blocking: six Dutch hospitals and an NHS trust.
 
@@ -106,7 +110,7 @@ The organization's own site links to the portal, but it times out from the US. A
 | St Jansdal Ziekenhuis | `955` | `https://mijn.stjansdal.nl/mychart/` | — | medium | stjansdal.nl links MijnStJansdal to https://mijn.stjansdal.nl/; all mijn.stjansdal.nl URLs fail to connect from here (likely geo-blocking). |
 | The Pediatric Center Boulder | `1105-1` | `https://tpcportal.bch.org/MyChartPRD-PEDS/` | — | low | thepediatriccenter.net/portal-inactivation still links tpcportal.bch.org; every path 503s from here; may be retired. BCH main portal my.bch.org/MyChartPRD works but no evidence these patients use it. |
 
-## Custom sign-in in front of MyChart
+### Custom sign-in in front of MyChart
 
 The organization puts its own sign-in (SSO, an app, an account site) in front of MyChart. Where a direct Epic login exists behind it, it is listed, but patients are steered to the custom sign-in.
 
@@ -130,9 +134,48 @@ The organization puts its own sign-in (SSO, an app, an account site) in front of
 | Tahoe Forest Health System | `575-5` | `https://mychart.tfhd.com/#/login` | — | high | Sign In goes to Mercy's 'MyMercy' custom app; no direct Epic login. |
 | UPMC | `261` | `https://myupmc.upmc.com/myupmc/login` | — | high | MyUPMC is a custom app embedding Epic pages behind SAML; no direct Epic password login. |
 
-## Corrections the resolver made
+### Corrections the resolver made
 
 The 18 automatic corrections were checked the same way; 17 are confirmed by the page's own sign-in link or the portal's branding. Two notes:
 
 - **Evangelical Community Hospital** (`223-4`) → `my.wellspan.org/MyWellSpan/`. The page Epic points to also links Geisinger's MyChart (`mychart.mycarecompass.org`), which holds Evangelical's records from its 2022 move to Epic until the merger; WellSpan tells current patients to use MyWellSpan and to link the two ([WellSpan](https://www.wellspan.org/WellSpan-Evangelical-Community-Hospital-Patient-Resources)).
 - **Baylor Scott & White** (`856`) → `mychart.bswhealth.com/fa/` serves a MyBSWHealth-branded login, but the system's real sign-in is a custom page; unverified with an account.
+
+## Missing from Epic's directory
+
+Searched for portals the directory doesn't list: Epic's FHIR endpoint list (`open.epic.com/Endpoints/R4` and `/Endpoints/Brands`, 457 organizations, fuzzy-matched against directory names and aliases), every country Epic lists a presence in, go-live news for 2023–2026, login-page title patterns (`"MyCare - Login Page"`, `"Connect - Login Page"`…), student health centers, and a DNS + HTTP sweep of 13,017 likely subdomains (`my.`, `portal.`, `connect.`, `mycare.`…) across the 688 domains the directory uses. A portal counted only if it serves Epic login markup and its host isn't in the directory. Certificate-transparency logs (crt.sh) were down for wildcard searches throughout.
+
+**The directory is very nearly complete.** No large US system was missing, nor anything in the Netherlands, Belgium, Switzerland, Denmark, Finland, Norway or the UK beyond one trust. What was missing is recent or niche; each is an `addition`:
+
+| Organization | Portal | Source |
+| --- | --- | --- |
+| My NSW Health | `https://mynswhealth.health.nsw.gov.au/MNH/` | health.nsw.gov.au/single-digital-patient-record/Pages/patients.aspx; in pilot, Hunter New England LHD first. |
+| Royal National Orthopaedic Hospital | `https://mycare.rnoh.nhs.uk/RNOHMyCare/` | rnoh.nhs.uk/services/mycare-rnoh; live on Epic since November 2025. |
+| Orthopaedic Institute for Children | `https://oic.mednet.ucla.edu/MychartConnect/` | The login page names 'Orthopaedic Institute for Children (OIC) myHealth' (UCLA Community Connect). |
+| UCLA Ashe Center | `https://mystudentchart.sdh.ucla.edu/Ashe/` | studenthealth.ucla.edu/epic; moved to Epic July 2025. |
+| UT Health Rio Grande Valley | `https://utrgv.utmb.edu/utrgv/` | uthealthrgv.org/epic-transition links this login; on Epic since November 2024, hosted on UTMB's server. |
+| Penn State Health | `https://mychart.pennstatehealth.org/Mychart/` | pennstatehealth.org: MyChart launching systemwide October 2026. |
+
+**Seventeen listed organizations have a second hostname** the directory doesn't carry — sometimes the one patients now use (Northwestern's is `mynm.nm.org`; Epic lists the older `mychart.cdh.org`). Each is an `extraHosts` entry, so search finds the organization by it and password import recognises a password saved there: none of these names reads like a portal, so the import's probe would never have tried them.
+
+| Organization | `slgId` | Extra hostname |
+| --- | --- | --- |
+| Northwestern Medicine | `650` | `mynm.nm.org` |
+| Columbia University Irving Medical Center | `1089-3` | `connect.doctors.columbia.edu` |
+| El Camino Health | `920` | `mycare.elcaminohealth.org` |
+| Monument Health | `1004` | `mychart.monument.health` |
+| University Health System | `1130` | `mychart.universityhealth.com` |
+| Lifespan | `895` | `my.lifespan.org` |
+| CommonSpirit Mountain Region | `942` | `mountain.mycommonspirit.org` |
+| Thomas Jefferson University Health System | `957` | `my.jeffersonhealth.org` |
+| VHC Health | `1039` | `myvhc.vhchealth.org` |
+| Children's Nebraska | `553` | `connect.childrensnebraska.org` |
+| UTHealth Houston | `1178` | `www.myuthealthhouston.org` |
+| UMC Southern Nevada | `1023` | `umconlinecare.umcsn.com` |
+| Alameda Health System | `1075` | `www.my-ahs.org` |
+| WellSpan | `975` | `my.wellspan.org` |
+| Bon Secours Health System | `742-5` | `my.bonsecours.com` |
+| Emplify Health | `605` | `mycare.gundersenhealth.org` |
+| Dartmouth | `722` | `portal.mydh.org` |
+
+Left out: `www.mijntjongerschans.nl` (times out from the US, like the directory's own Frisian hospital) and `mystudentchart.uci.edu` (goes straight to UCI's single sign-on). Sharp HealthCare publishes an Epic FHIR endpoint but its portal is still FollowMyHealth.

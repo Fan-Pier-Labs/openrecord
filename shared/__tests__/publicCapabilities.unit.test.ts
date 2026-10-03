@@ -15,10 +15,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import { setTestTransport } from '../../scrapers/http';
-import { clearDirectoryCache } from '../../scrapers/list-all-mycharts/searchDirectory';
 import { executeCapability, PUBLIC_CAPABILITY_IDS } from '../capabilities';
 import npiFixture from '../../scrapers/npi/__tests__/fixtures/npi-search-response.json';
-import directoryFixture from '../../scrapers/list-all-mycharts/__tests__/fixtures/directory-response.json';
 
 /** Every URL the capability under test asked for, in order. */
 let requested: string[] = [];
@@ -32,11 +30,9 @@ function serve(payload: unknown) {
 
 beforeEach(() => {
   requested = [];
-  clearDirectoryCache();
 });
 afterEach(() => {
   setTestTransport(null);
-  clearDirectoryCache();
 });
 
 /** The query string of the one request the capability made. */
@@ -178,17 +174,15 @@ describe('search_npi_registry', () => {
 });
 
 describe('search_mycharts', () => {
-  it('searches the directory and returns the fields a picker renders', async () => {
-    serve(directoryFixture);
+  it('searches the checked-in directory, with no request, and returns the fields a picker renders', async () => {
+    serve({});
     const result = (await executeCapability(null, 'search_mycharts', { query: 'AACI' })) as {
       query: string;
-      source: string;
       count: number;
       matches: Array<{ hostname: string; name: string; loginUrl: string }>;
     };
 
-    expect(requested[0]).toContain('/cached-api/help/organizations/');
-    expect(result.source).toBe('live');
+    expect(requested).toEqual([]);
     expect(result.query).toBe('AACI');
     expect(result.count).toBe(1);
     expect(result.matches[0]).toMatchObject({
@@ -199,7 +193,7 @@ describe('search_mycharts', () => {
   });
 
   it('honours a limit, and defaults to ten without one', async () => {
-    serve(directoryFixture);
+    serve({});
     const capped = (await executeCapability(null, 'search_mycharts', {
       query: 'mychart',
       limit: 1,
@@ -213,7 +207,7 @@ describe('search_mycharts', () => {
   });
 
   it('requires a query rather than dumping the whole directory', async () => {
-    serve(directoryFixture);
+    serve({});
     await expect(executeCapability(null, 'search_mycharts', {})).rejects.toThrow(
       /Missing required argument "query"/,
     );

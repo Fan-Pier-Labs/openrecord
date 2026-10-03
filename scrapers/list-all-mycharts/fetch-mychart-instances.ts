@@ -21,8 +21,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { silenceLogger } from '../../shared/logger';
-import { toSeedEntry, type MyChartInstanceSeed } from './directory';
+import { toSeedEntry, type MyChartInstance, type MyChartInstanceSeed } from './directory';
+import manualEntries from './mychart-instances-manual.json';
 import { fetchResolvedMyChartDirectory } from './refreshDirectory';
+import { resolveLoginUrl } from './resolveLoginUrl';
 
 const OUTPUT_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
 
@@ -53,9 +55,40 @@ async function main() {
   for (const e of moved) console.log(`  url changed  ${e.slgId}  ${e.name}: ${previous.get(e.slgId)!.url} → ${e.url}`);
   for (const { instance, resolution } of down) console.log(`  down  ${instance.slgId}  ${instance.name}: ${resolution.reason}`);
 
-  if (dryRun) return;
-  fs.writeFileSync(OUTPUT_FILE, `${JSON.stringify(next, null, 2)}\n`);
-  console.log(`Wrote ${next.length} instances to ${OUTPUT_FILE}`);
+  if (!dryRun) {
+    fs.writeFileSync(OUTPUT_FILE, `${JSON.stringify(next, null, 2)}\n`);
+    console.log(`Wrote ${next.length} instances to ${OUTPUT_FILE}`);
+  }
+  await checkManualEntries(instances);
+}
+
+/**
+ * The hand-kept entries are only as good as the last time someone looked, so
+ * every refresh looks again and says what needs a human: a portal that no
+ * longer serves a login, a correction Epic's new URL has made moot, an
+ * addition Epic now lists itself. Warnings, not failures — a release is not
+ * the moment to research a hospital's website.
+ */
+async function checkManualEntries(epic: MyChartInstance[]): Promise<void> {
+  const bySlgId = new Map(epic.map((i) => [i.slgId, i]));
+  const epicHosts = new Set(epic.map((i) => new URL(i.directoryUrl).hostname.toLowerCase()));
+  const warnings: string[] = [];
+
+  for (const c of manualEntries.corrections) {
+    const now = bySlgId.get(c.slgId)?.directoryUrl;
+    if (now !== c.directoryUrl) warnings.push(`correction ${c.slgId} ${c.name} lapsed: Epic now publishes ${now ?? 'nothing'}`);
+  }
+  for (const a of manualEntries.additions) {
+    if (epicHosts.has(new URL(a.url).hostname.toLowerCase())) warnings.push(`addition ${a.slgId} ${a.name}: Epic now lists ${a.url}`);
+  }
+  const urls = [...new Set([...manualEntries.corrections, ...manualEntries.additions].map((e) => e.url))];
+  const results = await Promise.all(urls.map(async (url) => [url, await resolveLoginUrl(url)] as const));
+  for (const [url, result] of results) {
+    if (result.kind !== 'login') warnings.push(`${url} no longer serves a MyChart login (${result.kind}${'reason' in result ? `: ${result.reason}` : ''})`);
+  }
+
+  console.log(`Hand entries (mychart-instances-manual.json): ${warnings.length ? `${warnings.length} need a look` : 'all still good'}`);
+  for (const w of warnings) console.log(`  ${w}`);
 }
 
 // Exit as soon as the file is written: a resolution abandoned at its timeout

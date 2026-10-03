@@ -1,28 +1,21 @@
 /**
  * The app's instance list and logo cache.
  *
- * Everything interesting here is a failure path — an offline launch, a stale
- * cache, a logo Epic doesn't serve — so the SQLite layer is replaced with an
+ * The logo cache's interesting cases are failure paths — a logo Epic doesn't
+ * serve, a request already in flight — so the SQLite layer is replaced with an
  * in-memory stand-in (the real one pulls in expo-sqlite, which needs a device)
  * and the network with `setTestTransport`.
  */
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { setTestTransport } from "../../../../scrapers/http";
+import { listMyCharts } from "../../../../scrapers/list-all-mycharts/directory";
 
 // Must be registered before the module under test is imported: it reaches the
 // database at module scope through its own import.
-const store: { directory: { json: string; refreshedAt: string } | null; logos: Map<string, string> } = {
-  directory: null,
-  logos: new Map(),
-};
+const store = { logos: new Map<string, string>() };
 
 await mock.module("@/lib/storage/database", () => ({
-  getCachedDirectory: () => Promise.resolve(store.directory),
-  setCachedDirectory: (json: string) => {
-    store.directory = { json, refreshedAt: new Date().toISOString() };
-    return Promise.resolve();
-  },
   getCachedLogo: (url: string) => Promise.resolve(store.logos.get(url) ?? null),
   setCachedLogo: (url: string, dataUri: string) => {
     store.logos.set(url, dataUri);
@@ -30,104 +23,31 @@ await mock.module("@/lib/storage/database", () => ({
   },
 }));
 
-const {
-  getInstances,
-  initInstances,
-  loadInstanceLogo,
-  peekInstanceLogo,
-  refreshInstances,
-  searchInstances,
-} = await import("../mychart-instances");
+const { getInstances, loadInstanceLogo, peekInstanceLogo, searchInstances } = await import(
+  "../mychart-instances"
+);
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const PNG_DATA_URI = `data:image/png;base64,${Buffer.from(PNG_BYTES).toString("base64")}`;
 
-function directoryResponse(names: string[]): Response {
-  return new Response(
-    JSON.stringify({
-      organizations: names.map((name, index) => ({
-        slgId: `live-${index}`,
-        name,
-        loginUrl: `https://${name.toLowerCase()}.example/mychart/`,
-        logo: { imageId: 'IMG', fileName: `${index}.png`, subAreaName: 'organizations' },
-        aliases: [],
-        states: [],
-        countries: [],
-        brandName: 'MyChart',
-        liveOnCentral: true,
-      })),
-    }),
-    { status: 200 },
-  );
-}
-
 beforeEach(() => {
-  store.directory = null;
   store.logos.clear();
   setTestTransport(null);
 });
 
 describe("the instance list", () => {
-  it("serves the bundled seed before anything loads", () => {
-    const seed = getInstances();
-    expect(seed.length).toBeGreaterThan(1000);
-    // The demo entry is always first so it can be found without a network.
-    expect(seed[0]!.slgId).toBe("fake-mychart");
+  it("is the demo entry, then every MyChart the checked-in files know", () => {
+    const list = getInstances();
+    // The demo entry is always first so it can be found without an account.
+    expect(list[0]!.slgId).toBe("fake-mychart");
+    expect(list.slice(1)).toEqual(listMyCharts());
   });
 
-  it("prefers the cached list over the seed, without a network call", async () => {
-    store.directory = {
-      json: JSON.stringify([
-        { name: "Cached Health", url: "https://cached.example/", logoUrl: "", slgId: "c1", aliases: [] },
-      ]),
-      refreshedAt: new Date().toISOString(),
-    };
+  it("reaches the network for nothing but logos", () => {
     setTestTransport(() => {
-      throw new Error("should not reach the network for a fresh cache");
+      throw new Error("the list must not be fetched");
     });
-
-    await initInstances();
-    expect(getInstances().map((i) => i.name)).toEqual([
-      "Springfield Medical Center (Demo)",
-      "Cached Health",
-    ]);
-  });
-
-  it("refreshes when the cache is older than a week", async () => {
-    store.directory = {
-      json: JSON.stringify([
-        { name: "Stale Health", url: "https://stale.example/", logoUrl: "", slgId: "s1", aliases: [] },
-      ]),
-      refreshedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-    setTestTransport(() => Promise.resolve(directoryResponse(["Fresh Health"])));
-
-    await initInstances();
-    expect(getInstances().some((i) => i.name === "Fresh Health")).toBe(true);
-    expect(getInstances().some((i) => i.name === "Stale Health")).toBe(false);
-    // …and the refreshed list is what the next launch reads.
-    expect(store.directory?.json).toContain("Fresh Health");
-  });
-
-  it("keeps the list it already had when the refresh fails", async () => {
-    store.directory = {
-      json: JSON.stringify([
-        { name: "Offline Health", url: "https://offline.example/", logoUrl: "", slgId: "o1", aliases: [] },
-      ]),
-      refreshedAt: new Date(0).toISOString(),
-    };
-    setTestTransport(() => Promise.reject(new Error("offline")));
-
-    await initInstances();
-    expect(getInstances().map((i) => i.name)).toContain("Offline Health");
-  });
-
-  it("ignores an empty directory rather than emptying the picker", async () => {
-    const before = getInstances();
-    setTestTransport(() => Promise.resolve(new Response(JSON.stringify({ organizations: [] }))));
-    await refreshInstances();
-    expect(getInstances()).toEqual(before);
-    expect(store.directory).toBeNull();
+    expect(getInstances().length).toBeGreaterThan(1000);
   });
 });
 
@@ -142,6 +62,11 @@ describe("searchInstances", () => {
     expect(searchInstances("valley.example", list).map((i) => i.slgId)).toEqual(["2"]);
     // The name a patient knows the organization by, which it no longer uses.
     expect(searchInstances("sisters of", list).map((i) => i.slgId)).toEqual(["1"]);
+  });
+
+  it("matches an organization's extra hostnames", () => {
+    const withExtra = [{ ...list[1]!, extraHosts: ["portal.valley-health.example"] }];
+    expect(searchInstances("valley-health", withExtra).map((i) => i.slgId)).toEqual(["2"]);
   });
 
   it("returns everything for an empty query", () => {

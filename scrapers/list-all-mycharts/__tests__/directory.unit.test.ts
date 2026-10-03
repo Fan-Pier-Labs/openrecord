@@ -14,12 +14,14 @@ import {
   defaultLogoUrl,
   fetchMyChartDirectory,
   fetchMyChartIcon,
+  listMyCharts,
   logoUrlFor,
   parseDirectoryPayload,
   toSeedEntry,
   type MyChartInstanceSeed,
 } from '../directory';
 import bundledInstances from '../mychart-instances.json';
+import manualEntries from '../mychart-instances-manual.json';
 import fixture from './fixtures/directory-response.json';
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -149,6 +151,79 @@ describe('parseDirectoryPayload', () => {
   it('throws rather than reporting an empty directory when the shape changes', () => {
     expect(() => parseDirectoryPayload({ orgs: [] })).toThrow(/organizations/);
     expect(() => parseDirectoryPayload(null)).toThrow(/organizations/);
+  });
+});
+
+describe('listMyCharts', () => {
+  const merged = listMyCharts();
+  const bySlgId = (slgId: string) => merged.find((i) => i.slgId === slgId);
+  const seed = bundledInstances as MyChartInstanceSeed[];
+
+  it('is the generated list plus the hand additions', () => {
+    expect(merged).toHaveLength(seed.length + manualEntries.additions.length);
+    expect(bySlgId('openrecord-rnoh')).toMatchObject({
+      name: 'Royal National Orthopaedic Hospital',
+      url: 'https://mycare.rnoh.nhs.uk/RNOHMyCare/',
+      logoUrl: defaultLogoUrl(),
+    });
+  });
+
+  it('applies a hand correction while the generated entry still has the Epic URL it was made against', () => {
+    // Bellin: Epic's host no longer resolves; its patients moved to Emplify Health.
+    expect(seed.find((i) => i.slgId === '306-2')?.url).toBe('https://www.mybellin.org/MyChart/');
+    expect(bySlgId('306-2')).toMatchObject({
+      url: 'https://mychart.emplifyhealth.org/MyChart/',
+      directoryUrl: 'https://www.mybellin.org/MyChart/',
+    });
+  });
+
+  it('attaches extra hostnames', () => {
+    expect(bySlgId('650')?.extraHosts).toEqual(['mynm.nm.org']);
+  });
+
+  it('never mutates the generated list it reads', () => {
+    expect(seed.find((i) => i.slgId === '650')).not.toContainKey('extraHosts');
+  });
+});
+
+/**
+ * `mychart-instances-manual.json` is kept by hand against a generated file
+ * that a release rewrites, so these fail the build when the two drift apart.
+ */
+describe('mychart-instances-manual.json', () => {
+  const seed = new Map((bundledInstances as MyChartInstanceSeed[]).map((i) => [i.slgId, i]));
+
+  it("corrects only entries that exist, against the Epic URL they still carry", () => {
+    // A failure here means a refresh recorded a new Epic URL: re-check the
+    // organization, then update or delete the correction.
+    for (const c of manualEntries.corrections) {
+      const entry = seed.get(c.slgId);
+      expect(entry, c.slgId).toBeDefined();
+      expect(entry!.directoryUrl ?? entry!.url, c.slgId).toBe(c.directoryUrl);
+    }
+  });
+
+  it('adds only organizations Epic does not list, under ids of our own', () => {
+    const hosts = new Set([...seed.values()].map((i) => new URL(i.url).hostname.toLowerCase()));
+    for (const a of manualEntries.additions) {
+      expect(a.slgId.startsWith('openrecord-'), a.slgId).toBe(true);
+      // Epic listing the host now means the addition can go.
+      expect(hosts.has(new URL(a.url).hostname.toLowerCase()), a.url).toBe(false);
+    }
+    expect(new Set(manualEntries.additions.map((a) => a.slgId)).size).toBe(manualEntries.additions.length);
+  });
+
+  it('gives extra hostnames only to entries that exist, never repeating their own', () => {
+    for (const h of manualEntries.extraHosts) {
+      expect(seed.has(h.slgId), h.slgId).toBe(true);
+      expect(new URL(seed.get(h.slgId)!.url).hostname.toLowerCase(), h.host).not.toBe(h.host);
+    }
+  });
+
+  it('uses mount URLs a login can start from', () => {
+    for (const { url } of [...manualEntries.corrections, ...manualEntries.additions]) {
+      expect(url, url).toMatch(/^https:\/\/[^/]+\/([^/]+\/)?$/);
+    }
   });
 });
 

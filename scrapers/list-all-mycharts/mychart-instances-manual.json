@@ -1,0 +1,369 @@
+{
+  "corrections": [
+    {
+      "slgId": "905-6",
+      "name": "Alleghany Health",
+      "directoryUrl": "https://my.alleghanyhealth.org/alh/",
+      "url": "https://my.atriumhealth.org/MyAtriumHealth/",
+      "source": "Epic's URL now says 'MyAlleghanyHealth has moved to MyAtriumHealth', same logins."
+    },
+    {
+      "slgId": "465",
+      "name": "Allina",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://mychart.allinahealth.org/MyChart/",
+      "source": "account.allinahealth.org embeds Epic's login widget served from this MyChart."
+    },
+    {
+      "slgId": "1030-3",
+      "name": "Bay Clinic",
+      "directoryUrl": "https://bayclinic.net/Bay-Clinic-pp.html",
+      "url": "https://mychart.bayclinic.net/BC/",
+      "source": "bayclinicoregon.com (where bayclinic.net now redirects) links this login."
+    },
+    {
+      "slgId": "306-2",
+      "name": "Bellin",
+      "directoryUrl": "https://www.mybellin.org/MyChart/",
+      "url": "https://mychart.emplifyhealth.org/MyChart/",
+      "source": "bellin.org/mychartchanges: MyBellinHealth moved to Emplify Health MyChart in July 2025; mybellin.org no longer resolves."
+    },
+    {
+      "slgId": "343-3",
+      "name": "Bois Forte Health and Human Services",
+      "directoryUrl": "https://boisforte.com/services/medical-services/",
+      "url": "https://communityconnect.essentiahealth.org/MyChart/",
+      "source": "boisforte.com/hhs/ links this login."
+    },
+    {
+      "slgId": "845-1",
+      "name": "CHI Memorial",
+      "directoryUrl": "https://mychart.memorial.org/TN/",
+      "url": "https://patientportalsouth.commonspirit.org/PRD/",
+      "source": "commonspirit.org/patient-resources/memorial-patient-portal links this login."
+    },
+    {
+      "slgId": "845-2",
+      "name": "CHI St. Joseph's Health",
+      "directoryUrl": "https://mychart.chisaintjosephhealth.org/KY/",
+      "url": "https://patientportalsouth.commonspirit.org/PRD/",
+      "source": "Epic's URL is a 'Patient Portal Redirect' page to this portal; same logins."
+    },
+    {
+      "slgId": "575-3",
+      "name": "CHI St. Vincent",
+      "directoryUrl": "https://www.chistvincentonecare.com/#/login",
+      "url": "https://patientportalsouth.commonspirit.org/PRD/",
+      "source": "commonspirit.org/patient-resources/stvincent-patient-portal links this login."
+    },
+    {
+      "slgId": "871",
+      "name": "Children's Hospital Oakland",
+      "directoryUrl": "https://mychart.cho.org/MyChartPRD/",
+      "url": "https://ucsfmychart.ucsfmedicalcenter.org/ucsfmychart/",
+      "source": "Now UCSF Benioff Children's Hospital Oakland; its pages send MyChart to UCSF MyChart. mychart.cho.org times out."
+    },
+    {
+      "slgId": "465-9",
+      "name": "Cuyuna Regional Medical Center",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://www.mychartweb.com/MyChart/",
+      "source": "Allina's MyChart for affiliate partners; listed for Cuyuna in search results."
+    },
+    {
+      "slgId": "342",
+      "name": "Dreyer",
+      "directoryUrl": "https://myadvocateaurora.org/chart/",
+      "url": "https://livewell.aah.org/chart/",
+      "source": "Advocate's portal is LiveWell (advocatehealth.com/help-center/livewell); myadvocateaurora.org no longer resolves."
+    },
+    {
+      "slgId": "223",
+      "name": "Geisinger",
+      "directoryUrl": "https://www.geisinger.org/mygeisinger",
+      "url": "https://mychart.mycarecompass.org/mychart/",
+      "source": "The Geisinger-branded MyGeisinger instance; www.mygeisinger.org/mychart/ redirects into it."
+    },
+    {
+      "slgId": "465-5",
+      "name": "Glencoe Regional Health Services",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://www.mychartweb.com/MyChart/",
+      "source": "glencoehealth.org/patient-tools/mychart/ links this login."
+    },
+    {
+      "slgId": "958",
+      "name": "Mayo Clinic",
+      "directoryUrl": "https://mayoclinichealthsystem.org/patient-online-services",
+      "url": "https://mychart.et0958.epichosted.com/MyChart/",
+      "source": "patientportal.mayoclinic.org is a CNAME to this Mayo Clinic-branded Epic login (its vanity name fails TLS)."
+    },
+    {
+      "slgId": "922-1",
+      "name": "Medical Clinic of Houston L.L.P.",
+      "directoryUrl": "https://mchllp.houstonmethodist.org/MCHMyChart/",
+      "url": "https://mychart.houstonmethodist.org/MyChart/",
+      "source": "mchllp.com links Houston Methodist MyChart ('via Houston Methodist Community Connect')."
+    },
+    {
+      "slgId": "1206-1",
+      "name": "Men's Mental Health",
+      "directoryUrl": "https://mensmentalhealthservices.com/",
+      "url": "https://my.baptistchart.com/mychart/",
+      "source": "The practice's site embeds MyChart from this host in an iframe."
+    },
+    {
+      "slgId": "796-5",
+      "name": "Ochsner Health System Digital Medicine",
+      "directoryUrl": "https://mydigmed.ochsner.org/digitalmedicine/Authentication/Login",
+      "url": "https://my.ochsner.org/PRD/",
+      "source": "digital.ochsner.org/digital-medicine-1/ links this login; the Digital Medicine instance returns 404."
+    },
+    {
+      "slgId": "343-8",
+      "name": "Ridgeview",
+      "directoryUrl": "https://www.ridgeviewmedical.org/mychart/",
+      "url": "https://mychart.ridgeviewmedical.org/mychart/",
+      "source": "Login page branded 'Ridgeview Patients'."
+    },
+    {
+      "slgId": "465-8",
+      "name": "River's Edge Hospital & Clinic",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://mychart.allinahealth.org/MyChart/",
+      "source": "River's Edge patients use Allina Health MyChart."
+    },
+    {
+      "slgId": "575-4",
+      "name": "RiverView Health",
+      "directoryUrl": "https://mychart.riverview.org/#/login",
+      "url": "https://riverview.mychartcc.com/",
+      "source": "riverview.org/EHRupdate links 'Login to New MyChart' here."
+    },
+    {
+      "slgId": "465-7",
+      "name": "St. Croix Health",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://www.mychartweb.com/MyChart/",
+      "source": "saintcroixhealth.org's MyChart link points here."
+    },
+    {
+      "slgId": "412",
+      "name": "UW Health",
+      "directoryUrl": "https://uwhealthmychart.org/mychart/",
+      "url": "https://mychart.uwhealth.org/mychart/",
+      "source": "Epic's URL redirects to the empty bare host; this mount on it is the UW Health login."
+    },
+    {
+      "slgId": "465-1",
+      "name": "Welia Health",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://www.mychartweb.com/MyChart/",
+      "source": "weliahealth.org/mychart/ links this login."
+    },
+    {
+      "slgId": "465-11",
+      "name": "Western Wisconsin Health",
+      "directoryUrl": "https://account.allinahealth.org/dashboard/",
+      "url": "https://www.mychartweb.com/MyChart/",
+      "source": "wwhealth.org/mychart/ links this login."
+    },
+    {
+      "slgId": "1017-2",
+      "name": "Summit Surgical Center",
+      "directoryUrl": "https://summitsurgical.virtua.org/SummitSurgical/",
+      "url": "https://secure.myvirtua.org/MyChart/",
+      "source": "virtua.org/locations/summit-surgical-center: now Virtua; its MyChart links go here."
+    },
+    {
+      "slgId": "950",
+      "name": "University Health",
+      "directoryUrl": "https://mychart.uhsystem.com/MyChart/",
+      "url": "https://my.ochsner.org/PRD/",
+      "source": "Ochsner LSU Health took over University Health Shreveport; ochsnerlsuhs.org links this login."
+    },
+    {
+      "slgId": "763-2",
+      "name": "Communitycare PLAN",
+      "directoryUrl": "https://mychart.mhs.net/mychartCCP/",
+      "url": "https://mychart.mhs.net/mychart/",
+      "source": "Memorial Healthcare System's MyChart; the CCP mount answers 403 to non-browser requests."
+    }
+  ],
+  "additions": [
+    {
+      "slgId": "openrecord-my-nsw-health",
+      "name": "My NSW Health",
+      "url": "https://mynswhealth.health.nsw.gov.au/MNH/",
+      "aliases": [
+        "NSW Health",
+        "Hunter New England"
+      ],
+      "states": [],
+      "countries": [
+        "AU"
+      ],
+      "source": "health.nsw.gov.au/single-digital-patient-record/Pages/patients.aspx; in pilot, Hunter New England LHD first."
+    },
+    {
+      "slgId": "openrecord-rnoh",
+      "name": "Royal National Orthopaedic Hospital",
+      "url": "https://mycare.rnoh.nhs.uk/RNOHMyCare/",
+      "aliases": [
+        "RNOH",
+        "MyCare"
+      ],
+      "states": [],
+      "countries": [
+        "GB"
+      ],
+      "source": "rnoh.nhs.uk/services/mycare-rnoh; live on Epic since November 2025."
+    },
+    {
+      "slgId": "openrecord-oic",
+      "name": "Orthopaedic Institute for Children",
+      "url": "https://oic.mednet.ucla.edu/MychartConnect/",
+      "aliases": [
+        "OIC"
+      ],
+      "states": [
+        "CA"
+      ],
+      "countries": [
+        "US"
+      ],
+      "source": "The login page names 'Orthopaedic Institute for Children (OIC) myHealth' (UCLA Community Connect)."
+    },
+    {
+      "slgId": "openrecord-ucla-ashe",
+      "name": "UCLA Ashe Center",
+      "url": "https://mystudentchart.sdh.ucla.edu/Ashe/",
+      "aliases": [
+        "UCLA Student Health",
+        "MyStudentChart"
+      ],
+      "states": [
+        "CA"
+      ],
+      "countries": [
+        "US"
+      ],
+      "source": "studenthealth.ucla.edu/epic; moved to Epic July 2025."
+    },
+    {
+      "slgId": "openrecord-utrgv",
+      "name": "UT Health Rio Grande Valley",
+      "url": "https://utrgv.utmb.edu/utrgv/",
+      "aliases": [
+        "UTRGV"
+      ],
+      "states": [
+        "TX"
+      ],
+      "countries": [
+        "US"
+      ],
+      "source": "uthealthrgv.org/epic-transition links this login; on Epic since November 2024, hosted on UTMB's server."
+    },
+    {
+      "slgId": "openrecord-penn-state-health",
+      "name": "Penn State Health",
+      "url": "https://mychart.pennstatehealth.org/Mychart/",
+      "aliases": [],
+      "states": [
+        "PA"
+      ],
+      "countries": [
+        "US"
+      ],
+      "source": "pennstatehealth.org: MyChart launching systemwide October 2026."
+    }
+  ],
+  "extraHosts": [
+    {
+      "slgId": "650",
+      "name": "Northwestern Medicine",
+      "host": "mynm.nm.org"
+    },
+    {
+      "slgId": "1089-3",
+      "name": "Columbia University Irving Medical Center",
+      "host": "connect.doctors.columbia.edu"
+    },
+    {
+      "slgId": "920",
+      "name": "El Camino Health",
+      "host": "mycare.elcaminohealth.org"
+    },
+    {
+      "slgId": "1004",
+      "name": "Monument Health",
+      "host": "mychart.monument.health"
+    },
+    {
+      "slgId": "1130",
+      "name": "University Health System",
+      "host": "mychart.universityhealth.com"
+    },
+    {
+      "slgId": "895",
+      "name": "Lifespan",
+      "host": "my.lifespan.org"
+    },
+    {
+      "slgId": "942",
+      "name": "CommonSpirit Mountain Region",
+      "host": "mountain.mycommonspirit.org"
+    },
+    {
+      "slgId": "957",
+      "name": "Thomas Jefferson University Health System",
+      "host": "my.jeffersonhealth.org"
+    },
+    {
+      "slgId": "1039",
+      "name": "VHC Health",
+      "host": "myvhc.vhchealth.org"
+    },
+    {
+      "slgId": "553",
+      "name": "Children's Nebraska",
+      "host": "connect.childrensnebraska.org"
+    },
+    {
+      "slgId": "1178",
+      "name": "UTHealth Houston",
+      "host": "www.myuthealthhouston.org"
+    },
+    {
+      "slgId": "1023",
+      "name": "UMC Southern Nevada",
+      "host": "umconlinecare.umcsn.com"
+    },
+    {
+      "slgId": "1075",
+      "name": "Alameda Health System",
+      "host": "www.my-ahs.org"
+    },
+    {
+      "slgId": "975",
+      "name": "WellSpan",
+      "host": "my.wellspan.org"
+    },
+    {
+      "slgId": "742-5",
+      "name": "Bon Secours Health System",
+      "host": "my.bonsecours.com"
+    },
+    {
+      "slgId": "605",
+      "name": "Emplify Health",
+      "host": "mycare.gundersenhealth.org"
+    },
+    {
+      "slgId": "722",
+      "name": "Dartmouth",
+      "host": "portal.mydh.org"
+    }
+  ]
+}

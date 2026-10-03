@@ -1,11 +1,6 @@
 /**
- * Searching the MyChart directory: the ranking, the one-fetch cache, and the
- * fallback to the checked-in seed.
- *
- * The fallback is the case worth a test — it is silent by construction (a
- * failed fetch still returns matches), so without one it would only be noticed
- * when a picker went stale in someone's hands. Every assertion here reads the
- * `source` field for exactly that reason.
+ * Searching the MyChart directory: the ranking, the checked-in list it reads
+ * (and never Epic's live one), and the sandbox entry.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
@@ -15,27 +10,20 @@ import {
   MAX_DIRECTORY_SEARCH_LIMIT,
   SANDBOX_INSTANCE,
   SANDBOX_UNAVAILABLE_NOTE,
-  clearDirectoryCache,
   clearSandboxAvailabilityCache,
   rankDirectoryMatches,
   searchMyChartDirectory,
 } from '../searchDirectory';
-import fixture from './fixtures/directory-response.json';
 
-beforeEach(() => {
-  clearDirectoryCache();
-  clearSandboxAvailabilityCache();
-});
+beforeEach(() => clearSandboxAvailabilityCache());
 afterEach(() => {
   setTestTransport(null);
-  clearDirectoryCache();
   clearSandboxAvailabilityCache();
 });
 
-const liveTransport = (onRequest?: () => void) => () => {
-  onRequest?.();
-  return Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 }));
-};
+/** Any request but the sandbox probe fails the test: a search must not reach Epic. */
+const noEpic = (sandbox: () => Promise<Response> = () => Promise.reject(new Error('down'))) => (url: string) =>
+  url.includes('fake-mychart') ? sandbox() : Promise.reject(new Error(`a search reached ${url}`));
 
 describe('rankDirectoryMatches', () => {
   const instances = [
@@ -60,6 +48,11 @@ describe('rankDirectoryMatches', () => {
     expect(rankDirectoryMatches(instances, '   ')).toEqual([]);
   });
 
+  it('matches an extra hostname as a hostname', () => {
+    const withExtra = [{ ...instances[4]!, extraHosts: ['portal.riverside.example'] }];
+    expect(rankDirectoryMatches(withExtra, 'portal.riverside').map((m) => m.slgId)).toEqual(['2']);
+  });
+
   it('carries the hostname a client keys an account on', () => {
     const [first] = rankDirectoryMatches(instances, 'mercy', 1);
     expect(first).toEqual({
@@ -74,48 +67,29 @@ describe('rankDirectoryMatches', () => {
 });
 
 describe('searchMyChartDirectory', () => {
-  it('searches the live directory and says so', async () => {
-    setTestTransport(liveTransport());
+  it('searches the checked-in list without a request to Epic', async () => {
+    setTestTransport(noEpic());
     const result = await searchMyChartDirectory('AACI');
-    expect(result.source).toBe('live');
     expect(result.matches.map((m) => m.slgId)).toEqual(['432-112']);
     expect(result.count).toBe(1);
     expect(result.query).toBe('AACI');
   });
 
-  it('fetches once for many searches', async () => {
-    let requests = 0;
-    setTestTransport(liveTransport(() => { requests += 1; }));
-    await searchMyChartDirectory('AACI');
-    await searchMyChartDirectory('access');
-    await searchMyChartDirectory('aa');
-    expect(requests).toBe(1);
+  it('returns a hand correction rather than the URL Epic publishes', async () => {
+    // Bellin's Epic URL no longer resolves; its patients moved to Emplify Health.
+    setTestTransport(noEpic());
+    const [bellin] = (await searchMyChartDirectory('Bellin')).matches;
+    expect(bellin?.hostname).toBe('mychart.emplifyhealth.org');
   });
 
-  it('makes one request for searches that start together', async () => {
-    let requests = 0;
-    setTestTransport(liveTransport(() => { requests += 1; }));
-    // A picker fires one of these per keystroke; without the in-flight
-    // promise each would open its own request to Epic.
-    await Promise.all([
-      searchMyChartDirectory('AACI'),
-      searchMyChartDirectory('AACI'),
-      searchMyChartDirectory('AACI'),
-    ]);
-    expect(requests).toBe(1);
-  });
-
-  it('falls back to the bundled seed when the fetch fails, and admits it', async () => {
-    setTestTransport(() => Promise.resolve(new Response('nope', { status: 503 })));
-    const result = await searchMyChartDirectory('AACI');
-    // The seed is a real answer, just an older one — the caller is told which
-    // it got rather than being left to assume the list was current.
-    expect(result.source).toBe('bundled');
-    expect(result.matches.map((m) => m.name)).toContain('AACI');
+  it("finds an organization Epic doesn't list, and one by its extra hostname", async () => {
+    setTestTransport(noEpic());
+    expect((await searchMyChartDirectory('Royal National Orthopaedic')).matches[0]?.slgId).toBe('openrecord-rnoh');
+    expect((await searchMyChartDirectory('mynm.nm.org')).matches[0]?.name).toBe('Northwestern Medicine');
   });
 
   it('offers the fake-mychart sandbox, and ranks it ahead of a real match', async () => {
-    setTestTransport(liveTransport());
+    setTestTransport(noEpic());
     const result = await searchMyChartDirectory('springfield');
     expect(result.matches[0]?.hostname).toBe('fake-mychart.fanpierlabs.com');
     expect(result.matches[0]?.name).toBe(SANDBOX_INSTANCE.name);
@@ -132,11 +106,7 @@ describe('searchMyChartDirectory', () => {
     // worth its bill. Dropping the entry would look like a bug; offering it
     // sends someone through the whole connect flow to a login that can't
     // succeed, which is how it was reported.
-    setTestTransport((url) =>
-      url.includes('fake-mychart')
-        ? Promise.reject(new Error('getaddrinfo ENOTFOUND'))
-        : Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
-    );
+    setTestTransport(noEpic(() => Promise.reject(new Error('getaddrinfo ENOTFOUND'))));
     const result = await searchMyChartDirectory('springfield');
     const sandbox = result.matches.find((m) => m.hostname === 'fake-mychart.fanpierlabs.com');
     expect(sandbox?.unavailable).toBe(SANDBOX_UNAVAILABLE_NOTE);
@@ -148,11 +118,7 @@ describe('searchMyChartDirectory', () => {
     setTestTransport((url) => {
       if (url.includes('fake-mychart')) sandboxProbes++;
       // What the live sandbox answers at its URL: a redirect under the mount.
-      return Promise.resolve(
-        url.includes('fake-mychart')
-          ? new Response(null, { status: 308, headers: { Location: '/MyChart' } })
-          : new Response(JSON.stringify(fixture), { status: 200 }),
-      );
+      return noEpic(() => Promise.resolve(new Response(null, { status: 308, headers: { Location: '/MyChart' } })))(url);
     });
     for (const query of ['springfield', 'sandbox']) {
       const result = await searchMyChartDirectory(query);
@@ -168,9 +134,7 @@ describe('searchMyChartDirectory', () => {
       () => new Response(null, { status: 302, headers: { Location: 'https://parking.example.com/' } }),
     ]) {
       clearSandboxAvailabilityCache();
-      setTestTransport((url) =>
-        Promise.resolve(url.includes('fake-mychart') ? parked() : new Response(JSON.stringify(fixture), { status: 200 })),
-      );
+      setTestTransport(noEpic(() => Promise.resolve(parked())));
       const result = await searchMyChartDirectory('springfield');
       expect(result.matches.find((m) => m.slgId === 'fake-mychart')?.unavailable).toBe(SANDBOX_UNAVAILABLE_NOTE);
     }
@@ -180,7 +144,7 @@ describe('searchMyChartDirectory', () => {
     let sandboxProbes = 0;
     setTestTransport((url) => {
       if (url.includes('fake-mychart')) sandboxProbes++;
-      return Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 }));
+      return noEpic()(url);
     });
     await searchMyChartDirectory('AACI');
     expect(sandboxProbes).toBe(0);
@@ -195,12 +159,12 @@ describe('searchMyChartDirectory', () => {
   });
 
   it('refuses a blank query rather than returning the whole directory', async () => {
-    setTestTransport(liveTransport());
+    setTestTransport(noEpic());
     await expect(searchMyChartDirectory('  ')).rejects.toThrow(/Pass a query/);
   });
 
   it('clamps the limit to the range it documents', async () => {
-    setTestTransport(liveTransport());
+    setTestTransport(noEpic());
     expect((await searchMyChartDirectory('mychart', { limit: 1 })).matches).toHaveLength(1);
     expect(
       (await searchMyChartDirectory('a', { limit: MAX_DIRECTORY_SEARCH_LIMIT + 500 })).matches.length,

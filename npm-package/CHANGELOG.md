@@ -1,5 +1,21 @@
 # Changelog
 
+## Next major — the MyChart directory is checked in (breaking)
+
+`searchMyChartDirectory` no longer fetches Epic's live directory. It searches `listMyCharts()`:
+Epic's directory as it was checked at the last release, every login URL confirmed or corrected,
+merged with hand corrections and the organizations Epic doesn't list. Epic's live list carried
+URLs that send a patient nowhere (UCSF's pointed at an information page), and an offline caller
+got the checked-in list anyway.
+
+| Removed | What to do |
+| --- | --- |
+| `source` on `MyChartDirectorySearchResult`, and the `MyChartDirectorySource` type | Nothing. There is one source now. |
+| `directoryUrl` and `mediaBase` on `MyChartDirectorySearchOptions` | Search has no endpoint to point anywhere. `fetchMyChartDirectory({ directoryUrl, mediaBase })` still fetches a directory from wherever you say. |
+| `clearDirectoryCache`, `DIRECTORY_CACHE_TTL_MS` | Nothing. There is no cache to clear. |
+
+Added: `listMyCharts()`, and `extraHosts` on `MyChartInstanceSeed`.
+
 ## 2.0.0 — withdrawn exports (breaking)
 
 Two functions are gone from the public surface. Both removals are deliberate, and neither has a

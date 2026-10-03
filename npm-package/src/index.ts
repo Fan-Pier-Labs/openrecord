@@ -593,6 +593,7 @@ export {
   type NpiIdentifierStandard,
 } from '../../scrapers/npi/npiRegistry';
 export {
+  listMyCharts,
   fetchMyChartDirectory,
   fetchMyChartIcon,
   parseDirectoryPayload,
@@ -607,15 +608,12 @@ export {
 export {
   searchMyChartDirectory,
   rankDirectoryMatches,
-  clearDirectoryCache,
   SANDBOX_INSTANCE,
   DEFAULT_DIRECTORY_SEARCH_LIMIT,
   MAX_DIRECTORY_SEARCH_LIMIT,
-  DIRECTORY_CACHE_TTL_MS,
   type MyChartDirectoryMatch,
   type MyChartDirectorySearchResult,
   type MyChartDirectorySearchOptions,
-  type MyChartDirectorySource,
 } from '../../scrapers/list-all-mycharts/searchDirectory';
 
 // ─── High-level client ───────────────────────────────────────────────────

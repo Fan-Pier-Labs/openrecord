@@ -5,7 +5,6 @@ import { fireAndForget } from "@/lib/fire-and-forget";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { initDatabase } from "@/lib/storage/database";
-import { initInstances } from "@/lib/mychart-instances";
 import { getMyChartAccounts } from "@/lib/storage/secure-store";
 
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h per account
@@ -84,10 +83,6 @@ export default function RootLayout() {
     initDatabase()
       .then(() => {
         setDbReady(true);
-        // Cached list first, then a background refresh from Epic's directory
-        // if it's stale. Not awaited: the picker always has the bundled seed,
-        // so nothing here should hold up the first screen.
-        fireAndForget(initInstances(), "instances:init");
       })
       .catch((err: unknown) => console.error("[db] initDatabase failed:", err));
   }, []);

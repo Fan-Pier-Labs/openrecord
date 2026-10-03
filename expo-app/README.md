@@ -18,9 +18,9 @@ by Metro — and an on-device agent loop turns a chat message into scraper calls
 On launch, if onboarding is complete and the device has biometrics enrolled, the app asks for Face
 ID (or the passcode) before showing anything (`src/lib/auth/auth-context.tsx`).
 
-The health-system picker (`src/lib/mychart-instances.ts`) shows the bundled MyChart directory
-(`scrapers/list-all-mycharts/mychart-instances.json`), then the SQLite-cached copy, refreshing from
-Epic's live directory at most once a week. Its first row, **Springfield Medical Center (Demo)**,
+The health-system picker (`src/lib/mychart-instances.ts`) shows `listMyCharts()` from
+`scrapers/list-all-mycharts/`: Epic's directory as checked at the last release, merged with hand
+corrections. Nothing is fetched at runtime but logos. Its first row, **Springfield Medical Center (Demo)**,
 points at the deployed `fake-mychart.fanpierlabs.com` sandbox and is greyed out when that sandbox is
 down. "Enter hostname manually" covers anything not in the list.
 

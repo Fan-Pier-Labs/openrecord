@@ -1,12 +1,13 @@
 /**
  * The MyChart directory — every Epic instance in the world, and its logo.
  *
- * Epic publishes the list that powers the org picker on mychart.org. Two
- * scrapers live here, both usable from any client (the app calls them on
- * device, `fetch-mychart-instances.ts` calls them to regenerate the checked-in
- * `mychart-instances.json`):
+ * Epic publishes the list that powers the org picker on mychart.org. Three
+ * functions live here:
  *
- *  - {@link fetchMyChartDirectory} — one request, the whole list.
+ *  - {@link listMyCharts} — what every client reads: the checked-in lists,
+ *    merged. The one scraper that makes no request.
+ *  - {@link fetchMyChartDirectory} — Epic's live list, one request.
+ *    `fetch-mychart-instances.ts` calls it to regenerate `mychart-instances.json`.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -46,6 +47,7 @@
 
 import { scraperFetch } from '../http';
 import bundledInstances from './mychart-instances.json';
+import manualEntries from './mychart-instances-manual.json';
 
 /** The org-picker's data source. `locale` only changes the localized names. */
 export const MYCHART_DIRECTORY_API_URL =
@@ -193,6 +195,12 @@ export type MyChartInstanceSeed = Pick<
 > & {
   /** Stored only when it differs from `url` — it is how a correction is recorded. */
   directoryUrl?: string;
+  /**
+   * Other hostnames that serve the same portal (Northwestern's `mynm.nm.org`
+   * beside Epic's `mychart.cdh.org`), so a password saved against one of them
+   * is still recognised. From `mychart-instances-manual.json` only.
+   */
+  extraHosts?: string[];
 };
 
 /** Narrow a full instance to what the checked-in seed stores. */
@@ -206,6 +214,56 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
     ...(instance.directoryUrl !== instance.url ? { directoryUrl: instance.directoryUrl } : {}),
     ...(instance.down ? { down: true } : {}),
   };
+}
+
+/** `mychart-instances-manual.json`: what research found that a refresh can't. */
+interface ManualEntries {
+  corrections: { slgId: string; directoryUrl: string; url: string }[];
+  additions: { slgId: string; name: string; url: string; aliases: string[] }[];
+  extraHosts: { slgId: string; host: string }[];
+}
+
+let merged: MyChartInstanceSeed[] | null = null;
+
+/**
+ * Every MyChart we know of — the one list every client reads. Unlike the other
+ * scrapers it makes no request: it merges two checked-in files.
+ *
+ *  - `mychart-instances.json` is generated: Epic's directory, every login URL
+ *    checked, as of the last MCPB release (`fetch-mychart-instances.ts`).
+ *  - `mychart-instances-manual.json` is kept by hand, for what research found
+ *    that a refresh can't: a `correction` replaces an entry's `url`, but only
+ *    while its Epic URL is still the one the correction was made against, so a
+ *    refresh that records a new one retires it; an `addition` is an
+ *    organization Epic doesn't list; `extraHosts` are more hostnames for an
+ *    organization's portal. Each entry carries its source.
+ */
+export function listMyCharts(): MyChartInstanceSeed[] {
+  if (merged) return merged;
+  const manual = manualEntries as ManualEntries;
+  const corrections = new Map(manual.corrections.map((c) => [c.slgId, c]));
+  const extraHosts = new Map<string, string[]>();
+  for (const { slgId, host } of manual.extraHosts) extraHosts.set(slgId, [...(extraHosts.get(slgId) ?? []), host]);
+
+  const generated = (bundledInstances as MyChartInstanceSeed[]).map((entry) => {
+    const epicUrl = entry.directoryUrl ?? entry.url;
+    const correction = corrections.get(entry.slgId);
+    const hosts = extraHosts.get(entry.slgId);
+    return {
+      ...entry,
+      ...(correction?.directoryUrl === epicUrl ? { url: correction.url, directoryUrl: epicUrl } : {}),
+      ...(hosts ? { extraHosts: hosts } : {}),
+    };
+  });
+  const added = manual.additions.map(({ slgId, name, url, aliases }) => ({
+    name,
+    url,
+    logoUrl: defaultLogoUrl(),
+    slgId,
+    aliases,
+  }));
+  merged = [...generated, ...added];
+  return merged;
 }
 
 /** The logo URL Epic's own picker would render for this organization. */
@@ -425,7 +483,7 @@ export async function fetchMyChartIcon(
 export function directoryPrefixesFor(hostname: string): string[] {
   const wanted = hostname.toLowerCase();
   const counts = new Map<string, number>();
-  for (const instance of bundledInstances as MyChartInstanceSeed[]) {
+  for (const instance of listMyCharts()) {
     let url: URL;
     try {
       url = new URL(instance.url);

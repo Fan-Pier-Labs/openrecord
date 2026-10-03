@@ -551,8 +551,9 @@ Beyond the static helpers on `MyChartClient`:
 
 | Function | Purpose |
 | --- | --- |
-| `searchMyChartDirectory(query, opts?)` | What `MyChartClient.searchMyCharts` calls. Results are cached for `DIRECTORY_CACHE_TTL_MS` |
-| `fetchMyChartDirectory()`, `rankDirectoryMatches`, `clearDirectoryCache` | The full directory and the ranking |
+| `searchMyChartDirectory(query, opts?)` | What `MyChartClient.searchMyCharts` calls. Searches `listMyCharts()`; makes no request except to check the sandbox |
+| `listMyCharts()` | Every MyChart the package knows: the list generated from Epic at release, with hand corrections and additions. No request |
+| `fetchMyChartDirectory()`, `rankDirectoryMatches` | Epic's live directory, unchecked, and the ranking |
 | `SANDBOX_INSTANCE` | The fake-mychart sandbox entry, for testing a setup flow |
 | `lookupNpi`, `searchNpiRegistry`, `isValidNpi`, `buildNpiSearchUrl` | CMS NPI Registry |
 | `fetchNpiLookupRaw`, `fetchNpiSearchRaw`, `npiLookupProcessor`, `npiSearchProcessor` | The raw/processor split for NPI |
