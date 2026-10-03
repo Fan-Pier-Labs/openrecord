@@ -1,11 +1,8 @@
 /**
- * Searching the MyChart directory: the ranking, the one-fetch cache, and the
- * fallback to the checked-in seed.
- *
- * The fallback is the case worth a test — it is silent by construction (a
- * failed fetch still returns matches), so without one it would only be noticed
- * when a picker went stale in someone's hands. Every assertion here reads the
- * `source` field for exactly that reason.
+ * Searching the MyChart directory: the ranking, which list a search reads (the
+ * checked-in one until a refresh, the refresh's after), and the sandbox entry.
+ * Every list assertion reads `source`, because which list answered is silent
+ * otherwise.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
@@ -18,7 +15,9 @@ import {
   clearDirectoryCache,
   clearSandboxAvailabilityCache,
   rankDirectoryMatches,
+  refreshMyChartDirectory,
   searchMyChartDirectory,
+  useRefreshedMyCharts,
 } from '../searchDirectory';
 import fixture from './fixtures/directory-response.json';
 
@@ -32,10 +31,8 @@ afterEach(() => {
   clearSandboxAvailabilityCache();
 });
 
-const liveTransport = (onRequest?: () => void) => () => {
-  onRequest?.();
-  return Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 }));
-};
+/** What every non-sandbox request gets: a search must not depend on any. */
+const liveTransport = () => () => Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 }));
 
 describe('rankDirectoryMatches', () => {
   const instances = [
@@ -74,44 +71,58 @@ describe('rankDirectoryMatches', () => {
 });
 
 describe('searchMyChartDirectory', () => {
-  it('searches the live directory and says so', async () => {
-    setTestTransport(liveTransport());
+  it('searches the checked-in list until a refresh, with no request, and says so', async () => {
+    setTestTransport(() => Promise.reject(new Error('a search made a request')));
     const result = await searchMyChartDirectory('AACI');
-    expect(result.source).toBe('live');
+    expect(result.source).toBe('bundled');
     expect(result.matches.map((m) => m.slgId)).toEqual(['432-112']);
     expect(result.count).toBe(1);
     expect(result.query).toBe('AACI');
   });
 
-  it('fetches once for many searches', async () => {
-    let requests = 0;
-    setTestTransport(liveTransport(() => { requests += 1; }));
-    await searchMyChartDirectory('AACI');
-    await searchMyChartDirectory('access');
-    await searchMyChartDirectory('aa');
-    expect(requests).toBe(1);
+  it('reruns the full refresh, then searches its result', async () => {
+    const requested: string[] = [];
+    setTestTransport((url) => {
+      requested.push(url);
+      if (url.includes('/cached-api/help/organizations/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { slgId: '9001', name: 'Springfield General', loginUrl: 'https://mychart.springfield.example/MyChart/' },
+                { slgId: '306-2', name: 'Bellin', loginUrl: 'https://www.mybellin.example/MyChart/' },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url === 'https://mychart.springfield.example/MyChart/') {
+        return Promise.resolve(new Response('<input name="__RequestVerificationToken">', { status: 200 }));
+      }
+      return Promise.resolve(new Response('gone', { status: 404 }));
+    });
+
+    const refreshed = await refreshMyChartDirectory();
+    // The refresh checked each login URL, as the release's does…
+    expect(requested).toContain('https://mychart.springfield.example/MyChart/');
+    expect(refreshed.find((e) => e.slgId === '306-2')?.down).toBe(true);
+
+    // …and searches now read its result.
+    const springfield = await searchMyChartDirectory('Springfield General');
+    expect(springfield.source).toBe('live');
+    expect(springfield.matches.some((m) => m.slgId === '9001')).toBe(true);
+    expect((await searchMyChartDirectory('AACI')).matches).toEqual([]);
   });
 
-  it('makes one request for searches that start together', async () => {
-    let requests = 0;
-    setTestTransport(liveTransport(() => { requests += 1; }));
-    // A picker fires one of these per keystroke; without the in-flight
-    // promise each would open its own request to Epic.
-    await Promise.all([
-      searchMyChartDirectory('AACI'),
-      searchMyChartDirectory('AACI'),
-      searchMyChartDirectory('AACI'),
-    ]);
-    expect(requests).toBe(1);
-  });
+  it('searches a saved refresh, until cleared back to the checked-in list', async () => {
+    useRefreshedMyCharts([{ name: 'Saved Health', url: 'https://saved.example/MyChart/', logoUrl: '', slgId: 's1', aliases: [] }]);
+    const saved = await searchMyChartDirectory('Saved Health');
+    expect(saved.source).toBe('live');
+    expect(saved.matches[0]?.slgId).toBe('s1');
 
-  it('falls back to the bundled seed when the fetch fails, and admits it', async () => {
-    setTestTransport(() => Promise.resolve(new Response('nope', { status: 503 })));
-    const result = await searchMyChartDirectory('AACI');
-    // The seed is a real answer, just an older one — the caller is told which
-    // it got rather than being left to assume the list was current.
-    expect(result.source).toBe('bundled');
-    expect(result.matches.map((m) => m.name)).toContain('AACI');
+    clearDirectoryCache();
+    expect((await searchMyChartDirectory('Saved Health')).source).toBe('bundled');
   });
 
   it('offers the fake-mychart sandbox, and ranks it ahead of a real match', async () => {

@@ -85,7 +85,7 @@ export default function RootLayout() {
       .then(() => {
         setDbReady(true);
         // Cached list first, then a background refresh from Epic's directory
-        // if it's stale. Not awaited: the picker always has the bundled seed,
+        // if it's stale. Not awaited: the picker always has the checked-in list,
         // so nothing here should hold up the first screen.
         fireAndForget(initInstances(), "instances:init");
       })

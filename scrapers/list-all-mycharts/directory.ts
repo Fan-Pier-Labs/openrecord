@@ -1,12 +1,15 @@
 /**
  * The MyChart directory — every Epic instance in the world, and its logo.
  *
- * Epic publishes the list that powers the org picker on mychart.org. Two
- * scrapers live here, both usable from any client (the app calls them on
- * device, `fetch-mychart-instances.ts` calls them to regenerate the checked-in
- * `mychart-instances.json`):
+ * Epic publishes the list that powers the org picker on mychart.org. Three
+ * functions live here:
  *
- *  - {@link fetchMyChartDirectory} — one request, the whole list.
+ *  - {@link fetchMyChartDirectory} — Epic's live list, one request: the first
+ *    half of the refresh (`refreshDirectory.ts`) that writes
+ *    `mychart-instances.json` at release and reruns weekly in clients.
+ *  - {@link listMyCharts} — the checked-in `mychart-instances.json`: what a
+ *    client offers until its first refresh. The one scraper that makes no
+ *    request.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -119,8 +122,14 @@ export interface DirectoryOrganization {
 export interface MyChartInstance {
   /** Display name, e.g. "UCHealth". */
   name: string;
-  /** The portal's login URL. */
+  /** The portal's login URL — what to connect to. */
   url: string;
+  /**
+   * The login URL Epic's directory publishes. Usually the same as `url`; it
+   * differs when Epic's points somewhere that isn't the portal (UCSF's is an
+   * information page) and a refresh found the real one.
+   */
+  directoryUrl: string;
   /** Absolute logo URL, always set — the generic one when unbranded. */
   logoUrl: string;
   /** Epic's directory id, e.g. "432-112". Survives a rename; the name doesn't. */
@@ -133,6 +142,14 @@ export interface MyChartInstance {
   countries: string[];
   /** What the organization calls its portal — "MyChart", "Maisa", "MyUCHealth". */
   brandName: string;
+  /**
+   * True when the last refresh (`fetchResolvedMyChartDirectory`) found the
+   * portal broken in a way that is the same from anywhere — hostname gone,
+   * connection refused, TLS failure, a 5xx — twice. A hang is not counted. A
+   * snapshot from that refresh, not a live check, and never set by a plain
+   * directory fetch.
+   */
+  down?: boolean;
   /** Whether the instance participates in MyChart Central. */
   liveOnCentral: boolean;
   /**
@@ -158,8 +175,23 @@ export interface MyChartInstance {
  */
 export type MyChartInstanceSeed = Pick<
   MyChartInstance,
-  'name' | 'url' | 'logoUrl' | 'slgId' | 'aliases'
->;
+  'name' | 'url' | 'logoUrl' | 'slgId' | 'aliases' | 'down'
+> & {
+  /** Stored only when it differs from `url` — it is how a correction is recorded. */
+  directoryUrl?: string;
+};
+
+/**
+ * How both JSON files are written: entries sorted by `slgId` (numerically, so
+ * `320` precedes `320-1` and `1001534`), each entry's keys alphabetically, so
+ * a refresh's diff shows only what changed.
+ */
+export function toSortedJson(entries: readonly ({ slgId: string } & object)[]): string {
+  const sorted = [...entries]
+    .sort((a, b) => a.slgId.localeCompare(b.slgId, 'en', { numeric: true }))
+    .map((entry) => Object.fromEntries(Object.entries(entry).sort(([a], [b]) => (a < b ? -1 : 1))));
+  return `${JSON.stringify(sorted, null, 2)}\n`;
+}
 
 /** Narrow a full instance to what the checked-in seed stores. */
 export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
@@ -169,7 +201,19 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
     logoUrl: instance.logoUrl,
     slgId: instance.slgId,
     aliases: instance.aliases,
+    ...(instance.directoryUrl !== instance.url ? { directoryUrl: instance.directoryUrl } : {}),
+    ...(instance.down ? { down: true } : {}),
   };
+}
+
+/**
+ * Every MyChart the checked-in `mychart-instances.json` knows: Epic's
+ * directory, every login URL checked, as of the last MCPB release. Unlike the
+ * other scrapers it makes no request; it is what a client offers until its
+ * first weekly refresh (`refreshMyChartDirectory`) finishes.
+ */
+export function listMyCharts(): MyChartInstanceSeed[] {
+  return bundledInstances;
 }
 
 /** The logo URL Epic's own picker would render for this organization. */
@@ -202,15 +246,16 @@ function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
   const org = raw as Record<string, unknown>;
 
   const name = typeof org.name === 'string' ? org.name.trim() : '';
-  const url = typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '';
   const slgId = typeof org.slgId === 'string' ? org.slgId : '';
-  if (!name || !url) return null;
+  const directoryUrl = typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '';
+  if (!name || !directoryUrl) return null;
 
   const logo = org.logo as DirectoryLogo | undefined;
   return {
     name,
-    url,
-    logoUrl: logoUrlFor({ slgId, name, loginUrl: url, logo }, mediaBase),
+    url: directoryUrl,
+    directoryUrl,
+    logoUrl: logoUrlFor({ slgId, name, loginUrl: directoryUrl, logo }, mediaBase),
     slgId,
     aliases: asStringArray(org.aliases),
     states: asStringArray(org.states),
@@ -246,9 +291,31 @@ export function parseDirectoryPayload(
       'MyChart directory response has no "organizations" array — the endpoint shape changed.',
     );
   }
-  return organizations
-    .map((org) => toInstance(org, mediaBase))
-    .filter((i): i is MyChartInstance => i !== null);
+  return mergeDuplicates(
+    organizations.map((org) => toInstance(org, mediaBase)).filter((i): i is MyChartInstance => i !== null),
+  );
+}
+
+/**
+ * Collapse entries with the same name **and** the same URL into one, which a
+ * picker would otherwise show twice: Epic lists Cleveland Clinic once for the
+ * US (`320`) and once for Canada (`320-1`). The shortest `slgId` — the
+ * parent's — is kept, with every entry's aliases.
+ *
+ * Same name alone is not a duplicate ("Baptist Health" is two systems, in
+ * Alabama and Arkansas), and neither is same portal alone (affiliates sharing
+ * a parent's MyChart are searched by their own names).
+ */
+export function mergeDuplicates(instances: MyChartInstance[]): MyChartInstance[] {
+  const groups = new Map<string, MyChartInstance[]>();
+  for (const instance of instances) {
+    const key = `${instance.name.toLowerCase()}|${instance.url}`;
+    groups.set(key, [...(groups.get(key) ?? []), instance]);
+  }
+  return [...groups.values()].map((group) => {
+    const kept = group.reduce((a, b) => (b.slgId.length < a.slgId.length ? b : a));
+    return { ...kept, aliases: [...new Set(group.flatMap((i) => i.aliases))] };
+  });
 }
 
 /**
@@ -338,7 +405,7 @@ export async function fetchMyChartIcon(
 export function directoryPrefixesFor(hostname: string): string[] {
   const wanted = hostname.toLowerCase();
   const counts = new Map<string, number>();
-  for (const instance of bundledInstances as MyChartInstanceSeed[]) {
+  for (const instance of listMyCharts()) {
     let url: URL;
     try {
       url = new URL(instance.url);

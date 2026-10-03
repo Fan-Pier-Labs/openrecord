@@ -3,14 +3,15 @@
  *
  * Three layers, in the order they're consulted:
  *
- *  1. **The bundled seed** (`mychart-instances.json`), so a first launch with
- *     no network still shows every provider. It ships with the app and is
- *     refreshed in the repo by `scrapers/list-all-mycharts/fetch-mychart-instances.ts`.
+ *  1. **The checked-in list** (`listMyCharts()`), so a first launch with no
+ *     network still shows every provider. It ships with the app: Epic's
+ *     directory as checked at the last release.
  *  2. **The SQLite cache**, written by the last successful refresh. Read on
  *     boot before any network call, so the list a returning user sees is the
  *     current one immediately rather than after a round trip.
- *  3. **Epic's live directory** (`fetchMyChartDirectory`), fetched in the
- *     background at most once a week. New health systems come online between
+ *  3. **A fresh run of the refresh behind `mychart-instances.json`**
+ *     (`fetchResolvedMyChartDirectory`: Epic's directory, every login URL
+ *     checked), in the background at most once a week. New health systems come online between
  *     app releases; without this the picker is as stale as the last TestFlight
  *     build, and a patient whose provider is missing has no way to connect.
  *
@@ -21,9 +22,13 @@
  * of.
  */
 
-import { fetchMyChartDirectory, fetchMyChartIcon } from "../../../scrapers/list-all-mycharts/directory";
+import {
+  fetchMyChartIcon,
+  listMyCharts,
+  toSeedEntry,
+} from "../../../scrapers/list-all-mycharts/directory";
+import { fetchResolvedMyChartDirectory } from "../../../scrapers/list-all-mycharts/refreshDirectory";
 import type { MyChartInstanceSeed } from "../../../scrapers/list-all-mycharts/directory";
-import bundledInstances from "../../../scrapers/list-all-mycharts/mychart-instances.json";
 import {
   SANDBOX_UNAVAILABLE_NOTE,
   isSandboxAvailable,
@@ -54,18 +59,15 @@ export const FAKE_MYCHART_DEMO: MyChartInstance = {
   aliases: [],
 };
 
-const seeded: MyChartInstance[] = [
-  FAKE_MYCHART_DEMO,
-  ...(bundledInstances as MyChartInstance[]),
-];
-
-let instances: MyChartInstance[] = seeded;
+let instances: MyChartInstance[] = [FAKE_MYCHART_DEMO, ...listMyCharts()];
 /** Bumped whenever `instances` is replaced, so React can re-render on it. */
 let revision = 0;
 const listeners = new Set<() => void>();
 
-function publish(next: MyChartInstance[]): void {
-  instances = [FAKE_MYCHART_DEMO, ...next.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId)];
+/** Replace the list with one a refresh produced (or that refresh, cached). */
+function publish(refreshed: MyChartInstance[]): void {
+  const next = refreshed.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId);
+  instances = [FAKE_MYCHART_DEMO, ...next];
   revision += 1;
   for (const listener of listeners) listener();
 }
@@ -110,20 +112,15 @@ export async function initInstances(): Promise<void> {
 }
 
 /**
- * Fetch the live directory and cache it. Failure is not surfaced — an offline
- * launch keeps the list it already had.
+ * Rerun the refresh that builds `mychart-instances.json` and cache its result.
+ * Minutes of requests, so it runs in the background (see `initInstances`), and
+ * failure is not surfaced — an offline launch keeps the list it already had.
  */
 export async function refreshInstances(): Promise<void> {
   try {
-    const fetched = await fetchMyChartDirectory();
-    if (fetched.length === 0) return;
-    const list: MyChartInstance[] = fetched.map((i) => ({
-      name: i.name,
-      url: i.url,
-      logoUrl: i.logoUrl,
-      slgId: i.slgId,
-      aliases: i.aliases,
-    }));
+    const { instances: refreshed } = await fetchResolvedMyChartDirectory();
+    if (refreshed.length === 0) return;
+    const list: MyChartInstance[] = refreshed.map(toSeedEntry);
     publish(list);
     await setCachedDirectory(JSON.stringify(list));
   } catch (err) {

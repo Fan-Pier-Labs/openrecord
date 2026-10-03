@@ -551,8 +551,11 @@ Beyond the static helpers on `MyChartClient`:
 
 | Function | Purpose |
 | --- | --- |
-| `searchMyChartDirectory(query, opts?)` | What `MyChartClient.searchMyCharts` calls. Results are cached for `DIRECTORY_CACHE_TTL_MS` |
-| `fetchMyChartDirectory()`, `rankDirectoryMatches`, `clearDirectoryCache` | The full directory and the ranking |
+| `searchMyChartDirectory(query, opts?)` | What `MyChartClient.searchMyCharts` calls. Searches the last refresh's list (or the checked-in one), with no request |
+| `refreshMyChartDirectory()` | Rerun the refresh behind the checked-in list (Epic's directory, every login URL checked; minutes of requests) and search its result from now on. Returns it to save |
+| `useRefreshedMyCharts(list)` | Search a list an earlier refresh saved. `clearDirectoryCache()` goes back to the checked-in one. `DIRECTORY_REFRESH_INTERVAL_MS` is how often the extension and app rerun it |
+| `listMyCharts()` | The checked-in list: Epic's directory as checked at release. No request |
+| `fetchMyChartDirectory()`, `rankDirectoryMatches` | Epic's raw directory, one request; the ranking |
 | `SANDBOX_INSTANCE` | The fake-mychart sandbox entry, for testing a setup flow |
 | `lookupNpi`, `searchNpiRegistry`, `isValidNpi`, `buildNpiSearchUrl` | CMS NPI Registry |
 | `fetchNpiLookupRaw`, `fetchNpiSearchRaw`, `npiLookupProcessor`, `npiSearchProcessor` | The raw/processor split for NPI |
