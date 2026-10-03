@@ -74,32 +74,28 @@ describe('resolveLoginUrl', () => {
       'https://www.example-health.org/mychart/Authentication/Login': html('<h1>About MyChart</h1>'),
     });
     expect(await resolveLoginUrl('https://www.example-health.org/')).toEqual({
-      kind: 'unconfirmed',
+      kind: 'down',
       reason: 'no MyChart login on the page or anything it links to',
     });
   });
 
-  it('calls a site that never answers down', async () => {
-    serve({ 'https://mychart.example.org/': () => new Error('Unable to connect') });
-    expect(await resolveLoginUrl('https://mychart.example.org/')).toMatchObject({ kind: 'down' });
-  });
-
-  it('calls a 5xx down, but a 4xx only unconfirmed', async () => {
+  it('calls anything it could not confirm up down, with the reason', async () => {
     serve({
-      'https://a.example.org/': html('unavailable', 503),
-      'https://b.example.org/': html('forbidden', 403),
+      'https://a.example.org/': () => new Error('Unable to connect'),
+      'https://b.example.org/': html('unavailable', 503),
+      'https://c.example.org/': html('forbidden', 403),
+      'https://d.example.org/': () => new Error('The operation timed out.'),
     });
-    expect(await resolveLoginUrl('https://a.example.org/')).toEqual({ kind: 'down', reason: 'HTTP 503' });
-    expect(await resolveLoginUrl('https://b.example.org/')).toEqual({ kind: 'unconfirmed', reason: 'HTTP 403' });
+    expect(await resolveLoginUrl('https://a.example.org/')).toEqual({ kind: 'down', reason: 'Unable to connect' });
+    expect(await resolveLoginUrl('https://b.example.org/')).toEqual({ kind: 'down', reason: 'HTTP 503' });
+    expect(await resolveLoginUrl('https://c.example.org/')).toEqual({ kind: 'down', reason: 'HTTP 403' });
+    expect(await resolveLoginUrl('https://d.example.org/')).toEqual({ kind: 'down', reason: 'The operation timed out.' });
   });
 
-  it('does not call a missing intermediate certificate down, since browsers load those', async () => {
-    serve({ 'https://mychart.example.org/': () => new Error('unable to verify the first certificate') });
-    expect(await resolveLoginUrl('https://mychart.example.org/')).toMatchObject({ kind: 'unconfirmed' });
-  });
-
-  it('does not call a hang down, since that is what blocking foreign traffic looks like', async () => {
-    serve({ 'https://mijn.example.nl/': () => new Error('The operation timed out.') });
-    expect(await resolveLoginUrl('https://mijn.example.nl/')).toMatchObject({ kind: 'unconfirmed' });
+  it('gives up after five redirects', async () => {
+    const loop: Record<string, () => Response> = {};
+    for (let i = 0; i < 6; i++) loop[`https://loop.example.org/${i}`] = redirect(`/${i + 1}`);
+    serve(loop);
+    expect(await resolveLoginUrl('https://loop.example.org/0')).toEqual({ kind: 'down', reason: 'more than 5 redirects' });
   });
 });

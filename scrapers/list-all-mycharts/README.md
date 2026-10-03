@@ -78,34 +78,30 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
 
 [`resolveLoginUrl.ts`](resolveLoginUrl.ts) follows each `loginUrl`. If it lands on a MyChart
 login page it stands. If not, the MyChart links on the page it landed on are tried, and the
-first that itself serves a login page replaces it. Otherwise it keeps the URL it had, and is
-either `down` — broken the same way from anywhere: hostname gone, connection refused, TLS
-failure, 5xx — or `unconfirmed`: a custom sign-in page, a bot wall, a dead link, or a
-connection that just hangs. A hang is deliberately not `down`: from the US, six Dutch
-hospitals and an NHS trust do exactly that, which is what blocking foreign traffic looks
-like, and their own patients reach them fine.
+first that itself serves a login page replaces it. Otherwise it's `down`: we couldn't confirm
+it was up when we checked — a dead host, a custom sign-in page, a bot wall, or a portal that
+blocks traffic from outside its own country (six Dutch hospitals and an NHS trust, from the
+US). It keeps Epic's URL.
 
 [`refreshDirectory.ts`](refreshDirectory.ts) runs that over the whole directory, retrying
-anything that looked down once at the end. It backs `mychart-cli --action list-mycharts`
-and `fetch-mychart-instances.ts`, which the MCPB's `pack:signed` runs before every release,
-leaving the refreshed seed to commit.
+anything down once at the end. It backs `mychart-cli --action list-mycharts` and
+`fetch-mychart-instances.ts`, which the MCPB's `pack:signed` runs before every release,
+leaving the refreshed file to commit. Both JSON files are written sorted by `slgId`, keys in
+order (`toSortedJson`), so a diff shows only what changed.
 
-The seed is where the result is recorded:
+The generated file records the result: **`directoryUrl`** on a corrected entry (Epic's URL,
+with `url` holding ours) and **`down: true`** on one we couldn't confirm. `down` is a snapshot
+from release time; nothing shows it yet.
 
-- **`directoryUrl`** — present only on a corrected entry: Epic's URL, with `url` holding
-  ours. `parseDirectoryPayload` applies the correction to the **live** directory too, or
-  an online search would hand back the very page it exists to avoid — but only while Epic
-  still publishes that `directoryUrl`. Once Epic changes it, Epic's wins.
-- **`down: true`** — the refresh found the portal `down` twice. A snapshot from release
-  time, not a live check; nothing shows it yet.
-
-**`mychart-instances-manual.json`** holds what research found that a refresh can't, each entry
-with its source: `corrections` (an entry's real portal, applied only while the generated entry
-still has the Epic URL it was made against — a refresh that records a new one retires it),
-`additions` (organizations Epic doesn't list, under `openrecord-…` ids) and `extraHosts` (more
-hostnames for a listed organization's portal, so password import recognises them). Every refresh
-re-checks them and lists the ones that need a look; `directory.unit.test.ts` fails the build if a
-correction no longer matches its Epic URL, or an addition is one Epic now lists.
+**`mychart-instances-manual.json`** is a list of hand-kept entries keyed by `slgId`, each with
+its `source`. `withFixes` builds one dictionary by `slgId` from a list — the generated one, or
+Epic's as just fetched — overlays the corrections the generated file recorded, then overlays
+these. An entry's fields replace the generated ones (a corrected `url`, `extraHosts` that let
+password import recognise another hostname) and clear its `down`; an `openrecord-…` id adds an
+organization Epic doesn't list. Every refresh re-checks the hand-kept URLs and lists any that
+stopped serving a login; `directory.unit.test.ts` fails the build if a hand entry names an
+`slgId` that doesn't exist, an addition's host is one Epic now lists, or either file isn't in
+sorted form.
 
 **[`LOGIN-URL-RESEARCH.md`](LOGIN-URL-RESEARCH.md)** is the 66 entries the first sweep couldn't
 confirm, researched by hand — the real portal for each where one exists, and why the rest
@@ -121,9 +117,8 @@ login URLs are right as published — the same 1,332 an independent scan found. 
 corrected; 17 are confirmed by the page's own sign-in link or the portal's branding, and
 `mychart.bswhealth.com/fa/` (Baylor Scott & White, whose real sign-in is a custom page)
 serves a MyBSWHealth login no one has signed in to. Mount discovery succeeds on every
-corrected host. 8 are `down` (three hostnames gone, three TLS failures, an expired
-certificate, a 503), and 58–77 are `unconfirmed` depending on the run, the swing being
-timeouts.
+corrected host. 66–134 were `down`, the swing between runs being timeouts; 8 of them are
+broken for anyone (three hostnames gone, three TLS failures, an expired certificate, a 503).
 
 ## The probes
 

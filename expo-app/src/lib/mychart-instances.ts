@@ -27,7 +27,7 @@ import {
   fetchMyChartIcon,
   listMyCharts,
   toSeedEntry,
-  withManualEntries,
+  withFixes,
 } from "../../../scrapers/list-all-mycharts/directory";
 import type { MyChartInstanceSeed } from "../../../scrapers/list-all-mycharts/directory";
 import {
@@ -67,12 +67,12 @@ const listeners = new Set<() => void>();
 
 /**
  * Replace the list with one fetched from Epic (or that fetch, cached). The
- * cache holds Epic's list as fetched, and our hand-kept entries are merged in
- * here, so an app update that brings new ones applies them at once rather than
- * at the next weekly refresh.
+ * cache holds Epic's list as fetched and the fixes are applied here, so an app
+ * update that brings new ones applies them at once rather than at the next
+ * weekly refresh.
  */
 function publish(fetched: MyChartInstance[]): void {
-  const next = withManualEntries(fetched.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId));
+  const next = withFixes(fetched.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId));
   instances = [FAKE_MYCHART_DEMO, ...next];
   revision += 1;
   for (const listener of listeners) listener();

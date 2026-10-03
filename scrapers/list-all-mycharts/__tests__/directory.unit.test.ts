@@ -7,6 +7,8 @@
  * object has none of them.
  */
 import { afterEach, describe, expect, it } from 'bun:test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { setTestTransport } from '../../http';
 import {
@@ -16,7 +18,8 @@ import {
   fetchMyChartIcon,
   listMyCharts,
   logoUrlFor,
-  withManualEntries,
+  toSortedJson,
+  withFixes,
   parseDirectoryPayload,
   toSeedEntry,
   type MyChartInstanceSeed,
@@ -85,28 +88,6 @@ describe('parseDirectoryPayload', () => {
     expect(elCamino?.aliases).toEqual(['Silicon Valley Sports Medicine']);
   });
 
-  describe('login-URL corrections recorded in the bundled seed', () => {
-    const ucsfSeed = (bundledInstances as MyChartInstanceSeed[]).find((i) => i.slgId === '166');
-
-    it('applies to the live directory while Epic still publishes the URL we corrected', () => {
-      // The regression in #540: Epic's URL for UCSF is an information page.
-      expect(ucsfSeed?.directoryUrl).toBe('https://www.ucsfhealth.org/ucsfmychart/');
-      const [ucsf] = parseDirectoryPayload({
-        organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://www.ucsfhealth.org/ucsfmychart/' }],
-      });
-      expect(ucsf?.url).toBe(ucsfSeed!.url);
-      expect(new URL(ucsf!.url).host).toBe('ucsfmychart.ucsfmedicalcenter.org');
-      expect(ucsf?.directoryUrl).toBe('https://www.ucsfhealth.org/ucsfmychart/');
-    });
-
-    it('gives way once Epic publishes a different URL', () => {
-      const [ucsf] = parseDirectoryPayload({
-        organizations: [{ slgId: '166', name: 'UCSF', loginUrl: 'https://mychart.example.org/UCSF/' }],
-      });
-      expect(ucsf?.url).toBe('https://mychart.example.org/UCSF/');
-    });
-  });
-
   it('records a correction and a down portal in the seed only when there is one', () => {
     const [plain] = parseDirectoryPayload({
       organizations: [{ slgId: '9001', name: 'Springfield', loginUrl: 'https://mychart.example.org/MyChart/' }],
@@ -121,22 +102,14 @@ describe('parseDirectoryPayload', () => {
   describe('duplicates', () => {
     const parse = (organizations: object[]) => parseDirectoryPayload({ organizations });
 
-    it('merges entries with the same name and portal, keeping the parent and every alias, state and country', () => {
+    it('merges entries with the same name and URL, keeping the parent and every alias', () => {
       // Cleveland Clinic's shape: listed for the US and again for Canada.
       const merged = parse([
         { slgId: '320', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: ['Martin'], states: ['OH'], countries: ['US'] },
         { slgId: '320-1', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: [], states: [], countries: ['CA'] },
       ]);
       expect(merged).toHaveLength(1);
-      expect(merged[0]).toMatchObject({ slgId: '320', aliases: ['Martin'], states: ['OH'], countries: ['US', 'CA'] });
-    });
-
-    it('treats the login route, case and a trailing slash as the same portal', () => {
-      const merged = parse([
-        { slgId: '9001-1', name: 'Springfield', loginUrl: 'https://mychart.example.org/MyChart/Authentication/Login?' },
-        { slgId: '9001', name: 'springfield', loginUrl: 'https://MyChart.example.org/mychart' },
-      ]);
-      expect(merged.map((i) => i.slgId)).toEqual(['9001']);
+      expect(merged[0]).toMatchObject({ slgId: '320', aliases: ['Martin'] });
     });
 
     it('keeps same-named systems on different portals, and affiliates sharing one', () => {
@@ -155,13 +128,14 @@ describe('parseDirectoryPayload', () => {
   });
 });
 
-describe('listMyCharts', () => {
+describe('withFixes and listMyCharts', () => {
+  const seed = bundledInstances as MyChartInstanceSeed[];
   const merged = listMyCharts();
   const bySlgId = (slgId: string) => merged.find((i) => i.slgId === slgId);
-  const seed = bundledInstances as MyChartInstanceSeed[];
+  const additions = manualEntries.filter((e) => e.slgId.startsWith('openrecord-'));
 
   it('is the generated list plus the hand additions', () => {
-    expect(merged).toHaveLength(seed.length + manualEntries.additions.length);
+    expect(merged).toHaveLength(seed.length + additions.length);
     expect(bySlgId('openrecord-rnoh')).toMatchObject({
       name: 'Royal National Orthopaedic Hospital',
       url: 'https://mycare.rnoh.nhs.uk/RNOHMyCare/',
@@ -169,29 +143,25 @@ describe('listMyCharts', () => {
     });
   });
 
-  it('applies a hand correction while the generated entry still has the Epic URL it was made against', () => {
+  it('lets a hand entry win, and clears the down the generated list gave its Epic URL', () => {
     // Bellin: Epic's host no longer resolves; its patients moved to Emplify Health.
-    expect(seed.find((i) => i.slgId === '306-2')?.url).toBe('https://www.mybellin.org/MyChart/');
-    expect(bySlgId('306-2')).toMatchObject({
-      url: 'https://mychart.emplifyhealth.org/MyChart/',
-      directoryUrl: 'https://www.mybellin.org/MyChart/',
-    });
-  });
-
-  it('attaches extra hostnames', () => {
+    expect(seed.find((i) => i.slgId === '306-2')).toMatchObject({ url: 'https://www.mybellin.org/MyChart/', down: true });
+    expect(bySlgId('306-2')?.url).toBe('https://mychart.emplifyhealth.org/MyChart/');
+    expect(bySlgId('306-2')).not.toContainKey('down');
     expect(bySlgId('650')?.extraHosts).toEqual(['mynm.nm.org']);
   });
 
-  it('merges the same way into a list fetched from Epic', () => {
-    // What a weekly refresh hands it: Epic's Bellin, plus an organization the
-    // hand file also adds, which must not appear twice.
-    const fetched = withManualEntries([
+  it("applies to a list fetched from Epic, including the refresh's own corrections", () => {
+    const fetched = withFixes([
+      // As Epic publishes them: UCSF's information page, Bellin's dead host.
+      { name: 'UCSF', url: 'https://www.ucsfhealth.org/ucsfmychart/', logoUrl: '', slgId: '166', aliases: [] },
       { name: 'Bellin', url: 'https://www.mybellin.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [] },
-      { name: 'Royal National Orthopaedic Hospital', url: 'https://mycare.rnoh.nhs.uk/RNOHMyCare/', logoUrl: '', slgId: 'openrecord-rnoh', aliases: [] },
     ]);
+    expect(new URL(fetched.find((i) => i.slgId === '166')!.url).host).toBe('ucsfmychart.ucsfmedicalcenter.org');
     expect(fetched.find((i) => i.slgId === '306-2')?.url).toBe('https://mychart.emplifyhealth.org/MyChart/');
-    expect(fetched.filter((i) => i.slgId === 'openrecord-rnoh')).toHaveLength(1);
-    expect(fetched).toHaveLength(2 + manualEntries.additions.length - 1);
+    // Hand entries for organizations the fetched list lacks are not invented,
+    // except the additions, which are always there.
+    expect(fetched).toHaveLength(2 + additions.length);
   });
 
   it('never mutates the generated list it reads', () => {
@@ -200,42 +170,37 @@ describe('listMyCharts', () => {
 });
 
 /**
- * `mychart-instances-manual.json` is kept by hand against a generated file
- * that a release rewrites, so these fail the build when the two drift apart.
+ * `mychart-instances-manual.json` is kept by hand against a generated file a
+ * release rewrites, so these fail the build when the two drift apart.
  */
-describe('mychart-instances-manual.json', () => {
+describe('the checked-in JSON files', () => {
   const seed = new Map((bundledInstances as MyChartInstanceSeed[]).map((i) => [i.slgId, i]));
+  const dir = path.join(import.meta.dir, '..');
 
-  it("corrects only entries that exist, against the Epic URL they still carry", () => {
-    // A failure here means a refresh recorded a new Epic URL: re-check the
-    // organization, then update or delete the correction.
-    for (const c of manualEntries.corrections) {
-      const entry = seed.get(c.slgId);
-      expect(entry, c.slgId).toBeDefined();
-      expect(entry!.directoryUrl ?? entry!.url, c.slgId).toBe(c.directoryUrl);
+  it('are sorted by slgId with keys in order, so a diff shows only what changed', () => {
+    for (const file of ['mychart-instances.json', 'mychart-instances-manual.json']) {
+      const text = fs.readFileSync(path.join(dir, file), 'utf8');
+      expect(text, file).toBe(toSortedJson(JSON.parse(text) as { slgId: string }[]));
     }
   });
 
-  it('adds only organizations Epic does not list, under ids of our own', () => {
+  it('fix only entries that exist, and add only organizations Epic does not list', () => {
     const hosts = new Set([...seed.values()].map((i) => new URL(i.url).hostname.toLowerCase()));
-    for (const a of manualEntries.additions) {
-      expect(a.slgId.startsWith('openrecord-'), a.slgId).toBe(true);
-      // Epic listing the host now means the addition can go.
-      expect(hosts.has(new URL(a.url).hostname.toLowerCase()), a.url).toBe(false);
-    }
-    expect(new Set(manualEntries.additions.map((a) => a.slgId)).size).toBe(manualEntries.additions.length);
-  });
-
-  it('gives extra hostnames only to entries that exist, never repeating their own', () => {
-    for (const h of manualEntries.extraHosts) {
-      expect(seed.has(h.slgId), h.slgId).toBe(true);
-      expect(new URL(seed.get(h.slgId)!.url).hostname.toLowerCase(), h.host).not.toBe(h.host);
+    for (const e of manualEntries) {
+      if (e.slgId.startsWith('openrecord-')) {
+        expect(e.url && e.name, e.slgId).toBeTruthy();
+        // Epic listing the host now means the addition can go.
+        expect(hosts.has(new URL(e.url!).hostname.toLowerCase()), e.slgId).toBe(false);
+      } else {
+        expect(seed.has(e.slgId), e.slgId).toBe(true);
+      }
     }
   });
 
-  it('uses mount URLs a login can start from', () => {
-    for (const { url } of [...manualEntries.corrections, ...manualEntries.additions]) {
-      expect(url, url).toMatch(/^https:\/\/[^/]+\/([^/]+\/)?$/);
+  it('give extra hostnames that differ from the entry\'s own, and mount URLs a login can start from', () => {
+    for (const e of manualEntries) {
+      for (const host of e.extraHosts ?? []) expect(new URL(seed.get(e.slgId)!.url).hostname, host).not.toBe(host);
+      if (e.url) expect(e.url).toMatch(/^https:\/\/[^/]+\/([^/]+\/)?$/);
     }
   });
 });

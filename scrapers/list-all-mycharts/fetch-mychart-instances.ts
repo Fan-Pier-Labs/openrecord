@@ -21,7 +21,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { silenceLogger } from '../../shared/logger';
-import { toSeedEntry, type MyChartInstance, type MyChartInstanceSeed } from './directory';
+import { toSeedEntry, toSortedJson, type MyChartInstance, type MyChartInstanceSeed } from './directory';
 import manualEntries from './mychart-instances-manual.json';
 import { fetchResolvedMyChartDirectory } from './refreshDirectory';
 import { resolveLoginUrl } from './resolveLoginUrl';
@@ -33,30 +33,24 @@ async function main() {
   // Every request logs a line, and ~5,000 of them bury the summary below.
   silenceLogger();
 
-  const { instances, corrected, unconfirmed } = await fetchResolvedMyChartDirectory((done, total) => {
+  const { instances, corrected, down } = await fetchResolvedMyChartDirectory((done, total) => {
     if (done % 100 === 0 || done === total) console.log(`Checked ${done}/${total} login URLs`);
   });
 
-  // Sorted by name so a refresh produces a reviewable diff — Epic's own
-  // ordering drifts, and an unsorted rewrite reads as "everything changed".
-  instances.sort((a, b) => a.name.localeCompare(b.name) || a.slgId.localeCompare(b.slgId));
   const next = instances.map(toSeedEntry);
 
   const previous = new Map(
     (JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')) as MyChartInstanceSeed[]).map((e) => [e.slgId, e]),
   );
   const moved = next.filter((e) => previous.has(e.slgId) && previous.get(e.slgId)!.url !== e.url);
-  const down = unconfirmed.filter((u) => u.resolution.kind === 'down');
 
-  console.log(
-    `${next.length} instances (was ${previous.size}): ${corrected} login URLs corrected, ` +
-      `${down.length} down, ${unconfirmed.length - down.length} unconfirmed (custom sign-in, bot wall, or no answer from here)`,
-  );
+  console.log(`${next.length} instances (was ${previous.size}): ${corrected} login URLs corrected, ${down.length} down`);
   for (const e of moved) console.log(`  url changed  ${e.slgId}  ${e.name}: ${previous.get(e.slgId)!.url} → ${e.url}`);
-  for (const { instance, resolution } of down) console.log(`  down  ${instance.slgId}  ${instance.name}: ${resolution.reason}`);
+  for (const { instance, reason } of down) console.log(`  down  ${instance.slgId}  ${instance.name}: ${reason}`);
 
   if (!dryRun) {
-    fs.writeFileSync(OUTPUT_FILE, `${JSON.stringify(next, null, 2)}\n`);
+    // Sorted so a refresh produces a reviewable diff: Epic's own order drifts.
+    fs.writeFileSync(OUTPUT_FILE, toSortedJson(next));
     console.log(`Wrote ${next.length} instances to ${OUTPUT_FILE}`);
   }
   await checkManualEntries(instances);
@@ -65,26 +59,22 @@ async function main() {
 /**
  * The hand-kept entries are only as good as the last time someone looked, so
  * every refresh looks again and says what needs a human: a portal that no
- * longer serves a login, a correction Epic's new URL has made moot, an
- * addition Epic now lists itself. Warnings, not failures — a release is not
+ * longer serves a login, or an addition Epic now lists itself. Warnings, not failures — a release is not
  * the moment to research a hospital's website.
  */
 async function checkManualEntries(epic: MyChartInstance[]): Promise<void> {
-  const bySlgId = new Map(epic.map((i) => [i.slgId, i]));
   const epicHosts = new Set(epic.map((i) => new URL(i.directoryUrl).hostname.toLowerCase()));
   const warnings: string[] = [];
 
-  for (const c of manualEntries.corrections) {
-    const now = bySlgId.get(c.slgId)?.directoryUrl;
-    if (now !== c.directoryUrl) warnings.push(`correction ${c.slgId} ${c.name} lapsed: Epic now publishes ${now ?? 'nothing'}`);
+  for (const { slgId, name, url } of manualEntries) {
+    if (url && slgId.startsWith('openrecord-') && epicHosts.has(new URL(url).hostname.toLowerCase())) {
+      warnings.push(`addition ${slgId} ${name}: Epic now lists ${url}`);
+    }
   }
-  for (const a of manualEntries.additions) {
-    if (epicHosts.has(new URL(a.url).hostname.toLowerCase())) warnings.push(`addition ${a.slgId} ${a.name}: Epic now lists ${a.url}`);
-  }
-  const urls = [...new Set([...manualEntries.corrections, ...manualEntries.additions].map((e) => e.url))];
+  const urls = [...new Set(manualEntries.flatMap((e) => (e.url ? [e.url] : [])))];
   const results = await Promise.all(urls.map(async (url) => [url, await resolveLoginUrl(url)] as const));
   for (const [url, result] of results) {
-    if (result.kind !== 'login') warnings.push(`${url} no longer serves a MyChart login (${result.kind}${'reason' in result ? `: ${result.reason}` : ''})`);
+    if (result.kind === 'down') warnings.push(`${url} no longer serves a MyChart login: ${result.reason}`);
   }
 
   console.log(`Hand entries (mychart-instances-manual.json): ${warnings.length ? `${warnings.length} need a look` : 'all still good'}`);

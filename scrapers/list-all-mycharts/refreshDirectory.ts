@@ -13,18 +13,12 @@ import { resolveLoginUrl, type LoginUrlResolution } from './resolveLoginUrl';
 /** Organizations resolved at once. `scraperFetch` still caps each host at ten. */
 const CONCURRENCY = 24;
 
-type Unconfirmed = Extract<LoginUrlResolution, { kind: 'down' | 'unconfirmed' }>;
-
 export interface ResolvedDirectory {
   instances: MyChartInstance[];
   /** Organizations whose `url` now differs from Epic's `loginUrl`. */
   corrected: number;
-  /**
-   * Organizations whose login could be confirmed neither way. Each keeps the
-   * URL it had — the last correction while Epic's URL is unchanged, Epic's own
-   * otherwise — and the `down` ones are marked so.
-   */
-  unconfirmed: { instance: MyChartInstance; resolution: Unconfirmed }[];
+  /** Organizations we couldn't confirm were up, twice. They keep Epic's URL, marked `down`. */
+  down: { instance: MyChartInstance; reason: string }[];
 }
 
 async function resolveAll(
@@ -57,14 +51,13 @@ export async function fetchResolvedMyChartDirectory(
   const looksDown = instances.filter((i) => outcomes.get(i)?.kind === 'down');
   await resolveAll(looksDown, (instance, resolution) => outcomes.set(instance, resolution));
 
-  const unconfirmed: ResolvedDirectory['unconfirmed'] = [];
+  const down: ResolvedDirectory['down'] = [];
   for (const instance of instances) {
     const resolution = outcomes.get(instance)!;
-    if (resolution.kind === 'login') instance.url = instance.directoryUrl;
-    else if (resolution.kind === 'linked') instance.url = resolution.url;
-    else {
-      if (resolution.kind === 'down') instance.down = true;
-      unconfirmed.push({ instance, resolution });
+    if (resolution.kind === 'linked') instance.url = resolution.url;
+    else if (resolution.kind === 'down') {
+      instance.down = true;
+      down.push({ instance, reason: resolution.reason });
     }
   }
 
@@ -73,6 +66,6 @@ export async function fetchResolvedMyChartDirectory(
   return {
     instances: merged,
     corrected: merged.filter((i) => i.url !== i.directoryUrl).length,
-    unconfirmed,
+    down,
   };
 }

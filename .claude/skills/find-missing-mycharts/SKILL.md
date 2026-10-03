@@ -35,7 +35,7 @@ bun -e "import { resolveLoginUrl } from './scrapers/list-all-mycharts/resolveLog
 ```
 
 You need `{"kind":"login"}`. `linked` means the URL is a page that links to the portal, so use the
-portal itself. `unconfirmed` and `down` don't count. The check can be fooled by an SSO hand-off
+portal itself. `down` doesn't count. The check can be fooled by an SSO hand-off
 page (Sentara's carries the same token as a real login form), so open the page and confirm there
 is a username/password form. A site that times out from here may be geo-blocking: the Dutch and
 NHS portals do. Note those rather than adding them.
@@ -66,30 +66,28 @@ What worked last time, roughly in order of yield:
 
 ## Editing `mychart-instances-manual.json`
 
-Three sections. Every entry needs a `source`: one sentence with the URL that proves it.
+The file is one array of entries keyed by `slgId`, sorted by `slgId` with each entry's keys in
+alphabetical order (the unit tests enforce both; `toSortedJson` in `directory.ts` writes that form).
+Every entry needs a `source`: one sentence with the URL that proves it. An entry's fields replace
+the generated entry's, and clear its `down`.
 
-- **`additions`** are organizations Epic doesn't list:
-  `{ "slgId": "openrecord-<slug>", "name", "url", "aliases": [], "states": [], "countries": [], "source" }`.
-  The `slgId` must start with `openrecord-` and be unique. `url` is the mount root
-  (`https://host/Mount/`, or `https://host/` for a root-mounted portal).
-- **`extraHosts`** are another hostname for a listed organization's portal:
-  `{ "slgId": "<Epic's id>", "name", "host" }`. These let search find the organization by that
-  host, and let password import recognise a password saved there. They're worth adding even when
-  the organization is listed.
-- **`corrections`** are a listed organization whose Epic URL is wrong:
-  `{ "slgId", "name", "directoryUrl", "url", "source" }`. `directoryUrl` must equal that entry's
-  Epic URL exactly: its `directoryUrl` in `mychart-instances.json` if it has one, otherwise its
-  `url`. The correction lapses when Epic changes that URL. Add one only when the evidence shows
-  patients use the new portal; don't add one where an organization's own sign-in (SSO, an app)
-  sits in front of MyChart.
+- **An organization Epic doesn't list:** `{ "aliases": [], "name", "slgId": "openrecord-<slug>", "source", "url" }`.
+  `url` is the mount root (`https://host/Mount/`, or `https://host/` for a root-mounted portal).
+- **Another hostname for a listed organization's portal:** `{ "extraHosts": ["host"], "name", "slgId", "source" }`
+  with Epic's `slgId`. These let search find the organization by that host, and let password
+  import recognise a password saved there. Add them even when the organization is listed.
+- **A listed organization whose Epic URL is wrong:** `{ "name", "slgId", "source", "url" }`. Add one
+  only when the evidence shows patients use the new portal. Don't add one where an organization's
+  own sign-in (SSO, an app) sits in front of MyChart.
 
-Keep each section in the order it's already in, and keep the JSON two-space indented.
+One entry per `slgId`: if an organization needs a new URL and an extra hostname, put both in one
+entry.
 
 ## Finishing
 
-1. `bun test scrapers/list-all-mycharts read-local-passwords`. The `mychart-instances-manual.json`
-   tests in `directory.unit.test.ts` fail if a correction doesn't match its Epic URL, an addition's
-   host is already listed, or an id or URL is malformed.
+1. `bun test scrapers/list-all-mycharts read-local-passwords`. The checked-in-files tests in
+   `directory.unit.test.ts` fail if an entry names an `slgId` that doesn't exist, an addition's host
+   is already listed, a URL isn't a mount root, or the file isn't in sorted form.
 2. Re-run the resolver on every URL you added. Run it again just before opening the PR.
 3. Update the "Missing from Epic's directory" section of `LOGIN-URL-RESEARCH.md`: what you
    searched, what you found, and what you left out and why. The next round starts from it.

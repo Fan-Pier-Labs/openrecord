@@ -595,7 +595,7 @@ export {
 export {
   fetchMyChartDirectory,
   listMyCharts,
-  withManualEntries,
+  withFixes,
   fetchMyChartIcon,
   parseDirectoryPayload,
   toSeedEntry,

@@ -4,7 +4,7 @@ Two questions, researched by hand: what the real portal is for the entries Epic'
 
 ## Entries the sweep couldn't confirm
 
-The 66 directory entries the first full sweep could not confirm automatically (58 `unconfirmed` plus 8 `down`; see [Checking login URLs](README.md#checking-login-urls)), researched by hand: the organization's own website, news of mergers and portal moves, and an anonymous page load of every candidate URL checked for Epic login markup — the same test `resolveLoginUrl` uses. Nothing here logged in.
+The 66 directory entries the first full sweep could not confirm automatically (58 the resolver then called `unconfirmed`, now `down`, plus 8 broken for anyone; see [Checking login URLs](README.md#checking-login-urls)), researched by hand: the organization's own website, news of mergers and portal moves, and an anonymous page load of every candidate URL checked for Epic login markup — the same test `resolveLoginUrl` uses. Nothing here logged in.
 
 A snapshot, not a contract: portals move. The organizations are public; none of this is patient data.
 
@@ -22,7 +22,7 @@ What it says about the directory:
 
 - **Most bad URLs are migrations Epic never caught up with**, not typos: Bellin → Emplify Health, Alleghany → Atrium, CHI Memorial / St. Joseph's / St. Vincent → CommonSpirit, Dreyer → Advocate's LiveWell, Children's Hospital Oakland → UCSF, University Health Shreveport → Ochsner.
 - **The Allina affiliates all point at Allina's own account site.** Each affiliate's website links to `www.mychartweb.com/MyChart/` — Allina's MyChart for affiliate partners — instead.
-- **A missing intermediate certificate is not a dead portal.** Nine entries work in any browser; the resolver already counts them `unconfirmed`, not `down`.
+- **A missing intermediate certificate is not a dead portal.** Nine entries work in any browser, though Bun and Node can't load them; the refresh marks them `down`, so a client should not read `down` as "dead".
 - **The login-page check can be fooled by an SSO hand-off.** Sentara's `/MyChart/Authentication/Login` carries the same anti-forgery token as a real login page but hands off to Sentara's own OAuth sign-in, with no password form.
 - **A site can block us and not curl.** Communitycare PLAN's mount answers 403 to the resolver and works from `curl` (the parent portal `mychart.mhs.net/mychart/` works too).
 

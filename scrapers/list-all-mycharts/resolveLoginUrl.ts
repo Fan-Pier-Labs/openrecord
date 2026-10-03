@@ -10,13 +10,8 @@
  *   1. follow the directory URL; if it lands on a MyChart login page, it's right;
  *   2. otherwise take the MyChart links on the page it landed on, and keep the
  *      first one that itself serves a MyChart login page;
- *   3. otherwise say which of two things it is. `down` is broken for anyone,
- *      anywhere: the hostname is gone, the connection is refused, TLS fails,
- *      a 5xx. `unconfirmed` is everything we can't vouch for either way — a
- *      custom sign-in page, a bot wall, a dead link, and a connection that
- *      just hangs, which is what a portal blocking traffic from outside its
- *      own country looks like (six Dutch hospitals and an NHS trust, from
- *      the US). Either way the caller keeps what it had.
+ *   3. otherwise it's `down`: we couldn't confirm it was up when we checked,
+ *      whatever the reason. The caller keeps Epic's URL.
  *
  * Every request is one an unauthenticated browser makes opening the page.
  */
@@ -24,7 +19,7 @@
 import { extractMountsFromLinks, looksLikeLoginPage } from '../myChart/auth/login';
 import { MyChartRequest } from '../myChart/core/myChartRequest';
 
-const MAX_HOPS = 10;
+const MAX_HOPS = 5;
 
 /** Links tried per page, in the ranking's order. */
 const MAX_CANDIDATES = 5;
@@ -47,16 +42,7 @@ const RESOLVE_TIMEOUT_MS = 60_000;
 export type LoginUrlResolution =
   | { kind: 'login' }
   | { kind: 'linked'; url: string }
-  | { kind: 'down'; reason: string }
-  | { kind: 'unconfirmed'; reason: string };
-
-/**
- * Failures that don't prove a portal is down: a hang or a reset may only be a
- * block on where the refresh ran from, and a server missing an intermediate
- * certificate still loads in a browser, which fetches the missing link itself.
- */
-const NOT_PROOF_OF_DOWN =
-  /timed out|closed unexpectedly|reset|unable to verify the first certificate|unable to get local issuer certificate/i;
+  | { kind: 'down'; reason: string };
 
 async function fetchFollowing(url: string): Promise<{ finalUrl: string; status: number; html: string }> {
   // One request object for the whole chain, so cookies set along the way are
@@ -89,11 +75,9 @@ async function resolve(directoryUrl: string): Promise<LoginUrlResolution> {
   try {
     page = await fetchFollowing(directoryUrl);
   } catch (e) {
-    const reason = String((e as Error)?.message ?? e);
-    return { kind: NOT_PROOF_OF_DOWN.test(reason) ? 'unconfirmed' : 'down', reason };
+    return { kind: 'down', reason: String((e as Error)?.message ?? e) };
   }
-  if (page.status >= 500) return { kind: 'down', reason: `HTTP ${page.status}` };
-  if (page.status >= 400) return { kind: 'unconfirmed', reason: `HTTP ${page.status}` };
+  if (page.status >= 400) return { kind: 'down', reason: `HTTP ${page.status}` };
   if (looksLikeLoginPage(page.html)) return { kind: 'login' };
 
   const ranked = extractMountsFromLinks(page.html, new URL(page.finalUrl).host);
@@ -108,7 +92,7 @@ async function resolve(directoryUrl: string): Promise<LoginUrlResolution> {
     const mount = `https://${hostname}/${firstPathPart ? `${firstPathPart}/` : ''}`;
     if (await servesLoginPage(`${mount}Authentication/Login`)) return { kind: 'linked', url: mount };
   }
-  return { kind: 'unconfirmed', reason: 'no MyChart login on the page or anything it links to' };
+  return { kind: 'down', reason: 'no MyChart login on the page or anything it links to' };
 }
 
 export async function resolveLoginUrl(directoryUrl: string): Promise<LoginUrlResolution> {
@@ -117,7 +101,7 @@ export async function resolveLoginUrl(directoryUrl: string): Promise<LoginUrlRes
     return await Promise.race([
       resolve(directoryUrl),
       new Promise<LoginUrlResolution>((done) => {
-        timer = setTimeout(() => done({ kind: 'unconfirmed', reason: 'timed out' }), RESOLVE_TIMEOUT_MS);
+        timer = setTimeout(() => done({ kind: 'down', reason: 'timed out' }), RESOLVE_TIMEOUT_MS);
       }),
     ]);
   } finally {

@@ -4,14 +4,12 @@
  * Epic publishes the list that powers the org picker on mychart.org. Three
  * functions live here:
  *
- *  - {@link fetchMyChartDirectory} — Epic's live list, one request, with the
- *    login-URL corrections the last release's refresh recorded applied.
- *    Clients refresh from it about weekly; `fetch-mychart-instances.ts` calls
- *    it to regenerate `mychart-instances.json`.
- *  - {@link listMyCharts} — the checked-in lists, merged: what a client offers
- *    before (or instead of) a refresh. The one scraper that makes no request.
- *    {@link withManualEntries} merges the hand-kept file into a fetched list
- *    the same way.
+ *  - {@link fetchMyChartDirectory} — Epic's live list, one request. Clients
+ *    refresh from it about weekly, through {@link withFixes};
+ *    `fetch-mychart-instances.ts` calls it to regenerate `mychart-instances.json`.
+ *  - {@link listMyCharts} — the checked-in files with every fix applied: what a
+ *    client offers before (or instead of) a refresh. The one scraper that
+ *    makes no request.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -91,23 +89,6 @@ const CUSTOM_LOGOS: Readonly<Record<string, string>> = {
   '958': 'login/custom/mayoClinic.png',
   '990': 'login/custom/apotti.png',
 };
-
-/**
- * Our corrections to Epic's `loginUrl`, keyed by `slgId`: every bundled entry
- * whose `url` was resolved away from the one Epic publishes. See
- * `resolveLoginUrl.ts` for how they are found.
- *
- * Applied to the live directory too, or an online search would hand back the
- * same page the correction exists to avoid — but only while Epic still
- * publishes the URL we corrected. Once Epic changes it, Epic's new one wins.
- */
-function bundledCorrections(): Map<string, { directoryUrl: string; url: string }> {
-  const corrections = new Map<string, { directoryUrl: string; url: string }>();
-  for (const entry of bundledInstances as MyChartInstanceSeed[]) {
-    if (entry.directoryUrl) corrections.set(entry.slgId, { directoryUrl: entry.directoryUrl, url: entry.url });
-  }
-  return corrections;
-}
 
 /** An organization's image record, as the directory publishes it. */
 interface DirectoryLogo {
@@ -207,6 +188,18 @@ export type MyChartInstanceSeed = Pick<
   extraHosts?: string[];
 };
 
+/**
+ * How both JSON files are written: entries sorted by `slgId` (numerically, so
+ * `320` precedes `320-1` and `1001534`), each entry's keys alphabetically, so
+ * a refresh's diff shows only what changed.
+ */
+export function toSortedJson(entries: readonly ({ slgId: string } & object)[]): string {
+  const sorted = [...entries]
+    .sort((a, b) => a.slgId.localeCompare(b.slgId, 'en', { numeric: true }))
+    .map((entry) => Object.fromEntries(Object.entries(entry).sort(([a], [b]) => (a < b ? -1 : 1))));
+  return `${JSON.stringify(sorted, null, 2)}\n`;
+}
+
 /** Narrow a full instance to what the checked-in seed stores. */
 export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
   return {
@@ -220,45 +213,37 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
   };
 }
 
-/** `mychart-instances-manual.json`: what research found that a refresh can't. */
-interface ManualEntries {
-  corrections: { slgId: string; directoryUrl: string; url: string }[];
-  additions: { slgId: string; name: string; url: string; aliases: string[] }[];
-  extraHosts: { slgId: string; host: string }[];
-}
+/**
+ * One entry of `mychart-instances-manual.json`, keyed by `slgId` like the
+ * generated list. Its fields replace the generated entry's (a corrected `url`,
+ * `extraHosts`); an `slgId` Epic doesn't have (`openrecord-…`) adds an
+ * organization. `source` records how it was confirmed and stays in the file.
+ */
+type ManualEntry = Partial<MyChartInstanceSeed> & { slgId: string; source?: string };
 
 /**
- * Merge `mychart-instances-manual.json` — what research found that a refresh
- * can't — into a list of entries, either the checked-in one or one just
- * fetched from Epic. Each hand entry carries its source.
+ * Apply every fix we know to a list — the generated one, or Epic's directory
+ * as just fetched. One dictionary keyed by `slgId`, then:
  *
- *  - A `correction` replaces an entry's `url`, but only while that entry's Epic
- *    URL is still the one the correction was made against, so Epic changing it
- *    retires the correction.
- *  - An `addition` is an organization Epic doesn't list.
- *  - `extraHosts` are more hostnames for an organization's portal.
+ *  1. the login URLs the last release's refresh corrected (generated entries
+ *     carrying `directoryUrl`), so a live fetch doesn't undo them;
+ *  2. the hand-kept entries, which win over both. They were checked by hand,
+ *     so an entry they touch is not `down`.
  */
-export function withManualEntries(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
-  const manual = manualEntries as ManualEntries;
-  const corrections = new Map(manual.corrections.map((c) => [c.slgId, c]));
-  const extraHosts = new Map<string, string[]>();
-  for (const { slgId, host } of manual.extraHosts) extraHosts.set(slgId, [...(extraHosts.get(slgId) ?? []), host]);
-
-  const merged = entries.map((entry) => {
-    const epicUrl = entry.directoryUrl ?? entry.url;
-    const correction = corrections.get(entry.slgId);
-    const hosts = extraHosts.get(entry.slgId);
-    return {
-      ...entry,
-      ...(correction?.directoryUrl === epicUrl ? { url: correction.url, directoryUrl: epicUrl } : {}),
-      ...(hosts ? { extraHosts: hosts } : {}),
-    };
-  });
-  const known = new Set(entries.map((e) => e.slgId));
-  const added = manual.additions
-    .filter((a) => !known.has(a.slgId))
-    .map(({ slgId, name, url, aliases }) => ({ name, url, logoUrl: defaultLogoUrl(), slgId, aliases }));
-  return [...merged, ...added];
+export function withFixes(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
+  const out = new Map(entries.map((entry) => [entry.slgId, entry]));
+  for (const { slgId, url, directoryUrl } of bundledInstances as MyChartInstanceSeed[]) {
+    const entry = out.get(slgId);
+    if (entry && directoryUrl) out.set(slgId, { ...entry, url, directoryUrl });
+  }
+  for (const { source: _source, ...fix } of manualEntries as ManualEntry[]) {
+    const existing = out.get(fix.slgId);
+    // Only an addition creates an entry; a fix for one the list lacks is skipped.
+    if (!existing && !fix.slgId.startsWith('openrecord-')) continue;
+    const { down: _down, ...entry } = existing ?? { name: '', url: '', logoUrl: defaultLogoUrl(), aliases: [] };
+    out.set(fix.slgId, { ...entry, ...fix });
+  }
+  return [...out.values()];
 }
 
 let checkedIn: MyChartInstanceSeed[] | null = null;
@@ -266,12 +251,12 @@ let checkedIn: MyChartInstanceSeed[] | null = null;
 /**
  * Every MyChart the checked-in files know: `mychart-instances.json`
  * (generated — Epic's directory, every login URL checked, as of the last MCPB
- * release) merged with the hand-kept `mychart-instances-manual.json`. Unlike
+ * release) with the hand-kept `mychart-instances-manual.json` applied. Unlike
  * the other scrapers it makes no request; it is what a client offers before
  * its first refresh from {@link fetchMyChartDirectory}, and when that fails.
  */
 export function listMyCharts(): MyChartInstanceSeed[] {
-  checkedIn ??= withManualEntries(bundledInstances);
+  checkedIn ??= withFixes(bundledInstances);
   return checkedIn;
 }
 
@@ -300,11 +285,7 @@ function asStringArray(value: unknown): string[] {
  * An entry with no `loginUrl` is dropped rather than defaulted: three of them
  * exist, and a picker row that navigates nowhere is worse than a missing row.
  */
-function toInstance(
-  raw: unknown,
-  mediaBase: string,
-  corrections: Map<string, { directoryUrl: string; url: string }>,
-): MyChartInstance | null {
+function toInstance(raw: unknown, mediaBase: string): MyChartInstance | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const org = raw as Record<string, unknown>;
 
@@ -312,13 +293,11 @@ function toInstance(
   const slgId = typeof org.slgId === 'string' ? org.slgId : '';
   const directoryUrl = typeof org.loginUrl === 'string' ? org.loginUrl.trim() : '';
   if (!name || !directoryUrl) return null;
-  const correction = corrections.get(slgId);
-  const url = correction?.directoryUrl === directoryUrl ? correction.url : directoryUrl;
 
   const logo = org.logo as DirectoryLogo | undefined;
   return {
     name,
-    url,
+    url: directoryUrl,
     directoryUrl,
     logoUrl: logoUrlFor({ slgId, name, loginUrl: directoryUrl, logo }, mediaBase),
     slgId,
@@ -356,31 +335,16 @@ export function parseDirectoryPayload(
       'MyChart directory response has no "organizations" array — the endpoint shape changed.',
     );
   }
-  const corrections = bundledCorrections();
   return mergeDuplicates(
-    organizations
-      .map((org) => toInstance(org, mediaBase, corrections))
-      .filter((i): i is MyChartInstance => i !== null),
+    organizations.map((org) => toInstance(org, mediaBase)).filter((i): i is MyChartInstance => i !== null),
   );
 }
 
-/** A portal's identity for comparison: host and mount, ignoring case and the login route. */
-function portalKey(url: string): string {
-  try {
-    const { host, pathname } = new URL(url);
-    const path = pathname.toLowerCase();
-    const route = path.indexOf('/authentication/');
-    return `${host.toLowerCase()}${(route >= 0 ? path.slice(0, route) : path).replace(/\/+$/, '')}`;
-  } catch {
-    return url;
-  }
-}
-
 /**
- * Collapse entries with the same name **and** the same portal into one, which
- * a picker would otherwise show twice: Epic lists Cleveland Clinic once for
- * the US (`320`) and once for Canada (`320-1`). The shortest `slgId` — the
- * parent's — is kept, with every entry's aliases, states and countries.
+ * Collapse entries with the same name **and** the same URL into one, which a
+ * picker would otherwise show twice: Epic lists Cleveland Clinic once for the
+ * US (`320`) and once for Canada (`320-1`). The shortest `slgId` — the
+ * parent's — is kept, with every entry's aliases.
  *
  * Same name alone is not a duplicate ("Baptist Health" is two systems, in
  * Alabama and Arkansas), and neither is same portal alone (affiliates sharing
@@ -389,19 +353,12 @@ function portalKey(url: string): string {
 export function mergeDuplicates(instances: MyChartInstance[]): MyChartInstance[] {
   const groups = new Map<string, MyChartInstance[]>();
   for (const instance of instances) {
-    const key = `${instance.name.toLowerCase()}|${portalKey(instance.url)}`;
+    const key = `${instance.name.toLowerCase()}|${instance.url}`;
     groups.set(key, [...(groups.get(key) ?? []), instance]);
   }
-  const union = (lists: string[][]) => [...new Set(lists.flat())];
   return [...groups.values()].map((group) => {
-    if (group.length === 1) return group[0]!;
     const kept = group.reduce((a, b) => (b.slgId.length < a.slgId.length ? b : a));
-    return {
-      ...kept,
-      aliases: union(group.map((i) => i.aliases)),
-      states: union(group.map((i) => i.states)),
-      countries: union(group.map((i) => i.countries)),
-    };
+    return { ...kept, aliases: [...new Set(group.flatMap((i) => i.aliases))] };
   });
 }
 

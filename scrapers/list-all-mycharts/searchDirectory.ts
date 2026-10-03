@@ -45,7 +45,7 @@ import {
   fetchMyChartDirectory,
   listMyCharts,
   toSeedEntry,
-  withManualEntries,
+  withFixes,
   type MyChartInstanceSeed,
 } from './directory';
 
@@ -244,7 +244,7 @@ async function liveDirectory(
 
   inFlight = fetchMyChartDirectory(fetchOptions)
     .then((fetched) => {
-      const instances = withManualEntries(fetched.map(toSeedEntry));
+      const instances = withFixes(fetched.map(toSeedEntry));
       cached = { at: Date.now(), instances };
       return instances;
     })

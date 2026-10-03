@@ -553,8 +553,8 @@ Beyond the static helpers on `MyChartClient`:
 | --- | --- |
 | `searchMyChartDirectory(query, opts?)` | What `MyChartClient.searchMyCharts` calls. Results are cached for `DIRECTORY_CACHE_TTL_MS` |
 | `fetchMyChartDirectory()`, `rankDirectoryMatches`, `clearDirectoryCache` | The full directory and the ranking |
-| `listMyCharts()` | The checked-in directory with our hand corrections and additions merged in. No request; what search falls back to |
-| `withManualEntries(list)` | Merge those hand corrections and additions into a list you fetched yourself |
+| `listMyCharts()` | The checked-in directory with every correction and addition applied. No request; what search falls back to |
+| `withFixes(list)` | Apply those corrections and additions to a list you fetched yourself |
 | `SANDBOX_INSTANCE` | The fake-mychart sandbox entry, for testing a setup flow |
 | `lookupNpi`, `searchNpiRegistry`, `isValidNpi`, `buildNpiSearchUrl` | CMS NPI Registry |
 | `fetchNpiLookupRaw`, `fetchNpiSearchRaw`, `npiLookupProcessor`, `npiSearchProcessor` | The raw/processor split for NPI |

@@ -766,17 +766,15 @@ async function main() {
   // client should offer as a tool call.
   if (cliArgs.action === 'list-mycharts') {
     try {
-      const { instances, corrected, unconfirmed } = await fetchResolvedMyChartDirectory((done, total) => {
+      const { instances, corrected, down } = await fetchResolvedMyChartDirectory((done, total) => {
         if (done % 100 === 0 || done === total) process.stderr.write(`  checked ${done}/${total} login URLs\n`);
       });
       instances.sort((a, b) => a.name.localeCompare(b.name) || a.slgId.localeCompare(b.slgId));
       const json = JSON.stringify(instances, null, 2);
       if (cliArgs.output) fs.writeFileSync(cliArgs.output, `${json}\n`);
       else console.log(json);
-      const down = unconfirmed.filter((u) => u.resolution.kind === 'down').length;
       console.error(
-        `  ${instances.length} MyCharts: ${corrected} login URLs corrected, ${down} down, ` +
-          `${unconfirmed.length - down} unconfirmed (custom sign-in, bot wall, or no answer from here)` +
+        `  ${instances.length} MyCharts: ${corrected} login URLs corrected, ${down.length} down` +
           (cliArgs.output ? ` — written to ${cliArgs.output}` : ''),
       );
       closeRL();
