@@ -32,12 +32,32 @@ export function twoFaDeliveryLabel(delivery?: { method?: string; contact?: strin
 }
 
 /**
+ * The bare host a picker query names, when the user typed a web address
+ * rather than a health-system name — so a portal missing from the bundled
+ * directory can still be connected. Accepts a pasted URL ("https://host/MyChart/")
+ * and returns just the host; anything without a dotted name is a search, not
+ * an address. Injected into the widget by source, like twoFaDeliveryLabel.
+ */
+export function typedHostname(query: string): string | null {
+  const trimmed = query.trim();
+  let url: URL;
+  try {
+    // A space anywhere in the host makes this throw, so names like "Denver Health" fall out here.
+    url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+  const labels = url.hostname.split('.');
+  return labels.length > 1 && labels.every(Boolean) ? url.host : null;
+}
+
+/**
  * Interactive Setup Widget for OpenRecord.
  *
  * Served via the MCP Apps ui:// protocol. Step-based flow:
  *   1. Pick a health system from an autocomplete dropdown (results appear only
- *      after the user types; they must choose an entry — free-text hostnames
- *      are not accepted).
+ *      after the user types). A query that is itself a web address also offers
+ *      a "Use <host>" row, for portals the directory doesn't list.
  *   2. Enter MyChart credentials for the chosen system; submitting fires the
  *      real login scrapers via setup_account.
  *   3. Two-step verification — only reached when setup_account reports
@@ -433,7 +453,7 @@ const SETUP_UI_TEMPLATE = `
 
     <!-- ── Step 1: pick a health system ───────────────────────────────── -->
     <div id="step-picker">
-      <p class="step-sub">Search for your hospital or clinic, then pick it from the list.</p>
+      <p class="step-sub">Search for your hospital or clinic, then pick it from the list. Not listed? Type your MyChart web address instead.</p>
       <div class="field combobox">
         <input type="text" id="search" placeholder="Search hospital or clinic (e.g. 'Denver Health')" autocomplete="off" spellcheck="false">
         <ul id="results" class="results" hidden></ul>
@@ -726,7 +746,12 @@ const SETUP_UI_TEMPLATE = `
         name.className = 'row-name';
         name.innerText = r.name || r.hostname;
         text.appendChild(name);
-        if (r.unavailable) {
+        if (r.custom) {
+          var hint = document.createElement('span');
+          hint.className = 'row-host';
+          hint.innerText = 'Not in our list. Connect to this address directly.';
+          text.appendChild(hint);
+        } else if (r.unavailable) {
           var note = document.createElement('span');
           note.className = 'row-unavailable';
           note.innerText = r.unavailable;
@@ -775,12 +800,16 @@ const SETUP_UI_TEMPLATE = `
         res = await callTool('search_mycharts', { query: query, limit: 8 });
       } catch (err) {
         if (epoch !== searchEpoch) return;
-        hideResults();
-        return;
+        res = null;
       }
       if (epoch !== searchEpoch) return; // a newer query is in flight; drop this response
       var matches = (res && Array.isArray(res.matches)) ? res.matches : [];
-      renderRows(matches);
+      // A typed address the directory already lists is just that listing.
+      var host = hostFromQuery(query);
+      if (host && !matches.some(function (m) { return m.hostname === host; })) {
+        matches = matches.concat([{ hostname: host, name: 'Use ' + host, custom: true }]);
+      }
+      renderRows(matches, 'No matching health systems. Not listed? Type your MyChart web address, e.g. mychart.example.org.');
     }
 
     searchInput.addEventListener('input', function () {
@@ -825,10 +854,12 @@ const SETUP_UI_TEMPLATE = `
 
     // ── Step transitions ────────────────────────────────────────────────────
     function selectInstance(r) {
-      selectedInstance = r;
+      // A typed address carries 'Use <host>' as its row label; past the picker
+      // it is named by the host alone.
+      selectedInstance = r.custom ? { hostname: r.hostname, name: r.hostname } : r;
       hideResults();
 
-      fillHeader(instanceLogo, instanceName, r);
+      fillHeader(instanceLogo, instanceName, selectedInstance);
 
       // Reset credential state for a clean step 2.
       pendingId = null;
@@ -852,7 +883,8 @@ const SETUP_UI_TEMPLATE = `
       searchInput.focus();
     }
 
-    // Injected by source from ui.ts so the phrasing has one home and a test.
+    // Injected by source from ui.ts so each has one home and a test.
+    var hostFromQuery = ${typedHostname};
     var deliveryLabel = ${twoFaDeliveryLabel};
 
     // Move to the dedicated 2FA step once setup_account reports need_2fa.

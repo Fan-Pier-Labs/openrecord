@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META, twoFaDeliveryLabel } from '../ui';
+import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META, twoFaDeliveryLabel, typedHostname } from '../ui';
 import { MYCHART_MEDIA_ORIGIN } from '../../../scrapers/list-all-mycharts/directory';
 import { SANDBOX_INSTANCE } from '../../../scrapers/list-all-mycharts/searchDirectory';
 import bundledInstances from '../../../scrapers/list-all-mycharts/mychart-instances.json';
@@ -66,6 +66,23 @@ describe('buildSetupUiHtml', () => {
     expect(twoFaDeliveryLabel(null)).toBeNull();
     // The widget calls the same function, injected by source.
     expect(buildSetupUiHtml()).toContain('var deliveryLabel = function twoFaDeliveryLabel');
+  });
+
+  test('reads a typed MyChart address out of the picker query', () => {
+    expect(typedHostname('mychart.example.org')).toBe('mychart.example.org');
+    // Pasted from the browser's address bar.
+    expect(typedHostname('  https://MyChart.Example.org/MyChart/Authentication/Login?  ')).toBe('mychart.example.org');
+    expect(typedHostname('mychart.example.org:8443/MyChart')).toBe('mychart.example.org:8443');
+    // A health-system name is a search, not an address.
+    expect(typedHostname('Denver Health')).toBeNull();
+    expect(typedHostname('st. mary')).toBeNull();
+    expect(typedHostname('mychart')).toBeNull();
+    expect(typedHostname('')).toBeNull();
+    // The widget offers it as its own row, unless the directory already lists that host.
+    const html = buildSetupUiHtml();
+    expect(html).toContain('var hostFromQuery = function typedHostname');
+    expect(html).toContain("return m.hostname === host; })) {");
+    expect(html).toContain("selectedInstance = r.custom ? { hostname: r.hostname, name: r.hostname } : r;");
   });
 
   test('greys out an entry search_mycharts marked unavailable rather than dropping it', () => {
