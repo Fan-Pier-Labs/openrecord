@@ -66,13 +66,14 @@ export function setupDoneMessage(accounts: { account: string; passkey: string | 
  *
  * Served via the MCP Apps ui:// protocol. The user first picks a route:
  *   Import — a permission screen, then import_browser_passwords; the user
- *     ticks the logins to connect and each runs connect_imported_account in
- *     turn. The widget only ever sees import ids, never a password.
+ *     picks one login, which runs connect_imported_account. The widget only
+ *     ever sees import ids, never a password.
  *   Manual — pick a health system from an autocomplete dropdown (results
  *     appear only after typing; free-text hostnames are not accepted), then
  *     enter credentials, which runs setup_account.
- * Either route goes through 2FA (complete_2fa) and the passkey offer per
- * account, and lands on a summary whose Done button hands back to the chat.
+ * Each account runs to the end — 2FA (complete_2fa), then the passkey offer —
+ * before the widget asks whether to connect another, by import or by hand.
+ * "I'm done" hands back to the chat. See docs/mcpb-setup-flow.md.
  */
 const SETUP_UI_TEMPLATE = `
 <!DOCTYPE html>
@@ -467,7 +468,7 @@ const SETUP_UI_TEMPLATE = `
     .choice .passkey-badge { margin-bottom: 2px; }
     /* Each step stacks its own children; [hidden] above still wins. */
     [id^="step-"] { display: flex; flex-direction: column; gap: 8px; }
-    /* Found logins and the summary share one row layout. */
+    /* Found logins and connected accounts share one row layout. */
     .account-list {
       list-style: none;
       margin: 0;
@@ -496,7 +497,7 @@ const SETUP_UI_TEMPLATE = `
       font-size: 13px;
     }
     .account-list li.disabled label { cursor: default; opacity: 0.55; }
-    .account-list input[type=checkbox] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--accent); }
+    .account-list input[type=radio] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--accent); }
     .account-list .row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
     .account-list .row-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .account-list .row-host { font-size: 11px; opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -505,7 +506,9 @@ const SETUP_UI_TEMPLATE = `
     .mark { width: 18px; text-align: center; font-weight: 700; flex-shrink: 0; }
     .mark.ok { color: var(--success); }
     .mark.fail { color: var(--error); }
-    .progress { font-size: 11px; font-weight: 600; opacity: 0.6; margin: -6px 0 0 0; }
+    /* "I'm done" sits under Connect while there are logins left to import. */
+    button.secondary { background: none; color: var(--text); border: 1px solid var(--border); }
+    button.secondary:hover { background: var(--hover); }
     .working {
       display: flex;
       align-items: center;
@@ -528,7 +531,6 @@ const SETUP_UI_TEMPLATE = `
 <body>
   <div class="container">
     <h1 id="title">Connect to MyChart</h1>
-    <p class="progress" id="progress" hidden></p>
 
     <div id="status" class="status"></div>
 
@@ -553,7 +555,7 @@ const SETUP_UI_TEMPLATE = `
         <p><strong>OpenRecord needs your permission</strong> to look through the passwords saved in your browsers on this computer for MyChart logins.</p>
         <ul>
           <li><strong>Read-only.</strong> Nothing in your browser is changed, and only MyChart logins are kept.</li>
-          <li><strong>Stays on this computer.</strong> Passwords are never shown to Claude or sent to Anthropic. One is used only to sign in to its own MyChart portal, and only for the accounts you pick next.</li>
+          <li><strong>Stays on this computer.</strong> Passwords are never shown to Claude or sent to Anthropic. One is used only to sign in to its own MyChart portal, and only for an account you pick next.</li>
           <li><strong>Your computer will ask too.</strong> On a Mac you'll see a system prompt to access your keychain, possibly one per browser. Click <strong>Allow</strong>.</li>
         </ul>
         <p class="passkey-note">To confirm a saved login is really MyChart, OpenRecord may load the sign-in page of a portal it doesn't already know.</p>
@@ -565,14 +567,18 @@ const SETUP_UI_TEMPLATE = `
       </div>
     </div>
 
-    <!-- ── Import: pick which of the found logins to connect ──────────── -->
-    <div id="step-found" hidden>
-      <button id="back-found" class="link-btn" type="button">‹ Back</button>
-      <p class="step-sub" id="found-sub"></p>
+    <!-- ── The hub: pick one login to import; back here after every account ── -->
+    <div id="step-accounts" hidden>
+      <button id="back-accounts" class="link-btn" type="button">‹ Back</button>
+      <ul id="connected-list" class="account-list" hidden></ul>
+      <p class="step-sub" id="accounts-sub"></p>
       <ul id="found-list" class="account-list"></ul>
       <div class="actions">
-        <button id="connect-selected">Connect selected</button>
-        <button id="found-manual" class="link-btn" type="button">Enter an account manually instead</button>
+        <button id="connect-selected">Connect</button>
+        <p class="field-error" id="accounts-error" hidden></p>
+        <button id="done" class="secondary" type="button">I'm done</button>
+        <button id="accounts-import" class="link-btn" type="button">Import from your browser</button>
+        <button id="accounts-manual" class="link-btn" type="button">Enter an account manually</button>
       </div>
     </div>
 
@@ -661,15 +667,6 @@ const SETUP_UI_TEMPLATE = `
       </div>
     </div>
 
-    <!-- ── Summary: every account this widget touched, then Done ───────── -->
-    <div id="step-summary" hidden>
-      <ul id="summary-list" class="account-list"></ul>
-      <div class="actions">
-        <button id="done">Done</button>
-        <button id="connect-another" class="link-btn" type="button">+ Connect another account</button>
-      </div>
-    </div>
-
     <!-- ── Success ─────────────────────────────────────────────────────── -->
     <div id="success-card" class="success-card">
       <div class="check-circle">
@@ -684,7 +681,6 @@ const SETUP_UI_TEMPLATE = `
   <script>
     var $ = function (id) { return document.getElementById(id); };
     var titleEl = $('title');
-    var progressEl = $('progress');
     var statusDiv = $('status');
     var searchInput = $('search');
     var resultsList = $('results');
@@ -712,10 +708,11 @@ const SETUP_UI_TEMPLATE = `
     var scanBtn = $('scan');
     var scanHint = $('scan-hint');
     var scanError = $('scan-error');
-    var foundSub = $('found-sub');
+    var accountsSub = $('accounts-sub');
+    var accountsError = $('accounts-error');
+    var connectedList = $('connected-list');
     var foundList = $('found-list');
     var connectSelectedBtn = $('connect-selected');
-    var summaryList = $('summary-list');
     var doneBtn = $('done');
 
     var pendingId = null;
@@ -724,30 +721,27 @@ const SETUP_UI_TEMPLATE = `
     var currentRows = [];
     var activeIndex = -1;
 
-    // Import route: the logins the user ticked, worked through one at a time.
-    // queueTotal/queuePos drive the "Account 2 of 3" line; importing is false on
-    // the manual route, which is what the 2FA step's back button checks.
+    // Import route. One login is connected at a time — nearly every portal asks
+    // for a 2FA code, so each account runs to the end before the next is
+    // offered. scanned is null until the browser has been searched; importing
+    // is true while the login in flight came from it, which is what the back
+    // buttons on the sign-in and 2FA steps check.
+    var scanned = null;
     var importing = false;
-    var queue = [];
-    var queueTotal = 0;
-    var queuePos = 0;
     var currentImport = null;
-    var foundAccounts = [];
 
-    // Every account this widget has tried, in order: { name, account, passkey }
-    // on success, { name, hostname, username, error } on failure.
-    var outcomes = [];
+    // Accounts connected so far, in order: { name, account, passkey }.
+    var connected = [];
 
     var STEPS = {
       choose: { el: $('step-choose'), title: 'Connect to MyChart' },
       consent: { el: $('step-consent'), title: 'Import from your browser' },
-      found: { el: $('step-found'), title: 'MyChart logins found' },
+      accounts: { el: $('step-accounts'), title: 'MyChart logins found' },
       connecting: { el: $('step-connecting'), title: 'Signing in' },
       picker: { el: $('step-picker'), title: 'Find your health system' },
       creds: { el: $('step-creds'), title: 'Sign in to MyChart' },
       twofa: { el: $('step-2fa'), title: 'Two-step verification' },
       passkey: { el: $('step-passkey'), title: 'Set up a passkey?' },
-      summary: { el: $('step-summary'), title: 'Your accounts' },
       done: { el: null, title: 'Connected' },
     };
 
@@ -757,9 +751,6 @@ const SETUP_UI_TEMPLATE = `
       });
       successCard.classList.remove('visible');
       titleEl.innerText = (STEPS[step] || STEPS.choose).title;
-      var inQueue = importing && queueTotal > 1 && (step === 'connecting' || step === 'twofa' || step === 'passkey');
-      progressEl.hidden = !inQueue;
-      progressEl.innerText = inQueue ? 'Account ' + queuePos + ' of ' + queueTotal : '';
     }
 
     // Fill an instance header: the system's banner logo above its full name.
@@ -884,22 +875,19 @@ const SETUP_UI_TEMPLATE = `
       showStep('choose');
     }
 
-    $('choose-import').onclick = function () {
+    function goToConsent() {
       clearError(scanError);
       scanHint.hidden = true;
       setIdle(scanBtn, 'Allow and search my browsers');
       showStep('consent');
-    };
-    $('choose-manual').onclick = function () { goToPicker(); };
-    $('back-consent').onclick = goToChoose;
-    $('back-picker').onclick = goToChoose;
-
-    // ── Import: scan the browsers, after the user has said yes ──────────────
-    function sameAccount(a, b) {
-      return (a.hostname || '').toLowerCase() === (b.hostname || '').toLowerCase()
-        && (a.username || '').toLowerCase() === (b.username || '').toLowerCase();
     }
 
+    $('choose-import').onclick = goToConsent;
+    $('choose-manual').onclick = function () { goToPicker(); };
+    $('back-consent').onclick = function () { if (connected.length) showAccounts(); else goToChoose(); };
+    $('back-picker').onclick = function () { if (connected.length) showAccounts(); else goToChoose(); };
+
+    // ── Import: scan the browsers, after the user has said yes ──────────────
     scanBtn.onclick = async function () {
       clearError(scanError);
       setBusy(scanBtn, 'Searching your browsers…');
@@ -919,7 +907,13 @@ const SETUP_UI_TEMPLATE = `
           showError(scanError, errorText(scan, 'Could not read your browser passwords.'));
           return;
         }
-        showFound(scan, saved);
+        scanned = {
+          supported: scan.supported !== false,
+          saved: saved.map(function (a) { return a.account || (a.username + '@' + a.hostname); }),
+          entries: scan.accounts || [],
+        };
+        clearError(accountsError);
+        showAccounts();
       } catch (e) {
         scanHint.hidden = true;
         setIdle(scanBtn, 'Try again');
@@ -927,98 +921,137 @@ const SETUP_UI_TEMPLATE = `
       }
     };
 
-    function showFound(scan, saved) {
-      foundAccounts = (scan.accounts || []).map(function (a) {
-        var note = null;
-        if (!a.username) note = 'No username saved. Enter this one manually.';
-        else if (saved.some(function (s) { return sameAccount(s, a); })) note = 'Already connected';
-        return { entry: a, note: note };
-      });
-      foundList.innerHTML = '';
+    // ── The hub: one login to import at a time, and back here after each ────
+    function idOf(entry) { return (entry.username + '@' + entry.hostname).toLowerCase(); }
+    function isConnected(id) {
+      return connected.some(function (c) { return c.account.toLowerCase() === id; });
+    }
 
-      var pickable = foundAccounts.filter(function (f) { return !f.note; }).length;
-      if (scan.supported === false) {
-        foundSub.innerText = 'Importing from a browser works on macOS and Windows only. You can enter your account manually instead.';
-      } else if (foundAccounts.length === 0) {
-        foundSub.innerText = "We didn't find any MyChart logins saved in your browsers. You can enter your account manually instead.";
-      } else {
-        foundSub.innerText = 'Choose the accounts to connect. You may be asked for a verification code for each one.';
+    // What the found list still offers: anything connected in this widget is
+    // dropped (it is in the ✓ list above), and an account connected earlier or
+    // a login saved without a username is shown but can't be picked.
+    function importRows() {
+      if (!scanned) return [];
+      return scanned.entries
+        .filter(function (a) { return !a.username || !isConnected(idOf(a)); })
+        .map(function (a) {
+          var note = null;
+          if (!a.username) note = 'No username saved. Enter this one manually.';
+          else if (scanned.saved.some(function (id) { return id.toLowerCase() === idOf(a); })) note = 'Already connected';
+          return { entry: a, note: note };
+        });
+    }
+
+    function rowText(title, subtitle, note) {
+      var text = document.createElement('div');
+      text.className = 'row-text';
+      var name = document.createElement('span');
+      name.className = 'row-name';
+      name.innerText = title;
+      text.appendChild(name);
+      var sub = document.createElement('span');
+      sub.className = 'row-host';
+      sub.innerText = subtitle;
+      text.appendChild(sub);
+      if (note) {
+        var n = document.createElement('span');
+        n.className = 'row-note';
+        n.innerText = note;
+        text.appendChild(n);
       }
-      foundList.hidden = foundAccounts.length === 0;
-      connectSelectedBtn.hidden = pickable === 0;
+      return text;
+    }
 
-      foundAccounts.forEach(function (f, i) {
-        var a = f.entry;
+    function showAccounts() {
+      importing = false;
+      currentImport = null;
+      hideStatus();
+
+      connectedList.innerHTML = '';
+      connected.forEach(function (c) {
         var li = document.createElement('li');
-        if (f.note) li.className = 'disabled';
-        var label = document.createElement('label');
-        var box = document.createElement('input');
-        box.type = 'checkbox';
-        box.id = 'found-' + i;
-        box.checked = !f.note;
-        box.disabled = !!f.note;
-        box.addEventListener('change', updateConnectLabel);
-        f.box = box;
-        label.appendChild(box);
+        var mark = document.createElement('span');
+        mark.className = 'mark ok';
+        mark.innerText = '✓';
+        li.appendChild(mark);
+        li.appendChild(rowText(c.name, c.account + (c.passkey ? ' · passkey saved' : '')));
+        connectedList.appendChild(li);
+      });
+      connectedList.hidden = connected.length === 0;
 
-        var text = document.createElement('div');
-        text.className = 'row-text';
-        var name = document.createElement('span');
-        name.className = 'row-name';
-        name.innerText = a.instance_name || a.hostname;
-        text.appendChild(name);
-        var sub = document.createElement('span');
-        sub.className = 'row-host';
-        sub.innerText = [a.username, a.source ? 'from ' + a.source : null, a.instance_name ? a.hostname : null]
-          .filter(Boolean).join(' · ');
-        text.appendChild(sub);
-        if (f.note) {
-          var note = document.createElement('span');
-          note.className = 'row-note';
-          note.innerText = f.note;
-          text.appendChild(note);
-        }
-        label.appendChild(text);
+      var rows = importRows();
+      var pickable = rows.filter(function (r) { return !r.note; });
+      foundList.innerHTML = '';
+      rows.forEach(function (r, i) {
+        var a = r.entry;
+        var li = document.createElement('li');
+        if (r.note) li.className = 'disabled';
+        var label = document.createElement('label');
+        var radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'found';
+        radio.id = 'found-' + i;
+        radio.disabled = !!r.note;
+        radio.checked = r === pickable[0];
+        r.radio = radio;
+        label.appendChild(radio);
+        label.appendChild(rowText(
+          a.instance_name || a.hostname,
+          [a.username, a.source ? 'from ' + a.source : null, a.instance_name ? a.hostname : null].filter(Boolean).join(' · '),
+          r.note,
+        ));
         li.appendChild(label);
         foundList.appendChild(li);
       });
+      currentRowsFound = rows;
+      foundList.hidden = pickable.length === 0;
+      connectSelectedBtn.hidden = pickable.length === 0;
+      setIdle(connectSelectedBtn, 'Connect');
 
-      updateConnectLabel();
-      showStep('found');
+      // Nothing connected yet: this is the list straight after the scan.
+      // Afterwards it is the "another one?" question, with a way to stop.
+      var first = connected.length === 0;
+      if (!scanned) {
+        accountsSub.innerText = 'Connect another account, or finish.';
+      } else if (!scanned.supported) {
+        accountsSub.innerText = 'Importing from a browser works on macOS and Windows only. You can enter your account manually instead.';
+      } else if (pickable.length) {
+        accountsSub.innerText = first
+          ? 'Pick one to connect. You can import more after this one.'
+          : 'Import another one?';
+      } else if (first) {
+        accountsSub.innerText = "We didn't find any MyChart logins in your browsers that can be imported. You can enter your account manually instead.";
+      } else {
+        accountsSub.innerText = 'There are no more logins in your browsers to import.';
+      }
+
+      $('back-accounts').hidden = !first;
+      doneBtn.hidden = first;
+      // "I'm done" is the main action once nothing is left to import.
+      doneBtn.className = pickable.length ? 'secondary' : '';
+      $('accounts-import').hidden = !!scanned;
+      $('accounts-manual').innerText = first ? 'Enter an account manually instead' : 'Enter an account manually';
+
+      showStep('accounts');
+      titleEl.innerText = first ? 'MyChart logins found' : connected.length === 1 ? 'Account connected' : connected.length + ' accounts connected';
     }
 
-    function selectedFound() {
-      return foundAccounts.filter(function (f) { return f.box && f.box.checked; });
-    }
+    var currentRowsFound = [];
 
-    function updateConnectLabel() {
-      var n = selectedFound().length;
-      connectSelectedBtn.disabled = n === 0;
-      connectSelectedBtn.innerText = n > 1 ? 'Connect ' + n + ' accounts' : n === 1 ? 'Connect 1 account' : 'Select an account';
-    }
-
-    $('back-found').onclick = function () { showStep('consent'); };
-    $('found-manual').onclick = function () { goToPicker(); };
+    $('back-accounts').onclick = goToConsent;
+    $('accounts-import').onclick = goToConsent;
+    $('accounts-manual').onclick = function () { goToPicker(); };
 
     connectSelectedBtn.onclick = function () {
-      var chosen = selectedFound().map(function (f) { return f.entry; });
-      if (!chosen.length) return;
-      importing = true;
-      queue = chosen;
-      queueTotal = chosen.length;
-      queuePos = 0;
-      connectNextImport();
+      var chosen = currentRowsFound.find(function (r) { return r.radio && r.radio.checked && !r.note; });
+      if (chosen) connectImport(chosen.entry);
     };
 
-    // Work through the ticked logins one at a time. Each either finishes on
-    // its own, or stops at 2FA / the passkey offer and comes back here via
-    // accountDone or recordFailure.
-    async function connectNextImport() {
-      if (!queue.length) { importing = false; showSummary(); return; }
-      var entry = queue.shift();
-      queuePos++;
+    async function connectImport(entry) {
+      clearError(accountsError);
+      importing = true;
       currentImport = entry;
-      selectedInstance = { name: entry.instance_name || entry.hostname, hostname: entry.hostname };
+      selectedInstance = { name: entry.instance_name || entry.hostname, hostname: entry.hostname, fromImport: true };
       fillHeader($('instance-logo-connecting'), $('instance-name-connecting'), selectedInstance);
       $('connecting-text').innerText = 'Signing in as ' + entry.username + '…';
       showStep('connecting');
@@ -1027,7 +1060,7 @@ const SETUP_UI_TEMPLATE = `
       try {
         result = await callTool('connect_imported_account', { import_id: entry.import_id });
       } catch (e) {
-        recordFailure('Error: ' + (e && e.message ? e.message : e));
+        importFailed('Error: ' + (e && e.message ? e.message : e));
         return;
       }
       if (result && result.state === 'need_2fa') {
@@ -1036,23 +1069,24 @@ const SETUP_UI_TEMPLATE = `
       } else if (result && result.state === 'logged_in') {
         showSuccess(result.account || entry.hostname, result);
       } else if (result && result.state === 'invalid_login') {
-        recordFailure('The password saved in your browser was rejected. It may be out of date.');
+        // The saved password is stale. The import id is spent either way, so
+        // carry on as a manual sign-in with the username already filled in.
+        selectInstance(selectedInstance, entry.username);
+        showError(credsError, "The password saved in your browser didn't work. It may be out of date — enter your current one.");
       } else {
-        recordFailure(errorText(result, 'Sign-in failed.'));
+        importFailed(errorText(result, 'Sign-in failed.'));
       }
     }
 
-    // A failed import is kept for the summary, with a way to retry by hand.
-    function recordFailure(message) {
-      var entry = currentImport || {};
-      outcomes.push({
-        name: (selectedInstance && selectedInstance.name) || entry.hostname,
-        hostname: entry.hostname,
-        username: entry.username || '',
-        error: message,
-      });
-      currentImport = null;
-      connectNextImport();
+    function importFailed(message) {
+      // Import ids are held for 10 minutes after the scan; a slow round of 2FA
+      // codes can outlast them, and only a fresh scan gets new ones.
+      if (/expired/i.test(message)) {
+        scanned = null;
+        message = 'Saved logins are only kept for 10 minutes after searching. Import from your browser again to continue.';
+      }
+      showAccounts();
+      showError(accountsError, message);
     }
 
     // ── Pick a health system (manual route) ─────────────────────────────────
@@ -1227,6 +1261,8 @@ const SETUP_UI_TEMPLATE = `
       hideResults();
 
       fillHeader(instanceLogo, instanceName, r);
+      // A sign-in reached from an import goes back to the list it came from.
+      backBtn.innerText = r.fromImport ? '‹ Back' : '‹ Change health system';
 
       // Reset credential state for a clean sign-in step.
       pendingId = null;
@@ -1261,21 +1297,22 @@ const SETUP_UI_TEMPLATE = `
         : 'Enter the 6-digit verification code to finish signing in.';
       twoFaInput.value = '';
       setIdle(verifyBtn, 'Verify Code');
-      // On the import route there is no credentials step to go back to.
-      back2faBtn.innerText = importing ? 'Skip this account ›' : '‹ Back';
       clearError(twoFaError);
       showStep('twofa');
       twoFaInput.focus();
     }
 
-    backBtn.onclick = goToPicker;
+    backBtn.onclick = function () {
+      if (selectedInstance && selectedInstance.fromImport) showAccounts();
+      else goToPicker();
+    };
 
-    // Going back from 2FA returns to credentials; the pending login is dropped,
-    // so re-submitting starts a fresh login attempt. On the import route it
-    // skips this account and moves on to the next one.
+    // Going back from 2FA drops the pending login. A manual sign-in returns to
+    // its credentials, so re-submitting starts a fresh attempt; an imported one
+    // has no credentials step, so it returns to the list of logins.
     back2faBtn.onclick = function () {
       pendingId = null;
-      if (importing) { recordFailure('Skipped before entering the verification code.'); return; }
+      if (importing) { showAccounts(); return; }
       hideStatus();
       clearError(credsError);
       setIdle(submitBtn, 'Connect Account');
@@ -1308,63 +1345,18 @@ const SETUP_UI_TEMPLATE = `
     }
 
     // passkey: 'registered' — this widget just saved one; 'saved' — one was
-    // already on file; null — none, the user skipped the offer.
+    // already on file; null — none, the user skipped the offer. Either route
+    // then lands on the list, which asks whether to connect another.
     function accountDone(account, passkey) {
-      outcomes.push({ name: (selectedInstance && selectedInstance.name) || account, account: account, passkey: passkey });
+      if (account) {
+        connected = connected.filter(function (c) { return c.account.toLowerCase() !== account.toLowerCase(); });
+        connected.push({ name: (selectedInstance && selectedInstance.name) || account, account: account, passkey: passkey });
+      }
       connectedAccount = null;
-      currentImport = null;
-      if (importing) connectNextImport();
-      else showSummary();
+      showAccounts();
     }
-
-    // ── Summary: what happened to each account, then Done ───────────────────
-    function showSummary() {
-      hideStatus();
-      summaryList.innerHTML = '';
-      outcomes.forEach(function (o) {
-        var li = document.createElement('li');
-        var mark = document.createElement('span');
-        mark.className = 'mark ' + (o.account ? 'ok' : 'fail');
-        mark.innerText = o.account ? '✓' : '✕';
-        li.appendChild(mark);
-
-        var text = document.createElement('div');
-        text.className = 'row-text';
-        var name = document.createElement('span');
-        name.className = 'row-name';
-        name.innerText = o.name;
-        text.appendChild(name);
-        var sub = document.createElement('span');
-        sub.className = o.account ? 'row-host' : 'row-error';
-        sub.innerText = o.account
-          ? o.account + (o.passkey ? ' · passkey saved' : '')
-          : o.error;
-        text.appendChild(sub);
-        li.appendChild(text);
-
-        if (!o.account && o.hostname) {
-          var retry = document.createElement('button');
-          retry.className = 'link-btn';
-          retry.type = 'button';
-          retry.innerText = 'Enter password';
-          retry.onclick = function () {
-            outcomes.splice(outcomes.indexOf(o), 1);
-            selectInstance({ name: o.name, hostname: o.hostname }, o.username);
-          };
-          li.appendChild(retry);
-        }
-        summaryList.appendChild(li);
-      });
-      summaryList.hidden = outcomes.length === 0;
-      doneBtn.hidden = !outcomes.some(function (o) { return o.account; });
-      showStep('summary');
-      if (!doneBtn.hidden) doneBtn.focus();
-    }
-
-    $('connect-another').onclick = goToChoose;
 
     doneBtn.onclick = function () {
-      var connected = outcomes.filter(function (o) { return o.account; });
       if (!connected.length) return;
       showStep('done');
       successHost.innerText = connected.map(function (o) { return o.account; }).join(', ');
@@ -1462,7 +1454,7 @@ const SETUP_UI_TEMPLATE = `
 
     // ── Register a passkey on the just-connected account ────────────────────
     registerPasskeyBtn.onclick = async function () {
-      if (!connectedAccount) { if (importing) connectNextImport(); else showSummary(); return; }
+      if (!connectedAccount) { showAccounts(); return; }
       clearError(passkeyError);
       setBusy(registerPasskeyBtn, 'Registering...');
       skipPasskeyBtn.disabled = true;

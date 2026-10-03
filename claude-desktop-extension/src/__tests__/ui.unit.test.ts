@@ -32,7 +32,7 @@ describe('buildSetupUiHtml', () => {
     expect(html).toContain('id="choose-import"');
     expect(html).toContain('id="choose-manual"');
     // Every other step starts hidden, so the choice is the first thing shown.
-    for (const step of ['consent', 'found', 'connecting', 'picker', 'creds', '2fa', 'passkey', 'summary']) {
+    for (const step of ['consent', 'accounts', 'connecting', 'picker', 'creds', '2fa', 'passkey']) {
       expect(html).toContain(`<div id="step-${step}" hidden>`);
     }
   });
@@ -43,20 +43,32 @@ describe('buildSetupUiHtml', () => {
     // The scan lives in the permission button's handler and nowhere else.
     expect(html.split("callTool('import_browser_passwords'")).toHaveLength(2);
     const scanHandler = html.slice(html.indexOf('scanBtn.onclick'));
-    expect(scanHandler.indexOf("callTool('import_browser_passwords'")).toBeLessThan(scanHandler.indexOf('function showFound'));
+    expect(scanHandler.indexOf("callTool('import_browser_passwords'")).toBeLessThan(scanHandler.indexOf('function showAccounts'));
   });
 
-  test('connects only the logins the user ticked, by import id', () => {
+  test('imports one login at a time, then asks about another', () => {
     const html = buildSetupUiHtml();
-    // An already-connected login or one without a username starts unticked and can't be picked.
-    expect(html).toContain('box.checked = !f.note;');
-    expect(html).toContain('box.disabled = !!f.note;');
-    expect(html).toContain("callTool('connect_imported_account', { import_id: entry.import_id })");
-    // A rejected saved password lands on the summary with a way to type it instead.
-    expect(html).toContain("retry.innerText = 'Enter password'");
+    // A single choice, not a checklist: each account's 2FA and passkey run to
+    // the end before the next one is offered.
+    expect(html).toContain("radio.type = 'radio';");
+    expect(html).not.toContain("type = 'checkbox'");
+    expect(html.split("callTool('connect_imported_account'")).toHaveLength(2);
+    expect(html).toContain('You can import more after this one.');
+    // Every finished account, either route, lands back on the list.
+    const accountDone = html.slice(html.indexOf('function accountDone'));
+    expect(accountDone.slice(0, accountDone.indexOf('\n    }\n'))).toContain('showAccounts();');
+    expect(html).toContain('Import another one?');
+    // An already-connected login or one without a username can't be picked.
+    expect(html).toContain('radio.disabled = !!r.note;');
   });
 
-  test('hands back to the chat only when the user clicks Done', () => {
+  test('turns a rejected saved password into a manual sign-in for that login', () => {
+    const html = buildSetupUiHtml();
+    expect(html).toContain('selectInstance(selectedInstance, entry.username);');
+    expect(html).toContain("The password saved in your browser didn't work.");
+  });
+
+  test('hands back to the chat only when the user clicks I\'m done', () => {
     const html = buildSetupUiHtml();
     expect(html).toContain('id="done"');
     expect(html.split("rpc('ui/message'")).toHaveLength(2);
