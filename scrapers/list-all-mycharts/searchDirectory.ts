@@ -2,28 +2,25 @@
  * Searching the MyChart directory by name — the lookup every client needs
  * before it has an account to log into.
  *
- * {@link fetchMyChartDirectory} returns all ~1400 instances; a person typing
- * "uchealth" wants five. This module is the ranking and the caching around
- * that fetch, in one place, because it used to exist twice: the Claude Desktop
+ * The directory is ~1,400 instances; a person typing "uchealth" wants five.
+ * This module is the ranking, and the list it ranks, in one place, because it used to exist twice: the Claude Desktop
  * extension shipped its own `instances.ts` searching only the bundled seed,
  * and the mobile app has its own picker search over the same list. Neither was
  * reachable from the CLI or the npm library, so "find my health system" was a
  * thing two clients could do and two could not.
  *
- * ## Live first, checked-in second
+ * ## Which list
  *
- * New health systems come online between releases, and a patient whose
- * provider is missing from a months-old snapshot has no way to connect. So a
- * search fetches Epic's directory — which applies the login-URL corrections
- * the last release's refresh recorded — merges in our hand-kept entries, keeps
- * that for {@link DIRECTORY_CACHE_TTL_MS}, and searches it.
- *
- * When the fetch fails — offline, blocked by a corporate proxy, Epic down —
- * the checked-in list ({@link listMyCharts}) answers instead, and the result
- * says `source: 'bundled'` rather than pretending the live list was consulted. That
- * is what the extension's setup wizard relied on before this existed, and
- * losing it would break the picker exactly when someone is troubleshooting a
- * connection.
+ * A search reads two lists merged ({@link withManualEntries}): the output of
+ * the deterministic refresh that writes `mychart-instances.json` — Epic's
+ * directory, every login URL checked — and the hand-kept
+ * `mychart-instances-manual.json`. Until a newer run exists, the first is the
+ * checked-in file from the last release, and the result says
+ * `source: 'bundled'`. A long-running client (the Claude Desktop extension,
+ * the iOS app) reruns the refresh about weekly with
+ * {@link refreshMyChartDirectory}, in the background — it is minutes of
+ * requests, never part of a search — and from then on searches say
+ * `source: 'live'`.
  *
  * ## The sandbox entry
  *
@@ -41,19 +38,14 @@
  */
 
 import { scraperFetch } from '../http';
-import {
-  fetchMyChartDirectory,
-  listMyCharts,
-  toSeedEntry,
-  withFixes,
-  type MyChartInstanceSeed,
-} from './directory';
+import { listMyCharts, toSeedEntry, withManualEntries, type MyChartInstanceSeed } from './directory';
+import { fetchResolvedMyChartDirectory } from './refreshDirectory';
 
 /**
- * How long a fetched directory is reused before the next search refetches it.
- * The list changes by a few entries a month, and each fetch is ~1.8 MB.
+ * How often a long-running client reruns the refresh. Epic's list changes by a
+ * few entries a month, and a run is a few thousand requests.
  */
-export const DIRECTORY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const DIRECTORY_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** How many matches a search returns when the caller names no limit. */
 export const DEFAULT_DIRECTORY_SEARCH_LIMIT = 10;
@@ -192,10 +184,6 @@ export interface MyChartDirectorySearchResult {
 export interface MyChartDirectorySearchOptions {
   /** 1–{@link MAX_DIRECTORY_SEARCH_LIMIT}; defaults to 10. */
   limit?: number | undefined;
-  /** Where the directory lives. Defaults to Epic's; fake-mychart serves it too. */
-  directoryUrl?: string | undefined;
-  /** Where the directory's images live. Moves with `directoryUrl`. */
-  mediaBase?: string | undefined;
 }
 
 function hostnameOf(url: string): string {
@@ -217,41 +205,37 @@ function toMatch(instance: MyChartInstanceSeed): MyChartDirectoryMatch {
   };
 }
 
-// ── The cached live directory ──────────────────────────────────────────────
+// ── The refreshed list ─────────────────────────────────────────────────────
 
-let cached: { at: number; instances: MyChartInstanceSeed[] } | null = null;
-/** The fetch currently in flight, so N searches in a row make one request. */
-let inFlight: Promise<MyChartInstanceSeed[]> | null = null;
+/** The last refresh's list, merged with the hand-kept entries; null until one. */
+let refreshed: MyChartInstanceSeed[] | null = null;
 
-/**
- * Drop the cached directory. For tests, and for a client that knows the list
- * has changed under it.
- */
+/** Search the checked-in list again, as before any refresh. For tests. */
 export function clearDirectoryCache(): void {
-  cached = null;
-  inFlight = null;
+  refreshed = null;
 }
 
-async function liveDirectory(
-  options: MyChartDirectorySearchOptions,
+/**
+ * Search a list a refresh produced — this process's, or one a client saved
+ * from an earlier run — instead of the checked-in one.
+ */
+export function useRefreshedMyCharts(entries: readonly MyChartInstanceSeed[]): void {
+  refreshed = withManualEntries(entries);
+}
+
+/**
+ * Rerun the refresh that writes `mychart-instances.json` — fetch Epic's
+ * directory, check every login URL — and search its result from now on.
+ * Returns that result (before the hand-kept entries are merged in) for the
+ * caller to save. Minutes of requests: run it in the background.
+ */
+export async function refreshMyChartDirectory(
+  directory: { directoryUrl?: string; mediaBase?: string } = {},
 ): Promise<MyChartInstanceSeed[]> {
-  if (cached && Date.now() - cached.at < DIRECTORY_CACHE_TTL_MS) return cached.instances;
-  if (inFlight) return inFlight;
-
-  const fetchOptions: { directoryUrl?: string; mediaBase?: string } = {};
-  if (options.directoryUrl !== undefined) fetchOptions.directoryUrl = options.directoryUrl;
-  if (options.mediaBase !== undefined) fetchOptions.mediaBase = options.mediaBase;
-
-  inFlight = fetchMyChartDirectory(fetchOptions)
-    .then((fetched) => {
-      const instances = withFixes(fetched.map(toSeedEntry));
-      cached = { at: Date.now(), instances };
-      return instances;
-    })
-    .finally(() => {
-      inFlight = null;
-    });
-  return inFlight;
+  const { instances } = await fetchResolvedMyChartDirectory(undefined, directory);
+  const entries = instances.map(toSeedEntry);
+  useRefreshedMyCharts(entries);
+  return entries;
 }
 
 // ── Ranking ────────────────────────────────────────────────────────────────
@@ -304,8 +288,9 @@ export function rankDirectoryMatches(
 /**
  * Find the MyChart instances whose name, alias or hostname matches `query`.
  *
- * Live directory first (with our corrections and additions merged in), the
- * checked-in list when that fetch fails. The result
+ * Reads the last refresh's list, or the checked-in one until there is one; the
+ * result says which. Makes no request, except to check the sandbox entry when
+ * the query turns it up. The result
  * says which one answered, because "your health system isn't listed" means
  * something different depending on whether the list was six months old.
  *
@@ -327,16 +312,8 @@ export async function searchMyChartDirectory(
     Math.max(1, Math.floor(options.limit ?? DEFAULT_DIRECTORY_SEARCH_LIMIT)),
   );
 
-  let source: MyChartDirectorySource = 'live';
-  let instances: MyChartInstanceSeed[];
-  try {
-    instances = await liveDirectory(options);
-  } catch {
-    // Offline, blocked, or Epic is down. The seed is a real answer, just an
-    // older one — and the caller is told which it got.
-    source = 'bundled';
-    instances = listMyCharts();
-  }
+  const source: MyChartDirectorySource = refreshed ? 'live' : 'bundled';
+  const instances = refreshed ?? listMyCharts();
 
   const matches = rankDirectoryMatches([SANDBOX_INSTANCE, ...instances], text, limit);
 

@@ -19,7 +19,7 @@ import {
   listMyCharts,
   logoUrlFor,
   toSortedJson,
-  withFixes,
+  withManualEntries,
   parseDirectoryPayload,
   toSeedEntry,
   type MyChartInstanceSeed,
@@ -128,7 +128,7 @@ describe('parseDirectoryPayload', () => {
   });
 });
 
-describe('withFixes and listMyCharts', () => {
+describe('listMyCharts and withManualEntries', () => {
   const seed = bundledInstances as MyChartInstanceSeed[];
   const merged = listMyCharts();
   const bySlgId = (slgId: string) => merged.find((i) => i.slgId === slgId);
@@ -151,17 +151,17 @@ describe('withFixes and listMyCharts', () => {
     expect(bySlgId('650')?.extraHosts).toEqual(['mynm.nm.org']);
   });
 
-  it("applies to a list fetched from Epic, including the refresh's own corrections", () => {
-    const fetched = withFixes([
-      // As Epic publishes them: UCSF's information page, Bellin's dead host.
-      { name: 'UCSF', url: 'https://www.ucsfhealth.org/ucsfmychart/', logoUrl: '', slgId: '166', aliases: [] },
-      { name: 'Bellin', url: 'https://www.mybellin.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [] },
+  it('merges the hand-kept entries into a newer refresh the same way, and nothing else', () => {
+    const refreshed = withManualEntries([
+      { name: 'Bellin', url: 'https://www.mybellin.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [], down: true },
+      { name: 'Somewhere Else', url: 'https://mychart.elsewhere.example/', logoUrl: '', slgId: '9999', aliases: [] },
     ]);
-    expect(new URL(fetched.find((i) => i.slgId === '166')!.url).host).toBe('ucsfmychart.ucsfmedicalcenter.org');
-    expect(fetched.find((i) => i.slgId === '306-2')?.url).toBe('https://mychart.emplifyhealth.org/MyChart/');
-    // Hand entries for organizations the fetched list lacks are not invented,
-    // except the additions, which are always there.
-    expect(fetched).toHaveLength(2 + additions.length);
+    expect(refreshed.find((i) => i.slgId === '306-2')).toEqual({
+      name: 'Bellin', url: 'https://mychart.emplifyhealth.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [],
+    });
+    expect(refreshed.find((i) => i.slgId === '9999')?.url).toBe('https://mychart.elsewhere.example/');
+    // A fix for an organization the list lacks is skipped; an addition is always there.
+    expect(refreshed).toHaveLength(2 + additions.length);
   });
 
   it('never mutates the generated list it reads', () => {

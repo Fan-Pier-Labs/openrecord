@@ -4,12 +4,12 @@
  * Epic publishes the list that powers the org picker on mychart.org. Three
  * functions live here:
  *
- *  - {@link fetchMyChartDirectory} — Epic's live list, one request. Clients
- *    refresh from it about weekly, through {@link withFixes};
- *    `fetch-mychart-instances.ts` calls it to regenerate `mychart-instances.json`.
- *  - {@link listMyCharts} — the checked-in files with every fix applied: what a
- *    client offers before (or instead of) a refresh. The one scraper that
- *    makes no request.
+ *  - {@link fetchMyChartDirectory} — Epic's live list, one request: the first
+ *    half of the refresh (`refreshDirectory.ts`) that writes
+ *    `mychart-instances.json` at release and reruns weekly in clients.
+ *  - {@link listMyCharts} — the checked-in files, merged by
+ *    {@link withManualEntries}: what a client offers until its first refresh.
+ *    The one scraper that makes no request.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -222,20 +222,13 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
 type ManualEntry = Partial<MyChartInstanceSeed> & { slgId: string; source?: string };
 
 /**
- * Apply every fix we know to a list — the generated one, or Epic's directory
- * as just fetched. One dictionary keyed by `slgId`, then:
- *
- *  1. the login URLs the last release's refresh corrected (generated entries
- *     carrying `directoryUrl`), so a live fetch doesn't undo them;
- *  2. the hand-kept entries, which win over both. They were checked by hand,
- *     so an entry they touch is not `down`.
+ * Merge the two lists: one the deterministic refresh produced — the checked-in
+ * `mychart-instances.json`, or a newer run of the same code — and the hand-kept
+ * `mychart-instances-manual.json`. One dictionary keyed by `slgId`; a hand-kept
+ * entry wins, and as it was checked by hand, clears `down`.
  */
-export function withFixes(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
+export function withManualEntries(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
   const out = new Map(entries.map((entry) => [entry.slgId, entry]));
-  for (const { slgId, url, directoryUrl } of bundledInstances as MyChartInstanceSeed[]) {
-    const entry = out.get(slgId);
-    if (entry && directoryUrl) out.set(slgId, { ...entry, url, directoryUrl });
-  }
   for (const { source: _source, ...fix } of manualEntries as ManualEntry[]) {
     const existing = out.get(fix.slgId);
     // Only an addition creates an entry; a fix for one the list lacks is skipped.
@@ -251,12 +244,12 @@ let checkedIn: MyChartInstanceSeed[] | null = null;
 /**
  * Every MyChart the checked-in files know: `mychart-instances.json`
  * (generated — Epic's directory, every login URL checked, as of the last MCPB
- * release) with the hand-kept `mychart-instances-manual.json` applied. Unlike
- * the other scrapers it makes no request; it is what a client offers before
- * its first refresh from {@link fetchMyChartDirectory}, and when that fails.
+ * release) merged with the hand-kept `mychart-instances-manual.json`. Unlike
+ * the other scrapers it makes no request; it is what a client offers until
+ * its first weekly refresh (`refreshMyChartDirectory`) finishes.
  */
 export function listMyCharts(): MyChartInstanceSeed[] {
-  checkedIn ??= withFixes(bundledInstances);
+  checkedIn ??= withManualEntries(bundledInstances);
   return checkedIn;
 }
 

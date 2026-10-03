@@ -1,10 +1,12 @@
 /**
- * Epic's directory with every login URL checked: what `mychart-cli --action
- * list-mycharts` prints, and what `fetch-mychart-instances.ts` writes to the
- * bundled `mychart-instances.json` on each MCPB release.
+ * Epic's directory with every login URL checked — the deterministic code
+ * behind `mychart-instances.json`. It writes that file on each MCPB release
+ * (`fetch-mychart-instances.ts`), reruns weekly in the long-running clients
+ * (`refreshMyChartDirectory`), and is what `mychart-cli --action
+ * list-mycharts` prints.
  *
- * A crawl of all ~1,400 organizations — minutes, not seconds — so it is never
- * run on a search; searches apply the corrections a refresh recorded.
+ * A crawl of all ~1,400 organizations — minutes, not seconds — so it never
+ * runs inside a search; a search reads the last run's result.
  */
 
 import { fetchMyChartDirectory, mergeDuplicates, type MyChartInstance } from './directory';
@@ -37,8 +39,9 @@ async function resolveAll(
 
 export async function fetchResolvedMyChartDirectory(
   onProgress?: (done: number, total: number) => void,
+  directory: { directoryUrl?: string; mediaBase?: string } = {},
 ): Promise<ResolvedDirectory> {
-  const instances = await fetchMyChartDirectory();
+  const instances = await fetchMyChartDirectory(directory);
   const outcomes = new Map<MyChartInstance, LoginUrlResolution>();
   await resolveAll(instances, (instance, resolution) => {
     outcomes.set(instance, resolution);

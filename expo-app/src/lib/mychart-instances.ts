@@ -10,8 +10,9 @@
  *  2. **The SQLite cache**, written by the last successful refresh. Read on
  *     boot before any network call, so the list a returning user sees is the
  *     current one immediately rather than after a round trip.
- *  3. **Epic's live directory** (`fetchMyChartDirectory`), fetched in the
- *     background at most once a week. New health systems come online between
+ *  3. **A fresh run of the refresh behind `mychart-instances.json`**
+ *     (`fetchResolvedMyChartDirectory`: Epic's directory, every login URL
+ *     checked), in the background at most once a week. New health systems come online between
  *     app releases; without this the picker is as stale as the last TestFlight
  *     build, and a patient whose provider is missing has no way to connect.
  *
@@ -23,12 +24,12 @@
  */
 
 import {
-  fetchMyChartDirectory,
   fetchMyChartIcon,
   listMyCharts,
   toSeedEntry,
-  withFixes,
+  withManualEntries,
 } from "../../../scrapers/list-all-mycharts/directory";
+import { fetchResolvedMyChartDirectory } from "../../../scrapers/list-all-mycharts/refreshDirectory";
 import type { MyChartInstanceSeed } from "../../../scrapers/list-all-mycharts/directory";
 import {
   SANDBOX_UNAVAILABLE_NOTE,
@@ -66,13 +67,13 @@ let revision = 0;
 const listeners = new Set<() => void>();
 
 /**
- * Replace the list with one fetched from Epic (or that fetch, cached). The
- * cache holds Epic's list as fetched and the fixes are applied here, so an app
- * update that brings new ones applies them at once rather than at the next
- * weekly refresh.
+ * Replace the list with one a refresh produced (or that refresh, cached). The
+ * cache holds the refresh's output and the hand-kept entries are merged in
+ * here, so an app update that brings new ones applies them at once rather than
+ * at the next weekly refresh.
  */
-function publish(fetched: MyChartInstance[]): void {
-  const next = withFixes(fetched.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId));
+function publish(refreshed: MyChartInstance[]): void {
+  const next = withManualEntries(refreshed.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId));
   instances = [FAKE_MYCHART_DEMO, ...next];
   revision += 1;
   for (const listener of listeners) listener();
@@ -118,16 +119,15 @@ export async function initInstances(): Promise<void> {
 }
 
 /**
- * Fetch the live directory and cache it. Failure is not surfaced — an offline
- * launch keeps the list it already had.
+ * Rerun the refresh that builds `mychart-instances.json` and cache its result.
+ * Minutes of requests, so it runs in the background (see `initInstances`), and
+ * failure is not surfaced — an offline launch keeps the list it already had.
  */
 export async function refreshInstances(): Promise<void> {
   try {
-    const fetched = await fetchMyChartDirectory();
-    if (fetched.length === 0) return;
-    // `toSeedEntry` keeps `directoryUrl` on a corrected entry, which is what a
-    // hand-kept correction is matched against.
-    const list: MyChartInstance[] = fetched.map(toSeedEntry);
+    const { instances: refreshed } = await fetchResolvedMyChartDirectory();
+    if (refreshed.length === 0) return;
+    const list: MyChartInstance[] = refreshed.map(toSeedEntry);
     publish(list);
     await setCachedDirectory(JSON.stringify(list));
   } catch (err) {

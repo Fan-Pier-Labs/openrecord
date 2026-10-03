@@ -54,13 +54,15 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
   in different states — and nor is same portal alone: 46 portals are shared by affiliates
   that patients search for by their own names.
-- **Live first, checked-in second, our corrections on both.** Search and the iOS picker
-  fetch Epic's directory about once a week — new health systems come online between
-  releases — and `fetchMyChartDirectory` applies the login-URL corrections the last release's
-  refresh recorded. When that fetch fails (offline, corporate proxy, Epic down),
-  `listMyCharts()` answers instead — the one scraper here that makes no request — and the
-  result says `source: 'bundled'`. Either way `withManualEntries` merges in the hand-kept
-  `mychart-instances-manual.json`. Password import reads `listMyCharts()`: it runs offline.
+- **Two lists, merged.** What clients search is the output of the deterministic refresh
+  (Epic's directory, every login URL checked) merged with the hand-kept
+  `mychart-instances-manual.json` by `withManualEntries`. The refresh output is
+  `mychart-instances.json` from the last release until a newer run exists: the Claude Desktop
+  extension and the iOS app rerun the same refresh in the background about weekly (new health
+  systems come online between releases) and search its result, saying `source: 'live'`.
+  Search itself never makes a request. The CLI is one-shot, so it searches the checked-in
+  list, and password import reads `listMyCharts()` so it runs offline. See
+  [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md).
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
@@ -94,9 +96,8 @@ with `url` holding ours) and **`down: true`** on one we couldn't confirm. `down`
 from release time; nothing shows it yet.
 
 **`mychart-instances-manual.json`** is a list of hand-kept entries keyed by `slgId`, each with
-its `source`. `withFixes` builds one dictionary by `slgId` from a list — the generated one, or
-Epic's as just fetched — overlays the corrections the generated file recorded, then overlays
-these. An entry's fields replace the generated ones (a corrected `url`, `extraHosts` that let
+its `source`. `withManualEntries` builds one dictionary by `slgId` from the refresh's output
+and overlays these. An entry's fields replace the generated ones (a corrected `url`, `extraHosts` that let
 password import recognise another hostname) and clear its `down`; an `openrecord-…` id adds an
 organization Epic doesn't list. Every refresh re-checks the hand-kept URLs and lists any that
 stopped serving a login; `directory.unit.test.ts` fails the build if a hand entry names an
