@@ -15,7 +15,7 @@
  * `mychart-instances.json` — Epic's directory, every login URL checked. Until
  * a newer run exists that is the checked-in file from the last release, and
  * the result says `source: 'bundled'`. A long-running client (the Claude Desktop extension,
- * the iOS app) reruns the refresh about weekly with
+ * the iOS app) reruns the refresh about monthly with
  * {@link refreshMyChartDirectory}, in the background — it is minutes of
  * requests, never part of a search — and from then on searches say
  * `source: 'live'`.
@@ -43,7 +43,7 @@ import { fetchResolvedMyChartDirectory } from './refreshDirectory';
  * How often a long-running client reruns the refresh. Epic's list changes by a
  * few entries a month, and a run is a few thousand requests.
  */
-export const DIRECTORY_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+export const DIRECTORY_REFRESH_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** How many matches a search returns when the caller names no limit. */
 export const DEFAULT_DIRECTORY_SEARCH_LIMIT = 10;

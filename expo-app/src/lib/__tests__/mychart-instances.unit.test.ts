@@ -93,12 +93,12 @@ describe("the instance list", () => {
     ]);
   });
 
-  it("refreshes when the cache is older than a week", async () => {
+  it("refreshes when the cache is older than a month", async () => {
     store.directory = {
       json: JSON.stringify([
         { name: "Stale Health", url: "https://stale.example/", logoUrl: "", slgId: "s1", aliases: [] },
       ]),
-      refreshedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+      refreshedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
     };
     setTestTransport(() => Promise.resolve(directoryResponse(["Fresh Health"])));
 

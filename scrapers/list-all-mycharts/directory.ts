@@ -6,7 +6,7 @@
  *
  *  - {@link fetchMyChartDirectory} — Epic's live list, one request: the first
  *    half of the refresh (`refreshDirectory.ts`) that writes
- *    `mychart-instances.json` at release and reruns weekly in clients.
+ *    `mychart-instances.json` at release and reruns monthly in clients.
  *  - {@link listMyCharts} — the checked-in `mychart-instances.json`: what a
  *    client offers until its first refresh. The one scraper that makes no
  *    request.
@@ -210,7 +210,7 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
  * Every MyChart the checked-in `mychart-instances.json` knows: Epic's
  * directory, every login URL checked, as of the last MCPB release. Unlike the
  * other scrapers it makes no request; it is what a client offers until its
- * first weekly refresh (`refreshMyChartDirectory`) finishes.
+ * first monthly refresh (`refreshMyChartDirectory`) finishes.
  */
 export function listMyCharts(): MyChartInstanceSeed[] {
   return bundledInstances;

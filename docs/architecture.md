@@ -107,7 +107,7 @@ not compile for any client — the enforcement for "every dispatch goes through 
   methods on `MyChartClient` — constructing a client means logging in, which is a login for
   nothing. This is where the extension's hand-written `search_mycharts` went: same tool name, same
   result shape, now in every client, searching the deterministic refresh of Epic's directory
-  (checked in at release, rerun weekly by the extension and the app). The result says which run
+  (checked in at release, rerun monthly by the extension and the app). The result says which run
   answered.
 - **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
   not evenly valuable: labs, medications, visit notes and messages are the reason to connect an

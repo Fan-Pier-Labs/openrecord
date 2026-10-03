@@ -6,7 +6,7 @@
  * launch with no network, what the Claude Desktop extension bundles, and what
  * `probes/probe-mount-discovery.ts` iterates. The MCPB's `pack:signed` runs
  * this first, so each release ships a fresh one — commit the result. The
- * long-running clients rerun the same refresh weekly.
+ * long-running clients rerun the same refresh monthly.
  *
  * Logos are not downloaded or mirrored. This used to copy all ~1400 of them
  * into a private S3 bucket that no client could read — they run on other

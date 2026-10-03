@@ -11,7 +11,7 @@
  *     current one immediately rather than after a round trip.
  *  3. **A fresh run of the refresh behind `mychart-instances.json`**
  *     (`fetchResolvedMyChartDirectory`: Epic's directory, every login URL
- *     checked), in the background at most once a week. New health systems come online between
+ *     checked), in the background at most once a month. New health systems come online between
  *     app releases; without this the picker is as stale as the last TestFlight
  *     build, and a patient whose provider is missing has no way to connect.
  *
@@ -43,7 +43,7 @@ import {
 export type MyChartInstance = MyChartInstanceSeed;
 
 /** How long a cached list is used before a background refresh is attempted. */
-const REFRESH_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+const REFRESH_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Demo/test entry pointing at the deployed fake-mychart sandbox. Lets
 // users (and developers) try the full flow with Homer Simpson fake data

@@ -5,7 +5,7 @@
  *
  * A run is minutes of requests, so it never happens inside a search: at
  * startup the last run's result is loaded from disk, and if it is older than
- * a week (or there is none) a new run starts in the background. Until it
+ * a month (or there is none) a new run starts in the background. Until it
  * finishes, search answers from what it already had.
  */
 
@@ -28,9 +28,17 @@ interface SavedRefresh {
 }
 
 /**
- * Load the saved run, and schedule the next: now if it is stale, then weekly.
- * The runs happen in the background and never throw — a refresh that fails
- * leaves search on the list it had.
+ * How often to ask whether the saved run is stale. `setTimeout` can't wait a
+ * month — anything over ~24.8 days overflows and fires at once, which would
+ * loop the crawl — so a daily check decides instead.
+ */
+const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Load the saved run, then refresh whenever it is over a month old: now, if it
+ * already is, and otherwise when a daily check finds it so. The runs happen in
+ * the background and never throw — a refresh that fails leaves search on the
+ * list it had, and the next daily check tries again.
  */
 export function startDirectoryRefresh(cachePath: string = CACHE_PATH): void {
   let refreshedAt = 0;
@@ -44,20 +52,23 @@ export function startDirectoryRefresh(cachePath: string = CACHE_PATH): void {
     // No saved run yet, or an unreadable one: refresh.
   }
 
-  const refresh = async () => {
+  let running = false;
+  const refreshIfStale = async () => {
+    if (running || Date.now() - refreshedAt < DIRECTORY_REFRESH_INTERVAL_MS) return;
+    running = true;
     try {
       const instances = await refreshMyChartDirectory();
       if (instances.length === 0) return;
+      refreshedAt = Date.now();
       fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-      const saved: SavedRefresh = { refreshedAt: new Date().toISOString(), instances };
+      const saved: SavedRefresh = { refreshedAt: new Date(refreshedAt).toISOString(), instances };
       fs.writeFileSync(cachePath, JSON.stringify(saved));
     } catch {
-      // Offline or Epic is down: keep searching what we have, try next time.
+      // Offline or Epic is down: keep searching what we have, try tomorrow.
+    } finally {
+      running = false;
     }
   };
-  const wait = Math.max(0, refreshedAt + DIRECTORY_REFRESH_INTERVAL_MS - Date.now());
-  setTimeout(() => {
-    void refresh();
-    setInterval(() => void refresh(), DIRECTORY_REFRESH_INTERVAL_MS).unref();
-  }, wait).unref();
+  void refreshIfStale();
+  setInterval(() => void refreshIfStale(), CHECK_EVERY_MS).unref();
 }

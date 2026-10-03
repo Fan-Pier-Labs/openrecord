@@ -2,14 +2,14 @@
 
 Every client searches the output of one piece of deterministic code: Epic's directory with every
 login URL checked. It's checked in as `mychart-instances.json` at each release, and the
-long-running clients rerun the same code weekly.
+long-running clients rerun the same code monthly.
 
 ## Which run a client searches
 
 ```mermaid
 flowchart LR
     checkedIn["mychart-instances.json<br/>(checked in at release)"]
-    saved["a newer weekly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
+    saved["a newer monthly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
 
     checkedIn -- "until a newer run exists" --> search["search_mycharts<br/>(extension, CLI, library)"]
     saved -- "once one exists" --> search
@@ -21,7 +21,7 @@ Search never makes a request. The CLI is one-shot, so it searches the checked-in
 
 ## The refresh
 
-The same code runs at release and weekly. `fetchResolvedMyChartDirectory` in
+The same code runs at release and monthly. `fetchResolvedMyChartDirectory` in
 `refreshDirectory.ts` does this:
 
 ```mermaid
@@ -33,7 +33,7 @@ flowchart TD
     retry --> out["entries: url, directoryUrl when corrected,<br/>down: true when unconfirmed"]
 
     out --> release["at release: fetch-mychart-instances.ts<br/>writes mychart-instances.json, sorted by slgId.<br/>Commit it."]
-    out --> weekly["weekly in the extension and the app:<br/>saved, then searched"]
+    out --> monthly["monthly in the extension and the app:<br/>saved, then searched"]
     out --> cli["mychart-cli --action list-mycharts<br/>prints it"]
 ```
 
