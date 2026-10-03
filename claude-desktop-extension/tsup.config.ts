@@ -1,6 +1,8 @@
 import { defineConfig } from 'tsup';
+import type { Plugin } from 'esbuild';
 import fs from 'fs';
 import path from 'path';
+import { bundleSetupWidget } from './scripts/bundle-setup-widget';
 
 /**
  * node-sqlite3-wasm loads its WebAssembly module from `__dirname` at require
@@ -23,6 +25,22 @@ function copySqliteWasm(): void {
   fs.copyFileSync(from, path.resolve(__dirname, 'dist', file));
 }
 
+/**
+ * `virtual:setup-widget` is the setup widget's React app, bundled for the
+ * browser and inlined here as `{ js, css }` strings, so server.cjs serves the
+ * whole page itself. tsup --watch rebuilds on any change, widget files included.
+ */
+const setupWidgetPlugin: Plugin = {
+  name: 'setup-widget',
+  setup(build) {
+    build.onResolve({ filter: /^virtual:setup-widget$/ }, (args) => ({ path: args.path, namespace: 'setup-widget' }));
+    build.onLoad({ filter: /.*/, namespace: 'setup-widget' }, async () => ({
+      contents: `export default ${JSON.stringify(await bundleSetupWidget())};`,
+      loader: 'js',
+    }));
+  },
+};
+
 export default defineConfig({
   entry: { server: 'src/index.ts' },
   onSuccess: () => {
@@ -42,6 +60,7 @@ export default defineConfig({
   // alongside dist/ — see .mcpbignore.
   external: [/^@napi-rs\/keyring/],
   noExternal: [/^(?!@napi-rs\/keyring)/],
+  esbuildPlugins: [setupWidgetPlugin],
   esbuildOptions(options) {
     options.logOverride = {
       ...(options.logOverride ?? {}),

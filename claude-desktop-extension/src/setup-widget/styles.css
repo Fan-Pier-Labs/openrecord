@@ -1,0 +1,429 @@
+:root {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --accent: #0066cc;
+  --border: #e0e0e0;
+  --hover: #f5f5f5;
+  --error: #d32f2f;
+  --success: #388e3c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --text: #e0e0e0;
+    --accent: #4da3ff;
+    --border: #333333;
+    --hover: #2d2d2d;
+  }
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 10px 12px;
+  line-height: 1.3;
+}
+.container {
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+h1 {
+  font-size: 15px;
+  margin: 0 0 2px 0;
+  font-weight: 700;
+}
+.step-sub {
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 0 0 4px 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+label {
+  font-weight: 600;
+  font-size: 12px;
+  opacity: 0.8;
+}
+input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus {
+  border-color: var(--accent);
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 9px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.link-btn {
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  align-self: flex-start;
+  width: auto;
+}
+.link-btn:hover { text-decoration: underline; }
+.status {
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(211, 47, 47, 0.1);
+  color: var(--error);
+  border: 1px solid rgba(211, 47, 47, 0.2);
+}
+.loader {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.combobox {
+  position: relative;
+}
+.results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.results li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.results li:hover,
+.results li.active {
+  background: var(--hover);
+}
+.results li.loading,
+.results li.empty {
+  cursor: default;
+  opacity: 0.7;
+  font-style: italic;
+  font-size: 12px;
+}
+.results li.loading:hover,
+.results li.empty:hover {
+  background: transparent;
+}
+/* An entry that exists but can't be connected right now (the test sandbox
+   while it's torn down). Shown rather than hidden, so it doesn't look like
+   the entry disappeared — greyed out, unselectable, with the reason under
+   the name. */
+.results li.unavailable {
+  cursor: default;
+  opacity: 0.55;
+}
+.results li.unavailable:hover,
+.results li.unavailable.active {
+  background: transparent;
+}
+.results .row-unavailable {
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.9;
+  white-space: normal;
+}
+.results .row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.results .row-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.results .row-host {
+  font-size: 11px;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* MyChart logos are wide banners (~640x230), so the slot is a banner-shaped
+   rectangle. A white backing keeps dark-text logos legible in dark mode.
+   The slot is fixed-size so names stay aligned whether or not a logo loads;
+   .row-logo-empty paints a neutral placeholder for entries with no logo. */
+.results img.row-logo {
+  width: 56px;
+  height: 26px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 1px 3px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.results img.row-logo-empty {
+  background: var(--hover);
+  padding: 0;
+  border: 1px solid var(--border);
+}
+/* Pages 2 & 3: the chosen system's banner sits prominently above the
+   inputs, with the hostname beneath it (centered column). */
+.instance-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--hover);
+}
+.instance-logo {
+  max-width: 230px;
+  width: auto;
+  height: 48px;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-sizing: border-box;
+}
+.instance-name {
+  font-weight: 700;
+  font-size: 15px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.field-error {
+  color: var(--error);
+  font-size: 12px;
+  margin: 2px 0 0 0;
+}
+.success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: 10px;
+  background: rgba(56, 142, 60, 0.08);
+  border: 1px solid rgba(56, 142, 60, 0.25);
+}
+.check-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+.check-circle svg {
+  width: 32px;
+  height: 32px;
+  stroke: #fff;
+  stroke-width: 4;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: draw 0.4s ease-out 0.2s forwards;
+}
+.success-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--success);
+  margin: 0;
+}
+.success-sub {
+  font-size: 12px;
+  opacity: 0.75;
+  margin: 0;
+  word-break: break-all;
+}
+.success-hint {
+  font-size: 11px;
+  opacity: 0.7;
+  margin: 4px 0 0 0;
+}
+.success-hint kbd {
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+}
+/* Step 4: the passkey offer, shown after login when none is saved. */
+.passkey-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--hover);
+}
+.passkey-badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--success);
+  background: rgba(56, 142, 60, 0.12);
+  border: 1px solid rgba(56, 142, 60, 0.3);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.passkey-card p {
+  margin: 0;
+  font-size: 13px;
+}
+.passkey-card ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.passkey-note {
+  font-size: 11px;
+  opacity: 0.7;
+}
+/* The first screen: two ways in, as large tappable cards. */
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 400;
+}
+.choice:hover { border-color: var(--accent); background: var(--hover); }
+.choice-title { font-weight: 700; font-size: 14px; }
+.choice-sub { font-size: 12px; opacity: 0.75; }
+.choice .passkey-badge { margin-bottom: 2px; }
+/* Each step stacks its own children. */
+.step { display: flex; flex-direction: column; gap: 8px; }
+/* Found logins and connected accounts share one row layout. */
+.account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.account-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+}
+.account-list li + li { border-top: 1px solid var(--border); }
+.account-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  opacity: 1;
+  font-weight: 400;
+  font-size: 13px;
+}
+.account-list li.disabled label { cursor: default; opacity: 0.55; }
+.account-list input[type=radio] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--accent); }
+.account-list .row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.account-list .row-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-list .row-host { font-size: 11px; opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-list .row-note { font-size: 11px; font-style: italic; opacity: 0.8; }
+.account-list .row-error { font-size: 11px; color: var(--error); }
+.mark { width: 18px; text-align: center; font-weight: 700; flex-shrink: 0; }
+.mark.ok { color: var(--success); }
+.mark.fail { color: var(--error); }
+/* "I'm done" sits under Connect while there are logins left to import. */
+button.secondary { background: none; color: var(--text); border: 1px solid var(--border); }
+button.secondary:hover { background: var(--hover); }
+.working {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 0;
+}
+.working .loader { border-color: var(--border); border-top-color: var(--accent); margin: 0; }
+@keyframes pop {
+  0% { transform: scale(0); }
+  80% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}

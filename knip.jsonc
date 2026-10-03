@@ -29,7 +29,8 @@
       "ignoreDependencies": ["expo"]
     },
     "claude-desktop-extension": {
-      "entry": ["dev/*.mjs", "scripts/*.mjs"],
+      // The setup widget's entry is bundled by path (scripts/bundle-setup-widget.ts), never imported.
+      "entry": ["dev/*.mjs", "scripts/*.mjs", "src/setup-widget/main.tsx"],
       "ignoreDependencies": [
         "cheerio",
         "compare-versions",
