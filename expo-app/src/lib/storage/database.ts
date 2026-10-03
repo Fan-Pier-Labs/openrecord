@@ -333,7 +333,32 @@ export async function setSyncState(
   );
 }
 
-// ─── MyChart directory logos ───
+// ─── MyChart directory (the instance list and its logos) ───
+
+/**
+ * The whole instance list as one row, not 1400 of them.
+ *
+ * Nothing queries it in SQL — the picker filters the list in memory, because
+ * it re-filters on every keystroke — so rows would buy nothing and cost a
+ * 1400-statement write on every refresh. It is stored purely so a cold start
+ * with no network shows the list the last one fetched.
+ */
+export async function getCachedDirectory(): Promise<{ json: string; refreshedAt: string } | null> {
+  const row = await getDb().getFirstAsync<{ instances_json: string; refreshed_at: string }>(
+    "SELECT instances_json, refreshed_at FROM mychart_directory WHERE id = 1",
+  );
+  return row ? { json: row.instances_json, refreshedAt: row.refreshed_at } : null;
+}
+
+export async function setCachedDirectory(json: string): Promise<void> {
+  await getDb().runAsync(
+    `INSERT INTO mychart_directory (id, instances_json, refreshed_at) VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       instances_json = excluded.instances_json,
+       refreshed_at = excluded.refreshed_at`,
+    json, new Date().toISOString(),
+  );
+}
 
 /** A logo already fetched, as a data URI ready for an `<Image source>`. */
 export async function getCachedLogo(logoUrl: string): Promise<string | null> {

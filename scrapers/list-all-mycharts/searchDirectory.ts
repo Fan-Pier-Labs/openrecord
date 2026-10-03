@@ -2,23 +2,28 @@
  * Searching the MyChart directory by name — the lookup every client needs
  * before it has an account to log into.
  *
- * {@link listMyCharts} returns all ~1,400 instances; a person typing
- * "uchealth" wants five. This module is the ranking over that list, in one
- * place, because it used to exist twice: the Claude Desktop
+ * {@link fetchMyChartDirectory} returns all ~1400 instances; a person typing
+ * "uchealth" wants five. This module is the ranking and the caching around
+ * that fetch, in one place, because it used to exist twice: the Claude Desktop
  * extension shipped its own `instances.ts` searching only the bundled seed,
  * and the mobile app has its own picker search over the same list. Neither was
  * reachable from the CLI or the npm library, so "find my health system" was a
  * thing two clients could do and two could not.
  *
- * ## The checked-in list, never the live one
+ * ## Live first, checked-in second
  *
- * A search reads {@link listMyCharts} — the two checked-in files — and makes
- * no request to Epic. Epic's directory is refreshed into the generated one on
- * every MCPB release, with each login URL checked, and our own corrections
- * sit in the other. Searching Epic live would hand back the very URLs those
- * exist to fix (UCSF's information page), and a client offline or behind a
- * corporate proxy would have got the checked-in list anyway. The cost is that
- * a health system Epic adds between releases waits for the next one.
+ * New health systems come online between releases, and a patient whose
+ * provider is missing from a months-old snapshot has no way to connect. So a
+ * search fetches Epic's directory — which applies the login-URL corrections
+ * the last release's refresh recorded — merges in our hand-kept entries, keeps
+ * that for {@link DIRECTORY_CACHE_TTL_MS}, and searches it.
+ *
+ * When the fetch fails — offline, blocked by a corporate proxy, Epic down —
+ * the checked-in list ({@link listMyCharts}) answers instead, and the result
+ * says `source: 'bundled'` rather than pretending the live list was consulted. That
+ * is what the extension's setup wizard relied on before this existed, and
+ * losing it would break the picker exactly when someone is troubleshooting a
+ * connection.
  *
  * ## The sandbox entry
  *
@@ -36,7 +41,19 @@
  */
 
 import { scraperFetch } from '../http';
-import { listMyCharts, type MyChartInstanceSeed } from './directory';
+import {
+  fetchMyChartDirectory,
+  listMyCharts,
+  toSeedEntry,
+  withManualEntries,
+  type MyChartInstanceSeed,
+} from './directory';
+
+/**
+ * How long a fetched directory is reused before the next search refetches it.
+ * The list changes by a few entries a month, and each fetch is ~1.8 MB.
+ */
+export const DIRECTORY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** How many matches a search returns when the caller names no limit. */
 export const DEFAULT_DIRECTORY_SEARCH_LIMIT = 10;
@@ -161,9 +178,13 @@ export interface MyChartDirectoryMatch {
   unavailable?: string;
 }
 
+/** Which list answered a search. */
+export type MyChartDirectorySource = 'live' | 'bundled';
+
 export interface MyChartDirectorySearchResult {
   /** The query as the caller wrote it. */
   query: string;
+  source: MyChartDirectorySource;
   count: number;
   matches: MyChartDirectoryMatch[];
 }
@@ -171,6 +192,10 @@ export interface MyChartDirectorySearchResult {
 export interface MyChartDirectorySearchOptions {
   /** 1–{@link MAX_DIRECTORY_SEARCH_LIMIT}; defaults to 10. */
   limit?: number | undefined;
+  /** Where the directory lives. Defaults to Epic's; fake-mychart serves it too. */
+  directoryUrl?: string | undefined;
+  /** Where the directory's images live. Moves with `directoryUrl`. */
+  mediaBase?: string | undefined;
 }
 
 function hostnameOf(url: string): string {
@@ -190,6 +215,43 @@ function toMatch(instance: MyChartInstanceSeed): MyChartDirectoryMatch {
     slgId: instance.slgId,
     aliases: instance.aliases,
   };
+}
+
+// ── The cached live directory ──────────────────────────────────────────────
+
+let cached: { at: number; instances: MyChartInstanceSeed[] } | null = null;
+/** The fetch currently in flight, so N searches in a row make one request. */
+let inFlight: Promise<MyChartInstanceSeed[]> | null = null;
+
+/**
+ * Drop the cached directory. For tests, and for a client that knows the list
+ * has changed under it.
+ */
+export function clearDirectoryCache(): void {
+  cached = null;
+  inFlight = null;
+}
+
+async function liveDirectory(
+  options: MyChartDirectorySearchOptions,
+): Promise<MyChartInstanceSeed[]> {
+  if (cached && Date.now() - cached.at < DIRECTORY_CACHE_TTL_MS) return cached.instances;
+  if (inFlight) return inFlight;
+
+  const fetchOptions: { directoryUrl?: string; mediaBase?: string } = {};
+  if (options.directoryUrl !== undefined) fetchOptions.directoryUrl = options.directoryUrl;
+  if (options.mediaBase !== undefined) fetchOptions.mediaBase = options.mediaBase;
+
+  inFlight = fetchMyChartDirectory(fetchOptions)
+    .then((fetched) => {
+      const instances = withManualEntries(fetched.map(toSeedEntry));
+      cached = { at: Date.now(), instances };
+      return instances;
+    })
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
 }
 
 // ── Ranking ────────────────────────────────────────────────────────────────
@@ -242,6 +304,11 @@ export function rankDirectoryMatches(
 /**
  * Find the MyChart instances whose name, alias or hostname matches `query`.
  *
+ * Live directory first (with our corrections and additions merged in), the
+ * checked-in list when that fetch fails. The result
+ * says which one answered, because "your health system isn't listed" means
+ * something different depending on whether the list was six months old.
+ *
  * The {@link SANDBOX_INSTANCE} is searched alongside the real ones, and is
  * listed first so a query naming it outranks any real "Springfield…" match.
  * When a search turns it up, its reachability is probed and a match that
@@ -260,12 +327,23 @@ export async function searchMyChartDirectory(
     Math.max(1, Math.floor(options.limit ?? DEFAULT_DIRECTORY_SEARCH_LIMIT)),
   );
 
-  const matches = rankDirectoryMatches([SANDBOX_INSTANCE, ...listMyCharts()], text, limit);
+  let source: MyChartDirectorySource = 'live';
+  let instances: MyChartInstanceSeed[];
+  try {
+    instances = await liveDirectory(options);
+  } catch {
+    // Offline, blocked, or Epic is down. The seed is a real answer, just an
+    // older one — and the caller is told which it got.
+    source = 'bundled';
+    instances = listMyCharts();
+  }
+
+  const matches = rankDirectoryMatches([SANDBOX_INSTANCE, ...instances], text, limit);
 
   // Only pay for the probe when the query actually turned up the sandbox,
   // which almost no real search does.
   const sandbox = matches.find((match) => match.slgId === SANDBOX_INSTANCE.slgId);
   if (sandbox && !(await isSandboxAvailable())) sandbox.unavailable = SANDBOX_UNAVAILABLE_NOTE;
 
-  return { query: text, count: matches.length, matches };
+  return { query: text, source, count: matches.length, matches };
 }

@@ -4,10 +4,14 @@
  * Epic publishes the list that powers the org picker on mychart.org. Three
  * functions live here:
  *
- *  - {@link listMyCharts} — what every client reads: the checked-in lists,
- *    merged. The one scraper that makes no request.
- *  - {@link fetchMyChartDirectory} — Epic's live list, one request.
- *    `fetch-mychart-instances.ts` calls it to regenerate `mychart-instances.json`.
+ *  - {@link fetchMyChartDirectory} — Epic's live list, one request, with the
+ *    login-URL corrections the last release's refresh recorded applied.
+ *    Clients refresh from it about weekly; `fetch-mychart-instances.ts` calls
+ *    it to regenerate `mychart-instances.json`.
+ *  - {@link listMyCharts} — the checked-in lists, merged: what a client offers
+ *    before (or instead of) a refresh. The one scraper that makes no request.
+ *    {@link withManualEntries} merges the hand-kept file into a fetched list
+ *    the same way.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -223,29 +227,24 @@ interface ManualEntries {
   extraHosts: { slgId: string; host: string }[];
 }
 
-let merged: MyChartInstanceSeed[] | null = null;
-
 /**
- * Every MyChart we know of — the one list every client reads. Unlike the other
- * scrapers it makes no request: it merges two checked-in files.
+ * Merge `mychart-instances-manual.json` — what research found that a refresh
+ * can't — into a list of entries, either the checked-in one or one just
+ * fetched from Epic. Each hand entry carries its source.
  *
- *  - `mychart-instances.json` is generated: Epic's directory, every login URL
- *    checked, as of the last MCPB release (`fetch-mychart-instances.ts`).
- *  - `mychart-instances-manual.json` is kept by hand, for what research found
- *    that a refresh can't: a `correction` replaces an entry's `url`, but only
- *    while its Epic URL is still the one the correction was made against, so a
- *    refresh that records a new one retires it; an `addition` is an
- *    organization Epic doesn't list; `extraHosts` are more hostnames for an
- *    organization's portal. Each entry carries its source.
+ *  - A `correction` replaces an entry's `url`, but only while that entry's Epic
+ *    URL is still the one the correction was made against, so Epic changing it
+ *    retires the correction.
+ *  - An `addition` is an organization Epic doesn't list.
+ *  - `extraHosts` are more hostnames for an organization's portal.
  */
-export function listMyCharts(): MyChartInstanceSeed[] {
-  if (merged) return merged;
+export function withManualEntries(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
   const manual = manualEntries as ManualEntries;
   const corrections = new Map(manual.corrections.map((c) => [c.slgId, c]));
   const extraHosts = new Map<string, string[]>();
   for (const { slgId, host } of manual.extraHosts) extraHosts.set(slgId, [...(extraHosts.get(slgId) ?? []), host]);
 
-  const generated = (bundledInstances as MyChartInstanceSeed[]).map((entry) => {
+  const merged = entries.map((entry) => {
     const epicUrl = entry.directoryUrl ?? entry.url;
     const correction = corrections.get(entry.slgId);
     const hosts = extraHosts.get(entry.slgId);
@@ -255,15 +254,25 @@ export function listMyCharts(): MyChartInstanceSeed[] {
       ...(hosts ? { extraHosts: hosts } : {}),
     };
   });
-  const added = manual.additions.map(({ slgId, name, url, aliases }) => ({
-    name,
-    url,
-    logoUrl: defaultLogoUrl(),
-    slgId,
-    aliases,
-  }));
-  merged = [...generated, ...added];
-  return merged;
+  const known = new Set(entries.map((e) => e.slgId));
+  const added = manual.additions
+    .filter((a) => !known.has(a.slgId))
+    .map(({ slgId, name, url, aliases }) => ({ name, url, logoUrl: defaultLogoUrl(), slgId, aliases }));
+  return [...merged, ...added];
+}
+
+let checkedIn: MyChartInstanceSeed[] | null = null;
+
+/**
+ * Every MyChart the checked-in files know: `mychart-instances.json`
+ * (generated — Epic's directory, every login URL checked, as of the last MCPB
+ * release) merged with the hand-kept `mychart-instances-manual.json`. Unlike
+ * the other scrapers it makes no request; it is what a client offers before
+ * its first refresh from {@link fetchMyChartDirectory}, and when that fails.
+ */
+export function listMyCharts(): MyChartInstanceSeed[] {
+  checkedIn ??= withManualEntries(bundledInstances);
+  return checkedIn;
 }
 
 /** The logo URL Epic's own picker would render for this organization. */

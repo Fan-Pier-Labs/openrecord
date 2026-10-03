@@ -72,6 +72,12 @@ export const SCHEMA_SQL = `
       PRIMARY KEY (account_id, category)
     );
 
+    CREATE TABLE IF NOT EXISTS mychart_directory (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      instances_json TEXT NOT NULL,
+      refreshed_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS mychart_logos (
       logo_url TEXT PRIMARY KEY,
       data_uri TEXT NOT NULL,

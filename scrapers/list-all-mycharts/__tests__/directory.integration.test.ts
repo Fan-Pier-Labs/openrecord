@@ -19,6 +19,7 @@ import { beforeAll, describe, expect, it } from 'bun:test';
 
 import { resetFakeMyChart } from '../../myChart/__tests__/fake-mychart/mountMode';
 import { fetchMyChartDirectory, fetchMyChartIcon } from '../directory';
+import { clearDirectoryCache, searchMyChartDirectory } from '../searchDirectory';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 const BASE = `http://${HOST}`;
@@ -110,5 +111,40 @@ describe('MyChart icon over HTTP', () => {
       await fetchMyChartIcon(`${BASE}/mychartdotorg/directus/organizations/nope/nope.png`),
     ).toBeNull();
     expect(await fetchMyChartIcon(`${BASE}/mychartdotorg/site/en-us/images/other/x.png`)).toBeNull();
+  });
+});
+
+/**
+ * The search on top of that fetch — what `search_mycharts` runs.
+ *
+ * The unit tests cover the ranking with a scripted transport. What only a
+ * socket shows is which list actually answered: `source` says `live` here, and
+ * a search that quietly fell back to the checked-in seed would say `bundled`
+ * and still return matches.
+ */
+describe('searching the MyChart directory over HTTP', () => {
+  beforeAll(async () => {
+    await resetFakeMyChart(HOST);
+    clearDirectoryCache();
+  });
+
+  it('answers from the live directory, and says that is where it came from', async () => {
+    const result = await searchMyChartDirectory('springfield general', DIRECTORY);
+    expect(result.source).toBe('live');
+    const springfield = result.matches.find((m) => m.slgId === '9001')!;
+    expect(springfield.name).toBe('Springfield General Hospital');
+    expect(springfield.loginUrl).toBe(`${BASE}/MyChart/`);
+    expect(springfield.hostname).toBe(new URL(BASE).hostname);
+  });
+
+  it('finds an organization by an alias it no longer trades under', async () => {
+    const result = await searchMyChartDirectory('nuclear plant', DIRECTORY);
+    expect(result.matches.map((m) => m.slgId)).toContain('9001');
+  });
+
+  it('never offers the entry with no portal to connect to', async () => {
+    // `fetchMyChartDirectory` drops it; the search must not reintroduce it.
+    const result = await searchMyChartDirectory('ogdenville', DIRECTORY);
+    expect(result.matches).toEqual([]);
   });
 });

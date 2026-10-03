@@ -9,7 +9,7 @@
  * npm library and the mobile agent could not answer "which MyChart does my
  * health system run?" at all. Same tool name, same result shape; the search
  * itself now lives in `scrapers/list-all-mycharts/searchDirectory.ts` and
- * reads the checked-in list (`listMyCharts`), never Epic's live directory.
+ * prefers Epic's live directory over the checked-in seed.
  */
 
 import {

@@ -7,7 +7,7 @@ against all ~750 hosts at once.
 | | |
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
-| **Source** | [`directory.ts`](directory.ts) (`listMyCharts`, Epic fetch, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
+| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, `withManualEntries`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + weekly cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
 | **Probes** | [`probes/`](probes/) — [`probe-mount-discovery.ts`](probes/probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probes/probe-open-scheduling.ts) · [`probe-open-slots.ts`](probes/probe-open-slots.ts) · [`probe-epic-version.ts`](probes/probe-epic-version.ts) · [`probeRunner.ts`](probes/probeRunner.ts) |
 | **Data** | `mychart-instances.json` — generated from Epic on each MCPB release · `mychart-instances-manual.json` — kept by hand |
 
@@ -54,12 +54,13 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
   in different states — and nor is same portal alone: 46 portals are shared by affiliates
   that patients search for by their own names.
-- **Clients read the checked-in list, never Epic's live one.** `listMyCharts()` is the one
-  scraper here that makes no request: it merges `mychart-instances.json` (generated) with
-  `mychart-instances-manual.json` (by hand), and search, the iOS picker and password import
-  all read it. Searching Epic live handed back the very URLs the files exist to fix, and an
-  offline client got the checked-in list anyway. The cost: a health system Epic adds between
-  MCPB releases waits for the next one.
+- **Live first, checked-in second, our corrections on both.** Search and the iOS picker
+  fetch Epic's directory about once a week — new health systems come online between
+  releases — and `fetchMyChartDirectory` applies the login-URL corrections the last release's
+  refresh recorded. When that fetch fails (offline, corporate proxy, Epic down),
+  `listMyCharts()` answers instead — the one scraper here that makes no request — and the
+  result says `source: 'bundled'`. Either way `withManualEntries` merges in the hand-kept
+  `mychart-instances-manual.json`. Password import reads `listMyCharts()`: it runs offline.
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
@@ -71,7 +72,7 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   greyed out and unselectable, carrying that text, rather than dropping it. The answer is
   cached for a minute, and no other query pays for the probe.
 - fake-mychart serves **both halves** (`/cached-api/help/organizations/` and the mirrored
-  media path), so the fetch and logo tests never reach Epic.
+  media path), so neither the tests nor the mobile app's refresh has to reach Epic.
 
 ## Checking login URLs
 

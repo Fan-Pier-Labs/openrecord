@@ -16,6 +16,7 @@ import {
   fetchMyChartIcon,
   listMyCharts,
   logoUrlFor,
+  withManualEntries,
   parseDirectoryPayload,
   toSeedEntry,
   type MyChartInstanceSeed,
@@ -179,6 +180,18 @@ describe('listMyCharts', () => {
 
   it('attaches extra hostnames', () => {
     expect(bySlgId('650')?.extraHosts).toEqual(['mynm.nm.org']);
+  });
+
+  it('merges the same way into a list fetched from Epic', () => {
+    // What a weekly refresh hands it: Epic's Bellin, plus an organization the
+    // hand file also adds, which must not appear twice.
+    const fetched = withManualEntries([
+      { name: 'Bellin', url: 'https://www.mybellin.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [] },
+      { name: 'Royal National Orthopaedic Hospital', url: 'https://mycare.rnoh.nhs.uk/RNOHMyCare/', logoUrl: '', slgId: 'openrecord-rnoh', aliases: [] },
+    ]);
+    expect(fetched.find((i) => i.slgId === '306-2')?.url).toBe('https://mychart.emplifyhealth.org/MyChart/');
+    expect(fetched.filter((i) => i.slgId === 'openrecord-rnoh')).toHaveLength(1);
+    expect(fetched).toHaveLength(2 + manualEntries.additions.length - 1);
   });
 
   it('never mutates the generated list it reads', () => {

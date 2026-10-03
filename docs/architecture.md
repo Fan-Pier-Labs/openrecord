@@ -106,8 +106,9 @@ not compile for any client — the enforcement for "every dispatch goes through 
   logging in), the mobile app bypasses `requireSession`, and the library exposes them as **static**
   methods on `MyChartClient` — constructing a client means logging in, which is a login for
   nothing. This is where the extension's hand-written `search_mycharts` went: same tool name, same
-  result shape, now in every client, searching `listMyCharts()`: Epic's directory as checked
-  at the last MCPB release, merged with hand corrections, never the live one.
+  result shape, now in every client, and searching Epic's live directory (refreshed weekly, with
+  our hand corrections merged in) with the checked-in `listMyCharts()` as the fallback (the result
+  says which answered).
 - **`lessFrequentlyUsed` decides what a listing leads with, and nothing else.** MyChart's surface is
   not evenly valuable: labs, medications, visit notes and messages are the reason to connect an
   account at all, while goals, letters, education materials, care journeys, questionnaires, the
