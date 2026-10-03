@@ -62,6 +62,26 @@ export function setupDoneMessage(accounts: { account: string; passkey: string | 
 }
 
 /**
+ * The bare host a picker query names, when the user typed a web address
+ * rather than a health-system name — so a portal missing from the bundled
+ * directory can still be connected. Accepts a pasted URL ("https://host/MyChart/")
+ * and returns just the host; anything without a dotted name is a search, not
+ * an address. Injected into the widget by source, like twoFaDeliveryLabel.
+ */
+export function typedHostname(query: string): string | null {
+  const trimmed = query.trim();
+  let url: URL;
+  try {
+    // A space anywhere in the host makes this throw, so names like "Denver Health" fall out here.
+    url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+  const labels = url.hostname.split('.');
+  return labels.length > 1 && labels.every(Boolean) ? url.host : null;
+}
+
+/**
  * Interactive Setup Widget for OpenRecord.
  *
  * Served via the MCP Apps ui:// protocol. The user first picks a route:
@@ -69,7 +89,8 @@ export function setupDoneMessage(accounts: { account: string; passkey: string | 
  *     picks one login, which runs connect_imported_account. The widget only
  *     ever sees import ids, never a password.
  *   Manual — pick a health system from an autocomplete dropdown (results
- *     appear only after typing; free-text hostnames are not accepted), then
+ *     appear only after typing; a query that is itself a web address also
+ *     offers a "Use <host>" row, for portals the directory doesn't list), then
  *     enter credentials, which runs setup_account.
  * Each account runs to the end — 2FA (complete_2fa), then the passkey offer —
  * before the widget asks whether to connect another, by import or by hand.
@@ -594,7 +615,7 @@ const SETUP_UI_TEMPLATE = `
     <!-- ── Pick a health system (manual route) ───────────────────────── -->
     <div id="step-picker" hidden>
       <button id="back-picker" class="link-btn" type="button">‹ Back</button>
-      <p class="step-sub">Search for your hospital or clinic, then pick it from the list.</p>
+      <p class="step-sub">Search for your hospital or clinic, then pick it from the list. Not listed? Type your MyChart web address instead.</p>
       <div class="field combobox">
         <input type="text" id="search" placeholder="Search hospital or clinic (e.g. 'Denver Health')" autocomplete="off" spellcheck="false">
         <ul id="results" class="results" hidden></ul>
@@ -1157,7 +1178,12 @@ const SETUP_UI_TEMPLATE = `
         name.className = 'row-name';
         name.innerText = r.name || r.hostname;
         text.appendChild(name);
-        if (r.unavailable) {
+        if (r.custom) {
+          var hint = document.createElement('span');
+          hint.className = 'row-host';
+          hint.innerText = 'Not in our list. Connect to this address directly.';
+          text.appendChild(hint);
+        } else if (r.unavailable) {
           var note = document.createElement('span');
           note.className = 'row-unavailable';
           note.innerText = r.unavailable;
@@ -1206,12 +1232,16 @@ const SETUP_UI_TEMPLATE = `
         res = await callTool('search_mycharts', { query: query, limit: 8 });
       } catch (err) {
         if (epoch !== searchEpoch) return;
-        hideResults();
-        return;
+        res = null;
       }
       if (epoch !== searchEpoch) return; // a newer query is in flight; drop this response
       var matches = (res && Array.isArray(res.matches)) ? res.matches : [];
-      renderRows(matches);
+      // A typed address the directory already lists is just that listing.
+      var host = hostFromQuery(query);
+      if (host && !matches.some(function (m) { return m.hostname === host; })) {
+        matches = matches.concat([{ hostname: host, name: 'Use ' + host, custom: true }]);
+      }
+      renderRows(matches, 'No matching health systems. Not listed? Type your MyChart web address, e.g. mychart.example.org.');
     }
 
     searchInput.addEventListener('input', function () {
@@ -1257,10 +1287,12 @@ const SETUP_UI_TEMPLATE = `
     // ── Step transitions ────────────────────────────────────────────────────
     function selectInstance(r, username) {
       importing = false;
-      selectedInstance = r;
+      // A typed address carries 'Use <host>' as its row label; past the picker
+      // it is named by the host alone.
+      selectedInstance = r.custom ? { hostname: r.hostname, name: r.hostname } : r;
       hideResults();
 
-      fillHeader(instanceLogo, instanceName, r);
+      fillHeader(instanceLogo, instanceName, selectedInstance);
       // A sign-in reached from an import goes back to the list it came from.
       backBtn.innerText = r.fromImport ? '‹ Back' : '‹ Change health system';
 
@@ -1286,6 +1318,7 @@ const SETUP_UI_TEMPLATE = `
       searchInput.focus();
     }
 
+    var hostFromQuery = ${typedHostname};
     var deliveryLabel = ${twoFaDeliveryLabel};
 
     // Move to the dedicated 2FA step once a login reports need_2fa.

@@ -21,7 +21,7 @@ flowchart TD
     end
 
     subgraph MANUAL [Enter manually]
-        picker[Search for a health system] --> creds[Username + password]
+        picker[Search for a health system<br/>or type its web address] --> creds[Username + password]
         creds -- Connect --> setup[[setup_account]]
         setup -- wrong password --> creds
     end
