@@ -723,7 +723,7 @@ export function registerAllTools(rawServer: McpServer): void {
   server.registerTool(
     'get_setup_widget',
     {
-      description: 'Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup.',
+      description: 'Display an interactive widget for connecting MyChart accounts: the user can import logins already saved in their browser, or search for their health system and sign in by hand, then finish 2FA and the passkey offer in the widget. Use this if the user wants a GUI instead of chat-based setup.',
       inputSchema: {} satisfies ZodRawShape,
       ...toolMeta('Get interactive setup widget', { readOnlyHint: true, openWorldHint: false }),
       _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
@@ -732,7 +732,7 @@ export function registerAllTools(rawServer: McpServer): void {
       content: [
         {
           type: 'text',
-          text: 'Enter your MyChart hostname, username, and password in the widget to connect your account.',
+          text: 'The user can import MyChart logins saved in their browser, or enter one by hand, in the widget. It sends a message when they click Done.',
         },
       ],
     }),
