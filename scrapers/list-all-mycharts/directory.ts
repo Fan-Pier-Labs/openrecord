@@ -6,7 +6,7 @@
  *
  *  - {@link fetchMyChartDirectory} — Epic's live list, one request: the first
  *    half of the refresh (`refreshDirectory.ts`) that writes
- *    `mychart-instances.json` at release and reruns weekly in clients.
+ *    `mychart-instances.json` at release and reruns monthly in clients.
  *  - {@link listMyCharts} — the checked-in files, merged by
  *    {@link withManualEntries}: what a client offers until its first refresh.
  *    The one scraper that makes no request.
@@ -246,7 +246,7 @@ let checkedIn: MyChartInstanceSeed[] | null = null;
  * (generated — Epic's directory, every login URL checked, as of the last MCPB
  * release) merged with the hand-kept `mychart-instances-manual.json`. Unlike
  * the other scrapers it makes no request; it is what a client offers until
- * its first weekly refresh (`refreshMyChartDirectory`) finishes.
+ * its first monthly refresh (`refreshMyChartDirectory`) finishes.
  */
 export function listMyCharts(): MyChartInstanceSeed[] {
   checkedIn ??= withManualEntries(bundledInstances);

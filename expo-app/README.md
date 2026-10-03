@@ -20,7 +20,7 @@ ID (or the passcode) before showing anything (`src/lib/auth/auth-context.tsx`).
 
 The health-system picker (`src/lib/mychart-instances.ts`) shows the checked-in MyChart directory
 (`listMyCharts()` from `scrapers/list-all-mycharts/`), then the SQLite-cached copy of its own
-weekly rerun of the same refresh (Epic's directory, every login URL checked, in the background);
+monthly rerun of the same refresh (Epic's directory, every login URL checked, in the background);
 our hand-kept entries are merged into whichever it shows. Its first row, **Springfield Medical Center (Demo)**,
 points at the deployed `fake-mychart.fanpierlabs.com` sandbox and is greyed out when that sandbox is
 down. "Enter hostname manually" covers anything not in the list.

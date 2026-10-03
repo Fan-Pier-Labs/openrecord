@@ -4,7 +4,7 @@ Every client searches the same thing: **two lists, merged**.
 
 1. **The refresh's output**: Epic's directory with every login URL checked, produced by
    deterministic code. It's checked in as `mychart-instances.json` at each release, and the
-   long-running clients rerun the same code weekly.
+   long-running clients rerun the same code monthly.
 2. **`mychart-instances-manual.json`**: entries kept by hand, each with its source.
 
 ## The two lists, and who reads them
@@ -13,7 +13,7 @@ Every client searches the same thing: **two lists, merged**.
 flowchart LR
     subgraph list1["List 1: the refresh's output"]
         checkedIn["mychart-instances.json<br/>(checked in at release)"]
-        saved["a newer weekly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
+        saved["a newer monthly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
     end
     manual["List 2: mychart-instances-manual.json<br/>(kept by hand)"]
 
@@ -31,7 +31,7 @@ Search never makes a request. The CLI is one-shot, so it searches the checked-in
 
 ## The refresh: producing list 1
 
-The same code runs at release and weekly. `fetchResolvedMyChartDirectory` in
+The same code runs at release and monthly. `fetchResolvedMyChartDirectory` in
 `refreshDirectory.ts` does this:
 
 ```mermaid
@@ -43,7 +43,7 @@ flowchart TD
     retry --> out["entries: url, directoryUrl when corrected,<br/>down: true when unconfirmed"]
 
     out --> release["at release: fetch-mychart-instances.ts<br/>writes mychart-instances.json, sorted by slgId,<br/>re-checks the hand-kept URLs. Commit it."]
-    out --> weekly["weekly in the extension and the app:<br/>saved, then searched"]
+    out --> monthly["monthly in the extension and the app:<br/>saved, then searched"]
     out --> cli["mychart-cli --action list-mycharts<br/>prints it"]
 ```
 

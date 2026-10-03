@@ -1,7 +1,7 @@
 /**
  * Epic's directory with every login URL checked — the deterministic code
  * behind `mychart-instances.json`. It writes that file on each MCPB release
- * (`fetch-mychart-instances.ts`), reruns weekly in the long-running clients
+ * (`fetch-mychart-instances.ts`), reruns monthly in the long-running clients
  * (`refreshMyChartDirectory`), and is what `mychart-cli --action
  * list-mycharts` prints.
  *

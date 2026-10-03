@@ -7,7 +7,7 @@ against all ~750 hosts at once.
 | | |
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
-| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, `withManualEntries`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + weekly cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
+| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, `withManualEntries`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + the refreshed list) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
 | **Probes** | [`probes/`](probes/) — [`probe-mount-discovery.ts`](probes/probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probes/probe-open-scheduling.ts) · [`probe-open-slots.ts`](probes/probe-open-slots.ts) · [`probe-epic-version.ts`](probes/probe-epic-version.ts) · [`probeRunner.ts`](probes/probeRunner.ts) |
 | **Data** | `mychart-instances.json` — generated from Epic on each MCPB release · `mychart-instances-manual.json` — kept by hand |
 
@@ -58,7 +58,7 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   (Epic's directory, every login URL checked) merged with the hand-kept
   `mychart-instances-manual.json` by `withManualEntries`. The refresh output is
   `mychart-instances.json` from the last release until a newer run exists: the Claude Desktop
-  extension and the iOS app rerun the same refresh in the background about weekly (new health
+  extension and the iOS app rerun the same refresh in the background about monthly (new health
   systems come online between releases) and search its result, saying `source: 'live'`.
   Search itself never makes a request. The CLI is one-shot, so it searches the checked-in
   list, and password import reads `listMyCharts()` so it runs offline. See

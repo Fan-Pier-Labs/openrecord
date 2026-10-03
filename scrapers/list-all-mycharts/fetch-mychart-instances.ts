@@ -4,10 +4,9 @@
  *
  * The file is the offline seed: it is what the mobile app shows on a first
  * launch with no network, what the Claude Desktop extension bundles, and what
- * `probes/probe-mount-discovery.ts` iterates. It is also where login-URL
- * corrections are recorded, which every client applies to the live directory
- * too. The MCPB's `pack:signed` runs this first, so each release ships a fresh
- * one — commit the result.
+ * `probes/probe-mount-discovery.ts` iterates. The MCPB's `pack:signed` runs
+ * this first, so each release ships a fresh one — commit the result. The
+ * long-running clients rerun the same refresh monthly.
  *
  * Logos are not downloaded or mirrored. This used to copy all ~1400 of them
  * into a private S3 bucket that no client could read — they run on other

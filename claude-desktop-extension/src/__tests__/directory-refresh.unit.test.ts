@@ -1,5 +1,5 @@
 /**
- * The extension's weekly directory refresh: a saved run is searched at once, a
+ * The extension's monthly directory refresh: a saved run is searched at once, a
  * fresh one is not redone, and a stale or missing one is rerun and saved.
  * Getting this wrong is silent — a list that never refreshes, or a crawl on
  * every launch — so it is pinned here with a stub network.
@@ -64,10 +64,18 @@ describe('startDirectoryRefresh', () => {
     expect(requests).toEqual([]);
   });
 
+  it('leaves a run that is weeks but not a month old alone', async () => {
+    const requests: string[] = [];
+    serveDirectory(requests);
+    startDirectoryRefresh(tempCache({ refreshedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), name: 'Saved Health' }));
+    await tick(50);
+    expect(requests).toEqual([]);
+  });
+
   it('reruns a stale saved run in the background, then searches and saves the new one', async () => {
     const requests: string[] = [];
     serveDirectory(requests);
-    const cache = tempCache({ refreshedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), name: 'Saved Health' });
+    const cache = tempCache({ refreshedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(), name: 'Saved Health' });
     startDirectoryRefresh(cache);
 
     // The stale run is searched while the new one is under way…
