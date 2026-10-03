@@ -346,6 +346,7 @@ export default [
     files: [
       "expo-app/**/*.ts", "expo-app/**/*.tsx",
       "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx",
+      "claude-desktop-extension/src/setup-widget/**/*.tsx",
     ],
     plugins: { "react-hooks": reactHooks },
     rules: {
