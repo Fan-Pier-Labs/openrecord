@@ -39,8 +39,16 @@ export function twoFaDeliveryLabel(delivery?: { method?: string; contact?: strin
  * an address. Injected into the widget by source, like twoFaDeliveryLabel.
  */
 export function typedHostname(query: string): string | null {
-  const host = query.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').split(/[/?#]/)[0] ?? '';
-  return /^([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?$/.test(host) ? host : null;
+  const trimmed = query.trim();
+  let url: URL;
+  try {
+    // A space anywhere in the host makes this throw, so names like "Denver Health" fall out here.
+    url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+  const labels = url.hostname.split('.');
+  return labels.length > 1 && labels.every(Boolean) ? url.host : null;
 }
 
 /**
