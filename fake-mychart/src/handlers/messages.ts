@@ -314,8 +314,6 @@ export const messagesPost: ExactRoutes = {
     }
     return json({ Success: true, Data: data });
   },
-  'api/conversations/savereplydraft': () => json({ success: true }),
-  'api/conversations/deletedraft': () => json({ success: true }),
 
   'api/conversations/deleteconversation': async ({ request }) => {
     try {
@@ -364,7 +362,6 @@ export const messagesPost: ExactRoutes = {
   'api/medicaladvicerequests/getmedicaladvicerequestrecipients': ({ ds }) =>
     json(conformToShape(shapes.getMedicalAdviceRequestRecipients, ds.messageRecipients)),
   'api/medicaladvicerequests/getviewers': ({ ds }) => json(ds.messageViewers),
-  'api/medicaladvicerequests/savemedicaladvicerequestdraft': () => json({ success: true }),
 
   'api/medicaladvicerequests/sendmedicaladvicerequest': async ({ request }) => {
     try {
