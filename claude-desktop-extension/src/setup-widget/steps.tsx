@@ -147,7 +147,7 @@ export function Creds({ step, onSubmit, onBack, onError, onClearError }: {
   onClearError: () => void;
 }) {
   const [username, setUsername] = useState(step.username);
-  const [password, setPassword] = useState(step.password);
+  const [password, setPassword] = useState('');
   const [busy, run] = useBusy();
   const userRef = useRef<HTMLInputElement>(null);
   const passRef = useRef<HTMLInputElement>(null);

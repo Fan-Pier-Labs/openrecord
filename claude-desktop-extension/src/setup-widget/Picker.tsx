@@ -131,7 +131,7 @@ export function Picker({ host, onPick, onBack }: { host: Host; onPick: (row: Pic
             {results.kind === 'loading' ? <li className="loading">Searching…</li>
               : rows.length === 0 ? <li className="empty">{NO_MATCHES}</li>
                 : rows.map((row, i) => (
-                  <Row key={row.hostname} row={row} active={i === active} onPick={() => onPick(row)} onHover={() => setActive(i)} />
+                  <Row key={row.slgId ?? row.hostname} row={row} active={i === active} onPick={() => onPick(row)} onHover={() => setActive(i)} />
                 ))}
           </ul>
         )}

@@ -86,6 +86,15 @@ describe('decodeToolResult', () => {
     expect(decodeToolResult(await checkPendingCall({ id: parkedId!, wait: false })).parkedId).toBe(parkedId);
   });
 
+  test('falls back to the id in the note text when structuredContent is dropped', async () => {
+    const parked = await runGuarded('import_browser_passwords', {}, () => new Promise<CallToolResult>(() => {}), 1);
+    const id = decodeToolResult(parked).parkedId;
+    const { structuredContent: _, ...textOnly } = parked;
+    expect(decodeToolResult(textOnly).parkedId).toBe(id);
+    const { structuredContent: __, ...stillText } = await checkPendingCall({ id: id!, wait: false });
+    expect(decodeToolResult(stillText).parkedId).toBe(id);
+  });
+
   test('a finished result has no parked id', () => {
     expect(decodeToolResult(json({ supported: true }))).toEqual({ value: { supported: true }, parkedId: null });
     expect(decodeToolResult({ content: [{ type: 'text', text: 'plain' }] })).toEqual({ value: 'plain', parkedId: null });

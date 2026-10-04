@@ -19,6 +19,8 @@ export interface Instance {
 
 /** A row in the health-system picker: a directory match, or the address the user typed. */
 export interface PickerRow {
+  /** Epic's directory id; absent only on the typed-address row. Hostnames repeat across affiliates. */
+  slgId?: string;
   hostname: string;
   name: string;
   logoUrl?: string;
@@ -52,8 +54,8 @@ export interface CredsStep {
   instance: Instance;
   /** Reached from an import whose saved password failed: Back returns to the list. */
   fromImport: boolean;
+  /** Prefilled; the password is never held in state, so it is always retyped. */
   username: string;
-  password: string;
   error: string | null;
 }
 
@@ -86,7 +88,7 @@ export type Action =
   | { type: 'connectImport'; entry: FoundLogin }
   | { type: 'importResult'; entry: FoundLogin; result: unknown }
   | { type: 'pickInstance'; row: PickerRow }
-  | { type: 'loginResult'; username: string; password: string; result: unknown }
+  | { type: 'loginResult'; username: string; result: unknown }
   | { type: 'twoFaResult'; result: unknown }
   | { type: 'passkeyResult'; result: unknown }
   | { type: 'skipPasskey' }
@@ -235,7 +237,6 @@ export function reducer(state: State, action: Action): State {
             instance,
             fromImport: true,
             username: entry.username ?? '',
-            password: '',
             error: "The password saved in your browser didn't work. It may be out of date — enter your current one.",
           },
         };
@@ -250,14 +251,14 @@ export function reducer(state: State, action: Action): State {
       const instance: Instance = row.custom
         ? { hostname: row.hostname, name: row.hostname }
         : { hostname: row.hostname, name: row.name, ...(row.logoUrl ? { logoUrl: row.logoUrl } : {}) };
-      return { ...state, step: { kind: 'creds', instance, fromImport: false, username: '', password: '', error: null } };
+      return { ...state, step: { kind: 'creds', instance, fromImport: false, username: '', error: null } };
     }
 
     case 'loginResult': {
       if (step.kind !== 'creds') return state;
       const r = reply(action.result);
       if (r.state === 'need_2fa' && r.pending_id) {
-        const back: CredsStep = { ...step, username: action.username, password: action.password, error: null };
+        const back: CredsStep = { ...step, username: action.username, error: null };
         return {
           ...state,
           step: { kind: 'twofa', instance: step.instance, pendingId: r.pending_id, delivery: r.delivery ?? null, back, error: null },

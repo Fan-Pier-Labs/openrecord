@@ -82,7 +82,7 @@ export function App({ host }: { host: Host }) {
             onClearError={clearError}
             onSubmit={async (username, password) => {
               const result = await host.callTool('setup_account', { hostname: step.instance.hostname, username, password });
-              dispatch({ type: 'loginResult', username, password, result });
+              dispatch({ type: 'loginResult', username, result });
             }}
           />
         );

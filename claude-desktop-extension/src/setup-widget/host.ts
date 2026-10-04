@@ -31,9 +31,13 @@ export interface Host {
 /** A tool result's JSON (or text), and the id to wait on when the call was parked. */
 export function decodeToolResult(raw: unknown): { value: unknown; parkedId: string | null } {
   const r = raw as Partial<CallToolResult> | null | undefined;
-  const id = (r?.structuredContent as Partial<PendingCallNote> | undefined)?.pending_call?.id;
-  const parkedId = typeof id === 'string' ? id : null;
   const text = Array.isArray(r?.content) ? r.content.find((c) => c.type === 'text') : undefined;
+  const id = (r?.structuredContent as Partial<PendingCallNote> | undefined)?.pending_call?.id;
+  // Fallback until Claude Desktop is confirmed to forward structuredContent on
+  // an app's tools/call; without it a slow keychain prompt reads as a failed
+  // scan. Delete once confirmed.
+  const fromText = text ? /\(id "([^"]+)"\) is still running/.exec(text.text)?.[1] : undefined;
+  const parkedId = typeof id === 'string' ? id : fromText ?? null;
   if (!text) return { value: raw, parkedId };
   try {
     return { value: JSON.parse(text.text) as unknown, parkedId };

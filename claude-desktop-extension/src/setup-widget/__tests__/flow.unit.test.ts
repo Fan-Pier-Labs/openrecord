@@ -102,7 +102,7 @@ describe('the import route', () => {
       { type: 'connectImport', entry: homer },
       { type: 'importResult', entry: homer, result: { state: 'invalid_login' } },
     ], scanned);
-    expect(state.step).toMatchObject({ kind: 'creds', fromImport: true, username: 'homer', password: '' });
+    expect(state.step).toMatchObject({ kind: 'creds', fromImport: true, username: 'homer' });
     expect((state.step as { error: string }).error).toContain("The password saved in your browser didn't work.");
     state = run([{ type: 'back' }], state);
     expect(state.step.kind).toBe('accounts');
@@ -133,7 +133,6 @@ describe('the manual route', () => {
       instance: { hostname: 'mychart.example.org', name: 'Example Health', logoUrl: 'https://x/logo.png' },
       fromImport: false,
       username: '',
-      password: '',
       error: null,
     });
     expect(run([{ type: 'back' }], creds).step.kind).toBe('picker');
@@ -144,20 +143,22 @@ describe('the manual route', () => {
     expect(state.step).toMatchObject({ instance: { hostname: 'mychart.new.org', name: 'mychart.new.org' } });
   });
 
-  test('back from 2FA returns to the filled-in sign-in', () => {
-    let state = run([{ type: 'error', message: 'stale' }, { type: 'loginResult', username: 'homer', password: 'donuts', result: { state: 'need_2fa', pending_id: 'p1' } }], creds);
+  test('back from 2FA returns to the sign-in with the username kept and the password not', () => {
+    let state = run([{ type: 'error', message: 'stale' }, { type: 'loginResult', username: 'homer', result: { state: 'need_2fa', pending_id: 'p1' } }], creds);
     expect(state.step.kind).toBe('twofa');
     state = run([{ type: 'back' }], state);
-    expect(state.step).toMatchObject({ kind: 'creds', username: 'homer', password: 'donuts', error: null });
+    expect(state.step).toMatchObject({ kind: 'creds', username: 'homer', error: null });
+    // The password is never held in state: it would show in devtools and every logged state.
+    expect(JSON.stringify(state)).not.toContain('password');
   });
 
   test('a rejected password or code stays on its step with the reason', () => {
-    expect(run([{ type: 'loginResult', username: 'h', password: 'p', result: { state: 'invalid_login' } }], creds).step)
+    expect(run([{ type: 'loginResult', username: 'h', result: { state: 'invalid_login' } }], creds).step)
       .toMatchObject({ kind: 'creds', error: 'Invalid username or password. Please check your credentials.' });
-    expect(run([{ type: 'loginResult', username: 'h', password: 'p', result: 'Error: timed out' }], creds).step)
+    expect(run([{ type: 'loginResult', username: 'h', result: 'Error: timed out' }], creds).step)
       .toMatchObject({ kind: 'creds', error: 'timed out' });
 
-    const twofa = run([{ type: 'loginResult', username: 'h', password: 'p', result: { state: 'need_2fa', pending_id: 'p1' } }], creds);
+    const twofa = run([{ type: 'loginResult', username: 'h', result: { state: 'need_2fa', pending_id: 'p1' } }], creds);
     // A rejected code comes back with a fresh pending id for the next try.
     expect(run([{ type: 'twoFaResult', result: { state: 'invalid_2fa', pending_id: 'p2' } }], twofa).step)
       .toMatchObject({ pendingId: 'p2', error: 'Invalid verification code. Please try again.' });
@@ -166,13 +167,13 @@ describe('the manual route', () => {
 
   test('records how the passkey offer went', () => {
     // Already on file: no offer.
-    const saved = run([{ type: 'loginResult', username: 'h', password: 'p', result: loggedIn({ passkey_saved: true }) }], creds);
+    const saved = run([{ type: 'loginResult', username: 'h', result: loggedIn({ passkey_saved: true }) }], creds);
     expect(saved.connected).toEqual([{ name: 'Example Health', account: 'homer@mychart.example.org', passkey: 'saved' }]);
     // A result without the field is not one saying there is no passkey.
-    const unknown = run([{ type: 'loginResult', username: 'h', password: 'p', result: loggedIn({ passkey_saved: undefined }) }], creds);
+    const unknown = run([{ type: 'loginResult', username: 'h', result: loggedIn({ passkey_saved: undefined }) }], creds);
     expect(unknown.connected[0]?.passkey).toBeNull();
     // Offered and skipped.
-    const offered = run([{ type: 'loginResult', username: 'h', password: 'p', result: loggedIn() }], creds);
+    const offered = run([{ type: 'loginResult', username: 'h', result: loggedIn() }], creds);
     expect(offered.step).toMatchObject({ kind: 'passkey', storage: 'your OS keystore' });
     expect(run([{ type: 'skipPasskey' }], offered).connected[0]?.passkey).toBeNull();
     // Refused by the portal: the reason shows, and skipping is still there.
@@ -183,14 +184,14 @@ describe('the manual route', () => {
   });
 
   test('reconnecting the same account replaces its entry', () => {
-    const once = run([{ type: 'loginResult', username: 'h', password: 'p', result: loggedIn({ passkey_saved: true }) }], creds);
-    const twice = run([{ type: 'pickInstance', row: { hostname: 'mychart.example.org', name: 'Example Health' } }, { type: 'loginResult', username: 'h', password: 'p', result: loggedIn({ passkey_saved: true, account: 'HOMER@mychart.example.org' }) }], once);
+    const once = run([{ type: 'loginResult', username: 'h', result: loggedIn({ passkey_saved: true }) }], creds);
+    const twice = run([{ type: 'pickInstance', row: { hostname: 'mychart.example.org', name: 'Example Health' } }, { type: 'loginResult', username: 'h', result: loggedIn({ passkey_saved: true, account: 'HOMER@mychart.example.org' }) }], once);
     expect(twice.connected.map((c) => c.account)).toEqual(['HOMER@mychart.example.org']);
   });
 
   test('ignores a result that lands after the user left the step', () => {
     const left = run([{ type: 'back' }], creds);
-    expect(run([{ type: 'loginResult', username: 'h', password: 'p', result: loggedIn() }], left)).toBe(left);
+    expect(run([{ type: 'loginResult', username: 'h', result: loggedIn() }], left)).toBe(left);
   });
 });
 
