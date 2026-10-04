@@ -151,19 +151,6 @@ function loggedIn(state: State, instance: Instance, account: string, r: ToolRepl
   return accountDone(state, instance, account, r.passkey_saved === true ? 'saved' : null);
 }
 
-function importFailed(state: State, message: string): State {
-  // Import ids are held for 10 minutes after the scan; a slow round of 2FA
-  // codes can outlast them, and only a fresh scan gets new ones.
-  if (/expired/i.test(message)) {
-    return {
-      ...state,
-      scanned: null,
-      step: accountsStep('Saved logins are only kept for 10 minutes after searching. Import from your browser again to continue.'),
-    };
-  }
-  return { ...state, step: accountsStep(message) };
-}
-
 function withError(step: Step, error: string | null): Step {
   return 'error' in step ? { ...step, error } : step;
 }
@@ -241,7 +228,16 @@ export function reducer(state: State, action: Action): State {
           },
         };
       }
-      return importFailed(state, errorText(action.result, 'Sign-in failed.'));
+      if (r.state === 'expired') {
+        // Import ids are held for 10 minutes after the scan; a slow round of 2FA
+        // codes can outlast them, and only a fresh scan gets new ones.
+        return {
+          ...state,
+          scanned: null,
+          step: accountsStep('Saved logins are only kept for 10 minutes after searching. Import from your browser again to continue.'),
+        };
+      }
+      return { ...state, step: accountsStep(errorText(action.result, 'Sign-in failed.')) };
     }
 
     case 'pickInstance': {

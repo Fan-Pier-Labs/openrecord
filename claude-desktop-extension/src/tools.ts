@@ -838,7 +838,8 @@ export function registerAllTools(rawServer: McpServer): void {
     {
       description:
         'Log into a MyChart account discovered by import_browser_passwords, using the password already saved in the browser, and save it for future calls. ' +
-        'Only call this for an entry the user explicitly chose. Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (the saved password is stale — ask the user for the current one and use setup_account).',
+        'Only call this for an entry the user explicitly chose. Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (the saved password is stale — ask the user for the current one and use setup_account). ' +
+        'Returns `{state:"expired"}` when the import_id is unknown or past its 10-minute TTL — run import_browser_passwords again for fresh ids.',
       inputSchema: {
         import_id: z.string().describe('The import_id of the chosen entry from import_browser_passwords.'),
       } satisfies ZodRawShape,
@@ -847,7 +848,10 @@ export function registerAllTools(rawServer: McpServer): void {
     async ({ import_id }) => {
       const candidate = takeImportedCandidate(import_id);
       if (!candidate) {
-        return errorResult('That import_id is unknown or has expired (10-minute TTL). Call import_browser_passwords again.');
+        return jsonResult({
+          state: 'expired',
+          message: 'That import_id is unknown or has expired (10-minute TTL). Call import_browser_passwords again.',
+        });
       }
       if (!candidate.user) {
         return errorResult(`The saved credential for ${candidate.hostname} has no username. Ask the user for it and call setup_account.`);
