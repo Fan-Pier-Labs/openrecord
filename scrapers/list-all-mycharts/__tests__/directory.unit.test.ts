@@ -7,6 +7,8 @@
  * object has none of them.
  */
 import { afterEach, describe, expect, it } from 'bun:test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { setTestTransport } from '../../http';
 import {
@@ -14,9 +16,14 @@ import {
   defaultLogoUrl,
   fetchMyChartDirectory,
   fetchMyChartIcon,
+  listMyCharts,
   logoUrlFor,
+  toSortedJson,
   parseDirectoryPayload,
+  toSeedEntry,
+  type MyChartInstanceSeed,
 } from '../directory';
+import bundledInstances from '../mychart-instances.json';
 import fixture from './fixtures/directory-response.json';
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -36,6 +43,7 @@ describe('parseDirectoryPayload', () => {
     expect(aaci).toEqual({
       name: 'AACI',
       url: 'https://mychart.ochin.org/MyChartAACI/',
+      directoryUrl: 'https://mychart.ochin.org/MyChartAACI/',
       logoUrl:
         'https://media.epic.com/mychartdotorg/directus/organizations/C7785A28-8697-454E-9FFD-23E143F9F672/caba6e8737d0c70cdbfd2f92d373084a.png',
       slgId: '432-112',
@@ -78,9 +86,56 @@ describe('parseDirectoryPayload', () => {
     expect(elCamino?.aliases).toEqual(['Silicon Valley Sports Medicine']);
   });
 
+  it('records a correction and a down portal in the seed only when there is one', () => {
+    const [plain] = parseDirectoryPayload({
+      organizations: [{ slgId: '9001', name: 'Springfield', loginUrl: 'https://mychart.example.org/MyChart/' }],
+    });
+    expect(toSeedEntry(plain!)).not.toContainKey('directoryUrl');
+    expect(toSeedEntry(plain!)).not.toContainKey('down');
+    expect(
+      toSeedEntry({ ...plain!, url: 'https://portal.example.org/MyChart/', down: true }),
+    ).toMatchObject({ directoryUrl: 'https://mychart.example.org/MyChart/', down: true });
+  });
+
+  describe('duplicates', () => {
+    const parse = (organizations: object[]) => parseDirectoryPayload({ organizations });
+
+    it('merges entries with the same name and URL, keeping the parent and every alias', () => {
+      // Cleveland Clinic's shape: listed for the US and again for Canada.
+      const merged = parse([
+        { slgId: '320', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: ['Martin'], states: ['OH'], countries: ['US'] },
+        { slgId: '320-1', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: [], states: [], countries: ['CA'] },
+      ]);
+      expect(merged).toHaveLength(1);
+      expect(merged[0]).toMatchObject({ slgId: '320', aliases: ['Martin'] });
+    });
+
+    it('keeps same-named systems on different portals, and affiliates sharing one', () => {
+      const kept = parse([
+        { slgId: '1', name: 'Baptist Health', loginUrl: 'https://mychart.baptist-al.example/Baptist/', states: ['AL'] },
+        { slgId: '2', name: 'Baptist Health', loginUrl: 'https://mychart.baptist-ar.example/mychart/', states: ['AR'] },
+        { slgId: '3', name: 'Shelbyville Clinic', loginUrl: 'https://mychart.baptist-ar.example/mychart/' },
+      ]);
+      expect(kept.map((i) => i.slgId)).toEqual(['1', '2', '3']);
+    });
+  });
+
   it('throws rather than reporting an empty directory when the shape changes', () => {
     expect(() => parseDirectoryPayload({ orgs: [] })).toThrow(/organizations/);
     expect(() => parseDirectoryPayload(null)).toThrow(/organizations/);
+  });
+});
+
+describe('listMyCharts', () => {
+  it('is the checked-in list, as the release refresh wrote it', () => {
+    expect(listMyCharts()).toEqual(bundledInstances as MyChartInstanceSeed[]);
+  });
+});
+
+describe('mychart-instances.json', () => {
+  it('is sorted by slgId with keys in order, so a refresh diff shows only what changed', () => {
+    const text = fs.readFileSync(path.join(import.meta.dir, '..', 'mychart-instances.json'), 'utf8');
+    expect(text).toBe(toSortedJson(JSON.parse(text) as { slgId: string }[]));
   });
 });
 
