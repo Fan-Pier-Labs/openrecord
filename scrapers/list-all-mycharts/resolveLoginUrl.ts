@@ -40,8 +40,8 @@ const READS_AS_PORTAL = /mychart|chart|portal|epic/i;
 const RESOLVE_TIMEOUT_MS = 60_000;
 
 export type LoginUrlResolution =
-  | { kind: 'login' }
-  | { kind: 'linked'; url: string }
+  /** `url` served a MyChart login page: Epic's own, or the portal its page linked to. */
+  | { kind: 'up'; url: string }
   | { kind: 'down'; reason: string };
 
 async function fetchFollowing(url: string): Promise<{ finalUrl: string; status: number; html: string }> {
@@ -78,7 +78,7 @@ async function resolve(directoryUrl: string): Promise<LoginUrlResolution> {
     return { kind: 'down', reason: String((e as Error)?.message ?? e) };
   }
   if (page.status >= 400) return { kind: 'down', reason: `HTTP ${page.status}` };
-  if (looksLikeLoginPage(page.html)) return { kind: 'login' };
+  if (looksLikeLoginPage(page.html)) return { kind: 'up', url: directoryUrl };
 
   const ranked = extractMountsFromLinks(page.html, new URL(page.finalUrl).host);
   const candidates = [
@@ -90,7 +90,7 @@ async function resolve(directoryUrl: string): Promise<LoginUrlResolution> {
   ];
   for (const { hostname, firstPathPart } of candidates) {
     const mount = `https://${hostname}/${firstPathPart ? `${firstPathPart}/` : ''}`;
-    if (await servesLoginPage(`${mount}Authentication/Login`)) return { kind: 'linked', url: mount };
+    if (await servesLoginPage(`${mount}Authentication/Login`)) return { kind: 'up', url: mount };
   }
   return { kind: 'down', reason: 'no MyChart login on the page or anything it links to' };
 }
