@@ -594,6 +594,7 @@ export {
 } from '../../scrapers/npi/npiRegistry';
 export {
   fetchMyChartDirectory,
+  listMyCharts,
   fetchMyChartIcon,
   parseDirectoryPayload,
   toSeedEntry,
@@ -607,11 +608,13 @@ export {
 export {
   searchMyChartDirectory,
   rankDirectoryMatches,
+  refreshMyChartDirectory,
+  useRefreshedMyCharts,
   clearDirectoryCache,
   SANDBOX_INSTANCE,
   DEFAULT_DIRECTORY_SEARCH_LIMIT,
   MAX_DIRECTORY_SEARCH_LIMIT,
-  DIRECTORY_CACHE_TTL_MS,
+  DIRECTORY_REFRESH_INTERVAL_MS,
   type MyChartDirectoryMatch,
   type MyChartDirectorySearchResult,
   type MyChartDirectorySearchOptions,
