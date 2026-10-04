@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import type { MyChartInstanceSeed } from '../../scrapers/list-all-mycharts/directory';
+import { bundledDirectoryFingerprint, type MyChartInstanceSeed } from '../../scrapers/list-all-mycharts/directory';
 import {
   DIRECTORY_REFRESH_INTERVAL_MS,
   refreshMyChartDirectory,
@@ -23,6 +23,8 @@ import {
 const CACHE_PATH = path.join(os.homedir(), '.openrecord-mcpb', 'mychart-instances.json');
 
 interface SavedRefresh {
+  /** `bundledDirectoryFingerprint()` of the release this run was made beside. */
+  bundled: string;
   refreshedAt: string;
   instances: MyChartInstanceSeed[];
 }
@@ -44,8 +46,10 @@ export function startDirectoryRefresh(cachePath: string = CACHE_PATH): void {
   let refreshedAt = 0;
   try {
     const saved = JSON.parse(fs.readFileSync(cachePath, 'utf8')) as SavedRefresh;
-    if (saved.instances.length > 0) {
-      useRefreshedMyCharts(saved.instances);
+    // A run saved beside an older release is older than the list this release
+    // ships, so it is ignored and refreshed rather than searched.
+    if (saved.bundled === bundledDirectoryFingerprint() && saved.instances.length > 0) {
+      useRefreshedMyCharts(saved.instances, saved.refreshedAt);
       refreshedAt = Date.parse(saved.refreshedAt) || 0;
     }
   } catch {
@@ -61,7 +65,11 @@ export function startDirectoryRefresh(cachePath: string = CACHE_PATH): void {
       if (instances.length === 0) return;
       refreshedAt = Date.now();
       fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-      const saved: SavedRefresh = { refreshedAt: new Date(refreshedAt).toISOString(), instances };
+      const saved: SavedRefresh = {
+        bundled: bundledDirectoryFingerprint(),
+        refreshedAt: new Date(refreshedAt).toISOString(),
+        instances,
+      };
       fs.writeFileSync(cachePath, JSON.stringify(saved));
     } catch {
       // Offline or Epic is down: keep searching what we have, try tomorrow.

@@ -18,7 +18,7 @@
  * the iOS app) reruns the refresh about monthly with
  * {@link refreshMyChartDirectory}, in the background — it is minutes of
  * requests, never part of a search — and from then on searches say
- * `source: 'live'`.
+ * `source: 'refreshed'`, with when.
  *
  * ## The sandbox entry
  *
@@ -169,12 +169,14 @@ export interface MyChartDirectoryMatch {
 }
 
 /** Which list answered a search. */
-export type MyChartDirectorySource = 'live' | 'bundled';
+export type MyChartDirectorySource = 'refreshed' | 'bundled';
 
 export interface MyChartDirectorySearchResult {
   /** The query as the caller wrote it. */
   query: string;
   source: MyChartDirectorySource;
+  /** When the refresh that answered ran (ISO 8601), for `source: 'refreshed'`. */
+  refreshedAt?: string;
   count: number;
   matches: MyChartDirectoryMatch[];
 }
@@ -205,8 +207,8 @@ function toMatch(instance: MyChartInstanceSeed): MyChartDirectoryMatch {
 
 // ── The refreshed list ─────────────────────────────────────────────────────
 
-/** The last refresh's list; null until one. */
-let refreshed: MyChartInstanceSeed[] | null = null;
+/** The last refresh's list, and when it ran; null until one. */
+let refreshed: { entries: MyChartInstanceSeed[]; at: string } | null = null;
 
 /** Search the checked-in list again, as before any refresh. For tests. */
 export function clearDirectoryCache(): void {
@@ -215,10 +217,11 @@ export function clearDirectoryCache(): void {
 
 /**
  * Search a list a refresh produced — this process's, or one a client saved
- * from an earlier run — instead of the checked-in one.
+ * from an earlier run — instead of the checked-in one. `refreshedAt` is when
+ * that refresh ran; searches report it.
  */
-export function useRefreshedMyCharts(entries: readonly MyChartInstanceSeed[]): void {
-  refreshed = [...entries];
+export function useRefreshedMyCharts(entries: readonly MyChartInstanceSeed[], refreshedAt: string): void {
+  refreshed = { entries: [...entries], at: refreshedAt };
 }
 
 /**
@@ -231,7 +234,7 @@ export async function refreshMyChartDirectory(
 ): Promise<MyChartInstanceSeed[]> {
   const { instances } = await fetchResolvedMyChartDirectory(undefined, directory);
   const entries = instances.map(toSeedEntry);
-  useRefreshedMyCharts(entries);
+  useRefreshedMyCharts(entries, new Date().toISOString());
   return entries;
 }
 
@@ -307,8 +310,7 @@ export async function searchMyChartDirectory(
     Math.max(1, Math.floor(options.limit ?? DEFAULT_DIRECTORY_SEARCH_LIMIT)),
   );
 
-  const source: MyChartDirectorySource = refreshed ? 'live' : 'bundled';
-  const instances = refreshed ?? listMyCharts();
+  const instances = refreshed?.entries ?? listMyCharts();
 
   const matches = rankDirectoryMatches([SANDBOX_INSTANCE, ...instances], text, limit);
 
@@ -317,5 +319,7 @@ export async function searchMyChartDirectory(
   const sandbox = matches.find((match) => match.slgId === SANDBOX_INSTANCE.slgId);
   if (sandbox && !(await isSandboxAvailable())) sandbox.unavailable = SANDBOX_UNAVAILABLE_NOTE;
 
-  return { query: text, source, count: matches.length, matches };
+  return refreshed
+    ? { query: text, source: 'refreshed', refreshedAt: refreshed.at, count: matches.length, matches }
+    : { query: text, source: 'bundled', count: matches.length, matches };
 }

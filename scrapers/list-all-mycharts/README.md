@@ -58,7 +58,7 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   URL checked): `mychart-instances.json` from the last release until a newer run exists. The
   Claude Desktop extension and the iOS app rerun the same refresh in the background about
   monthly (new health systems come online between releases) and search its result, saying
-  `source: 'live'`. Search itself never makes a request. The CLI is one-shot, so it searches
+  `source: 'refreshed'` with its `refreshedAt`. Search itself never makes a request. The CLI is one-shot, so it searches
   the checked-in list. See [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md).
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
