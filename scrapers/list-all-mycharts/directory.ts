@@ -213,6 +213,23 @@ export function toSeedEntry(instance: MyChartInstance): MyChartInstanceSeed {
   };
 }
 
+let fingerprint: string | null = null;
+
+/**
+ * Identifies the checked-in `mychart-instances.json`, so a client can tell
+ * whether a refresh it saved was made beside this release's file or an older
+ * one. A saved run from an older release is older than the file that replaced
+ * it, and should not win over it. (FNV-1a over the file's contents.)
+ */
+export function bundledDirectoryFingerprint(): string {
+  if (fingerprint) return fingerprint;
+  const text = JSON.stringify(bundledInstances);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+  fingerprint = (hash >>> 0).toString(16);
+  return fingerprint;
+}
+
 /**
  * One entry of `mychart-instances-manual.json`, keyed by `slgId` like the
  * generated list. Its fields replace the generated entry's (a corrected `url`,

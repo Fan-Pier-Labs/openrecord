@@ -24,6 +24,7 @@
  */
 
 import {
+  bundledDirectoryFingerprint,
   fetchMyChartIcon,
   listMyCharts,
   toSeedEntry,
@@ -106,9 +107,14 @@ export async function initInstances(): Promise<void> {
   try {
     const cached = await getCachedDirectory();
     if (cached) {
-      const parsed = JSON.parse(cached.json) as MyChartInstance[];
-      if (Array.isArray(parsed) && parsed.length > 0) publish(parsed);
-      refreshedAt = Date.parse(cached.refreshedAt) || 0;
+      // A copy saved beside an older release's list is older than the list
+      // this build ships, so it is ignored and refreshed rather than shown.
+      const parsed = JSON.parse(cached.json) as { bundled?: string; instances?: MyChartInstance[] };
+      const saved = parsed.bundled === bundledDirectoryFingerprint() ? parsed.instances : undefined;
+      if (Array.isArray(saved) && saved.length > 0) {
+        publish(saved);
+        refreshedAt = Date.parse(cached.refreshedAt) || 0;
+      }
     }
   } catch (err) {
     console.warn("[instances] cached list unusable:", (err as Error).message);
@@ -129,7 +135,7 @@ export async function refreshInstances(): Promise<void> {
     if (refreshed.length === 0) return;
     const list: MyChartInstance[] = refreshed.map(toSeedEntry);
     publish(list);
-    await setCachedDirectory(JSON.stringify(list));
+    await setCachedDirectory(JSON.stringify({ bundled: bundledDirectoryFingerprint(), instances: list }));
   } catch (err) {
     console.warn("[instances] refresh failed:", (err as Error).message);
   }

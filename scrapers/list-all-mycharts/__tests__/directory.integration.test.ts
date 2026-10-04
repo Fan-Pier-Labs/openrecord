@@ -119,7 +119,7 @@ describe('MyChart icon over HTTP', () => {
  *
  * The unit tests cover the ranking with a scripted transport. What only a
  * socket shows is the whole refresh — the directory request, then a login-page
- * check of every portal in it — feeding search: `source` says `live` here, and
+ * check of every portal in it — feeding search: `source` says `refreshed` here, and
  * a search that quietly stayed on the checked-in list would say `bundled` and
  * still return matches.
  */
@@ -132,7 +132,7 @@ describe('searching the MyChart directory over HTTP', () => {
 
   it('answers from the refreshed directory, and says that is where it came from', async () => {
     const result = await searchMyChartDirectory('springfield general');
-    expect(result.source).toBe('live');
+    expect(result.source).toBe('refreshed');
     const springfield = result.matches.find((m) => m.slgId === '9001')!;
     expect(springfield.name).toBe('Springfield General Hospital');
     expect(springfield.loginUrl).toBe(`${BASE}/MyChart/`);

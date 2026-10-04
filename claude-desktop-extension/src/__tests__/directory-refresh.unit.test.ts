@@ -10,16 +10,18 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { setTestTransport } from '../../../scrapers/http';
+import { bundledDirectoryFingerprint } from '../../../scrapers/list-all-mycharts/directory';
 import { clearDirectoryCache, searchMyChartDirectory } from '../../../scrapers/list-all-mycharts/searchDirectory';
 import { startDirectoryRefresh } from '../directory-refresh';
 
 const LOGIN_PAGE = '<input name="__RequestVerificationToken">';
 
-function tempCache(saved?: { refreshedAt: string; name: string }): string {
+function tempCache(saved?: { refreshedAt: string; name: string; bundled?: string }): string {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'directory-refresh-')), 'mychart-instances.json');
   if (saved) {
     const instances = [{ name: saved.name, url: 'https://saved.example/MyChart/', logoUrl: '', slgId: 's1', aliases: [] }];
-    fs.writeFileSync(file, JSON.stringify({ refreshedAt: saved.refreshedAt, instances }));
+    const bundled = saved.bundled ?? bundledDirectoryFingerprint();
+    fs.writeFileSync(file, JSON.stringify({ bundled, refreshedAt: saved.refreshedAt, instances }));
   }
   return file;
 }
@@ -55,10 +57,11 @@ describe('startDirectoryRefresh', () => {
   it('searches a fresh saved run at once, and does not redo it', async () => {
     const requests: string[] = [];
     serveDirectory(requests);
-    startDirectoryRefresh(tempCache({ refreshedAt: new Date().toISOString(), name: 'Saved Health' }));
+    const savedAt = new Date().toISOString();
+    startDirectoryRefresh(tempCache({ refreshedAt: savedAt, name: 'Saved Health' }));
 
     const result = await searchMyChartDirectory('Saved Health');
-    expect(result.source).toBe('live');
+    expect(result).toMatchObject({ source: 'refreshed', refreshedAt: savedAt });
     expect(result.matches[0]?.slgId).toBe('s1');
     await tick(50);
     expect(requests).toEqual([]);
@@ -86,12 +89,25 @@ describe('startDirectoryRefresh', () => {
     expect((await searchMyChartDirectory('Refreshed Health')).matches[0]?.slgId).toBe('r1');
   });
 
+  it('ignores a run saved beside an older release, however recent, and refreshes', async () => {
+    // Updating the extension ships a newer list than any run saved before the
+    // update; that run must not win over it.
+    const requests: string[] = [];
+    serveDirectory(requests);
+    const cache = tempCache({ refreshedAt: new Date().toISOString(), name: 'Saved Health', bundled: 'an-older-release' });
+    startDirectoryRefresh(cache);
+
+    expect((await searchMyChartDirectory('Saved Health')).source).toBe('bundled');
+    await until(() => fs.readFileSync(cache, 'utf8').includes('Refreshed Health'));
+    expect(JSON.parse(fs.readFileSync(cache, 'utf8')).bundled).toBe(bundledDirectoryFingerprint());
+  });
+
   it('runs a refresh when nothing has been saved yet', async () => {
     const requests: string[] = [];
     serveDirectory(requests);
     const cache = tempCache();
     startDirectoryRefresh(cache);
     await until(() => fs.existsSync(cache));
-    expect((await searchMyChartDirectory('Refreshed Health')).source).toBe('live');
+    expect((await searchMyChartDirectory('Refreshed Health')).source).toBe('refreshed');
   });
 });

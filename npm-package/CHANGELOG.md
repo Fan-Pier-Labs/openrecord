@@ -5,7 +5,8 @@
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the
 refresh that builds the package's checked-in list (Epic's directory with every login URL checked
 and corrected), merged with our hand-kept corrections and the organizations Epic doesn't list.
-Until you run a refresh it searches the checked-in list, and says `source: 'bundled'`.
+Until you run a refresh it searches the checked-in list, and says `source: 'bundled'`; after,
+`source: 'refreshed'` (it was `'live'`), with `refreshedAt` saying when that refresh ran.
 
 | Removed | What to do |
 | --- | --- |

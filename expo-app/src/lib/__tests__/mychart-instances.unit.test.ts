@@ -9,6 +9,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { setTestTransport } from "../../../../scrapers/http";
+import { bundledDirectoryFingerprint } from "../../../../scrapers/list-all-mycharts/directory";
 
 // Must be registered before the module under test is imported: it reaches the
 // database at module scope through its own import.
@@ -61,6 +62,18 @@ function directoryResponse(names: string[]): Response {
   );
 }
 
+/** A stored copy, as the app writes it beside this build's bundled list. */
+function cachedList(names: string[], bundled = bundledDirectoryFingerprint()): string {
+  const instances = names.map((name, i) => ({
+    name,
+    url: `https://${name.split(" ")[0]!.toLowerCase()}.example/`,
+    logoUrl: "",
+    slgId: `c${i}`,
+    aliases: [],
+  }));
+  return JSON.stringify({ bundled, instances });
+}
+
 beforeEach(() => {
   store.directory = null;
   store.logos.clear();
@@ -77,9 +90,7 @@ describe("the instance list", () => {
 
   it("prefers the cached list over the seed, without a network call", async () => {
     store.directory = {
-      json: JSON.stringify([
-        { name: "Cached Health", url: "https://cached.example/", logoUrl: "", slgId: "c1", aliases: [] },
-      ]),
+      json: cachedList(["Cached Health"]),
       refreshedAt: new Date().toISOString(),
     };
     setTestTransport(() => {
@@ -98,9 +109,10 @@ describe("the instance list", () => {
   it("applies the hand-kept corrections to a list fetched from Epic", async () => {
     // Bellin as Epic still publishes it; its patients moved to Emplify Health.
     store.directory = {
-      json: JSON.stringify([
-        { name: "Bellin", url: "https://www.mybellin.org/MyChart/", logoUrl: "", slgId: "306-2", aliases: [] },
-      ]),
+      json: JSON.stringify({
+        bundled: bundledDirectoryFingerprint(),
+        instances: [{ name: "Bellin", url: "https://www.mybellin.org/MyChart/", logoUrl: "", slgId: "306-2", aliases: [] }],
+      }),
       refreshedAt: new Date().toISOString(),
     };
     await initInstances();
@@ -109,9 +121,7 @@ describe("the instance list", () => {
 
   it("refreshes when the cache is older than a month", async () => {
     store.directory = {
-      json: JSON.stringify([
-        { name: "Stale Health", url: "https://stale.example/", logoUrl: "", slgId: "s1", aliases: [] },
-      ]),
+      json: cachedList(["Stale Health"]),
       refreshedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
     };
     setTestTransport(() => Promise.resolve(directoryResponse(["Fresh Health"])));
@@ -123,11 +133,20 @@ describe("the instance list", () => {
     expect(store.directory?.json).toContain("Fresh Health");
   });
 
+  it("ignores a copy saved beside an older release, however recent, and refreshes", async () => {
+    // An app update ships a newer list than any copy saved before it.
+    for (const json of [cachedList(["Old Release Health"], "an-older-release"), JSON.stringify([{ name: "Old Release Health" }])]) {
+      store.directory = { json, refreshedAt: new Date().toISOString() };
+      setTestTransport(() => Promise.resolve(directoryResponse(["Fresh Health"])));
+      await initInstances();
+      expect(getInstances().some((i) => i.name === "Old Release Health")).toBe(false);
+      expect(getInstances().some((i) => i.name === "Fresh Health")).toBe(true);
+    }
+  });
+
   it("keeps the list it already had when the refresh fails", async () => {
     store.directory = {
-      json: JSON.stringify([
-        { name: "Offline Health", url: "https://offline.example/", logoUrl: "", slgId: "o1", aliases: [] },
-      ]),
+      json: cachedList(["Offline Health"]),
       refreshedAt: new Date(0).toISOString(),
     };
     setTestTransport(() => Promise.reject(new Error("offline")));

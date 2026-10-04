@@ -354,8 +354,9 @@ const found = await MyChartClient.searchNpiRegistry({ lastName: 'Smith', state: 
 await MyChartClient.runPublicCapability('lookup_npi', { npi: '1234567893' });  // by id
 ```
 
-- `searchMyCharts` asks Epic's live directory and falls back to a list bundled in the package.
-  `source` says which one answered. An entry with `unavailable` can't be connected right now, so
+- `searchMyCharts` makes no request. It searches the list bundled in the package
+  (`source: 'bundled'`), or the result of `refreshMyChartDirectory()` once you've run one
+  (`source: 'refreshed'`, with `refreshedAt`). An entry with `unavailable` can't be connected right now, so
   show that message instead.
 - The NPI Registry reports a refused query as **data, not an exception**:
   `{ Errors: [{ description }] }`. Narrow with `isNpiRegistryErrors(result)`.

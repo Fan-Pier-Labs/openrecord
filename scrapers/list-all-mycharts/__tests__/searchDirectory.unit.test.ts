@@ -118,20 +118,27 @@ describe('searchMyChartDirectory', () => {
 
     // …and searches now read its result, the hand-kept entries on top.
     const springfield = await searchMyChartDirectory('Springfield General');
-    expect(springfield.source).toBe('live');
+    expect(springfield.source).toBe('refreshed');
+    // When it ran, so a caller can tell a fresh list from an old one.
+    expect(Date.now() - Date.parse(springfield.refreshedAt!)).toBeLessThan(60_000);
     expect(springfield.matches.some((m) => m.slgId === '9001')).toBe(true);
     expect((await searchMyChartDirectory('Bellin')).matches[0]?.hostname).toBe('mychart.emplifyhealth.org');
     expect((await searchMyChartDirectory('AACI')).matches).toEqual([]);
   });
 
   it('searches a saved refresh, until cleared back to the checked-in list', async () => {
-    useRefreshedMyCharts([{ name: 'Saved Health', url: 'https://saved.example/MyChart/', logoUrl: '', slgId: 's1', aliases: [] }]);
+    useRefreshedMyCharts(
+      [{ name: 'Saved Health', url: 'https://saved.example/MyChart/', logoUrl: '', slgId: 's1', aliases: [] }],
+      '2026-09-01T00:00:00.000Z',
+    );
     const saved = await searchMyChartDirectory('Saved Health');
-    expect(saved.source).toBe('live');
+    expect(saved).toMatchObject({ source: 'refreshed', refreshedAt: '2026-09-01T00:00:00.000Z' });
     expect(saved.matches[0]?.slgId).toBe('s1');
 
     clearDirectoryCache();
-    expect((await searchMyChartDirectory('Saved Health')).source).toBe('bundled');
+    const bundled = await searchMyChartDirectory('Saved Health');
+    expect(bundled.source).toBe('bundled');
+    expect(bundled).not.toContainKey('refreshedAt');
   });
 
   it('offers the fake-mychart sandbox, and ranks it ahead of a real match', async () => {
