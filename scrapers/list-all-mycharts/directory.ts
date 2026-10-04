@@ -7,9 +7,9 @@
  *  - {@link fetchMyChartDirectory} — Epic's live list, one request: the first
  *    half of the refresh (`refreshDirectory.ts`) that writes
  *    `mychart-instances.json` at release and reruns monthly in clients.
- *  - {@link listMyCharts} — the checked-in `mychart-instances.json`: what a
- *    client offers until its first refresh. The one scraper that makes no
- *    request.
+ *  - {@link listMyCharts} — the checked-in files, merged by
+ *    {@link withManualEntries}: what a client offers until its first refresh.
+ *    The one scraper that makes no request.
  *  - {@link fetchMyChartIcon} — one instance's logo, as bytes and a data URI.
  *
  * ## Where the list comes from
@@ -49,6 +49,7 @@
 
 import { scraperFetch } from '../http';
 import bundledInstances from './mychart-instances.json';
+import manualEntries from './mychart-instances-manual.json';
 
 /** The org-picker's data source. `locale` only changes the localized names. */
 export const MYCHART_DIRECTORY_API_URL =
@@ -179,6 +180,12 @@ export type MyChartInstanceSeed = Pick<
 > & {
   /** Stored only when it differs from `url` — it is how a correction is recorded. */
   directoryUrl?: string;
+  /**
+   * Other hostnames that serve the same portal (Northwestern's `mynm.nm.org`
+   * beside Epic's `mychart.cdh.org`), so a password saved against one of them
+   * is still recognised. From `mychart-instances-manual.json` only.
+   */
+  extraHosts?: string[];
 };
 
 /**
@@ -224,13 +231,43 @@ export function bundledDirectoryFingerprint(): string {
 }
 
 /**
- * Every MyChart the checked-in `mychart-instances.json` knows: Epic's
- * directory, every login URL checked, as of the last MCPB release. Unlike the
- * other scrapers it makes no request; it is what a client offers until its
- * first monthly refresh (`refreshMyChartDirectory`) finishes.
+ * One entry of `mychart-instances-manual.json`, keyed by `slgId` like the
+ * generated list. Its fields replace the generated entry's (a corrected `url`,
+ * `extraHosts`); an `slgId` Epic doesn't have (`openrecord-…`) adds an
+ * organization. `source` records how it was confirmed and stays in the file.
+ */
+type ManualEntry = Partial<MyChartInstanceSeed> & { slgId: string; source?: string };
+
+/**
+ * Merge the two lists: one the deterministic refresh produced — the checked-in
+ * `mychart-instances.json`, or a newer run of the same code — and the hand-kept
+ * `mychart-instances-manual.json`. One dictionary keyed by `slgId`; a hand-kept
+ * entry wins, and as it was checked by hand, clears `down`.
+ */
+export function withManualEntries(entries: readonly MyChartInstanceSeed[]): MyChartInstanceSeed[] {
+  const out = new Map(entries.map((entry) => [entry.slgId, entry]));
+  for (const { source: _source, ...fix } of manualEntries as ManualEntry[]) {
+    const existing = out.get(fix.slgId);
+    // Only an addition creates an entry; a fix for one the list lacks is skipped.
+    if (!existing && !fix.slgId.startsWith('openrecord-')) continue;
+    const { down: _down, ...entry } = existing ?? { name: '', url: '', logoUrl: defaultLogoUrl(), aliases: [] };
+    out.set(fix.slgId, { ...entry, ...fix });
+  }
+  return [...out.values()];
+}
+
+let checkedIn: MyChartInstanceSeed[] | null = null;
+
+/**
+ * Every MyChart the checked-in files know: `mychart-instances.json`
+ * (generated — Epic's directory, every login URL checked, as of the last MCPB
+ * release) merged with the hand-kept `mychart-instances-manual.json`. Unlike
+ * the other scrapers it makes no request; it is what a client offers until
+ * its first monthly refresh (`refreshMyChartDirectory`) finishes.
  */
 export function listMyCharts(): MyChartInstanceSeed[] {
-  return bundledInstances;
+  checkedIn ??= withManualEntries(bundledInstances);
+  return checkedIn;
 }
 
 /** The logo URL Epic's own picker would render for this organization. */

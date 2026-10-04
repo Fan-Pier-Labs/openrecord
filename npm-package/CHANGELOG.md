@@ -3,8 +3,9 @@
 ## Next major — search reads a refreshed list instead of fetching (breaking)
 
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the
-refresh that builds the package's checked-in list: Epic's directory with every login URL checked
-and corrected. Until you run a refresh it searches the checked-in list, and says `source: 'bundled'`; after,
+refresh that builds the package's checked-in list (Epic's directory with every login URL checked
+and corrected), merged with our hand-kept corrections and the organizations Epic doesn't list.
+Until you run a refresh it searches the checked-in list, and says `source: 'bundled'`; after,
 `source: 'refreshed'` (it was `'live'`), with `refreshedAt` saying when that refresh ran.
 
 | Removed | What to do |
@@ -12,8 +13,8 @@ and corrected. Until you run a refresh it searches the checked-in list, and says
 | `directoryUrl` and `mediaBase` on `MyChartDirectorySearchOptions` | Pass them to `refreshMyChartDirectory(directory)` instead. |
 | `DIRECTORY_CACHE_TTL_MS` | `DIRECTORY_REFRESH_INTERVAL_MS`: how often to call `refreshMyChartDirectory()`, which takes minutes, so call it in the background. |
 
-Added: `refreshMyChartDirectory`, `useRefreshedMyCharts`, `listMyCharts`, and `directoryUrl` and
-`down` on `MyChartInstanceSeed`.
+Added: `refreshMyChartDirectory`, `useRefreshedMyCharts`, `listMyCharts`, `withManualEntries`, and
+`extraHosts` on `MyChartInstanceSeed`.
 
 ## 2.0.0 — withdrawn exports (breaking)
 

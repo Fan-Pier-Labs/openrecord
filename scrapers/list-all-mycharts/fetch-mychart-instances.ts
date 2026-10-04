@@ -20,8 +20,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { silenceLogger } from '../../shared/logger';
-import { toSeedEntry, toSortedJson, type MyChartInstanceSeed } from './directory';
+import { toSeedEntry, toSortedJson, type MyChartInstance, type MyChartInstanceSeed } from './directory';
+import manualEntries from './mychart-instances-manual.json';
 import { fetchResolvedMyChartDirectory } from './refreshDirectory';
+import { resolveLoginUrl } from './resolveLoginUrl';
 
 const OUTPUT_FILE = path.join(path.dirname(import.meta.path), 'mychart-instances.json');
 
@@ -50,6 +52,32 @@ async function main() {
     fs.writeFileSync(OUTPUT_FILE, toSortedJson(next));
     console.log(`Wrote ${next.length} instances to ${OUTPUT_FILE}`);
   }
+  await checkManualEntries(instances);
+}
+
+/**
+ * The hand-kept entries are only as good as the last time someone looked, so
+ * every refresh looks again and says what needs a human: a portal that no
+ * longer serves a login, or an addition Epic now lists itself. Warnings, not failures — a release is not
+ * the moment to research a hospital's website.
+ */
+async function checkManualEntries(epic: MyChartInstance[]): Promise<void> {
+  const epicHosts = new Set(epic.map((i) => new URL(i.directoryUrl).hostname.toLowerCase()));
+  const warnings: string[] = [];
+
+  for (const { slgId, name, url } of manualEntries) {
+    if (url && slgId.startsWith('openrecord-') && epicHosts.has(new URL(url).hostname.toLowerCase())) {
+      warnings.push(`addition ${slgId} ${name}: Epic now lists ${url}`);
+    }
+  }
+  const urls = [...new Set(manualEntries.flatMap((e) => (e.url ? [e.url] : [])))];
+  const results = await Promise.all(urls.map(async (url) => [url, await resolveLoginUrl(url)] as const));
+  for (const [url, result] of results) {
+    if (result.kind === 'down') warnings.push(`${url} no longer serves a MyChart login: ${result.reason}`);
+  }
+
+  console.log(`Hand entries (mychart-instances-manual.json): ${warnings.length ? `${warnings.length} need a look` : 'all still good'}`);
+  for (const w of warnings) console.log(`  ${w}`);
 }
 
 // Exit as soon as the file is written: a resolution abandoned at its timeout

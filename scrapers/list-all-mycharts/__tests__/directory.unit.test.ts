@@ -19,11 +19,13 @@ import {
   listMyCharts,
   logoUrlFor,
   toSortedJson,
+  withManualEntries,
   parseDirectoryPayload,
   toSeedEntry,
   type MyChartInstanceSeed,
 } from '../directory';
 import bundledInstances from '../mychart-instances.json';
+import manualEntries from '../mychart-instances-manual.json';
 import fixture from './fixtures/directory-response.json';
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -126,16 +128,80 @@ describe('parseDirectoryPayload', () => {
   });
 });
 
-describe('listMyCharts', () => {
-  it('is the checked-in list, as the release refresh wrote it', () => {
-    expect(listMyCharts()).toEqual(bundledInstances as MyChartInstanceSeed[]);
+describe('listMyCharts and withManualEntries', () => {
+  const seed = bundledInstances as MyChartInstanceSeed[];
+  const merged = listMyCharts();
+  const bySlgId = (slgId: string) => merged.find((i) => i.slgId === slgId);
+  const additions = manualEntries.filter((e) => e.slgId.startsWith('openrecord-'));
+
+  it('is the generated list plus the hand additions', () => {
+    expect(merged).toHaveLength(seed.length + additions.length);
+    expect(bySlgId('openrecord-rnoh')).toMatchObject({
+      name: 'Royal National Orthopaedic Hospital',
+      url: 'https://mycare.rnoh.nhs.uk/RNOHMyCare/',
+      logoUrl: defaultLogoUrl(),
+    });
+  });
+
+  it('lets a hand entry win, and clears the down the generated list gave its Epic URL', () => {
+    // Bellin: Epic's host no longer resolves; its patients moved to Emplify Health.
+    expect(seed.find((i) => i.slgId === '306-2')).toMatchObject({ url: 'https://www.mybellin.org/MyChart/', down: true });
+    expect(bySlgId('306-2')?.url).toBe('https://mychart.emplifyhealth.org/MyChart/');
+    expect(bySlgId('306-2')).not.toContainKey('down');
+    expect(bySlgId('650')?.extraHosts).toEqual(['mynm.nm.org']);
+  });
+
+  it('merges the hand-kept entries into a newer refresh the same way, and nothing else', () => {
+    const refreshed = withManualEntries([
+      { name: 'Bellin', url: 'https://www.mybellin.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [], down: true },
+      { name: 'Somewhere Else', url: 'https://mychart.elsewhere.example/', logoUrl: '', slgId: '9999', aliases: [] },
+    ]);
+    expect(refreshed.find((i) => i.slgId === '306-2')).toEqual({
+      name: 'Bellin', url: 'https://mychart.emplifyhealth.org/MyChart/', logoUrl: '', slgId: '306-2', aliases: [],
+    });
+    expect(refreshed.find((i) => i.slgId === '9999')?.url).toBe('https://mychart.elsewhere.example/');
+    // A fix for an organization the list lacks is skipped; an addition is always there.
+    expect(refreshed).toHaveLength(2 + additions.length);
+  });
+
+  it('never mutates the generated list it reads', () => {
+    expect(seed.find((i) => i.slgId === '650')).not.toContainKey('extraHosts');
   });
 });
 
-describe('mychart-instances.json', () => {
-  it('is sorted by slgId with keys in order, so a refresh diff shows only what changed', () => {
-    const text = fs.readFileSync(path.join(import.meta.dir, '..', 'mychart-instances.json'), 'utf8');
-    expect(text).toBe(toSortedJson(JSON.parse(text) as { slgId: string }[]));
+/**
+ * `mychart-instances-manual.json` is kept by hand against a generated file a
+ * release rewrites, so these fail the build when the two drift apart.
+ */
+describe('the checked-in JSON files', () => {
+  const seed = new Map((bundledInstances as MyChartInstanceSeed[]).map((i) => [i.slgId, i]));
+  const dir = path.join(import.meta.dir, '..');
+
+  it('are sorted by slgId with keys in order, so a diff shows only what changed', () => {
+    for (const file of ['mychart-instances.json', 'mychart-instances-manual.json']) {
+      const text = fs.readFileSync(path.join(dir, file), 'utf8');
+      expect(text, file).toBe(toSortedJson(JSON.parse(text) as { slgId: string }[]));
+    }
+  });
+
+  it('fix only entries that exist, and add only organizations Epic does not list', () => {
+    const hosts = new Set([...seed.values()].map((i) => new URL(i.url).hostname.toLowerCase()));
+    for (const e of manualEntries) {
+      if (e.slgId.startsWith('openrecord-')) {
+        expect(e.url && e.name, e.slgId).toBeTruthy();
+        // Epic listing the host now means the addition can go.
+        expect(hosts.has(new URL(e.url!).hostname.toLowerCase()), e.slgId).toBe(false);
+      } else {
+        expect(seed.has(e.slgId), e.slgId).toBe(true);
+      }
+    }
+  });
+
+  it('give extra hostnames that differ from the entry\'s own, and mount URLs a login can start from', () => {
+    for (const e of manualEntries) {
+      for (const host of e.extraHosts ?? []) expect(new URL(seed.get(e.slgId)!.url).hostname, host).not.toBe(host);
+      if (e.url) expect(e.url).toMatch(/^https:\/\/[^/]+\/([^/]+\/)?$/);
+    }
   });
 });
 

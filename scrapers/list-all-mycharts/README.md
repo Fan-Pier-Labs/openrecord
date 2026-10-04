@@ -7,9 +7,9 @@ against all ~750 hosts at once.
 | | |
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
-| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + the refreshed list) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
+| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, `withManualEntries`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + the refreshed list) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
 | **Probes** | [`probes/`](probes/) — [`probe-mount-discovery.ts`](probes/probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probes/probe-open-scheduling.ts) · [`probe-open-slots.ts`](probes/probe-open-slots.ts) · [`probe-epic-version.ts`](probes/probe-epic-version.ts) · [`probeRunner.ts`](probes/probeRunner.ts) |
-| **Data** | `mychart-instances.json` — generated from Epic on each MCPB release |
+| **Data** | `mychart-instances.json` — generated from Epic on each MCPB release · `mychart-instances-manual.json` — kept by hand |
 
 ## Endpoints
 
@@ -54,12 +54,15 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
   in different states — and nor is same portal alone: 46 portals are shared by affiliates
   that patients search for by their own names.
-- **What clients search is the deterministic refresh's output** (Epic's directory, every login
-  URL checked): `mychart-instances.json` from the last release until a newer run exists. The
-  Claude Desktop extension and the iOS app rerun the same refresh in the background about
-  monthly (new health systems come online between releases) and search its result, saying
-  `source: 'refreshed'` with its `refreshedAt`. Search itself never makes a request. The CLI is one-shot, so it searches
-  the checked-in list. See [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md).
+- **Two lists, merged.** What clients search is the output of the deterministic refresh
+  (Epic's directory, every login URL checked) merged with the hand-kept
+  `mychart-instances-manual.json` by `withManualEntries`. The refresh output is
+  `mychart-instances.json` from the last release until a newer run exists: the Claude Desktop
+  extension and the iOS app rerun the same refresh in the background about monthly (new health
+  systems come online between releases) and search its result, saying `source: 'refreshed'`
+  with its `refreshedAt`. Search itself never makes a request. The CLI is one-shot, so it
+  searches the checked-in list, and password import reads `listMyCharts()` so it runs offline.
+  See [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md).
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
@@ -91,6 +94,19 @@ order (`toSortedJson`), so a diff shows only what changed.
 The generated file records the result: **`directoryUrl`** on a corrected entry (Epic's URL,
 with `url` holding ours) and **`down: true`** on one we couldn't confirm. `down` is a snapshot
 from release time; nothing shows it yet.
+
+**`mychart-instances-manual.json`** is a list of hand-kept entries keyed by `slgId`, each with
+its `source`. `withManualEntries` builds one dictionary by `slgId` from the refresh's output
+and overlays these. An entry's fields replace the generated ones (a corrected `url`, `extraHosts` that let
+password import recognise another hostname) and clear its `down`; an `openrecord-…` id adds an
+organization Epic doesn't list. Every refresh re-checks the hand-kept URLs and lists any that
+stopped serving a login; `directory.unit.test.ts` fails the build if a hand entry names an
+`slgId` that doesn't exist, an addition's host is one Epic now lists, or either file isn't in
+sorted form.
+
+**[`LOGIN-URL-RESEARCH.md`](LOGIN-URL-RESEARCH.md)** is the 66 entries the first sweep couldn't
+confirm, researched by hand — the real portal for each where one exists, and why the rest
+can't be fixed by a URL.
 
 **The FAQ link is not a fallback.** In October 2026, of 1,159 working entries with a MyChart
 FAQ link, 314 put it on a different host — 56 on a visibly different portal (an affiliate's
