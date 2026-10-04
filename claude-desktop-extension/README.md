@@ -467,6 +467,11 @@ aws --profile fanpierlabs --region us-east-2 s3 cp openrecord.mcpb s3://openreco
 ```
 
 The short TTL means a re-upload is live within five minutes without a CloudFront invalidation.
+
+`pack:signed` first refreshes `scrapers/list-all-mycharts/mychart-instances.json` — Epic's
+directory with every login URL checked, a few minutes' crawl — so the release bundles a
+current list. Commit the refreshed file in a PR. If Epic's directory is unreachable the
+refresh fails the pack; `bun run pack && bun run sign` releases with the checked-in list.
 Bump the version first, in both `manifest.json` (what `mcpb_version.json` is generated from, so
 installed copies learn about the update) and `package.json` (a test holds the two equal).
 

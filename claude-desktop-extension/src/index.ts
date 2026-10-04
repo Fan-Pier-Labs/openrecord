@@ -29,6 +29,7 @@ import { registerAllTools } from './tools';
 import { clearAllSessions } from './session-manager';
 import setupWidget from 'virtual:setup-widget';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
+import { startDirectoryRefresh } from './directory-refresh';
 
 async function main(): Promise<void> {
   const server = new McpServer(
@@ -119,6 +120,7 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  startDirectoryRefresh();
 
   // Clean up keepalive timers when the parent (Claude Desktop) closes stdio.
   const shutdown = () => {
