@@ -98,10 +98,25 @@ describe("the instance list", () => {
     });
 
     await initInstances();
-    expect(getInstances().map((i) => i.name)).toEqual([
+    // The hand-kept additions follow whatever list was published.
+    expect(getInstances().map((i) => i.name).slice(0, 2)).toEqual([
       "Springfield Medical Center (Demo)",
       "Cached Health",
     ]);
+    expect(getInstances().map((i) => i.slgId)).toContain("openrecord-rnoh");
+  });
+
+  it("applies the hand-kept corrections to a list fetched from Epic", async () => {
+    // Bellin as Epic still publishes it; its patients moved to Emplify Health.
+    store.directory = {
+      json: JSON.stringify({
+        bundled: bundledDirectoryFingerprint(),
+        instances: [{ name: "Bellin", url: "https://www.mybellin.org/MyChart/", logoUrl: "", slgId: "306-2", aliases: [] }],
+      }),
+      refreshedAt: new Date().toISOString(),
+    };
+    await initInstances();
+    expect(getInstances().find((i) => i.slgId === "306-2")?.url).toBe("https://mychart.emplifyhealth.org/MyChart/");
   });
 
   it("refreshes when the cache is older than a month", async () => {

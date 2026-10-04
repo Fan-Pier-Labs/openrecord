@@ -57,6 +57,11 @@ describe('rankDirectoryMatches', () => {
     expect(rankDirectoryMatches(instances, '   ')).toEqual([]);
   });
 
+  it('matches an extra hostname as a hostname', () => {
+    const withExtra = [{ ...instances[4]!, extraHosts: ['portal.riverside.example'] }];
+    expect(rankDirectoryMatches(withExtra, 'portal.riverside').map((m) => m.slgId)).toEqual(['2']);
+  });
+
   it('carries the hostname a client keys an account on', () => {
     const [first] = rankDirectoryMatches(instances, 'mercy', 1);
     expect(first).toEqual({
@@ -78,9 +83,12 @@ describe('searchMyChartDirectory', () => {
     expect(result.matches.map((m) => m.slgId)).toEqual(['432-112']);
     expect(result.count).toBe(1);
     expect(result.query).toBe('AACI');
+    // …with the hand-kept entries merged in.
+    expect((await searchMyChartDirectory('Bellin')).matches[0]?.hostname).toBe('mychart.emplifyhealth.org');
+    expect((await searchMyChartDirectory('mynm.nm.org')).matches[0]?.name).toBe('Northwestern Medicine');
   });
 
-  it('reruns the full refresh, then searches its result', async () => {
+  it('reruns the full refresh, then searches its result merged with the hand-kept entries', async () => {
     const requested: string[] = [];
     setTestTransport((url) => {
       requested.push(url);
@@ -108,12 +116,13 @@ describe('searchMyChartDirectory', () => {
     expect(requested).toContain('https://mychart.springfield.example/MyChart/');
     expect(refreshed.find((e) => e.slgId === '306-2')?.down).toBe(true);
 
-    // …and searches now read its result.
+    // …and searches now read its result, the hand-kept entries on top.
     const springfield = await searchMyChartDirectory('Springfield General');
     expect(springfield.source).toBe('refreshed');
     // When it ran, so a caller can tell a fresh list from an old one.
     expect(Date.now() - Date.parse(springfield.refreshedAt!)).toBeLessThan(60_000);
     expect(springfield.matches.some((m) => m.slgId === '9001')).toBe(true);
+    expect((await searchMyChartDirectory('Bellin')).matches[0]?.hostname).toBe('mychart.emplifyhealth.org');
     expect((await searchMyChartDirectory('AACI')).matches).toEqual([]);
   });
 

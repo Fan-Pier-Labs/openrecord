@@ -5,7 +5,8 @@
  *
  *  1. **The checked-in list** (`listMyCharts()`), so a first launch with no
  *     network still shows every provider. It ships with the app: Epic's
- *     directory as checked at the last release.
+ *     directory as checked at the last release, merged with our hand-kept
+ *     corrections and additions.
  *  2. **The SQLite cache**, written by the last successful refresh. Read on
  *     boot before any network call, so the list a returning user sees is the
  *     current one immediately rather than after a round trip.
@@ -27,6 +28,7 @@ import {
   fetchMyChartIcon,
   listMyCharts,
   toSeedEntry,
+  withManualEntries,
 } from "../../../scrapers/list-all-mycharts/directory";
 import { fetchResolvedMyChartDirectory } from "../../../scrapers/list-all-mycharts/refreshDirectory";
 import type { MyChartInstanceSeed } from "../../../scrapers/list-all-mycharts/directory";
@@ -65,9 +67,14 @@ let instances: MyChartInstance[] = [FAKE_MYCHART_DEMO, ...listMyCharts()];
 let revision = 0;
 const listeners = new Set<() => void>();
 
-/** Replace the list with one a refresh produced (or that refresh, cached). */
+/**
+ * Replace the list with one a refresh produced (or that refresh, cached). The
+ * cache holds the refresh's output and the hand-kept entries are merged in
+ * here, so an app update that brings new ones applies them at once rather than
+ * at the next monthly refresh.
+ */
 function publish(refreshed: MyChartInstance[]): void {
-  const next = refreshed.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId);
+  const next = withManualEntries(refreshed.filter((i) => i.slgId !== FAKE_MYCHART_DEMO.slgId));
   instances = [FAKE_MYCHART_DEMO, ...next];
   revision += 1;
   for (const listener of listeners) listener();
@@ -198,8 +205,8 @@ export function hostnameFromInstance(instance: MyChartInstance): string {
 }
 
 /**
- * Case-insensitive substring match against name, hostname and the aliases Epic
- * publishes — an organization is often searched for by a name it no longer
+ * Case-insensitive substring match against name, hostname (and any extra
+ * hostname) and the aliases Epic publishes — an organization is often searched for by a name it no longer
  * trades under, or by one of the practices it absorbed.
  */
 export function searchInstances(
@@ -211,6 +218,7 @@ export function searchInstances(
   return list.filter((i) => {
     if (i.name.toLowerCase().includes(q)) return true;
     if (i.aliases.some((alias) => alias.toLowerCase().includes(q))) return true;
+    if (i.extraHosts?.some((host) => host.includes(q))) return true;
     try {
       return new URL(i.url).host.toLowerCase().includes(q);
     } catch {

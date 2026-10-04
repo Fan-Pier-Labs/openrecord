@@ -1,25 +1,35 @@
 # How the MyChart list works
 
-Every client searches the output of one piece of deterministic code: Epic's directory with every
-login URL checked. It's checked in as `mychart-instances.json` at each release, and the
-long-running clients rerun the same code monthly.
+Every client searches the same thing: **two lists, merged**.
 
-## Which run a client searches
+1. **The refresh's output**: Epic's directory with every login URL checked, produced by
+   deterministic code. It's checked in as `mychart-instances.json` at each release, and the
+   long-running clients rerun the same code monthly.
+2. **`mychart-instances-manual.json`**: entries kept by hand, each with its source.
+
+## The two lists, and who reads them
 
 ```mermaid
 flowchart LR
-    checkedIn["mychart-instances.json<br/>(checked in at release)"]
-    saved["a newer monthly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
+    subgraph list1["List 1: the refresh's output"]
+        checkedIn["mychart-instances.json<br/>(checked in at release)"]
+        saved["a newer monthly run<br/>(extension: ~/.openrecord-mcpb/<br/>app: SQLite)"]
+    end
+    manual["List 2: mychart-instances-manual.json<br/>(kept by hand)"]
 
-    checkedIn -- "until a newer run exists" --> search["search_mycharts<br/>(extension, CLI, library)"]
-    saved -- "once one exists" --> search
-    checkedIn --> picker["iOS picker"]
-    saved --> picker
+    checkedIn -- "until a newer run exists" --> merge
+    saved -- "once one exists" --> merge
+    manual --> merge
+    merge["withManualEntries<br/>one dictionary keyed by slgId;<br/>a hand entry wins and clears down"]
+
+    merge --> search["search_mycharts<br/>(extension, CLI, library)"]
+    merge --> picker["iOS picker"]
+    merge --> passwords["password import<br/>(checked-in list only, offline)"]
 ```
 
 Search never makes a request. The CLI is one-shot, so it searches the checked-in list.
 
-## The refresh
+## The refresh: producing list 1
 
 The same code runs at release and monthly. `fetchResolvedMyChartDirectory` in
 `refreshDirectory.ts` does this:
@@ -32,7 +42,7 @@ flowchart TD
     each --> retry["retry everything down, once"]
     retry --> out["entries: url, directoryUrl when corrected,<br/>down: true when unconfirmed"]
 
-    out --> release["at release: fetch-mychart-instances.ts<br/>writes mychart-instances.json, sorted by slgId.<br/>Commit it."]
+    out --> release["at release: fetch-mychart-instances.ts<br/>writes mychart-instances.json, sorted by slgId,<br/>re-checks the hand-kept URLs. Commit it."]
     out --> monthly["monthly in the extension and the app:<br/>saved, then searched"]
     out --> cli["mychart-cli --action list-mycharts<br/>prints it"]
 ```
@@ -57,4 +67,16 @@ flowchart TD
 `down` means "we couldn't confirm it was up when we checked". That includes portals that work
 fine for patients but not for us: custom sign-in pages (Kaiser, UPMC), sites that block traffic
 from outside their country (several Dutch hospitals, an NHS trust), and servers missing an
-intermediate certificate.
+intermediate certificate. A hand-kept entry clears it.
+
+## Keeping the hand-kept list honest
+
+- Every release refresh re-checks each hand-kept URL and prints the ones that stopped serving a
+  login, and any addition Epic now lists itself.
+- `directory.unit.test.ts` fails the build in these cases:
+  - a hand entry names an `slgId` that doesn't exist
+  - an addition's host is one Epic now lists
+  - a URL isn't a mount root
+  - either file isn't sorted by `slgId` with keys in order
+- To add to it, see the `find-missing-mycharts` skill. The research behind the current entries
+  is in [`LOGIN-URL-RESEARCH.md`](LOGIN-URL-RESEARCH.md).

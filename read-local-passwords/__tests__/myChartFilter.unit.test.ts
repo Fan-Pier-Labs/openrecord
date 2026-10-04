@@ -52,6 +52,20 @@ describe('classifyMyChartEntries', () => {
     expect(requests).toBe(0);
   });
 
+  it("recognises an organization's extra hostname, which reads nothing like a portal", async () => {
+    // Northwestern's portal is mynm.nm.org; Epic lists only mychart.cdh.org.
+    let requests = 0;
+    respond(() => {
+      requests++;
+      return loginPage();
+    });
+
+    const [candidate] = await classifyMyChartEntries([entry({ url: 'https://mynm.nm.org/MyChart/Authentication/Login' })]);
+
+    expect(candidate).toMatchObject({ confidence: 'directory', hostname: 'mynm.nm.org', instanceName: 'Northwestern Medicine' });
+    expect(requests).toBe(0);
+  });
+
   it('ignores saved logins that are not health portals at all', async () => {
     const results = await classifyMyChartEntries([
       entry({ url: 'https://news.example.com/login' }),

@@ -11,10 +11,12 @@
  *
  * ## Which list
  *
- * A search reads the output of the deterministic refresh that writes
- * `mychart-instances.json` — Epic's directory, every login URL checked. Until
- * a newer run exists that is the checked-in file from the last release, and
- * the result says `source: 'bundled'`. A long-running client (the Claude Desktop extension,
+ * A search reads two lists merged ({@link withManualEntries}): the output of
+ * the deterministic refresh that writes `mychart-instances.json` — Epic's
+ * directory, every login URL checked — and the hand-kept
+ * `mychart-instances-manual.json`. Until a newer run exists, the first is the
+ * checked-in file from the last release, and the result says
+ * `source: 'bundled'`. A long-running client (the Claude Desktop extension,
  * the iOS app) reruns the refresh about monthly with
  * {@link refreshMyChartDirectory}, in the background — it is minutes of
  * requests, never part of a search — and from then on searches say
@@ -36,7 +38,7 @@
  */
 
 import { scraperFetch } from '../http';
-import { listMyCharts, toSeedEntry, type MyChartInstanceSeed } from './directory';
+import { listMyCharts, toSeedEntry, withManualEntries, type MyChartInstanceSeed } from './directory';
 import { fetchResolvedMyChartDirectory } from './refreshDirectory';
 
 /**
@@ -207,7 +209,7 @@ function toMatch(instance: MyChartInstanceSeed): MyChartDirectoryMatch {
 
 // ── The refreshed list ─────────────────────────────────────────────────────
 
-/** The last refresh's list, and when it ran; null until one. */
+/** The last refresh's list merged with the hand-kept entries, and when it ran; null until one. */
 let refreshed: { entries: MyChartInstanceSeed[]; at: string } | null = null;
 
 /** Search the checked-in list again, as before any refresh. For tests. */
@@ -221,13 +223,14 @@ export function clearDirectoryCache(): void {
  * that refresh ran; searches report it.
  */
 export function useRefreshedMyCharts(entries: readonly MyChartInstanceSeed[], refreshedAt: string): void {
-  refreshed = { entries: [...entries], at: refreshedAt };
+  refreshed = { entries: withManualEntries(entries), at: refreshedAt };
 }
 
 /**
  * Rerun the refresh that writes `mychart-instances.json` — fetch Epic's
  * directory, check every login URL — and search its result from now on.
- * Returns that result for the caller to save. Minutes of requests: run it in the background.
+ * Returns that result (before the hand-kept entries are merged in) for the
+ * caller to save. Minutes of requests: run it in the background.
  */
 export async function refreshMyChartDirectory(
   directory: { directoryUrl?: string; mediaBase?: string } = {},
@@ -244,7 +247,7 @@ export async function refreshMyChartDirectory(
  * Rank the instances matching `query`, best first.
  *
  * Exact name, then a name that starts with the query, then a name containing
- * it, then an alias, then the hostname. The order is what makes "mercy" put
+ * it, then an alias, then the hostname or one of its extra hostnames. The order is what makes "mercy" put
  * "Mercy" itself above the thirty organizations with "Mercy" in the middle of
  * their name; a plain `filter` returned them in directory order, which is
  * alphabetical and therefore arbitrary.
@@ -274,7 +277,9 @@ export function rankDirectoryMatches(
     else if (name.startsWith(q)) startsWith.push(match);
     else if (name.includes(q)) nameIncludes.push(match);
     else if (match.aliases.some((alias) => alias.toLowerCase().includes(q))) aliasIncludes.push(match);
-    else if (match.hostname.includes(q)) hostnameIncludes.push(match);
+    else if ([match.hostname, ...(instance.extraHosts ?? [])].some((host) => host.includes(q))) {
+      hostnameIncludes.push(match);
+    }
   }
 
   return [...exact, ...startsWith, ...nameIncludes, ...aliasIncludes, ...hostnameIncludes].slice(
