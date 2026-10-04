@@ -47,10 +47,10 @@ flowchart TD
     follow --> reached{"got a page?"}
     reached -- "no answer, TLS error, 4xx/5xx,<br/>or 60 s timeout" --> down["down<br/>keep Epic's URL, mark down: true"]
     reached -- yes --> isLogin{"MyChart login page?"}
-    isLogin -- yes --> login["login<br/>keep Epic's URL"]
+    isLogin -- yes --> login["up<br/>keep Epic's URL"]
     isLogin -- no --> links["MyChart links on that page<br/>(5 by rank, then 5 that read like a portal)"]
     links --> linkLogin{"one serves a<br/>MyChart login page?"}
-    linkLogin -- yes --> linked["linked<br/>url = that portal,<br/>directoryUrl = Epic's"]
+    linkLogin -- yes --> linked["up<br/>url = that portal,<br/>directoryUrl = Epic's"]
     linkLogin -- no --> down
 ```
 

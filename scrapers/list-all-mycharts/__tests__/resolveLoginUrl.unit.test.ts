@@ -30,7 +30,7 @@ describe('resolveLoginUrl', () => {
       'https://mychart.example.org/MyChart/': redirect('/MyChart/Authentication/Login'),
       'https://mychart.example.org/MyChart/Authentication/Login': html(LOGIN_PAGE),
     });
-    expect(await resolveLoginUrl('https://mychart.example.org/MyChart/')).toEqual({ kind: 'login' });
+    expect(await resolveLoginUrl('https://mychart.example.org/MyChart/')).toEqual({ kind: 'up', url: 'https://mychart.example.org/MyChart/' });
   });
 
   it('follows an information page to the portal it links to', async () => {
@@ -45,7 +45,7 @@ describe('resolveLoginUrl', () => {
       'https://portal.example-health.org/ExampleMyChart/Authentication/Login': html(LOGIN_PAGE),
     });
     expect(await resolveLoginUrl('https://www.example-health.org/portal/')).toEqual({
-      kind: 'linked',
+      kind: 'up',
       url: 'https://portal.example-health.org/ExampleMyChart/',
     });
   });
@@ -63,7 +63,7 @@ describe('resolveLoginUrl', () => {
       'https://mychart.example-health.org/MyChart/Authentication/Login': html(LOGIN_PAGE),
     });
     expect(await resolveLoginUrl('https://www.example-health.org/access/')).toEqual({
-      kind: 'linked',
+      kind: 'up',
       url: 'https://mychart.example-health.org/MyChart/',
     });
   });

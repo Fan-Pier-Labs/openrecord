@@ -57,8 +57,8 @@ export async function fetchResolvedMyChartDirectory(
   const down: ResolvedDirectory['down'] = [];
   for (const instance of instances) {
     const resolution = outcomes.get(instance)!;
-    if (resolution.kind === 'linked') instance.url = resolution.url;
-    else if (resolution.kind === 'down') {
+    if (resolution.kind === 'up') instance.url = resolution.url;
+    else {
       instance.down = true;
       down.push({ instance, reason: resolution.reason });
     }
