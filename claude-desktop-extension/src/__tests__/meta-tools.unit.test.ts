@@ -156,6 +156,15 @@ describe('disconnect_account', () => {
   })
 })
 
+describe('connect_imported_account', () => {
+  it('reports an unknown or expired import_id as state "expired"', async () => {
+    // The setup widget branches on this state to send the user back to re-import.
+    const result = await call('connect_imported_account', { import_id: 'never-issued' })
+    expect(parse(result)).toMatchObject({ state: 'expired' })
+    expect(parse(result).message).toContain('import_browser_passwords')
+  })
+})
+
 describe('scraper tools without a configured account', () => {
   // Every scraper tool shares one wrapper, so its failure path is what a user
   // hits when the model invents an account id.

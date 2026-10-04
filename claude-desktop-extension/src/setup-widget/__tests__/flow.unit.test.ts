@@ -111,7 +111,7 @@ describe('the import route', () => {
   test('an expired import id sends the user back to search their browsers again', () => {
     const state = run([
       { type: 'connectImport', entry: homer },
-      { type: 'importResult', entry: homer, result: 'Error: import_id has expired' },
+      { type: 'importResult', entry: homer, result: { state: 'expired', message: 'That import_id is unknown or has expired.' } },
     ], scanned);
     expect(state.scanned).toBeNull();
     expect(state.step).toEqual({ kind: 'accounts', error: 'Saved logins are only kept for 10 minutes after searching. Import from your browser again to continue.' });
@@ -119,8 +119,9 @@ describe('the import route', () => {
   });
 
   test('any other failure stays on the list with the reason', () => {
-    const state = run([{ type: 'importResult', entry: homer, result: { message: 'portal down' } }], scanned);
-    expect(state.step).toEqual({ kind: 'accounts', error: 'portal down' });
+    const state = run([{ type: 'importResult', entry: homer, result: 'Error: session expired at the portal' }], scanned);
+    expect(state.step).toEqual({ kind: 'accounts', error: 'session expired at the portal' });
+    expect(state.scanned).not.toBeNull();
   });
 });
 
