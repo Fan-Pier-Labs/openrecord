@@ -27,6 +27,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAllTools } from './tools';
 import { clearAllSessions } from './session-manager';
+import setupWidget from 'virtual:setup-widget';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
 import { startDirectoryRefresh } from './directory-refresh';
 
@@ -94,7 +95,7 @@ async function main(): Promise<void> {
   // ── Resources ─────────────────────────────────────────────────────────────
 
   // Serve the interactive setup widget HTML.
-  const setupHtml = buildSetupUiHtml();
+  const setupHtml = buildSetupUiHtml(setupWidget);
   // The CSP goes on both the listing (what the host reviews when it connects)
   // and the content item (what it applies when it renders); the content item wins.
   server.registerResource(

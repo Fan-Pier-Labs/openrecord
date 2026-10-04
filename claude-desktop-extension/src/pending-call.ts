@@ -68,6 +68,19 @@ function text(message: string, isError = false): CallToolResult {
   return { content: [{ type: 'text', text: message }], ...(isError ? { isError: true } : {}) };
 }
 
+/**
+ * The id a "still running" note carries as data, for code that waits a call
+ * out (the setup widget) rather than reading the sentence the model gets.
+ */
+export interface PendingCallNote {
+  pending_call: { id: string };
+}
+
+function stillRunning(message: string, id: string): CallToolResult {
+  const note: PendingCallNote = { pending_call: { id } };
+  return { ...text(message), structuredContent: { ...note } };
+}
+
 function elapsed(startedAt: number, now: number): string {
   const secs = Math.max(0, Math.round((now - startedAt) / 1000));
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
@@ -156,10 +169,11 @@ export async function runGuarded(
     entry.result = r;
     entry.settledAt = Date.now();
   });
-  return text(
+  return stillRunning(
     `${tool} (id "${entry.id}") is still running after ${DEADLINE_LABEL} and keeps running in the background for up ` +
       `to 10 minutes. Call ${CHECK_TOOL} with that id to wait for and read its result. Do NOT call ${tool} again ` +
       'with the same arguments; it would be refused. Other tools are unaffected.',
+    entry.id,
   );
 }
 
@@ -222,7 +236,7 @@ export async function checkPendingCall(
   const how = discarded
     ? `Its result will be discarded, because it was abandoned. Call ${CHECK_TOOL} again to wait for the account to come free.`
     : `Call ${CHECK_TOOL} again to keep waiting, or with abandon: true to stop waiting. ${ABANDON_MEANS}`;
-  return text(`${p.tool} (id "${id}") is still running (${elapsed(p.startedAt, Date.now())} so far, of at most 10 minutes). ${how}`);
+  return stillRunning(`${p.tool} (id "${id}") is still running (${elapsed(p.startedAt, Date.now())} so far, of at most 10 minutes). ${how}`, id);
 }
 
 /** Test seam. */
