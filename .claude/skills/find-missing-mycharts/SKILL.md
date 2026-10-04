@@ -34,8 +34,8 @@ Run the resolver the release uses on the portal's mount root:
 bun -e "import { resolveLoginUrl } from './scrapers/list-all-mycharts/resolveLoginUrl'; import { silenceLogger } from './shared/logger'; silenceLogger(); console.log(JSON.stringify(await resolveLoginUrl(process.argv.at(-1)!))); process.exit(0)" https://host/MyChart/
 ```
 
-You need `{"kind":"login"}`. `linked` means the URL is a page that links to the portal, so use the
-portal itself. `down` doesn't count. The check can be fooled by an SSO hand-off
+You need `{"kind":"up"}` with `url` equal to the URL you checked. A different `url` means what you
+checked is a page that links to the portal, so use the returned `url` itself. `down` doesn't count. The check can be fooled by an SSO hand-off
 page (Sentara's carries the same token as a real login form), so open the page and confirm there
 is a username/password form. A site that times out from here may be geo-blocking: the Dutch and
 NHS portals do. Note those rather than adding them.
