@@ -476,6 +476,30 @@ describe('proxyContext', () => {
       .rejects.toThrow("portal is showing 'Lisa Marie Simpson' (Lisa Simpson)")
   })
 
+  it('accepts a switch when the same person is also listed as a record linked from another org', async () => {
+    const OTHER_ORG_ID = 'WP-other-org'
+    const linked = {
+      ProxySubjectList: [
+        { Id: SELF_ID, DisplayName: 'Homer (Springfield General)', LinkUrl: 'inside.asp', IsSelected: false, IsSelf: true },
+        { Id: OTHER_ORG_ID, DisplayName: 'Marge (Shelbyville Clinic)', LinkUrl: `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${OTHER_ORG_ID}`, IsSelected: false, IsSelf: false },
+        { Id: CHILD_ID, DisplayName: 'Marge (Springfield General)', LinkUrl: `inside.asp?mode=proxyswitch&action=switchcontext&src=0&eid=${CHILD_ID}`, IsSelected: true, IsSelf: false },
+      ],
+    }
+    const req = requestWithMockedResponses((config) => {
+      if (config.path?.startsWith('/ProxySwitch')) return jsonResponse(linked)
+      if (config.url?.includes('switchcontext')) {
+        return new Response('', { status: 302, headers: { Location: '/MyChart/Home' } })
+      }
+      if (config.url?.endsWith('/MyChart/Home')) return htmlResponse('ok')
+      if (config.path === '/Home') return htmlResponse(profileHtml('Marge Simpson', '3/19/1980'))
+      throw new Error(`Unexpected request ${JSON.stringify(config)}`)
+    })
+
+    const result = await switchProxyTarget(req, { id: CHILD_ID })
+    expect(result.target.id).toBe(CHILD_ID)
+    expect(result.verifiedProfileName).toBe('Marge Simpson')
+  })
+
   it('errors instead of falling through when the redirect chain will not settle', async () => {
     const req = requestWithMockedResponses((config) => {
       if (config.path?.startsWith('/ProxySwitch')) {
@@ -599,6 +623,12 @@ describe('proxyContext', () => {
 })
 
 describe('compareProfileNames', () => {
+  it('ignores an org suffix on a linked-account label', () => {
+    expect(compareProfileNames('Bart (Springfield General)', 'Bart Simpson')).toBe('match')
+    expect(compareProfileNames('Maggie (Springfield/Shelbyville)', 'Maggie Simpson')).toBe('match')
+    expect(compareProfileNames('Bart (Springfield General)', 'Maggie Simpson')).toBe('mismatch')
+  })
+
   it('accepts the same person written with more or fewer name parts', () => {
     expect(compareProfileNames('Homer Simpson', 'Homer Jay Simpson')).toBe('match')
     expect(compareProfileNames('Homer J. Simpson', 'Homer Simpson')).toBe('match')

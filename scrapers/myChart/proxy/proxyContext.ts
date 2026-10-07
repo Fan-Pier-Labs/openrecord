@@ -284,6 +284,9 @@ function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): Pro
 
 function nameTokens(value: string): string[] {
   return value
+    // Linked-account (Happy Together) labels carry the org in parentheses, e.g.
+    // "Bart (Springfield General)"; the org is not part of the name.
+    .replace(/\([^)]*\)/g, ' ')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -652,8 +655,12 @@ export async function switchProxyTarget(
   // patient — most often a sibling, whom a surname comparison alone would wave
   // through — and it is never acceptable.
   if (identity !== 'match' && verified.profileName) {
+    // The same person's record linked from another org ("Marge (Springfield General)" next to
+    // "Marge (Shelbyville Clinic)") is not an impostor.
     const impostor = refreshedTargets.find((entry) =>
-      entry.id !== resolved.id && compareProfileNames(entry.displayName, verified.profileName!) === 'match');
+      entry.id !== resolved.id
+      && compareProfileNames(entry.displayName, resolved.displayName) !== 'match'
+      && compareProfileNames(entry.displayName, verified.profileName!) === 'match');
     if (impostor) {
       throw new Error(
         `Proxy switch landed on the wrong patient: asked for '${resolved.displayName}', ` +
