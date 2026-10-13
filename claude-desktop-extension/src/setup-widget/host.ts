@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { PendingCallNote } from '../pending-call';
 

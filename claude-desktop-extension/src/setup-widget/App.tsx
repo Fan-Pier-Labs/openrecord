@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useEffect, useReducer, useState } from 'react';
 import { initialState, reducer, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
 import type { Host } from './host';
