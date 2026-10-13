@@ -27,7 +27,7 @@ The same code runs at release and monthly. `fetchResolvedMyChartDirectory` in
 ```mermaid
 flowchart TD
     epic["Epic's directory<br/>GET mychart.org/cached-api/help/organizations/<br/>~1,400 organizations"]
-    epic --> parse["parseDirectoryPayload<br/>drop entries with no login URL,<br/>merge same name + same URL"]
+    epic --> parse["parseDirectoryPayload<br/>drop entries with no login URL,<br/>merge same name + same portal<br/>(hostname + mount, any case)"]
     parse --> each["resolveLoginUrl, for every organization<br/>(24 at a time)"]
     each --> retry["retry everything down, once"]
     retry --> out["entries: url, directoryUrl when corrected,<br/>down: true when unconfirmed"]
