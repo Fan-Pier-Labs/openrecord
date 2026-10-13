@@ -14,6 +14,7 @@ import * as path from 'path';
 
 import type { FilePayload } from '../../shared/capabilities';
 import { downloadsDir } from './imaging/save-study';
+import { safeFileName } from '../../scrapers/myChart/core/safeFileName';
 
 /**
  * Save the payload under `baseDir` (Downloads) and return the absolute path
@@ -33,4 +34,21 @@ export function saveFilePayload(payload: FilePayload, baseDir: string = download
     }
   }
   throw new Error(`Could not save ${payload.fileName} under ${baseDir} — 100 copies already exist.`);
+}
+
+/**
+ * `save_file`: text the model wrote, under a name the model chose. The name is
+ * cut to a bare basename, so it cannot reach outside `baseDir`; one with no
+ * extension is saved as Markdown.
+ */
+export function saveTextFile(fileName: string, content: string, baseDir: string = downloadsDir()): string {
+  const name = safeFileName(path.basename(fileName.replace(/\\/g, '/')), 'openrecord-export.md');
+  return saveFilePayload(
+    {
+      fileName: /\.[A-Za-z0-9]{1,8}$/.test(name) ? name : `${name}.md`,
+      mimeType: 'text/plain',
+      bytes: new TextEncoder().encode(content),
+    },
+    baseDir,
+  );
 }
