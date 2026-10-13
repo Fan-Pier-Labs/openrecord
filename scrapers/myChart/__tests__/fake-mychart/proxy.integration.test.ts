@@ -50,10 +50,10 @@ describe('proxy tools against fake-mychart', () => {
 
   afterAll(async () => { await resetFakeMyChart(HOST) })
 
-  it('lists Homer plus his three kids, with Homer active after a fresh login', async () => {
+  it('lists Homer, his three kids and a linked record, with Homer active after a fresh login', async () => {
     const result = await runListProxyTargets(session)
 
-    expect(result.count).toBe(4)
+    expect(result.count).toBe(5)
     const self = result.patients.find((p) => p.is_self)!
     expect(self.name).toContain('Homer')
     expect(self.is_active).toBe(true)
@@ -61,7 +61,8 @@ describe('proxy tools against fake-mychart', () => {
 
     const kids = result.patients.filter((p) => !p.is_self).map((p) => p.name)
     expect(kids).toContain('Bart Simpson')
-    expect(kids).toHaveLength(3)
+    expect(kids).toContain('Lisa (Shelbyville Clinic)')
+    expect(kids).toHaveLength(4)
     expect(result.active_patient).toContain('Homer')
   })
 
@@ -110,6 +111,24 @@ describe('proxy tools against fake-mychart', () => {
     await expect(assertProxyReadContext(session)).resolves.toBeUndefined()
     const profile = await getMyChartProfile(session)
     expect(profile?.name).toContain('Homer')
+  })
+
+  it('switches to a record linked from another organization, whose label carries the org', async () => {
+    // "Lisa" now names two records, her Springfield one and the linked one,
+    // and guessing between them is the failure this must never produce.
+    await expect(runSwitchProxyTarget(session, 'Lisa')).rejects.toThrow(/matches/)
+
+    const result = await runSwitchProxyTarget(session, 'Lisa (Shelbyville Clinic)')
+    expect(result.switched_to).toBe('Lisa (Shelbyville Clinic)')
+    expect(result.is_self).toBe(false)
+    // The organization is not part of her name: verification compares "Lisa"
+    // against the profile's "Lisa Marie Simpson" and accepts the switch.
+    expect(result.verified_profile_name).toContain('Lisa')
+    expect(result.verified_profile_name).toContain('Simpson')
+    const profile = await getMyChartProfile(session)
+    expect(profile?.name).toContain('Lisa')
+
+    await runSwitchProxyTarget(session, 'me')
   })
 
   it('refuses to guess on an ambiguous name', async () => {

@@ -49,6 +49,10 @@ patient can persist **across processes**.
   perfectly good switches. `unknown` is the honest answer when two names share a surname but
   not a recognizable given name: that is either a nickname or **a sibling**, and the
   comparison cannot tell which.
+- **A record linked from another organization is labelled with the org in parentheses**
+  (`Lisa (Shelbyville Clinic)`, Epic's "Happy Together"), and the org is not part of the
+  name: `nameTokens` strips parenthesised text before comparing. Reported on #552, not yet
+  captured; fake-mychart models it on Homer's account.
 - **The sharpest signal is the impostor check.** When the profile landed on matches a
   *different* record in the list, the switch went to the wrong patient — most often a
   sibling, whom a surname comparison alone would wave through — and it throws. This is the
