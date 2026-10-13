@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Demo: MyChart serialises billing dates as "dte" — whole days since the 1840
  * mainframe epoch. Prints a known value and today's, for eyeballing.

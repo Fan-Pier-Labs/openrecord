@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * UI Integration Test: fake-mychart passkey registration + sign-in via the
  * browser. Uses Playwright's CDP `WebAuthn.addVirtualAuthenticator` so the

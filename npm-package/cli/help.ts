@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `--help` — what the CLI is and every flag it takes, followed by the
  * capability listing.
@@ -53,6 +55,9 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '                               The health system behind a MyChart hostname: support lines, the',
     '                               bookable provider directory with clinic addresses, billing entities.',
     '                               --arg specialties=a,b limits the crawl; --arg providers=false skips it',
+    '    --action list-mycharts [--output <file>]',
+    '                               Every MyChart in Epic\'s directory as JSON, each login URL checked',
+    '                               and corrected where Epic\'s points elsewhere. Takes a few minutes',
     '',
     '  The interactive actions, which prompt for whatever is not given as a flag:',
     '    --action send-message [--subject <s>] [--message <m>]',

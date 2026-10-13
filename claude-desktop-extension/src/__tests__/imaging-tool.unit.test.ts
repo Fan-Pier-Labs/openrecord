@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Saving an imaging study to disk is opt-in, and this is what holds it there.
  *

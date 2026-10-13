@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { upsertAlerts, type AlertInput } from "@/lib/storage/database";
 import type { BillingStandard, BillingAccountStandard } from "../../../../scrapers/myChart/chart/bills/bills";

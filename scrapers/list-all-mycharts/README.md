@@ -7,9 +7,9 @@ against all ~750 hosts at once.
 | | |
 | --- | --- |
 | **Capabilities** | `search_mycharts` (`kind: 'public'` — no account, no session) |
-| **Source** | [`directory.ts`](directory.ts) (fetch + logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + cache) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the seed) |
+| **Source** | [`directory.ts`](directory.ts) (Epic fetch, `listMyCharts`, logos) · [`searchDirectory.ts`](searchDirectory.ts) (ranking + the refreshed list) · [`fetch-mychart-instances.ts`](fetch-mychart-instances.ts) (regenerates the generated list) |
 | **Probes** | [`probes/`](probes/) — [`probe-mount-discovery.ts`](probes/probe-mount-discovery.ts) · [`probe-open-scheduling.ts`](probes/probe-open-scheduling.ts) · [`probe-open-slots.ts`](probes/probe-open-slots.ts) · [`probe-epic-version.ts`](probes/probe-epic-version.ts) · [`probeRunner.ts`](probes/probeRunner.ts) |
-| **Seed** | `mychart-instances.json` — the checked-in offline snapshot |
+| **Data** | `mychart-instances.json` — generated from Epic on each MCPB release |
 
 ## Endpoints
 
@@ -44,11 +44,22 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   show.** Nothing is mirrored, and mirroring them would not help: clients run on other
   people's machines with none of our credentials, so they load logos straight from Epic
   either way.
-- **Live first, seed second.** A search fetches Epic's directory, caches it, and searches
-  that — new health systems come online between releases, and a patient whose provider is
-  missing from a months-old snapshot has no way to connect. When the fetch fails (offline,
-  corporate proxy, Epic down) the checked-in `mychart-instances.json` answers instead, and
-  the result says `source: 'bundled'` rather than pretending the live list was consulted.
+- **Some `loginUrl`s are wrong at the source.** UCSF (`166`) publishes
+  `www.ucsfhealth.org/ucsfmychart/`, which redirects to an information page; the portal
+  is `ucsfmychart.ucsfmedicalcenter.org`. A refresh checks every one — see
+  [Checking login URLs](#checking-login-urls).
+- **A duplicate is the same name *and* the same portal.** Epic lists Cleveland Clinic twice
+  (`320` for the US, `320-1` for Canada) and Ziekenhuis Amstelland twice; `mergeDuplicates`
+  keeps the shortest `slgId` with every entry's aliases, states and countries. Same name
+  alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
+  in different states — and nor is same portal alone: 46 portals are shared by affiliates
+  that patients search for by their own names.
+- **What clients search is the deterministic refresh's output** (Epic's directory, every login
+  URL checked): `mychart-instances.json` from the last release until a newer run exists. The
+  Claude Desktop extension and the iOS app rerun the same refresh in the background about
+  monthly (new health systems come online between releases) and search its result, saying
+  `source: 'refreshed'` with its `refreshedAt`. Search itself never makes a request. The CLI is one-shot, so it searches
+  the checked-in list. See [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md).
 - `SANDBOX_INSTANCE` is the deployed fake-mychart, so anyone can walk the whole connect flow
   against a fictional record without a real Epic account. It is never a default suggestion —
   it appears only when the query matches it — and its "(test)" suffix is there so nobody
@@ -60,8 +71,39 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   greyed out and unselectable, carrying that text, rather than dropping it. The answer is
   cached for a minute, and no other query pays for the probe.
 - fake-mychart serves **both halves** (`/cached-api/help/organizations/` and the mirrored
-  media path), so neither the tests nor the mobile app's first-boot refresh has to reach
-  Epic.
+  media path), so neither the tests nor the mobile app's refresh has to reach Epic.
+
+## Checking login URLs
+
+[`resolveLoginUrl.ts`](resolveLoginUrl.ts) follows each `loginUrl`. If it lands on a MyChart
+login page it stands. If not, the MyChart links on the page it landed on are tried, and the
+first that itself serves a login page replaces it. Otherwise it's `down`: we couldn't confirm
+it was up when we checked — a dead host, a custom sign-in page, a bot wall, or a portal that
+blocks traffic from outside its own country (six Dutch hospitals and an NHS trust, from the
+US). It keeps Epic's URL.
+
+[`refreshDirectory.ts`](refreshDirectory.ts) runs that over the whole directory, retrying
+anything down once at the end. It backs `mychart-cli --action list-mycharts` and
+`fetch-mychart-instances.ts`, which the MCPB's `pack:signed` runs before every release,
+leaving the refreshed file to commit. Both JSON files are written sorted by `slgId`, keys in
+order (`toSortedJson`), so a diff shows only what changed.
+
+The generated file records the result: **`directoryUrl`** on a corrected entry (Epic's URL,
+with `url` holding ours) and **`down: true`** on one we couldn't confirm. `down` is a snapshot
+from release time; nothing shows it yet.
+
+**The FAQ link is not a fallback.** In October 2026, of 1,159 working entries with a MyChart
+FAQ link, 314 put it on a different host — 56 on a visibly different portal (an affiliate's
+parent: My Sanford Chart, MyLVHN). On the 13 entries that needed a correction it agreed with
+the page's own link 6 times, and pointed at a stale or different system on 5.
+
+**What the first sweep found (October 2026, 1,416 organizations, run from the US).** 1,332
+login URLs are right as published — the same 1,332 an independent scan found. 18 were
+corrected; 17 are confirmed by the page's own sign-in link or the portal's branding, and
+`mychart.bswhealth.com/fa/` (Baylor Scott & White, whose real sign-in is a custom page)
+serves a MyBSWHealth login no one has signed in to. Mount discovery succeeds on every
+corrected host. 66–134 were `down`, the swing between runs being timeouts; 8 of them are
+broken for anyone (three hostnames gone, three TLS failures, an expired certificate, a 503).
 
 ## The probes
 

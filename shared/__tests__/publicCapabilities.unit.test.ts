@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The `public` capabilities, driven the way a client drives them: through
  * `executeCapability` with no session at all.
@@ -178,7 +180,7 @@ describe('search_npi_registry', () => {
 });
 
 describe('search_mycharts', () => {
-  it('searches the directory and returns the fields a picker renders', async () => {
+  it('searches the directory, with no request, and returns the fields a picker renders', async () => {
     serve(directoryFixture);
     const result = (await executeCapability(null, 'search_mycharts', { query: 'AACI' })) as {
       query: string;
@@ -187,8 +189,8 @@ describe('search_mycharts', () => {
       matches: Array<{ hostname: string; name: string; loginUrl: string }>;
     };
 
-    expect(requested[0]).toContain('/cached-api/help/organizations/');
-    expect(result.source).toBe('live');
+    expect(requested).toEqual([]);
+    expect(result.source).toBe('bundled');
     expect(result.query).toBe('AACI');
     expect(result.count).toBe(1);
     expect(result.matches[0]).toMatchObject({

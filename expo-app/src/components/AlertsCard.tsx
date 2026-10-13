@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert as RNAlert, Linking } from "react-native";
 import { getActiveAlerts, dismissAlert, type Alert } from "@/lib/storage/database";

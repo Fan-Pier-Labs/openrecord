@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import type { NextRequest, NextResponse } from 'next/server';
 import { hasAcceptedTerms, validateSession } from '@/lib/session';
 import { getRequireTerms } from '@/lib/terms';

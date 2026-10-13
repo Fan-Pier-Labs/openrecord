@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import * as os from 'os'

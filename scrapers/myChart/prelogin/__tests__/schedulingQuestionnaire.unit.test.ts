@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The screening decision tree that gates the slot search on 221 of the 577
  * instances that serve open scheduling.

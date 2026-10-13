@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The anonymous slot search: parsing, the paging stop conditions, and the full
  * walk against a per-session transport. (The `Dte` conversions themselves live

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The guest-estimate pages, with their inlined script data reproduced the way
  * real instances emit it (one-line JSON assignments inside a script block).

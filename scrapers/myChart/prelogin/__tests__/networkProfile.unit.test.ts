@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The one-call entry, end to end over a scripted transport: mount discovery
  * from the bare hostname, the login page for the profile, and the two

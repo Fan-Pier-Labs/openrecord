@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Firefox password store (NSS): `key4.db` holds the wrapped keys, `logins.json`
  * the encrypted credentials.

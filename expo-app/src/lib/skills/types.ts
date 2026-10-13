@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * A "skill" is a curated playbook the user can launch from the chat
  * empty state. Picking one starts a new chat: the kickoff message is

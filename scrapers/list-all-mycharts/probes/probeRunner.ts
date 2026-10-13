@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The bits every probe script repeats: argument parsing, a bounded worker
  * pool, JSONL output and progress.

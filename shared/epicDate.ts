@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Epic's day numbers — the `dte`/`Dat`/`DTE` integers that appear all over
  * MyChart's payloads.

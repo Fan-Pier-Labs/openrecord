@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * mychart-cli — programmatic access to Epic MyChart patient portals.
  *
@@ -594,6 +596,7 @@ export {
 } from '../../scrapers/npi/npiRegistry';
 export {
   fetchMyChartDirectory,
+  listMyCharts,
   fetchMyChartIcon,
   parseDirectoryPayload,
   toSeedEntry,
@@ -607,11 +610,13 @@ export {
 export {
   searchMyChartDirectory,
   rankDirectoryMatches,
+  refreshMyChartDirectory,
+  useRefreshedMyCharts,
   clearDirectoryCache,
   SANDBOX_INSTANCE,
   DEFAULT_DIRECTORY_SEARCH_LIMIT,
   MAX_DIRECTORY_SEARCH_LIMIT,
-  DIRECTORY_CACHE_TTL_MS,
+  DIRECTORY_REFRESH_INTERVAL_MS,
   type MyChartDirectoryMatch,
   type MyChartDirectorySearchResult,
   type MyChartDirectorySearchOptions,

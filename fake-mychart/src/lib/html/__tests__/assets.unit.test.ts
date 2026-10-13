@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The page CSS and inline JS are read off disk by name, so a rename or a typo
  * is invisible until a request for that page throws — and only for the pages an

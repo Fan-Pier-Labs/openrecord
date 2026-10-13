@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Per-patient data scoping.
 //
 // Real MyChart scopes every endpoint to the record the session is currently in.

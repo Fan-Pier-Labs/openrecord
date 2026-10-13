@@ -45,7 +45,8 @@
   "files": [
     "dist",
     "README.md",
-    "docs.md",
+    "CHANGELOG.md",
+    "docs",
     "LICENSE"
   ],
   "scripts": {

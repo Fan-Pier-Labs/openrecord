@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The organization's insurance payer catalogue — `Insurance/Coverages/GetPayors`,
  * the legacy Insurance activity's payer dropdown.

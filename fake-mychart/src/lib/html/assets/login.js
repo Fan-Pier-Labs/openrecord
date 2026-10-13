@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 function b64ToBytes(b64) {
   b64 = String(b64).replace(/-/g, '+').replace(/_/g, '/');
   while (b64.length % 4) b64 += '=';

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import crypto from 'crypto';
 import * as homer from '@/data/homer';
 import { state } from '@/lib/state';

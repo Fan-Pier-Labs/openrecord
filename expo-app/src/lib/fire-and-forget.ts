@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Fire-and-forget for async work whose failure the user cannot see — background
  * loads, refreshes, prefetches. A bare `void promise` satisfies

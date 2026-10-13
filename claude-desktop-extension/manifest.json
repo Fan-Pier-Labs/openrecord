@@ -35,7 +35,7 @@
     { "name": "list_accounts", "description": "List configured MyChart accounts and their connection status. Returns the hostname for each — pass that as `account` to any other tool." },
     { "name": "search_mycharts", "description": "Search the directory of known MyChart instances by name." },
     { "name": "get_hospital_info", "description": "Public profile of the health system behind a MyChart hostname — support phone lines, bookable providers, clinic addresses, billing entities. No account needed." },
-    { "name": "get_setup_widget", "description": "Display an interactive widget for connecting a MyChart account. Use this if the user wants a GUI instead of chat-based setup." },
+    { "name": "get_setup_widget", "description": "Display an interactive widget for connecting MyChart accounts: import logins saved in the browser, or sign in by hand." },
     { "name": "setup_account", "description": "Attempt to log into MyChart with hostname + username + password. May return need_2fa." },
     { "name": "import_browser_passwords", "description": "Find MyChart logins already saved in this machine's browsers (Chrome, Arc, Brave, Edge, Firefox). Read-only; returns no passwords." },
     { "name": "connect_imported_account", "description": "Connect an account found by import_browser_passwords, using the password already saved in the browser." },
@@ -44,6 +44,7 @@
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
     { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." },
+    { "name": "save_file", "description": "Save text Claude has written from your records — a summary, a CSV of labs, a timeline — to a file in Downloads." },
     { "name": "lookup_npi", "description": "Look up a US healthcare provider by National Provider Identifier. Public data; no MyChart account needed." },
     { "name": "search_npi_registry", "description": "Find US healthcare providers by name, specialty and/or place in CMS's public NPI Registry. No MyChart account needed." }
   ],

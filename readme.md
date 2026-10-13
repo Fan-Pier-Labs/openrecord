@@ -2,13 +2,46 @@
 
 **[Homepage](https://openrecord.fanpierlabs.com/)** · **[Download the Claude Desktop extension](https://openrecord.fanpierlabs.com/openrecord.mcpb)**
 
-**Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to Epic MyChart patient portals and exposes 35+ tools for reading and managing your health data, with full write support — send messages, request refills, and update your insurance information, not just view it.
+**Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to Epic MyChart patient portals and exposes 50+ tools for reading and managing your health data, with full write support — send messages, request refills, and update your insurance information, not just view it.
 
 OpenRecord ships as three clients, all built on the same scraper core:
 
 1. **Claude Desktop extension** (`claude-desktop-extension/`) — a `.mcpb` bundle that runs entirely on your machine. Install it, say "Set up my MyChart", and Claude handles the rest.
 2. **Mobile app** (`expo-app/`) — an Expo/React Native iOS app with an on-device agent, skills, and alerts.
 3. **CLI + npm package** (`npm-package/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
+
+## Documentation
+
+**Using OpenRecord**
+
+| Doc | For |
+| --- | --- |
+| [Claude Desktop extension](claude-desktop-extension/README.md) | Install, setup, tools, privacy, development |
+| [Mobile app](expo-app/README.md) | What the app does, AI providers, building and running it |
+| [`mychart-cli` overview](npm-package/README.md) | Install, quick starts for the CLI and the library |
+| [CLI reference](npm-package/docs/cli.md) | Every flag, sign-in, output, family records, files, exit codes |
+| [Library API reference](npm-package/docs/api.md) | `MyChartClient`, every method and type, errors, imaging, raw scrapers, the capability registry |
+| [Capabilities](npm-package/docs/capabilities.md) | Every action across all clients, with arguments, output modes and id chaining |
+| [Authentication](npm-package/docs/authentication.md) | Passkeys, TOTP, 2FA codes, sessions, family records |
+| [Recipes](npm-package/docs/recipes.md) | Export a chart, clinical notes, imaging, messaging, unattended runs, AI agents |
+| [Troubleshooting](npm-package/docs/troubleshooting.md) | Sign-in failures, refused reads, empty categories |
+| [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) | What stays on your device and what leaves it |
+
+**Working on OpenRecord**
+
+| Doc | For |
+| --- | --- |
+| [Architecture](docs/architecture.md) | The invariants every change must keep, with the reasoning |
+| [Testing](docs/testing.md) | Unit / integration / real-MyChart suites, CI, the coverage gate |
+| [Scrapers](scrapers/README.md) | Map of every scraper; each folder's README documents its endpoints and quirks |
+| [Scraping guide](scrapers/SCRAPING.md) | Finding the request MyChart's web UI sends, and the traps |
+| [Processor layer](docs/processor-layer-proposal.md) | `raw` / `standard` / `concise` / `json` and each capability's field contract |
+| [fake-mychart](fake-mychart/README.md) | The MyChart stand-in used for development and every integration test |
+| [CLI contributor notes](docs/cli.md) | Running the CLI from a checkout, where things live, passkey sign counts |
+| [iOS simulator](docs/ios-simulator.md) | Driving the simulator, `maestro-cli`, testID rules |
+| [Infrastructure](docs/infrastructure.md) | AWS, deployments, the splash site and demo, lambdas, secrets |
+| [Splash site and demo](openrecord-splash/README.md), [demo](docs/demo.md) | The website and in-browser demo |
+| [Browser password import](read-local-passwords/README.md) | Reading saved MyChart logins from Chromium and Firefox |
 
 ## What It Does
 
@@ -60,33 +93,35 @@ See [claude-desktop-extension/README.md](claude-desktop-extension/README.md) for
 
 ### 2. Mobile app
 
-The Expo app in `expo-app/` runs the scrapers on-device. See `expo-app/` for build instructions (`bunx expo run:ios`).
+The Expo app in `expo-app/` runs the scrapers on-device. See [expo-app/README.md](expo-app/README.md) to build and run it (`bunx expo run:ios`).
 
-### 3. CLI
+### 3. CLI and library
 
 ```bash
 npm i -g mychart-cli
-mychart-cli --help
+mychart-cli --action search_mycharts --arg query="your health system"   # find your portal
+mychart-cli --host mychart.example.org                                   # sign in and print your chart
 ```
 
-Or from a checkout: `bun run cli mychart [flags]`. See [docs/cli.md](docs/cli.md) for cookie caching, credential resolution, 2FA, and the full action list.
+Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli` README](npm-package/README.md), then the [CLI reference](npm-package/docs/cli.md) or the [library API reference](npm-package/docs/api.md).
 
 ## Architecture
 
 ```
 openrecord/
   scrapers/                  # Shared MyChart scraper code (login, API calls, parsing)
-  shared/                    # Common types and enums
+  shared/                    # Capability registry (what every client can do), common types, host limiter
   claude-desktop-extension/  # Claude Desktop .mcpb extension
   expo-app/                  # Expo/React Native mobile app
   npm-package/               # mychart-cli npm package (CLI + library)
   read-local-passwords/      # Browser password store extraction (used by the CLI)
   fake-mychart/              # Fake MyChart server for development and CI
   openrecord-splash/         # Static splash site + in-browser interactive demo
-  openrecord-demo-lambda/    # Lambda backing the demo's AI chat
+  openrecord-demo-lambda/    # AI proxy behind the demo and the mobile app's free tier
+  dev-scripts/               # Run-it-yourself diagnostics
 ```
 
-The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions.
+The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions, and every client derives its tools from one capability registry in `shared/capabilities/` — so a capability added there ships in the extension, the app, the CLI and the library at once.
 
 ## Development
 
@@ -115,7 +150,7 @@ usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
-`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out.
+`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](npm-package/README.md#telemetry).
 
 On start the CLI also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you if a newer release exists. That request
