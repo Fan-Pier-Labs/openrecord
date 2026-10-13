@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { BackLink, BusyButton, FieldError, InstanceHeader, RowText, Spinner } from './components';
 import { accountsView, twoFaDeliveryLabel, type Connected, type CredsStep, type FoundLogin, type State, type Step } from './flow';

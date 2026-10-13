@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useEffect, useState } from "react";
 import { Image, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 import { loadInstanceLogo, peekInstanceLogo } from "@/lib/mychart-instances";

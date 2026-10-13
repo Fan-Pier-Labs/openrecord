@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The resolver against the page shapes the live sweep turned up — UCSF's
  * information page among them — served by a stub transport.

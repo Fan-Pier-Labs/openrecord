@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * End-to-end test of the client-facing proxy layer (`proxyTools.ts`) against
  * fake-mychart: the exact list → refuse → switch → read → switch-back flow the

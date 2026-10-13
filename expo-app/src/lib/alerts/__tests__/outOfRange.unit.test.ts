@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /// <reference types="bun" />
 // ^ These run under `bun test`, not in the app: the reference pulls in
 // bun:test module declarations without adding Bun globals to the app config.

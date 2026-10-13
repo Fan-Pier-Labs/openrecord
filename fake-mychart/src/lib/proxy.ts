@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * How this server advertises the patient records an account can access
  * ("proxy access" in Epic's terminology — a parent seeing a child's chart, an

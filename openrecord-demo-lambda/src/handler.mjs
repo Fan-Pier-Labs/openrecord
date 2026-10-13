@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // AWS Lambda handler (API Gateway HTTP API, payload format v2) backing every
 // OpenRecord surface that needs a hosted model:
 //

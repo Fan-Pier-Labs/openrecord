@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Tests for fake-mychart's server-side TOTP: real RFC 6238, checked against
  * the published test vectors rather than against itself.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect } from "bun:test";
 import { Database } from "bun:sqlite";
 import { MAX_CACHED_LOGOS, PRUNE_LOGOS_SQL, SCHEMA_SQL } from "../schema";

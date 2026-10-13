@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The pre-login activities, standing in for `scrapers/myChart/prelogin`.
  *

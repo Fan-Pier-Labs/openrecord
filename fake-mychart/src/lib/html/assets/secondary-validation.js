@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 var maskedEmail = 'ho***@springfield.net';
 var maskedPhone = '***-***-7890';
 document.querySelectorAll('.method-btn').forEach(function(btn) {

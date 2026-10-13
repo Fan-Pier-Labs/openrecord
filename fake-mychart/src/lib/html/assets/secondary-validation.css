@@ -1,3 +1,5 @@
+/* Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root. */
+
 body { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 .verify-box { background: #fff; border-radius: 12px; padding: 40px; width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); text-align: center; }
 .verify-box h2 { margin-bottom: 8px; }

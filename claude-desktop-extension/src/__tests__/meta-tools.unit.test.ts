@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Behaviour tests for the extension's account-management ("meta") tools and for
  * the shared error path every scraper tool inherits.

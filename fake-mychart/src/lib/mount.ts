@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Two independent things about a real MyChart deployment that the scraper has
  * to work out before it can build a single URL — so both need to be exercised,

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The check is fire-and-forget, so every failure here is silent by design. One
  * that starts throwing takes the CLI's first turn with it; one that starts

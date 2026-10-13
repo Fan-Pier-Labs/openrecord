@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { MyChartRequest } from "../core/myChartRequest";
 import { directoryPrefixesFor } from '../../list-all-mycharts/directory';
 import * as cheerio from 'cheerio';

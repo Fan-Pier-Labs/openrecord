@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, expect, test } from 'bun:test';
 import { bundleSetupWidget } from '../../scripts/bundle-setup-widget';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from '../ui';

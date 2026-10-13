@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The pre-login scrapers: what a MyChart instance tells anyone about the
  * health system behind it. See `networkProfile.ts` for the one-call entry.

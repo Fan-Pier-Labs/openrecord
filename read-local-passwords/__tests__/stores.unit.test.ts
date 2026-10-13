@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { createCipheriv, createHash, pbkdf2Sync, randomBytes } from 'crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** The `Messages` group — the inbox, and sending into it. */
 
 import { fetchConversationsRaw, conversationsProcessor } from '../../../scrapers/myChart/chart/messages/conversations';

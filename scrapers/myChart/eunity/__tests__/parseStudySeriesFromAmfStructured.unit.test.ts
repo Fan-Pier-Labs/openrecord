@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect } from 'bun:test';
 import { decodeAmf3, collectAmf3Objects } from '../../../../shared/amf3Reader';
 import { parseStudySeriesFromAmfStructured } from '../imagingDirectDownload';

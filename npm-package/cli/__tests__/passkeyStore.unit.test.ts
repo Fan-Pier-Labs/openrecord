@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, afterEach, beforeEach, afterAll, setSystemTime } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';

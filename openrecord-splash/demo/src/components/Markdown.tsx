@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { Fragment, type ReactNode } from 'react';
 import { parseMarkdown, type Block, type InlineSpan } from '../markdown';
 import { Radiograph } from './Radiograph';

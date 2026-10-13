@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Chart data for the patient records Homer has proxy access to — his children.
 //
 // Real MyChart scopes every endpoint to whichever record the session is

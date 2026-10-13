@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The shared "what am I searching for" resolution, and the bookable window a
  * client needs before it can ask someone when they want to be seen.
