@@ -120,7 +120,8 @@ Or skip typing a password entirely, if your browser already has one saved:
   `import_id`, and the credential stays on your machine.
 - **`connect_imported_account(import_id)`** — connects the one you picked, using
   the password already in your browser. Same 2FA and passkey flow as
-  `setup_account`.
+  `setup_account`; an `import_id` older than 10 minutes returns
+  `{state: "expired"}`, and a fresh import gets new ids.
 
 Anything it cannot confirm is left out rather than guessed at — use
 `setup_account` for those, or run the import again later if a portal was
