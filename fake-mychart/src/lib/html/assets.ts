@@ -26,7 +26,9 @@ function read(name: string): string {
   // page script shows up on reload without restarting the server.
   const cached = cache.get(name);
   if (cached !== undefined && process.env.NODE_ENV === 'production') return cached;
-  const text = readFileSync(join(ASSET_DIR, name), 'utf8');
+  // Drop our license header: it is a fact about the source file, and real
+  // MyChart's pages don't carry it.
+  const text = readFileSync(join(ASSET_DIR, name), 'utf8').replace(/^.*Copyright \(c\) Fan Pier Labs\..*\n\n/, '');
   cache.set(name, text);
   return text;
 }
