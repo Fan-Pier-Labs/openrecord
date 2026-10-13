@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Buffer polyfill — required by shared scraper code that uses Node's Buffer,
 // notably the eUnity CLO image parser and binary AMF3 protocol helpers.
 import { Buffer } from "buffer";

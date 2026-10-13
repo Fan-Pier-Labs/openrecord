@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { getSecureValue, setSecureValue, deleteSecureValue } from "@/lib/storage/secure-store";
 
 const TOKEN_KEY = "google_id_token";

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 Promise.all([
   fetch('{{MP}}/api/goals/loadcareteamgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),
   fetch('{{MP}}/api/goals/loadpatientgoals', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()),

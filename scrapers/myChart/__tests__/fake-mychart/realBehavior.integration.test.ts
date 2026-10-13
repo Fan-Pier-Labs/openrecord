@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Fidelity tests for behaviors captured on real MyChart instances (three live
  * captures: one on Epic's August 2025 release, two behaving as November 2025)

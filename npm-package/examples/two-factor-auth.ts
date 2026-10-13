@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Walk through a 2FA login. Demonstrates the discriminated union of
  * `ConnectResult` and the `pending.complete()` step.

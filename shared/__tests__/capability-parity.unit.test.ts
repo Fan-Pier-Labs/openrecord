@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The four clients must expose the same capabilities. This test is what makes
  * that a build failure rather than a thing someone notices in production.

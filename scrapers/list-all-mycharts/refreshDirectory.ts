@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Epic's directory with every login URL checked — the deterministic code
  * behind `mychart-instances.json`. It writes that file on each MCPB release

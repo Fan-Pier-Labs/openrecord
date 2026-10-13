@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Organization-level data: the same for every patient record on the instance.
 //
 // Real MyChart scopes chart data to the record the session is in (see

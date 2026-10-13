@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Diagnostic: probe eUnity CustomImageServlet responses per series to see why
  * download_imaging_study returns 0 images. Logs response sizes and magic bytes

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // All fake data for Homer Jay Simpson
 // Shaped to exactly match the JSON structures MyChart scrapers expect
 

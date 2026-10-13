@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Read side of composing a message: who can be written to and about what.
  * `sendMessage.ts` keeps its own `getMessageRecipients` / `getMessageTopics`

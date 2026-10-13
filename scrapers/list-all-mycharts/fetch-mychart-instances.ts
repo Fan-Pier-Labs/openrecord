@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Refreshes the checked-in `mychart-instances.json` from Epic's live directory,
  * with every login URL checked (`fetchResolvedMyChartDirectory`).

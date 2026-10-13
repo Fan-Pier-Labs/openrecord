@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 # Regenerate the splash page's binary assets from their checked-in sources.
 #
 #   og-image.png      1200x630 social share card  <- assets-src/og-image.html

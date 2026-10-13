@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The directory and icon scrapers over real HTTP, against fake-mychart's
  * stand-in for mychart.org.

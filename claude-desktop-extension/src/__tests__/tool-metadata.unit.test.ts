@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Every registered tool carries a human-readable title, in both of the places
  * MCP puts one.

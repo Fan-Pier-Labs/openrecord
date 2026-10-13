@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Regenerate `docs/processor-layer-examples.md`: every read capability run
  * against fake-mychart in all four output modes, so the examples in the docs

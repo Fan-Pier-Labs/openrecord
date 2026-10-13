@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The login-shell mnemonic parser, against the exact script lines real
  * instances emit (values replaced with fictional ones).

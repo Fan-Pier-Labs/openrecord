@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { CookieJar } from 'tough-cookie'
 import type { RequestConfig } from './types';
 import { logger } from '../../../shared/logger';

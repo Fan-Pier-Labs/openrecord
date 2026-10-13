@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Mirror of Epic's HealthAdvisoriesController: form-POST GetTopics with an
 // empty registryID, then render the topics the response carries.
 fetch('{{MP}}/HealthAdvisories/GetTopics', {

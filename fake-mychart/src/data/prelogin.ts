@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * What this instance tells anyone before login: the organization's contact
  * lines, its "Find a Doctor" directory, and its billing entities.

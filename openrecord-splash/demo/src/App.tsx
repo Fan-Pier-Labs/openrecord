@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AI_ENDPOINT, GITHUB_URL, HAS_LIVE_AI } from './config';
 import { createProxyCompleter, runTurn as runAgentTurn } from './agent';
