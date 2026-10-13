@@ -186,6 +186,14 @@ on your machine either way: MyChart serves imaging as proprietary CLO, which
 [`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
 turns into pixels.
 
+### Saving what Claude writes: `save_file`
+
+Ask Claude to export something — "save my lab history as a spreadsheet", "write
+up everything about my knee" — and it gathers the data with the read tools,
+writes the file itself, and `save_file` puts it in Downloads. Any text format
+(Markdown, CSV, JSON, HTML); a name without an extension is saved as Markdown,
+and a second file of the same name gets `-2` rather than overwriting the first.
+
 ### Family records (proxy access)
 
 Accounts with MyChart proxy access (a parent reading a child's chart) can list
