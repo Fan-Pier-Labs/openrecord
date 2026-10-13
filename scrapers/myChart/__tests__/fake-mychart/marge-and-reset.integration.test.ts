@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Tests for fake-mychart features added alongside the marge user:
  *   - The marge user requires TOTP 2FA at login

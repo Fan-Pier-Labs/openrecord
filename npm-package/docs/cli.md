@@ -190,6 +190,15 @@ mychart-cli --action search_npi_registry --arg last_name=Smith --arg state=MA --
 `--host --action hospital-info` is the fourth account-free action. It describes the health system
 behind a portal; see [capabilities](capabilities.md#not-in-the-registry-yet-hospital-info).
 
+`--action list-mycharts` prints the whole directory rather than a search, as JSON, with every
+login URL checked and corrected where Epic's points somewhere other than the portal. It crawls
+~1,400 sites and takes a few minutes. Progress and a summary go to stderr; `--output <file>`
+writes the JSON to a file instead of stdout:
+
+```bash
+mychart-cli --action list-mycharts --output mycharts.json
+```
+
 ### Interactive actions
 
 These prompt for anything you leave out, so they're meant for a person at a keyboard. For
@@ -313,7 +322,7 @@ capability.
 | `--mode <mode>` | `json` (default), `standard`, `concise` or `raw` |
 | `--patient "<name>"` | Assert whose record this command reads. Defaults to the account holder |
 | `--switch "<name>"` | Change MyChart's active record, then exit |
-| `--output <dir>` | Where downloaded files and images go |
+| `--output <dir>` | Where downloaded files and images go. For `list-mycharts`, the file to write |
 | `--save-clo` | Also keep raw CLO bytes for downloaded images |
 | `--conversation-id <id>` | For `send-reply`, `get-thread`, `delete-message` and any capability with a `conversation_id` argument |
 | `--subject <text>`, `--message <text>` | Pre-fill the prompts of `send-message` / `send-reply` |

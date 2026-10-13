@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The NPI Registry scraper and its processors, against a fixture in the live
  * API's shape.

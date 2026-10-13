@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Tool registry for the OpenRecord MCPB stdio MCP server.
  *
@@ -95,7 +97,7 @@ import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './ima
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
-import { saveFilePayload } from './save-file';
+import { saveFilePayload, saveTextFile } from './save-file';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -934,6 +936,35 @@ export function registerAllTools(rawServer: McpServer): void {
       clearSession(id);
       removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
+    },
+  );
+
+  // The model's own export: whatever it has written from the chart — a summary,
+  // a CSV of lab values, a timeline — as a file the user keeps. Text only, into
+  // Downloads, never overwriting; the chart reads themselves stay behind the
+  // capability tools' patient assertion.
+  server.registerTool(
+    'save_file',
+    {
+      description:
+        "Save text you have written to a file in the user's Downloads folder — use it when the user asks to export, " +
+        'download or save something: a summary of their records, a CSV of lab results, a medication list, a ' +
+        'timeline. Gather the data with the other tools first, then write the whole file content here. Any text ' +
+        'format works (.md, .csv, .txt, .json, .html); without an extension the file is saved as Markdown. An ' +
+        'existing file is never overwritten — a second copy gets `-2`. Returns the saved path.',
+      inputSchema: {
+        file_name: z.string().min(1).describe('File name with extension, e.g. "lab-history.csv". No folders.'),
+        content: z.string().describe('The complete file content.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Save a file to Downloads', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
+    },
+    ({ file_name, content }) => {
+      try {
+        const savedTo = saveTextFile(file_name, content);
+        return jsonResult({ saved_to: savedTo, size_bytes: Buffer.byteLength(content) });
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
     },
   );
 

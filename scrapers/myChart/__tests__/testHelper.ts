@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Test helper for integration tests.
  * Provides an authenticated MyChartRequest session for Example Health MyChart.

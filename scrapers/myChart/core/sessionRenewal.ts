@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Silent session renewal — the one place an expired MyChart session is
  * re-logged-in and put back on the right patient.

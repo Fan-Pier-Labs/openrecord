@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Launches the hot-reload dev loop with auto-assigned ports so multiple
 // worktrees / Claude sessions can run their own instance without collisions.
 //

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Offer to reuse the MyChart passwords the user already has saved in their
  * browser, the way a browser offers to import from another browser.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
@@ -346,6 +348,7 @@ export default [
     files: [
       "expo-app/**/*.ts", "expo-app/**/*.tsx",
       "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx",
+      "claude-desktop-extension/src/setup-widget/**/*.tsx",
     ],
     plugins: { "react-hooks": reactHooks },
     rules: {

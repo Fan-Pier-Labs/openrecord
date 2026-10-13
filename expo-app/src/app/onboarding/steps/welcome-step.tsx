@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { View, Text, Pressable } from "react-native";
 import { StepLayout } from "../step-layout";
 import { styles } from "../styles";

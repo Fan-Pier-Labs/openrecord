@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** Coercion of the untyped arguments a client hands a capability. */
 
 import type { CapabilityArgs } from './types';

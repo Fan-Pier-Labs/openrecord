@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** The `Care` group — everything the care team sends, orders, or assigns. */
 
 import { fetchCareTeamRaw, careTeamProcessor } from '../../../scrapers/myChart/chart/careTeam/careTeam';

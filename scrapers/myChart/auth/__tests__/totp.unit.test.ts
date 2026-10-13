@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, test, expect } from 'bun:test';
 import { generateTotpCode, parseTotpUri } from '../totp';
 import {

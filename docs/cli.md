@@ -43,7 +43,9 @@ derived from `shared/capabilities/`. Adding a registry entry makes it a CLI comm
 default scrape if it is an argument-free read, and part of `--help`. All dispatch goes through
 `executeCapability`, which is where the active-patient assertion lives. The only hand-written
 actions are the interactive `send-message` / `send-reply` / `keep-alive-test`, the `get-imaging`
-composite, and `hospital-info`, which is not a registry entry yet.
+composite, `hospital-info`, which is not a registry entry yet, and `list-mycharts`, a
+minutes-long crawl of the whole directory that no client should offer as a tool. How it checks
+each login URL: [`scrapers/list-all-mycharts/`](../scrapers/list-all-mycharts/README.md#checking-login-urls).
 
 `lessFrequentlyUsed` on a registry entry only controls whether `--help` shows it without
 `--show-all`. It never changes what runs.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin } from '../login'
 import { setTestTransport } from '../../../http'

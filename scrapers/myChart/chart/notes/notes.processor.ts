@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Visit notes and report content processors. Field decisions:
  * docs/processor-layer-proposal.md, `get_visit_notes` and

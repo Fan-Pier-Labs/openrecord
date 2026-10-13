@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Asks every MyChart instance in the directory whether it exposes the
  * anonymous "Find a Doctor" workflow, and how big a directory it publishes.

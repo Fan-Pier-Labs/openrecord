@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Conversation thread processor. Field decisions:
  * docs/processor-layer-proposal.md, `get_message_thread`.
