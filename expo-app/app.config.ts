@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import type { ExpoConfig } from "expo/config";
 
 // Google OAuth client IDs. These are not secrets — iOS bakes the reversed

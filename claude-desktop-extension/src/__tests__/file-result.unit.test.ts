@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * A `returnsFile` payload is delivered as a file on disk, plus inline content
  * only when a model can actually read it — an image the host can show, or text.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Round-trips the shared AMF3 writer through the repo's AMF3 reader.
  *

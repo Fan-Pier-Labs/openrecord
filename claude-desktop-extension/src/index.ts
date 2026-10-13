@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Stdio MCP transport requires stdout be ONLY JSON-RPC messages — anything
 // else corrupts the framing and the host (Claude Desktop) reports
 // "Unexpected token X is not valid JSON". Configure the scraper logger

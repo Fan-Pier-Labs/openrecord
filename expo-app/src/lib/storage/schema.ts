@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The whole schema, run by `initDatabase` on every cold start — so every
  * statement must be `CREATE TABLE IF NOT EXISTS`, and anything destructive

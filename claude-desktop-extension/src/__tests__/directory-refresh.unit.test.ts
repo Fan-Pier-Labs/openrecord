@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The extension's monthly directory refresh: a saved run is searched at once, a
  * fresh one is not redone, and a stale or missing one is rerun and saved.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { MYCHART_MEDIA_ORIGIN } from '../../scrapers/list-all-mycharts/directory';
 
 export const SETUP_UI_MIME_TYPE = 'text/html;profile=mcp-app';

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Parking behind check_pending_call. Deadlines are passed in as a few
  * milliseconds; the 10-minute cap is exercised by moving the clock.

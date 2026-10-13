@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { fireAndForget } from "@/lib/fire-and-forget";

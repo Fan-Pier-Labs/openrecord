@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Client-facing proxy (multi-patient) helpers shared by the Claude Desktop
  * extension and the mobile app.

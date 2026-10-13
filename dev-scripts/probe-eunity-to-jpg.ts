@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Diagnostic: download one instance from each real series of a study and
  * decode to JPEG, proving the full pipeline (login → eUnity → CLO → JPG).

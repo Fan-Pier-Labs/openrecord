@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The inline pictures must fit Claude Desktop's 1MB tool-result cap, or the
  * user sees "Tool result is too large" instead of their X-ray. A real

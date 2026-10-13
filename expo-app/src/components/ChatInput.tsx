@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useState, useRef } from "react";
 import { View, TextInput, Pressable, Text, StyleSheet } from "react-native";
 

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { handleGet as myChartGet, handlePost as myChartPost } from '../MyChart/[[...path]]/route';
 import { isRootMount } from '@/lib/mount';

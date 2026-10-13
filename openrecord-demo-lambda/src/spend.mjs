@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // The two counters that live in the shared DynamoDB table (created by
 // deploy.sh, name in SPEND_TABLE):
 //
