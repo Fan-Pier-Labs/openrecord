@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import * as SQLite from "expo-sqlite";
 import { MAX_CACHED_LOGOS, PRUNE_LOGOS_SQL, SCHEMA_SQL } from "./schema";
 

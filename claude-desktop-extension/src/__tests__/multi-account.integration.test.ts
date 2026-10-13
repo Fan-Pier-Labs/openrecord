@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * End-to-end proof that two logins on ONE hostname stay two separate
  * identities, driven through the extension's real tool handlers against

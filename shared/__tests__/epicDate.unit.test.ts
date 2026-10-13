@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Epic serialises dates as day numbers — `dte` in billing, `Dat` on visits,
  * `Dte` in the anonymous scheduler — counted from 1840-12-31, the mainframe

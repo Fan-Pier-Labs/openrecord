@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Raw MyChart responses for the requests core sends itself: the DCS document
  * exchange in `dcsDocument.ts`, which `chart/documents` and `chart/messages`

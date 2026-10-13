@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import * as data from '../data';
 import { SKILLS, buildAlerts } from '../skills';

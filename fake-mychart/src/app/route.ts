@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { NextResponse } from 'next/server';
 import { getDiscoveryMode, getMovedHost, isMetaRefreshDiscovery, isRootMount, mountPrefix } from '@/lib/mount';
 import { publicProtocolAndHost } from '@/lib/publicUrl';

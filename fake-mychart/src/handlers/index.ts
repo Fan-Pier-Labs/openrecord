@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The route registry: every path the fake MyChart surface answers, assembled
  * from one module per capability domain.

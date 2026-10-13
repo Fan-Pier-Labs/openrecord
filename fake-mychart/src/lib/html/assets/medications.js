@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 fetch('{{MP}}/api/medications/loadmedicationspage', { method: 'POST', credentials: 'same-origin' })
   .then(r => r.json()).then(data => {
     var meds = (data.communityMembers && data.communityMembers[0] && data.communityMembers[0].prescriptionList) ? data.communityMembers[0].prescriptionList.prescriptions : [];

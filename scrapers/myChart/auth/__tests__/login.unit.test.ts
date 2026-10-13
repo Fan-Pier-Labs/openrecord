@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, mock } from 'bun:test'
 import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseMetaRefreshTarget, parseFirstPathPartFromInput, extractMountsFromLinks, parseScriptRedirectTarget, determineFirstPathPart, parseLoginPageFields, usernameFieldFromControllerJs, detectUsernameField, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
 import { MyChartRequest } from '../../core/myChartRequest'

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `--action get-imaging` — the one dashed action that is a composite rather
  * than an alias: get_imaging_results, then one download_imaging_study per

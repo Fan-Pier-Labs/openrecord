@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The `/Billing/Summary` page: one `.ba_card` per guarantor account. Both
  * the scraper (to know which accounts to fetch details for) and the

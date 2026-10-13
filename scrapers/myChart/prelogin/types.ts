@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * What a MyChart instance says about the health system behind it, to anyone —
  * no account, no login.

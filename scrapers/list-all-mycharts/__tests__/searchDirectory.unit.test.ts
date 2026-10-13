@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Searching the MyChart directory: the ranking, which list a search reads (the
  * checked-in one until a refresh, the refresh's after), and the sandbox entry.

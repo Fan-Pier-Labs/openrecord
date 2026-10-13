@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The directory scrapers, against a fixture captured from the live endpoint.
  *
@@ -102,7 +104,7 @@ describe('parseDirectoryPayload', () => {
   describe('duplicates', () => {
     const parse = (organizations: object[]) => parseDirectoryPayload({ organizations });
 
-    it('merges entries with the same name and URL, keeping the parent and every alias', () => {
+    it('merges entries with the same name and portal, keeping the parent and every alias', () => {
       // Cleveland Clinic's shape: listed for the US and again for Canada.
       const merged = parse([
         { slgId: '320', name: 'Cleveland Clinic', loginUrl: 'https://mychart.clevelandclinic.org/', aliases: ['Martin'], states: ['OH'], countries: ['US'] },
@@ -110,6 +112,23 @@ describe('parseDirectoryPayload', () => {
       ]);
       expect(merged).toHaveLength(1);
       expect(merged[0]).toMatchObject({ slgId: '320', aliases: ['Martin'] });
+    });
+
+    it('treats case, a trailing slash and the login route as the same portal', () => {
+      const merged = parse([
+        { slgId: '9001-1', name: 'Springfield', loginUrl: 'https://MyChart.example.org/MyChart/Authentication/Login?' },
+        { slgId: '9001', name: 'springfield', loginUrl: 'https://mychart.example.org/mychart' },
+      ]);
+      expect(merged.map((i) => i.slgId)).toEqual(['9001']);
+    });
+
+    it('keeps the same name on two mounts of one host apart', () => {
+      // OCHIN's shape: one host, a mount per organization.
+      const kept = parse([
+        { slgId: '432-1', name: 'Clinic', loginUrl: 'https://mychart.ochin.example/MyChartA/' },
+        { slgId: '432-2', name: 'Clinic', loginUrl: 'https://mychart.ochin.example/MyChartB/' },
+      ]);
+      expect(kept.map((i) => i.slgId)).toEqual(['432-1', '432-2']);
     });
 
     it('keeps same-named systems on different portals, and affiliates sharing one', () => {

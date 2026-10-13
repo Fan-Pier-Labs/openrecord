@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Searching the MyChart directory by name — the lookup every client needs
  * before it has an account to log into.

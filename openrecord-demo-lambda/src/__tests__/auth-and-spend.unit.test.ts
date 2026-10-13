@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The signed-in tier: Google ID-token verification, the per-tier model
  * allow-lists, the spend ledger, and the GET spend endpoint.

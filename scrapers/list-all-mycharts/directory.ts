@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The MyChart directory — every Epic instance in the world, and its logo.
  *
@@ -351,19 +353,35 @@ export function parseDirectoryPayload(
 }
 
 /**
- * Collapse entries with the same name **and** the same URL into one, which a
- * picker would otherwise show twice: Epic lists Cleveland Clinic once for the
- * US (`320`) and once for Canada (`320-1`). The shortest `slgId` — the
- * parent's — is kept, with every entry's aliases.
+ * A portal's identity: hostname plus first path segment (the MyChart mount),
+ * lowercased, so `https://MyChart.example.org/MyChart/Authentication/Login?`
+ * and `https://mychart.example.org/mychart` are one portal. Different mounts on
+ * one host (OCHIN serves 240) stay different.
+ */
+export function portalKey(url: string): string {
+  try {
+    const { hostname, pathname } = new URL(url);
+    const mount = (pathname.split('/')[1] ?? '').toLowerCase();
+    return `${hostname.toLowerCase()}/${mount === 'authentication' ? '' : mount}`;
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+/**
+ * Collapse entries with the same name **and** the same portal ({@link portalKey})
+ * into one, which a picker would otherwise show twice: Epic lists Cleveland
+ * Clinic once for the US (`320`) and once for Canada (`320-1`). The shortest
+ * `slgId` — the parent's — is kept, with every entry's aliases.
  *
  * Same name alone is not a duplicate ("Baptist Health" is two systems, in
- * Alabama and Arkansas), and neither is same portal alone (affiliates sharing
- * a parent's MyChart are searched by their own names).
+ * Alabama and Arkansas), and neither is same portal alone (36 clinics share
+ * one South Florida portal and are searched by their own names).
  */
 export function mergeDuplicates(instances: MyChartInstance[]): MyChartInstance[] {
   const groups = new Map<string, MyChartInstance[]>();
   for (const instance of instances) {
-    const key = `${instance.name.toLowerCase()}|${instance.url}`;
+    const key = `${instance.name.toLowerCase()}|${portalKey(instance.url)}`;
     groups.set(key, [...(groups.get(key) ?? []), instance]);
   }
   return [...groups.values()].map((group) => {

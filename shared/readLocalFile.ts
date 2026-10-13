@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `CapabilityContext.readFile` for the Node clients (CLI, Claude Desktop
  * extension): a message attachment is a path on this machine. Node only.

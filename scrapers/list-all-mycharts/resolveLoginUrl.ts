@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Where an organization's MyChart login actually is, starting from the URL
  * Epic's directory publishes for it.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** One credential as it sits in a browser's password store. */
 export interface PasswordStoreEntry {
   url: string;

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
  
 // No-op telemetry stub for React Native. The real telemetry module uses
 // Node's `os`, `crypto`, and `child_process` (for git config), none of

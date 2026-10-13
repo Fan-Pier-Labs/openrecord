@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Mount discovery against every shape a real deployment uses to announce where
  * MyChart lives.

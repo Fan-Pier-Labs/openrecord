@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The pre-login activities: the mnemonic block every pre-login page carries,
  * the "Find a Doctor" open-scheduling shell, and the guest price-estimate

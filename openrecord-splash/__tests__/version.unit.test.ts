@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `mcpb_version.json` is what every shipped client reads to find out it is
  * behind, and both of its failure modes are silent: stale tells everyone they
