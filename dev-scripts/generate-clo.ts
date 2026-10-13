@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Generate synthetic CLO (ClientOutlook) image files for eyeballing the
  * encoder. Writes CLOCLHAAR pixel + CLOHEADERZ01 wrapper files, reversing the

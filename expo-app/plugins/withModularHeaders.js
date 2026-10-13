@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Expo config plugin: add `use_modular_headers!` to the iOS Podfile.
 //
 // @react-native-google-signin/google-signin pulls in Firebase's AppCheckCore /

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // CLI entry point with subcommand dispatch. This is what the published binary
 // is built from (see tsup.config.ts).
 // Usage:

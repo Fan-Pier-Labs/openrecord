@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 fetch('{{MP}}/api/histories/loadhistoriesviewmodel', { method: 'POST', credentials: 'same-origin' })
   .then(r => r.json()).then(data => {
     var html = '';

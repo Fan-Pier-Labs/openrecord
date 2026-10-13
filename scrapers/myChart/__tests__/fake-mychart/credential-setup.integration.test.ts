@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * End-to-end tests for the credential-setup scrapers against a live
  * fake-mychart: setupTotp / disableTotp and setupPasskey / listPasskeys /

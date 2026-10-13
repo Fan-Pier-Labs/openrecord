@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Google ID-token verification with zero dependencies (node:crypto only).
 //
 // The mobile app signs users in with the native Google SDK and sends the

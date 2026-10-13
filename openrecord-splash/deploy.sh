@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 # Build and deploy the OpenRecord splash page + interactive demo to S3 + CloudFront.
 #
 # Follows the standard Fan Pier Labs static-site pattern:

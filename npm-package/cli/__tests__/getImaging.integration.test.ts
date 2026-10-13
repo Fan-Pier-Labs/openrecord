@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `--action get-imaging` end to end: the BUILT CLI against the CI fake-mychart.
  *

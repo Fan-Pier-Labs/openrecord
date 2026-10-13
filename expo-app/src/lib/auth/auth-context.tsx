@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { fireAndForget } from "@/lib/fire-and-forget";
 import * as LocalAuthentication from "expo-local-authentication";

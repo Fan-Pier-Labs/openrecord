@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Raw MyChart responses for the `prelogin` scraper — the anonymous scheduling
  * and guest-estimate payloads. The scraper's own shapes stay in `types.ts`.

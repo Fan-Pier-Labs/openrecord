@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The shared CLO wrapper encoder, checked against the two readers that consume
  * its output in production: `parseWrapper` (display metadata) and

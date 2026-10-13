@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Centralized in-memory mutable state for fake-mychart.
 //
 // All runtime mutations (sessions, per-user TOTP/passkey config, conversations,

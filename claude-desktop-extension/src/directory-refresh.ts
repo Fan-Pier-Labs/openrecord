@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Keeps `search_mycharts` on a recent run of the refresh behind the bundled
  * `mychart-instances.json`, rather than on the one from this extension's

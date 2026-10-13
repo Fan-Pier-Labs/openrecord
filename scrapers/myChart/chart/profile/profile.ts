@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { makeAuthenticatedRequest, SessionExpiredError, type AuthenticatedRequestOptions } from '../../core/makeAuthenticatedRequest';
 import { RawCollector, type RawResponse } from '../../core/rawResponse';

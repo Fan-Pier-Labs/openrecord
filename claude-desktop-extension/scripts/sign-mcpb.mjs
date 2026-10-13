@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Sign a freshly packed `openrecord.mcpb` with the Fan Pier Labs Developer ID.
  *

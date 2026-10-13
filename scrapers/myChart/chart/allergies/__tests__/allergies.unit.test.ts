@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect, mock } from 'bun:test'
 import { getAllergies, fetchAllergiesRaw, allergiesProcessor } from '../allergies'
 import { MyChartRequest } from '../../../core/myChartRequest'

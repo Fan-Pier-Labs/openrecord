@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Epic's DCS blob store: the two-step every downloadable file in MyChart goes
  * through, whichever activity filed it.

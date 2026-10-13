@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** The `Visits` group — appointments, the notes written at them, and the AVS. */
 
 import {

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect } from 'bun:test';
 import { passkeyLoginWithCounterRetry, MAX_SIGN_COUNT_BUMPS } from '../passkeyLoginRetry';
 import type { PasskeyCredential } from '../softwareAuthenticator';

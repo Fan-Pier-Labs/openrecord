@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 // Minimal zlib shim for React Native. The shared CLO image parser only
 // uses `inflateSync`; back it with pako (~60KB, pure JS) instead of
 // pulling in browserify-zlib's readable-stream tree.

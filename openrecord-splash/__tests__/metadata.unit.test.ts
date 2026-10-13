@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Guards the splash page's link-preview metadata, PWA manifest, and the deploy
  * script that ships them.

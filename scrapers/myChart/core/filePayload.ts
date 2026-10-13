@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * What a `returnsFile` capability's `run` returns. A capability extends it
  * with what it knows about the file (a message attachment carries its

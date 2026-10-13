@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Generates `mcpb_version.json`, which this site publishes at
  * https://openrecord.fanpierlabs.com/mcpb_version.json for already-installed
