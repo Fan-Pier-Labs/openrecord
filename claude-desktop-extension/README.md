@@ -48,8 +48,8 @@ in [`docs/mcpb-setup-flow.md`](../docs/mcpb-setup-flow.md).
 
 1. **Pick a health system** — an autocomplete dropdown over the full MyChart
    directory. Results appear only once you type (no default list); each shows
-   the system's banner logo. You must choose an entry from the list (free-text
-   hostnames aren't accepted). Search **test**, **springfield**, or
+   the system's banner logo. A portal the directory lacks can be reached by
+   typing its web address, which adds a "Use <host>" row. Search **test**, **springfield**, or
    **fake-mychart** to find the **Springfield General Hospital (test)** entry,
    which points at the `fake-mychart.fanpierlabs.com` sandbox (Homer Simpson
    fake data, no real credentials needed — sign in with `homer` / `donuts123`).
@@ -74,8 +74,15 @@ naming the connected accounts and how each passkey offer went.
 
 A call that outruns Claude Desktop's timeout comes back parked (see
 `pending-call.ts`) — most likely the scan, waiting on the keychain prompt. The
-widget waits it out with `check_pending_call` rather than showing the parking
-note.
+note carries the call's id as `structuredContent.pending_call.id`, and the
+widget waits it out with `check_pending_call` rather than showing the note.
+
+The widget is a small React app in `src/setup-widget/`: `flow.ts` is the whole
+flow as a reducer (every tool result is interpreted there, and unit-tested),
+`host.ts` is the MCP Apps JSON-RPC bridge, and the `.tsx` files only render.
+`scripts/bundle-setup-widget.ts` bundles it with esbuild, and a tsup plugin
+inlines the result into `dist/server.cjs` as the `virtual:setup-widget` module,
+so the resource is still one self-contained HTML page.
 
 > **Logos.** MyChart's only per-instance brand asset is the wide banner logo
 > (`media.epic.com`, ~640×230), so the widget uses it everywhere — a

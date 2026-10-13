@@ -1,7 +1,8 @@
 # MCPB setup widget: user flow
 
 How a user connects MyChart accounts through the Claude Desktop extension's setup widget
-(`get_setup_widget`, built in [`claude-desktop-extension/src/ui.ts`](../claude-desktop-extension/src/ui.ts)).
+(`get_setup_widget`, a React app in [`claude-desktop-extension/src/setup-widget/`](../claude-desktop-extension/src/setup-widget/);
+the flow below is the reducer in `flow.ts`).
 
 Accounts are connected **one at a time**. Nearly every portal asks for a 2FA code, so each
 account runs to the end (sign-in, code, passkey offer) before the widget asks about the
