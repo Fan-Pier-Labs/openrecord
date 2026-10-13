@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import type { NextRequest } from 'next/server';
 import { getActiveProxyId, getSessionUsername } from '@/lib/session';
 import { findUser, resolveActiveRecord, state, type ConversationStore, type FakeUser } from '@/lib/state';

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Whether this instance makes patients accept Terms & Conditions before it lets
  * them into the chart.

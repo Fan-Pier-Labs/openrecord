@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * The "Find a Doctor" crawl, against fixtures cut from a live capture (names,
  * addresses and ids replaced) and a per-session transport so the real URL

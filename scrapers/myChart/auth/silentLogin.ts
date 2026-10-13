@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Non-interactive MyChart login ladder, shared by every client's session
  * renewal hook (and usable for first login too).

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Runs the open-slot scraper against every instance that serves the anonymous
  * scheduling directory, and reports where it works.

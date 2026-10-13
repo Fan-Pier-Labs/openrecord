@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Startup smoke test for the packed extension: does `dist/server.cjs` actually
  * come up as an MCP stdio server under plain `node`, and answer?

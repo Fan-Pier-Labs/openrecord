@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * A file name safe to create under any directory, from a name MyChart gave
  * us. Attachment names come straight off the record, so they can hold path

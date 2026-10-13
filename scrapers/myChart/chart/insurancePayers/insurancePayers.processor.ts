@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Insurance payer catalogue processor. Field decisions: docs/processor-layer-proposal.md,
  * `get_insurance_payers`.

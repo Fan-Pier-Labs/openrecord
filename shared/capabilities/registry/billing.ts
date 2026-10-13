@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** The `Billing` group — what was charged, and who is covering it. */
 
 import { fetchBillingRaw, billingProcessor, downloadBillingStatement } from '../../../scrapers/myChart/chart/bills/bills';

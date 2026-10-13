@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Runs mount discovery against every MyChart instance in the directory and
  * reports where it gets the answer wrong.

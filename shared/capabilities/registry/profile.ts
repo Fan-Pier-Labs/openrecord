@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /** The `Profile` group — the standing facts about a patient's health. */
 
 import { fetchProfileRaw, profileProcessor } from '../../../scrapers/myChart/chart/profile/profile';

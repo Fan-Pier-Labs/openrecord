@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { NextResponse, type NextRequest } from 'next/server';
 import { isRootMount } from '@/lib/mount';
 import { isFailingEndpoint, responseDelay } from '@/lib/outage';

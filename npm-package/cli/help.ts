@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * `--help` — what the CLI is and every flag it takes, followed by the
  * capability listing.

@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 fetch('{{MP}}/api/documents/viewer/loadotherdocuments', {
   method: 'POST', credentials: 'same-origin',
   headers: { 'Content-Type': 'application/json' },

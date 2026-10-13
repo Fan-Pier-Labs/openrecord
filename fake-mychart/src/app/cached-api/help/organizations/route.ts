@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { fakeDirectoryOrganizations } from '@/data/directory';
 import { mountPrefix } from '@/lib/mount';

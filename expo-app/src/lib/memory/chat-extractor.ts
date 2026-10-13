@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * Post-turn fact extraction. After the assistant emits a final
  * answer, we ask a small model to pick out durable health facts the

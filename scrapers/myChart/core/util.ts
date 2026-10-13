@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import * as cheerio from 'cheerio';
 import { logger } from '../../../shared/logger';
 

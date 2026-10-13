@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * What the `insurance` capabilities return: the standard objects the processors
  * build from MyChart's responses. MyChart's own shapes are in

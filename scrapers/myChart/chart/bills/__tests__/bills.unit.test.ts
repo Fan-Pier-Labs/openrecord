@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
 import { isStubRow, statement, statementDateISO, postedHydrateKeys, BillingNotFullyLoadedError } from '../bills.processor'

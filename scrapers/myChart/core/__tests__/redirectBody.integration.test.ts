@@ -1,3 +1,5 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
 /**
  * What `makeRequest`'s redirect recursion actually puts on the wire for `body`,
  * observed against a real HTTP server rather than a scripted transport.
