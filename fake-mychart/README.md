@@ -43,8 +43,8 @@ Set `FAKE_MYCHART_REQUIRE_2FA=true` to force every login (including homer's) thr
 
 ## Proxy (Multi-Patient) Records
 
-`homer` has proxy access to his three kids, so the "one login, several charts"
-shape is exercisable:
+`homer` has proxy access to his three kids, plus Lisa's record at a second
+organization, so the "one login, several charts" shape is exercisable:
 
 | Record        | `IsSelf` | Profile name             | DOB        | MRN |
 |---------------|----------|--------------------------|------------|-----|
@@ -52,6 +52,7 @@ shape is exercisable:
 | Bart          | `false`  | Bartholomew JoJo Simpson | 04/01/2014 | 744 |
 | Lisa          | `false`  | Lisa Marie Simpson       | 05/09/2016 | 745 |
 | Maggie        | `false`  | Margaret Evelyn Simpson  | 01/12/2024 | 746 |
+| Lisa (Shelbyville Clinic) | `false` | Lisa Marie Simpson | 05/09/2016 | 1745 |
 
 `marge` has no proxy access at all, covering the single-record account. Note
 that her `/ProxySwitch` still returns a **one-entry list containing herself** —
@@ -84,6 +85,14 @@ Two more details reproduced from the live captures:
 The proxy list shows a short name ("Bart Simpson") while the profile page
 carries the legal name ("Bartholomew JoJo Simpson"). Real portals do this, and
 any code verifying a switch has to tolerate it.
+
+A record linked from another organization (Epic's "Happy Together") is
+labelled with that organization in parentheses: Homer's list also carries
+`Lisa (Shelbyville Clinic)`, Lisa's record at a second health system. **This
+label shape is modelled from the report on #552, not captured** — whether a real
+label keeps the surname is unconfirmed — and it is the case the proxy name
+checks strip parentheses for. "Lisa" alone is ambiguous between her two
+records; the exact label picks one.
 
 ### Per-record chart data
 
