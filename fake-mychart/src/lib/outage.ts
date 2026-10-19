@@ -20,14 +20,23 @@
  * case-insensitively, query string ignored. Global to the process, like every
  * other knob; `/reset` clears it.
  *
+ * An entry can also be `{ path, contains }`, which fails only the requests to
+ * that path whose query string or body contains `contains` (case-sensitive,
+ * since it is usually an id). That is one account's `GetVisits`, one order's
+ * `GetDetails`, one flowsheet's readings — the single bad item among siblings
+ * that answer, which a whole-path outage cannot express.
+ *
  * The other bad day is a slow one. `responseDelaySeconds` holds every gated
  * (post-login) request that long, for exercising the Claude Desktop
  * extension's `check_pending_call` by hand. Keep it under the scrapers'
  * 2-minute per-request deadline (`scrapers/http.ts`) or every request fails.
  */
 
-const outageState: { failingEndpoints: Set<string>; responseDelaySeconds: number } = {
+export type FailingEndpoint = string | { path: string; contains: string };
+
+const outageState: { failingEndpoints: Set<string>; failingRequests: Array<{ path: string; contains: string }>; responseDelaySeconds: number } = {
   failingEndpoints: new Set(),
+  failingRequests: [],
   responseDelaySeconds: 0,
 };
 
@@ -53,20 +62,42 @@ export function normalizeEndpointPath(path: string): string {
   return path.trim().replace(/^\/+/, '').split('?')[0]!.toLowerCase();
 }
 
-export function getFailingEndpoints(): string[] {
-  return [...outageState.failingEndpoints].sort();
+export function getFailingEndpoints(): FailingEndpoint[] {
+  return [...[...outageState.failingEndpoints].sort(), ...outageState.failingRequests];
 }
 
-export function setFailingEndpoints(paths: readonly string[]): void {
-  outageState.failingEndpoints = new Set(paths.map(normalizeEndpointPath).filter(p => p.length > 0));
+export function setFailingEndpoints(entries: readonly FailingEndpoint[]): void {
+  const paths = new Set<string>();
+  const requests: Array<{ path: string; contains: string }> = [];
+  for (const entry of entries) {
+    const path = normalizeEndpointPath(typeof entry === 'string' ? entry : entry.path);
+    if (path.length === 0) continue;
+    if (typeof entry === 'string') paths.add(path);
+    else if (entry.contains.length > 0) requests.push({ path, contains: entry.contains });
+  }
+  outageState.failingEndpoints = paths;
+  outageState.failingRequests = requests;
 }
 
-/** Whether the lowercased request path is one the instance is failing. */
-export function isFailingEndpoint(lower: string): boolean {
-  return outageState.failingEndpoints.has(normalizeEndpointPath(lower));
+/** Whether a request to this path can only be judged by its query string and body. */
+export function needsRequestText(lower: string): boolean {
+  const path = normalizeEndpointPath(lower);
+  return outageState.failingRequests.some(r => r.path === path);
+}
+
+/**
+ * Whether the lowercased request path is one the instance is failing.
+ * `requestText` is the request's query string and body, and only matters for
+ * a `{ path, contains }` entry.
+ */
+export function isFailingEndpoint(lower: string, requestText = ''): boolean {
+  const path = normalizeEndpointPath(lower);
+  if (outageState.failingEndpoints.has(path)) return true;
+  return outageState.failingRequests.some(r => r.path === path && requestText.includes(r.contains));
 }
 
 export function resetFailingEndpoints(): void {
   outageState.failingEndpoints = new Set();
+  outageState.failingRequests = [];
   outageState.responseDelaySeconds = 0;
 }
