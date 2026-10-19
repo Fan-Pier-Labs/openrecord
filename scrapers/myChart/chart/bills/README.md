@@ -104,8 +104,9 @@ Every URL carries `noCache=<random>`.
   placeholders with `StartDate: 0`, so its page cannot show them either. The two looked like
   the 13 that loaded (same `BillingSystem`, `IsHar`, no `ProviderId`). Because each request
   carries one handle, such an answer names its stub, and the processor marks it
-  `returned_empty` (retrying will not help) as distinct from `not_loaded` (the request failed,
-  was never sent, or answered for a different date). Seen on 1 instance (issue #558).
+  `returned_empty` (retrying will not help, so the scraper doesn't) as distinct from `not_loaded`
+  (the request failed twice — the scraper retries a failure or an answer without
+  `Success: true` once — was never sent, or answered for a different date). Seen on 1 instance (issue #558).
 - **The UI's default filter is not the scraper's.** The billing activity sends
   `filterOption=` empty (and empty dates), which on the captured account returned
   `HasVisits: false` — nothing at all. The scraper's `filterOption=1` with a 100-year window

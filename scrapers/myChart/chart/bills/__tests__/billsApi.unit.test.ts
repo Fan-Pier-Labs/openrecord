@@ -466,10 +466,48 @@ describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
     const raw = await fetchBillingRaw(req)
     const account = billingProcessor.standard(raw).accounts[0]!
 
+    // Failed twice: the first try and the one retry.
+    expect(raw.requests.filter((r) => r.path.includes('GetMoreVisits'))).toHaveLength(2)
     expect(account.visits.map((v) => v.HospitalAccountId)).toEqual(['HAR-0'])
     expect(account.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
     // The envelope still shows what came back, so `raw` mode stays readable.
     expect(raw.requests.some((r) => r.path.includes('GetMoreVisits'))).toBe(true)
+  })
+
+  it('retries a failed hydrate once, and loads the row when the retry answers', async () => {
+    let attempts = 0
+    const { req, calls } = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', () => {
+        attempts += 1
+        return attempts === 1
+          ? new Response('<html>error</html>', { status: 500 })
+          : new Response(JSON.stringify({ Success: true, Data: { UnifiedVisitList: [loaded('4820015507', { ChargeAmount: '$1,250.00' })] } }), { status: 200 })
+      }]],
+    )
+    const account = billingProcessor.standard(await fetchBillingRaw(req)).accounts[0]!
+
+    expect(moreVisitsCalls(calls)).toHaveLength(2)
+    expect(account.visits.map((v) => v.ChargeAmount)).toEqual(['$1,250.00'])
+    expect(account.unloadedVisits).toEqual([])
+  })
+
+  it('retries an answer without Success: true, but not an empty success', async () => {
+    const unsuccessful = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', JSON.stringify({ Success: false, Data: { UnifiedVisitList: [] } })]],
+    )
+    const raw = await fetchBillingRaw(unsuccessful.req)
+    expect(moreVisitsCalls(unsuccessful.calls)).toHaveLength(2)
+    expect(billingProcessor.standard(raw).accounts[0]!.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
+
+    // MyChart declining a stub gives the same answer every time; asking again only costs a request.
+    const declined = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [] } })]],
+    )
+    await fetchBillingRaw(declined.req)
+    expect(moreVisitsCalls(declined.calls)).toHaveLength(1)
   })
 
   it('skips hydration when the details page carried no token', async () => {
