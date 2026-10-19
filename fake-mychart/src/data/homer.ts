@@ -1788,7 +1788,10 @@ export const billingSummary = [
     detailsId: 'WP-BILLING-001',
     detailsContext: 'WP-BILLING-CTX-001',
   },
-  // A second guarantor account, as a patient billed by two entities has. Its
+  // A second guarantor account, so one account's GetVisits can fail while the
+  // other answers. The scraper loops over accounts and insurance benefits are
+  // per account, but no live capture of a two-card summary page has been
+  // checked, and one account's GetVisits failing alone is unobserved. Its
   // charges, statements and payments are its own (`billingOtherAccounts`);
   // every billing endpoint is keyed by the account's `id`.
   {
