@@ -169,14 +169,19 @@ async function hydrateStubs(
  *
  * The supplementary calls are best-effort — a statement-list outage should
  * not cost the caller the charge history — and a non-OK response is still
- * recorded. The summary and the visit list are the payload: a failure there
- * throws.
+ * recorded. The summary is the payload: a failure there throws. So is the
+ * visit list, but per account: one account's `GetVisits` failing must not
+ * cost another account its charges, so it is tolerated and the processor
+ * names it, and only every account failing throws — there is then nothing
+ * loaded to return.
  */
 export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
   const collector = new RawCollector(mychartRequest);
   const summary = await collector.send({ path: '/Billing/Summary' });
+  const accounts = parseBillingAccountsHtml(summary.text, mychartRequest.hostname);
+  const visitFailures: Error[] = [];
 
-  for (const account of parseBillingAccountsHtml(summary.text, mychartRequest.hostname)) {
+  for (const account of accounts) {
     let token: string | undefined;
     try {
       const details = await collector.send({ path: detailsPagePath(account) }, { tolerateFailure: true });
@@ -186,12 +191,16 @@ export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<R
       logger.debug('Failed to fetch billing details page:', (err as Error).message);
     }
 
-    const visits = await collector.send({ path: visitsPath(account) });
-    try {
-      await hydrateStubs(collector, account, visits.body, token);
-    } catch (err) {
-      if (err instanceof SessionExpiredError) throw err;
-      logger.debug('Failed to hydrate billing charge rows:', (err as Error).message);
+    const visits = await collector.send({ path: visitsPath(account) }, { tolerateFailure: true });
+    if (visits.failure) {
+      visitFailures.push(visits.failure);
+    } else {
+      try {
+        await hydrateStubs(collector, account, visits.body, token);
+      } catch (err) {
+        if (err instanceof SessionExpiredError) throw err;
+        logger.debug('Failed to hydrate billing charge rows:', (err as Error).message);
+      }
     }
 
     for (const path of [statementListPath(account), paymentListPath(account)]) {
@@ -203,6 +212,7 @@ export async function fetchBillingRaw(mychartRequest: MyChartRequest): Promise<R
       }
     }
   }
+  if (accounts.length > 0 && visitFailures.length === accounts.length) throw visitFailures[0]!;
 
   return collector.toRaw();
 }

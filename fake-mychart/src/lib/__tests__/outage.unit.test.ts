@@ -5,6 +5,7 @@ import {
   getFailingEndpoints,
   getResponseDelaySeconds,
   isFailingEndpoint,
+  needsRequestText,
   normalizeEndpointPath,
   resetFailingEndpoints,
   responseDelay,
@@ -32,6 +33,27 @@ describe('failing endpoints knob', () => {
     setFailingEndpoints(['api/medications/getmedications']);
     resetFailingEndpoints();
     expect(isFailingEndpoint('api/medications/getmedications')).toBe(false);
+  });
+
+  it('fails only the requests whose query or body carries the text, for a {path, contains} entry', () => {
+    setFailingEndpoints([{ path: '/api/test-results/GetDetails', contains: 'ORD-2' }]);
+    expect(getFailingEndpoints()).toEqual([{ path: 'api/test-results/getdetails', contains: 'ORD-2' }]);
+    expect(needsRequestText('api/test-results/getdetails')).toBe(true);
+    expect(needsRequestText('api/test-results/getlist')).toBe(false);
+    expect(isFailingEndpoint('api/test-results/getdetails', '{"orderKey":"ORD-2"}')).toBe(true);
+    // A sibling item on the same endpoint keeps answering.
+    expect(isFailingEndpoint('api/test-results/getdetails', '{"orderKey":"ORD-1"}')).toBe(false);
+    expect(isFailingEndpoint('api/test-results/getdetails')).toBe(false);
+    // Case-sensitive: the text is usually an id.
+    expect(isFailingEndpoint('api/test-results/getdetails', '{"orderKey":"ord-2"}')).toBe(false);
+  });
+
+  it('keeps both kinds of entry, drops an empty contains, and clears both on reset', () => {
+    setFailingEndpoints(['api/allergies/LoadAllergies', { path: 'billing/details/getvisits', contains: 'id=A2' }, { path: 'x', contains: '' }]);
+    expect(getFailingEndpoints()).toEqual(['api/allergies/loadallergies', { path: 'billing/details/getvisits', contains: 'id=A2' }]);
+    resetFailingEndpoints();
+    expect(getFailingEndpoints()).toEqual([]);
+    expect(needsRequestText('billing/details/getvisits')).toBe(false);
   });
 
   it('normalizes a bare path', () => {

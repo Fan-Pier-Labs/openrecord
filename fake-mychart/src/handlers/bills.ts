@@ -1,6 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import type { PatientDataset } from '@/lib/dataset';
 import { conformToShape } from '@/lib/shape';
 import * as shapes from '@/data/realShapes';
 import { billingDetailsPage, billingSummaryPage } from '@/lib/html';
@@ -50,6 +51,16 @@ function hydrateRequested(
     .map((row, i) => ({ ...row, Index: i }));
 }
 
+/**
+ * The answers for a guarantor account after the first, by the `id` its
+ * request carries. Any other id gets the first account's answers, as before;
+ * what a real instance does with an id that is not the session's is
+ * unobserved.
+ */
+function otherAccount(request: NextRequest, ds: PatientDataset) {
+  return ds.billingOtherAccounts[request.nextUrl.searchParams.get('id') ?? ''];
+}
+
 export const billsGet: ExactRoutes = {
   'billing/summary': ({ ds }) => html(billingSummaryPage(ds.billingSummary)),
   'billing/details': ({ ds }) => html(billingDetailsPage(ds.billingEncId)),
@@ -62,12 +73,12 @@ export const billsGet: ExactRoutes = {
  * swallowed by its own children.
  */
 export const billsGetPatterns: readonly PatternRoute[] = [
-  prefix('billing/details/getvisits', ({ ds }) =>
-    json(conformToShape(shapes.billingGetVisits, ds.billingVisits))),
-  prefix('billing/details/getstatementlist', ({ ds }) =>
-    json(conformToShape(shapes.getStatementList, ds.billingStatements))),
-  prefix('billing/details/loadpaymentlist', ({ ds }) =>
-    json(conformToShape(shapes.loadPaymentList, ds.billingPayments))),
+  prefix('billing/details/getvisits', ({ request, ds }) =>
+    json(conformToShape(shapes.billingGetVisits, otherAccount(request, ds)?.visits ?? ds.billingVisits))),
+  prefix('billing/details/getstatementlist', ({ request, ds }) =>
+    json(conformToShape(shapes.getStatementList, otherAccount(request, ds)?.statements ?? ds.billingStatements))),
+  prefix('billing/details/loadpaymentlist', ({ request, ds }) =>
+    json(conformToShape(shapes.loadPaymentList, otherAccount(request, ds)?.payments ?? ds.billingPayments))),
   prefix('billing/details/downloadfromblob', () => {
     // Return a minimal fake PDF
     const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A]); // %PDF-1.4\n

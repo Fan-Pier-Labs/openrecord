@@ -494,7 +494,10 @@ describe('billingProcessor.standard', () => {
   it('names a best-effort endpoint that did not answer instead of reporting its list empty', () => {
     // A1's three calls all answered; A2 never got a payment list at all.
     expect(standard.accounts[0]!.unavailable).toEqual([])
-    expect(standard.accounts[1]!.unavailable).toEqual(['LoadPaymentList'])
+    // A2's GetVisits answered 500: its charges are unknown, not absent.
+    expect(standard.accounts[1]!.unavailable).toEqual(['GetVisits', 'LoadPaymentList'])
+    expect(standard.accounts[1]!.visits).toEqual([])
+    expect(standard.accounts[1]!.amountDueNumber).toBe(0.1)
 
     // A tolerated 500 on the statement list — recorded with `failure` by the
     // collector — is "statements unknown", not "no statements".
@@ -538,7 +541,7 @@ describe('billingProcessor.concise', () => {
       unloadedVisits: [],
       unavailable: [],
     })
-    expect(concise).toHaveProperty('notice', null)
+    expect((concise as unknown as { notice: string }).notice).toContain('MyChart failed to return the charges on guarantor account 200')
     expect(JSON.stringify(concise)).not.toContain('ProcedureList')
   })
 
@@ -599,7 +602,7 @@ describe('lazy-loaded charge rows', () => {
 
   const PAGED: RawResponse = {
     requests: [
-      { path: '/Billing/Summary', method: 'GET', status: 200, contentType: 'text/html', body: SUMMARY },
+      { path: '/Billing/Summary', method: 'GET', status: 200, contentType: 'text/html', body: SUMMARY.split('</div>')[0] + '</div>' },
       get('/Billing/Details/GetVisits?id=A1&context=C1&filterOption=1&cid=', {
         Success: true, Data: { UnifiedVisitList: [CHARGE, STUB], ShowingAll: false, HasVisits: true },
       }),
@@ -640,7 +643,7 @@ describe('lazy-loaded charge rows', () => {
       BillingSystemDisplay: 'Hospital Services', reason: 'not_loaded',
     }])
     // The balance comes from the summary card, so it still stands.
-    expect(standard.totalDue).toBe(350.1)
+    expect(standard.totalDue).toBe(350)
     expect(standard.notice).toContain('1 of 2 charge rows on guarantor account 100 (service dates Mar 14, 2025)')
     expect(standard.notice).toContain('may load on a retry')
     expect(standard.notice).not.toContain('returned_empty')
@@ -677,7 +680,8 @@ describe('lazy-loaded charge rows', () => {
 
   it('carries real amounts once hydration succeeded, and no placeholder $0.00 row', () => {
     const standard = billingProcessor.standard(PAGED)
-    expect(standard.notice).toBeNull()
+    // PAGED records no statement or payment list, which the notice names; no row is missing.
+    expect(standard.notice).not.toContain('charge rows')
     const account = standard.accounts[0]!
     expect(account.unloadedVisits).toEqual([])
     expect(account.visits.map((v) => v.Description)).not.toContain('Visit at ')

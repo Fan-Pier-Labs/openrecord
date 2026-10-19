@@ -17,7 +17,7 @@ import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-imag
 import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
 import { Amf3Reader } from '../../../../shared/amf3Reader'
 import { platformFetch } from '../../../http'
-import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart, setFailingEndpoints, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../auth/login'
 import { setupPasskey } from '../../auth/setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../auth/passkeyLoginRetry'
@@ -700,6 +700,33 @@ for (const mode of MOUNT_MODES) {
       expect(account.amountDueNumber).not.toBeNull()
       expect(result.notice).toContain('1 of 4 charge rows')
       expect(result.notice).toContain('Mar 1, 2024')
+    }, 30_000)
+
+    it('keeps the first guarantor account when the second one\'s GetVisits fails, and says so', async () => {
+      await setFailingEndpoints(HOST, [{ path: 'Billing/Details/GetVisits', contains: 'id=WP-BILLING-002' }])
+      try {
+        const result = await getBillingHistory(session)
+        const [first, second] = result.accounts
+        expect(first!.visits.length).toBeGreaterThan(0)
+        expect(first!.unavailable).not.toContain('GetVisits')
+        expect(second!.guarantorNumber).toBe('743')
+        expect(second!.visits).toEqual([])
+        expect(second!.unavailable).toContain('GetVisits')
+        // Both balances come from the summary cards, so both still stand.
+        expect(result.totalDue).toBe(315)
+        expect(result.notice).toContain('charges on guarantor account 743')
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
+    }, 30_000)
+
+    it('fails the billing read when every guarantor account\'s GetVisits fails', async () => {
+      await setFailingEndpoints(HOST, ['Billing/Details/GetVisits'])
+      try {
+        await expect(getBillingHistory(session)).rejects.toThrow()
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
     }, 30_000)
 
     it('getImagingResults returns X-ray and CT studies with report text', async () => {

@@ -36,9 +36,9 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3828 | 1489 | 1807 | 1140 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 59551 | 8086 | 9350 | 2649 |
+| `get_billing` | 82635 | 10627 | 12497 | 3389 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
-| `get_insurance_benefits` | 35302 | 2862 | 3564 | 1562 |
+| `get_insurance_benefits` | 55091 | 5175 | 6812 | 2890 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
 | `get_care_team` | 25061 | 1144 | 855 | 599 |
 | `get_referrals` | 414 | 360 | 413 | 264 |
@@ -14833,7 +14833,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (59551 chars)</summary>
+<summary><code>mode: raw</code> (82635 chars)</summary>
 
 ```json
 {
@@ -14844,18 +14844,18 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-5HCQ8NWZ3KTVJ2RBM7LFX9PYDA1GSEU4KMWJ6QRXTV8NZBHFC3LPD2YSGA9EK7UNQXWRJ5MVTZ1HC8\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-5HCQ8NWZ3KTVJ2RBM7LFX9PYDA1GSEU4KMWJ6QRXTV8NZBHFC3LPD2YSGA9EK7UNQXWRJ5MVTZ1HC8\" aria-label=\"Access Lisa (Shelbyville Clinic)'s record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa (Shelbyville Clinic)</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <spa
-… (truncated; 65065 more characters)
+… (truncated; 91504 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (9350 chars)</summary>
+<summary><code>mode: standard</code> (12497 chars)</summary>
 
-- **totalDue**: 275
+- **totalDue**: 315
 - **notice**: MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.
 
-## accounts (1)
+## accounts (2)
 
 ### accounts 1
 
@@ -15131,15 +15131,117 @@ Billing history and account balances.
 
 - **unavailable**: (none)
 
+### accounts 2
+
+- **guarantorNumber**: 743
+- **patientName**: Homer Simpson
+- **amountDueNumber**: 40
+- **paymentUrl**: (none)
+
+#### visits (1)
+
+##### visits 1
+
+- **category**: InformationalVisitList
+- **StartDateDisplay**: Feb 14, 2025
+- **DateRangeDisplay**: (none)
+- **Description**: Lab Visit at Springfield Physician Associates
+- **Patient**: Patient: Homer Simpson
+- **Provider**: Provider: Julius Hibbert, MD
+- **HospitalAccountDisplay**: Account #HS-743-001
+- **HospitalAccountId**: HS-743-001
+- **PrimaryPayer**: Primary Payer: Springfield Nuclear Power Plant Employee Health Plan
+- **ChargeAmount**: $120.00
+- **InsurancePaymentAmount**: $0.00
+- **InsuranceAmountDue**: $80.00
+- **InsuranceEstimatedPaymentAmount**: (none)
+- **InsuranceAmountDueRaw**: 80
+- **SelfPaymentAmount**: $0.00
+- **SelfAmountDue**: $40.00
+- **SelfAmountDueRaw**: 40
+- **SelfAdjustmentAmount**: (none)
+- **SelfDiscountAmount**: (none)
+- **SelfBadDebtAmount**: (none)
+- **SelfBadDebtAmountRaw**: 0
+- **SelfPaymentPlanAmountDue**: (none)
+- **SelfPaymentPlanAmountDueRaw**: 0
+- **NotOnPlanAmount**: (none)
+- **NotOnPlanAmountRaw**: 0
+- **ContestedChargeAmount**: (none)
+- **ContestedPaymentAmount**: (none)
+- **SurchargeAmount**: (none)
+- **TaxOrSurcharge**: (none)
+- **IsPatientNotResponsible**: false
+- **PatientNotResponsibleYet**: false
+- **IsOnPaymentPlan**: false
+- **IsNotOnPaymentPlan**: true
+- **IsBadDebtHAR**: false
+- **IsBadDebtVisit**: (none)
+- **IsContestedHAR**: (none)
+- **IsClosedHospitalAccount**: false
+- **AdjustmentsOnly**: false
+- **PatFriendlyAccountStatusAccessibleText**: Account status: Outstanding
+- **EstimateInfo**: (none)
+
+###### AgencyInformation
+
+- **Name**: (none)
+- **PhoneNumber**: (none)
+- **AgencyInformationDescription**: (none)
+
+###### ProcedureList (1)
+
+| DescriptionText | Amount | SelfAmountDue | InsuranceAmountDue | IsContested | HasAmountDue | PaymentList | SelfBadDebtAmount | HasBadDebtAmount | AdjustmentsOnly | BillingSystem |
+| - | - | - | - | - | - | - | - | - | - | - |
+| Lab Work - Comprehensive Metabolic Panel | $120.00 | $40.00 | (none) | false | true | | (none) | false | false | 1 |
+- **ProcedureGroupList**: (none)
+- **CoverageInfoList**: (none)
+
+- **unloadedVisits**: (none)
+- **VisitListAmount**: (empty)
+- **BadDebtVisitListAmount**: (empty)
+- **PaymentPlanVisitListAmount**: (empty)
+- **NotPaymentPlanVisitListAmount**: (empty)
+- **AdvanceBillVisitListAmount**: (empty)
+- **AdjustmentVisitListAmount**: (empty)
+- **VisitAutoPayVisitListAmount**: (empty)
+- **ContestedVisitListAmount**: (empty)
+- **PaymentPlanVisitListAutoPayAmount**: (none)
+- **PaymentPlanVisitListScheduledDate**: (none)
+- **EstimatedPaymentPlanBalance**: (none)
+- **PaymentPlanVisitListPostResolutionAmount**: (empty)
+- **CanMakePayment**: true
+- **URLMakePayment**: (none)
+- **HasUnconvertedPBVisits**: false
+- **HasVisits**: true
+
+#### PartialPaymentPlanAlert
+
+- **Code**: 0
+
+##### Banner
+
+- **HeaderText**: (empty)
+- **DetailText**: (empty)
+- **UndistributedPayments**: (none)
+
+#### SharedAgencyInformation
+
+- **Name**: (empty)
+- **PhoneNumber**: (empty)
+- **statements**: (none)
+- **payments**: (none)
+- **unavailable**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (2649 chars)</summary>
+<summary><code>mode: concise</code> (3389 chars)</summary>
 
-- **totalDue**: 275
+- **totalDue**: 315
 - **notice**: MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.
 
-## accounts (1)
+## accounts (2)
 
 ### accounts 1
 
@@ -15214,14 +15316,42 @@ Billing history and account balances.
 | Mar 1, 2024 | returned_empty |
 - **unavailable**: (none)
 
+### accounts 2
+
+- **guarantorNumber**: 743
+- **patientName**: Homer Simpson
+- **amountDueNumber**: 40
+
+#### visits (1)
+
+##### visits 1
+
+- **StartDateDisplay**: Feb 14, 2025
+- **DateRangeDisplay**: (none)
+- **Description**: Lab Visit at Springfield Physician Associates
+- **Patient**: Patient: Homer Simpson
+- **Provider**: Provider: Julius Hibbert, MD
+- **PrimaryPayer**: Primary Payer: Springfield Nuclear Power Plant Employee Health Plan
+- **ChargeAmount**: $120.00
+- **InsurancePaymentAmount**: $0.00
+- **InsuranceAmountDue**: $80.00
+- **SelfPaymentAmount**: $0.00
+- **SelfAmountDue**: $40.00
+- **category**: InformationalVisitList
+
+- **statements**: (none)
+- **payments**: (none)
+- **unloadedVisits**: (none)
+- **unavailable**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (8086 chars)</summary>
+<summary><code>mode: json</code> (10627 chars)</summary>
 
 ```json
 {
-  "totalDue": 275,
+  "totalDue": 315,
   "notice": "MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.",
   "accounts": [
     {
@@ -15541,7 +15671,7 @@ Billing history and account balances.
           "Receipt": {
             "DisplayNumber": "",
             "SerialNumber": 
-… (truncated; 69 more characters)
+… (truncated; 3748 more characters)
 ```
 
 </details>
@@ -15807,7 +15937,7 @@ Insurance coverages on file: payer, plan, member and group numbers, effective da
 How much of the deductible and the out-of-pocket maximum has been used, how much is left, and when each resets. MyChart keys these to a billing guarantor account rather than to a coverage, so a patient with two accounts gets one set per account. For the coverages themselves — payer, plan, member id — use get_insurance.
 
 <details>
-<summary><code>mode: raw</code> (35302 chars)</summary>
+<summary><code>mode: raw</code> (55091 chars)</summary>
 
 ```json
 {
@@ -15938,20 +16068,145 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
       }
     },
     {
+      "path": "/api/billing-details/GetBenefitsSummary",
+      "method": "POST",
+      "requestBody": {
+        "guarantorId": "WP-BILLING-002",
+        "billingSystem": "WP-BILLING-CTX-002"
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "coverageName": "",
+        "payerName": "",
+        "payerLogoBlobMagicId": "",
+        "lastUpdatedText": "",
+        "benefitsPatientId": "",
+        "helpText": "",
+        "coverageId": "",
+        "queryKey": "",
+        "noCoverageAvailable": true,
+        "hasAmbiguousCoverages": false,
+        "hasRTEUpdateInProgress": false,
+        "canAccessInsuranceHub": false,
+        "canAccessInsuranceSummary": false,
+        "canAccessCustomerService": false,
+        "canAccessAnyLinks": false,
+        "insuranceHubUrl": "",
+        "payerPhoneNumber": "",
+        "showPhoneNumberAsAction": false,
+        "showPhoneNumberAsTextOnly": false,
+        "showInsuranceSummaryMessage": false,
+        "deductible": {
+          "type": "",
+          "network": "",
+          "name": "",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          }
+        },
+        "moop": {
+          "type": "",
+          "network": "",
+          "name": "",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          }
+        },
+        "insuranceLimit": {
+          "type": "",
+          "network": "",
+          "name": "",
+          "accountBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          },
+          "patientBucket": {
+            "isLimit": false,
+            "type": "",
+            "totalAmount": "",
+            "usedAmount": "",
+            "remainingAmount": "",
+            "usedRatio": 0,
+            "isTotalZero": false,
+            "rollPeriodEndDate": "",
+            "rollPeriod": "",
+            "numberOfPeriods": 0,
+            "usedOnPrevLevel": ""
+          }
+        }
+      }
+    },
+    {
       "path": "/Billing/Details?ID=WP-BILLING-001&Context=WP-BILLING-CTX-001",
       "method": "GET",
       "status": 200,
       "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; h
-… (truncated; 24937 more characters)
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; 
+… (truncated; 46303 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (3564 chars)</summary>
+<summary><code>mode: standard</code> (6812 chars)</summary>
 
-## accounts (1)
+## accounts (2)
 
 ### accounts 1
 
@@ -16094,15 +16349,156 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
 - **numberOfPeriods**: 0
 - **usedOnPrevLevel**: (empty)
 
+### accounts 2
+
+- **guarantorNumber**: 743
+- **patientName**: Homer Simpson
+- **coverageName**: (empty)
+- **payerName**: (empty)
+- **lastUpdatedText**: (empty)
+- **helpText**: (empty)
+- **coverageId**: (empty)
+- **benefitsPatientId**: (empty)
+- **queryKey**: (empty)
+- **noCoverageAvailable**: true
+- **hasAmbiguousCoverages**: false
+- **hasRTEUpdateInProgress**: false
+- **canAccessInsuranceHub**: false
+- **canAccessInsuranceSummary**: false
+- **canAccessCustomerService**: false
+- **canAccessAnyLinks**: false
+- **insuranceHubUrl**: (empty)
+- **payerPhoneNumber**: (empty)
+
+#### deductible
+
+- **type**: (empty)
+- **network**: (empty)
+- **name**: (empty)
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+#### moop
+
+- **type**: (empty)
+- **network**: (empty)
+- **name**: (empty)
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+#### insuranceLimit
+
+- **type**: (empty)
+- **network**: (empty)
+- **name**: (empty)
+
+##### accountBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
+##### patientBucket
+
+- **isLimit**: false
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **totalAmountNumber**: (none)
+- **usedAmountNumber**: (none)
+- **remainingAmountNumber**: (none)
+- **usedRatio**: 0
+- **isTotalZero**: false
+- **rollPeriodEndDate**: (empty)
+- **rollPeriod**: (empty)
+- **numberOfPeriods**: 0
+- **usedOnPrevLevel**: (empty)
+
 - **hasNoBenefits**: false
 - **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1562 chars)</summary>
+<summary><code>mode: concise</code> (2890 chars)</summary>
 
-## accounts (1)
+## accounts (2)
 
 ### accounts 1
 
@@ -16176,13 +16572,85 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
 - **remainingAmount**: (empty)
 - **rollPeriodEndDate**: (empty)
 
+### accounts 2
+
+- **guarantorNumber**: 743
+- **patientName**: Homer Simpson
+- **payerName**: (empty)
+- **coverageName**: (empty)
+- **lastUpdatedText**: (empty)
+- **noCoverageAvailable**: true
+
+#### deductible
+
+- **name**: (empty)
+- **network**: (empty)
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+#### moop
+
+- **name**: (empty)
+- **network**: (empty)
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+#### insuranceLimit
+
+- **name**: (empty)
+- **network**: (empty)
+
+##### accountBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
+##### patientBucket
+
+- **type**: (empty)
+- **totalAmount**: (empty)
+- **usedAmount**: (empty)
+- **remainingAmount**: (empty)
+- **rollPeriodEndDate**: (empty)
+
 - **hasNoBenefits**: false
 - **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (2862 chars)</summary>
+<summary><code>mode: json</code> (5175 chars)</summary>
 
 ```json
 {
@@ -16313,6 +16781,137 @@ How much of the deductible and the out-of-pocket maximum has been used, how much
           "isTotalZero": false,
           "rollPeriodEndDate": "",
           "rollPeriod": "0",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        }
+      }
+    },
+    {
+      "guarantorNumber": "743",
+      "patientName": "Homer Simpson",
+      "coverageName": "",
+      "payerName": "",
+      "lastUpdatedText": "",
+      "helpText": "",
+      "coverageId": "",
+      "benefitsPatientId": "",
+      "queryKey": "",
+      "noCoverageAvailable": true,
+      "hasAmbiguousCoverages": false,
+      "hasRTEUpdateInProgress": false,
+      "canAccessInsuranceHub": false,
+      "canAccessInsuranceSummary": false,
+      "canAccessCustomerService": false,
+      "canAccessAnyLinks": false,
+      "insuranceHubUrl": "",
+      "payerPhoneNumber": "",
+      "deductible": {
+        "type": "",
+        "network": "",
+        "name": "",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        }
+      },
+      "moop": {
+        "type": "",
+        "network": "",
+        "name": "",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        }
+      },
+      "insuranceLimit": {
+        "type": "",
+        "network": "",
+        "name": "",
+        "accountBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
+          "numberOfPeriods": 0,
+          "usedOnPrevLevel": ""
+        },
+        "patientBucket": {
+          "isLimit": false,
+          "type": "",
+          "totalAmount": "",
+          "usedAmount": "",
+          "remainingAmount": "",
+          "totalAmountNumber": null,
+          "usedAmountNumber": null,
+          "remainingAmountNumber": null,
+          "usedRatio": 0,
+          "isTotalZero": false,
+          "rollPeriodEndDate": "",
+          "rollPeriod": "",
           "numberOfPeriods": 0,
           "usedOnPrevLevel": ""
         }
