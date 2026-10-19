@@ -18,7 +18,7 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
     splitting: false,
-    target: 'node18',
+    target: 'node22',
     esbuildOptions(options) {
       // dev-main `if (import.meta.main)` blocks intentionally evaluate to
       // `false` when bundled into CJS — that's the whole point.
@@ -34,7 +34,7 @@ export default defineConfig([
     sourcemap: true,
     clean: false, // don't blow away the library build
     splitting: false,
-    target: 'node18',
+    target: 'node22',
     esbuildOptions(options) {
       options.logOverride = { ...(options.logOverride ?? {}), 'empty-import-meta': 'silent' };
     },
