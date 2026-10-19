@@ -66,9 +66,10 @@ The page a scraper needed didn't load properly. Usually the session expired, or 
 offer that feature. Retry with `--no-cache`. If it persists on one capability only, that portal
 probably doesn't support it.
 
-**`BillingNotFullyLoadedError`**
-MyChart held back some charge rows it then wouldn't return. Rather than report a balance that's
-too low, the read fails. Retry later.
+**Billing says some charge rows couldn't be loaded** (`notice`, `unloadedVisits`)
+MyChart held back some charge rows and wouldn't return them. Everything else loads, and the
+balances are still correct. The missing rows are listed by service date. `reason: 'not_loaded'`
+may load on a retry. `returned_empty` won't: MyChart's own billing page can't show those either.
 
 **`request_refill` says "NOT IMPLEMENTED".**
 That's deliberate. The refill request has never been confirmed to reach a real pharmacy, and a

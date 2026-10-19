@@ -1998,6 +1998,51 @@ export const billingVisits = {
         AgencyInformation: { Name: null, PhoneNumber: null, AgencyID: 0 },
         AgencyInformationDescription: null,
       },
+      // No entry in `billingHydratedVisits`: MyChart answers this stub's
+      // GetMoreVisits with `Success: true` and an empty list, every time. One
+      // live instance did that for 2 of its 15 stubs, and Epic's own "load
+      // all" could not load them either. The rows that do load must still
+      // reach the caller, with this one reported as unloaded.
+      {
+        GroupType: 0,
+        Index: 3,
+        BillingSystem: 2,
+        IsSBO: false,
+        BillingSystemDisplay: 'Hospital Services',
+        DateRangeDisplay: null,
+        StartDate: 66900,
+        StartDayOfMonth: 1,
+        StartMonth: 3,
+        StartYear: 2024,
+        StartDateDisplay: 'Mar 1, 2024',
+        StartDateAccessibleText: 'March 1, 2024',
+        Description: 'Visit at ',
+        Patient: null,
+        Provider: null,
+        ProviderId: '',
+        HospitalAccountDisplay: null,
+        HospitalAccountId: 'WP-24cK5nT6yS9rP2zQxD3wW4eG-3D-3D-24mR8pA1xB7hF0qN3tY6uZ9dC2oS5vK8gE1jL4iM7-3D',
+        PrimaryPayer: null,
+        ChargeAmount: '$0.00',
+        InsuranceAmountDue: null,
+        InsuranceAmountDueRaw: 0,
+        SelfAmountDue: '$0.00',
+        SelfAmountDueRaw: 0,
+        InsurancePaymentAmount: '$0.00',
+        SelfPaymentAmount: null,
+        ProcedureList: null,
+        ProcedureGroupList: null,
+        CoverageInfoList: null,
+        ShowCoverageHelp: true,
+        LevelOfDetailLoaded: 0,
+        PatFriendlyAccountStatus: 0,
+        PatFriendlyAccountStatusAccessibleText: '',
+        VisitStatusesEqualToClosed: [8, 9],
+        IsOnPaymentPlan: false,
+        IsNotOnPaymentPlan: false,
+        AgencyInformation: { Name: null, PhoneNumber: null, AgencyID: 0 },
+        AgencyInformationDescription: null,
+      },
     ],
     NoBalanceVisitList: [],
     AdjustmentVisitList: [],
@@ -2026,7 +2071,7 @@ export const billingVisits = {
 };
 
 /**
- * What `GetMoreVisits` returns for the two stubs in `billingVisits`: the same
+ * What `GetMoreVisits` returns for the first two stubs in `billingVisits`: the same
  * rows, populated — real description, real amounts, `LevelOfDetailLoaded: 2`,
  * and the line items with the procedure code MyChart buries in markup
  * (`<span class='subtlecolor'>`), exactly as a live instance sends it.

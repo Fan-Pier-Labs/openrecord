@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { parsePaymentUrl, parseBillingAccountsHtml, parseAmount, billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from '../bills'
-import { isStubRow, statement, statementDateISO, postedHydrateKeys, BillingNotFullyLoadedError } from '../bills.processor'
+import { isStubRow, statement, statementDateISO, postedHydrateKeys } from '../bills.processor'
 import { parsePaymentPath } from '../summaryHtml'
 import type { RawResponse } from '../../../core/rawResponse'
 import { renderOutput } from '../../../processors/processor'
@@ -417,7 +417,7 @@ describe('billingProcessor.standard', () => {
     ])
     expect(visits[0]!.IsBadDebtHAR).toBe(true)
     expect(VISIT_LIST_CATEGORIES[VISIT_LIST_CATEGORIES.length - 1]).toBe('UnifiedVisitList')
-    expect(mergeVisitLists({})).toEqual([])
+    expect(mergeVisitLists({})).toEqual({ visits: [], unloadedVisits: [] })
   })
 
   it('keeps every listed charge field under its MyChart name', () => {
@@ -488,7 +488,7 @@ describe('billingProcessor.standard', () => {
   })
 
   it('reads an empty envelope as nothing owed and no accounts', () => {
-    expect(billingProcessor.standard({ requests: [] })).toEqual({ totalDue: 0, accounts: [] })
+    expect(billingProcessor.standard({ requests: [] })).toEqual({ totalDue: 0, notice: null, accounts: [] })
   })
 
   it('names a best-effort endpoint that did not answer instead of reporting its list empty', () => {
@@ -535,8 +535,10 @@ describe('billingProcessor.concise', () => {
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$350.00' },
         { FormattedDateDisplay: 'Jan 20, 2026', Description: 'MyChart Payment', PaymentAmountDisplay: '$150.00' },
       ],
+      unloadedVisits: [],
       unavailable: [],
     })
+    expect(concise).toHaveProperty('notice', null)
     expect(JSON.stringify(concise)).not.toContain('ProcedureList')
   })
 
@@ -625,17 +627,59 @@ describe('lazy-loaded charge rows', () => {
     expect(JSON.stringify(visits)).not.toContain('Visit at ')
   })
 
-  it('marks a row hydration could not fill in, so its placeholder $0.00 cannot pass as settled', () => {
+  it('keeps the rows that loaded and lists the one that did not, never as a $0.00 visit', () => {
     // No GetMoreVisits answer at all — a missing token, a 5xx, a WAF page.
     const noHydrate: RawResponse = { requests: [PAGED.requests[0]!, PAGED.requests[1]!] }
-    // A stub's amounts are all a fabricated "$0.00", which reads exactly like
-    // a settled visit — so the read fails instead of reporting one.
-    expect(() => billingProcessor.standard(noHydrate)).toThrow(BillingNotFullyLoadedError)
-    expect(() => billingProcessor.standard(noHydrate)).toThrow(/paged out 1 of 2 charge rows/)
+    const standard = billingProcessor.standard(noHydrate)
+    const account = standard.accounts[0]!
+    // The stub's amounts are all a fabricated "$0.00", which reads exactly
+    // like a settled visit — so it is not in `visits` at all.
+    expect(account.visits.map((v) => v.Description)).toEqual(['ER Visit'])
+    expect(account.unloadedVisits).toEqual([{
+      category: 'UnifiedVisitList', StartDate: 67278, StartDateDisplay: 'Mar 14, 2025',
+      BillingSystemDisplay: 'Hospital Services', reason: 'not_loaded',
+    }])
+    // The balance comes from the summary card, so it still stands.
+    expect(standard.totalDue).toBe(350.1)
+    expect(standard.notice).toContain('1 of 2 charge rows on guarantor account 100 (service dates Mar 14, 2025)')
+    expect(standard.notice).toContain('may load on a retry')
+    expect(standard.notice).not.toContain('returned_empty')
+  })
+
+  it('calls a stub MyChart answered with an empty list returned_empty, and says retrying will not help', () => {
+    const empty: RawResponse = {
+      requests: [
+        PAGED.requests[0]!,
+        PAGED.requests[1]!,
+        { ...PAGED.requests[2]!, body: { Success: true, Data: { UnifiedVisitList: [], HasVisits: false } } },
+      ],
+    }
+    const standard = billingProcessor.standard(empty)
+    expect(standard.accounts[0]!.visits.map((v) => v.Description)).toEqual(['ER Visit'])
+    expect(standard.accounts[0]!.unloadedVisits.map((v) => v.reason)).toEqual(['returned_empty'])
+    expect(standard.notice).toContain("its own billing page can't show them either")
+    expect(standard.notice).not.toContain('may load on a retry')
+    const concise = billingProcessor.concise(standard) as { notice: string | null; accounts: Array<{ unloadedVisits: unknown[] }> }
+    expect(concise.notice).toBe(standard.notice)
+    expect(concise.accounts[0]!.unloadedVisits).toEqual([{ StartDateDisplay: 'Mar 14, 2025', reason: 'returned_empty' }])
+  })
+
+  it('does not take an unsuccessful empty answer for MyChart declining the row', () => {
+    const refused: RawResponse = {
+      requests: [
+        PAGED.requests[0]!,
+        PAGED.requests[1]!,
+        { ...PAGED.requests[2]!, body: { Success: false, Data: { UnifiedVisitList: [] } } },
+      ],
+    }
+    expect(billingProcessor.standard(refused).accounts[0]!.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
   })
 
   it('carries real amounts once hydration succeeded, and no placeholder $0.00 row', () => {
-    const account = billingProcessor.standard(PAGED).accounts[0]!
+    const standard = billingProcessor.standard(PAGED)
+    expect(standard.notice).toBeNull()
+    const account = standard.accounts[0]!
+    expect(account.unloadedVisits).toEqual([])
     expect(account.visits.map((v) => v.Description)).not.toContain('Visit at ')
     expect(account.visits.every((v) => v.ChargeAmount !== '$0.00')).toBe(true)
   })

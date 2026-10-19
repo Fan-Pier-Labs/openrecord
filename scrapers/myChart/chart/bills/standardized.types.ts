@@ -67,6 +67,31 @@ export interface BillingCoverageInfoStandard {
   Benefits: Array<{ Name: string | null; Amount: string | null }>;
 }
 
+/**
+ * Why a paged-out charge row is in `unloadedVisits` rather than `visits`:
+ * `returned_empty` — its own `GetMoreVisits` succeeded and carried no row,
+ * which is MyChart declining to load it (its own "load all" shows it as a
+ * dateless placeholder too); `not_loaded` — the request failed, was never
+ * sent, or answered with a row for a different date. Retrying can only help
+ * the second.
+ */
+export type BillingUnloadedReason = 'returned_empty' | 'not_loaded';
+
+/**
+ * A charge row `GetVisits` paged out and the scraper could not load back in.
+ * Only the fields a stub carries truthfully: its description and every
+ * amount are fabricated placeholders, so they are not here.
+ */
+export interface BillingUnloadedVisitStandard {
+  /** Derived: which `GetVisits` list the row came from. */
+  category: BillingVisitCategory;
+  StartDate: number | null;
+  StartDateDisplay: string | null;
+  BillingSystemDisplay: string | null;
+  /** Derived. */
+  reason: BillingUnloadedReason;
+}
+
 export interface BillingVisitStandard {
   /** Derived: which `GetVisits` list the row came from. */
   category: BillingVisitCategory;
@@ -151,8 +176,15 @@ export interface BillingAccountStandard {
    * own `URLMakePayment` is null on every live instance checked.
    */
   paymentUrl: string | null;
-  /** Derived: the nine `GetVisits` lists merged and de-duplicated. */
+  /** Derived: the nine `GetVisits` lists merged and de-duplicated — every row that loaded. */
   visits: BillingVisitStandard[];
+  /**
+   * Derived: the paged-out rows that never loaded, kept out of `visits` so
+   * their placeholder `"$0.00"` cannot be read as settled. Non-empty means
+   * `visits` is incomplete; the balances come from the summary page and are
+   * not affected.
+   */
+  unloadedVisits: BillingUnloadedVisitStandard[];
   VisitListAmount: string | null;
   BadDebtVisitListAmount: string | null;
   PaymentPlanVisitListAmount: string | null;
@@ -193,5 +225,11 @@ export interface BillingAccountStandard {
 export interface BillingStandard {
   /** Derived: the card balances summed. */
   totalDue: number;
+  /**
+   * Derived: a sentence for the reader when any account has `unloadedVisits`,
+   * naming how many rows are missing and that the balances still stand; null
+   * when every row loaded.
+   */
+  notice: string | null;
   accounts: BillingAccountStandard[];
 }
