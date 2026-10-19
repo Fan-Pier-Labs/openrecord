@@ -321,7 +321,7 @@ export function parseDirectoryPayload(
  * and `https://mychart.example.org/mychart` are one portal. Different mounts on
  * one host (OCHIN serves 240) stay different.
  */
-export function portalKey(url: string): string {
+function portalKey(url: string): string {
   try {
     const { hostname, pathname } = new URL(url);
     const mount = (pathname.split('/')[1] ?? '').toLowerCase();
