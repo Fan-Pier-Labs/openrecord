@@ -20,10 +20,12 @@ Billing: guarantor accounts, the charges on each, statements, and payment histor
 | `GET /Billing/Details?ID=…&Context=…` | HTML — carries `EncID`, the statement-PDF token (best effort) |
 | `GET /Billing/Details/DownloadFromBlob/?type=1&id=<RecordID>&earId=<EncID>&billSys=<EncBillingSystem>&fileKey=<ImagePath>&token=<Token>&fileName=Statement_<DateDisplay>&DocExt=PDF&PesId=&cid=` | the statement PDF (`download_billing_statement` only) |
 
-Everything after the summary runs **per account**. The summary and the visit list are the
-payload and a failure there throws; the other three are best effort — a statement-list
-outage should not cost the caller their charge history — and a failed response is still
-recorded, with the processor naming it in a per-account `unavailable` list.
+Everything after the summary runs **per account**. The summary is the payload and a failure
+there throws. The visit list is the payload too, but per account: one account's `GetVisits`
+failing is tolerated, so it doesn't cost another account its charges, and only every account
+failing throws. The other three are best effort — a statement-list outage should not cost the
+caller their charge history. Every failed response is still recorded, and the processor names
+it in that account's `unavailable` list and in the top-level `notice`.
 
 Every URL carries `noCache=<random>`.
 
@@ -161,9 +163,9 @@ Account (from the summary HTML and the join):
 | `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
-| `notice` | One sentence when any account has `unloadedVisits`; null otherwise | ✓ | ✓ | ✓ | Derived. Tells the reader the visit list is incomplete and that the balances still stand, so a missing row is not read as a paid one. |
+| `notice` | Plain sentences when anything did not load — rows in `unloadedVisits`, or a list in `unavailable`; null otherwise | ✓ | ✓ | ✓ | Derived. Tells the reader what is incomplete and that the balances still stand, so a missing row or account is not read as a paid one. |
 | `unloadedVisits[]` | Paged-out rows that never loaded: `category`, `StartDate`, `StartDateDisplay`, `BillingSystemDisplay`, `reason` (`returned_empty` / `not_loaded`) | ✓ | ✓ | `StartDateDisplay`, `reason` | Derived. A stub's description and amounts are fabricated, so only the fields it carries truthfully are kept. |
-| `unavailable[]` | Best-effort endpoints that did not answer | ✓ | ✓ | ✓ | Derived. A list here is unknown, not empty. |
+| `unavailable[]` | Per-account endpoints that did not answer: `GetVisits`, `GetStatementList`, `LoadPaymentList` | ✓ | ✓ | ✓ | Derived. A list here is unknown, not empty; `GetVisits` means the account's charges are missing entirely. |
 
 `GetVisits` (`Data.*`):
 

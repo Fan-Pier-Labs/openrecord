@@ -346,6 +346,46 @@ describe('getBillingHistory', () => {
     expect(account!.payments).toEqual([])
   })
 
+  it('keeps the other accounts when one account\'s GetVisits fails, and names it', async () => {
+    const TWO = `
+      <div class="ba_card">
+        <p class="ba_card_header_account_idAndType">Guarantor #1001 (Homer Simpson)</p>
+        <p class="ba_card_status_due_amount">$42.50</p>
+        <p class="ba_card_status_recentPaymentLabel"><a href="https://mychart.example.com/Billing/Detail?ID=ACC-1&Context=CTX">View</a></p>
+      </div>
+      <div class="ba_card">
+        <p class="ba_card_header_account_idAndType">Guarantor #1002 (Homer Simpson)</p>
+        <p class="ba_card_status_due_amount">$40.00</p>
+        <p class="ba_card_status_recentPaymentLabel"><a href="https://mychart.example.com/Billing/Detail?ID=ACC-2&Context=CTX">View</a></p>
+      </div>`
+    const { req } = mockRouted([
+      // Only the second account's GetVisits fails.
+      ['id=ACC-2&context=CTX&filterOption', () => new Response('<html>error</html>', { status: 500 })],
+      ['GetVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [{ LevelOfDetailLoaded: 2, HospitalAccountId: 'H1', Description: 'Annual physical', StartDate: 67000 }] } })],
+      ['GetStatementList', '{}'],
+      ['LoadPaymentList', '{}'],
+      ['Billing/Details?ID=', '<html></html>'],
+      ['Billing/Summary', TWO],
+    ])
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+
+    expect(standard.accounts.map((a) => a.visits.length)).toEqual([1, 0])
+    expect(standard.accounts[1]!.unavailable).toContain('GetVisits')
+    expect(standard.totalDue).toBe(82.5)
+    expect(standard.notice).toContain('charges on guarantor account 1002')
+  })
+
+  it('fails the read when every account\'s GetVisits fails', async () => {
+    const { req } = mockRouted([
+      ['GetVisits', () => new Response('<html>error</html>', { status: 500 })],
+      ['Billing/Details?ID=', '<html></html>'],
+      ['GetStatementList', '{}'],
+      ['LoadPaymentList', '{}'],
+      ['Billing/Summary', SUMMARY_HTML],
+    ])
+    await expect(fetchBillingRaw(req)).rejects.toThrow(/500/)
+  })
+
   it('returns no accounts when the summary page has none', async () => {
     const { req } = mockRouted([['/Billing/Summary', '<html><body>No balance</body></html>']])
     expect(await getBillingHistory(req)).toEqual({ totalDue: 0, notice: null, accounts: [] })

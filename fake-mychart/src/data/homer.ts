@@ -1788,6 +1788,17 @@ export const billingSummary = [
     detailsId: 'WP-BILLING-001',
     detailsContext: 'WP-BILLING-CTX-001',
   },
+  // A second guarantor account, as a patient billed by two entities has. Its
+  // charges, statements and payments are its own (`billingOtherAccounts`);
+  // every billing endpoint is keyed by the account's `id`.
+  {
+    guarantorId: '743',
+    guarantorName: 'Homer Simpson',
+    amountDue: '$40.00',
+    lastPaid: '',
+    detailsId: 'WP-BILLING-002',
+    detailsContext: 'WP-BILLING-CTX-002',
+  },
 ];
 
 export const billingEncId = 'WP-BILLING-ENC-001';
@@ -2221,6 +2232,61 @@ export const billingHydratedVisits = [
     AgencyInformationDescription: null,
   },
 ];
+
+/**
+ * What the billing endpoints answer for the accounts after the first in
+ * `billingSummary`, keyed by the account's `detailsId` (the `id` every request
+ * carries). The first account's answers are `billingVisits`,
+ * `billingStatements` and `billingPayments`.
+ */
+export const billingOtherAccounts: Record<string, { visits: unknown; statements: unknown; payments: unknown }> = {
+  'WP-BILLING-002': {
+    visits: {
+      ...billingVisits,
+      Data: {
+        ...billingVisits.Data,
+        InformationalVisitList: [
+          {
+            ...billingVisits.Data.InformationalVisitList[0]!,
+            StartDate: 67250,
+            StartDayOfMonth: 14,
+            StartMonth: 2,
+            StartYear: 2025,
+            StartDateDisplay: 'Feb 14, 2025',
+            StartDateAccessibleText: 'February 14, 2025',
+            Description: 'Lab Visit at Springfield Physician Associates',
+            HospitalAccountDisplay: 'Account #HS-743-001',
+            HospitalAccountId: 'HS-743-001',
+            ChargeAmount: '$120.00',
+            InsuranceAmountDue: '$80.00',
+            InsuranceAmountDueRaw: 80,
+            SelfAmountDue: '$40.00',
+            SelfAmountDueRaw: 40,
+            SelfPaymentAmount: '$0.00',
+            ProcedureList: [
+              {
+                BillingSystem: 1,
+                Description: 'Lab Work - Comprehensive Metabolic Panel',
+                Amount: '$120.00',
+                PaymentList: null,
+                InsuranceAmountDue: null,
+                SelfAmountDue: '$40.00',
+                HasAmountDue: true,
+                SelfBadDebtAmount: null,
+                HasBadDebtAmount: false,
+                AdjustmentsOnly: false,
+                IsContested: false,
+              },
+            ],
+          },
+        ],
+        UnifiedVisitList: [],
+      },
+    },
+    statements: { Success: true, DataDetailBill: { StatementList: [] }, DataStatement: { StatementList: [] } },
+    payments: { Success: true, Data: { PaymentList: [] } },
+  },
+};
 
 export const billingStatements = {
   Success: true,

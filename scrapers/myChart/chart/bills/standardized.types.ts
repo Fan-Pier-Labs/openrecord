@@ -214,10 +214,11 @@ export interface BillingAccountStandard {
   statements: BillingStatementStandard[];
   payments: BillingPaymentStandard[];
   /**
-   * Derived: the best-effort endpoints (`GetStatementList`, `LoadPaymentList`)
-   * that did not answer for this account. A name here means the matching list
-   * is unknown, not empty — the scraper tolerates their failure so a
-   * statement-list outage does not cost the visit history.
+   * Derived: the endpoints that did not answer for this account —
+   * `GetVisits`, `GetStatementList`, `LoadPaymentList`. A name here means the
+   * matching list is unknown, not empty: the scraper tolerates their failure
+   * so one outage does not cost the rest of the read. `GetVisits` here means
+   * `visits` is empty because its charges never loaded.
    */
   unavailable: string[];
 }
@@ -226,9 +227,9 @@ export interface BillingStandard {
   /** Derived: the card balances summed. */
   totalDue: number;
   /**
-   * Derived: a sentence for the reader when any account has `unloadedVisits`,
-   * naming how many rows are missing and that the balances still stand; null
-   * when every row loaded.
+   * Derived: sentences for the reader when anything did not load — rows in
+   * `unloadedVisits`, or an endpoint in `unavailable` — naming what is missing
+   * and that the balances still stand; null when everything loaded.
    */
   notice: string | null;
   accounts: BillingAccountStandard[];

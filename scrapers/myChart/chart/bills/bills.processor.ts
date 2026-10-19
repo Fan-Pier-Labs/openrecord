@@ -308,8 +308,28 @@ export function mergeVisitLists(
   return { visits, unloadedVisits };
 }
 
-/** The sentence `notice` carries, or null when every account loaded every row. */
-function unloadedNotice(accounts: BillingAccountStandard[]): string | null {
+const LIST_LABEL: Record<string, string> = { GetStatementList: 'statements', LoadPaymentList: 'payment history' };
+
+/** What `notice` says, or null when every account loaded everything. */
+function billingNotice(accounts: BillingAccountStandard[]): string | null {
+  const sentences: string[] = [];
+  const noCharges = accounts.filter((a) => a.unavailable.includes('GetVisits')).map((a) => a.guarantorNumber);
+  if (noCharges.length > 0) {
+    sentences.push(
+      `MyChart failed to return the charges on guarantor account ${noCharges.join(', ')}, so its visits are missing ` +
+        'entirely; the balance comes from the billing summary and still stands. They may load on a retry.',
+    );
+  }
+  const rows = unloadedRowsNotice(accounts);
+  if (rows) sentences.push(rows);
+  const lists = accounts.flatMap((a) =>
+    a.unavailable.filter((f) => f !== 'GetVisits').map((f) => `the ${LIST_LABEL[f] ?? f} on guarantor account ${a.guarantorNumber}`),
+  );
+  if (lists.length > 0) sentences.push(`MyChart failed to return ${lists.join(', ')}; those are unknown, not empty.`);
+  return sentences.length > 0 ? sentences.join(' ') : null;
+}
+
+function unloadedRowsNotice(accounts: BillingAccountStandard[]): string | null {
   const parts = accounts
     .filter((a) => a.unloadedVisits.length > 0)
     .map((a) => {
@@ -369,12 +389,14 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
 }
 
 function account(raw: RawResponse, source: BillingAccount, hydration: Hydration): BillingAccountStandard {
-  const data = rec(rec<BillingGetVisits>(accountRequest(raw, source, 'GetVisits')?.body).Data);
+  const unavailable: string[] = [];
+  const visitsRecord = accountRequest(raw, source, 'GetVisits');
+  if (!answered(visitsRecord)) unavailable.push('GetVisits');
+  const data = answered(visitsRecord) ? rec(rec<BillingGetVisits>(visitsRecord.body).Data) : {};
   const { visits, unloadedVisits } = mergeVisitLists(data, hydration);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
-  const unavailable: string[] = [];
   function tolerated(fragment: string): unknown {
     const record = accountRequest(raw, source, fragment);
     if (!answered(record)) {
@@ -438,7 +460,7 @@ export const billingProcessor: Processor<BillingStandard> = {
     const hydration = hydratedRows(raw);
     const accounts = parseBillingAccountsHtml(summary).map((source) => account(raw, source, hydration));
     const cents = accounts.reduce((sum, a) => sum + Math.round((a.amountDueNumber ?? 0) * 100), 0);
-    return { totalDue: cents / 100, notice: unloadedNotice(accounts), accounts };
+    return { totalDue: cents / 100, notice: billingNotice(accounts), accounts };
   },
   concise(standard) {
     return {
