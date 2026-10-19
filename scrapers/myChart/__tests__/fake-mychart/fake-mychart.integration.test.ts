@@ -17,7 +17,7 @@ import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-imag
 import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
 import { Amf3Reader } from '../../../../shared/amf3Reader'
 import { platformFetch } from '../../../http'
-import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart, setFailingEndpoints, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../auth/login'
 import { setupPasskey } from '../../auth/setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../auth/passkeyLoginRetry'
@@ -572,6 +572,29 @@ for (const mode of MOUNT_MODES) {
     it('listLabResults returns lab results', async () => {
       const result = await listLabResults(session)
       expect(result.orders.length).toBeGreaterThan(0)
+    }, 30_000)
+
+    it('keeps the other lab orders when one order\'s details fail, and names it', async () => {
+      const all = await listLabResults(session)
+      await setFailingEndpoints(HOST, [{ path: 'api/test-results/GetDetails', contains: 'GRP-LIPID' }])
+      try {
+        const result = await listLabResults(session)
+        expect(result.orders.map((o) => o.key)).not.toContain('GRP-LIPID')
+        expect(result.orders).toHaveLength(all.orders.length - 1)
+        expect(result.unloadedOrders).toEqual([{ key: 'GRP-LIPID', names: ['Lipid Panel'], formattedDate: 'Jan 10, 2026' }])
+        expect(result.notice).toContain('Lipid Panel (Jan 10, 2026)')
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
+    }, 30_000)
+
+    it('fails the lab read when every order\'s details fail', async () => {
+      await setFailingEndpoints(HOST, ['api/test-results/GetDetails'])
+      try {
+        await expect(listLabResults(session)).rejects.toThrow()
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
     }, 30_000)
 
     it('listLabResults returns distinct details per lab order, not one panel repeated', async () => {
