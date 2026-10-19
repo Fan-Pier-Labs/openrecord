@@ -2,7 +2,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { isRootMount } from '@/lib/mount';
-import { isFailingEndpoint, responseDelay } from '@/lib/outage';
+import { isFailingEndpoint, needsRequestText, responseDelay } from '@/lib/outage';
 import { PROXY_SELECTOR_PLACEHOLDER, renderProxySelector } from '@/lib/html';
 import {
   GET_PRIVATE, GET_PRIVATE_PATTERNS, GET_PUBLIC, GET_PUBLIC_PATTERNS,
@@ -37,6 +37,16 @@ function contextFor(request: NextRequest, path: string[]): HandlerContext {
   return { request, path: joined, lower: joined.toLowerCase(), ds: activeDataset(request) };
 }
 
+/**
+ * The query string and body a `{ path, contains }` outage entry is matched
+ * against. Read from a clone, so the handler still gets the body, and only
+ * when such an entry names this path.
+ */
+async function requestText(request: NextRequest, lower: string): Promise<string> {
+  if (!needsRequestText(lower)) return '';
+  return `${request.nextUrl.search} ${await request.clone().text()}`;
+}
+
 async function renderGet(request: NextRequest, { params }: RouteParams) {
   const { path } = await params;
   if (!path || path.length === 0) return mountRoot(request);
@@ -63,7 +73,7 @@ async function renderGet(request: NextRequest, { params }: RouteParams) {
   // threw does — after the gates, since the exception happens inside the action.
   // A slow instance (`responseDelaySeconds`) is slow at the same point.
   await responseDelay();
-  if (isFailingEndpoint(ctx.lower)) return aspNetFailure(request, 'fivehundred', ctx.path);
+  if (isFailingEndpoint(ctx.lower, await requestText(request, ctx.lower))) return aspNetFailure(request, 'fivehundred', ctx.path);
 
   const handler = resolve(ctx.lower, GET_PRIVATE, GET_PRIVATE_PATTERNS);
   return handler ? handler(ctx) : unknownGet(ctx);
@@ -108,7 +118,7 @@ async function renderPost(request: NextRequest, { params }: RouteParams) {
   }
 
   await responseDelay();
-  if (isFailingEndpoint(ctx.lower)) return aspNetFailure(request, 'fivehundred', ctx.path);
+  if (isFailingEndpoint(ctx.lower, await requestText(request, ctx.lower))) return aspNetFailure(request, 'fivehundred', ctx.path);
 
   const handler = resolve(ctx.lower, POST_ROUTES, POST_PATTERNS);
   return handler ? handler(ctx) : unknownPost(ctx);
