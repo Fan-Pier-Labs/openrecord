@@ -263,7 +263,7 @@ and count limits are checked before anything is sent.
 
 | Method | Returns | Capability |
 | --- | --- | --- |
-| `getBillingHistory()` | `BillingStandard`: `{ totalDue, accounts[] }` | `get_billing` |
+| `getBillingHistory()` | `BillingStandard`: `{ totalDue, notice, accounts[] }` | `get_billing` |
 | `downloadBillingStatement(recordId)` | `BillingStatementPdf` (PDF bytes plus `statement` details) | `download_billing_statement` |
 | `getInsurance()` | `InsuranceStandard` | `get_insurance` |
 | `getInsuranceBenefits()` | `InsuranceBenefitsStandard` (deductible and out-of-pocket progress) | `get_insurance_benefits` |
@@ -368,7 +368,6 @@ await MyChartClient.runPublicCapability('lookup_npi', { npi: '1234567893' });  /
 | --- | --- |
 | `SessionExpiredError` | The session expired and couldn't be renewed: `autoRenew: false`, a client from `fromSerialized`, or the renewal sign-in failed |
 | `MyChartResponseError` | MyChart answered with something the scraper can't use. Has `method`, `path`, `status` |
-| `BillingNotFullyLoadedError` | MyChart paged out charge rows it then wouldn't return. Rather than report a too-low balance, billing reads fail. Retry later |
 | `PreloginEndpointError` | A public health-system endpoint failed. Has `path`, `status` |
 | `Error` named `MissingVerificationTokenError` | A page didn't carry its CSRF token, usually an expired session or a feature the portal doesn't offer. Check `err.name` |
 | Plain `Error` | An active-patient mismatch (the message includes the switch to run), an unknown capability id, missing arguments, or `MyChartClient has been closed` |

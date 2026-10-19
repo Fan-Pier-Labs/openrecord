@@ -20,6 +20,8 @@ export type {
   BillingStandard,
   BillingAccountStandard,
   BillingVisitStandard,
+  BillingUnloadedVisitStandard,
+  BillingUnloadedReason,
   BillingVisitCategory,
   BillingStatementStandard,
   BillingPaymentStandard,
@@ -27,7 +29,7 @@ export type {
   BillingProcedureGroupStandard,
   BillingCoverageInfoStandard,
 } from './bills.processor';
-export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES, BillingNotFullyLoadedError } from './bills.processor';
+export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from './bills.processor';
 
 // Two jobs live here: the `get_billing` read (fetchBillingRaw + the
 // processor) and the `download_billing_statement` file download, which
