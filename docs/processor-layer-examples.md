@@ -20,7 +20,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_medications` | 18278 | 6894 | 8910 | 1100 |
 | `get_allergies` | 495 | 354 | 442 | 415 |
 | `get_health_issues` | 1927 | 969 | 1241 | 297 |
-| `get_vitals` | 7082 | 1944 | 1349 | 1084 |
+| `get_vitals` | 10403 | 2754 | 2238 | 1541 |
 | `get_immunizations` | 891 | 601 | 432 | 236 |
 | `get_preventive_care` | 5097 | 5146 | 6303 | 354 |
 | `get_medical_history` | 1596 | 1178 | 1266 | 501 |
@@ -1944,11 +1944,184 @@ Active health issues / problem list.
 Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, glucose, etc.).
 
 <details>
-<summary><code>mode: raw</code> (7082 chars)</summary>
+<summary><code>mode: raw</code> (10403 chars)</summary>
 
 ```json
 {
   "requests": [
+    {
+      "path": "/api/track-my-health/GetFlowsheetReadings",
+      "method": "POST",
+      "requestBody": {
+        "episodeId": "EP-GLUCOSE",
+        "endInstantIso": "2025-06-01T07:30:00",
+        "numReadings": 1000
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "flowsheet": {
+          "episodeId": "EP-GLUCOSE",
+          "templateId": "EP-GLUCOSE",
+          "name": "Blood Glucose Monitoring",
+          "entryType": "",
+          "entryMode": "",
+          "status": "",
+          "startDateIso": "2025-06-01",
+          "endDateIso": "",
+          "instructions": "",
+          "hasMoreData": false,
+          "hasEpisodeData": false,
+          "rowGroups": [
+            {
+              "id": "-1",
+              "name": "",
+              "rowIds": [
+                "row-glu"
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "id": "row-glu",
+              "name": "Blood Glucose",
+              "rowType": "1",
+              "valueType": "1",
+              "decimalPlaces": 0,
+              "unitsDisplayName": "mg/dL"
+            }
+          ],
+          "readings": [
+            {
+              "id": "rd-glu-1",
+              "fsdId": "fsd-g1",
+              "rowId": "row-glu",
+              "valueType": "1",
+              "entryType": "patient",
+              "instantTakenIso": "2025-06-01T07:30:00",
+              "isAbnormal": false,
+              "documentationSource": "34000",
+              "stringValue": "",
+              "dataType": "32005",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": "",
+              "numericValue": 98
+            }
+          ]
+        },
+        "userSettings": {
+          "isAdmitted": false,
+          "isH2GSession": false,
+          "isMOContext": false,
+          "isDataTileContext": false,
+          "isProxyContext": false,
+          "myChartPatientId": "",
+          "myChartPatientName": "",
+          "myChartUserId": "",
+          "myChartUserName": "",
+          "devicePlatform": "",
+          "healthConnectAvailable": "",
+          "moVersionSupportsBluetooth": false
+        }
+      }
+    },
+    {
+      "path": "/api/track-my-health/GetFlowsheetReadings",
+      "method": "POST",
+      "requestBody": {
+        "episodeId": "EP-GLUCOSE",
+        "endInstantIso": "2026-02-02T23:59:59",
+        "numReadings": 1000
+      },
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "flowsheet": {
+          "episodeId": "EP-GLUCOSE",
+          "templateId": "EP-GLUCOSE",
+          "name": "Blood Glucose Monitoring",
+          "entryType": "",
+          "entryMode": "",
+          "status": "",
+          "startDateIso": "2025-06-01",
+          "endDateIso": "",
+          "instructions": "",
+          "hasMoreData": false,
+          "hasEpisodeData": false,
+          "rowGroups": [
+            {
+              "id": "-1",
+              "name": "",
+              "rowIds": [
+                "row-glu"
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "id": "row-glu",
+              "name": "Blood Glucose",
+              "rowType": "1",
+              "valueType": "1",
+              "decimalPlaces": 0,
+              "unitsDisplayName": "mg/dL"
+            }
+          ],
+          "readings": [
+            {
+              "id": "rd-glu-2",
+              "fsdId": "fsd-g2",
+              "rowId": "row-glu",
+              "valueType": "1",
+              "entryType": "patient",
+              "instantTakenIso": "2026-02-01T07:30:00",
+              "isAbnormal": true,
+              "documentationSource": "34000",
+              "stringValue": "",
+              "dataType": "32005",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": "",
+              "numericValue": 132
+            },
+            {
+              "id": "rd-glu-1",
+              "fsdId": "fsd-g1",
+              "rowId": "row-glu",
+              "valueType": "1",
+              "entryType": "patient",
+              "instantTakenIso": "2025-06-01T07:30:00",
+              "isAbnormal": false,
+              "documentationSource": "34000",
+              "stringValue": "",
+              "dataType": "32005",
+              "line": 0,
+              "decimalPlaces": 0,
+              "timeZone": "America/New_York",
+              "sourceRowId": "",
+              "numericValue": 98
+            }
+          ]
+        },
+        "userSettings": {
+          "isAdmitted": false,
+          "isH2GSession": false,
+          "isMOContext": false,
+          "isDataTileContext": false,
+          "isProxyContext": false,
+          "myChartPatientId": "",
+          "myChartPatientName": "",
+          "myChartUserId": "",
+          "myChartUserName": "",
+          "devicePlatform": "",
+          "healthConnectAvailable": "",
+          "moVersionSupportsBluetooth": false
+        }
+      }
+    },
     {
       "path": "/api/track-my-health/GetFlowsheetReadings",
       "method": "POST",
@@ -2183,170 +2356,18 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
               "valueType": "6",
               "entryType": "clinical",
               "instantTakenIso": "2026-01-10T09:00:00",
-              "isAbnormal": false,
-              "documentationSource": "34000",
-              "stringValue": "",
-              "dataType": "32000",
-              "line": 0,
-              "decimalPlaces": 0,
-              "timeZone": "America/New_York",
-              "sourceRowId": "",
-              "numericValue": 72,
-              "units": "7"
-            },
-            {
-              "id": "rd-bp-2",
-              "fsdId": "fsd-2",
-              "rowId": "row-bp",
-              "valueType": "4",
-              "entryType": "clinical",
-              "instantTakenIso": "2025-07-15T10:30:00",
-              "isAbnormal": true,
-              "documentationSource": "34002",
-              "stringValue": "150/98",
-              "dataType": "32105",
-              "line": 0,
-              "decimalPlaces": 0,
-              "timeZone": "America/New_York",
-              "sourceRowId": ""
-            },
-            {
-              "id": "rd-bp-3",
-              "fsdId": "fsd-3",
-              "rowId": "row-bp",
-              "valueType": "4",
-              "entryType": "clinical",
-              "instantTakenIso": "2025-01-20T08:15:00",
-              "isAbnormal": false,
-              "documentationSource": "34002",
-              "stringValue": "142/92",
-              "dataType": "32105",
-              "line": 0,
-              "decimalPlaces": 0,
-              "timeZone": "America/New_York",
-              "sourceRowId": ""
-            }
-          ]
-        },
-        "userSettings": {
-          "isAdmitted": false,
-          "isH2GSession": false,
-          "isMOContext": false,
-          "isDataTileContext": false,
-          "isProxyContext": false,
-          "myChartPatientId": "",
-          "myChartPatientName": "",
-          "myChartUserId": "",
-          "myChartUserName": "",
-          "devicePlatform": "",
-          "healthConnectAvailable": "",
-          "moVersionSupportsBluetooth": false
-        }
-      }
-    },
-    {
-      "path": "/api/track-my-health/GetFlowsheets",
-      "method": "POST",
-      "requestBody": {
-        "organizationId": ""
-      },
-      "status": 200,
-      "contentType": "application/json;charset=utf-8",
-      "body": {
-        "flowsheets": [
-          {
-            "episodeId": "EP-VITALS",
-            "templateId": "EP-VITALS",
-            "name": "Vitals Trending",
-            "entryType": "1",
-            "entryMode": "1",
-            "status": "1",
-            "startDateIso": "2025-01-20",
-            "endDateIso": "",
-            "instructions": "",
-            "hasMoreData": false,
-            "hasEpisodeData": false,
-            "rowGroups": [
-              {
-                "id": "-1",
-                "name": "",
-                "rowIds": [
-                  "row-bp",
-                  "row-hr",
-                  "row-wt",
-                  "row-ht"
-                ]
-              }
-            ],
-            "rows": [
-              {
-                "id": "row-bp",
-                "name": "Blood Pressure",
-                "rowType": "1",
-                "valueType": "4",
-                "decimalPlaces": 0,
-                "unitsDisplayName": "mmHg"
-              },
-              {
-                "id": "row-hr",
-                "name": "Pulse",
-                "rowType": "1",
-                "valueType": "1",
-                "decimalPlaces": 0
-              },
-              {
-                "id": "row-wt",
-                "name": "Weight",
-                "rowType": "1",
-                "valueType": "5",
-                "decimalPlaces": 0,
-                "units": "6",
-                "unitsDisplayName": "lbs"
-              },
-              {
-                "id": "row-ht",
-                "name": "Height",
-                "rowType": "1",
-                "valueType": "6",
-                "decimalPlaces": 0,
-                "units": "7",
-                "unitsDisplayName": "ft"
-              }
-            ],
-            "readings": []
-          }
-        ],
-        "userSettings": {
-          "isAdmitted": false,
-          "isH2GSession": false,
-          "isMOContext": false,
-          "isDataTileContext": false,
-          "isProxyContext": false,
-          "myChartPatientId": "",
-          "myChartPatientName": "",
-          "myChartUserId": "",
-          "myChartUserName": "",
-          "devicePlatform": "",
-          "healthConnectAvailable": "",
-          "moVersionSupportsBluetooth": false
-        }
-      }
-    },
-    {
-      "path": "/app/track-my-health",
-      "method": "GET",
-      "status": 200,
-      "contentType": "text/html; charset=utf-8",
-      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts
-… (truncated; 525 more characters)
+    
+… (truncated; 6572 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (1349 chars)</summary>
+<summary><code>mode: standard</code> (2238 chars)</summary>
 
-## flowsheets (1)
+- **notice**: (none)
+
+## flowsheets (2)
 
 ### flowsheets 1
 
@@ -2382,12 +2403,46 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 | row-bp | 2025-07-15T10:30:00 | America/New_York | 150/98 | (none) | 150/98 | true | clinical | 34002 |
 | row-bp | 2025-01-20T08:15:00 | America/New_York | 142/92 | (none) | 142/92 | false | clinical | 34002 |
 
+### flowsheets 2
+
+- **name**: Blood Glucose Monitoring
+- **status**: 1
+- **startDateIso**: 2025-06-01
+- **endDateIso**: (empty)
+- **instructions**: Check before breakfast.
+
+#### rows (1)
+
+| id | name | unitsDisplayName | rowType | valueType | decimalPlaces |
+| - | - | - | - | - | - |
+| row-glu | Blood Glucose | mg/dL | 1 | 1 | 0 |
+
+#### rowGroups (1)
+
+| id | name | rowIds |
+| - | - | - |
+| -1 | (empty) | row-glu |
+
+#### readings (2)
+
+| rowId | instantTakenIso | timeZone | stringValue | numericValue | value | isAbnormal | entryType | documentationSource |
+| - | - | - | - | - | - | - | - | - |
+| row-glu | 2026-02-01T07:30:00 | America/New_York | (empty) | 132 | 132 | true | patient | 34000 |
+| row-glu | 2025-06-01T07:30:00 | America/New_York | (empty) | 98 | 98 | false | patient | 34000 |
+
+- **unloadedFlowsheets**: (none)
+- **truncatedFlowsheets**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (1084 chars)</summary>
+<summary><code>mode: concise</code> (1541 chars)</summary>
 
-## flowsheets (1)
+- **notice**: (none)
+- **unloadedFlowsheets**: (none)
+- **truncatedFlowsheets**: (none)
+
+## flowsheets (2)
 
 ### flowsheets 1
 
@@ -2453,13 +2508,38 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
 - **isAbnormal**: false
 - **abnormalReadings**: (none)
 
+### flowsheets 2
+
+- **name**: Blood Glucose Monitoring
+
+#### rows (1)
+
+##### rows 1
+
+- **name**: Blood Glucose
+- **unitsDisplayName**: mg/dL
+- **readingCount**: 2
+
+###### latestReading
+
+- **instantTakenIso**: 2026-02-01T07:30:00
+- **value**: 132
+- **isAbnormal**: true
+
+###### abnormalReadings (1)
+
+| instantTakenIso | value |
+| - | - |
+| 2026-02-01T07:30:00 | 132 |
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (1944 chars)</summary>
+<summary><code>mode: json</code> (2754 chars)</summary>
 
 ```json
 {
+  "notice": null,
   "flowsheets": [
     {
       "name": "Vitals Trending",
@@ -2581,8 +2661,60 @@ Vitals and tracked flowsheet readings (weight, blood pressure, heart rate, gluco
           "documentationSource": "34002"
         }
       ]
+    },
+    {
+      "name": "Blood Glucose Monitoring",
+      "status": "1",
+      "startDateIso": "2025-06-01",
+      "endDateIso": "",
+      "instructions": "Check before breakfast.",
+      "rows": [
+        {
+          "id": "row-glu",
+          "name": "Blood Glucose",
+          "unitsDisplayName": "mg/dL",
+          "rowType": "1",
+          "valueType": "1",
+          "decimalPlaces": 0
+        }
+      ],
+      "rowGroups": [
+        {
+          "id": "-1",
+          "name": "",
+          "rowIds": [
+            "row-glu"
+          ]
+        }
+      ],
+      "readings": [
+        {
+          "rowId": "row-glu",
+          "instantTakenIso": "2026-02-01T07:30:00",
+          "timeZone": "America/New_York",
+          "stringValue": "",
+          "numericValue": 132,
+          "value": "132",
+          "isAbnormal": true,
+          "entryType": "patient",
+          "documentationSource": "34000"
+        },
+        {
+          "rowId": "row-glu",
+          "instantTakenIso": "2025-06-01T07:30:00",
+          "timeZone": "America/New_York",
+          "stringValue": "",
+          "numericValue": 98,
+          "value": "98",
+          "isAbnormal": false,
+          "entryType": "patient",
+          "documentationSource": "34000"
+        }
+      ]
     }
-  ]
+  ],
+  "unloadedFlowsheets": [],
+  "truncatedFlowsheets": []
 }
 ```
 

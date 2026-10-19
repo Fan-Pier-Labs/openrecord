@@ -201,6 +201,8 @@ const VITALS_ROWS = [
   { id: 'row-ht', name: 'Height', rowType: '1', valueType: '6', units: '7', unitsDisplayName: 'ft', decimalPlaces: 0 },
 ];
 
+const GLUCOSE_ROW = { id: 'row-glu', name: 'Blood Glucose', rowType: '1', valueType: '1', unitsDisplayName: 'mg/dL', decimalPlaces: 0 };
+
 // GetFlowsheets response — definition only, `readings` empty (matches real MyChart)
 export const vitals = {
   flowsheets: [
@@ -218,6 +220,25 @@ export const vitals = {
       hasEpisodeData: false,
       rowGroups: [{ id: '-1', name: '', rowIds: VITALS_ROWS.map((r) => r.id) }],
       rows: VITALS_ROWS,
+      readings: [],
+    },
+    // A second flowsheet, so one can fail while the other answers. The scraper
+    // loops over flowsheets, but a chart with two has not been captured, and
+    // one flowsheet's readings failing alone is unobserved.
+    {
+      episodeId: 'EP-GLUCOSE',
+      templateId: 'EP-GLUCOSE',
+      name: 'Blood Glucose Monitoring',
+      entryType: '1',
+      entryMode: '1',
+      status: '1',
+      startDateIso: '2025-06-01',
+      endDateIso: '',
+      instructions: 'Check before breakfast.',
+      hasMoreData: false,
+      hasEpisodeData: false,
+      rowGroups: [{ id: '-1', name: '', rowIds: [GLUCOSE_ROW.id] }],
+      rows: [GLUCOSE_ROW],
       readings: [],
     },
   ],
@@ -250,6 +271,31 @@ export const vitalsReadings = {
     ],
   },
   userSettings: {},
+};
+
+/**
+ * GetFlowsheetReadings for the flowsheets after the first, keyed by the
+ * `episodeId` the request posts. `vitalsReadings` answers `EP-VITALS`.
+ */
+export const vitalsOtherFlowsheets: Record<string, typeof vitalsReadings> = {
+  'EP-GLUCOSE': {
+    flowsheet: {
+      episodeId: 'EP-GLUCOSE',
+      templateId: 'EP-GLUCOSE',
+      name: 'Blood Glucose Monitoring',
+      startDateIso: '2025-06-01',
+      endDateIso: '',
+      hasMoreData: false,
+      hasEpisodeData: false,
+      rowGroups: [{ id: '-1', name: '', rowIds: [GLUCOSE_ROW.id] }],
+      rows: [GLUCOSE_ROW] as unknown as typeof VITALS_ROWS,
+      readings: [
+        { id: 'rd-glu-2', fsdId: 'fsd-g2', rowId: 'row-glu', valueType: '1', entryType: 'patient', instantTakenIso: '2026-02-01T07:30:00', isAbnormal: true, documentationSource: '34000', numericValue: 132, dataType: '32005', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+        { id: 'rd-glu-1', fsdId: 'fsd-g1', rowId: 'row-glu', valueType: '1', entryType: 'patient', instantTakenIso: '2025-06-01T07:30:00', isAbnormal: false, documentationSource: '34000', numericValue: 98, dataType: '32005', decimalPlaces: 0, timeZone: 'America/New_York', sourceRowId: '' },
+      ] as unknown as typeof vitalsReadings.flowsheet.readings,
+    },
+    userSettings: {},
+  },
 };
 
 // ─── Care Team ──────────────────────────────────────────────────────

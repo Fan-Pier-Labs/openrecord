@@ -8,15 +8,58 @@
  * (the readings, paged backwards). The scraper records every page; this joins
  * them back into one flowsheet per episode, de-duplicating the boundary
  * instant that consecutive pages both carry.
+ *
+ * A flowsheet whose readings never loaded is not reported as one with no
+ * readings: it goes to `unloadedFlowsheets`. One whose older pages failed is
+ * kept and named in `truncatedFlowsheets`. `notice` says both. Each is read off
+ * the flowsheet's own page chain, because a thrown transport error is never
+ * recorded — only the missing next page shows it.
  */
 
-import { findRequest, findRequests, type RawResponse } from '../../core/rawResponse';
+import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
 import type { Processor } from '../../processors/processor';
 import { boolOrNull, list, num, rec, strings, text, textOrNull } from '../../processors/read';
 import type { GetFlowsheetReadings, GetFlowsheets } from './mychart.types';
-import type { FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
+import type { FlowsheetRowStandard, FlowsheetStandard, TruncatedFlowsheetStandard, UnloadedFlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
 
-export type { FlowsheetRowGroupStandard, FlowsheetRowStandard, FlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
+export type { FlowsheetRowGroupStandard, FlowsheetRowStandard, FlowsheetStandard, TruncatedFlowsheetStandard, UnloadedFlowsheetStandard, VitalReadingStandard, VitalsStandard } from './standardized.types';
+
+/** The scraper's safety bound on pages per flowsheet; a chain that reaches it is cut short too. */
+export const MAX_READING_PAGES = 100;
+
+/**
+ * How a flowsheet's page chain ended. The scraper stops on an empty page or
+ * one that reaches no further back; a last page that would have continued
+ * means the next request failed before anything was recorded.
+ */
+function pagingState(pages: RawRequestRecord[]): 'unloaded' | 'truncated' | 'complete' {
+  if (!pages.some((p) => answered(p))) return 'unloaded';
+  const last = pages[pages.length - 1]!;
+  if (!answered(last)) return 'truncated';
+  const data = rec(rec<GetFlowsheetReadings>(last.body).flowsheet);
+  if (Object.keys(data).length === 0) return 'complete';
+  const instants = list(data.readings).map((r) => text(rec(r).instantTakenIso)).filter(Boolean).sort();
+  const oldest = instants[0];
+  if (!oldest || oldest >= text(rec(last.requestBody).endInstantIso)) return 'complete';
+  return 'truncated';
+}
+
+function vitalsNotice(unloaded: UnloadedFlowsheetStandard[], truncated: TruncatedFlowsheetStandard[], total: number): string | null {
+  const sentences: string[] = [];
+  if (unloaded.length > 0) {
+    sentences.push(
+      `MyChart failed to return the readings for ${unloaded.length} of ${total} flowsheets: ${unloaded.map((f) => f.name ?? 'unnamed').join(', ')}. ` +
+        'They are listed under unloadedFlowsheets and left out of flowsheets — their readings are unknown, not absent. They may load on a retry.',
+    );
+  }
+  for (const f of truncated) {
+    sentences.push(
+      `The history for ${f.name ?? 'a flowsheet'} stops at ${f.oldestLoadedIso ?? 'an unknown date'} because an older page failed to load; ` +
+        'earlier readings may exist (truncatedFlowsheets).',
+    );
+  }
+  return sentences.length > 0 ? sentences.join(' ') : null;
+}
 
 /** At most one decimal, no trailing zero: 155.6 stays, 150.0 becomes 150. */
 function oneDecimal(n: number): string {
@@ -93,11 +136,20 @@ export const vitalsProcessor: Processor<VitalsStandard> = {
     const listBody = rec<GetFlowsheets>(findRequest(raw, 'GetFlowsheets')?.body);
     const pages = findRequests(raw, 'GetFlowsheetReadings');
     const flowsheets: FlowsheetStandard[] = [];
+    const unloadedFlowsheets: UnloadedFlowsheetStandard[] = [];
+    const truncatedFlowsheets: TruncatedFlowsheetStandard[] = [];
+    const definitions = list(listBody.flowsheets);
 
-    for (const fs of list(listBody.flowsheets)) {
+    for (const fs of definitions) {
       const definition = rec(fs);
       const episodeId = text(definition.episodeId);
-      const ownPages = pages.filter((p) => text(rec(p.requestBody).episodeId) === episodeId);
+      const chain = pages.filter((p) => text(rec(p.requestBody).episodeId) === episodeId);
+      const state = episodeId && chain.length < MAX_READING_PAGES ? pagingState(chain) : episodeId ? 'truncated' : 'complete';
+      if (state === 'unloaded') {
+        unloadedFlowsheets.push({ name: textOrNull(definition.name) });
+        continue;
+      }
+      const ownPages = chain.filter((p) => answered(p));
 
       // Row metadata from the definition, backfilled from the readings pages
       // when GetFlowsheets omitted it.
@@ -137,13 +189,25 @@ export const vitalsProcessor: Processor<VitalsStandard> = {
         })),
         readings,
       });
+      if (state === 'truncated') {
+        const oldest = readings.map((r) => r.instantTakenIso ?? '').filter(Boolean).sort()[0];
+        truncatedFlowsheets.push({ name: textOrNull(definition.name), oldestLoadedIso: oldest ?? null });
+      }
     }
-    return { flowsheets };
+    return {
+      notice: vitalsNotice(unloadedFlowsheets, truncatedFlowsheets, definitions.length),
+      flowsheets,
+      unloadedFlowsheets,
+      truncatedFlowsheets,
+    };
   },
 
   /** Per vital type: name, units, the latest reading, the count, and every abnormal reading. */
   concise(standard) {
     return {
+      notice: standard.notice,
+      unloadedFlowsheets: standard.unloadedFlowsheets,
+      truncatedFlowsheets: standard.truncatedFlowsheets,
       flowsheets: standard.flowsheets.map((fs) => ({
         name: fs.name,
         rows: fs.rows.map((r) => {

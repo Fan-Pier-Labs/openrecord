@@ -23,16 +23,18 @@ export const vitalsPost: ExactRoutes = {
     const endInstantIso: string = body?.endInstantIso || '9999-12-31T23:59:59';
     const numReadings: number = Number(body?.numReadings) || 200;
 
-    const all = ds.vitalsReadings.flowsheet.readings;
+    // Each flowsheet answers with its own readings, by the episode posted.
+    const source = ds.vitalsOtherFlowsheets[String(body?.episodeId ?? '')] ?? ds.vitalsReadings;
+    const all = source.flowsheet.readings;
     const inRange = all.filter((r) => r.instantTakenIso <= endInstantIso);
     const instants = [...new Set(inRange.map((r) => r.instantTakenIso))].sort().reverse();
     const page = instants.slice(0, numReadings);
     const pageSet = new Set(page);
 
     return json(conformToShape(shapes.getFlowsheetReadings, {
-      ...ds.vitalsReadings,
+      ...source,
       flowsheet: {
-        ...ds.vitalsReadings.flowsheet,
+        ...source.flowsheet,
         readings: inRange.filter((r) => pageSet.has(r.instantTakenIso)),
         hasMoreData: instants.length > page.length,
       },
