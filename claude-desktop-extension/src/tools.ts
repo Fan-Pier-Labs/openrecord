@@ -85,12 +85,12 @@ import {
   secretBackend,
   readAccountPasskey,
   removeAccount,
-  upsertAccount,
   saveAccountPasskey,
   saveAccountTotpSecret,
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
+import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
@@ -562,11 +562,13 @@ function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): 
  * passkey recommendation — and so a fix to one is a fix to both.
  */
 async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
+  const conflict = demoConflict(hostname);
+  if (conflict.length) return jsonResult({ state: 'demo_conflict', accounts: conflict, message: demoConflictMessage(conflict) });
   try {
     const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
 
     if (result.state === 'logged_in') {
-      upsertAccount({ hostname: normalizeHostname(hostname), username, password });
+      saveAccount(hostname, username, password);
       await adoptSession(hostname, username, result.mychartRequest);
       return loggedInResult(hostname, username);
     }
@@ -903,7 +905,7 @@ export function registerAllTools(rawServer: McpServer): void {
           isTOTP: false,
         });
         if (twoFa.state === 'logged_in') {
-          upsertAccount({ hostname: pending.hostname, username: pending.username, password: pending.password });
+          saveAccount(pending.hostname, pending.username, pending.password);
           await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
           return loggedInResult(pending.hostname, pending.username);
         }

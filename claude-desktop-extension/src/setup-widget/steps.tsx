@@ -26,9 +26,36 @@ const onEnter = (fn: () => void) => (e: KeyboardEvent<HTMLInputElement>) => {
   }
 };
 
-export function Choose({ onImport, onManual }: { onImport: () => void; onManual: () => void }) {
+/** The first screen: the user's real accounts, or the fake MyChart in one click. */
+export function Start({ step, onReal, onDemo }: { step: StepOf<'start'>; onReal: () => void; onDemo: () => void }) {
   return (
     <div className="step">
+      <p className="step-sub">Connect your own MyChart accounts, or try OpenRecord with a fake one.</p>
+      <button className="choice" type="button" onClick={onReal}>
+        <span className="choice-title">Connect my real MyChart accounts</span>
+        <span className="choice-sub">Sign in to your health system's MyChart portal.</span>
+      </button>
+      <button className="choice" type="button" onClick={onDemo}>
+        <span className="choice-title">Use a fake MyChart</span>
+        <span className="choice-sub">Connects instantly to fake-mychart.fanpierlabs.com, a made-up patient record for trying things out.</span>
+      </button>
+      <FieldError message={step.error} />
+    </div>
+  );
+}
+
+export function DemoConnecting() {
+  return (
+    <div className="step">
+      <div className="working"><Spinner /><span>Signing in to fake-mychart.fanpierlabs.com…</span></div>
+    </div>
+  );
+}
+
+export function Choose({ onImport, onManual, onBack }: { onImport: () => void; onManual: () => void; onBack: () => void }) {
+  return (
+    <div className="step">
+      <BackLink onClick={onBack} />
       <p className="step-sub">How would you like to connect your MyChart account?</p>
       <button className="choice" type="button" onClick={onImport}>
         <span className="passkey-badge">Easiest</span>
