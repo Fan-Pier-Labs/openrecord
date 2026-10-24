@@ -324,7 +324,8 @@ describe('copy', () => {
 
   test('reports every connected account and how its passkey offer went', () => {
     expect(setupDoneMessage([{ account: 'homer@mychart.example.org', passkey: 'registered' }])).toBe(
-      'My MyChart account homer@mychart.example.org is now connected. A passkey is now saved for homer@mychart.example.org. Please continue with my original request.',
+      'My MyChart account homer@mychart.example.org is now connected. A passkey is now saved for homer@mychart.example.org. ' +
+        'Access the account and tell me a summary of my current health history, status, appointments and bills.',
     );
     expect(
       setupDoneMessage([
@@ -335,7 +336,7 @@ describe('copy', () => {
     ).toBe(
       'I connected 3 MyChart accounts: a@one.example.org, b@two.example.org, c@three.example.org. ' +
         'I chose not to set up a passkey for a@one.example.org, c@three.example.org right now, so do not offer one again. ' +
-        'Please continue with my original request.',
+        'Access the accounts and tell me a summary of my current health history, status, appointments and bills.',
     );
   });
 });
