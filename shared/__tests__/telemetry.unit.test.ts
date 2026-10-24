@@ -131,10 +131,13 @@ describe('telemetry', () => {
       sendTelemetryEvent('mcpb_tool_called', { tool: 'search_mycharts' }, 'mcpb', {});
       await drainSend(fetchMock, 2);
 
-      const call = fetchMock.mock.calls.find((c) => String(c[0]).includes('amplitude.com'))!;
-      const ev = JSON.parse(call[1]!.body as string).events[0];
+      const bodyFor = (needle: string) =>
+        JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes(needle))![1]!.body as string);
+      const ev = bodyFor('amplitude.com').events[0];
       expect(ev.ip).toBe('$remote');
       expect(ev.user_id).toBeUndefined();
+      // The key's presence is what tells the Lambda to log the IP.
+      expect(bodyFor('execute-api')).toHaveProperty('email', null);
     });
 
     test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {

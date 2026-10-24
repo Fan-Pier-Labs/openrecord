@@ -615,10 +615,11 @@ async function connectWithPassword(hostname: string, username: string, password:
  */
 function guarded(server: McpServer): McpServer {
   const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
-    server.registerTool(name, config as never, (...a: unknown[]) => {
+    server.registerTool(name, config as never, async (...a: unknown[]) => {
       const args = (a[0] ?? {}) as Record<string, unknown>;
+      const result = await runGuarded(name, args, () => handler(...a));
       reportToolCall(name, args);
-      return runGuarded(name, args, () => handler(...a));
+      return result;
     });
   return { registerTool } as unknown as McpServer;
 }

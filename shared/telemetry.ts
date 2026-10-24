@@ -199,8 +199,9 @@ export function sendTelemetryEvent(
         ? postJson(endpoint, {
             source,
             deviceId,
-            // The Lambda reads the IP off the request itself.
-            ...(email ? { email } : {}),
+            // The key's presence tells the Lambda to log this event's email and
+            // the request's IP, which it reads off the request itself.
+            ...(user ? { email: email ?? null } : {}),
             event: eventType,
             ts: Date.now(),
             properties: {
