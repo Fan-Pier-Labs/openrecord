@@ -25,7 +25,7 @@ describe('the demo and real accounts are never saved together', () => {
 
   it('the demo is refused while a real account is saved, and the real one is kept', () => {
     saveAccount(REAL, 'patient', 'pw')
-    expect(demoConflict(`https://${DEMO}/MyChart/`)).toContain(`patient@${REAL}`)
+    expect(demoConflict(`https://${DEMO}/MyChart/`)).toEqual([`patient@${REAL}`])
     expect(() => saveAccount(DEMO, 'homer', 'donuts123')).toThrow("can't be connected while real accounts are")
     expect(ids()).toEqual([`patient@${REAL}`])
   })
@@ -33,7 +33,7 @@ describe('the demo and real accounts are never saved together', () => {
   it('demo logins sit together, as do real ones', () => {
     saveAccount(DEMO, 'homer', 'donuts123')
     saveAccount(DEMO, 'marge', 'donuts123')
-    expect(demoConflict(DEMO)).toBeNull()
+    expect(demoConflict(DEMO)).toEqual([])
     expect(ids()).toHaveLength(2)
 
     memfs.reset()
@@ -51,8 +51,10 @@ describe('the demo and real accounts are never saved together', () => {
       },
     } as unknown as McpServer)
     const result = await handler!({ hostname: DEMO, username: 'homer', password: 'donuts123' })
-    expect(result.isError).toBe(true)
-    expect(result.content[0]!.text).toContain('Do not disconnect them unless the user explicitly asks')
+    const body = JSON.parse(result.content[0]!.text)
+    expect(body.state).toBe('demo_conflict')
+    expect(body.accounts).toEqual([`patient@${REAL}`])
+    expect(body.message).toContain('Do not disconnect them unless the user explicitly asks')
     expect(ids()).toEqual([`patient@${REAL}`])
   })
 })

@@ -63,6 +63,14 @@ describe('the first screen', () => {
     expect(state.step).toEqual({ kind: 'start', error: 'fake-mychart is down' });
     expect(state.connected).toEqual([]);
   });
+
+  test('a fake MyChart refused for real accounts already saved names them, in words for the user', () => {
+    const state = run([{ type: 'connectDemo' }, { type: 'demoResult', result: { state: 'demo_conflict', accounts: ['a@mychart.example.org'], message: 'for Claude' } }]);
+    expect(state.step).toMatchObject({ kind: 'start' });
+    const error = (state.step as { error: string }).error;
+    expect(error).toContain('a@mychart.example.org');
+    expect(error).not.toContain('for Claude');
+  });
 });
 
 describe('the import route', () => {

@@ -90,7 +90,7 @@ import {
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
-import { demoConflict, saveAccount } from './demo-account';
+import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
@@ -562,7 +562,7 @@ function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): 
  */
 async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
   const conflict = demoConflict(hostname);
-  if (conflict) return errorResult(conflict);
+  if (conflict.length) return jsonResult({ state: 'demo_conflict', accounts: conflict, message: demoConflictMessage(conflict) });
   try {
     const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
 

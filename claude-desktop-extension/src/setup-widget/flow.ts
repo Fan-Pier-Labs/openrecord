@@ -119,6 +119,8 @@ interface ToolReply {
   passkey_storage_description?: string;
   registered?: boolean;
   message?: string;
+  /** On `demo_conflict`: the real accounts saved, which keep the fake MyChart out. */
+  accounts?: string[];
 }
 
 function reply(result: unknown): ToolReply {
@@ -213,6 +215,11 @@ export function reducer(state: State, action: Action): State {
     case 'demoResult': {
       const account = demoAccount(action.result);
       if (account) return { ...state, connected: [{ name: 'Fake MyChart', account, passkey: null }], step: { kind: 'done' } };
+      const r = reply(action.result);
+      if (r.state === 'demo_conflict') {
+        const error = `The fake MyChart can't be used while real MyChart accounts are connected (${(r.accounts ?? []).join(', ')}). Ask Claude to disconnect them first if you want to try it.`;
+        return { ...state, step: { kind: 'start', error } };
+      }
       return { ...state, step: { kind: 'start', error: errorText(action.result, "Couldn't connect to the fake MyChart. Try again in a moment.") } };
     }
 

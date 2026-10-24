@@ -14,15 +14,17 @@ import { clearSession } from './session-manager';
 
 const DEMO_HOSTNAME = normalizeHostname(SANDBOX_INSTANCE.url);
 
-export const isDemoHostname = (hostname: string) => normalizeHostname(hostname) === DEMO_HOSTNAME;
+const isDemoHostname = (hostname: string) => normalizeHostname(hostname) === DEMO_HOSTNAME;
 
-/** Why `hostname` can't be connected now, or null when it can. Checked before logging in. */
-export function demoConflict(hostname: string): string | null {
-  if (!isDemoHostname(hostname)) return null;
-  const real = readAccounts().filter((a) => !isDemoHostname(a.hostname));
-  if (!real.length) return null;
+/** The real accounts that keep `hostname` from being connected now; empty when it can be. Checked before logging in. */
+export function demoConflict(hostname: string): string[] {
+  if (!isDemoHostname(hostname)) return [];
+  return readAccounts().filter((a) => !isDemoHostname(a.hostname)).map(accountId);
+}
+
+export function demoConflictMessage(accounts: string[]): string {
   return (
-    `The fake MyChart can't be connected while real accounts are: ${real.map(accountId).join(', ')}. ` +
+    `The fake MyChart can't be connected while real accounts are: ${accounts.join(', ')}. ` +
     'Tell the user it would mean disconnecting those first (disconnect_account deletes their saved login and passkey). ' +
     'Do not disconnect them unless the user explicitly asks.'
   );
@@ -31,7 +33,7 @@ export function demoConflict(hostname: string): string | null {
 /** Save a login that just succeeded, enforcing the rule above. */
 export function saveAccount(hostname: string, username: string, password: string): void {
   const conflict = demoConflict(hostname);
-  if (conflict) throw new Error(conflict);
+  if (conflict.length) throw new Error(demoConflictMessage(conflict));
   upsertAccount({ hostname: normalizeHostname(hostname), username, password });
   if (isDemoHostname(hostname)) return;
   for (const demo of readAccounts().filter((a) => isDemoHostname(a.hostname))) {
