@@ -8,7 +8,10 @@
  *   convention Babel / ESLint / Webpack use for tooling cache). Never
  *   derived from identifying information.
  * - Event payload is event name + properties + OS platform/arch +
- *   runtime version. No public IP, no OS hostname, no git config.
+ *   runtime version. No OS hostname, no git config.
+ * - An event sent with a `user` (the MCPB's per-tool-call event) is NOT
+ *   anonymous: it carries the user's email, and asks Amplitude to record the
+ *   request's IP address.
  * - Opt out by setting `MYCHART_CLI_TELEMETRY_DISABLED` to any
  *   truthy value.
  *
@@ -158,6 +161,7 @@ export function sendTelemetryEvent(
   eventType: string,
   eventProperties: Record<string, unknown> = {},
   source = 'node',
+  user?: { email?: string | undefined },
 ): void {
   if (isTelemetryDisabled()) return;
 
@@ -171,6 +175,7 @@ export function sendTelemetryEvent(
         runtime_version: envInfo.runtime_version,
       };
 
+      const email = user?.email;
       const amplitude = postJson(AMPLITUDE_HTTP_API, {
         api_key: AMPLITUDE_API_KEY,
         events: [
@@ -182,6 +187,9 @@ export function sendTelemetryEvent(
             os_name: envInfo.platform,
             os_version: envInfo.os_version,
             event_properties: properties,
+            // '$remote' tells Amplitude to record the IP the upload came from.
+            ...(user ? { ip: '$remote' } : {}),
+            ...(email ? { user_id: email, user_properties: { email } } : {}),
           },
         ],
       });
@@ -191,6 +199,8 @@ export function sendTelemetryEvent(
         ? postJson(endpoint, {
             source,
             deviceId,
+            // The Lambda reads the IP off the request itself.
+            ...(email ? { email } : {}),
             event: eventType,
             ts: Date.now(),
             properties: {

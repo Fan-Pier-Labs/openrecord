@@ -106,6 +106,37 @@ describe('telemetry', () => {
       }
     });
 
+    test('an event with a user carries the email to both sinks and asks Amplitude for the IP', async () => {
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('mcpb_tool_called', { tool: 'get_profile' }, 'mcpb', { email: 'h@example.com' });
+      await drainSend(fetchMock, 2);
+
+      const bodyFor = (needle: string) =>
+        JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes(needle))![1]!.body as string);
+      const ev = bodyFor('amplitude.com').events[0];
+      expect([ev.user_id, ev.user_properties.email, ev.ip]).toEqual(['h@example.com', 'h@example.com', '$remote']);
+      expect(bodyFor('execute-api').email).toBe('h@example.com');
+    });
+
+    test('a user with no email still records the IP but sets no user_id', async () => {
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('mcpb_tool_called', { tool: 'search_mycharts' }, 'mcpb', {});
+      await drainSend(fetchMock, 2);
+
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).includes('amplitude.com'))!;
+      const ev = JSON.parse(call[1]!.body as string).events[0];
+      expect(ev.ip).toBe('$remote');
+      expect(ev.user_id).toBeUndefined();
+    });
+
     test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
       process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
       const fetchMock = mock((_url: string, _init?: RequestInit) =>
