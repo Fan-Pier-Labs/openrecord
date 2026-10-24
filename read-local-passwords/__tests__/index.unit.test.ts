@@ -1,6 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import { describe, it, expect, afterEach, mock } from 'bun:test';
+import { describe, it, expect, afterEach, mock, spyOn } from 'bun:test';
+import * as fs from 'fs';
 
 /**
  * The package entry point. Two things matter here: the platform guard must stop
@@ -16,10 +17,13 @@ import { describe, it, expect, afterEach, mock } from 'bun:test';
 let chromiumResult: () => Promise<unknown> = () => Promise.resolve([]);
 let firefoxResult: () => Promise<unknown> = () => Promise.resolve([]);
 
-void mock.module('../chromium', () => ({ getChromiumLogins: () => chromiumResult() }));
-void mock.module('../firefox', () => ({ getFirefoxLogins: () => firefoxResult() }));
+void mock.module('../chromium', () => ({
+  getChromiumLogins: () => chromiumResult(),
+  chromiumProfileRoots: () => [{ name: 'Chrome', root: '/fake/Chrome' }, { name: 'Arc', root: '/fake/Arc' }, { name: 'Brave', root: '/fake/Brave' }],
+}));
+void mock.module('../firefox', () => ({ getFirefoxLogins: () => firefoxResult(), firefoxProfileRoots: () => ['/fake/Firefox'] }));
 
-const { getAllBrowserLogins, getMyChartAccounts, isSupportedPlatform } = await import('../index');
+const { blockedBrowsers, getAllBrowserLogins, getMyChartAccounts, isSupportedPlatform } = await import('../index');
 
 const originalPlatform = process.platform;
 const setPlatform = (value: string): void => {
@@ -90,5 +94,38 @@ describe('getAllBrowserLogins', () => {
     firefoxResult = () => Promise.reject(new Error('primary password set'));
 
     expect(await getAllBrowserLogins()).toEqual([]);
+  });
+});
+
+describe('blockedBrowsers', () => {
+  const failWith = (codes: Record<string, string>) =>
+    spyOn(fs, 'readdirSync').mockImplementation(((dir: string) => {
+      const code = codes[dir];
+      if (code) throw Object.assign(new Error(code), { code });
+      return [];
+    }) as unknown as typeof fs.readdirSync);
+
+  afterEach(() => mock.restore());
+
+  it('names the browsers whose folder macOS refused', () => {
+    // EPERM is macOS privacy protection; Full Disk Access lifts it.
+    setPlatform('darwin');
+    failWith({ '/fake/Chrome': 'EPERM', '/fake/Firefox': 'EPERM' });
+
+    expect(blockedBrowsers()).toEqual(['Chrome', 'Firefox']);
+  });
+
+  it('does not count a browser that is not installed, or a folder Full Disk Access would not open', () => {
+    setPlatform('darwin');
+    failWith({ '/fake/Chrome': 'ENOENT', '/fake/Brave': 'EACCES' });
+
+    expect(blockedBrowsers()).toEqual([]);
+  });
+
+  it('is empty off macOS', () => {
+    setPlatform('win32');
+    failWith({ '/fake/Chrome': 'EPERM' });
+
+    expect(blockedBrowsers()).toEqual([]);
   });
 });

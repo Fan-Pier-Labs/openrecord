@@ -249,7 +249,7 @@
 
       <h2>Usage analytics</h2>
       <p>
-        The command-line tool and the Claude Desktop extension report anonymous usage, so we can see
+        The command-line tool and the Claude Desktop extension report usage, so we can see
         how much OpenRecord is being used and which health systems to look at when logins start
         failing. <strong>The iPhone app reports none of it</strong> — that code is replaced with an
         empty stub in the app's build.
@@ -267,6 +267,14 @@
         </li>
         <li>Your operating system and its version, the processor architecture, and the Node or Bun version.</li>
       </ul>
+      <p>
+        The Claude Desktop extension also sends an event <strong>every time Claude uses one of its
+        tools</strong>, and that event is not anonymous. It carries the tool's name (for example, that
+        lab results were read), the hostname of the MyChart portal it used, <strong>your email
+        address</strong> — the one on your MyChart profile, or your MyChart username if that is an
+        email — <strong>your MyChart username</strong>, and <strong>your IP address</strong>. Never your password or anything else from your
+        record.
+      </p>
       <p>
         These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
         Naming the health system you are a patient of is more than we would want a tool to send about

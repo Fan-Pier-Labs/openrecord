@@ -158,7 +158,7 @@ export function decryptField(encoded: string, keys: Buffer[]): string {
   return stripPadding(plaintext, spec.blockSize).toString('utf-8');
 }
 
-function profileRoots(): string[] {
+export function firefoxProfileRoots(): string[] {
   const home = homedir();
   if (process.platform === 'darwin') return [path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles')];
   if (process.platform === 'win32') {
@@ -172,7 +172,7 @@ function profileRoots(): string[] {
 export async function getFirefoxLogins(): Promise<PasswordStoreEntry[]> {
   const entries: PasswordStoreEntry[] = [];
 
-  for (const root of profileRoots()) {
+  for (const root of firefoxProfileRoots()) {
     if (!existsSync(root)) continue;
 
     for (const directory of readdirSync(root, { withFileTypes: true })) {

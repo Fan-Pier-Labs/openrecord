@@ -39,8 +39,20 @@ export interface Connected {
   passkey: PasskeyOutcome;
 }
 
+/**
+ * What the user does to let the scan read a browser macOS blocked. Lives here,
+ * not beside the scan, so the widget bundle can use it; the tool relays it too.
+ */
+export const FULL_DISK_ACCESS_STEPS = [
+  'Open System Settings → Privacy & Security → Full Disk Access.',
+  'Turn on Claude. If it is not listed, click +, choose Claude from Applications, then turn it on.',
+  'Quit Claude completely and reopen it, then import again.',
+];
+
 interface Scanned {
   supported: boolean;
+  /** Browsers macOS would not let the scan read. */
+  blocked: string[];
   /** Account ids (`username@hostname`) connected before this widget opened. */
   saved: string[];
   entries: FoundLogin[];
@@ -62,6 +74,8 @@ export interface CredsStep {
 }
 
 export type Step =
+  | { kind: 'start'; error: string | null }
+  | { kind: 'demoConnecting' }
   | { kind: 'choose' }
   | { kind: 'consent'; error: string | null }
   | { kind: 'accounts'; error: string | null }
@@ -80,10 +94,19 @@ export interface State {
   connected: Connected[];
 }
 
-export const initialState: State = { step: { kind: 'choose' }, scanned: null, connected: [] };
+export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [] };
+
+/**
+ * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
+ * signed in to as its no-2FA patient so a demo connects in one click.
+ */
+export const DEMO_LOGIN = { hostname: 'fake-mychart.fanpierlabs.com', username: 'homer', password: 'donuts123' };
 
 export type Action =
   | { type: 'back' }
+  | { type: 'goReal' }
+  | { type: 'connectDemo' }
+  | { type: 'demoResult'; result: unknown }
   | { type: 'goConsent' }
   | { type: 'goPicker' }
   | { type: 'scanned'; scan: unknown; saved: unknown }
@@ -108,6 +131,8 @@ interface ToolReply {
   passkey_storage_description?: string;
   registered?: boolean;
   message?: string;
+  /** On `demo_conflict`: the real accounts saved, which keep the fake MyChart out. */
+  accounts?: string[];
 }
 
 function reply(result: unknown): ToolReply {
@@ -175,6 +200,8 @@ export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'back':
       switch (step.kind) {
+        case 'choose':
+          return { ...state, step: { kind: 'start', error: null } };
         case 'consent':
         case 'picker':
           return { ...state, step: home(state) };
@@ -189,6 +216,24 @@ export function reducer(state: State, action: Action): State {
         default:
           return state;
       }
+
+    case 'goReal':
+      return { ...state, step: { kind: 'choose' } };
+
+    case 'connectDemo':
+      return { ...state, step: { kind: 'demoConnecting' } };
+
+    // The demo skips 2FA and the passkey offer, and finishes the widget outright.
+    case 'demoResult': {
+      const account = demoAccount(action.result);
+      if (account) return { ...state, connected: [{ name: 'Fake MyChart', account, passkey: null }], step: { kind: 'done' } };
+      const r = reply(action.result);
+      if (r.state === 'demo_conflict') {
+        const error = `The fake MyChart can't be used while real MyChart accounts are connected (${(r.accounts ?? []).join(', ')}). Ask Claude to disconnect them first if you want to try it.`;
+        return { ...state, step: { kind: 'start', error } };
+      }
+      return { ...state, step: { kind: 'start', error: errorText(action.result, "Couldn't connect to the fake MyChart. Try again in a moment.") } };
+    }
 
     case 'goConsent':
       return { ...state, step: { kind: 'consent', error: null } };
@@ -210,7 +255,7 @@ export function reducer(state: State, action: Action): State {
         : [];
       return {
         ...state,
-        scanned: { supported: s.supported !== false, saved: ids, entries: s.accounts ?? [] },
+        scanned: { supported: s.supported !== false, blocked: s.blocked_browsers ?? [], saved: ids, entries: s.accounts ?? [] },
         step: accountsStep(),
       };
     }
@@ -308,6 +353,8 @@ export function reducer(state: State, action: Action): State {
 }
 
 const TITLES: Record<Exclude<Step['kind'], 'accounts'>, string> = {
+  start: 'Connect to MyChart',
+  demoConnecting: 'Connecting to the fake MyChart',
   choose: 'Connect to MyChart',
   consent: 'Import from your browser',
   connecting: 'Signing in',
@@ -350,6 +397,11 @@ function foundRows(state: State): FoundRow[] {
     }));
 }
 
+/** "A", "A and B", "A, B and C". */
+function andList(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0] ?? '';
+}
+
 /** Everything the accounts step shows, derived from state. */
 export function accountsView(state: State) {
   const rows = foundRows(state);
@@ -362,6 +414,7 @@ export function accountsView(state: State) {
   if (!scanned) subtitle = 'Connect another account, or finish.';
   else if (!scanned.supported) subtitle = 'Importing from a browser works on macOS and Windows only. You can enter your account manually instead.';
   else if (pickable.length) subtitle = first ? 'Pick one to connect. You can import more after this one.' : 'Import another one?';
+  else if (first && scanned.blocked.length) subtitle = "We couldn't find a MyChart login in the browsers we were allowed to read.";
   else if (first) subtitle = "We didn't find any MyChart logins in your browsers that can be imported. You can enter your account manually instead.";
   else subtitle = 'There are no more logins in your browsers to import.';
   return {
@@ -369,6 +422,7 @@ export function accountsView(state: State) {
     firstPickable: pickable[0]?.entry ?? null,
     first,
     subtitle,
+    blockedNote: scanned?.blocked.length ? `macOS didn't let Claude read the passwords saved in ${andList(scanned.blocked)}. To import from them, give Claude permission:` : null,
     canImport: !scanned,
     manualLabel: first ? 'Enter an account manually instead' : 'Enter an account manually',
   };
@@ -446,5 +500,17 @@ export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOu
   const declined = accounts.filter((a) => a.passkey === null);
   if (registered.length) msg += ` A passkey is now saved for ${list(registered)}.`;
   if (declined.length) msg += ` I chose not to set up a passkey for ${list(declined)} right now, so do not offer one again.`;
-  return `${msg} Please continue with my original request.`;
+  const which = accounts.length === 1 ? 'the account' : 'the accounts';
+  return `${msg} Access ${which} and tell me a summary of my current health history, status, appointments and bills.`;
+}
+
+/** The demo account setup_account connected, or null when it didn't. */
+export function demoAccount(result: unknown): string | null {
+  const r = reply(result);
+  return r.state === 'logged_in' ? r.account || `${DEMO_LOGIN.username}@${DEMO_LOGIN.hostname}` : null;
+}
+
+/** What the demo says to the conversation, so Claude knows the record it reads is made up. */
+export function demoDoneMessage(account: string): string {
+  return `I connected the fake MyChart demo account ${account}. Its records are fictional test data, not a real patient. Please continue with my original request.`;
 }
