@@ -290,7 +290,7 @@ The short version, for what this extension does:
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
 - **Telemetry.** We record basic usage stats and basic user info (eg email) to
   help improve our product. We do not send any medical information to our
-  server, or any other server. You can disable by setting
+  server or to analytics services. You can disable by setting
   `MYCHART_CLI_TELEMETRY_DISABLED=1`.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
