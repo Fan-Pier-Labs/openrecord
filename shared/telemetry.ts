@@ -52,7 +52,7 @@ const REQUEST_TIMEOUT_MS = 5000;
  * The opt-out for telemetry events. The version check ignores it — it sends
  * nothing but the request itself.
  */
-export function isTelemetryDisabled(): boolean {
+function isTelemetryDisabled(): boolean {
   return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
 }
 

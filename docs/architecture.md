@@ -303,6 +303,10 @@ Everything on the reading side is best-effort: unreachable, 404, not JSON, malfo
 either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
+The CLI prints the notice once per run. The MCPB checks at startup and daily, and appends the notice
+to every tool result while it is behind (`claude-desktop-extension/src/update-notice.ts`) — a tool
+result is the only place it can reach the user.
+
 **It ignores `MYCHART_CLI_TELEMETRY_DISABLED` and always runs.** It sends nothing but the GET
 itself — no id, no hostname, no event — and a user who never hears about a fix keeps running the
 broken scraper. The request still reveals the caller's IP and cadence to our CDN, which is disclosed
