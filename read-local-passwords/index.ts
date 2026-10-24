@@ -12,8 +12,9 @@
  * The Firefox path has been substantially rewritten — see `firefox.ts`.
  */
 
-import { getChromiumLogins } from './chromium';
-import { getFirefoxLogins } from './firefox';
+import { readdirSync } from 'fs';
+import { chromiumProfileRoots, getChromiumLogins } from './chromium';
+import { firefoxProfileRoots, getFirefoxLogins } from './firefox';
 import { classifyMyChartEntries } from './myChartFilter';
 import type { MyChartCandidate, PasswordStoreEntry, PasswordStoreEntryWithKey } from './types';
 
@@ -22,6 +23,29 @@ export type { MyChartCandidate, PasswordStoreEntry, PasswordStoreEntryWithKey } 
 /** True when this platform has a password store we know how to read. */
 export function isSupportedPlatform(): boolean {
   return process.platform === 'darwin' || process.platform === 'win32';
+}
+
+/**
+ * Browsers whose saved passwords macOS will not let this process read.
+ *
+ * macOS shields some browsers' data folders from other apps. The refusal is an
+ * EPERM on reading the folder, which the scan otherwise swallows exactly like
+ * "nothing saved". Only the user can lift it, by giving the app this process
+ * runs under Full Disk Access, so the caller has to tell them how.
+ */
+export function blockedBrowsers(): string[] {
+  if (process.platform !== 'darwin') return [];
+  const roots = [...chromiumProfileRoots(), ...firefoxProfileRoots().map(root => ({ name: 'Firefox', root }))];
+  return roots.filter(({ root }) => isPermissionDenied(root)).map(({ name }) => name);
+}
+
+function isPermissionDenied(directory: string): boolean {
+  try {
+    readdirSync(directory);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
 }
 
 /**

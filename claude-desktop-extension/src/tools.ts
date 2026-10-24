@@ -93,6 +93,7 @@ import { addPending, takePending } from './pending-logins';
 import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
+import { FULL_DISK_ACCESS_STEPS } from './setup-widget/flow';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
@@ -832,11 +833,15 @@ export function registerAllTools(rawServer: McpServer): void {
         if (!scan.supported) {
           return jsonResult({ supported: false, message: 'Reading browser password stores is only supported on macOS and Windows.' });
         }
+        // Ahead of the empty case: with a browser blocked, "none found" is not known to be true.
+        const blockedNote = scan.blocked_browsers.length
+          ? `macOS blocked reading saved passwords from ${scan.blocked_browsers.join(', ')}, so any MyChart logins there are missing. ` +
+            `To include them, the user must: ${FULL_DISK_ACCESS_STEPS.join(' ')} Relay these steps to the user; you cannot change this setting for them.`
+          : '';
         if (scan.accounts.length === 0) {
           return jsonResult({
-            supported: true,
-            accounts: [],
-            message:
+            ...scan,
+            message: blockedNote ||
               "No saved MyChart logins were confirmed in this machine's browsers. Set the account up with setup_account instead. " +
               'If the user believes they have one saved, their portal may have been unreachable just now — this tool can be run again later.',
           });
@@ -846,7 +851,8 @@ export function registerAllTools(rawServer: McpServer): void {
           ...scan,
           message:
             'Show the user these accounts and ask which to connect. Call connect_imported_account with the chosen import_id. ' +
-            'Ids expire 10 minutes after the scan; run this tool again if that happens.',
+            'Ids expire 10 minutes after the scan; run this tool again if that happens.' +
+            (blockedNote ? ` ${blockedNote}` : ''),
         });
       } catch (err) {
         return errorResult((err as Error).message);

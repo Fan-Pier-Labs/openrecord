@@ -45,6 +45,12 @@ Keys are selected by the length the field's cipher needs.
 ties the key to the Chrome executable by design. Those rows are reported with a reason rather than
 counted as corrupt.
 
+**macOS may refuse to let us read a browser's folder at all.** Chrome, Edge, Brave and Firefox's
+data folders can be shielded from other apps: `stat` succeeds, but listing or opening anything inside
+fails with `EPERM`, and the per-profile `catch` would otherwise report that as "nothing saved".
+`blockedBrowsers()` names those browsers so the caller can tell the user to give the host app (Claude)
+Full Disk Access. `EACCES` is not counted, since Full Disk Access would not fix it.
+
 **The database is always copied before reading.** The browser may be running and holding locks, with
 `-wal`/`-journal` siblings. The copy goes to a fresh temp directory and is removed in a `finally`.
 

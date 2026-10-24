@@ -350,6 +350,26 @@ button:disabled {
   font-size: 11px;
   opacity: 0.7;
 }
+/* Steps to let the scan read a browser macOS blocked. */
+.access-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--hover);
+}
+.access-card p {
+  margin: 0;
+  font-size: 13px;
+}
+.access-card ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.45;
+}
 /* The first screen: two ways in, as large tappable cards. */
 .choice {
   display: flex;

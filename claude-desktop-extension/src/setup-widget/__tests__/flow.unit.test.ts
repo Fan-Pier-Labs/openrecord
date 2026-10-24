@@ -98,6 +98,20 @@ describe('the import route', () => {
     expect(state.step).toEqual({ kind: 'consent', error: 'keychain locked' });
   });
 
+  test('names the browsers macOS blocked, instead of saying there are no logins', () => {
+    const state = run([{ type: 'scanned', scan: { supported: true, accounts: [], blocked_browsers: ['Chrome', 'Edge', 'Firefox'] }, saved: null }]);
+    const view = accountsView(state);
+    expect(view.subtitle).not.toContain("We didn't find any MyChart logins in your browsers");
+    expect(view.blockedNote).toContain('Chrome, Edge and Firefox');
+  });
+
+  test('still offers the logins it could read when another browser was blocked', () => {
+    const state = run([{ type: 'scanned', scan: { supported: true, accounts: [homer], blocked_browsers: ['Chrome'] }, saved: null }]);
+    const view = accountsView(state);
+    expect(view.firstPickable).toBe(homer);
+    expect(view.blockedNote).toContain('passwords saved in Chrome.');
+  });
+
   test('says so on a platform that cannot import', () => {
     const state = run([{ type: 'scanned', scan: { supported: false, accounts: [] }, saved: null }]);
     expect(accountsView(state).subtitle).toContain('macOS and Windows only');
