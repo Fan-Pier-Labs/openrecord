@@ -17,7 +17,7 @@ import { readPatientPosition, sortImagesByPatientPosition } from '../../clo-imag
 import { parseWrapper } from '../../clo-image-parser/clo_to_bitmap'
 import { Amf3Reader } from '../../../../shared/amf3Reader'
 import { platformFetch } from '../../../http'
-import { setMountMode, resetFakeMyChart, type MountMode } from './mountMode'
+import { setMountMode, resetFakeMyChart, setFailingEndpoints, type MountMode } from './mountMode'
 import { myChartUserPassLogin, myChartPasskeyLogin } from '../../auth/login'
 import { setupPasskey } from '../../auth/setupPasskey'
 import { passkeyLoginWithCounterRetry } from '../../auth/passkeyLoginRetry'
@@ -191,6 +191,40 @@ for (const mode of MOUNT_MODES) {
       const result = await getImmunizations(session)
       expect(result.immunizations.length).toBeGreaterThan(0)
     }, 10_000)
+
+    it('keeps the other flowsheets when one flowsheet\'s readings fail, and names it', async () => {
+      await setFailingEndpoints(HOST, [{ path: 'api/track-my-health/GetFlowsheetReadings', contains: 'EP-GLUCOSE' }])
+      try {
+        const result = await getVitals(session)
+        expect(result.flowsheets.map((f) => f.name)).toEqual(['Vitals Trending'])
+        expect(result.flowsheets[0]!.readings.length).toBeGreaterThan(0)
+        expect(result.unloadedFlowsheets).toEqual([{ name: 'Blood Glucose Monitoring' }])
+        expect(result.notice).toContain('1 of 2 flowsheets: Blood Glucose Monitoring')
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
+    }, 30_000)
+
+    it('keeps a flowsheet whose older page failed, and says its history stops early', async () => {
+      // The second page of Vitals Trending asks for readings before its oldest one.
+      await setFailingEndpoints(HOST, [{ path: 'api/track-my-health/GetFlowsheetReadings', contains: '"endInstantIso":"2025-01-20T08:15:00"' }])
+      try {
+        const result = await getVitals(session)
+        expect(result.flowsheets.map((f) => f.name)).toEqual(['Vitals Trending', 'Blood Glucose Monitoring'])
+        expect(result.truncatedFlowsheets).toEqual([{ name: 'Vitals Trending', oldestLoadedIso: '2025-01-20T08:15:00' }])
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
+    }, 30_000)
+
+    it('fails the vitals read when every flowsheet\'s readings fail', async () => {
+      await setFailingEndpoints(HOST, ['api/track-my-health/GetFlowsheetReadings'])
+      try {
+        await expect(getVitals(session)).rejects.toThrow()
+      } finally {
+        await setFailingEndpoints(HOST, [])
+      }
+    }, 30_000)
 
     it('getVitals returns vitals, values included', async () => {
       const result = await getVitals(session)

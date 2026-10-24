@@ -6,13 +6,13 @@ import { MyChartRequest } from '../../../core/myChartRequest'
 import { MissingVerificationTokenError } from '../../../core/util'
 import { renderOutput } from '../../../processors/processor'
 
-function mockRequest(responses: Array<{ body: string }>) {
+function mockRequest(responses: Array<{ body: string; status?: number }>) {
   const req = new MyChartRequest('mychart.example.com')
   req.firstPathPart = 'MyChart'
   let i = 0
   req.transport = mock(async () => {
     const r = responses[i++] ?? { body: '{}' }
-    return new Response(r.body, { status: 200 })
+    return new Response(r.body, { status: r.status ?? 200 })
   })
   return req
 }
@@ -247,13 +247,73 @@ describe('getVitals', () => {
 
   it('handles empty flowsheets list', async () => {
     const req = mockRequest([TOKEN, { body: JSON.stringify({ flowsheets: [] }) }])
-    expect(await getVitals(req)).toEqual({ flowsheets: [] })
+    expect(await getVitals(req)).toEqual({ notice: null, flowsheets: [], unloadedFlowsheets: [], truncatedFlowsheets: [] })
+  })
+
+  const TWO = { body: JSON.stringify({ flowsheets: [
+    { episodeId: 'EP-1', name: 'Vitals Trending', rows: ROWS, readings: [] },
+    { episodeId: 'EP-2', name: 'Blood Glucose', rows: [], readings: [] },
+  ] }) }
+  const READINGS = (episodeId: string, instant: string) => ({ body: JSON.stringify({ flowsheet: { episodeId, rows: ROWS, readings: [
+    { rowId: 'row-bp', instantTakenIso: instant, stringValue: '120/80' },
+  ] } }) })
+  const EMPTY_PAGE = { body: JSON.stringify({ flowsheet: {} }) }
+  const ERROR = { body: '<html>error</html>', status: 500 }
+
+  it('keeps the other flowsheets when one fails, and names it', async () => {
+    const req = mockRequest([TOKEN, TWO, READINGS('EP-1', '2025-08-11T06:29:00'), EMPTY_PAGE, ERROR, ERROR])
+    const result = await getVitals(req)
+
+    expect(result.flowsheets.map((f) => f.name)).toEqual(['Vitals Trending'])
+    expect(result.unloadedFlowsheets).toEqual([{ name: 'Blood Glucose' }])
+    expect(result.truncatedFlowsheets).toEqual([])
+    expect(result.notice).toContain('MyChart failed to return the readings for 1 of 2 flowsheets: Blood Glucose')
+  })
+
+  it('keeps a flowsheet whose older page failed, and says its history stops early', async () => {
+    const req = mockRequest([TOKEN, TWO, READINGS('EP-1', '2025-08-11T06:29:00'), ERROR, READINGS('EP-2', '2025-06-01T07:30:00'), EMPTY_PAGE])
+    const result = await getVitals(req)
+
+    expect(result.flowsheets.map((f) => f.name)).toEqual(['Vitals Trending', 'Blood Glucose'])
+    expect(result.flowsheets[0]!.readings).toHaveLength(1)
+    expect(result.truncatedFlowsheets).toEqual([{ name: 'Vitals Trending', oldestLoadedIso: '2025-08-11T06:29:00' }])
+    expect(result.notice).toContain('The history for Vitals Trending stops at 2025-08-11T06:29:00')
+  })
+
+  it('throws when every flowsheet fails on its first page — nothing loaded to return', async () => {
+    const req = mockRequest([TOKEN, TWO, ERROR, ERROR])
+    await expect(getVitals(req)).rejects.toThrow(/500/)
+  })
+})
+
+describe('vitalsProcessor paging state', () => {
+  const definitions = { path: '/api/track-my-health/GetFlowsheets', method: 'POST' as const, status: 200, contentType: 'application/json', body: { flowsheets: [{ episodeId: 'EP-1', name: 'Vitals' }] } }
+  const page = (endInstantIso: string, readings: unknown[]) => ({
+    path: '/api/track-my-health/GetFlowsheetReadings', method: 'POST' as const, status: 200, contentType: 'application/json',
+    requestBody: { episodeId: 'EP-1', endInstantIso, numReadings: 1000 },
+    body: { flowsheet: { readings } },
+  })
+
+  it('calls a chain that stops on a page still reaching back truncated — the next request threw unrecorded', () => {
+    const result = vitalsProcessor.standard({ requests: [definitions, page('2026-12-31T23:59:59', [{ rowId: 'r', instantTakenIso: '2025-01-01T00:00:00' }])] })
+    expect(result.truncatedFlowsheets).toEqual([{ name: 'Vitals', oldestLoadedIso: '2025-01-01T00:00:00' }])
+  })
+
+  it('calls a chain that ran out of history complete', () => {
+    const result = vitalsProcessor.standard({ requests: [
+      definitions,
+      page('2026-12-31T23:59:59', [{ rowId: 'r', instantTakenIso: '2025-01-01T00:00:00' }]),
+      page('2025-01-01T00:00:00', [{ rowId: 'r', instantTakenIso: '2025-01-01T00:00:00' }]),
+    ] })
+    expect(result.truncatedFlowsheets).toEqual([])
+    expect(result.notice).toBeNull()
   })
 })
 
 describe('vitalsProcessor.concise', () => {
   it('reports per row the latest reading, the count and the abnormal ones', () => {
     const concise = vitalsProcessor.concise({
+      notice: null, unloadedFlowsheets: [], truncatedFlowsheets: [],
       flowsheets: [{
         name: 'Vitals', status: null, startDateIso: null, endDateIso: null, instructions: null, rowGroups: [],
         rows: [{ id: 'row-bp', name: 'Blood Pressure', unitsDisplayName: 'mmHg', rowType: null, valueType: null, decimalPlaces: null }],
@@ -274,6 +334,7 @@ describe('vitalsProcessor.concise', () => {
 
   it('reports a row with no readings as such rather than dropping it', () => {
     const concise = vitalsProcessor.concise({
+      notice: null, unloadedFlowsheets: [], truncatedFlowsheets: [],
       flowsheets: [{ name: 'V', status: null, startDateIso: null, endDateIso: null, instructions: null, rowGroups: [], rows: [{ id: 'r', name: 'Pulse', unitsDisplayName: 'bpm', rowType: null, valueType: null, decimalPlaces: null }], readings: [] }],
     }) as { flowsheets: Array<{ rows: Array<Record<string, unknown>> }> }
     expect(concise.flowsheets[0]!.rows[0]).toMatchObject({ readingCount: 0, latestReading: null, abnormalReadings: [] })
