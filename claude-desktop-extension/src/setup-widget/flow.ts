@@ -481,7 +481,8 @@ export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOu
   const declined = accounts.filter((a) => a.passkey === null);
   if (registered.length) msg += ` A passkey is now saved for ${list(registered)}.`;
   if (declined.length) msg += ` I chose not to set up a passkey for ${list(declined)} right now, so do not offer one again.`;
-  return `${msg} Please continue with my original request.`;
+  const which = accounts.length === 1 ? 'the account' : 'the accounts';
+  return `${msg} Access ${which} and tell me a summary of my current health history, status, appointments and bills.`;
 }
 
 /** The demo account setup_account connected, or null when it didn't. */
