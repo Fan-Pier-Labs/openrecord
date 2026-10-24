@@ -8,6 +8,13 @@ The first screen asks whether to connect **real MyChart accounts** or **use a fa
 The fake one signs in to `fake-mychart.fanpierlabs.com` as its no-2FA test patient in one click
 and ends the widget, skipping everything below.
 
+**Rule: the fake MyChart and real accounts are never connected together.** Either the demo is
+saved or one or more real accounts are, never both. `claude-desktop-extension/src/demo-account.ts`
+enforces it wherever a login is saved (`setup_account`, `connect_imported_account`,
+`complete_2fa`). Connecting a real account deletes the demo login. The demo is refused while
+any real account is saved, because making room would delete the user's real logins and passkeys,
+so that only happens if the user disconnects them.
+
 Real accounts are connected **one at a time**. Nearly every portal asks for a 2FA code, so each
 account runs to the end (sign-in, code, passkey offer) before the widget asks about the
 next one. After every account the user lands on the same list, which offers another
@@ -18,7 +25,7 @@ flowchart TD
     start([Setup widget opens]) --> realfake{Real accounts or<br/>a fake MyChart?}
     realfake -- Use a fake MyChart --> demo[[setup_account<br/>fake-mychart.fanpierlabs.com<br/>as homer]]
     demo -- logged_in --> demodone([Message to the chat:<br/>the fake account, fictional data])
-    demo -- failed --> realfake
+    demo -- failed, or real accounts<br/>already saved --> realfake
     realfake -- Connect my real accounts --> choose{Import or<br/>enter manually?}
     choose -- Import from your browser --> consent
     choose -- Enter manually --> picker
