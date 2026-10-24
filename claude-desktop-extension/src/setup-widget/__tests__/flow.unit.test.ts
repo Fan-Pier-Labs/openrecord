@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   accountsView,
+  demoDoneMessage,
   errorText,
   initialState,
   nextSelectable,
@@ -32,15 +33,40 @@ const marge = login('marge', { hostname: 'mychart.other.org' });
 
 /** The list straight after a scan that found homer and marge. */
 const scanned = run([
+  { type: 'goReal' },
   { type: 'goConsent' },
   { type: 'scanned', scan: { supported: true, accounts: [homer, marge] }, saved: { accounts: [] } },
 ]);
 
 const loggedIn = (over: Record<string, unknown> = {}) => ({ state: 'logged_in', account: 'homer@mychart.example.org', passkey_saved: false, ...over });
 
+describe('the first screen', () => {
+  test('opens on real-or-fake, and real accounts go on to the import-or-manual choice', () => {
+    expect(initialState.step).toEqual({ kind: 'start', error: null });
+    const real = run([{ type: 'goReal' }]);
+    expect(real.step.kind).toBe('choose');
+    expect(run([{ type: 'back' }], real).step.kind).toBe('start');
+  });
+
+  test('the fake MyChart connects and finishes the widget, skipping 2FA and the passkey offer', () => {
+    const state = run([
+      { type: 'connectDemo' },
+      { type: 'demoResult', result: loggedIn({ account: 'homer@fake-mychart.fanpierlabs.com' }) },
+    ]);
+    expect(state.step).toEqual({ kind: 'done' });
+    expect(state.connected).toEqual([{ name: 'Fake MyChart', account: 'homer@fake-mychart.fanpierlabs.com', passkey: null }]);
+    expect(demoDoneMessage('homer@fake-mychart.fanpierlabs.com')).toContain('fictional test data');
+  });
+
+  test('a fake MyChart that does not sign in returns to the first screen with the reason', () => {
+    const state = run([{ type: 'connectDemo' }, { type: 'demoResult', result: 'Error: fake-mychart is down' }]);
+    expect(state.step).toEqual({ kind: 'start', error: 'fake-mychart is down' });
+    expect(state.connected).toEqual([]);
+  });
+});
+
 describe('the import route', () => {
-  test('opens on the choice, and the scan lands on a list with the first login picked', () => {
-    expect(initialState.step.kind).toBe('choose');
+  test('the scan lands on a list with the first login picked', () => {
     expect(scanned.step).toEqual({ kind: 'accounts', error: null });
     const view = accountsView(scanned);
     expect(view.rows.map((r) => r.entry.import_id)).toEqual(['homer', 'marge']);

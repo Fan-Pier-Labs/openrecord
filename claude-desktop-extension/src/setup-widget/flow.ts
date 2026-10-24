@@ -62,6 +62,8 @@ export interface CredsStep {
 }
 
 export type Step =
+  | { kind: 'start'; error: string | null }
+  | { kind: 'demoConnecting' }
   | { kind: 'choose' }
   | { kind: 'consent'; error: string | null }
   | { kind: 'accounts'; error: string | null }
@@ -80,10 +82,19 @@ export interface State {
   connected: Connected[];
 }
 
-export const initialState: State = { step: { kind: 'choose' }, scanned: null, connected: [] };
+export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [] };
+
+/**
+ * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
+ * signed in to as its no-2FA patient so a demo connects in one click.
+ */
+export const DEMO_LOGIN = { hostname: 'fake-mychart.fanpierlabs.com', username: 'homer', password: 'donuts123' };
 
 export type Action =
   | { type: 'back' }
+  | { type: 'goReal' }
+  | { type: 'connectDemo' }
+  | { type: 'demoResult'; result: unknown }
   | { type: 'goConsent' }
   | { type: 'goPicker' }
   | { type: 'scanned'; scan: unknown; saved: unknown }
@@ -175,6 +186,8 @@ export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'back':
       switch (step.kind) {
+        case 'choose':
+          return { ...state, step: { kind: 'start', error: null } };
         case 'consent':
         case 'picker':
           return { ...state, step: home(state) };
@@ -189,6 +202,19 @@ export function reducer(state: State, action: Action): State {
         default:
           return state;
       }
+
+    case 'goReal':
+      return { ...state, step: { kind: 'choose' } };
+
+    case 'connectDemo':
+      return { ...state, step: { kind: 'demoConnecting' } };
+
+    // The demo skips 2FA and the passkey offer, and finishes the widget outright.
+    case 'demoResult': {
+      const account = demoAccount(action.result);
+      if (account) return { ...state, connected: [{ name: 'Fake MyChart', account, passkey: null }], step: { kind: 'done' } };
+      return { ...state, step: { kind: 'start', error: errorText(action.result, "Couldn't connect to the fake MyChart. Try again in a moment.") } };
+    }
 
     case 'goConsent':
       return { ...state, step: { kind: 'consent', error: null } };
@@ -308,6 +334,8 @@ export function reducer(state: State, action: Action): State {
 }
 
 const TITLES: Record<Exclude<Step['kind'], 'accounts'>, string> = {
+  start: 'Connect to MyChart',
+  demoConnecting: 'Connecting to the fake MyChart',
   choose: 'Connect to MyChart',
   consent: 'Import from your browser',
   connecting: 'Signing in',
@@ -447,4 +475,15 @@ export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOu
   if (registered.length) msg += ` A passkey is now saved for ${list(registered)}.`;
   if (declined.length) msg += ` I chose not to set up a passkey for ${list(declined)} right now, so do not offer one again.`;
   return `${msg} Please continue with my original request.`;
+}
+
+/** The demo account setup_account connected, or null when it didn't. */
+export function demoAccount(result: unknown): string | null {
+  const r = reply(result);
+  return r.state === 'logged_in' ? r.account || `${DEMO_LOGIN.username}@${DEMO_LOGIN.hostname}` : null;
+}
+
+/** What the demo says to the conversation, so Claude knows the record it reads is made up. */
+export function demoDoneMessage(account: string): string {
+  return `I connected the fake MyChart demo account ${account}. Its records are fictional test data, not a real patient. Please continue with my original request.`;
 }
