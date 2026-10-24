@@ -220,6 +220,14 @@ describe('getChromiumLogins', () => {
     expect(logins.map(l => l.pass ?? '').sort((a, b) => a.localeCompare(b))).toEqual(['one', 'two']);
   });
 
+  it('reads a profile folder whatever it is named', async () => {
+    // Chrome numbers profiles as they are created, so a machine can have
+    // `Profile 28` and no `Profile 2`.
+    await writeChromeProfile('Profile 28', [{ url: 'https://c.example/', user: 'bart', password: 'three' }]);
+
+    expect((await getChromiumLogins()).map(l => l.pass)).toEqual(['three']);
+  });
+
   it('returns nothing when the keychain lookup is refused', async () => {
     // The Edge entry is present, but the stub only answers for Chrome — the
     // same shape as a user clicking Deny on the OS prompt.
