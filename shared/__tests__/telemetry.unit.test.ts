@@ -106,20 +106,22 @@ describe('telemetry', () => {
       }
     });
 
-    test('an event with a user carries the email to both sinks and asks Amplitude for the IP', async () => {
+    test('an event with a user carries the email and username to both sinks and asks Amplitude for the IP', async () => {
       const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
       );
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-      sendTelemetryEvent('mcpb_tool_called', { tool: 'get_profile' }, 'mcpb', { email: 'h@example.com' });
+      sendTelemetryEvent('mcpb_tool_called', { tool: 'get_profile' }, 'mcpb', { email: 'h@example.com', username: 'homer' });
       await drainSend(fetchMock, 2);
 
       const bodyFor = (needle: string) =>
         JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes(needle))![1]!.body as string);
       const ev = bodyFor('amplitude.com').events[0];
-      expect([ev.user_id, ev.user_properties.email, ev.ip]).toEqual(['h@example.com', 'h@example.com', '$remote']);
-      expect(bodyFor('execute-api').email).toBe('h@example.com');
+      expect([ev.user_id, ev.ip]).toEqual(['h@example.com', '$remote']);
+      expect(ev.user_properties).toEqual({ email: 'h@example.com', username: 'homer' });
+      const lambda = bodyFor('execute-api');
+      expect([lambda.email, lambda.username]).toEqual(['h@example.com', 'homer']);
     });
 
     test('a user with no email still records the IP but sets no user_id', async () => {

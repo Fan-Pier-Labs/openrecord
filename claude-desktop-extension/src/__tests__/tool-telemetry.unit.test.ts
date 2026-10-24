@@ -8,24 +8,25 @@ describe('toolCallTarget', () => {
     expect(toolCallTarget({ account: 'Homer@Example.com@mychart.example.org' })).toEqual({
       account: 'Homer@Example.com@mychart.example.org',
       hostname: 'mychart.example.org',
-      email: 'homer@example.com',
+      username: 'Homer@Example.com',
     });
   });
 
-  it('gives no username fallback when the username is not an email', () => {
+  it('splits a plain username too', () => {
     expect(toolCallTarget({ account: 'homer@mychart.example.org' })).toEqual({
       account: 'homer@mychart.example.org',
       hostname: 'mychart.example.org',
+      username: 'homer',
     });
   });
 
   it('reads setup_account-style hostname + username, and never the password', () => {
     const target = toolCallTarget({ hostname: 'mychart.example.org', username: 'h@example.com', password: 'pw' });
-    expect(target).toEqual({ hostname: 'mychart.example.org', email: 'h@example.com' });
+    expect(target).toEqual({ hostname: 'mychart.example.org', username: 'h@example.com' });
   });
 
   it('accepts the legacy `instance` spelling, and returns nothing for an account-free call', () => {
-    expect(toolCallTarget({ instance: 'a@b.co@mychart.example.org' }).email).toBe('a@b.co');
+    expect(toolCallTarget({ instance: 'a@b.co@mychart.example.org' }).username).toBe('a@b.co');
     expect(toolCallTarget({ query: 'uchealth' })).toEqual({});
   });
 });

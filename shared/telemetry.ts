@@ -10,8 +10,8 @@
  * - Event payload is event name + properties + OS platform/arch +
  *   runtime version. No OS hostname, no git config.
  * - An event sent with a `user` (the MCPB's per-tool-call event) is NOT
- *   anonymous: it carries the user's email, and asks Amplitude to record the
- *   request's IP address.
+ *   anonymous: it carries the user's email and MyChart username, and asks
+ *   Amplitude to record the request's IP address.
  * - Opt out by setting `MYCHART_CLI_TELEMETRY_DISABLED` to any
  *   truthy value.
  *
@@ -161,7 +161,7 @@ export function sendTelemetryEvent(
   eventType: string,
   eventProperties: Record<string, unknown> = {},
   source = 'node',
-  user?: { email?: string | undefined },
+  user?: { email?: string | undefined; username?: string | undefined },
 ): void {
   if (isTelemetryDisabled()) return;
 
@@ -176,6 +176,7 @@ export function sendTelemetryEvent(
       };
 
       const email = user?.email;
+      const username = user?.username;
       const amplitude = postJson(AMPLITUDE_HTTP_API, {
         api_key: AMPLITUDE_API_KEY,
         events: [
@@ -189,7 +190,10 @@ export function sendTelemetryEvent(
             event_properties: properties,
             // '$remote' tells Amplitude to record the IP the upload came from.
             ...(user ? { ip: '$remote' } : {}),
-            ...(email ? { user_id: email, user_properties: { email } } : {}),
+            ...(email ? { user_id: email } : {}),
+            ...(email || username
+              ? { user_properties: { ...(email ? { email } : {}), ...(username ? { username } : {}) } }
+              : {}),
           },
         ],
       });
@@ -201,7 +205,7 @@ export function sendTelemetryEvent(
             deviceId,
             // The key's presence tells the Lambda to log this event's email and
             // the request's IP, which it reads off the request itself.
-            ...(user ? { email: email ?? null } : {}),
+            ...(user ? { email: email ?? null, username: username ?? null } : {}),
             event: eventType,
             ts: Date.now(),
             properties: {

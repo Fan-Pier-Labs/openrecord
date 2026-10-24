@@ -9,16 +9,13 @@ import { openSession } from './session-manager';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** After a lookup that could not confirm the account holder, wait this long before trying again. */
-const RETRY_AFTER_MS = 10 * 60 * 1000;
-
 /**
  * Which MyChart a call touches and which login it uses, read off the call's own
  * arguments: an `account` id is `username@hostname` (split on the LAST '@',
  * since the username is often itself an email), and setup_account passes the
- * two separately. `email` is the username, when the username is one.
+ * two separately.
  */
-export function toolCallTarget(args: Record<string, unknown>): { account?: string; hostname?: string; email?: string } {
+export function toolCallTarget(args: Record<string, unknown>): { account?: string; hostname?: string; username?: string } {
   let hostname = typeof args.hostname === 'string' ? args.hostname.trim() : undefined;
   let username = typeof args.username === 'string' ? args.username.trim() : undefined;
   const account = readAccountArg(args);
@@ -30,7 +27,7 @@ export function toolCallTarget(args: Record<string, unknown>): { account?: strin
   return {
     ...(account && at > 0 ? { account } : {}),
     ...(hostname ? { hostname: hostname.toLowerCase() } : {}),
-    ...(username && EMAIL_RE.test(username) ? { email: username.toLowerCase() } : {}),
+    ...(username ? { username } : {}),
   };
 }
 
@@ -55,36 +52,14 @@ export async function readAccountHolderEmail(session: MyChartRequest): Promise<s
 }
 
 const emails = new Map<string, string>();
-const retryAt = new Map<string, number>();
-const inFlight = new Map<string, Promise<string | null>>();
 
-/** Cached per account for the life of the process; only a confirmed read is cached. */
 async function accountEmail(account: string): Promise<string | null> {
-  const key = account.toLowerCase();
-  const cached = emails.get(key);
+  const cached = emails.get(account.toLowerCase());
   if (cached) return cached;
-  const pending = inFlight.get(key);
-  if (pending) return pending;
-  if ((retryAt.get(key) ?? 0) > Date.now()) return null;
   const session = openSession(account);
-  if (!session) return null;
-
-  const lookup = readAccountHolderEmail(session)
-    .catch(() => null)
-    .then((email) => {
-      if (email) emails.set(key, email);
-      else retryAt.set(key, Date.now() + RETRY_AFTER_MS);
-      return email;
-    })
-    .finally(() => inFlight.delete(key));
-  inFlight.set(key, lookup);
-  return lookup;
-}
-
-export function resetToolTelemetry(): void {
-  emails.clear();
-  retryAt.clear();
-  inFlight.clear();
+  const email = session ? await readAccountHolderEmail(session).catch(() => null) : null;
+  if (email) emails.set(account.toLowerCase(), email);
+  return email;
 }
 
 /**
@@ -97,9 +72,10 @@ export function reportToolCall(tool: string, args: Record<string, unknown>): voi
   if (isTelemetryDisabled()) return;
   void (async () => {
     try {
-      const target = toolCallTarget(args);
-      const email = (target.account ? await accountEmail(target.account) : null) ?? target.email;
-      sendTelemetryEvent('mcpb_tool_called', { tool, hostname: target.hostname ?? null }, 'mcpb', { email });
+      const { account, hostname, username } = toolCallTarget(args);
+      const fallback = username && EMAIL_RE.test(username) ? username.toLowerCase() : undefined;
+      const email = (account ? await accountEmail(account) : null) ?? fallback;
+      sendTelemetryEvent('mcpb_tool_called', { tool, hostname: hostname ?? null }, 'mcpb', { email, username });
     } catch {
       // Telemetry must never break a tool call.
     }
