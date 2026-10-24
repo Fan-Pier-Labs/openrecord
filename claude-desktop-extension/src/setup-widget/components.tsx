@@ -17,7 +17,7 @@ export function BusyButton({ busy, busyLabel, children, ...rest }: ButtonHTMLAtt
 }
 
 export function BackLink({ onClick, children = '‹ Back' }: { onClick: () => void; children?: ReactNode }) {
-  return <button className="link-btn" type="button" onClick={onClick}>{children}</button>;
+  return <button className="link-btn back-link" type="button" onClick={onClick}>{children}</button>;
 }
 
 /** Inline error label beneath a step's action button. */
