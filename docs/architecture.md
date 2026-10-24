@@ -307,11 +307,6 @@ The CLI prints the notice once per run. The MCPB checks at startup and daily, an
 to every tool result while it is behind (`claude-desktop-extension/src/update-notice.ts`) — a tool
 result is the only place it can reach the user.
 
-**It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
-makes no request at all when it is set. It is a request to our own server on every run, so it puts
-the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
-of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
-
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
 `scraperFetch` holds a per-hostname permit for the duration of each fetch. At most **10 requests are
