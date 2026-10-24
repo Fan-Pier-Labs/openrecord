@@ -2,10 +2,26 @@
 
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { createHost } from './host';
+import { createHost, type HostContext } from './host';
 import './styles.css';
 
-const { host, receive } = createHost((msg) => window.parent.postMessage(msg, '*'));
+// Claude Desktop sends its theme, color variables and font faces; styles.css
+// falls back to Claude's palette for any it leaves out.
+const hostFonts = document.createElement('style');
+document.head.appendChild(hostFonts);
+const applyHostContext = ({ theme, styles }: HostContext) => {
+  const root = document.documentElement;
+  if (theme) {
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+  }
+  for (const [name, value] of Object.entries(styles?.variables ?? {})) {
+    if (value) root.style.setProperty(name, value);
+  }
+  if (styles?.css?.fonts) hostFonts.textContent = styles.css.fonts;
+};
+
+const { host, receive } = createHost((msg) => window.parent.postMessage(msg, '*'), applyHostContext);
 window.addEventListener('message', (event) => {
   if (event.source === window.parent) receive(event.data);
 });

@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { checkPendingCall, resetPendingCalls, runGuarded } from '../../pending-call';
-import { createHost, decodeToolResult, type RpcMessage } from '../host';
+import { createHost, decodeToolResult, type HostContext, type RpcMessage } from '../host';
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
 
@@ -71,6 +71,16 @@ describe('createHost', () => {
     receive({ jsonrpc: '2.0', id: 999, result: 'stray' });
     receive({ jsonrpc: '1.0', id: 0 });
     expect(await host.callTool('x', {})).toBe(1);
+  });
+
+  test("hands on the host's theme from the handshake and from later context changes", async () => {
+    const seen: HostContext[] = [];
+    const { host, receive } = createHost((msg) => {
+      if (msg.method === 'ui/initialize') setTimeout(() => receive({ jsonrpc: '2.0', id: msg.id, result: { hostContext: { theme: 'dark', styles: { variables: { '--font-sans': 'Sans' } } } } }));
+    }, (ctx) => seen.push(ctx));
+    await host.ready;
+    receive({ jsonrpc: '2.0', method: 'ui/notifications/host-context-changed', params: { theme: 'light' } });
+    expect(seen).toEqual([{ theme: 'dark', styles: { variables: { '--font-sans': 'Sans' } } }, { theme: 'light' }]);
   });
 
   test('sends the done message as a user-role ui/message', async () => {
