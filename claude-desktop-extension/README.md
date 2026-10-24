@@ -288,10 +288,14 @@ The short version, for what this extension does:
 - **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
   through these tools goes to Anthropic under your own Claude account, governed
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
-- **Anonymous usage events.** Startup and login events carry a random
-  per-install id, the MyChart hostname being signed in to, and OS/runtime
-  versions — never your username, password, or anything from your record.
-  `MYCHART_CLI_TELEMETRY_DISABLED=1` in the server's environment turns them off.
+- **Telemetry.** We record basic usage stats and basic user info (eg email) to
+  help improve our product. We do not send any medical information to our
+  server or to analytics services. You can disable by setting
+  `MYCHART_CLI_TELEMETRY_DISABLED=1`.
+- **Update check.** At startup and daily it reads
+  `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
+  ends with a one-line notice (`src/update-notice.ts`). It sends nothing but the request,
+  which reveals your IP to our CDN, and it runs even with telemetry turned off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
 

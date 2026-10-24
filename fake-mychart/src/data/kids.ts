@@ -393,5 +393,26 @@ const maggie: KidRecord = {
   },
 };
 
+const LISA_SHELBYVILLE_PROXY_ID = 'WP-5HCQ8NWZ3KTVJ2RBM7LFX9PYDA1GSEU4KMWJ6QRXTV8NZBHFC3LPD2YSGA9EK7UNQXWRJ5MVTZ1HC8';
+
+/**
+ * Lisa's record at a second organization, linked into Homer's account (Epic's
+ * "Happy Together"). The dropdown labels a linked record with its organization
+ * in parentheses, which the proxy name checks have to see past. Same person,
+ * so the same profile under that organization's own MRN; the chart is that
+ * organization's, seeded from Lisa's data rather than empty.
+ *
+ * MODELLED, NOT CAPTURED: the label shape is the one reported on #552, not a
+ * live `/ProxySwitch` payload. Whether a linked label keeps the surname
+ * ("Lisa Simpson (…)") or only the first name is unconfirmed; this uses the
+ * reported form. Replace with a capture when one exists.
+ */
+const lisaAtShelbyville: KidRecord = {
+  ...lisa,
+  id: LISA_SHELBYVILLE_PROXY_ID,
+  displayName: 'Lisa (Shelbyville Clinic)',
+  profile: { ...lisa.profile, mrn: '1745' },
+};
+
 /** The records Homer has proxy access to, in the order MyChart lists them. */
-export const HOMER_PROXY_RECORDS: KidRecord[] = [bart, lisa, maggie];
+export const HOMER_PROXY_RECORDS: KidRecord[] = [bart, lisa, maggie, lisaAtShelbyville];

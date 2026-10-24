@@ -15,6 +15,11 @@ and corrected. Until you run a refresh it searches the checked-in list, and says
 Added: `refreshMyChartDirectory`, `useRefreshedMyCharts`, `listMyCharts`, and `directoryUrl` and
 `down` on `MyChartInstanceSeed`.
 
+`BillingNotFullyLoadedError` is also gone. A billing read whose paged-out charge rows don't all
+load no longer throws: it returns every row that did load, lists the rest per account under
+`unloadedVisits`, and says so in a new top-level `notice`. Check `notice` where you caught the
+error.
+
 ## 2.0.0 — withdrawn exports (breaking)
 
 Two functions are gone from the public surface. Both removals are deliberate, and neither has a

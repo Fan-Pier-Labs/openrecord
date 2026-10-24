@@ -85,12 +85,12 @@ import {
   secretBackend,
   readAccountPasskey,
   removeAccount,
-  upsertAccount,
   saveAccountPasskey,
   saveAccountTotpSecret,
   normalizeHostname,
 } from './credential-store';
 import { addPending, takePending } from './pending-logins';
+import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
@@ -98,6 +98,8 @@ import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
 import { saveFilePayload, saveTextFile } from './save-file';
+import { reportToolCall } from './tool-telemetry';
+import { withUpdateNotice } from './update-notice';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -560,11 +562,13 @@ function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): 
  * passkey recommendation — and so a fix to one is a fix to both.
  */
 async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
+  const conflict = demoConflict(hostname);
+  if (conflict.length) return jsonResult({ state: 'demo_conflict', accounts: conflict, message: demoConflictMessage(conflict) });
   try {
     const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
 
     if (result.state === 'logged_in') {
-      upsertAccount({ hostname: normalizeHostname(hostname), username, password });
+      saveAccount(hostname, username, password);
       await adoptSession(hostname, username, result.mychartRequest);
       return loggedInResult(hostname, username);
     }
@@ -614,9 +618,23 @@ async function connectWithPassword(hostname: string, username: string, password:
  */
 function guarded(server: McpServer): McpServer {
   const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
-    server.registerTool(name, config as never, (...a: unknown[]) =>
-      runGuarded(name, (a[0] ?? {}) as Record<string, unknown>, () => handler(...a)),
-    );
+    server.registerTool(name, config as never, async (...a: unknown[]) => {
+      const args = (a[0] ?? {}) as Record<string, unknown>;
+      const result = await runGuarded(name, args, () => handler(...a));
+      reportToolCall(name, args);
+      return result;
+    });
+  return { registerTool } as unknown as McpServer;
+}
+
+/**
+ * A server whose every result ends with the update notice, when there is one.
+ * Outermost, so a parked call's result is stored without it and gets it once,
+ * when check_pending_call hands it over.
+ */
+function noticed(server: McpServer): McpServer {
+  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
+    server.registerTool(name, config as never, async (...a: unknown[]) => withUpdateNotice(await handler(...a)));
   return { registerTool } as unknown as McpServer;
 }
 
@@ -660,9 +678,10 @@ function registerCheckPendingCall(server: McpServer): void {
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(rawServer: McpServer): void {
+  const withNotice = noticed(rawServer);
   // check_pending_call collects parked results, so it is never itself parked.
-  registerCheckPendingCall(rawServer);
-  const server = guarded(rawServer);
+  registerCheckPendingCall(withNotice);
+  const server = guarded(withNotice);
 
   // ── Meta tools ────────────────────────────────────────────────────────────
 
@@ -886,7 +905,7 @@ export function registerAllTools(rawServer: McpServer): void {
           isTOTP: false,
         });
         if (twoFa.state === 'logged_in') {
-          upsertAccount({ hostname: pending.hostname, username: pending.username, password: pending.password });
+          saveAccount(pending.hostname, pending.username, pending.password);
           await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
           return loggedInResult(pending.hostname, pending.username);
         }
