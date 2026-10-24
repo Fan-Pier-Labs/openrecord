@@ -56,6 +56,14 @@ function profileRoot(browser: ChromiumBrowser): string | null {
   return relative ? path.join(applicationSupportRoot(), relative) : null;
 }
 
+/** Each Chromium browser's profile root, for the access check in `index.ts`. */
+export function chromiumProfileRoots(): { name: string; root: string }[] {
+  return BROWSERS.flatMap(browser => {
+    const root = profileRoot(browser);
+    return root ? [{ name: browser.name, root }] : [];
+  });
+}
+
 /**
  * macOS: the master key is a PBKDF2 stretch of the "<Browser> Safe Storage"
  * Keychain password. The salt and iteration count are Chromium's, hardcoded in
