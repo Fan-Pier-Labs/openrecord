@@ -303,10 +303,9 @@ Everything on the reading side is best-effort: unreachable, 404, not JSON, malfo
 either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
-**It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
-makes no request at all when it is set. It is a request to our own server on every run, so it puts
-the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
-of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
+The CLI prints the notice once per run. The MCPB checks at startup and daily, and appends the notice
+to every tool result while it is behind (`claude-desktop-extension/src/update-notice.ts`) — a tool
+result is the only place it can reach the user.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
