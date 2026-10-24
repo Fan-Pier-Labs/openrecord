@@ -35,6 +35,7 @@ const candidates = [
 void mock.module('../../../read-local-passwords/index', () => ({
   isSupportedPlatform: () => true,
   findMyChartCandidates: async () => candidates,
+  blockedBrowsers: () => ['Firefox'],
 }));
 
 const { scanBrowserPasswords, takeImportedCandidate, releaseImportedCandidate, _clearHeldImports } =
@@ -59,6 +60,10 @@ describe('scanBrowserPasswords', () => {
 
     expect(scan.accounts.map(c => c.hostname)).toEqual(['mychart.example.org', 'mychart.gone.example']);
     expect(scan.accounts.map(c => c.confidence)).toEqual(['directory', 'probed']);
+  });
+
+  it('names the browsers macOS would not let it read', async () => {
+    expect((await scanBrowserPasswords()).blocked_browsers).toEqual(['Firefox']);
   });
 
   it('surfaces the instance name so the user recognises the health system', async () => {
