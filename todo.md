@@ -25,3 +25,4 @@ todo
 
 - [x] be able to send messages with mcp call
 - [ ] be able to ask for itemized bills for every one you haven't asked for an itemized bill yet
+- [ ] let someone with real MyChart accounts temporarily switch to the fake MyChart for a demo, then switch back, without disconnecting (and losing the saved login + passkey of) their real accounts. Today the MCPB refuses the fake MyChart while any real account is saved — see docs/mcpb-setup-flow.md
