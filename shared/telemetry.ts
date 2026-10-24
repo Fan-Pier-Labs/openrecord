@@ -52,8 +52,9 @@ function analyticsEndpoint(): string {
 const REQUEST_TIMEOUT_MS = 5000;
 
 /**
- * The opt-out, honoured by everything in the product that contacts a Fan Pier
- * Labs server on its own initiative — telemetry events and the version check.
+ * The opt-out for telemetry events. The version check ignores it — it sends
+ * nothing but the request itself. Exported so the MCPB can skip the MyChart
+ * email lookup behind its tool-call event, not just the send.
  */
 export function isTelemetryDisabled(): boolean {
   return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
