@@ -9,17 +9,25 @@
  * Desktop keeps the server alive for days — and a tool call only reads its last
  * answer, so no call ever waits on our site. "Couldn't tell" keeps the previous
  * answer rather than clearing it.
+ *
+ * Unlike the CLI's, this check ignores MYCHART_CLI_TELEMETRY_DISABLED: an
+ * extension nobody can tell is outdated stays outdated, and it sends nothing
+ * but the request itself.
  */
 
 import { version as MCPB_VERSION } from '../manifest.json';
-import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
+import { checkVersion, fetchVersionManifest, formatUpdateNotice } from '../../scrapers/metadata/version';
 
 const RECHECK_EVERY_MS = 24 * 60 * 60 * 1000;
 
 let notice: string | null = null;
 
 async function refresh(currentVersion: string): Promise<void> {
-  const check = await checkVersion({ currentVersion, target: 'mcpb' });
+  // Fetched here and passed in because checkVersion skips its own fetch when
+  // telemetry is off.
+  const manifest = await fetchVersionManifest();
+  if (!manifest) return;
+  const check = await checkVersion({ currentVersion, target: 'mcpb', manifest });
   if (check) notice = check.updateAvailable ? formatUpdateNotice(check) : null;
 }
 
