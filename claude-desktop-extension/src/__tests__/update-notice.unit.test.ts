@@ -60,17 +60,6 @@ describe('update notice', () => {
     expect(withUpdateNotice(RESULT).content).toHaveLength(2)
   })
 
-  it('still checks when telemetry is opted out', async () => {
-    process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1'
-    try {
-      serve(manifest('2.1.0'))
-      await startUpdateCheck('2.0.0')
-      expect(withUpdateNotice(RESULT).content).toHaveLength(2)
-    } finally {
-      delete process.env.MYCHART_CLI_TELEMETRY_DISABLED
-    }
-  })
-
   it('reaches every registered tool, check_pending_call included', async () => {
     const handlers = new Map<string, (args: Record<string, unknown>) => Promise<ToolResult>>()
     registerAllTools({

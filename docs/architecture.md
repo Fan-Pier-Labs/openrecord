@@ -310,8 +310,7 @@ result is the only place it can reach the user.
 **It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
 makes no request at all when it is set. It is a request to our own server on every run, so it puts
 the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
-of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`. **The MCPB is
-the exception:** it always checks, because an outdated extension has no other way to find out.
+of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
