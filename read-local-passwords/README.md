@@ -23,7 +23,7 @@ or an unencrypted fallback, and Claude Desktop does not ship on Linux).
 | Chrome, Arc, Brave, Edge, Vivaldi, Opera | `Login Data` (SQLite), `logins` table | macOS: PBKDF2-SHA1(`<Browser> Safe Storage` from the Keychain, salt `saltysalt`, 1003 iterations, 16 bytes). Windows: DPAPI-unwrapped `os_crypt.encrypted_key` from `Local State` |
 | Firefox | `logins.json` + `key4.db` | NSS: the wrapped keys in `nssPrivate`, unlocked with the (empty) primary password |
 
-Up to five profile directories per Chromium browser (`Default`, `Profile 1`…`Profile 4`).
+Every profile folder of each Chromium browser, whatever it is named (`Default`, `Profile 28`…), plus the root itself for Opera, which keeps its only profile there.
 
 ## Things that are easy to get wrong
 

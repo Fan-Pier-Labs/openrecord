@@ -10,7 +10,7 @@
 
 import { execFile } from 'child_process';
 import { createDecipheriv, pbkdf2Sync } from 'crypto';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { homedir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -42,8 +42,24 @@ const BROWSERS: ChromiumBrowser[] = [
   { name: 'Opera', keychainAccount: 'Opera', macDir: 'com.operasoftware.Opera', winDir: 'Opera Software/Opera Stable' },
 ];
 
-/** Chromium writes one `Login Data` per profile; users routinely have several. */
-const PROFILE_DIRS = ['Default', 'Profile 1', 'Profile 2', 'Profile 3', 'Profile 4'];
+/**
+ * Every `Login Data` under a browser's root. Chromium writes one per profile
+ * folder, and the folder names are not predictable (`Profile 28` is real), so
+ * each folder is checked rather than a list of names. Opera keeps its single
+ * profile in the root itself.
+ */
+function loginDatabases(root: string): string[] {
+  let folders: string[];
+  try {
+    folders = readdirSync(root, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => path.join(root, entry.name));
+  } catch {
+    // Unreadable root (macOS can refuse it outright): skip this browser, not the scan.
+    return [];
+  }
+  return [root, ...folders].map(folder => path.join(folder, 'Login Data')).filter(existsSync);
+}
 
 function applicationSupportRoot(): string {
   return process.platform === 'win32'
@@ -178,9 +194,7 @@ export async function getChromiumLogins(): Promise<PasswordStoreEntry[]> {
     const root = profileRoot(browser);
     if (!root || !existsSync(root)) continue;
 
-    const databases = PROFILE_DIRS
-      .map(profile => path.join(root, profile, 'Login Data'))
-      .filter(existsSync);
+    const databases = loginDatabases(root);
     if (databases.length === 0) continue;
 
     const masterKey = isMac
