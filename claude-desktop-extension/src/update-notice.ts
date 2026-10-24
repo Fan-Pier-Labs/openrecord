@@ -5,7 +5,7 @@
  * tool result. The extension has no UI of its own between calls, so a tool
  * result is the only place a notice can reach the user.
  *
- * The check runs in the background — at startup, then hourly, since Claude
+ * The check runs in the background — at startup, then daily, since Claude
  * Desktop keeps the server alive for days — and a tool call only reads its last
  * answer, so no call ever waits on our site. "Couldn't tell" keeps the previous
  * answer rather than clearing it.
@@ -14,7 +14,7 @@
 import { version as MCPB_VERSION } from '../manifest.json';
 import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
 
-const RECHECK_EVERY_MS = 60 * 60 * 1000;
+const RECHECK_EVERY_MS = 24 * 60 * 60 * 1000;
 
 let notice: string | null = null;
 
