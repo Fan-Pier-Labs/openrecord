@@ -16,7 +16,6 @@
 
 import { compareVersions, validate } from 'compare-versions';
 
-import { isTelemetryDisabled } from '../../shared/telemetry';
 import { scraperFetch } from '../http';
 
 export const VERSION_MANIFEST_URL = 'https://openrecord.fanpierlabs.com/mcpb_version.json';
@@ -70,9 +69,8 @@ export async function fetchVersionManifest(
 /**
  * Whether `currentVersion` is behind what we publish for `target`.
  *
- * Opting out of telemetry opts out of this too. It is a request to our own
- * server on every run, so it puts the caller's IP and cadence in our logs the
- * same way an event does; someone who said "stop phoning home" meant this.
+ * Runs even when telemetry is off: it sends nothing but the GET itself, and a
+ * user who never hears about a fix keeps running the broken scraper.
  */
 export async function checkVersion(options: {
   currentVersion: string;
@@ -82,8 +80,6 @@ export async function checkVersion(options: {
   /** Override the manifest location. Tests and staging only. */
   url?: string;
 }): Promise<VersionCheck | null> {
-  if (!options.manifest && isTelemetryDisabled()) return null;
-
   const manifest = options.manifest ?? (await fetchVersionManifest(options.url));
   if (!manifest) return null;
 

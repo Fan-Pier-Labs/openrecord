@@ -303,10 +303,10 @@ Everything on the reading side is best-effort: unreachable, 404, not JSON, malfo
 either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
-**It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
-makes no request at all when it is set. It is a request to our own server on every run, so it puts
-the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
-of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
+**It ignores `MYCHART_CLI_TELEMETRY_DISABLED` and always runs.** It sends nothing but the GET
+itself — no id, no hostname, no event — and a user who never hears about a fix keeps running the
+broken scraper. The request still reveals the caller's IP and cadence to our CDN, which is disclosed
+in `readme.md` and on `privacy.html`. Telemetry events still honour the opt-out.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
