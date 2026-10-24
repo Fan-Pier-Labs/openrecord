@@ -49,10 +49,10 @@ function analyticsEndpoint(): string {
 const REQUEST_TIMEOUT_MS = 5000;
 
 /**
- * The opt-out, honoured by everything in the product that contacts a Fan Pier
- * Labs server on its own initiative — telemetry events and the version check.
+ * The opt-out for telemetry events. The version check ignores it — it sends
+ * nothing but the request itself.
  */
-export function isTelemetryDisabled(): boolean {
+function isTelemetryDisabled(): boolean {
   return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
 }
 

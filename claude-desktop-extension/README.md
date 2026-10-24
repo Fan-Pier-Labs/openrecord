@@ -294,7 +294,8 @@ The short version, for what this extension does:
   `MYCHART_CLI_TELEMETRY_DISABLED=1` in the server's environment turns them off.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
-  ends with a one-line notice (`src/update-notice.ts`). The same env var turns it off.
+  ends with a one-line notice (`src/update-notice.ts`). It sends nothing but the request,
+  which reveals your IP to our CDN, and it runs even with telemetry turned off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
 

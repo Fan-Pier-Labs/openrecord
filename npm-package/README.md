@@ -145,7 +145,7 @@ you about new releases. That request reveals your IP address to the CDN, and not
 export MYCHART_CLI_TELEMETRY_DISABLED=1
 ```
 
-turns off both.
+turns off the events. The update check always runs.
 
 ## Privacy and safety
 
