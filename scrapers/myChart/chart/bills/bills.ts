@@ -20,6 +20,8 @@ export type {
   BillingStandard,
   BillingAccountStandard,
   BillingVisitStandard,
+  BillingUnloadedVisitStandard,
+  BillingUnloadedReason,
   BillingVisitCategory,
   BillingStatementStandard,
   BillingPaymentStandard,
@@ -27,7 +29,7 @@ export type {
   BillingProcedureGroupStandard,
   BillingCoverageInfoStandard,
 } from './bills.processor';
-export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES, BillingNotFullyLoadedError } from './bills.processor';
+export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from './bills.processor';
 
 // Two jobs live here: the `get_billing` read (fetchBillingRaw + the
 // processor) and the `download_billing_statement` file download, which
@@ -103,9 +105,13 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
  * comes back is the answer to the single handle that was posted, and a
  * request that fails names exactly the visit it failed for.
  *
- * Best-effort here, but not silently: the processor throws if any row is
- * still a stub once the answers are merged, because a stub's fabricated
- * `"$0.00"` is indistinguishable from a settled visit.
+ * Best-effort here, but not silently: a stub still unloaded once the answers
+ * are merged goes to `unloadedVisits` with a `notice`, never to `visits`,
+ * because a stub's fabricated `"$0.00"` is indistinguishable from a settled
+ * visit. A request that fails, or answers without `Success: true`, is tried
+ * once more first, so `not_loaded` means it failed twice. An empty success is
+ * not retried: on the one instance that sends it, it was the same answer
+ * every time.
  */
 async function hydrateStubs(
   collector: RawCollector,
@@ -130,20 +136,23 @@ async function hydrateStubs(
 
   await Promise.all(
     [...byHandle.values()].map(async (key) => {
-      const { failure } = await collector.send(
-        {
-          path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
-            __RequestVerificationToken: token,
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const { failure, body } = await collector.send(
+          {
+            path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'X-Requested-With': 'XMLHttpRequest',
+              __RequestVerificationToken: token,
+            },
+            body: moreVisitsBody(account, [key]),
           },
-          body: moreVisitsBody(account, [key]),
-        },
-        { tolerateFailure: true },
-      );
-      if (failure) logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
+          { tolerateFailure: true },
+        );
+        if (!failure && rec(body).Success === true) return;
+        logger.debug(`Billing: GetMoreVisits attempt ${attempt} failed for ${account.guarantorNumber}: ${failure?.message ?? 'Success was not true'}`);
+      }
     }),
   );
 }

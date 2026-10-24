@@ -686,6 +686,22 @@ for (const mode of MOUNT_MODES) {
       expect(account.visits.every((v) => v.ChargeAmount !== '$0.00')).toBe(true)
     }, 30_000)
 
+    it('keeps the rows that loaded when MyChart answers one stub with nothing, and says so', async () => {
+      const result = await getBillingHistory(session)
+      const account = result.accounts[0]!
+
+      // The fixture's third stub gets `Success: true` and an empty list back,
+      // as a live instance answered 2 of its 15. Everything else still loads.
+      expect(account.visits.map((v) => v.StartDateDisplay)).toEqual(expect.arrayContaining(['Jan 10, 2026', 'Mar 14, 2025', 'Aug 2, 2024']))
+      expect(account.unloadedVisits).toEqual([{
+        category: 'UnifiedVisitList', StartDate: 66900, StartDateDisplay: 'Mar 1, 2024',
+        BillingSystemDisplay: 'Hospital Services', reason: 'returned_empty',
+      }])
+      expect(account.amountDueNumber).not.toBeNull()
+      expect(result.notice).toContain('1 of 4 charge rows')
+      expect(result.notice).toContain('Mar 1, 2024')
+    }, 30_000)
+
     it('getImagingResults returns X-ray and CT studies with report text', async () => {
       const result = await getImagingResults(session)
       expect(result.orders.length).toBeGreaterThanOrEqual(2)

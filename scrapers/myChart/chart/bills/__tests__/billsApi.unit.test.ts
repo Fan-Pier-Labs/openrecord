@@ -15,7 +15,6 @@ import { toEpicDteLocal } from '../../../../../shared/epicDate'
 import { MyChartRequest } from '../../../core/myChartRequest'
 import type { BillingAccount, StatementItem } from '../types'
 import { renderOutput } from '../../../processors/processor'
-import { BillingNotFullyLoadedError } from '../bills.processor'
 
 const ACCOUNT: BillingAccount = {
   guarantorNumber: 'G-1',
@@ -349,7 +348,7 @@ describe('getBillingHistory', () => {
 
   it('returns no accounts when the summary page has none', async () => {
     const { req } = mockRouted([['/Billing/Summary', '<html><body>No balance</body></html>']])
-    expect(await getBillingHistory(req)).toEqual({ totalDue: 0, accounts: [] })
+    expect(await getBillingHistory(req)).toEqual({ totalDue: 0, notice: null, accounts: [] })
   })
 })
 
@@ -439,29 +438,76 @@ describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
     expect(body.get('listOfAccounts[0].IsHar')).toBe('false')
   })
 
-  it('fails the read when a request comes back with no row for its stub', async () => {
+  it('keeps every row that loaded when MyChart answers one stub with an empty list', async () => {
+    // What a live instance did for 2 of its 15 stubs, on every attempt.
     const { req, calls } = billingMock(
-      [stub('HAR-A')],
-      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [] } })]],
+      [loaded('HAR-0'), stub('ENC-A'), stub('ENC-B', { StartDate: 67300 })],
+      [['GetMoreVisits', (init) => {
+        const handle = new URLSearchParams(typeof init.body === 'string' ? init.body : '').get('listOfAccounts[0].EncAccountID')
+        const rows = handle === 'ENC-A' ? [loaded('4820015507', { ChargeAmount: '$1,250.00' })] : []
+        return new Response(JSON.stringify({ Success: true, Data: { UnifiedVisitList: rows, HasVisits: rows.length > 0 } }), { status: 200 })
+      }]],
     )
-    const raw = await fetchBillingRaw(req)
+    const standard = billingProcessor.standard(await fetchBillingRaw(req))
+    const account = standard.accounts[0]!
 
-    expect(moreVisitsCalls(calls)).toHaveLength(1)
-    expect(() => billingProcessor.standard(raw)).toThrow(/paged out 1 of 1 charge row/)
+    expect(moreVisitsCalls(calls)).toHaveLength(2)
+    expect(account.visits.map((v) => v.ChargeAmount)).toEqual(['$100.00', '$1,250.00'])
+    expect(account.unloadedVisits).toMatchObject([{ StartDate: 67300, reason: 'returned_empty' }])
+    expect(account.amountDueNumber).toBe(42.5)
+    expect(standard.notice).toContain('did not load 1 of 3 charge rows')
   })
 
-  it('refuses the read rather than pricing a stub at its fabricated $0.00', async () => {
-    // A 5xx on the hydrate leaves rows whose every amount is "$0.00", which
-    // reads exactly like a settled visit. Failing is the honest answer.
+  it('lists a stub whose hydrate failed as not_loaded rather than pricing it at its fabricated $0.00', async () => {
     const { req } = billingMock(
-      [stub('HAR-A')],
+      [loaded('HAR-0'), stub('HAR-A')],
       [['GetMoreVisits', () => new Response('<html>error</html>', { status: 500 })]],
     )
     const raw = await fetchBillingRaw(req)
+    const account = billingProcessor.standard(raw).accounts[0]!
 
-    expect(() => billingProcessor.standard(raw)).toThrow(BillingNotFullyLoadedError)
+    // Failed twice: the first try and the one retry.
+    expect(raw.requests.filter((r) => r.path.includes('GetMoreVisits'))).toHaveLength(2)
+    expect(account.visits.map((v) => v.HospitalAccountId)).toEqual(['HAR-0'])
+    expect(account.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
     // The envelope still shows what came back, so `raw` mode stays readable.
     expect(raw.requests.some((r) => r.path.includes('GetMoreVisits'))).toBe(true)
+  })
+
+  it('retries a failed hydrate once, and loads the row when the retry answers', async () => {
+    let attempts = 0
+    const { req, calls } = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', () => {
+        attempts += 1
+        return attempts === 1
+          ? new Response('<html>error</html>', { status: 500 })
+          : new Response(JSON.stringify({ Success: true, Data: { UnifiedVisitList: [loaded('4820015507', { ChargeAmount: '$1,250.00' })] } }), { status: 200 })
+      }]],
+    )
+    const account = billingProcessor.standard(await fetchBillingRaw(req)).accounts[0]!
+
+    expect(moreVisitsCalls(calls)).toHaveLength(2)
+    expect(account.visits.map((v) => v.ChargeAmount)).toEqual(['$1,250.00'])
+    expect(account.unloadedVisits).toEqual([])
+  })
+
+  it('retries an answer without Success: true, but not an empty success', async () => {
+    const unsuccessful = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', JSON.stringify({ Success: false, Data: { UnifiedVisitList: [] } })]],
+    )
+    const raw = await fetchBillingRaw(unsuccessful.req)
+    expect(moreVisitsCalls(unsuccessful.calls)).toHaveLength(2)
+    expect(billingProcessor.standard(raw).accounts[0]!.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
+
+    // MyChart declining a stub gives the same answer every time; asking again only costs a request.
+    const declined = billingMock(
+      [stub('HAR-A')],
+      [['GetMoreVisits', JSON.stringify({ Success: true, Data: { UnifiedVisitList: [] } })]],
+    )
+    await fetchBillingRaw(declined.req)
+    expect(moreVisitsCalls(declined.calls)).toHaveLength(1)
   })
 
   it('skips hydration when the details page carried no token', async () => {
@@ -475,7 +521,7 @@ describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
     const raw = await fetchBillingRaw(req)
 
     expect(moreVisitsCalls(calls)).toHaveLength(0)
-    expect(() => billingProcessor.standard(raw)).toThrow(BillingNotFullyLoadedError)
+    expect(billingProcessor.standard(raw).accounts[0]!.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
   })
 
   it('pairs each answer with the stub its own request posted, since the row shares no id with it', async () => {
@@ -510,9 +556,10 @@ describe('GetMoreVisits — hydrating the rows GetVisits paged out', () => {
         loaded('4820015507', { StartDate: 60000, ChargeAmount: '$1,250.00' }),
       ] } })]],
     )
-    const raw = await fetchBillingRaw(req)
+    const account = billingProcessor.standard(await fetchBillingRaw(req)).accounts[0]!
 
-    expect(() => billingProcessor.standard(raw)).toThrow(BillingNotFullyLoadedError)
+    expect(account.visits).toEqual([])
+    expect(account.unloadedVisits.map((v) => v.reason)).toEqual(['not_loaded'])
   })
 
   it('makes no hydrate call at all when every row already came back loaded', async () => {
