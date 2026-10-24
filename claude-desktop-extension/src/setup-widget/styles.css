@@ -1,120 +1,180 @@
 /* Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root. */
 
+/* Claude's palette. The --color-* and --font-* variables, when Claude Desktop
+   sends them (main.tsx), win over these; the clay accent is always ours,
+   since the host has no brand color to send. */
 :root {
-  --bg: #ffffff;
-  --text: #1a1a1a;
-  --accent: #0066cc;
-  --border: #e0e0e0;
-  --hover: #f5f5f5;
-  --error: #d32f2f;
-  --success: #388e3c;
+  color-scheme: light;
+  --claude-bg: #faf9f5;
+  --claude-surface: #ffffff;
+  --claude-sunken: #f0eee6;
+  --claude-text: #141413;
+  --claude-text-2: #5e5d59;
+  --claude-text-3: #87867f;
+  --claude-border: rgba(31, 30, 29, 0.15);
+  --claude-danger: #b53333;
+  --accent: #c6613f;
+  --accent-hover: #b4552f;
+  --accent-text: #c6613f;
+  --success: #4d7c3a;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1e1e;
-    --text: #e0e0e0;
-    --accent: #4da3ff;
-    --border: #333333;
-    --hover: #2d2d2d;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --claude-bg: #262624;
+    --claude-surface: #30302e;
+    --claude-sunken: #1f1e1d;
+    --claude-text: #faf9f5;
+    --claude-text-2: #c2c0b6;
+    --claude-text-3: #9c9a92;
+    --claude-border: rgba(222, 220, 209, 0.15);
+    --claude-danger: #e56b6b;
+    --accent-text: #d97757;
+    --success: #7fb069;
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --claude-bg: #262624;
+  --claude-surface: #30302e;
+  --claude-sunken: #1f1e1d;
+  --claude-text: #faf9f5;
+  --claude-text-2: #c2c0b6;
+  --claude-text-3: #9c9a92;
+  --claude-border: rgba(222, 220, 209, 0.15);
+  --claude-danger: #e56b6b;
+  --accent-text: #d97757;
+  --success: #7fb069;
+}
+:root {
+  --bg: var(--color-background-primary, var(--claude-bg));
+  --surface: var(--color-background-secondary, var(--claude-surface));
+  --sunken: var(--color-background-tertiary, var(--claude-sunken));
+  --text: var(--color-text-primary, var(--claude-text));
+  --text-2: var(--color-text-secondary, var(--claude-text-2));
+  --text-3: var(--color-text-tertiary, var(--claude-text-3));
+  --border: var(--color-border-primary, var(--claude-border));
+  --error: var(--color-text-danger, var(--claude-danger));
+  --sans: var(--font-sans, "Anthropic Sans", "Styrene B", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  --serif: "Anthropic Serif", "Copernicus", "Tiempos Headline", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --ring: color-mix(in srgb, var(--accent) 22%, transparent);
+  --tint: color-mix(in srgb, var(--accent) 10%, transparent);
+}
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--sans);
   background: var(--bg);
   color: var(--text);
   margin: 0;
-  padding: 10px 12px;
-  line-height: 1.3;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 .container {
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 h1 {
-  font-size: 15px;
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   margin: 0 0 2px 0;
-  font-weight: 700;
 }
 .step-sub {
-  font-size: 12px;
-  opacity: 0.7;
-  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 0 0 2px 0;
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 label {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--text-2);
 }
 input {
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 7px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
+input::placeholder { color: var(--text-3); }
 input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin-top: 4px;
 }
 button {
   background: var(--accent);
-  color: white;
-  border: none;
-  padding: 9px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
+  color: #ffffff;
+  border: 1px solid transparent;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
 }
+button:hover { background: var(--accent-hover); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.link-btn {
+button:disabled:hover { background: var(--accent); }
+.link-btn,
+.link-btn:hover,
+.link-btn:disabled:hover {
   background: none;
-  color: var(--accent);
+  color: var(--accent-text);
   padding: 0;
-  font-size: 12px;
-  font-weight: 600;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
   align-self: flex-start;
   width: auto;
 }
-.link-btn:hover { text-decoration: underline; }
+.link-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.link-btn.back-link,
+.link-btn.back-link:hover { color: var(--text-2); }
+.link-btn.back-link:hover { color: var(--text); text-decoration: none; }
 .status {
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  background: rgba(211, 47, 47, 0.1);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--error) 10%, transparent);
   color: var(--error);
-  border: 1px solid rgba(211, 47, 47, 0.2);
+  border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
 }
 .loader {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255,255,255,0.3);
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
   border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
+  animation: spin 0.8s linear infinite;
   margin-right: 6px;
-  vertical-align: middle;
+  vertical-align: -2px;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -127,33 +187,34 @@ button:disabled {
   top: 100%;
   left: 0;
   right: 0;
-  margin: 4px 0 0 0;
-  padding: 4px 0;
+  margin: 6px 0 0 0;
+  padding: 4px;
   list-style: none;
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   max-height: 240px;
   overflow-y: auto;
   z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 .results li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
 }
 .results li:hover,
 .results li.active {
-  background: var(--hover);
+  background: var(--sunken);
 }
 .results li.loading,
 .results li.empty {
   cursor: default;
-  opacity: 0.7;
+  color: var(--text-2);
   font-style: italic;
   font-size: 12px;
 }
@@ -176,7 +237,7 @@ button:disabled {
 .results .row-unavailable {
   font-size: 11px;
   font-style: italic;
-  opacity: 0.9;
+  color: var(--text-2);
   white-space: normal;
 }
 .results .row-text {
@@ -186,14 +247,14 @@ button:disabled {
   flex: 1;
 }
 .results .row-name {
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .results .row-host {
   font-size: 11px;
-  opacity: 0.65;
+  color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -213,7 +274,7 @@ button:disabled {
   flex-shrink: 0;
 }
 .results img.row-logo-empty {
-  background: var(--hover);
+  background: var(--sunken);
   padding: 0;
   border: 1px solid var(--border);
 }
@@ -224,11 +285,11 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 6px;
-  padding: 14px 12px;
+  gap: 8px;
+  padding: 16px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--hover);
+  border-radius: 12px;
+  background: var(--surface);
 }
 .instance-logo {
   max-width: 230px;
@@ -241,8 +302,9 @@ button:disabled {
   box-sizing: border-box;
 }
 .instance-name {
-  font-weight: 700;
-  font-size: 15px;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16px;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -259,26 +321,26 @@ button:disabled {
   align-items: center;
   text-align: center;
   gap: 8px;
-  padding: 18px 12px;
-  border-radius: 10px;
-  background: rgba(56, 142, 60, 0.08);
-  border: 1px solid rgba(56, 142, 60, 0.25);
+  padding: 22px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 .check-circle {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: var(--success);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   animation: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3);
 }
 .check-circle svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   stroke: #fff;
-  stroke-width: 4;
+  stroke-width: 3;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -287,49 +349,50 @@ button:disabled {
   animation: draw 0.4s ease-out 0.2s forwards;
 }
 .success-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--success);
-  margin: 0;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  margin: 2px 0 0 0;
 }
 .success-sub {
-  font-size: 12px;
-  opacity: 0.75;
+  font-size: 13px;
+  color: var(--text-2);
   margin: 0;
   word-break: break-all;
 }
 .success-hint {
-  font-size: 11px;
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--text-3);
   margin: 4px 0 0 0;
 }
 .success-hint kbd {
   font-family: inherit;
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: 11px;
+  padding: 1px 6px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-bottom-width: 2px;
+  border-radius: 4px;
   background: var(--bg);
+  color: var(--text-2);
 }
 /* Step 4: the passkey offer, shown after login when none is saved. */
 .passkey-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--hover);
+  border-radius: 12px;
+  background: var(--surface);
 }
 .passkey-badge {
   align-self: flex-start;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--success);
-  background: rgba(56, 142, 60, 0.12);
-  border: 1px solid rgba(56, 142, 60, 0.3);
+  color: var(--accent-text);
+  background: var(--tint);
   border-radius: 999px;
   padding: 2px 8px;
 }
@@ -340,15 +403,18 @@ button:disabled {
 .passkey-card ul {
   margin: 0;
   padding-left: 18px;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
+.passkey-card ul strong { color: var(--text); font-weight: 600; }
+.passkey-card li::marker { color: var(--accent-text); }
 .passkey-note {
-  font-size: 11px;
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--text-3);
 }
 /* Steps to let the scan read a browser macOS blocked. */
 .access-card {
@@ -371,40 +437,47 @@ button:disabled {
   line-height: 1.45;
 }
 /* The first screen: two ways in, as large tappable cards. */
-.choice {
+.choice,
+.choice:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
   width: 100%;
   text-align: left;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
   font-weight: 400;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
-.choice:hover { border-color: var(--accent); background: var(--hover); }
-.choice-title { font-weight: 700; font-size: 14px; }
-.choice-sub { font-size: 12px; opacity: 0.75; }
-.choice .passkey-badge { margin-bottom: 2px; }
+.choice:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.choice:active { transform: scale(0.995); }
+.choice-title { font-weight: 600; font-size: 14px; }
+.choice-sub { font-size: 13px; color: var(--text-2); }
+.choice .passkey-badge { margin-bottom: 3px; }
 /* Each step stacks its own children. */
-.step { display: flex; flex-direction: column; gap: 8px; }
+.step { display: flex; flex-direction: column; gap: 10px; }
 /* Found logins and connected accounts share one row layout. */
 .account-list {
   list-style: none;
   margin: 0;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
+  background: var(--surface);
   overflow: hidden;
 }
 .account-list li {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 14px;
   font-size: 13px;
 }
 .account-list li + li { border-top: 1px solid var(--border); }
@@ -415,30 +488,31 @@ button:disabled {
   flex: 1;
   min-width: 0;
   cursor: pointer;
-  opacity: 1;
+  color: var(--text);
   font-weight: 400;
   font-size: 13px;
 }
 .account-list li.disabled label { cursor: default; opacity: 0.55; }
-.account-list input[type=radio] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--accent); }
+.account-list input[type=radio] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--accent); box-shadow: none; }
 .account-list .row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.account-list .row-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.account-list .row-host { font-size: 11px; opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.account-list .row-note { font-size: 11px; font-style: italic; opacity: 0.8; }
-.account-list .row-error { font-size: 11px; color: var(--error); }
+.account-list .row-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-list .row-host { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-list .row-note { font-size: 12px; font-style: italic; color: var(--text-2); }
+.account-list .row-error { font-size: 12px; color: var(--error); }
 .mark { width: 18px; text-align: center; font-weight: 700; flex-shrink: 0; }
 .mark.ok { color: var(--success); }
 .mark.fail { color: var(--error); }
 /* "I'm done" sits under Connect while there are logins left to import. */
-button.secondary { background: none; color: var(--text); border: 1px solid var(--border); }
-button.secondary:hover { background: var(--hover); }
+button.secondary { background: transparent; color: var(--text); border-color: var(--border); }
+button.secondary:hover { background: var(--sunken); }
 .working {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   font-size: 13px;
-  padding: 8px 0;
+  color: var(--text-2);
+  padding: 10px 0;
 }
 .working .loader { border-color: var(--border); border-top-color: var(--accent); margin: 0; }
 @keyframes pop {

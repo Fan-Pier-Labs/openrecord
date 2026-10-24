@@ -20,6 +20,12 @@ export interface RpcMessage {
   error?: { message?: string };
 }
 
+/** The host's theme from ui/initialize and ui/notifications/host-context-changed: Claude's own colors and fonts. */
+export interface HostContext {
+  theme?: 'light' | 'dark';
+  styles?: { variables?: Record<string, string | undefined>; css?: { fonts?: string } };
+}
+
 export interface Host {
   /** Settles once the handshake does; every call waits on it. */
   ready: Promise<void>;
@@ -48,13 +54,18 @@ export function decodeToolResult(raw: unknown): { value: unknown; parkedId: stri
   }
 }
 
-export function createHost(post: (msg: RpcMessage) => void): { host: Host; receive: (data: unknown) => void } {
+export function createHost(
+  post: (msg: RpcMessage) => void,
+  onContext: (context: HostContext) => void = () => {},
+): { host: Host; receive: (data: unknown) => void } {
   let nextId = 0;
   const waiting = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
   const receive = (data: unknown) => {
     const msg = data as RpcMessage | null;
-    if (msg?.jsonrpc !== '2.0' || msg.id == null) return;
+    if (msg?.jsonrpc !== '2.0') return;
+    if (msg.method === 'ui/notifications/host-context-changed') onContext(msg.params ?? {});
+    if (msg.id == null) return;
     const entry = waiting.get(msg.id);
     if (!entry) return;
     waiting.delete(msg.id);
@@ -75,7 +86,10 @@ export function createHost(post: (msg: RpcMessage) => void): { host: Host; recei
     appInfo: { name: 'openrecord-setup', version: '2.0.0' },
     appCapabilities: {},
     protocolVersion: PROTOCOL_VERSION,
-  }).then(() => notify('ui/notifications/initialized', {}));
+  }).then((result) => {
+    onContext((result as { hostContext?: HostContext } | undefined)?.hostContext ?? {});
+    notify('ui/notifications/initialized', {});
+  });
 
   const callOnce = async (name: string, args: Record<string, unknown>) => {
     await ready;
