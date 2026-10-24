@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { BackLink, BusyButton, FieldError, InstanceHeader, RowText, Spinner } from './components';
-import { accountsView, twoFaDeliveryLabel, type Connected, type CredsStep, type FoundLogin, type State, type Step } from './flow';
+import { accountsView, FULL_DISK_ACCESS_STEPS, twoFaDeliveryLabel, type Connected, type CredsStep, type FoundLogin, type State, type Step } from './flow';
 
 type StepOf<K extends Step['kind']> = Extract<Step, { kind: K }>;
 
@@ -125,6 +125,14 @@ export function Accounts({ state, step, onConnect, onImport, onManual, onBack, o
         </ul>
       )}
       <p className="step-sub">{view.subtitle}</p>
+      {view.blockedNote && (
+        <div className="access-card">
+          <p>{view.blockedNote}</p>
+          <ol>
+            {FULL_DISK_ACCESS_STEPS.map((text) => <li key={text}>{text}</li>)}
+          </ol>
+        </div>
+      )}
       {hasPickable && (
         <ul className="account-list">
           {view.rows.map(({ entry: a, note }) => (

@@ -98,6 +98,20 @@ describe('the import route', () => {
     expect(state.step).toEqual({ kind: 'consent', error: 'keychain locked' });
   });
 
+  test('names the browsers macOS blocked, instead of saying there are no logins', () => {
+    const state = run([{ type: 'scanned', scan: { supported: true, accounts: [], blocked_browsers: ['Chrome', 'Edge', 'Firefox'] }, saved: null }]);
+    const view = accountsView(state);
+    expect(view.subtitle).not.toContain("We didn't find any MyChart logins in your browsers");
+    expect(view.blockedNote).toContain('Chrome, Edge and Firefox');
+  });
+
+  test('still offers the logins it could read when another browser was blocked', () => {
+    const state = run([{ type: 'scanned', scan: { supported: true, accounts: [homer], blocked_browsers: ['Chrome'] }, saved: null }]);
+    const view = accountsView(state);
+    expect(view.firstPickable).toBe(homer);
+    expect(view.blockedNote).toContain('passwords saved in Chrome.');
+  });
+
   test('says so on a platform that cannot import', () => {
     const state = run([{ type: 'scanned', scan: { supported: false, accounts: [] }, saved: null }]);
     expect(accountsView(state).subtitle).toContain('macOS and Windows only');
@@ -310,7 +324,8 @@ describe('copy', () => {
 
   test('reports every connected account and how its passkey offer went', () => {
     expect(setupDoneMessage([{ account: 'homer@mychart.example.org', passkey: 'registered' }])).toBe(
-      'My MyChart account homer@mychart.example.org is now connected. A passkey is now saved for homer@mychart.example.org. Please continue with my original request.',
+      'My MyChart account homer@mychart.example.org is now connected. A passkey is now saved for homer@mychart.example.org. ' +
+        'Access the account and tell me a summary of my current health history, status, appointments and bills.',
     );
     expect(
       setupDoneMessage([
@@ -321,7 +336,7 @@ describe('copy', () => {
     ).toBe(
       'I connected 3 MyChart accounts: a@one.example.org, b@two.example.org, c@three.example.org. ' +
         'I chose not to set up a passkey for a@one.example.org, c@three.example.org right now, so do not offer one again. ' +
-        'Please continue with my original request.',
+        'Access the accounts and tell me a summary of my current health history, status, appointments and bills.',
     );
   });
 });

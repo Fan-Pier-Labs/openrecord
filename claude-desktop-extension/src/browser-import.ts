@@ -15,7 +15,7 @@
  * prompt, which is the consent gate for the scan itself.
  */
 
-import { findMyChartCandidates, isSupportedPlatform, type MyChartCandidate } from '../../read-local-passwords/index';
+import { blockedBrowsers, findMyChartCandidates, isSupportedPlatform, type MyChartCandidate } from '../../read-local-passwords/index';
 
 /** Scanned credentials, held only long enough for the user to choose one. */
 const held = new Map<string, { candidate: MyChartCandidate; expiresAt: number }>();
@@ -56,6 +56,8 @@ function summarize(candidate: MyChartCandidate): ImportedAccountSummary {
 export interface ScanResult {
   supported: boolean;
   accounts: ImportedAccountSummary[];
+  /** Browsers macOS would not let us read. Their logins are missing from `accounts`. */
+  blocked_browsers: string[];
 }
 
 /**
@@ -67,7 +69,7 @@ export interface ScanResult {
  * for anything this misses, and a later re-run picks up a portal that was down.
  */
 export async function scanBrowserPasswords(options: { probeUnknownHosts?: boolean } = {}): Promise<ScanResult> {
-  if (!isSupportedPlatform()) return { supported: false, accounts: [] };
+  if (!isSupportedPlatform()) return { supported: false, accounts: [], blocked_browsers: [] };
 
   evictExpired();
   const candidates = await findMyChartCandidates(options);
@@ -75,7 +77,7 @@ export async function scanBrowserPasswords(options: { probeUnknownHosts?: boolea
   const expiresAt = Date.now() + TTL_MS;
   for (const candidate of candidates) held.set(candidate.key, { candidate, expiresAt });
 
-  return { supported: true, accounts: candidates.map(summarize) };
+  return { supported: true, accounts: candidates.map(summarize), blocked_browsers: blockedBrowsers() };
 }
 
 /** Redeem an id from the last scan. Returns undefined once it has expired. */
