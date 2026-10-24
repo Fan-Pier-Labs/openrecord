@@ -292,6 +292,9 @@ The short version, for what this extension does:
   per-install id, the MyChart hostname being signed in to, and OS/runtime
   versions — never your username, password, or anything from your record.
   `MYCHART_CLI_TELEMETRY_DISABLED=1` in the server's environment turns them off.
+- **Update check.** At startup and hourly it reads
+  `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
+  ends with a one-line notice (`src/update-notice.ts`). The same env var turns it off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
 
