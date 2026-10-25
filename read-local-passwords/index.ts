@@ -12,8 +12,7 @@
  * The Firefox path has been substantially rewritten — see `firefox.ts`.
  */
 
-import { closeSync, openSync } from 'fs';
-import * as path from 'path';
+import { closeSync, openSync, readdirSync } from 'fs';
 import { chromiumProfileRoots, getChromiumLogins } from './chromium';
 import { firefoxProfileRoots, getFirefoxLogins } from './firefox';
 import { classifyMyChartEntries } from './myChartFilter';
@@ -30,27 +29,37 @@ export function isSupportedPlatform(): boolean {
  * Browsers whose saved passwords macOS will not let this process read.
  *
  * macOS shields some browsers' data folders from other apps. The refusal is an
- * EPERM, which the scan otherwise swallows exactly like "nothing saved". Only
- * the user can lift it, by giving the app this process runs under (Claude) Full
- * Disk Access, so the caller has to tell them how.
- *
- * The probe opens a file every install has rather than listing the folder.
- * Apple documents a refused *open* as what adds the app to the Full Disk Access
- * list (switched off), so the user only has to turn it on; a refused listing
- * left Claude off that list.
+ * EPERM on reading the folder, which the scan otherwise swallows exactly like
+ * "nothing saved". Only the user can lift it, by giving the app this process
+ * runs under Full Disk Access, so the caller has to tell them how.
  */
 export function blockedBrowsers(): string[] {
   if (process.platform !== 'darwin') return [];
-  const probes = [
-    ...chromiumProfileRoots().map(({ name, root }) => ({ name, file: path.join(root, 'Local State') })),
-    ...firefoxProfileRoots().map(root => ({ name: 'Firefox', file: path.join(path.dirname(root), 'profiles.ini') })),
-  ];
-  return probes.filter(({ file }) => isPermissionDenied(file)).map(({ name }) => name);
+  const roots = [...chromiumProfileRoots(), ...firefoxProfileRoots().map(root => ({ name: 'Firefox', root }))];
+  const blocked = roots.filter(({ root }) => isPermissionDenied(root)).map(({ name }) => name);
+  if (blocked.length) getListedForFullDiskAccess();
+  return blocked;
 }
 
-function isPermissionDenied(file: string): boolean {
+/**
+ * Put Claude in the Full Disk Access list, switched off, so the user only has
+ * to turn it on rather than find it with +. macOS lists an app when it is
+ * refused a classic Full Disk Access location, but not when it is refused
+ * another app's data folder, which is all the browser reads are. A refused
+ * open of TCC.db is Apple's own example; nothing is read, and the file is
+ * closed at once if the open succeeds.
+ */
+function getListedForFullDiskAccess(): void {
   try {
-    closeSync(openSync(file, 'r'));
+    closeSync(openSync('/Library/Application Support/com.apple.TCC/TCC.db', 'r'));
+  } catch {
+    // The refusal is the point.
+  }
+}
+
+function isPermissionDenied(directory: string): boolean {
+  try {
+    readdirSync(directory);
     return false;
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'EPERM';

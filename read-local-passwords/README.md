@@ -51,10 +51,12 @@ fails with `EPERM`, and the per-profile `catch` would otherwise report that as "
 `blockedBrowsers()` names those browsers so the caller can tell the user to give the host app (Claude)
 Full Disk Access. `EACCES` is not counted, since Full Disk Access would not fix it.
 
-It probes with a read-only *open* of a file every install has (`Local State`, Firefox's
-`profiles.ini`), not a directory listing. Apple documents a refused open as what adds the app to the
-Full Disk Access list, switched off, so the user turns it on instead of finding Claude with **+**. A
-refused listing logged the same "Denied (Service Policy)" in `tccd` but left Claude off the list.
+When one is blocked it also tries to open `/Library/Application Support/com.apple.TCC/TCC.db`
+(read-only, never read). macOS adds an app to the Full Disk Access list, switched off, only when it is
+refused a *classic* Full Disk Access location; refusals of another app's data folder — listing or
+opening — go through `kTCCServiceSystemPolicyAppDataDetailed` and add nothing. Checked with an ad-hoc
+signed probe app on macOS 27.0.1: browser folder listing and file open left it unlisted, the TCC.db
+open listed it at once (`auth_value 0`, `auth_reason 5`).
 
 **The database is always copied before reading.** The browser may be running and holding locks, with
 `-wal`/`-journal` siblings. The copy goes to a fresh temp directory and is removed in a `finally`.
