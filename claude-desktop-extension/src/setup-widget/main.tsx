@@ -35,7 +35,10 @@ void host.ready.then(() => {
     // Not scrollHeight: it rounds a fractional height down, leaving a
     // half-pixel to scroll, and never reports less than the current frame,
     // so the widget could not shrink.
-    const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+    let bottom = document.documentElement.getBoundingClientRect().bottom;
+    // The search results float (position: absolute), so the page's height leaves them out.
+    for (const el of document.querySelectorAll('.results')) bottom = Math.max(bottom, el.getBoundingClientRect().bottom + 16);
+    const height = Math.ceil(bottom + window.scrollY);
     if (height === lastHeight) return;
     lastHeight = height;
     host.notify('ui/notifications/size-changed', { height });
@@ -45,6 +48,8 @@ void host.ready.then(() => {
   };
   schedule();
   new ResizeObserver(schedule).observe(document.documentElement);
+  // Opening the results list changes no element's size, only what is in the DOM.
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
 }, () => {
   // App shows the failed handshake.
 });
