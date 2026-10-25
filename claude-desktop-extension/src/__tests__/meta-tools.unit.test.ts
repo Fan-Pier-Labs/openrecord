@@ -12,7 +12,7 @@
  * their failure paths (no account configured), which is where the wrapper's
  * error handling lives.
  */
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as memfs from './memfs'
 
@@ -217,5 +217,61 @@ describe('registered surface', () => {
 
   it('registers a substantial scraper surface', () => {
     expect(tools.size).toBeGreaterThan(20)
+  })
+})
+
+describe('error reporting', () => {
+  const envKeys = ['MYCHART_CLI_TELEMETRY_DISABLED', 'OPENRECORD_ANALYTICS_DISABLED', 'OPENRECORD_ANALYTICS_ENDPOINT'] as const
+  let saved: Record<string, string | undefined>
+  let originalFetch: typeof fetch
+  let fetchMock: ReturnType<typeof mock>
+
+  beforeEach(() => {
+    saved = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]))
+    for (const k of envKeys) delete process.env[k]
+    originalFetch = globalThis.fetch
+    fetchMock = mock((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}', { status: 200 })))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k]
+      else process.env[k] = saved[k]!
+    }
+  })
+
+  /** The events posted to the analytics Lambda, once `count` of them have gone out. */
+  type LambdaEvent = { event: string; properties: Record<string, unknown>; error?: { name: string; message: string; stack: string } }
+  async function lambdaEvents(count: number): Promise<LambdaEvent[]> {
+    const posted = () =>
+      fetchMock.mock.calls
+        .filter((c) => String(c[0]).includes('execute-api'))
+        .map((c) => JSON.parse((c[1] as RequestInit).body as string) as LambdaEvent)
+    for (let i = 0; i < 200 && posted().length < count; i++) await new Promise<void>((r) => { setTimeout(r, 0) })
+    return posted()
+  }
+
+  it('sends a failed call as mcpb_tool_error with the stack of what was thrown', async () => {
+    const result = await call('get_profile', { account: 'nobody@mychart.example.org' })
+    expect(result.isError).toBe(true)
+
+    const events = await lambdaEvents(2)
+    const failure = events.find((e) => e.event === 'mcpb_tool_error')!
+    expect(failure.properties.tool).toBe('get_profile')
+    expect(failure.properties.hostname).toBe('mychart.example.org')
+    expect(failure.error!.message).toBe('No MyChart accounts configured. Call setup_account first.')
+    // The stack the tool result threw away: where it was thrown, not just what it said.
+    expect(failure.error!.stack).toContain('resolveSession')
+    expect(events.some((e) => e.event === 'mcpb_tool_called')).toBe(true)
+  })
+
+  it('sends no error event for a call that succeeds', async () => {
+    await call('list_accounts')
+    const events = await lambdaEvents(1)
+    // Give a stray error event every chance to show up before asserting it didn't.
+    for (let i = 0; i < 50; i++) await new Promise<void>((r) => { setTimeout(r, 0) })
+    expect(events.map((e) => e.event)).toEqual(['mcpb_tool_called'])
   })
 })

@@ -149,6 +149,29 @@ async function postJson(url: string, body: unknown): Promise<void> {
   }
 }
 
+export interface ErrorReport {
+  name: string;
+  message: string;
+  /** The full stack, then each `cause`'s stack in turn. */
+  stack: string;
+}
+
+/** Anything thrown, as name + message + stack. A non-Error throw has no stack to give. */
+export function describeError(error: unknown): ErrorReport {
+  if (!(error instanceof Error)) {
+    const text = typeof error === 'string' ? error : JSON.stringify(error) ?? String(error);
+    return { name: 'NonError', message: text, stack: text };
+  }
+  const stacks: string[] = [];
+  // Bounded, since a cause chain can loop.
+  for (let e: unknown = error; e !== undefined && stacks.length < 10; e = (e as Error).cause) {
+    stacks.push(e instanceof Error ? (e.stack ?? `${e.name}: ${e.message}`) : describeError(e).stack);
+  }
+  // The home folder is usually named after the macOS user.
+  const stack = stacks.join('\nCaused by: ').replaceAll(os.homedir(), '~');
+  return { name: error.name, message: error.message, stack };
+}
+
 /**
  * Send a telemetry event to both sinks (Amplitude and our analytics
  * Lambda). Fire-and-forget. Never throws. Returns immediately when
@@ -156,13 +179,16 @@ async function postJson(url: string, body: unknown): Promise<void> {
  *
  * `source` identifies the client emitting the event ('cli', 'scraper',
  * 'openclaw', …) and is only used by the self-hosted sink; Amplitude
- * distinguishes clients by event name.
+ * distinguishes clients by event name. `error` rides along as name, message
+ * and full stack: as event properties on Amplitude, which truncates long
+ * values, and whole as a top-level `error` for the Lambda.
  */
 export function sendTelemetryEvent(
   eventType: string,
   eventProperties: Record<string, unknown> = {},
   source = 'node',
   user?: { email?: string | undefined; username?: string | undefined },
+  error?: unknown,
 ): void {
   if (isTelemetryDisabled()) return;
 
@@ -175,6 +201,7 @@ export function sendTelemetryEvent(
         arch: envInfo.arch,
         runtime_version: envInfo.runtime_version,
       };
+      const failure = error === undefined ? undefined : describeError(error);
 
       const email = user?.email;
       const username = user?.username;
@@ -188,7 +215,9 @@ export function sendTelemetryEvent(
             platform: envInfo.platform,
             os_name: envInfo.platform,
             os_version: envInfo.os_version,
-            event_properties: properties,
+            event_properties: failure
+              ? { ...properties, error_name: failure.name, error_message: failure.message, error_stack: failure.stack }
+              : properties,
             // '$remote' tells Amplitude to record the IP the upload came from.
             ...(user ? { ip: '$remote' } : {}),
             ...(email ? { user_id: email } : {}),
@@ -207,6 +236,7 @@ export function sendTelemetryEvent(
             // The key's presence tells the Lambda to log this event's email and
             // the request's IP, which it reads off the request itself.
             ...(user ? { email: email ?? null, username: username ?? null } : {}),
+            ...(failure ? { error: failure } : {}),
             event: eventType,
             ts: Date.now(),
             properties: {
