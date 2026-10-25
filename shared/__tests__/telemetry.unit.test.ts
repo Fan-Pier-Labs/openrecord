@@ -328,11 +328,15 @@ describe('telemetry', () => {
 describe('device id', () => {
   let originalFetch: typeof globalThis.fetch;
   let originalDisable: string | undefined;
+  let originalNodeEnv: string | undefined;
 
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     originalDisable = process.env.MYCHART_CLI_TELEMETRY_DISABLED;
     delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+    // Telemetry is off under `bun test`; switch it back on behind the mocked fetch.
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
     fs.rmSync(idFile, { force: true });
   });
 
@@ -340,6 +344,8 @@ describe('device id', () => {
     globalThis.fetch = originalFetch;
     if (originalDisable === undefined) delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
     else process.env.MYCHART_CLI_TELEMETRY_DISABLED = originalDisable;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
   });
 
   /** Send `count` events and return the Amplitude device_id each one carried. */
