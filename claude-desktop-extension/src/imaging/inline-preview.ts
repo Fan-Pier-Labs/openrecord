@@ -18,7 +18,7 @@
  * .mcpb bundle.
  */
 import jpegJs from 'jpeg-js';
-import Pica from 'pica';
+import { Pica } from 'pica';
 import { grayscaleToRgba } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import type { DecodedImage, DecodedStudy, StudyJpeg } from './download-study';
 

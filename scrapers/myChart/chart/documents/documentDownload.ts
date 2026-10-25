@@ -62,6 +62,7 @@ export async function downloadDocument(
       throw new Error(
         `MyChart has no document ${documentId} on the active patient record. ` +
           'Take the id from a `dcsID` in get_documents, copied verbatim, and check the right patient is active.',
+        { cause: error },
       );
     }
     const named = failure.displayName || documentId;
@@ -69,8 +70,9 @@ export async function downloadDocument(
       throw new Error(
         `MyChart offers ${named} for viewing in the portal only and serves no file for it, ` +
           'so there is nothing to download. Opening it in MyChart itself is the only way to read it.',
+        { cause: error },
       );
     }
-    throw new Error(`MyChart answered the download of ${named} with ${failure.detail}; nothing was downloaded.`);
+    throw new Error(`MyChart answered the download of ${named} with ${failure.detail}; nothing was downloaded.`, { cause: error });
   }
 }

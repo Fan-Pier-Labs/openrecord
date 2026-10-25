@@ -245,7 +245,7 @@ export default function ChatScreen() {
             )}
             contentContainerStyle={styles.messageList}
             ListFooterComponent={
-              activeTool ? <ToolCallIndicator toolName={activeTool} /> : null
+              activeTool ? <ToolCallIndicator toolName={activeTool} /> : undefined
             }
           />
         )}

@@ -64,7 +64,7 @@ async function doRenew(mychartRequest: MyChartRequest): Promise<boolean> {
   }
 
   logger.warn(`MyChart session for ${mychartRequest.hostname} expired — attempting automatic re-login.`);
-  let loggedIn = false;
+  let loggedIn: boolean;
   try {
     loggedIn = await reauthenticate();
   } catch (error) {

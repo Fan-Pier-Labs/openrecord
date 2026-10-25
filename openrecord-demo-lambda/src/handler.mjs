@@ -353,9 +353,8 @@ export const handler = async (event) => {
     return json(err.statusCode ?? 400, { error: err.message });
   }
 
-  let spentMicros = 0;
   if (auth) {
-    spentMicros = await spendStore.get(ledgerKey(auth.sub));
+    const spentMicros = await spendStore.get(ledgerKey(auth.sub));
     if (spentMicros >= spendLimitMicros()) {
       return json(402, {
         error: 'Monthly included AI credit is used up. It resets at the start of next month, or add your own API key in Settings → AI Provider.',

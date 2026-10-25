@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { View, TextInput, Pressable, Text, StyleSheet } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 type Props = {
   onSend: (text: string) => void;
@@ -10,7 +11,7 @@ type Props = {
 
 export function ChatInput({ onSend, disabled }: Props) {
   const [text, setText] = useState("");
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   function handleSend() {
     const trimmed = text.trim();

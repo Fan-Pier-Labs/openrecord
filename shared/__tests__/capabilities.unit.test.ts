@@ -95,8 +95,9 @@ describe('the registry itself', () => {
     // The enforcement for "every dispatch goes through executeCapability".
     // If `run` ever returns to the exported type this stops compiling, which
     // is the point — it replaced a regex that only caught one spelling.
+    // The objects still carry `run` at runtime; only the exported type hides it.
     // @ts-expect-error — Property 'run' does not exist on type 'Capability'.
-    void CAPABILITIES[0].run;
+    expect(CAPABILITIES[0]!.run).toBeDefined();
     expect(Object.keys(CAPABILITIES[0]!)).toContain('id');
   });
 
