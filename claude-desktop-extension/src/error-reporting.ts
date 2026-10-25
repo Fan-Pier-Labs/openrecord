@@ -3,8 +3,15 @@
 import * as Sentry from '@sentry/node';
 import { version as MCPB_VERSION } from '../manifest.json';
 
-/** The OpenRecord MCPB project's DSN. Empty leaves Sentry off; errors still reach the analytics Lambda. */
-const SENTRY_DSN = '';
+/** The openrecord-mcpb Sentry project. Public by design: a DSN only lets a client send events. */
+const SENTRY_DSN = 'https://ef29f66fb6933cd8350543c371a66e6a@o4509283904323584.ingest.us.sentry.io/4512317698080768';
+
+/**
+ * `bun test` sets NODE_ENV=test. Suites fail tool calls on purpose, and every
+ * run would otherwise file those as real issues; the Sentry suite passes its
+ * own DSN instead.
+ */
+const DEFAULT_DSN = process.env.NODE_ENV === 'test' ? '' : SENTRY_DSN;
 
 export interface ToolErrorContext {
   tool: string;
@@ -66,7 +73,7 @@ function start(dsn: string): void {
 }
 
 /** Send one tool call's error to Sentry, with who and what it was about. `dsn` is the test seam. */
-export function captureToolError(error: unknown, context: ToolErrorContext, dsn = SENTRY_DSN): void {
+export function captureToolError(error: unknown, context: ToolErrorContext, dsn = DEFAULT_DSN): void {
   if (!dsn) return;
   try {
     start(dsn);
