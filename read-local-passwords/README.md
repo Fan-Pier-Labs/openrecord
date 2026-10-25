@@ -51,6 +51,11 @@ fails with `EPERM`, and the per-profile `catch` would otherwise report that as "
 `blockedBrowsers()` names those browsers so the caller can tell the user to give the host app (Claude)
 Full Disk Access. `EACCES` is not counted, since Full Disk Access would not fix it.
 
+It probes with a read-only *open* of a file every install has (`Local State`, Firefox's
+`profiles.ini`), not a directory listing. Apple documents a refused open as what adds the app to the
+Full Disk Access list, switched off, so the user turns it on instead of finding Claude with **+**. A
+refused listing logged the same "Denied (Service Policy)" in `tccd` but left Claude off the list.
+
 **The database is always copied before reading.** The browser may be running and holding locks, with
 `-wal`/`-journal` siblings. The copy goes to a fresh temp directory and is removed in a `finally`.
 

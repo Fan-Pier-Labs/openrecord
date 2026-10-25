@@ -21,7 +21,7 @@ void mock.module('../chromium', () => ({
   getChromiumLogins: () => chromiumResult(),
   chromiumProfileRoots: () => [{ name: 'Chrome', root: '/fake/Chrome' }, { name: 'Arc', root: '/fake/Arc' }, { name: 'Brave', root: '/fake/Brave' }],
 }));
-void mock.module('../firefox', () => ({ getFirefoxLogins: () => firefoxResult(), firefoxProfileRoots: () => ['/fake/Firefox'] }));
+void mock.module('../firefox', () => ({ getFirefoxLogins: () => firefoxResult(), firefoxProfileRoots: () => ['/fake/Firefox/Profiles'] }));
 
 const { blockedBrowsers, getAllBrowserLogins, getMyChartAccounts, isSupportedPlatform } = await import('../index');
 
@@ -98,33 +98,37 @@ describe('getAllBrowserLogins', () => {
 });
 
 describe('blockedBrowsers', () => {
-  const failWith = (codes: Record<string, string>) =>
-    spyOn(fs, 'readdirSync').mockImplementation(((dir: string) => {
-      const code = codes[dir];
+  const failWith = (codes: Record<string, string>) => {
+    spyOn(fs, 'closeSync').mockImplementation(() => undefined);
+    return spyOn(fs, 'openSync').mockImplementation(((file: string) => {
+      const code = codes[file];
       if (code) throw Object.assign(new Error(code), { code });
-      return [];
-    }) as unknown as typeof fs.readdirSync);
+      return 3;
+    }) as unknown as typeof fs.openSync);
+  };
 
   afterEach(() => mock.restore());
 
-  it('names the browsers whose folder macOS refused', () => {
-    // EPERM is macOS privacy protection; Full Disk Access lifts it.
+  it('names the browsers macOS refused, by opening a file each one always has', () => {
+    // EPERM is macOS privacy protection; Full Disk Access lifts it. An open,
+    // not a listing, is what gets Claude added to the Full Disk Access list.
     setPlatform('darwin');
-    failWith({ '/fake/Chrome': 'EPERM', '/fake/Firefox': 'EPERM' });
+    const open = failWith({ '/fake/Chrome/Local State': 'EPERM', '/fake/Firefox/profiles.ini': 'EPERM' });
 
     expect(blockedBrowsers()).toEqual(['Chrome', 'Firefox']);
+    expect(open).toHaveBeenCalledWith('/fake/Chrome/Local State', 'r');
   });
 
   it('does not count a browser that is not installed, or a folder Full Disk Access would not open', () => {
     setPlatform('darwin');
-    failWith({ '/fake/Chrome': 'ENOENT', '/fake/Brave': 'EACCES' });
+    failWith({ '/fake/Chrome/Local State': 'ENOENT', '/fake/Brave/Local State': 'EACCES' });
 
     expect(blockedBrowsers()).toEqual([]);
   });
 
   it('is empty off macOS', () => {
     setPlatform('win32');
-    failWith({ '/fake/Chrome': 'EPERM' });
+    failWith({ '/fake/Chrome/Local State': 'EPERM' });
 
     expect(blockedBrowsers()).toEqual([]);
   });

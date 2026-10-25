@@ -12,7 +12,8 @@
  * The Firefox path has been substantially rewritten — see `firefox.ts`.
  */
 
-import { readdirSync } from 'fs';
+import { closeSync, openSync } from 'fs';
+import * as path from 'path';
 import { chromiumProfileRoots, getChromiumLogins } from './chromium';
 import { firefoxProfileRoots, getFirefoxLogins } from './firefox';
 import { classifyMyChartEntries } from './myChartFilter';
@@ -29,19 +30,27 @@ export function isSupportedPlatform(): boolean {
  * Browsers whose saved passwords macOS will not let this process read.
  *
  * macOS shields some browsers' data folders from other apps. The refusal is an
- * EPERM on reading the folder, which the scan otherwise swallows exactly like
- * "nothing saved". Only the user can lift it, by giving the app this process
- * runs under Full Disk Access, so the caller has to tell them how.
+ * EPERM, which the scan otherwise swallows exactly like "nothing saved". Only
+ * the user can lift it, by giving the app this process runs under (Claude) Full
+ * Disk Access, so the caller has to tell them how.
+ *
+ * The probe opens a file every install has rather than listing the folder.
+ * Apple documents a refused *open* as what adds the app to the Full Disk Access
+ * list (switched off), so the user only has to turn it on; a refused listing
+ * left Claude off that list.
  */
 export function blockedBrowsers(): string[] {
   if (process.platform !== 'darwin') return [];
-  const roots = [...chromiumProfileRoots(), ...firefoxProfileRoots().map(root => ({ name: 'Firefox', root }))];
-  return roots.filter(({ root }) => isPermissionDenied(root)).map(({ name }) => name);
+  const probes = [
+    ...chromiumProfileRoots().map(({ name, root }) => ({ name, file: path.join(root, 'Local State') })),
+    ...firefoxProfileRoots().map(root => ({ name: 'Firefox', file: path.join(path.dirname(root), 'profiles.ini') })),
+  ];
+  return probes.filter(({ file }) => isPermissionDenied(file)).map(({ name }) => name);
 }
 
-function isPermissionDenied(directory: string): boolean {
+function isPermissionDenied(file: string): boolean {
   try {
-    readdirSync(directory);
+    closeSync(openSync(file, 'r'));
     return false;
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'EPERM';
