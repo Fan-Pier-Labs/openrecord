@@ -26,13 +26,22 @@ window.addEventListener('message', (event) => {
   if (event.source === window.parent) receive(event.data);
 });
 
+// Measure the content, not documentElement.scrollHeight: that is never less
+// than the iframe itself, so once the host grew the frame it could never shrink.
+const contentHeight = () => {
+  let bottom = document.body.getBoundingClientRect().bottom;
+  // The search results float (position: absolute), so body's height leaves them out.
+  for (const el of document.querySelectorAll('.results')) bottom = Math.max(bottom, el.getBoundingClientRect().bottom + 16);
+  return Math.ceil(bottom + window.scrollY);
+};
+
 // Tell the host our real height so the iframe stops scrolling.
 void host.ready.then(() => {
   let lastHeight = 0;
   let frame = 0;
   const report = () => {
     frame = 0;
-    const height = document.documentElement.scrollHeight;
+    const height = contentHeight();
     if (height === lastHeight) return;
     lastHeight = height;
     host.notify('ui/notifications/size-changed', { height });
@@ -41,7 +50,9 @@ void host.ready.then(() => {
     if (!frame) frame = requestAnimationFrame(report);
   };
   schedule();
-  new ResizeObserver(schedule).observe(document.documentElement);
+  new ResizeObserver(schedule).observe(document.body);
+  // Opening the results list changes no element's size, only what is in the DOM.
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
 }, () => {
   // App shows the failed handshake.
 });
