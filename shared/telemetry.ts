@@ -73,7 +73,7 @@ let fallbackDeviceId: string | undefined;
  * computer's events together. Re-read on every event rather than cached, so
  * a CLI run and the MCPB that start at once settle on whichever ID landed.
  */
-function getAnonymousId(): string {
+export function getAnonymousId(): string {
   const file = path.join(os.homedir(), '.openrecord.json');
   try {
     let config: Record<string, unknown> = {};
