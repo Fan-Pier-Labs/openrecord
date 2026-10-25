@@ -3,7 +3,7 @@
 import * as Sentry from '@sentry/node';
 import { version as MCPB_VERSION } from '../manifest.json';
 
-/** The openrecord-mcpb Sentry project. Public by design: a DSN only lets a client send events. */
+/** The openrecord-2 Sentry project. Public by design: a DSN only lets a client send events. */
 const SENTRY_DSN = 'https://ef29f66fb6933cd8350543c371a66e6a@o4509283904323584.ingest.us.sentry.io/4512317698080768';
 
 /**
