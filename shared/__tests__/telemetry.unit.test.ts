@@ -23,6 +23,17 @@ async function drainSend(fetchMock: FetchMock, expected: number): Promise<void> 
 }
 
 describe('telemetry', () => {
+  // Telemetry is off under `bun test`; these suites switch it back on behind a mocked fetch.
+  let originalNodeEnv: string | undefined;
+  beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+  });
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
   describe('gatherEnvInfo', () => {
     test('returns platform, arch, runtime_version, os_version', () => {
       const info = gatherEnvInfo();
@@ -174,6 +185,19 @@ describe('telemetry', () => {
       sendTelemetryEvent('test_event');
       // Nothing to wait for — but drain anyway, so a regression that *does*
       // fetch has every chance to show itself rather than racing the assertion.
+      await drainSend(fetchMock, 1);
+
+      expect(fetchMock.mock.calls).toHaveLength(0);
+    });
+
+    test('does not fetch under bun test (NODE_ENV=test)', async () => {
+      process.env.NODE_ENV = 'test';
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('test_event');
       await drainSend(fetchMock, 1);
 
       expect(fetchMock.mock.calls).toHaveLength(0);
