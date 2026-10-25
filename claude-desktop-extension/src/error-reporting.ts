@@ -1,5 +1,6 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
+import * as os from 'os';
 import * as Sentry from '@sentry/node';
 import { version as MCPB_VERSION } from '../manifest.json';
 
@@ -50,8 +51,16 @@ function start(dsn: string): void {
     // Errors only, and nothing collected on the side. The default integrations
     // would add breadcrumbs of every console line and outgoing request — that is
     // scraper logs and MyChart URLs — and runtime patching of loaded modules.
-    integrations: [Sentry.linkedErrorsIntegration(), Sentry.dedupeIntegration()],
+    // Frame paths are rewritten relative to the home folder, whose name is
+    // usually the macOS username.
+    integrations: [
+      Sentry.linkedErrorsIntegration(),
+      Sentry.dedupeIntegration(),
+      Sentry.rewriteFramesIntegration({ root: os.homedir() }),
+    ],
     enableRuntimeChannelInjection: false,
+    // Otherwise every event carries the computer's name, which usually has the owner's in it.
+    includeServerName: false,
     // Every automatic collector off. `user` is set by hand per error; nothing
     // else of the user's — and no tool input or output, which is chart data —
     // may ride along.

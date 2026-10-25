@@ -1,12 +1,14 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import * as os from 'os';
 import { captureToolError, resetErrorReporting } from '../error-reporting';
 
 const DSN = 'https://publickey@o0.ingest.sentry.io/1';
 
 type SentryEvent = {
-  exception: { values: Array<{ type: string; value: string; stacktrace?: { frames: Array<{ function?: string }> } }> };
+  exception: { values: Array<{ type: string; value: string; stacktrace?: { frames: Array<{ function?: string; filename?: string }> } }> };
+  server_name?: string;
   user: Record<string, string>;
   tags: Record<string, string>;
   release: string;
@@ -65,6 +67,11 @@ describe('captureToolError', () => {
     expect(event.tags).toEqual({ tool: 'get_lab_results', hostname: 'mychart.example.org' });
     expect(event.release).toStartWith('openrecord-mcpb@');
     expect(event.breadcrumbs ?? []).toEqual([]);
+    // Nothing that names the machine or its user: no computer name, no home folder in a path.
+    expect(event.server_name).toBeUndefined();
+    const filenames = values.flatMap((v) => v.stacktrace!.frames.map((f) => f.filename ?? ''));
+    expect(filenames.some((f) => f.includes('error-reporting.unit.test.ts'))).toBe(true);
+    expect(filenames.every((f) => !f.includes(os.homedir()))).toBe(true);
   });
 
   it('sends nothing without a DSN', async () => {

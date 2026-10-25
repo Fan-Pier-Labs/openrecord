@@ -167,7 +167,9 @@ export function describeError(error: unknown): ErrorReport {
   for (let e: unknown = error; e !== undefined && stacks.length < 10; e = (e as Error).cause) {
     stacks.push(e instanceof Error ? (e.stack ?? `${e.name}: ${e.message}`) : describeError(e).stack);
   }
-  return { name: error.name, message: error.message, stack: stacks.join('\nCaused by: ') };
+  // The home folder is usually named after the macOS user.
+  const stack = stacks.join('\nCaused by: ').replaceAll(os.homedir(), '~');
+  return { name: error.name, message: error.message, stack };
 }
 
 /**

@@ -1,6 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
+import * as os from 'os';
 import { describeError, gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
@@ -295,6 +296,12 @@ describe('describeError', () => {
     const report = describeError(new Error('outer', { cause: new RangeError('inner') }));
     expect([report.name, report.message]).toEqual(['Error', 'outer']);
     expect(report.stack).toMatch(/^Error: outer[\s\S]*\nCaused by: RangeError: inner/);
+  });
+
+  test('replaces the home folder in the stack, since it is usually named after the user', () => {
+    const error = new Error('boom');
+    error.stack = `Error: boom\n    at run (${os.homedir()}/Library/app/server.cjs:1:1)`;
+    expect(describeError(error).stack).toBe('Error: boom\n    at run (~/Library/app/server.cjs:1:1)');
   });
 
   test('stops on a cause chain that loops', () => {
