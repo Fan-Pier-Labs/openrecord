@@ -121,6 +121,15 @@ function errorResult(message: string): ToolResult {
   return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
 }
 
+/** Results built from a caught error, so `guarded` can report the error itself — stack and all. */
+const caughtErrors = new WeakMap<ToolResult, unknown>();
+
+function caughtErrorResult(err: unknown): ToolResult {
+  const result = errorResult((err as Error).message);
+  caughtErrors.set(result, err);
+  return result;
+}
+
 // ── Tool metadata ───────────────────────────────────────────────────────────
 
 /**
@@ -394,7 +403,7 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
-        return errorResult((err as Error).message);
+        return caughtErrorResult(err);
       }
     },
   );
@@ -605,7 +614,7 @@ async function connectWithPassword(hostname: string, username: string, password:
       message: `Login ended in unexpected state: ${result.state}. Tell the user and try again.`,
     });
   } catch (err) {
-    return errorResult((err as Error).message);
+    return caughtErrorResult(err);
   }
 }
 
@@ -619,11 +628,20 @@ async function connectWithPassword(hostname: string, username: string, password:
  */
 function guarded(server: McpServer): McpServer {
   const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
-    server.registerTool(name, config as never, async (...a: unknown[]) => {
+    server.registerTool(name, config as never, (...a: unknown[]) => {
       const args = (a[0] ?? {}) as Record<string, unknown>;
-      const result = await runGuarded(name, args, () => handler(...a));
-      reportToolCall(name, args);
-      return result;
+      // Reported from inside the guarded run, so a call that outlives the
+      // deadline is still reported — with its error — when it finishes.
+      return runGuarded(name, args, async () => {
+        try {
+          const result = await handler(...a);
+          reportToolCall(name, args, caughtErrors.get(result));
+          return result;
+        } catch (err) {
+          reportToolCall(name, args, err);
+          throw err;
+        }
+      });
     });
   return { registerTool } as unknown as McpServer;
 }
@@ -791,7 +809,7 @@ export function registerAllTools(rawServer: McpServer): void {
         });
         return jsonResult(profile);
       } catch (err) {
-        return errorResult((err as Error).message);
+        return caughtErrorResult(err);
       }
     },
   );
@@ -855,7 +873,7 @@ export function registerAllTools(rawServer: McpServer): void {
             (blockedNote ? ` ${blockedNote}` : ''),
         });
       } catch (err) {
-        return errorResult((err as Error).message);
+        return caughtErrorResult(err);
       }
     },
   );
@@ -936,7 +954,7 @@ export function registerAllTools(rawServer: McpServer): void {
           message: `Unexpected 2FA result: ${twoFa.state}. Tell the user and call setup_account again.`,
         });
       } catch (err) {
-        return errorResult((err as Error).message);
+        return caughtErrorResult(err);
       }
     },
   );
@@ -988,7 +1006,7 @@ export function registerAllTools(rawServer: McpServer): void {
         const savedTo = saveTextFile(file_name, content);
         return jsonResult({ saved_to: savedTo, size_bytes: Buffer.byteLength(content) });
       } catch (err) {
-        return errorResult((err as Error).message);
+        return caughtErrorResult(err);
       }
     },
   );

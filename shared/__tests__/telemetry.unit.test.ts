@@ -1,7 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
-import { gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
+import { describeError, gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
 type FetchMock = { mock: { calls: unknown[][] } };
@@ -142,7 +142,28 @@ describe('telemetry', () => {
       expect(bodyFor('execute-api')).toHaveProperty('email', null);
     });
 
-    test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
+    test('an event with an error carries its stack to both sinks', async () => {
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('mcpb_tool_error', { tool: 'get_profile' }, 'mcpb', {}, new TypeError('boom'));
+      await drainSend(fetchMock, 2);
+
+      const bodyFor = (needle: string) =>
+        JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes(needle))![1]!.body as string);
+      const props = bodyFor('amplitude.com').events[0].event_properties;
+      expect([props.error_name, props.error_message]).toEqual(['TypeError', 'boom']);
+      expect(props.error_stack).toContain('telemetry.unit.test.ts');
+      const lambda = bodyFor('execute-api');
+      expect(lambda.error.name).toBe('TypeError');
+      expect(lambda.error.stack).toContain('telemetry.unit.test.ts');
+      // The error is not a property, so the Lambda's per-property truncation never cuts the stack.
+      expect(lambda.properties.error_stack).toBeUndefined();
+    });
+
+        test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
       process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
       const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
@@ -266,5 +287,25 @@ describe('telemetry', () => {
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
     });
+  });
+});
+
+describe('describeError', () => {
+  test('appends every cause in the chain to the stack', () => {
+    const report = describeError(new Error('outer', { cause: new RangeError('inner') }));
+    expect([report.name, report.message]).toEqual(['Error', 'outer']);
+    expect(report.stack).toMatch(/^Error: outer[\s\S]*\nCaused by: RangeError: inner/);
+  });
+
+  test('stops on a cause chain that loops', () => {
+    const a = new Error('a');
+    const b = new Error('b', { cause: a });
+    (a as { cause?: unknown }).cause = b;
+    expect(describeError(a).stack.split('Caused by:')).toHaveLength(10);
+  });
+
+  test('reports a non-Error throw as its text', () => {
+    expect(describeError('plain string')).toEqual({ name: 'NonError', message: 'plain string', stack: 'plain string' });
+    expect(describeError({ code: 7 }).message).toBe('{"code":7}');
   });
 });

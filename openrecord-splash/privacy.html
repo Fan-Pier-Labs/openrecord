@@ -276,6 +276,13 @@
         record.
       </p>
       <p>
+        When one of those tools fails, the extension also sends <strong>the error: its message and
+        stack trace</strong>, with the same tool, portal, email, username and IP address. An error
+        message can repeat a detail MyChart gave it, such as the name of a family member whose record
+        you have access to or the name of a file. Errors go to <strong>Sentry</strong>, a third-party
+        error-tracking service, as well as to the two places below.
+      </p>
+      <p>
         These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
         Naming the health system you are a patient of is more than we would want a tool to send about
         us without saying so, which is why it is written out here. To send none of it, set
