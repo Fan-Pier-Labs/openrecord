@@ -81,6 +81,7 @@ import {
 import {
   accountId,
   lookupAccount,
+  lookupIdentity,
   readAccounts,
   secretBackend,
   readAccountPasskey,
@@ -984,7 +985,7 @@ export function registerAllTools(rawServer: McpServer): void {
       ...toolMeta('Forget a MyChart account', { readOnlyHint: false, destructiveHint: true, openWorldHint: false }),
     },
     ({ account }) => {
-      const match = lookupAccount(account);
+      const match = lookupIdentity(account);
       if (!match) return textResult(`No saved account for ${account}.`);
       const id = accountId(match);
       clearSession(id);
