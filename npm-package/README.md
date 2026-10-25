@@ -132,8 +132,8 @@ wild and which ones break. Each event carries:
 
 - the event name (e.g. `scraper_login_started`) and the MyChart **portal** hostname it targeted
 - OS platform, architecture and version, and the runtime version (e.g. `node v22.11.0`)
-- a random UUID generated once per project install, cached at
-  `node_modules/.cache/mychart-cli/anonymous-id`, used only to count unique installs
+- a random UUID generated once per computer, saved as `deviceId` in `~/.openrecord.json`, used
+  only to count unique installs
 
 **Never collected:** your IP address, your machine's hostname, your OS username, git identity, or
 anything read from a chart.

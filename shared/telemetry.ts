@@ -3,10 +3,9 @@
 /**
  * Anonymous usage telemetry, modelled after Next.js / Vercel CLI:
  *
- * - One stable random UUID per project install, stored in the consumer's
- *   `node_modules/.cache/mychart-cli/anonymous-id` (the same
- *   convention Babel / ESLint / Webpack use for tooling cache). Never
- *   derived from identifying information.
+ * - One stable random UUID per computer, stored as `deviceId` in
+ *   `~/.openrecord.json` and shared by the CLI and the MCPB. Never derived
+ *   from identifying information.
  * - Event payload is event name + properties + OS platform/arch +
  *   runtime version. No OS hostname, no git config.
  * - An event sent with a `user` (the MCPB's per-tool-call event) is NOT
@@ -65,50 +64,30 @@ export function isTelemetryDisabled(): boolean {
   return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED) || process.env.NODE_ENV === 'test';
 }
 
-/**
- * Locate the nearest `node_modules` directory by walking up from
- * `process.cwd()`. Returns the cache subdirectory we'd use, or `null`
- * if no `node_modules` is reachable (in which case we won't persist
- * the anonymous ID at all).
- */
-function findNodeModulesCacheDir(): string | null {
-  let dir = process.cwd();
-  while (dir !== path.dirname(dir)) {
-    const nm = path.join(dir, 'node_modules');
-    if (fs.existsSync(nm)) {
-      return path.join(nm, '.cache', 'mychart-cli');
-    }
-    dir = path.dirname(dir);
-  }
-  return null;
-}
+/** Used only when `~/.openrecord.json` can't be read or written. */
+let fallbackDeviceId: string | undefined;
 
 /**
- * Read or create a stable random UUID stored on disk. The ID is not
- * derived from any identifying information; it exists purely to dedupe
- * events from the same project install.
+ * Read or create a stable random UUID in `~/.openrecord.json`. The ID is not
+ * derived from any identifying information; it exists purely to tie one
+ * computer's events together. Re-read on every event rather than cached, so
+ * a CLI run and the MCPB that start at once settle on whichever ID landed.
  */
 function getAnonymousId(): string {
-  const cacheDir = findNodeModulesCacheDir();
-  if (!cacheDir) {
-    // No node_modules nearby (running from outside any project).
-    // Fall back to a per-process UUID — telemetry still works, just
-    // won't dedupe across runs.
-    return randomUUID();
-  }
-  const idFile = path.join(cacheDir, 'anonymous-id');
+  const file = path.join(os.homedir(), '.openrecord.json');
   try {
-    if (fs.existsSync(idFile)) {
-      const cached = fs.readFileSync(idFile, 'utf8').trim();
-      if (cached) return cached;
+    let config: Record<string, unknown> = {};
+    if (fs.existsSync(file)) {
+      config = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+      if (typeof config.deviceId === 'string' && config.deviceId) return config.deviceId;
     }
-    fs.mkdirSync(cacheDir, { recursive: true });
     const fresh = randomUUID();
-    fs.writeFileSync(idFile, fresh, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(file, `${JSON.stringify({ ...config, deviceId: fresh }, null, 2)}\n`, { mode: 0o600 });
     return fresh;
   } catch {
-    // Read-only FS / permission denied — fall back to per-process UUID.
-    return randomUUID();
+    // A corrupt file or a read-only home: don't overwrite it, but keep one ID
+    // for the life of the process so this run's events still group.
+    return (fallbackDeviceId ??= randomUUID());
   }
 }
 

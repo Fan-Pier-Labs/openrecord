@@ -1,8 +1,18 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
+import * as fs from 'fs';
 import * as os from 'os';
-import { describeError, gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
+import * as path from 'path';
+
+// The device id lives in ~/.openrecord.json; point the home folder at a temp
+// dir so no run ever writes the developer's real one. Bun caches homedir(),
+// so setting HOME would not reach it.
+const realOs = await import('os');
+const fakeHome = fs.mkdtempSync(path.join(realOs.tmpdir(), 'telemetry-home-'));
+void mock.module('os', () => ({ ...realOs, default: { ...realOs, homedir: () => fakeHome }, homedir: () => fakeHome }));
+const { describeError, gatherEnvInfo, sendTelemetryEvent } = await import('../telemetry');
+const idFile = path.join(fakeHome, '.openrecord.json');
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
 type FetchMock = { mock: { calls: unknown[][] } };
@@ -312,6 +322,59 @@ describe('telemetry', () => {
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
     });
+  });
+});
+
+describe('device id', () => {
+  let originalFetch: typeof globalThis.fetch;
+  let originalDisable: string | undefined;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalDisable = process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+    delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+    fs.rmSync(idFile, { force: true });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalDisable === undefined) delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+    else process.env.MYCHART_CLI_TELEMETRY_DISABLED = originalDisable;
+  });
+
+  /** Send `count` events and return the Amplitude device_id each one carried. */
+  async function deviceIds(count: number): Promise<string[]> {
+    const fetchMock = mock((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}', { status: 200 })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    for (let i = 0; i < count; i++) sendTelemetryEvent('test_event');
+    await drainSend(fetchMock, count * 2);
+    return fetchMock.mock.calls
+      .filter((c) => String(c[0]).includes('amplitude.com'))
+      .map((c) => (JSON.parse(c[1]!.body as string) as { events: { device_id: string }[] }).events[0]!.device_id);
+  }
+
+  test('creates ~/.openrecord.json once and sends its id on every event', async () => {
+    const ids = await deviceIds(3);
+    const saved = JSON.parse(fs.readFileSync(idFile, 'utf8')) as { deviceId: string };
+    expect(saved.deviceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids).toEqual([saved.deviceId, saved.deviceId, saved.deviceId]);
+    expect(fs.statSync(idFile).mode & 0o777).toBe(0o600);
+  });
+
+  test('reuses the id already in the file and keeps its other keys', async () => {
+    fs.writeFileSync(idFile, JSON.stringify({ other: 'kept' }));
+    const [first] = await deviceIds(1);
+    expect(JSON.parse(fs.readFileSync(idFile, 'utf8'))).toEqual({ other: 'kept', deviceId: first });
+
+    fs.writeFileSync(idFile, JSON.stringify({ deviceId: 'existing-id' }));
+    expect(await deviceIds(2)).toEqual(['existing-id', 'existing-id']);
+  });
+
+  test('leaves a corrupt file alone and still sends one id per process', async () => {
+    fs.writeFileSync(idFile, '{not json');
+    const ids = await deviceIds(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(fs.readFileSync(idFile, 'utf8')).toBe('{not json');
   });
 });
 
