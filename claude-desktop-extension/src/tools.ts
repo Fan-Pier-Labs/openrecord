@@ -92,7 +92,7 @@ import {
 import { addPending, takePending } from './pending-logins';
 import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
-import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidate } from './browser-import';
+import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidates } from './browser-import';
 import { FULL_DISK_ACCESS_STEPS } from './setup-widget/flow';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
@@ -571,11 +571,20 @@ function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): 
  * routes get identical 2FA handling, session adoption and the same
  * passkey recommendation — and so a fix to one is a fix to both.
  */
-async function connectWithPassword(hostname: string, username: string, password: string): Promise<ToolResult> {
+async function connectWithPassword(hostname: string, username: string, passwords: string[]): Promise<ToolResult> {
   const conflict = demoConflict(hostname);
   if (conflict.length) return jsonResult({ state: 'demo_conflict', accounts: conflict, message: demoConflictMessage(conflict) });
   try {
-    const result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    // An imported login can carry one password per browser. Only a rejected
+    // password moves on to the next: 2FA or any other outcome means MyChart
+    // has accepted it or something else is wrong, and either way we stop.
+    let password = passwords[0]!;
+    let result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    for (const next of passwords.slice(1)) {
+      if (result.state !== 'invalid_login') break;
+      password = next;
+      result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    }
 
     if (result.state === 'logged_in') {
       saveAccount(hostname, username, password);
@@ -825,7 +834,7 @@ export function registerAllTools(rawServer: McpServer): void {
       } satisfies ZodRawShape,
       ...toolMeta('Set up a MyChart account (step 1)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
-    ({ hostname, username, password }) => connectWithPassword(hostname, username, password),
+    ({ hostname, username, password }) => connectWithPassword(hostname, username, [password]),
   );
 
   server.registerTool(
@@ -883,22 +892,24 @@ export function registerAllTools(rawServer: McpServer): void {
     {
       description:
         'Log into a MyChart account discovered by import_browser_passwords, using the password already saved in the browser, and save it for future calls. ' +
-        'Only call this for an entry the user explicitly chose. Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (the saved password is stale — ask the user for the current one and use setup_account).',
+        'Only call this for an entry the user explicitly chose. When several browsers saved different passwords for the login, each is tried until one is accepted. ' +
+        'Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (every saved password is stale — ask the user for the current one and use setup_account).',
       inputSchema: {
         import_id: z.string().describe('The import_id of the chosen entry from import_browser_passwords.'),
       } satisfies ZodRawShape,
       ...toolMeta('Connect an account found in the browser', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
     async ({ import_id }) => {
-      const candidate = takeImportedCandidate(import_id);
-      if (!candidate) {
+      const candidates = takeImportedCandidates(import_id);
+      const candidate = candidates?.[0];
+      if (!candidates || !candidate) {
         return errorResult('That import_id is unknown or has expired (10-minute TTL). Call import_browser_passwords again.');
       }
       if (!candidate.user) {
         return errorResult(`The saved credential for ${candidate.hostname} has no username. Ask the user for it and call setup_account.`);
       }
 
-      const result = await connectWithPassword(candidate.hostname, candidate.user, candidate.pass!);
+      const result = await connectWithPassword(candidate.hostname, candidate.user, candidates.map((c) => c.pass!));
       // Keep the credential only while it is still needed: a 2FA flow has
       // already copied it into the pending-login record.
       releaseImportedCandidate(import_id);
