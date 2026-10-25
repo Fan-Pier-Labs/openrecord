@@ -4,7 +4,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "fix": "eslint --fix",
-    "knip": "6.43.0",
+    "knip": "knip",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "cli": "bun npm-package/cli/entry.ts",
