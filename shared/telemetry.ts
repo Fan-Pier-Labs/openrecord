@@ -55,9 +55,14 @@ const REQUEST_TIMEOUT_MS = 5000;
  * The opt-out for telemetry events. The version check ignores it — it sends
  * nothing but the request itself. Exported so the MCPB can skip the MyChart
  * email lookup behind its tool-call event, not just the send.
+ *
+ * `bun test` sets NODE_ENV=test, and every CI run would otherwise post its
+ * deliberately failing tool calls and fake-mychart logins to production
+ * analytics. Child processes inherit it, so the built CLI the integration
+ * suites spawn stays quiet too. The telemetry suites set it back themselves.
  */
 export function isTelemetryDisabled(): boolean {
-  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
+  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED) || process.env.NODE_ENV === 'test';
 }
 
 /**
