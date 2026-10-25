@@ -32,7 +32,10 @@ void host.ready.then(() => {
   let frame = 0;
   const report = () => {
     frame = 0;
-    const height = document.documentElement.scrollHeight;
+    // Not scrollHeight: it rounds a fractional height down, leaving a
+    // half-pixel to scroll, and never reports less than the current frame,
+    // so the widget could not shrink.
+    const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
     if (height === lastHeight) return;
     lastHeight = height;
     host.notify('ui/notifications/size-changed', { height });
