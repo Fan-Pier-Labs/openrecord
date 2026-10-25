@@ -2,6 +2,7 @@
 
 import { describe, it, expect, afterEach, mock, spyOn } from 'bun:test';
 import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * The package entry point. Two things matter here: the platform guard must stop
@@ -105,11 +106,13 @@ describe('blockedBrowsers', () => {
       return [];
     }) as unknown as typeof fs.readdirSync);
 
-  const tccOpens = () => {
-    const open = spyOn(fs, 'openSync').mockImplementation(() => {
-      throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
-    });
-    return () => open.mock.calls.filter(([file]) => String(file).endsWith('com.apple.TCC/TCC.db')).length;
+  /** Fail every open with the code given for its folder name (EPERM otherwise); returns the folders tried. */
+  const guardedOpens = (codes: Record<string, string> = {}) => {
+    const open = spyOn(fs, 'openSync').mockImplementation(((file: string) => {
+      const code = codes[path.basename(file)] ?? 'EPERM';
+      throw Object.assign(new Error(code), { code });
+    }) as unknown as typeof fs.openSync);
+    return () => open.mock.calls.map(([file]) => path.basename(String(file)));
   };
 
   afterEach(() => mock.restore());
@@ -122,24 +125,33 @@ describe('blockedBrowsers', () => {
     expect(blockedBrowsers()).toEqual(['Chrome', 'Firefox']);
   });
 
-  it('tries TCC.db once a browser is blocked, which is what gets Claude listed under Full Disk Access', () => {
+  it('opens a guarded folder once a browser is blocked, which is what gets Claude listed under Full Disk Access', () => {
     // A refused browser folder does not add Claude to that list; a refused
     // classic Full Disk Access location does (verified with a probe app).
     setPlatform('darwin');
     failWith({ '/fake/Chrome': 'EPERM' });
-    const opened = tccOpens();
+    const tried = guardedOpens();
 
     blockedBrowsers();
-    expect(opened()).toBe(1);
+    expect(tried()).toEqual(['Safari']);
+  });
+
+  it('moves on to the next guarded folder only when one does not exist', () => {
+    setPlatform('darwin');
+    failWith({ '/fake/Chrome': 'EPERM' });
+    const tried = guardedOpens({ Safari: 'ENOENT' });
+
+    blockedBrowsers();
+    expect(tried()).toEqual(['Safari', 'Mail']);
   });
 
   it('does not count a browser that is not installed, or a folder Full Disk Access would not open', () => {
     setPlatform('darwin');
     failWith({ '/fake/Chrome': 'ENOENT', '/fake/Brave': 'EACCES' });
-    const opened = tccOpens();
+    const tried = guardedOpens();
 
     expect(blockedBrowsers()).toEqual([]);
-    expect(opened()).toBe(0);
+    expect(tried()).toEqual([]);
   });
 
   it('is empty off macOS', () => {

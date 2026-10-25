@@ -51,12 +51,13 @@ fails with `EPERM`, and the per-profile `catch` would otherwise report that as "
 `blockedBrowsers()` names those browsers so the caller can tell the user to give the host app (Claude)
 Full Disk Access. `EACCES` is not counted, since Full Disk Access would not fix it.
 
-When one is blocked it also tries to open `/Library/Application Support/com.apple.TCC/TCC.db`
-(read-only, never read). macOS adds an app to the Full Disk Access list, switched off, only when it is
-refused a *classic* Full Disk Access location; refusals of another app's data folder — listing or
-opening — go through `kTCCServiceSystemPolicyAppDataDetailed` and add nothing. Checked with an ad-hoc
-signed probe app on macOS 27.0.1: browser folder listing and file open left it unlisted, the TCC.db
-open listed it at once (`auth_value 0`, `auth_reason 5`).
+When one is blocked it also opens `~/Library/Safari` (falling back to `Mail`, then `Messages`, if
+missing) — the folder itself, never listed or read. macOS adds an app to the Full Disk Access list,
+switched off, only when it is refused a *classic* Full Disk Access location; refusals of another app's
+data folder, listing or opening, go through `kTCCServiceSystemPolicyAppDataDetailed` and add nothing.
+Checked with an ad-hoc signed probe app on macOS 27.0.1: a browser folder listing or file open left it
+unlisted, as did opening a made-up file name inside a guarded folder (`ENOENT`, no refusal); a bare
+open of `~/Library/Safari` listed it at once (`auth_value 0`, `auth_reason 5`).
 
 **The database is always copied before reading.** The browser may be running and holding locks, with
 `-wal`/`-journal` siblings. The copy goes to a fresh temp directory and is removed in a `finally`.

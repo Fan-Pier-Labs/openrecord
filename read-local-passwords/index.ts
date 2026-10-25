@@ -13,6 +13,8 @@
  */
 
 import { closeSync, openSync, readdirSync } from 'fs';
+import { homedir } from 'os';
+import * as path from 'path';
 import { chromiumProfileRoots, getChromiumLogins } from './chromium';
 import { firefoxProfileRoots, getFirefoxLogins } from './firefox';
 import { classifyMyChartEntries } from './myChartFilter';
@@ -41,19 +43,28 @@ export function blockedBrowsers(): string[] {
   return blocked;
 }
 
+/** Folders macOS guards with Full Disk Access as a whole. Almost every Mac has the first. */
+const FULL_DISK_ACCESS_FOLDERS = ['Safari', 'Mail', 'Messages'];
+
 /**
  * Put Claude in the Full Disk Access list, switched off, so the user only has
  * to turn it on rather than find it with +. macOS lists an app when it is
  * refused a classic Full Disk Access location, but not when it is refused
- * another app's data folder, which is all the browser reads are. A refused
- * open of TCC.db is Apple's own example; nothing is read, and the file is
- * closed at once if the open succeeds.
+ * another app's data folder, which is all the browser reads are.
+ *
+ * The probe opens a guarded *folder* and never lists or reads it: no file
+ * inside is touched. A made-up file name inside one does not work, because
+ * macOS answers "no such file" without refusing.
  */
 function getListedForFullDiskAccess(): void {
-  try {
-    closeSync(openSync('/Library/Application Support/com.apple.TCC/TCC.db', 'r'));
-  } catch {
-    // The refusal is the point.
+  for (const folder of FULL_DISK_ACCESS_FOLDERS) {
+    try {
+      closeSync(openSync(path.join(homedir(), 'Library', folder), 'r'));
+      return;
+    } catch (error) {
+      // A refusal is the point; only a missing folder is worth trying the next one.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return;
+    }
   }
 }
 
