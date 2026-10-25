@@ -183,7 +183,11 @@ function accountFieldSlot(
  * them inline is migrated by `readSecret` on the way past.
  */
 export function readAccounts(): AccountConfig[] {
-  return readRows().map(row => ({
+  return readRows().map(hydrate);
+}
+
+function hydrate(row: AccountRow): AccountConfig {
+  return {
     hostname: row.hostname,
     username: row.username,
     password:
@@ -195,30 +199,50 @@ export function readAccounts(): AccountConfig[] {
       totpKey(row.hostname, row.username),
       accountFieldSlot(row.hostname, row.username, 'totpSecret'),
     ),
-  }));
+  };
 }
 
-function accountsForHostname(hostname: string): AccountConfig[] {
-  const normalized = normalizeHostname(hostname);
-  return readAccounts().filter(a => normalizeHostname(a.hostname) === normalized);
+/** Which login an account is, without its secrets. */
+export type AccountIdentity = Pick<AccountConfig, 'hostname' | 'username'>;
+
+function findRow(hostname: string, username: string): AccountRow | undefined {
+  const rows = readRows();
+  return rows[rowIndex(rows, hostname, username)];
 }
 
+// Matches on the index before touching the keystore: every keystore read is a
+// Keychain round trip, and hydrating every saved login to find one made each
+// lookup cost two reads per account.
 export function findAccount(hostname: string, username: string): AccountConfig | undefined {
-  return accountsForHostname(hostname).find(a => sameUsername(a.username, username));
+  const row = findRow(hostname, username);
+  return row ? hydrate(row) : undefined;
 }
 
 /**
- * Resolve an `account` argument: the id is `username@hostname`, split on the
+ * Split an `account` argument: the id is `username@hostname`, split on the
  * LAST '@' since usernames can be email addresses. A perfect hostname +
  * username match or nothing — there is deliberately no hostname-only or fuzzy
  * fallback, because a ref that "nearly" names a login resolving to some other
  * user is the wrong-identity failure this store exists to prevent.
  */
-export function lookupAccount(ref: string): AccountConfig | undefined {
+function parseRef(ref: string): AccountIdentity | undefined {
   const trimmed = ref.trim();
   const at = trimmed.lastIndexOf('@');
   if (at < 0) return undefined;
-  return findAccount(trimmed.slice(at + 1), trimmed.slice(0, at));
+  return { hostname: trimmed.slice(at + 1), username: trimmed.slice(0, at) };
+}
+
+/** Resolve an `account` argument to the saved login, secrets included. */
+export function lookupAccount(ref: string): AccountConfig | undefined {
+  const parsed = parseRef(ref);
+  return parsed && findAccount(parsed.hostname, parsed.username);
+}
+
+/** Resolve an `account` argument to the saved login without reading any secret. */
+export function lookupIdentity(ref: string): AccountIdentity | undefined {
+  const parsed = parseRef(ref);
+  const row = parsed && findRow(parsed.hostname, parsed.username);
+  return row && { hostname: row.hostname, username: row.username };
 }
 
 /**
