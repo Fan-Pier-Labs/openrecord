@@ -117,10 +117,11 @@ Or skip typing a password entirely, if your browser already has one saved:
   raises the system keychain prompt, which is where you consent. Only accounts it
   can confirm are offered — a known Epic instance, or one whose login page it
   verified. **No passwords are returned** — each entry carries an opaque
-  `import_id`, and the credential stays on your machine.
+  `import_id`, and the credential stays on your machine. A login saved in more
+  than one browser is one entry, even when the browsers hold different passwords.
 - **`connect_imported_account(import_id)`** — connects the one you picked, using
-  the password already in your browser. Same 2FA and passkey flow as
-  `setup_account`.
+  the password already in your browser (each saved password in turn, until
+  MyChart accepts one). Same 2FA and passkey flow as `setup_account`.
 
 Anything it cannot confirm is left out rather than guessed at — use
 `setup_account` for those, or run the import again later if a portal was
