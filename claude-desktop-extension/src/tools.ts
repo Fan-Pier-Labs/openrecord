@@ -44,6 +44,7 @@
  *                                                  //   skips password + 2FA on future sessions
  */
 
+import { randomUUID } from 'crypto';
 import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -775,6 +776,9 @@ export function registerAllTools(rawServer: McpServer): void {
           text: 'The user can import MyChart logins saved in their browser, or enter one by hand, in the widget. It sends a message when they click Done.',
         },
       ],
+      // The host stores this result in the transcript and hands it to every
+      // remount of the widget, so the widget keys its saved step on it.
+      structuredContent: { view_id: randomUUID() },
     }),
   );
 

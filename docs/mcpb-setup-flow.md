@@ -76,5 +76,10 @@ flowchart TD
   them, the list says so and offers *Import from your browser* again.
 - **Passwords never reach the widget or Claude.** The widget handles only opaque import ids;
   `connect_imported_account` redeems one inside the server process.
+- **Leaving the chat and coming back.** Claude Desktop tears the widget down when the user
+  switches away and remounts it on return. `get_setup_widget` stamps its result with a
+  `view_id`, the host hands that same result to every remount, and the widget saves its state
+  to `localStorage` under it, so it reopens on the page it was on. A step that was waiting on a
+  call (connecting a login, the demo) reopens where that call was made.
 - **Slow calls.** A call that outruns Claude Desktop's timeout comes back parked; the widget
   waits it out with `check_pending_call` (most likely the scan, sitting on the keychain prompt).

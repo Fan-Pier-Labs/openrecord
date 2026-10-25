@@ -1,8 +1,10 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { checkPendingCall, resetPendingCalls, runGuarded } from '../../pending-call';
+import { registerAllTools } from '../../tools';
 import { createHost, decodeToolResult, type HostContext, type RpcMessage } from '../host';
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
@@ -81,6 +83,22 @@ describe('createHost', () => {
     await host.ready;
     receive({ jsonrpc: '2.0', method: 'ui/notifications/host-context-changed', params: { theme: 'light' } });
     expect(seen).toEqual([{ theme: 'dark', styles: { variables: { '--font-sans': 'Sans' } } }, { theme: 'light' }]);
+  });
+
+  test("takes its view id from the get_setup_widget result the host hands it, a fresh one per call", async () => {
+    let handler!: () => Promise<CallToolResult>;
+    registerAllTools({
+      registerTool: (name: string, _config: unknown, h: () => Promise<CallToolResult>) => {
+        if (name === 'get_setup_widget') handler = h;
+      },
+    } as unknown as McpServer);
+    const mounted = await handler();
+    expect((await handler()).structuredContent).not.toEqual(mounted.structuredContent);
+
+    const { host, receive } = fakeHost(() => null);
+    receive({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { content: [] } });
+    receive({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: mounted });
+    expect(await host.viewId).toBe(mounted.structuredContent?.view_id as string);
   });
 
   test('sends the done message as a user-role ui/message', async () => {

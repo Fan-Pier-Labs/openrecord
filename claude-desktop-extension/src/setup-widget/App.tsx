@@ -1,7 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { useEffect, useReducer, useState } from 'react';
-import { DEMO_LOGIN, demoAccount, demoDoneMessage, initialState, reducer, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
+import { DEMO_LOGIN, demoAccount, demoDoneMessage, initialState, reducer, resumeState, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
 import type { Host } from './host';
 import { Picker } from './Picker';
 import { Accounts, Choose, Connecting, Consent, Creds, DemoConnecting, Done, Passkey, Start, TwoFa } from './steps';
@@ -17,11 +17,37 @@ import { Accounts, Choose, Connecting, Consent, Creds, DemoConnecting, Done, Pas
 export function App({ host }: { host: Host }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hostError, setHostError] = useState<string | null>(null);
+  const [storageKey, setStorageKey] = useState<string | null>(null);
   const { step } = state;
 
   useEffect(() => {
     host.ready.catch((err: unknown) => setHostError(`Could not connect to host: ${err instanceof Error ? err.message : String(err)}`));
   }, [host]);
+
+  // Leaving the chat tears the iframe down, so the step is saved per widget
+  // and picked up again on the next mount. Storage can be blocked; then the
+  // widget just starts over, as it always did.
+  useEffect(() => {
+    void host.viewId.then((id) => {
+      const key = `openrecord-setup:${id}`;
+      try {
+        const saved = resumeState(JSON.parse(localStorage.getItem(key) ?? 'null'));
+        if (saved) dispatch({ type: 'restore', state: saved });
+      } catch {
+        // Nothing saved that can be read.
+      }
+      setStorageKey(key);
+    });
+  }, [host]);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    } catch {
+      // Blocked or full: the widget still works, it just won't resume.
+    }
+  }, [storageKey, state]);
 
   const back = () => dispatch({ type: 'back' });
   const goConsent = () => dispatch({ type: 'goConsent' });

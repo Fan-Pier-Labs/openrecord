@@ -9,6 +9,7 @@ import {
   nextSelectable,
   pickerRows,
   reducer,
+  resumeState,
   setupDoneMessage,
   stepTitle,
   twoFaDeliveryLabel,
@@ -267,6 +268,29 @@ describe('navigation', () => {
     expect(run([{ type: 'clearError' }], withError).step).toEqual({ kind: 'consent', error: null });
     // A step with no error to clear is left as it is.
     expect(run([{ type: 'clearError' }])).toBe(initialState);
+  });
+});
+
+describe('resuming after a remount', () => {
+  const saved = (state: State) => resumeState(JSON.parse(JSON.stringify(state)));
+
+  test('comes back on the step the user left, with what was found and connected', () => {
+    const twofa = run([{ type: 'connectImport', entry: homer }, { type: 'importResult', entry: homer, result: { state: 'need_2fa', pending_id: 'p1' } }], scanned);
+    expect(saved(twofa)).toEqual(twofa);
+    const done = run([{ type: 'importResult', entry: homer, result: { state: 'logged_in', account: 'homer@mychart.example.org', passkey_saved: true } }, { type: 'done' }], twofa);
+    expect(saved(done)).toEqual(done);
+  });
+
+  test('a step that was waiting on a call returns to where the call was made', () => {
+    const connecting = run([{ type: 'connectImport', entry: homer }], scanned);
+    expect(saved(connecting)).toEqual({ ...connecting, step: { kind: 'accounts', error: null } });
+    expect(saved(run([{ type: 'connectDemo' }]))).toEqual(initialState);
+  });
+
+  test('ignores anything that is not a saved state', () => {
+    for (const junk of [null, 'start', {}, { step: { kind: 'start' } }, { step: 'start', connected: [] }]) {
+      expect(resumeState(junk)).toBeNull();
+    }
   });
 });
 

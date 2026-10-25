@@ -119,7 +119,8 @@ export type Action =
   | { type: 'skipPasskey' }
   | { type: 'error'; message: string }
   | { type: 'clearError' }
-  | { type: 'done' };
+  | { type: 'done' }
+  | { type: 'restore'; state: State };
 
 /** The fields the login tools return. Every one is optional: a result is whatever the tool sent. */
 interface ToolReply {
@@ -349,6 +350,29 @@ export function reducer(state: State, action: Action): State {
 
     case 'done':
       return state.connected.length ? { ...state, step: { kind: 'done' } } : state;
+
+    case 'restore':
+      return action.state;
+  }
+}
+
+/**
+ * The state saved by an earlier mount of this widget, ready to show again —
+ * Claude Desktop remounts it whenever the user comes back to the chat. A step
+ * that was waiting on a tool call lands where that call started, because its
+ * result went to the iframe that was torn down.
+ */
+export function resumeState(saved: unknown): State | null {
+  const s = saved as Partial<State> | null;
+  if (!s || typeof s.step?.kind !== 'string' || !Array.isArray(s.connected)) return null;
+  const state = s as State;
+  switch (state.step.kind) {
+    case 'demoConnecting':
+      return { ...state, step: { kind: 'start', error: null } };
+    case 'connecting':
+      return { ...state, step: accountsStep() };
+    default:
+      return state;
   }
 }
 

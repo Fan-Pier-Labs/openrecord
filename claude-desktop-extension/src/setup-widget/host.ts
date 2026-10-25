@@ -29,6 +29,8 @@ export interface HostContext {
 export interface Host {
   /** Settles once the handshake does; every call waits on it. */
   ready: Promise<void>;
+  /** The `view_id` get_setup_widget stamped on the result that mounted this widget; the same on every remount. Never settles on a host that doesn't deliver it. */
+  viewId: Promise<string>;
   /** A tool's result: its JSON, else its text. Never throws — a failure is an "Error: …" string, like a tool error. */
   callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
   /** Post a user-role message to the conversation, so Claude resumes the original task. */
@@ -60,11 +62,17 @@ export function createHost(
 ): { host: Host; receive: (data: unknown) => void } {
   let nextId = 0;
   const waiting = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  let resolveViewId!: (id: string) => void;
+  const viewId = new Promise<string>((resolve) => { resolveViewId = resolve; });
 
   const receive = (data: unknown) => {
     const msg = data as RpcMessage | null;
     if (msg?.jsonrpc !== '2.0') return;
     if (msg.method === 'ui/notifications/host-context-changed') onContext(msg.params ?? {});
+    if (msg.method === 'ui/notifications/tool-result') {
+      const id = (msg.params as Partial<CallToolResult> | undefined)?.structuredContent?.view_id;
+      if (typeof id === 'string') resolveViewId(id);
+    }
     if (msg.id == null) return;
     const entry = waiting.get(msg.id);
     if (!entry) return;
@@ -98,6 +106,7 @@ export function createHost(
 
   const host: Host = {
     ready,
+    viewId,
     // A call that outruns the host's timeout comes back parked rather than with
     // its result — a scan waiting on the keychain prompt, or a slow portal.
     // Wait it out, so every caller sees the result.
