@@ -248,7 +248,7 @@ export function LeftDrawer({ visible, onOpen, onClose, currentChatId, onNewChat 
                 >
                   <Text style={styles.seeMoreText}>See more ({hiddenCount})</Text>
                 </Pressable>
-              ) : null
+              ) : undefined
             }
           />
 

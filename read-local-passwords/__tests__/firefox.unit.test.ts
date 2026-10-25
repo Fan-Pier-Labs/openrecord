@@ -134,7 +134,7 @@ describe('pbeDecrypt (PBES2)', () => {
     const wrongSalt = Buffer.alloc(32, 9);
 
     // A wrong salt is a wrong key: either it throws, or it yields other bytes.
-    let recovered: Buffer | null = null;
+    let recovered: Buffer | null;
     try {
       recovered = pbeDecrypt(parseDer(algorithm), ciphertext, wrongSalt, Buffer.alloc(0));
     } catch {

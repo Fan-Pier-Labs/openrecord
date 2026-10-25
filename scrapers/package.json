@@ -10,8 +10,8 @@
     "jpeg-js": "^0.4.4",
     "mkdirp": "^3.0.1",
     "tough-cookie": "^6.0.2",
-    "uuid": "^14.0.1",
+    "uuid": "^14.0.3",
     "totp-generator": "^2.0.1",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.5"
   }
 }

@@ -205,7 +205,7 @@ export async function assertProxyReadContext(
     check = await checkProxyContext(mychartRequest, wantedQuery, { discoveredTargets: targets });
   } catch (err) {
     if (wantedQuery) {
-      throw new Error(`Could not verify which patient record is active: ${(err as Error).message}`);
+      throw new Error(`Could not verify which patient record is active: ${(err as Error).message}`, { cause: err });
     }
     return;
   }

@@ -161,13 +161,15 @@ export async function downloadMessageAttachment(
       throw new Error(
         `MyChart has no document ${attachment.dcsId} on the active patient record, although the thread lists it. ` +
           'Check that the right patient is active.',
+        { cause: error },
       );
     }
     if (failure.reason === 'not_released') {
       throw new Error(
         `MyChart returned no download link for ${attachment.name}; it may not be downloadable from the portal either.`,
+        { cause: error },
       );
     }
-    throw new Error(`MyChart answered the download of ${attachment.name} with ${failure.detail}; nothing was downloaded.`);
+    throw new Error(`MyChart answered the download of ${attachment.name} with ${failure.detail}; nothing was downloaded.`, { cause: error });
   }
 }

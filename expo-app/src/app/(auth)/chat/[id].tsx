@@ -207,7 +207,7 @@ export default function ChatDetailScreen() {
           )}
           contentContainerStyle={styles.messageList}
           ListFooterComponent={
-            activeTool ? <ToolCallIndicator toolName={activeTool} /> : null
+            activeTool ? <ToolCallIndicator toolName={activeTool} /> : undefined
           }
         />
         <ChatInput onSend={handleSend} disabled={isStreaming} />
