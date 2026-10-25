@@ -221,7 +221,7 @@ describe('registered surface', () => {
 })
 
 describe('error reporting', () => {
-  const envKeys = ['MYCHART_CLI_TELEMETRY_DISABLED', 'OPENRECORD_ANALYTICS_DISABLED', 'OPENRECORD_ANALYTICS_ENDPOINT'] as const
+  const envKeys = ['MYCHART_CLI_TELEMETRY_DISABLED', 'OPENRECORD_ANALYTICS_DISABLED', 'OPENRECORD_ANALYTICS_ENDPOINT', 'NODE_ENV'] as const
   let saved: Record<string, string | undefined>
   let originalFetch: typeof fetch
   let fetchMock: ReturnType<typeof mock>
@@ -229,6 +229,8 @@ describe('error reporting', () => {
   beforeEach(() => {
     saved = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]))
     for (const k of envKeys) delete process.env[k]
+    // Telemetry is off under `bun test`'s NODE_ENV=test; fetch is mocked below.
+    process.env.NODE_ENV = 'development'
     originalFetch = globalThis.fetch
     fetchMock = mock((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}', { status: 200 })))
     globalThis.fetch = fetchMock as unknown as typeof fetch
