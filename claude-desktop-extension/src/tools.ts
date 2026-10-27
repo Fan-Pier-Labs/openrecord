@@ -102,6 +102,7 @@ import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
 import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
+import { detailedMessage } from '../../shared/detailedError';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ function errorResult(message: string): ToolResult {
 const caughtErrors = new WeakMap<ToolResult, unknown>();
 
 function caughtErrorResult(err: unknown): ToolResult {
-  const result = errorResult((err as Error).message);
+  const result = errorResult(detailedMessage(err));
   caughtErrors.set(result, err);
   return result;
 }
@@ -499,7 +500,7 @@ export async function imagingResult(
     try {
       return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study), baseDir), errors);
     } catch (err) {
-      errors.push(`Downloaded the images but could not save them to disk: ${(err as Error).message}`);
+      errors.push(`Downloaded the images but could not save them to disk: ${detailedMessage(err)}`);
     }
   }
 

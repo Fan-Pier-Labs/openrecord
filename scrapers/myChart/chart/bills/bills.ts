@@ -14,6 +14,7 @@ import type { FilePayload } from '../../core/filePayload';
 import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
 import { VISIT_LIST_CATEGORIES, billingProcessor, isStubRow, statementDateISO, type BillingStandard } from './bills.processor';
+import { DetailedError } from '../../../../shared/detailedError';
 
 export { parsePaymentUrl, parseBillingAccountsHtml, parseAmount } from './summaryHtml';
 export type {
@@ -266,6 +267,7 @@ async function findStatement(
   const summary = await makeAuthenticatedRequest(mychartRequest, { path: '/Billing/Summary' });
   const accounts = parseBillingAccountsHtml(await summary.text(), mychartRequest.hostname);
   const seen: string[] = [];
+  const seenByAccount: string[] = [];
   for (const account of accounts) {
     const statementList = await getStatementList(mychartRequest, account);
     const statements = [
@@ -275,11 +277,14 @@ async function findStatement(
     const statement = statements.find((s) => s.RecordID === recordId);
     if (statement) return { account, statement };
     const ids = statements.map((s) => s.RecordID).filter(Boolean);
-    if (ids.length) seen.push(`account ${account.guarantorNumber}: ${ids.join(', ')}`);
+    seen.push(...ids);
+    if (ids.length) seenByAccount.push(`account ${account.guarantorNumber}: ${ids.join(', ')}`);
   }
-  throw new Error(
-    `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; ` +
-      (seen.length ? `the statements on this login are — ${seen.join('; ')}.` : 'this login has no statements on any account.'),
+  const lead = `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; `;
+  if (!seen.length) throw new Error(lead + 'this login has no statements on any account.');
+  throw new DetailedError(
+    lead + `the RecordIDs on this login are ${seen.join(', ')}.`,
+    lead + `the statements on this login are — ${seenByAccount.join('; ')}.`,
   );
 }
 
@@ -298,13 +303,15 @@ export async function downloadBillingStatement(
   const { account, statement } = await findStatement(mychartRequest, recordId);
   const encId = await getEncBillingId(mychartRequest, account);
   if (!encId) {
-    throw new Error(
+    throw new DetailedError(
+      "MyChart's billing details page for this statement's account carried no EncID, which the statement download needs.",
       `MyChart's billing details page for account ${account.guarantorNumber} carried no EncID, which the statement download needs.`,
     );
   }
   const bytes = await saveStatementPdf(mychartRequest, encId, statement);
   if (bytes.subarray(0, 4).toString() !== '%PDF') {
-    throw new Error(
+    throw new DetailedError(
+      `MyChart did not return a PDF for statement ${recordId} (${bytes.length} bytes).`,
       `MyChart did not return a PDF for statement ${recordId} (${bytes.length} bytes, starting "${bytes.subarray(0, 40).toString().replace(/\s+/g, ' ')}").`,
     );
   }

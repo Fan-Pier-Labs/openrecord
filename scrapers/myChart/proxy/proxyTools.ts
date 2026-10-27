@@ -27,6 +27,7 @@ import {
   type ProxyTarget,
   type ProxyContextCheck,
 } from './proxyContext';
+import { DetailedError, detailedMessage } from '../../../shared/detailedError';
 
 type PatientRecordSummary = {
   /** Opaque organization-specific record id. Never parse or construct one. */
@@ -205,7 +206,8 @@ export async function assertProxyReadContext(
     check = await checkProxyContext(mychartRequest, wantedQuery, { discoveredTargets: targets });
   } catch (err) {
     if (wantedQuery) {
-      throw new Error(`Could not verify which patient record is active: ${(err as Error).message}`);
+      const lead = 'Could not verify which patient record is active: ';
+      throw new DetailedError(lead + (err as Error).message, lead + detailedMessage(err));
     }
     return;
   }
@@ -223,10 +225,18 @@ export async function assertProxyReadContext(
 
   if (check.active) return;
 
+  const current = check.current
+    ? 'another patient record'
+    : 'an unknown patient record (this MyChart instance does not report which record is active)';
+  const fix = check.wanted.isSelf ? 'patient: "me"' : 'the same patient this call passed';
   const currentName = check.current
     ? `'${check.current.displayName}'`
     : 'an unknown patient (this MyChart instance does not report which record is active)';
-  throw new Error(
+  throw new DetailedError(
+    `Refusing to read: MyChart is currently on ${current}, not the one this call is about. ` +
+      'The active patient is server-side MyChart state and reading never changes it. ' +
+      `Call switch_proxy_target with ${fix} to switch deliberately, then retry. ` +
+      'list_proxy_targets shows every record this account can access, and which is active.',
     `Refusing to read: MyChart is currently on ${currentName}, but this call is about ` +
       `'${check.wanted.displayName}'. The active patient is server-side MyChart state and reading never ` +
       `changes it. Call switch_proxy_target with patient: ${JSON.stringify(check.wanted.displayName)} to ` +

@@ -374,6 +374,12 @@ await MyChartClient.runPublicCapability('lookup_npi', { npi: '1234567893' });  /
 
 All of these error classes are exported except `MissingVerificationTokenError`.
 
+**Show `detailedMessage(err)`, not `err.message`.** An error whose explanation names chart data — a
+family member, a document, a provider, what MyChart's page said — is a `DetailedError`
+(`MyChartResponseError` is one). Its `message` leaves that data out, so it is safe to log or send
+to error reporting; `detailedMessage` is the full explanation for the user. `detailedMessage(err)`
+returns it for a `DetailedError` and `err.message` for anything else.
+
 ## Imaging and CLO image conversion
 
 MyChart serves imaging through Epic's eUnity viewer as **CLO** files, a compressed pixel format.

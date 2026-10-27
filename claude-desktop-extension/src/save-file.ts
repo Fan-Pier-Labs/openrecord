@@ -15,6 +15,7 @@ import * as path from 'path';
 import type { FilePayload } from '../../shared/capabilities';
 import { downloadsDir } from './imaging/save-study';
 import { safeFileName } from '../../scrapers/myChart/core/safeFileName';
+import { DetailedError } from '../../shared/detailedError';
 
 /**
  * Save the payload under `baseDir` (Downloads) and return the absolute path
@@ -33,7 +34,10 @@ export function saveFilePayload(payload: FilePayload, baseDir: string = download
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
     }
   }
-  throw new Error(`Could not save ${payload.fileName} under ${baseDir} — 100 copies already exist.`);
+  throw new DetailedError(
+    'Could not save the file — 100 copies of its name already exist in that folder.',
+    `Could not save ${payload.fileName} under ${baseDir} — 100 copies already exist.`,
+  );
 }
 
 /**

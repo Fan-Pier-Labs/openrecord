@@ -26,6 +26,7 @@ import type { MyChartRequest } from '../../core/myChartRequest';
 import { RawCollector } from '../../core/rawResponse';
 import { DcsDocumentError, fetchDcsFile } from '../../core/dcsDocument';
 import type { FilePayload } from '../../core/filePayload';
+import { DetailedError } from '../../../../shared/detailedError';
 
 /** A downloaded document: the file, and what MyChart said about it. */
 export interface DocumentFile extends FilePayload {
@@ -66,11 +67,14 @@ export async function downloadDocument(
     }
     const named = failure.displayName || documentId;
     if (failure.reason === 'not_released') {
-      throw new Error(
-        `MyChart offers ${named} for viewing in the portal only and serves no file for it, ` +
-          'so there is nothing to download. Opening it in MyChart itself is the only way to read it.',
-      );
+      const rest =
+        ' for viewing in the portal only and serves no file for it, ' +
+        'so there is nothing to download. Opening it in MyChart itself is the only way to read it.';
+      throw new DetailedError(`MyChart offers document ${documentId}${rest}`, `MyChart offers ${named}${rest}`);
     }
-    throw new Error(`MyChart answered the download of ${named} with ${failure.detail}; nothing was downloaded.`);
+    throw new DetailedError(
+      `MyChart answered the download of document ${documentId} with ${failure.detail}; nothing was downloaded.`,
+      `MyChart answered the download of ${named} with ${failure.detail}; nothing was downloaded.`,
+    );
   }
 }

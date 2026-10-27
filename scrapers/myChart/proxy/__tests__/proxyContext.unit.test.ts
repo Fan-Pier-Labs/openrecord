@@ -450,7 +450,12 @@ describe('proxyContext', () => {
     })
 
     await expect(switchProxyTarget(req, { id: CHILD_ID }))
-      .rejects.toThrow("Proxy switch landed on the wrong patient: asked for 'Casey Patient', portal reports 'Morgan Different'.")
+      .rejects.toThrow(
+        expect.objectContaining({
+          message: "Proxy switch landed on the wrong patient: the portal's profile does not match the record asked for.",
+          detailedMessage: "Proxy switch landed on the wrong patient: asked for 'Casey Patient', portal reports 'Morgan Different'.",
+        }),
+      )
   })
 
   it('rejects a switch that lands on a sibling sharing the surname', async () => {
@@ -475,7 +480,12 @@ describe('proxyContext', () => {
     })
 
     await expect(switchProxyTarget(req, { id: CHILD_ID }))
-      .rejects.toThrow("portal is showing 'Lisa Marie Simpson' (Lisa Simpson)")
+      .rejects.toThrow(
+        expect.objectContaining({
+          message: expect.stringMatching(/^Proxy switch landed on the wrong patient: the portal is showing another record/),
+          detailedMessage: expect.stringContaining("portal is showing 'Lisa Marie Simpson' (Lisa Simpson)"),
+        }),
+      )
   })
 
   it('accepts a switch when the same person is also listed as a record linked from another org', async () => {
@@ -544,7 +554,12 @@ describe('proxyContext', () => {
     })
 
     await expect(switchProxyTarget(req, { displayName: 'Morgan Patient' }, { discoveredTargets: targets }))
-      .rejects.toThrow("Ambiguous proxy target displayName 'Morgan Patient'.")
+      .rejects.toThrow(
+        expect.objectContaining({
+          message: 'More than one patient record has that displayName. Use its id instead.',
+          detailedMessage: "Ambiguous proxy target displayName 'Morgan Patient'.",
+        }),
+      )
   })
 
   it('reports clearly when no discovered record is flagged as self', async () => {
@@ -724,8 +739,13 @@ describe('findProxyTarget', () => {
     expect(() => findProxyTarget(FAMILY, 'Simpson')).toThrow(/matches 3 patient records/)
   })
 
-  it('lists the options when nothing matches', () => {
-    expect(() => findProxyTarget(FAMILY, 'Nelson')).toThrow(/No patient record matches 'Nelson'/)
+  it('lists the options in the detailed message, naming nobody in the message, when nothing matches', () => {
+    expect(() => findProxyTarget(FAMILY, 'Nelson')).toThrow(
+      expect.objectContaining({
+        message: 'No patient record matches that name. list_proxy_targets lists every record this account can access.',
+        detailedMessage: expect.stringMatching(/^No patient record matches 'Nelson'\. Available: /),
+      }),
+    )
   })
 
   it('prefers an exact id over a name that would be ambiguous', () => {

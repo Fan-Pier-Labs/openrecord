@@ -2,6 +2,7 @@
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { PendingCallNote } from '../pending-call';
+import { detailedMessage } from '../../../shared/detailedError';
 
 /**
  * The widget's side of the MCP Apps JSON-RPC bridge to Claude Desktop. The
@@ -107,7 +108,7 @@ export function createHost(
         while (parkedId) ({ value, parkedId } = await callOnce('check_pending_call', { id: parkedId }));
         return value;
       } catch (err) {
-        return `Error: ${err instanceof Error ? err.message : String(err)}`;
+        return `Error: ${detailedMessage(err)}`;
       }
     },
     sendMessage: (text) => ready.then(() => rpc('ui/message', { role: 'user', content: [{ type: 'text', text }] })),

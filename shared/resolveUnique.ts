@@ -1,5 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
+import { DetailedError } from './detailedError';
+
 /**
  * Resolve a human-supplied name to exactly one item, or refuse.
  *
@@ -61,8 +63,9 @@ export interface ResolveUniqueOptions<T> {
  * Resolve `query` to exactly one item.
  *
  * @throws when the query is empty, matches nothing, or matches more than one
- * item — always listing the available names, so the caller can retry with
- * something specific instead of guessing.
+ * item. The detailed message lists the available names, so the caller can
+ * retry with something specific instead of guessing; the message names none,
+ * since they are the patient's providers or medications.
  */
 export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueOptions<T>): T {
   const { getName, label } = opts;
@@ -72,7 +75,7 @@ export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueO
 
   const wanted = normalize(query);
   if (!wanted) {
-    throw new Error(`No ${label} name given. Available: ${available()}`);
+    throw new DetailedError(`No ${label} name given.`, `No ${label} name given. Available: ${available()}`);
   }
 
   // 1. Exact match, case- and whitespace-insensitive. A correct name always
@@ -80,7 +83,8 @@ export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueO
   const exact = items.filter((item) => namesOf(item).includes(wanted));
   if (exact.length === 1) return exact[0]!;
   if (exact.length > 1) {
-    throw new Error(
+    throw new DetailedError(
+      `${exact.length} ${label}s have that name. They cannot be told apart by name.`,
       `More than one ${label} is called "${query}": ${exact.map(getName).join(', ')}. ` +
         'They cannot be told apart by name.',
     );
@@ -93,10 +97,11 @@ export function resolveUnique<T>(items: T[], query: string, opts: ResolveUniqueO
   );
 
   if (partial.length === 0) {
-    throw new Error(`No ${label} matching "${query}". Available: ${available()}`);
+    throw new DetailedError(`No ${label} matches that name.`, `No ${label} matching "${query}". Available: ${available()}`);
   }
   if (partial.length > 1) {
-    throw new Error(
+    throw new DetailedError(
+      `${partial.length} ${label}s match that name. Be more specific.`,
       `Multiple ${label}s match "${query}": ${partial.map(getName).join(', ')}. Be more specific.`,
     );
   }

@@ -41,6 +41,7 @@ import {
 import { renderCliHelp } from './help';
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { fetchResolvedMyChartDirectory } from '../../scrapers/list-all-mycharts/refreshDirectory';
+import { detailedMessage } from '../../shared/detailedError';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -757,7 +758,7 @@ async function main() {
       closeRL();
       process.exit(0);
     } catch (err) {
-      console.error(`  ${(err as Error).message}`);
+      console.error(`  ${detailedMessage(err)}`);
       closeRL();
       process.exit(1);
     }
@@ -782,7 +783,7 @@ async function main() {
       closeRL();
       process.exit(0);
     } catch (err) {
-      console.error(`  ${(err as Error).message}`);
+      console.error(`  ${detailedMessage(err)}`);
       closeRL();
       process.exit(1);
     }
@@ -944,7 +945,7 @@ async function main() {
       try {
         check = await checkProxyContext(session.request, cliArgs.patient);
       } catch (err) {
-        const why = (err as Error).message;
+        const why = detailedMessage(err);
         if (cliArgs.patient) {
           // A specific patient was asked for and we can't confirm we're on
           // them. Refusing is the whole point.

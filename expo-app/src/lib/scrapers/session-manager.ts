@@ -50,6 +50,7 @@ import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/auth/
 import { wireSilentReauthentication } from "../../../../scrapers/myChart/auth/silentLogin";
 import { sessionStore } from "../../../../scrapers/myChart/core/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
+import { detailedMessage } from "../../../../shared/detailedError";
 
 type SessionEntry = {
   account: StoredMyChartAccount;
@@ -487,7 +488,7 @@ async function runScraper(
     // The agent loop reads tool results as text, so a thrown "no medication
     // matching X / here are the options" is far more useful to it as a
     // structured error than as a crashed turn.
-    return { error: (err as Error).message };
+    return { error: detailedMessage(err) };
   }
 }
 

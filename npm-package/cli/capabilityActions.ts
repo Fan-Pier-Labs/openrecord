@@ -41,6 +41,7 @@ import { loadTotpSecret, saveTotpSecret } from './totpStore';
 import { savePasskeyCredential } from './passkeyStore';
 import { readLocalFile } from '../../shared/readLocalFile';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
+import { detailedMessage } from '../../shared/detailedError';
 
 /**
  * Dashed action names the CLI accepted back when each had a hand-written
@@ -394,7 +395,7 @@ export async function runCapabilityAction(
     console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
   } catch (err) {
-    console.log(`  ${(err as Error).message}`);
+    console.log(`  ${detailedMessage(err)}`);
     return false;
   }
 }
@@ -421,7 +422,7 @@ export async function runPublicCapabilityAction(
     console.log(typeof result === 'string' ? result : JSON.stringify(result, jsonSafeReplacer, 2));
     return true;
   } catch (err) {
-    console.log(`  ${(err as Error).message}`);
+    console.log(`  ${detailedMessage(err)}`);
     return false;
   }
 }
@@ -484,13 +485,13 @@ export async function downloadAllImagingStudies(
         for (const message of payload.errors) console.log(`    warning: ${message}`);
         if (files.length === 0 && payload.errors.length > 0) ok = false;
       } catch (err) {
-        console.log(`  ${study.orderName ?? 'study'}: ${(err as Error).message}`);
+        console.log(`  ${study.orderName ?? 'study'}: ${detailedMessage(err)}`);
         ok = false;
       }
     }
     return ok;
   } catch (err) {
-    console.log(`  ${(err as Error).message}`);
+    console.log(`  ${detailedMessage(err)}`);
     return false;
   }
 }

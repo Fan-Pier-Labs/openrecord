@@ -129,7 +129,7 @@ export async function fetchDcsFile(
   if (!downloadUrl) {
     throw new DcsDocumentError(
       { reason: 'not_released', displayName },
-      `MyChart serves no file for ${displayName || request.dcsId}.`,
+      `MyChart serves no file for document ${request.dcsId}.`,
     );
   }
 
