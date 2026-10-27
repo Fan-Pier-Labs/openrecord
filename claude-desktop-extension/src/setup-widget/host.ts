@@ -83,7 +83,7 @@ export function createHost(
   const notify = (method: string, params: unknown) => post({ jsonrpc: '2.0', method, params });
 
   const ready = rpc('ui/initialize', {
-    appInfo: { name: 'openrecord-setup', version: '2.0.0' },
+    appInfo: { name: 'openrecord-setup', version: '2.1.0' },
     appCapabilities: {},
     protocolVersion: PROTOCOL_VERSION,
   }).then((result) => {
